@@ -957,6 +957,12 @@ func runStableCanonicalProfile(ctx context.Context, repo string, raw []byte, bas
 			return fail("verification", invalid("invalid-field"), true)
 		}
 		mapped[path] = true
+		if f.binary {
+			if e := binaryEntriesMatch(f, a, b); e != nil {
+				return fail(stableStage(e), e, !e.operational)
+			}
+			continue
+		}
 		var old, new []byte
 		if a != nil {
 			if !regularFile(a) {

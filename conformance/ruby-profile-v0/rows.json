@@ -104,7 +104,8 @@
       "class": "request-spec",
       "results": [
         "path app/controllers/users_controller.rb",
-        "test spec/controllers/users_controller_spec.rb"
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/requests/users_spec.rb"
       ],
       "unknowns": [
         "dynamic-dispatch-unresolved"
@@ -114,7 +115,8 @@
       "class": "controller-spec",
       "results": [
         "path app/controllers/users_controller.rb",
-        "test spec/controllers/users_controller_spec.rb"
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/requests/users_spec.rb"
       ],
       "unknowns": [
         "dynamic-dispatch-unresolved"

@@ -114,10 +114,26 @@ type testSliceCandidate struct {
 	rest    bool
 }
 
+// wholeReader names the specific reader a whole-package selection rests on
+// (V1-3573): the command whose built binary the package runs, the cause of
+// its unbounded reads, or the unit its dependency path comes through. Other
+// witnesses name the package itself, so they add nothing.
+func wholeReader(witness affected.Witness) string {
+	switch {
+	case witness.Kind == affected.WitnessBinaryExec && len(witness.Via) >= 2:
+		return " (runs the built " + witness.Via[len(witness.Via)-2] + " binary)"
+	case witness.Kind == affected.WitnessUnboundedReader && witness.Cause != nil:
+		return " (" + witness.Cause.Reads + ")"
+	case witness.Kind == affected.WitnessDependency && len(witness.Via) >= 2:
+		return " (imports " + witness.Via[len(witness.Via)-2] + ")"
+	}
+	return ""
+}
+
 func testSliceCandidateOf(plan affected.Plan, graph *affected.Graph, selection affected.Selection) (testSliceCandidate, string) {
 	witness := selection.Witness
 	if witness.Kind != affected.WitnessDirectTest {
-		return testSliceCandidate{}, "whole: " + witness.Kind + " via " + witness.DirtyPath
+		return testSliceCandidate{}, "whole: " + witness.Kind + " via " + witness.DirtyPath + wholeReader(witness)
 	}
 	unit, ok := graph.Unit(selection.UnitID)
 	if !ok {

@@ -58,7 +58,7 @@ func TestTQDV0020_DoctorConfig(t *testing.T) {
 		"percent over 100":  `{"profile":"taskman-doctor-config/0","thresholds":{"fdPressurePercent":"101"}}`,
 		"relative hook":     `{"profile":"taskman-doctor-config/0","notify":{"command":["hook.sh"]}}`,
 		"empty hook":        `{"profile":"taskman-doctor-config/0","notify":{"command":[]}}`,
-		"interval too long": `{"profile":"taskman-doctor-config/0","notify":{"command":["/bin/true"],"minIntervalSeconds":"604801"}}`,
+		"interval too long": `{"profile":"taskman-doctor-config/0","notify":{"command":["/usr/bin/true"],"minIntervalSeconds":"604801"}}`,
 		"unknown format":    `{"profile":"taskman-doctor-config/0","dispatchers":[{"programDir":"p","format":"gpt"}]}`,
 		"no dispatchers":    `{"profile":"taskman-doctor-config/0","dispatchers":[]}`,
 		"nine dispatchers":  `{"profile":"taskman-doctor-config/0","dispatchers":[` + strings.TrimSuffix(strings.Repeat(`{"programDir":"p"},`, 9), ",") + `]}`,

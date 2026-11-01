@@ -11,6 +11,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -80,13 +81,13 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
+	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close", "ticket recur",
+	"ticket revoke-approval", "ticket attach-evidence", "ticket progress", "ticket batch-close", "ticket recur", "ticket split",
 	"release create", "release update", "release membership", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
@@ -114,7 +115,6 @@ var ReadVerbs = []string{
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"config", "plan record", "receipt show", "receipt replay",
-	"archive restore",
 }
 
 // Run executes one command and returns the process exit code: 0 iff the
@@ -131,6 +131,9 @@ func Run(env Env) int {
 	}
 	if env.Stdin == nil {
 		env.Stdin = strings.NewReader("")
+	}
+	if res := globalRoot(&env); res != nil {
+		return emit(env.Stdout, res)
 	}
 	args := env.Args
 	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
@@ -218,6 +221,8 @@ func Run(env Env) int {
 			return emitDeliveryScreen(env, args[2:])
 		case "batch-delivered":
 			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
+		case "effects-proposals":
+			return emit(env.Stdout, effectsProposalsCommand(env, args[2:]))
 		case "batch-close":
 			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
@@ -228,6 +233,8 @@ func Run(env Env) int {
 			return ticketDigest(env, args[2:])
 		case "recur":
 			return emit(env.Stdout, ticketRecur(env, args[2:]))
+		case "split":
+			return emit(env.Stdout, ticketSplit(env, args[2:]))
 		}
 		if args[1] == "note" {
 			return emit(env.Stdout, noteCommand(env, args[2:]))
@@ -406,7 +413,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
 	case "archive":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE]"))
+			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE], restore FILE"))
 		}
 		switch args[1] {
 		case "export":
@@ -415,7 +422,7 @@ func Run(env Env) int {
 		case "verify":
 			return emit(env.Stdout, archiveVerify(env, args[2:]))
 		case "restore":
-			return emit(env.Stdout, notRun([]string{"archive", "restore"}))
+			return emit(env.Stdout, archiveRestore(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"archive"}, "unknown archive verb"))
 	}
@@ -460,6 +467,31 @@ func prose(s string) string {
 
 // emit encodes the envelope and returns the exit code. An envelope that
 // fails its own validation is replaced by a minimal ERROR envelope.
+// globalRoot applies a leading `--root DIR` (or `--root=DIR`): the command
+// runs as if started in DIR, relative to the working directory (CTS-V0-871).
+func globalRoot(env *Env) *wire.Result {
+	if len(env.Args) == 0 || (env.Args[0] != "--root" && !strings.HasPrefix(env.Args[0], "--root=")) {
+		return nil
+	}
+	dir, inline := strings.CutPrefix(env.Args[0], "--root=")
+	rest := env.Args[1:]
+	if !inline {
+		if len(rest) == 0 {
+			dir = ""
+		} else {
+			dir, rest = rest[0], rest[1:]
+		}
+	}
+	if dir == "" || strings.HasPrefix(dir, "--") {
+		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
+	}
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(env.Cwd, dir)
+	}
+	env.Cwd, env.Args = dir, rest
+	return nil
+}
+
 func emit(w io.Writer, res *wire.Result) int {
 	data, err := res.Encode()
 	if err != nil {
@@ -521,13 +553,13 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 		"corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]   (optional payload localToken, e.g. BT-002, picks the queue-local ID; no --target)",
-		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks <command> --help   (usage and flags; add --verbose for notes, reason codes and preconditions)",
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
-		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
 		"corvint-tasks pool status [--pool ID] [--member ID]",
 		"corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role ROLE]",
@@ -545,7 +577,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N]",
 		"corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--handoff-to STAGE [--handoff-reason CODE]]",
 		"corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]]",
-		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository)",
+		"corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--admit-under-barrier]",
 		"corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--selected-only] [--summary | --fields KEY[.SUB],...]",
 		"corvint-tasks claim --next --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH...] [--pool ID] [--stage implement|review|integrate]",
@@ -815,7 +847,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1138,6 +1170,7 @@ type searchFilter struct {
 	milestone *string
 	label     *string
 	text      *string // lower-cased substring of title or body
+	phase     *string // effective progress phase or NONE (TLF-V0-882)
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1200,8 +1233,11 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		low := strings.ToLower(t)
 		f.text = &low
 	}
-	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text)")
+	if f.phase, err = enumFlag(fl, "phase", searchPhases); err != nil {
+		return f, err
+	}
+	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil && f.phase == nil {
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase); `ticket list` is the unfiltered read")
 	}
 	return f, nil
 }
@@ -1240,6 +1276,22 @@ func (f searchFilter) matchesSummary(rec *ticket.Summary) bool {
 	return true
 }
 
+// searchPhases are the --phase values: every effective phase plus NONE.
+var searchPhases = append(append([]string{}, wire.ProgressPhases[:len(wire.ProgressPhases)-1]...), "NONE")
+
+// matchesPhase applies --phase (TLF-V0-882). A closed ticket has no
+// effective progress, so it is decided from its summary without a decode.
+func (f searchFilter) matchesPhase(inv *ticket.Inventory, id string, s *ticket.Summary) bool {
+	if f.phase == nil {
+		return true
+	}
+	if ticket.Closed(s.Status) {
+		return *f.phase == "NONE"
+	}
+	rec, _ := inv.Get(id)
+	return rec.EffectivePhase() == *f.phase
+}
+
 // matchesText applies --text, which needs the whole record.
 func (f searchFilter) matchesText(rec *ticket.Record) bool {
 	if f.text != nil {
@@ -1268,7 +1320,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1288,7 +1340,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 		var ids []string
 		inv := rc.store.Inventory
 		for _, id := range inv.Sorted() {
-			if s, _ := inv.Summary(id); !f.matchesSummary(s) {
+			if s, _ := inv.Summary(id); !f.matchesSummary(s) || !f.matchesPhase(inv, id, s) {
 				continue
 			}
 			if f.text != nil {
@@ -1454,11 +1506,13 @@ func roadmap(env Env, args []string) *wire.Result {
 func roadmapRow(inv *ticket.Inventory, id string, ctx ticket.Context) wire.Value {
 	s, _ := inv.Summary(id)
 	gateResults, eligibility, next := ticket.NotObserved, "", ""
+	var progress *ticket.Progress
 	if ticket.Closed(s.Status) {
 		eligibility, next = ticket.ClosedView(s)
 	} else {
 		v, _ := inv.View(id, ctx)
 		gateResults, eligibility, next = v.GateResults, v.Eligibility, v.NextAction
+		progress = v.Record.EffectiveProgress()
 	}
 	o := wire.NewObject()
 	o.Set("milestone", wire.StringOrNull(s.Milestone))
@@ -1473,6 +1527,10 @@ func roadmapRow(inv *ticket.Inventory, id string, ctx ticket.Context) wire.Value
 	o.Set("gateResults", wire.String(string(gateResults)))
 	o.Set("eligibility", wire.String(eligibility))
 	o.Set("nextAction", wire.String(next))
+	// TLF-V0-882: advisory; never an input to the roadmap order.
+	if progress != nil {
+		o.Set("progress", ticket.ProgressEntryValue(*progress))
+	}
 	return wire.ObjectValue(o)
 }
 
@@ -1618,7 +1676,32 @@ func resolveTicketArg(rc *readCtx, arg string) (string, error) {
 	if id.QueueID() != rc.store.Queue.QueueID.Raw {
 		return "", wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is outside queue %s", id.Raw, rc.store.Queue.QueueID.Raw)
 	}
+	if c := paddedCandidates(rc, id); len(c) == 1 {
+		return c[0], nil
+	}
 	return id.Raw, nil
+}
+
+// paddedCandidates are the tickets an absent token with an unpadded numeric
+// suffix (QB-1) names once leading zeros are added (QB-0001); an exact token
+// has none (CTS-V0-873).
+func paddedCandidates(rc *readCtx, id wire.TicketID) []string {
+	if _, ok := rc.store.Inventory.Get(id.Raw); ok {
+		return nil
+	}
+	digits := id.Local[strings.LastIndexByte(id.Local, '-')+1:]
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		return nil
+	}
+	prefix := strings.TrimSuffix(id.Raw, digits)
+	var found []string
+	for zeros := 1; len(digits)+zeros <= 8; zeros++ {
+		c := prefix + strings.Repeat("0", zeros) + digits
+		if _, ok := rc.store.Inventory.Get(c); ok {
+			found = append(found, c)
+		}
+	}
+	return found
 }
 
 func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
@@ -1632,20 +1715,23 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "ticket %s takes exactly one ticket id or local token", verb))
 	}
 	var item *wire.Value
-	notFound := ""
+	notFound, candidates := "", ""
 	read := withStore
 	if includeRecord {
 		read = withInventoryStore
 	}
 	rc, err := read(env, func(rc *readCtx) error {
 		item = nil
-		notFound = ""
+		notFound, candidates = "", ""
 		id, err := resolveTicketArg(rc, args[0])
 		if err != nil {
 			return err
 		}
 		if _, ok := rc.store.Inventory.Get(id); !ok {
 			notFound = id
+			if c := paddedCandidates(rc, wire.TicketID{Raw: id, Local: id[strings.LastIndexByte(id, ':')+1:]}); len(c) > 1 {
+				candidates = "; it names " + strings.Join(c, " and ")
+			}
 			return nil
 		}
 		ctx, err := ticketContext(rc)
@@ -1730,7 +1816,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		} else if rc.journalAbsent {
 			res.Warnings = append(res.Warnings, journalAbsentNotFound(rc, notFound))
 		} else {
-			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue"+candidates)
 		}
 		return res
 	}
@@ -2053,7 +2139,7 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	}
 	var r io.Reader = env.Stdin
 	if len(args) == 1 && args[0] != "-" {
-		f, err := os.Open(args[0])
+		f, err := os.Open(commandPath(env.Cwd, args[0]))
 		if err != nil {
 			return failure(cmd, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "argv", "cannot open archive: %v", err))
 		}
@@ -2073,6 +2159,37 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	o.Set("files", wire.String(string(wire.CountOf(int64(vr.Files)))))
 	o.Set("bytes", wire.String(string(wire.SizeOf(vr.Bytes))))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+// archiveRestore rebuilds an absent store from one verified archive
+// (TRL-V0-870, TRL-V0-871).
+func archiveRestore(env Env, args []string) *wire.Result {
+	cmd := []string{"archive", "restore"}
+	if len(args) != 1 || strings.HasPrefix(args[0], "-") {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "archive restore takes exactly one archive file argument"))
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	rep, err := store.RestoreArchive(writerContext(), repo, commandPath(env.Cwd, args[0]))
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	m := rep.Verified.Manifest
+	o := wire.NewObject()
+	o.Set("queueId", wire.String(m.QueueID.Raw))
+	o.Set("exportedAtSeq", wire.String(string(m.ExportedAtSeq)))
+	o.Set("headGeneration", wire.String(string(m.HeadGeneration)))
+	o.Set("files", wire.String(string(wire.CountOf(int64(rep.Verified.Files)))))
+	o.Set("bytes", wire.String(string(wire.SizeOf(rep.Verified.Bytes))))
+	o.Set("stateFiles", wire.String(string(wire.CountOf(int64(rep.StateFiles)))))
+	o.Set("intentWritten", wire.String(string(wire.CountOf(int64(rep.IntentWritten)))))
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+	if rep.RecordedPrimary != "" {
+		res.Warnings = append(res.Warnings, "the archive was exported from primary worktree "+rep.RecordedPrimary+"; run `corvint-tasks relocate --from "+rep.RecordedPrimary+"` to bind the restored store to this path")
+	}
+	return res
 }
 
 // withoutKeys copies an object item without the named keys.

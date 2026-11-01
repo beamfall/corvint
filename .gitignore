@@ -61,12 +61,14 @@ node_modules/
 /dogfood-inherit-citations
 /gate-affected-select
 /gate-ledger
+/gotest-evidence
 /heading-nav-bench
 /local-authority
 /native-hook-observer
 /paired-trial
 /pi-tui-fixture
 /qualify-opencode
+/requirement-id-collisions
 /retrieval-bench
 /selection-baseline
 /str-parity

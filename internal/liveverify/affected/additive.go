@@ -206,7 +206,7 @@ func (graph *Graph) additiveExclusions(normalized []string, records []GoAdditive
 	}
 	plain := *graph
 	plain.goAdditive = nil
-	full, _, _, _, _, _, _, _ := plain.reach(normalized, true)
+	full, _, _, _, _, _, _, _, _ := plain.reach(normalized, true)
 	through := make(map[string]string, len(full))
 	for id, witness := range full {
 		chain := witness.Chain()

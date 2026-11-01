@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -24,6 +25,11 @@ func runArchiveCLI(ctx context.Context, arguments []string, stdout, stderr *os.F
 		return 2
 	}
 	report, runErr := buildArchives(ctx, options)
+	var notHead revisionNotHeadError
+	if errors.As(runErr, &notHead) {
+		fmt.Fprintln(stderr, "release-artifact-v0 archive:", runErr)
+		return 1
+	}
 	witnessErr := writeArchiveWitnessBestEffort(options.Root, report.witness())
 	if witnessErr != nil {
 		fmt.Fprintln(stderr, "release-artifact-v0 archive: private witness not recorded:", witnessErr)

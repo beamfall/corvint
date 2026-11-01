@@ -288,9 +288,9 @@ func TestCALV0130_RollbackAcrossDifferentFormatsRefuses(t *testing.T) {
 // preimage (taskman-diff-scope/0, TCD-V0-174), and never decoded again, so
 // they are not part of the CAL-V0-131 format set.
 var outputOnlyProfiles = []string{
-	"taskman-batch-close/0", "taskman-batch-close/1", "taskman-batch-delivered/0", "taskman-batch-merge/0", "taskman-closeout-debt/0", "taskman-critical-path/0", "taskman-delivery-screen/0", "taskman-diff-scope/0", "taskman-dispatch-run/0", "taskman-dispatch-reader-recover/0", "taskman-dispatch-salvage/0", "taskman-doctor/0", "taskman-dispatch-status/0", "taskman-dispatch-unpark/0", "taskman-dispatch-handover/0", "taskman-dispatch-upgrade-apply/0", "taskman-dispatch-upgrade-check/0",
+	"taskman-batch-close/0", "taskman-batch-close/1", "taskman-batch-delivered/0", "taskman-batch-merge/0", "taskman-closeout-debt/0", "taskman-critical-path/0", "taskman-delivery-screen/0", "taskman-diff-scope/0", "taskman-dispatch-run/0", "taskman-dispatch-reader-recover/0", "taskman-dispatch-salvage/0", "taskman-doctor/0", "taskman-dispatch-status/0", "taskman-dispatch-unpark/0", "taskman-dispatch-handover/0", "taskman-dispatch-upgrade-apply/0", "taskman-dispatch-upgrade-check/0", "taskman-effects-proposals/0",
 	"taskman-lease-timing/0", "taskman-multi-target/0", "taskman-plan-batches/0", "taskman-plan-selected/0", "taskman-plan-summary/0", "taskman-plan/0", "taskman-pool-status/0",
-	"taskman-priority-first/0", "taskman-review-packet/0",
+	"taskman-priority-first/0", "taskman-review-packet/0", "taskman-ticket-split/0",
 	"taskman-user-service-install/0", "taskman-user-service-resume/0", "taskman-user-service-run-helper/0",
 	"taskman-user-service-run/0", "taskman-user-service-status/0", "taskman-user-service-stop/0",
 	"taskman-user-service-uninstall/0",

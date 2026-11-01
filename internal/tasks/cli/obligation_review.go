@@ -118,7 +118,7 @@ func reviewAuthorSet(attempts map[string]*snapshot.Attempt, ticketID string, exp
 // read from Git at commit, and the payload is checked through the
 // authoritative reader so an author reviewer refuses before any write.
 func reviewedWitness(env Env, root, commit, ticketID, file, excludeArg string) (*ticket.ObligationReview, string, error) {
-	review, err := readReviewInput(file)
+	review, err := readReviewInput(commandPath(env.Cwd, file))
 	if err != nil {
 		return nil, "", err
 	}

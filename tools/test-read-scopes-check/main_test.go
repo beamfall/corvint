@@ -348,3 +348,89 @@ func TestGoTestDependencyAndFlagValues_V1_3210(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-817 (V1-3326): a read-scope key naming a dependent nested module
+// (AFP-V0-582) or a directory with no package unit is refused naming why no
+// confined shard can enforce it; a root-module package key is accepted.
+func TestUnsupportedReadScopeKeysNameTheirReason_V1_3326(t *testing.T) {
+	for name, c := range map[string]struct {
+		scopes string
+		code   int
+		want   string
+	}{
+		"root package":     {`{"internal/other":[]}`, 0, "test-read-scopes-check: ok"},
+		"dependent module": {`{"internal/other":[],"tools/dep":[]}`, 2, `.corvint/test-read-scopes.json declares "tools/dep", the dependent nested module unit go:example.test/dep (AFP-V0-582), which has no files of its own and which the root module's go list ./... never lists, so no confined CI shard runs it under the AFP-V0-023 wrapper; remove the key`},
+		"no package":       {`{"docs/notes":[],"internal/other":[]}`, 2, `.corvint/test-read-scopes.json declares "docs/notes", which holds no Go package unit of the root module, so no test process exists to confine; remove the key`},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/other/o.go":            "package other\n",
+			"internal/other/o_test.go":       "package other\n",
+			"tools/dep/go.mod":               "module example.test/dep\n\ngo 1.27\n\nrequire example.test/m v0.0.0\n",
+			"tools/dep/main.go":              "package main\n\nimport _ \"example.test/m/internal/other\"\n\nfunc main() {}\n",
+			"docs/notes/readme.md":           "notes\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":` + c.scopes + `}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+	}
+}
+
+// AFP-V0-819: the checker builds a Go-only graph, which cannot observe the
+// Playwright specs a declared Go-to-Playwright runtime edge names, so it must
+// skip that edge rather than refuse it as holding no test file.
+func TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                      "module example.test/m\n\ngo 1.27\n",
+		"server/server.go":            "package server\n\nfunc Handle() string { return \"ok\" }\n",
+		"server/server_test.go":       "package server\n",
+		"cmd/server/main.go":          "package main\n\nimport \"example.test/m/server\"\n\nfunc main() { println(server.Handle()) }\n",
+		"e2e/login.spec.ts":           "import { test } from '@playwright/test';\ntest('login', async () => {});\n",
+		".corvint/runtime-edges.json": `{"profile":"corvint-runtime-edges/0","edges":[{"tests":"e2e/","runs":"go:example.test/m/cmd/server","reason":"the Playwright specs drive the server"}]}`,
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(writeRepository(t, files), &stdout, &stderr); code != 0 {
+		t.Fatalf("code=%d output %q", code, stdout.String()+stderr.String())
+	}
+}
+
+// ASD-V0-895 (V1-3391): in a package whose tests locate the root, a literal on
+// a line that ends with //corvint:fixture-path names no read, while the same
+// path in an unmarked literal of that file is still refused.
+func TestFixtureMarkedLiteralNamesNoRead_V1_3391(t *testing.T) {
+	files := func(test string) map[string]string {
+		return map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"docs/specs/a.md":                "# a\n",
+			"p/p.go":                         "package p\n",
+			"p/root_test.go":                 "package p\n\nvar top = \"" + strings.Repeat(up, 1) + "\"\n",
+			"p/p_test.go":                    test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"p":[]}}`,
+		}
+	}
+	marker := "//" + "corvint:fixture-path"
+	for name, c := range map[string]struct {
+		test string
+		code int
+	}{
+		"marked":           {"package p\n\nvar fixture = \"docs/specs/a.md\" " + marker + "\n", 0},
+		"marked multi":     {"package p\n\nvar fixture = []string{\n\t\"docs/specs\", " + marker + "\n\t\"docs/specs/a.md\", " + marker + "\n}\n", 0},
+		"unmarked":         {"package p\n\nvar fixture = \"docs/specs/a.md\"\n", 1},
+		"also unmarked":    {"package p\n\nvar fixture = \"docs/specs/a.md\" " + marker + "\n\nvar read = \"docs/specs/a.md\"\n", 1},
+		"marker elsewhere": {"package p\n\n" + marker + "\nvar fixture = \"docs/specs/a.md\"\n", 1},
+	} {
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files(c.test)), &stdout, &stderr)
+		if code != c.code {
+			t.Errorf("%s: code=%d want %d; stderr %q", name, code, c.code, stderr.String())
+		}
+		if c.code == 1 && !strings.Contains(stderr.String(), "names docs/specs/a.md") ||
+			c.code == 1 && !strings.Contains(stderr.String(), "or end the line of a fixture-only literal with "+marker+" (ASD-V0-895)") {
+			t.Errorf("%s: refusal %q lacks the path or the marker hint", name, stderr.String())
+		}
+	}
+}

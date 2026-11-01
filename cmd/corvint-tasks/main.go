@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 )
@@ -24,6 +26,10 @@ func main() {
 		}
 		return
 	}
+	// CTS-V0-872: a closed stdout pipe fails the write with EPIPE instead of
+	// killing the process, so the exit status stays the command's outcome. A
+	// notified (not ignored) SIGPIPE leaves children the default disposition.
+	signal.Notify(make(chan os.Signal, 1), syscall.SIGPIPE)
 	cli.Build = build
 	cwd, err := os.Getwd()
 	if err != nil {

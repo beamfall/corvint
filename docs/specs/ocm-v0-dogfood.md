@@ -308,6 +308,16 @@ claim, and mutation ordering deltas below.
   `TestOCMV0028OverBoundIntentsRefuseBeforeAnyStep`; the 583-path replay refusal time in
   `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-ocm-scale.md`. Rollback: drop the precheck; the aggregate refuses
   after the OCM steps as before.
+- `OCM-V0-900`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3455; refines
+  `OCM-V0-019` and `OCM-V0-920`) The traced test of the change-scoped coverage MUST also count a
+  referenced requirement as traced when a `*_test.go` or `*_test.sh` line names its compact form
+  (the ID without hyphens, such as `TCPV0991` for `TCP-V0-991`) as a token suffix after `_` or a
+  non-token byte, as the repository's test names do (`TestX_TCPV0991`), and when a table row
+  outside the requirements section names a range `PREFIX-LO..HI` (such as `TCP-V0-990..993`)
+  whose numbers include it. A range written `PREFIX-LO..PREFIX-HI` counts only when both
+  endpoints carry the same prefix; a mixed-prefix range such as `TCP-V0-990..ABC-V0-999` traces
+  nothing. Evidence: `TestOCMV0900TracesCompactTestSuffixesAndRowRanges` (the
+  ctxpkt-w1 V1-1269 shape). Rollback: drop the compact and range matches.
 - `OCM-V0-920`: (experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,
   `OCM-V0-020` and `OCM-V0-025` so the change-scoped members cannot be read as the `OCM-V0-013`
   aggregate's link count. The SUMMARY members MUST print as `change-requirements=N
@@ -319,6 +329,19 @@ claim, and mutation ordering deltas below.
   consumer parsing the old member names reads nothing, never a wrong count. Evidence:
   `TestOCMV0920SummaryNamesTheChangePopulation`. Rollback: restore the three old member names
   and the `unlinked-requirements` note.
+- `OCM-V0-880`: (experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)
+  The change-scoped population MUST also count, as referenced, a requirement whose unfenced
+  requirement line (the `OCM-V0-001` syntax) lies outside the intent's one `## Requirements`
+  section when the BASE..target `-U0` diff adds or changes a line of its item, the item running to
+  the next requirement line or heading line. Such a requirement has no `OCM-V0-001` obligation, so
+  it is traced only by a test file or a table row naming it, and the check MUST print `dogfood-check:
+  NOTE requirements-outside-ocm-section count=N ids=ID[,ID...]: ...` naming each, bounded as the
+  `OCM-V0-025` note. Citation spans keep counting only items inside the section; the aggregate and
+  every verdict are unchanged. Design: `test-source-analysis-v0.md` defines `TSA-V0-410..419` under
+  a later `##` section, so the PR #1317 check reported zero requirements though the diff added ten.
+  Non-goals: enumerating such lines as OCM obligations (that amends `OCM-V0-001`). Evidence:
+  `TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection`. Rollback: drop
+  `requirementSection.outside` and the note.
 
 ## Wire profile
 
@@ -623,7 +646,9 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-026 | `internal/cem/gitrun/gitrun.go` (`exhausted`, `exceededError`), `internal/cem/verify/stable.go` (`LimitCause`), `internal/lrfrepo/ocm_read.go` (`stableOCMRefusal`), `internal/lrfrepo/adapter.go` | `internal/lrfrepo/ocm_stable_refusal_test.go:TestOCMV0026PrepareRefusalNamesTheBoundThatFired`, `internal/cem/verify/stable_drift_resource_limit_test.go:TestCEMV1260DriftResourceLimitNative`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedOutputBound`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedBudgetExhaustion` |
 | OCM-V0-027 | `internal/lrfrepo/stable_reuse.go` (`StableReuse`, `acceptedStableReused`, `verifierIdentity`), `internal/lrfrepo/stable_reuse_change_darwin.go` (`fileChangedBefore`), `internal/lrfrepo/ocm_read.go` (`verifyStableOCMCEM`), `internal/cem/verify/stable_artifacts.go` (`RecheckStableArtifacts`), `internal/dogfoodocm/aggregate.go` (`Status`), `internal/dogfoodflow/flow.go` (`childEnvironment`) | `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027RunVerifiesUnchangedCEMOnce`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ChangedDigestForcesReverification`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReuseMissesOnVerifierOrArtifactChange`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReplacedExecutableHasNoIdentity`, `internal/dogfoodflow/stable_reuse_test.go:TestOCMV0027ChildrenShareOnlyTheirRunStore` |
 | OCM-V0-028 | `internal/dogfoodflow/obligation_precheck.go` (`precheckIntentObligations`, `manifestIntents`), `internal/lrfrepo/ocm_obligation_count.go` (`IntentObligationCounts`), `internal/dogfoodflow/change.go` (`fitHint`) | `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028OverBoundIntentsRefuseBeforeAnyStep`, `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028DerivedBoundAdmitsSummedScopes` |
+| OCM-V0-900 | `internal/dogfoodflow/ocm_coverage.go` (`testsNaming`, `namesCompactRequirement`, `rowRangeNames`) | `internal/dogfoodflow/ocm_coverage_test.go:TestOCMV0900TracesCompactTestSuffixesAndRowRanges` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
+| OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains

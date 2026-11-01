@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -85,6 +86,10 @@ type Report struct {
 	// GateReusedFrom names the earlier result a committed gate run reused
 	// instead of executing the gate, nil otherwise (CAL-V0-240).
 	GateReusedFrom *GateReuse
+	// GateReusePending names a qualifying descendant PASS a gate run could
+	// not reuse only because its tree is not yet on the protected intent
+	// branch, nil otherwise (TCD-V0-806).
+	GateReusePending *GateReuse
 	// GateInterrupted reports that the gate run's context ended while or
 	// after its program ran; that run's result is still recorded
 	// (CAL-V0-319).
@@ -294,6 +299,11 @@ func applyBeforeCommit(repo *intent.Repository, session *authority.Session, plan
 // at that point would (CAL-V0-019). It is nil outside tests.
 var publishFault func(transaction.Artifact) error
 
+// publishFaults is publishFault keyed by store state directory, so tests over
+// different stores can each set one and run in parallel (V1-0961). It is
+// empty outside tests.
+var publishFaults sync.Map // state directory -> func(transaction.Artifact) error
+
 // leaseStagesTogether is LGL-V0-013's switch; a test clears it to compare a
 // lease write with the sequential staging every other write uses.
 var leaseStagesTogether = true
@@ -451,6 +461,11 @@ func applyArtifacts(repo *intent.Repository, session *authority.Session, plan tr
 			}
 			if publishFault != nil {
 				if err := publishFault(a); err != nil {
+					return receipt, err
+				}
+			}
+			if f, ok := publishFaults.Load(repo.StateDir); ok {
+				if err := f.(func(transaction.Artifact) error)(a); err != nil {
 					return receipt, err
 				}
 			}
@@ -695,7 +710,7 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 		report.Outcome = mutation.Outcome{RequestID: requestID, Outcome: mutation.OutcomeBlocked, Codes: []string{wire.CodeIntentDiverged}}
 		return report, nil
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return guardFailure(report, requestID, err)
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

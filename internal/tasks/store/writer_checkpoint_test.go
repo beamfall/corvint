@@ -1172,6 +1172,7 @@ func TestCALV0116_TailNoteReferenceChangeWithoutEvent(t *testing.T) {
 func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
 	t.Parallel()
 	repo := writerStore(t, 70)
+	completeRefreshOnly(t, repo)
 	requestFile, _ := mutationBoundaryFiles(t, repo)
 	rewriteFile(t, requestFile, func([]byte) []byte { return []byte("{}\n") })
 	if run := writerMutate(t, repo, "over-prefix-tamper", nil); !run.completed() || !run.fast() {
@@ -1209,6 +1210,7 @@ func TestCALV0116_PrefixTamperIsLeftToCompleteAudits(t *testing.T) {
 func TestCALV0117_OlderRefreshCannotUndoInvalidation(t *testing.T) {
 	t.Parallel()
 	repo := writerStore(t, 70)
+	completeRefreshOnly(t, repo)
 	if run := writerMutate(t, repo, "before-refreshes", nil); !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
 	}
@@ -1313,6 +1315,7 @@ func TestCALV0117_RefreshWriteInterleave(t *testing.T) {
 func TestCALV0117_WriterAdvanceAndScheduledRefresh(t *testing.T) {
 	t.Parallel()
 	repo := writerStore(t, 70)
+	completeRefreshOnly(t, repo)
 	full := readWriterCheckpoint(repo).FullSeq
 	for headSeqOf(t, repo)+1+journal.WriterAdvanceTail+1-full < journal.WriterRefreshInterval {
 		writerPad(t, repo, journal.WriterAdvanceTail)
@@ -1347,6 +1350,7 @@ func TestCALV0117_WriterAdvanceAndScheduledRefresh(t *testing.T) {
 func TestCALV0117_InvalidationSurvivesStopBeforeRemoval(t *testing.T) {
 	t.Parallel()
 	repo := writerStore(t, 70)
+	completeRefreshOnly(t, repo)
 	if run := writerMutate(t, repo, "before-stop", nil); !run.completed() || !run.fast() {
 		t.Fatalf("fast write: %+v %v %v", run.rep, run.err, run.stages)
 	}

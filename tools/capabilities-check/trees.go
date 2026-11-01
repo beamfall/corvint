@@ -24,7 +24,7 @@ const (
 	// ratchetCeiling is the committed size of the ratchet. It may only fall: the check fails
 	// when the file grows past it, and when the file shrinks the ceiling must follow, so a
 	// removed row cannot quietly be re-added later.
-	ratchetCeiling = 52
+	ratchetCeiling = 50
 )
 
 // ratchetBaseline is every binary the ratchet held when it was introduced (V1-2685). A row must
@@ -188,4 +188,48 @@ func readRatchet(path string) (map[string]bool, error) {
 		rows[binary] = true
 	}
 	return rows, nil
+}
+
+// treeSubcommands reads the committed corvint command tree and returns its two-word node paths
+// by verb and the verbs that have a node (CAP-V0-960). A missing corvint snapshot is an error.
+func treeSubcommands(root string) (map[string][]string, map[string]bool, error) {
+	trees, err := readTrees(filepath.Join(root, filepath.FromSlash(treesDir)))
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, tree := range trees {
+		if tree.Binary != "corvint" {
+			continue
+		}
+		subs, verbs := map[string][]string{}, map[string]bool{}
+		for _, node := range tree.Nodes {
+			if len(node.Path) > 0 {
+				verbs[node.Path[0]] = true
+			}
+			if len(node.Path) == 2 {
+				subs[node.Path[0]] = append(subs[node.Path[0]], node.Path[1])
+			}
+		}
+		return subs, verbs, nil
+	}
+	return nil, nil, fmt.Errorf("no corvint command tree under %s", treesDir)
+}
+
+// MergeSubcommands adds the corvint command tree's two-word nodes to the declared subcommand
+// tables and records the verbs the tree knows (CAP-V0-960, CAP-V0-961).
+func MergeSubcommands(inv *Inventory, root string) error {
+	subs, verbs, err := treeSubcommands(root)
+	if err != nil {
+		return err
+	}
+	if inv.Subcommands == nil {
+		inv.Subcommands = map[string][]string{}
+	}
+	for verb, list := range subs {
+		merged := append(inv.Subcommands[verb], list...)
+		slices.Sort(merged)
+		inv.Subcommands[verb] = slices.Compact(merged)
+	}
+	inv.TreeVerbs = verbs
+	return nil
 }

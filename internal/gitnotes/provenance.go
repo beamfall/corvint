@@ -193,6 +193,9 @@ func (r *repository) refTipState(ctx context.Context, ref, flag, pinnedTip strin
 	}
 	state["live"] = live
 	// Empty output: every commit reachable from pinned is reachable from live.
+	// Safe unguarded (EEP-V0-771): scrubbedEnv sets GIT_GRAFT_FILE=/dev/null and
+	// disables replace objects, and a shallow boundary only removes parents, so
+	// it can hide containment (rollback) but never invent it (current).
 	out, err := r.git(ctx, 256, nil, "rev-list", "--max-count=1", "--end-of-options", pinned, "^"+live, "--")
 	if err != nil {
 		return nil, err

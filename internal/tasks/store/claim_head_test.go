@@ -3,8 +3,12 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -102,6 +106,9 @@ func TestPSRV0224_HeadFilesResolveAsGit(t *testing.T) {
 		if oid, ok := resolve(t, unborn); ok {
 			t.Fatalf("unborn branch resolved to %q", oid)
 		}
+		if reason := reftableUnsupported(t, "git"); reason != "" {
+			t.Skip(reason)
+		}
 		reftable := filepath.Join(t.TempDir(), "reftable")
 		holdGit(t, reftable, "init", "-q", "--ref-format=reftable", "-b", "main")
 		holdGit(t, reftable, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
@@ -109,6 +116,61 @@ func TestPSRV0224_HeadFilesResolveAsGit(t *testing.T) {
 			t.Fatal("a reftable store was accepted for file resolution")
 		}
 	})
+}
+
+// reftableUnsupported names why git cannot create a reftable store, or ""
+// when it can. Git before 2.45 rejects --ref-format as an unknown option
+// (exit 129); any other failure is a broken git, not a missing capability.
+func reftableUnsupported(t *testing.T, git string) string {
+	t.Helper()
+	reason, err := probeReftable(t, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return reason
+}
+
+func probeReftable(t *testing.T, git string) (string, error) {
+	t.Helper()
+	c := exec.Command(git, "init", "-q", "--ref-format=reftable", filepath.Join(t.TempDir(), "probe"))
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	out, err := c.CombinedOutput()
+	if err == nil {
+		return "", nil
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 129 && bytes.Contains(out, []byte("ref-format")) {
+		line, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+		return "git lacks --ref-format=reftable (needs git 2.45 or later): " + line, nil
+	}
+	return "", fmt.Errorf("reftable probe: %v %s", err, out)
+}
+
+// PSR-V0-224: the reftable probe skips only for the unknown-option refusal of
+// a git older than 2.45, reports support when init accepts the format, and
+// treats any other failure as a broken git.
+func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
+	t.Parallel()
+	fake := func(t *testing.T, body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "git")
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	old := fake(t, "echo \"error: unknown option \\`ref-format=reftable'\" >&2\necho 'usage: git init' >&2\nexit 129")
+	if reason := reftableUnsupported(t, old); reason != "git lacks --ref-format=reftable (needs git 2.45 or later): error: unknown option `ref-format=reftable'" {
+		t.Fatalf("old git reason %q", reason)
+	}
+	if reason := reftableUnsupported(t, fake(t, "exit 0")); reason != "" {
+		t.Fatalf("supporting git reported %q", reason)
+	}
+	for _, body := range []string{"echo 'fatal: cannot mkdir' >&2\nexit 128", "echo 'usage: git init' >&2\nexit 129"} {
+		if reason, err := probeReftable(t, fake(t, body)); err == nil {
+			t.Fatalf("broken git %q skipped as %q", body, reason)
+		}
+	}
 }
 
 // PSR-V0-224: a HEAD-bound base is confirmed against the ref files under the
@@ -130,9 +192,10 @@ func TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance(t *testing.T) {
 		return []string{"src/"}, string(wire.Sum([]byte("src/"))), true
 	}
 	done := make(chan writerRun, 1)
+	var timing LeaseTiming
 	go func() {
 		done <- stagedWrite(func(ctx context.Context) (*Report, error) {
-			return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "moved-head", Root: root, Derive: derive,
+			return Lease(WithLeaseTiming(ctx, &timing), repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "moved-head", Root: root, Derive: derive,
 				Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: ticketID, Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
 		}, nil)
 	}()
@@ -162,8 +225,13 @@ func TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance(t *testing.T) {
 	if !run.completed() {
 		t.Fatalf("claim not committed: %+v %v %v", run.rep, run.err, run.stages)
 	}
-	if n := claimDeclines(run); n != 2 || run.fast() {
-		t.Fatalf("writer route deferred the claim observation %d times (fast %v), want 2 then the complete route: %v", n, run.fast(), run.stages)
+	// Each round's writer route declines at most twice (the deferral, then
+	// the refusal of the base observed before the commit) before the
+	// complete route. A complete-route round a loaded host ends
+	// SNAPSHOT_MOVED retries the writer route, so the count is bounded by
+	// the rounds rather than fixed (V1-2764); one round is exactly 2.
+	if n := claimDeclines(run); n < 2 || n > 2*timing.Rounds || run.fast() {
+		t.Fatalf("writer route deferred the claim observation %d times over %d rounds (fast %v), want 2 per round then the complete route: %v", n, timing.Rounds, run.fast(), run.stages)
 	}
 	proof, err := readLeaseProof(context.Background(), repo)
 	if err != nil {

@@ -88,6 +88,8 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 		{TicketID: fixture.Ticket("AT-02").TicketID, Obligation: "COMPLETED", Stages: []string{"integrate"}},
 	}
 	rec.AttachedEvidence = []ticket.AttachedEvidence{{AcceptanceRevision: "1", Actor: "russell", Evidence: []wire.Digest{wire.Sum([]byte("evidence"))}, Reason: "focused test log", RecordedAt: "2026-09-06T13:00:00Z"}}
+	lane := "w4"
+	rec.Progress = []ticket.Progress{{ProgressMark: ticket.ProgressMark{Phase: ticket.PhaseInProgress, Lane: &lane}, Actor: "russell", RecordedAt: "2026-09-06T13:00:00Z"}}
 	rec.KnowHow = issue502KnowHow()
 	rec.ObligationsRef = issue502Obligations(t)
 	file, err := os.ReadFile(issue502RecordFixture)

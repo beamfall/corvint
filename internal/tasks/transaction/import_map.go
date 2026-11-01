@@ -141,9 +141,11 @@ func ImportMapConflicts(importMap []byte, records [][]byte) error {
 // against the journaled one and the store's tickets. Every ticket the old map
 // names stays mapped, possibly under a renamed source item; a source item the
 // old map names keeps its ticket; a source item an existing ticket imports
-// stays on that ticket; no ticket is mapped twice; and an entry for a ticket
-// the old map did not name may only name a store ticket that is an import of
-// exactly that source item. It names every conflict, or nil.
+// stays on that ticket; a ticket the store holds as an import keeps that
+// source item, since a re-import derives the ticket from it (CTS-V0-800); no
+// ticket is mapped twice; and an entry for a ticket the old map did not name
+// may only name a store ticket that is an import of exactly that source item.
+// It names every conflict, or nil.
 func importMapAmendConflicts(old, next *intent.ImportMap, tickets *ticket.Inventory) error {
 	key := func(e intent.ImportEntry) string { return e.SourceQueueID + "\x00" + e.SourceItemID }
 	oldByKey, oldTickets := map[string]string{}, map[string]bool{}
@@ -152,21 +154,25 @@ func importMapAmendConflicts(old, next *intent.ImportMap, tickets *ticket.Invent
 		oldTickets[e.TicketID.Raw] = true
 	}
 	imported := map[string]string{}
+	var importIDs []string
 	if tickets != nil {
 		for _, id := range tickets.IDs() {
 			if rec, ok := tickets.Get(id); ok && rec.Source.SourceItemID != nil {
 				imported[rec.Source.SourceQueueID+"\x00"+*rec.Source.SourceItemID] = id
+				importIDs = append(importIDs, id)
 			}
 		}
 	}
 	var conflicts []string
 	nextTickets := map[string]bool{}
+	nextKeys := map[string]bool{}
 	for _, e := range next.Entries {
 		item := fmt.Sprintf("source item %s of %s", e.SourceItemID, e.SourceQueueID)
 		if nextTickets[e.TicketID.Raw] {
 			conflicts = append(conflicts, fmt.Sprintf("%s: ticket %s is mapped twice", item, e.TicketID.Raw))
 		}
 		nextTickets[e.TicketID.Raw] = true
+		nextKeys[key(e)+"\x00"+e.TicketID.Raw] = true
 		if was, ok := oldByKey[key(e)]; ok && was != e.TicketID.Raw {
 			conflicts = append(conflicts, fmt.Sprintf("%s: moves from ticket %s to %s", item, was, e.TicketID.Raw))
 			continue
@@ -180,6 +186,13 @@ func importMapAmendConflicts(old, next *intent.ImportMap, tickets *ticket.Invent
 		}
 		if rec, ok := tickets.Get(e.TicketID.Raw); ok && (rec.Source.SourceItemID == nil || rec.Source.SourceQueueID != e.SourceQueueID || *rec.Source.SourceItemID != e.SourceItemID) {
 			conflicts = append(conflicts, fmt.Sprintf("%s: ticket %s exists and is not that item's import", item, e.TicketID.Raw))
+		}
+	}
+	for _, id := range importIDs {
+		rec, _ := tickets.Get(id)
+		k := rec.Source.SourceQueueID + "\x00" + *rec.Source.SourceItemID
+		if nextTickets[id] && !nextKeys[k+"\x00"+id] {
+			conflicts = append(conflicts, fmt.Sprintf("ticket %s is the import of source item %s of %s; its source item cannot be renamed", id, *rec.Source.SourceItemID, rec.Source.SourceQueueID))
 		}
 	}
 	for _, e := range old.Entries {

@@ -834,6 +834,54 @@ git -C "$test_root" rm -q --cached docs/decisions/0001-fixture.md
 rm "$test_root/docs/decisions/0001-fixture.md"
 write_source 1
 
+# 35. DCG-V0-810 (V1-3467): a short cited line whose insertion above it was already committed,
+#     so HEAD's diff to the index proves nothing, repins by the diff from the newest commit at
+#     which the pin hashed at the cited line; a short line whose own text changed since that
+#     commit is never rewritten.
+commit_all() {
+  git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+    -c core.hooksPath=/dev/null commit -q -m "$1"
+}
+printf '%s\n' 'all: build' '' 'build:' '	go build' '' 'test:' '	go build' '	go test' > "$test_root/internal/demo/rules.mk"
+stage internal/demo/rules.mk
+short_line=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/rules.mk:4)
+gone_line=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/rules.mk:8)
+cite "$short_line\` and \`$gone_line"
+run >/dev/null || fail "the short-line fixture did not pass before the insertion"
+commit_all pinned
+printf '%s\n' 'all: build' '' 'lint:' '	go vet' '' 'build:' '	go build' '' 'test:' '	go build' '	go test -count=1' \
+  > "$test_root/internal/demo/rules.mk"
+stage internal/demo/rules.mk
+commit_all inserted
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a short line moved by a committed insertion exited $rc, not 1: $output"
+case $output in
+*'moved unchanged'*) fail "the hash search alone relocated a repeated short line: $output" ;;
+esac
+rc=0
+repinned=$(cd "$test_root" && script/check-line-citations.sh --repin 2>/dev/null) || rc=$?
+[ "$rc" = 0 ] || fail "--repin of a history-proven short-line move exited $rc: $repinned"
+moved_line="internal/demo/rules.mk:7@${short_line##*@}"
+case $repinned in
+*"$short_line"*" -> \`$moved_line\`"*) ;;
+*) fail "--repin did not relocate the short line by the diff from its pinned commit: $repinned" ;;
+esac
+grep -q "$moved_line" "$test_root/docs/agent-memory/fixture.md" &&
+  grep -q "$gone_line" "$test_root/docs/agent-memory/fixture.md" ||
+  fail "--repin did not rewrite exactly the moved short line: $(cat "$test_root/docs/agent-memory/fixture.md")"
+stage docs/agent-memory/fixture.md
+rc=0
+output=$(run) || rc=$?
+case $output in
+*"$moved_line"*) fail "the relocated short line still failed after --repin: $output" ;;
+*"$gone_line"*'cited content changed'*) ;;
+*) fail "after --repin, the changed short line was not reported: $output" ;;
+esac
+git -C "$test_root" rm -q --cached internal/demo/rules.mk
+rm "$test_root/internal/demo/rules.mk"
+write_source 1
+
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
 blob=$(printf 'x\ny\n' | git -C "$test_root" hash-object -w --stdin)

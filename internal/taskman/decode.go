@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -70,6 +71,7 @@ var optionalTicketMembers = map[string]func(v wire.Value, revision, acceptance u
 	"externalReviews":        externalReviews,
 	"executionPrerequisites": executionPrerequisites,
 	"attachedEvidence":       attachedEvidence,
+	"progress":               progress,
 	"knowHow":                knowHow,
 	"obligations":            obligations,
 }
@@ -646,6 +648,86 @@ func externalReviews(m wire.Value, _, _ uint64) error {
 		}
 		if head := value(ref, "head"); head.Kind != wire.KindString || !digest(head.Str) {
 			return errors.New("external review head")
+		}
+	}
+	return nil
+}
+
+// progress validates the optional TLF-V0-880 list: 1..64 closed entries,
+// each with a phase from the closed set, label-or-null lane and host, an
+// identifier-or-null branch, an OID-or-null head, a count-or-null pr, a
+// prose-or-null reason, a label actor and a timestamp, and the members its
+// phase requires. Absence is valid.
+func progress(v wire.Value, _, _ uint64) error {
+	entries, e := array(v, taskswire.ProgressMaxEntries)
+	if e != nil || len(entries) == 0 {
+		return errors.New("progress entries")
+	}
+	str := func(x wire.Value, k string, parse func(string) error) (bool, error) {
+		f := value(x, k)
+		if f.Kind == wire.KindNull {
+			return false, nil
+		}
+		if f.Kind != wire.KindString || parse(f.Str) != nil {
+			return false, errors.New("progress " + k)
+		}
+		return true, nil
+	}
+	label := func(s string) error { _, e := taskswire.ParseLabel("", s); return e }
+	for _, x := range entries {
+		if e = object(x, "actor branch head host lane phase pr reason recordedAt"); e != nil {
+			return errors.New("progress entry")
+		}
+		ph := value(x, "phase")
+		if ph.Kind != wire.KindString || !slices.Contains(taskswire.ProgressPhases, ph.Str) {
+			return errors.New("progress phase")
+		}
+		var has [6]bool
+		checks := []struct {
+			k string
+			f func(string) error
+		}{
+			{"lane", label}, {"host", label},
+			{"branch", func(s string) error { _, e := taskswire.ParseIdentifier("", s); return e }},
+			{"head", func(s string) error { _, e := taskswire.ParseOID("", s); return e }},
+			{"pr", func(s string) error { _, e := taskswire.ParseCount("", s); return e }},
+			{"reason", func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return errors.New("blank")
+				}
+				_, e := taskswire.ParseProse("", s, 1, taskswire.ProgressMaxReasonBytes)
+				return e
+			}},
+		}
+		for i, c := range checks {
+			if has[i], e = str(x, c.k, c.f); e != nil {
+				return e
+			}
+		}
+		lane, host, branch, head, pr, reason := has[0], has[1], has[2], has[3], has[4], has[5]
+		ok := true
+		switch ph.Str {
+		case "DELIVERED_ON_BRANCH":
+			ok = branch && head
+		case "IN_REVIEW", "IN_MERGE_QUEUE":
+			ok = pr
+		case "MERGED_AWAITING_CLOSEOUT":
+			ok = head
+		case "BLOCKED":
+			ok = reason
+		case "CLEARED":
+			ok = !lane && !host && !branch && !head && !pr
+		}
+		if !ok {
+			return errors.New("progress phase members")
+		}
+		if a := value(x, "actor"); a.Kind != wire.KindString || label(a.Str) != nil {
+			return errors.New("progress actor")
+		}
+		if t := value(x, "recordedAt"); t.Kind != wire.KindString {
+			return errors.New("progress time")
+		} else if _, e = taskswire.ParseTimestamp("recordedAt", t.Str); e != nil {
+			return errors.New("progress time")
 		}
 	}
 	return nil

@@ -158,7 +158,7 @@ func publicReleaseCandidate(t *testing.T, root, releaseID string) (revision, dig
 func recordPublicReleaseGate(t *testing.T, root, releaseID, revision, candidate, request string) {
 	t.Helper()
 	evidence := wire.Sum([]byte("public workflow evidence for " + releaseID))
-	payload := fmt.Sprintf(`{"attestation":{"actor":"external-ci","attestationId":%q,"candidateSha256":%q,"criteria":["0"],"evidence":[%q],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"PASS","sourceIdentity":"external-ci"}}`, request, candidate, evidence)
+	payload := fmt.Sprintf(`{"attestation":{"actor":"external-ci","argv":["make","verify"],"attestationId":%q,"candidateSha256":%q,"criteria":["0"],"evidence":[%q],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"PASS","sourceIdentity":"external-ci"}}`, request, candidate, evidence)
 	x := atm(t, root, nil, "release", "record-gate", "--request-id", request, "--target", releaseID, "--expected-revision", revision, "--issued-at", "2026-09-20T12:04:00Z", "--payload", payload)
 	if x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("record gate %s: %+v", releaseID, x.res)
@@ -495,7 +495,7 @@ func nonfixtureTestTMV0028_AS38_AttestedPromotionAndImmutability(t *testing.T, i
 		t.Fatal(err)
 	}
 	candidate := string(release.CandidateDigest(record.Candidate))
-	attestation := fmt.Sprintf(`{"attestation":{"actor":"untrusted","attestationId":"verify-v0-9","candidateSha256":"%s","criteria":["0"],"evidence":["%s"],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"PASS","sourceIdentity":"external-ci"}}`, evidence, evidence)
+	attestation := fmt.Sprintf(`{"attestation":{"actor":"untrusted","argv":["make","verify"],"attestationId":"verify-v0-9","candidateSha256":"%s","criteria":["0"],"evidence":["%s"],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"PASS","sourceIdentity":"external-ci"}}`, evidence, evidence)
 	bad := atm(t, r.Root, nil, "release", "record-gate", "--request-id", "stale-candidate-gate", "--target", "v0-9", "--expected-revision", "2", "--payload", attestation)
 	if bad.res.Outcome == wire.OutcomeOK {
 		t.Fatal("mismatched attestation candidate accepted")

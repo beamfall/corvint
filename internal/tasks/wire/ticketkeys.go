@@ -17,7 +17,7 @@ var TicketRecordKeys = []string{
 // TicketRecordOptionalKeys are the taskman-ticket/0 record keys a record may
 // omit. The native codec and Core's read-only planner both admit exactly
 // these, so a new optional key cannot reach one reader and not the other.
-var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations", "operatorNote", "externalReviews", "executionPrerequisites", "attachedEvidence", "knowHow", "obligations"}
+var TicketRecordOptionalKeys = []string{"requiresPool", "requiredRoles", "escalations", "operatorNote", "externalReviews", "executionPrerequisites", "attachedEvidence", "knowHow", "obligations", "progress"}
 
 // TicketEffectsKeys is the closed `effects` key set of a taskman-ticket/0
 // record, and TicketEffectsOptionalKeys the members it may omit
@@ -70,6 +70,17 @@ const (
 	AttachedEvidenceMaxDigests     = 16
 	AttachedEvidenceMaxReasonBytes = 512
 )
+
+// Progress bounds (TLF-V0-880): at most ProgressMaxEntries append-only
+// entries per ticket and a reason of at most ProgressMaxReasonBytes. The
+// native codec and Core's read-only planner both enforce them.
+const (
+	ProgressMaxEntries     = 64
+	ProgressMaxReasonBytes = 512
+)
+
+// ProgressPhases is the closed TLF-V0-880 phase vocabulary.
+var ProgressPhases = []string{"IN_PROGRESS", "DELIVERED_ON_BRANCH", "IN_REVIEW", "IN_MERGE_QUEUE", "MERGED_AWAITING_CLOSEOUT", "BLOCKED", "CLEARED"}
 
 // Know-how note bounds (KHN-V0-002): at most KnowHowMaxEntries ledger entries
 // per home ticket, nonblank text of at most KnowHowMaxTextBytes,

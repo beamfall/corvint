@@ -903,7 +903,8 @@ reaches only an `in` test and `route.fulfill({ response, json: { ...body, settin
   - No computed read of a fresh object, and no compound write (`||=`, `+=`). Such an access reads
     the member, and a spread initializer can copy a tag array into it. `TJAA-V0-097` and
     `TJAA-V0-098` later admit the positions where that member value cannot flow on.
-  - No regular-expression `testIgnore`, and no global `testIgnore`.
+  - No regular-expression `testIgnore`, and no global `testIgnore` (a literal one is admitted
+    since `TJAA-V0-770`).
   - No change to `projects`, `owns <file>` or membership-unknown sites, which still carry no line.
 - Failure modes, each fail-closed:
   - Any other use of the object stops at the write's line with `a computed member access can
@@ -923,7 +924,7 @@ reaches only an `in` test and `route.fulfill({ response, json: { ...body, settin
     outside the static model, as are patched globals (`AFP-V0-409`).
   - A computed read on an object-literal receiver (`{ ... }[key]`) is not yet treated as a member
     access by the closure's receiver test, and neither is `value![key]`. `TJAA-V0-103` later stops
-    at `{ ... }[key]`.
+    at `{ ... }[key]`, and `TJAA-V0-810` at `value![key]`.
   - A membership-unknown site, `projects` and `owns <file>` still name the config without a line.
     `TJAA-V0-104` later names each line, or why it has none.
   - The reporter's repository was not available (`NOT_OBSERVED`).
@@ -1130,8 +1131,8 @@ cannot classify fails closed.
   path, is a superset of Playwright's for every checkout location. This holds however many
   `projects[]` entries repeat the glob, as in the reporter's `testIgnore:
   'tests/examples/**/*.spec.ts'` in three projects. A path outside the matcher model, a computed
-  or regular-expression value, a glob outside the `TJAA-V0-092` rule and a global `testIgnore`
-  MUST still name that `testIgnore`'s own line. A `testMatch` glob that reaches above the
+  or regular-expression value, a glob outside the `TJAA-V0-092` rule and a global `testIgnore` outside the literal grammar
+  (`TJAA-V0-770`) MUST still name that `testIgnore`'s own line. A `testMatch` glob that reaches above the
   repository still refuses, since it can add a path. Residual: when a checkout's own parent
   directories do make the glob match, a selected test that the project ignores runs no test in
   that project; Playwright then reports that it found no tests rather than passing silently.
@@ -1535,6 +1536,16 @@ cannot, from the same graph phase and closure walk the plan uses.
     `playwright_test_closure_gh1920_test.go` (the issue's identity argv admitted with and without a
     dynamic `launchOptions`; the same escape in another argv, a computed key or a plain const still
     refuses).
+- `TJAA-V0-810`: (experimental under the standing lane auto-accept (2026-10-31); V1-2611; amending
+  `TJAA-V0-093` and closing the `TJAA-V0-095` residual) A `[` whose previous code byte is a
+  TypeScript non-null assertion `!` MUST be a member access, and so stop the tag closure at its line
+  as any computed member read or write does, when the code byte before that `!` (skipping further
+  `!`) ends an operand: an identifier other than a keyword that precedes an expression, a `)` or a
+  `]`. `x![k]`, `x()![k]`, `x[0]![k]` and `x ! ! [k]` stop; a logical not before an array literal
+  (`![a].length`, `= ![a]`) stays exact.
+  - Acceptance: `TestPlaywrightTagClosureNonNullComputedMember_V12611` in
+    `playwright_nonnull_v12611_test.go` (failing first on the base: each assertion form was verified).
+  - Rollback: drop the `!` case from `playwrightMemberAccessAt`.
 - `TJAA-V0-127`: (standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static
   regular-expression `testMatch` of a Playwright project (a body that `playwrightRegexBodyStatic`
   accepts, flags only `i`, `m`, `s`) MUST resolve in path mode when its verdict on each test path
@@ -1570,6 +1581,75 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Rollback: restore the `tsconfig.json`-only test in `readTypeScriptAliases` and the declaring
     loop, drop the allowJs condition in `resolveTypeScriptAliases` and `javaScriptConfigName` from
     `observedName`; no persisted format or receipt changes.
+
+- `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
+  plain name MUST key one symbol per bound name, each by its own declarator text split at commas
+  outside brackets, strings, templates and generic angle brackets, so a change to one initializer
+  modifies only that name and an added declarator adds only its name; a type argument such as
+  `Record<string, number>` is never a declarator. A `<` is a generic bracket (closed by a `>` that
+  does not end `=>`) only in a declarator's type annotation or as an initializer's leading
+  type-parameter list followed by `(`. Any other top-level `<` in an initializer may be a
+  comparison (`1 < 2, b = 3 > 4`) or a type argument (`new Map<string, number>()`), so when a
+  declarator comma follows it the statement is ambiguous: a change that adds, removes or alters
+  such a statement's exact text is `UNRESOLVED`, never attributed to a guessed name (Codex review);
+  an ambiguous statement left unchanged attributes nothing. A statement binding one name, or a
+  destructuring declarator, is keyed whole, as before.
+- `TJAA-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-031`: a frontier reason other than a dynamic import (in the observed frontier
+  or the shared plan's `LANGUAGE_FRONTIER` unknowns) whose every recorded site is a file of the
+  TypeScript graph MUST NOT refuse the narrowing; instead the tests whose static import closure
+  reaches one of those files are added as candidates with witness `FRONTIER_SITE_REACH`, as a
+  dynamic import's are. A reason with no site, or with a site outside the graph, still gives
+  `NOT_NARROWED GRAPH_FRONTIER`. The narrowing stays advisory: a hidden edge the frontier stands for
+  can only reach a test through its site's file, but its recall stays `NOT_RUN`.
+- `TJAA-V0-763`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Decision on further profiles and runners, each deferred with its reason: `affected-plan/0` gets
+  no `narrowed` member, because its fallback is the plan's own `UNKNOWN` scope over every plugin,
+  and a TypeScript-only candidate set beside a multi-language plan would read as a selection of the
+  whole plan; Vitest, Jest and the Node test runner get none, because their plans have no
+  Playwright-style project fallback whose full-suite runs narrowing could shorten; other languages
+  get none, because each lacks a test-side/source-side split like `TJAA-V0-031`'s. Runtime loading
+  outside JavaScript module syntax (bundler globs and `import.meta.glob`, HTML script tags, file
+  reads, worker-shared state, server-side state) stays unmodelled and keeps refusing through the
+  existing frontiers and the not-test-side rule; no class of it is modelled by this amendment.
+
+- `TJAA-V0-770`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3524)
+  Amending `TJAA-V0-094`, `TJAA-V0-105` and the static project profile: a global `testIgnore`
+  whose value is one literal matcher or an array of them, under the project `testIgnore` grammar,
+  MUST no longer refuse the profile as outside the static project subset. Every project that
+  declares no `testIgnore` of its own MUST inherit it as its exclusion, as Playwright's
+  config-to-project override does; a project's own `testIgnore` replaces it. The inherited value is
+  part of that project's `configFragment` identity, and in the general adapter it counts as the
+  config's one global key for the literal-matcher rule, so a literal root-free global glob keeps
+  the membership static and raises no `typescript:executable-config-unresolved` site. A global
+  `testIgnore` outside that grammar (computed, or an unsupported matcher) still refuses with an
+  unknown naming `global testIgnore`, and in the general adapter still names its own line. A
+  global `testIgnore` that every project overrides is still counted unaccounted for and refuses
+  (conservative). Rollback: restore the refusal of `testIgnore` in the global member loop.
+
+- `TJAA-V0-771`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0970)
+  The adapter MUST name a frontier site by what it is, never as `typescript:path-alias-unresolved`
+  when no alias config claims it. Evidence: the four VanillaTwisted Playwright sites
+  (`express`, `pg`, `, ` and `corecrypto-wasm-url?url`) were all reported under that reason, and
+  narrowing stopped at it, although none is a tsconfig alias. (1) A bare specifier no
+  `package.json` at or above the importing file declares and no `node_modules` installs is the
+  frontier `typescript:bare-import-undeclared` at its own site, unless the nearest tsconfig or
+  jsconfig `paths` claims it, which keeps `typescript:path-alias-unresolved`; an alias-shaped
+  specifier (`@/x`, `~/x`, `#x`) is classified the same way, so with no claiming config it is
+  never also an alias site. It still fails
+  closed, because an omitted dependency or a bundler alias such as a Vite `resolve.alias` may hide
+  an edge, and like the alias reason it is source-bound (AFP-V0-511). (2) The `from` keyword of a
+  static `import`/`export` clause follows ECMAScript whitespace (including U+00A0, U+FEFF and
+  every `Zs` space, not only ASCII), `}` or `*`, and ECMAScript whitespace may separate it from
+  its specifier, so a string `"from"` in a one-line
+  exported word list is no clause and its next string (`, `) is no specifier. (3) A specifier's
+  bundler query suffix (`?url`, `?raw`, `?inline`, `?worker`, any `?...`) on a specifier with no
+  URL scheme is dropped before resolution, so `./data.txt?raw` resolves like `./data.txt` and a
+  bare `name?url` is classified as `name`. The tsconfig and jsconfig alias resolution the ticket
+  asked to reuse already serves both the general adapter and the Playwright profile
+  (`TJAA-V0-037`, `TJAA-V0-057`, GitHub #1880), so no second resolver is added. Rollback: restore
+  the alias reason at the bare-import site, the `\bfrom` pattern and the unstripped specifier.
 
 ## Opt-in Playwright project profile
 
@@ -1727,8 +1807,10 @@ Non-goals and named gaps:
 - Runtime loading outside JavaScript module syntax is not modelled. This includes bundler globs and
   `import.meta.glob`, HTML script tags, file reads, worker-shared state, and a test-support module
   that changes application state through a server.
-- An observer frontier other than a dynamic import keeps the whole narrowing `NOT_NARROWED`.
-- A multi-binding declaration is keyed by its first name.
+- An observer frontier other than a dynamic import keeps the whole narrowing `NOT_NARROWED` only
+  when it is unsited or sited outside the graph (`TJAA-V0-762`).
+- A multi-binding variable declaration is keyed per bound name (`TJAA-V0-761`); a destructuring
+  declarator binds no name there.
 - The narrowed set has no live recall measurement. Its recall stays `NOT_RUN`, and callers that run
   only the candidates plus the `UNRESOLVED` projects accept that risk themselves.
 
@@ -1875,6 +1957,9 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
+| `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestTypedExportGenericCommaKeysTheBinding_TJAA_V0_761`, `TestComparisonInMultiBindingExportIsUnresolved_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
+| `TJAA-V0-770` (V1-3524) | `TestPlaywrightGlobalTestIgnoreIsAnExclusion_TJAA_V0_770`; `TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770`; the `global testIgnore` rows of `TestPlaywrightPathModeLiteralTestIgnore_GH1737` |
+| `TJAA-V0-771` (V1-0970) | `TestVanillaTwistedFrontierSitesClassify_TJAA_V0_771`; `TestECMAScriptWhitespaceAroundFrom_TJAA_V0_771`; `TestAliasShapedUndeclaredImportIsNoAlias_TJAA_V0_771`; `TestFrontierSiteIsTheParsedSpecifier_PR1596`; `TestFrontierSitesNameEveryReason_GH1593`; `TestPlaywrightSymlinkedNodeModules_GH1885` |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
 | `TJAA-V0-034` (V1-2455; GitHub #1575) | `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
 | `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
@@ -1932,6 +2017,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-140`, `TJAA-V0-141` (V1-2812) | `TestPlaywrightTestClosures_TJAA140` and `TestPlaywrightTestClosuresFailClosed_TJAA141` in `playwright_test_closure_tjaa140_test.go` (disjoint helpers excluded, a helper application code reaches kept; dynamic import in a test unknown for that test only; frontier outside the suite widens; unresolved config unknown; dependency project tests joined) | experimental; real Playwright run `NOT_RUN` |
 | `TJAA-V0-142` (V1-2812) | `internal/liveverify/affected/typescript` package tests unchanged and passing after the extraction | experimental |
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
+| `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |

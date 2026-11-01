@@ -26,6 +26,10 @@
   ([snapshot](internal/capcatalog/catalog.json)); its `commandTrees` member links every command tree
 - `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
   with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
+- `corvint-cem-candidate help --json`: the CEM candidate companion's tree
+  ([snapshot](internal/capcatalog/trees/corvint-cem-candidate.json))
+- `corvint-cem-experiments help --json`: the CEM criterion experiment companion's tree
+  ([snapshot](internal/capcatalog/trees/corvint-cem-experiments.json))
 - `corvint-tasks help --json`: the task store CLI's tree
   ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
 - `corvint-test help --json`: the test companion's tree

@@ -217,7 +217,7 @@ func reconcileIntent(env Env, args []string) *wire.Result {
 	result := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
 	if report.Outcome.Outcome != mutation.OutcomeCompleted {
 		result.Outcome = wire.OutcomeRefused
-		result.Codes = report.Outcome.Codes
+		result.Codes = refusalCodes(report.Outcome)
 	}
 	return result
 }

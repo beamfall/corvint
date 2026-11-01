@@ -120,7 +120,10 @@ func TestCALV0111_OrphanCleanupSpendsCallerWait(t *testing.T) {
 	if !reflect.DeepEqual(before, fixture.TreeSnapshot(t, s.repo.StateDir)) {
 		t.Fatal("a timed-out cleanup changed the store")
 	}
-	r, err := store.Lease(ctx, s.repo, operator(), choice, s.at(t, 2))
+	// The retry proves the orphan is cleared and the write commits, not the
+	// bound, so it waits the default: the 200ms bound alone failed it on a
+	// loaded host (V1-3046).
+	r, err := store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, 2))
 	if err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted || replayed(r.Kind) {
 		t.Fatalf("same-request retry: %+v %v", r, err)
 	}

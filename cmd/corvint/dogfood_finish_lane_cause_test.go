@@ -68,3 +68,51 @@ func TestFinishLaneDCWV0806NamesTheOriginatingRefusal(t *testing.T) {
 		}
 	}
 }
+
+// TestFinishLaneDCWV0806CauseNamesABindTimeRefusal (V1-3495): an intent spec
+// with two `## Requirements` headings passes the DCW-V0-961 obligation
+// pre-flight, which leaves an intent prepare would refuse to the steps, and
+// fails only once a pass prepares its OCM map. finish-lane then names that
+// originating row as the CAUSE before its FAIL line, so the line has an
+// end-to-end test again; without the CAUSE line this fails.
+func TestFinishLaneDCWV0806CauseNamesABindTimeRefusal(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.txt", "base\n")
+	cemWrite(t, root, ".gitignore", ".corvint/change.ocm.json\n.corvint/change.ocm-intents\n.corvint/change.ocm-status.json\n.corvint/change.ocm.[0-9][0-9][0-9].json\n.corvint/self-observations.jsonl\n.corvint/dogfood-report.json\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	base := cemGit(t, root, "rev-parse", "HEAD")
+	cemWrite(t, root, "docs/specs/twice-v0.md", "# Twice v0\n\n## Requirements\n\n- `TWO-V0-001`: one holds.\n\n## Requirements\n\n- `TWO-V0-002`: two holds.\n")
+	cemWrite(t, root, "a.txt", "changed\n")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "change")
+	inputs := t.TempDir()
+	write := func(name, text string) string {
+		path := filepath.Join(inputs, name)
+		if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	args := []string{"dogfood", "finish-lane", "--base", base,
+		"--citations", write("cites", "1\tunknown\tinsufficient-evidence\tfixture\n2\tunknown\tinsufficient-evidence\tfixture\n"),
+		"--intents", write("intents", "docs/specs/twice-v0.md\n"),
+		"--verify", write("verify", "go test ./...\n"), "--outcome", "passed"}
+	code, stdout, stderr := run.exec(t, root, finishLaneIdentity, args...)
+	if code == 0 || strings.Contains(stdout+stderr, "REFUSE too-many-obligations") {
+		t.Fatalf("exit=%d, want a refusal after the pre-flight\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	}
+	// The aggregate's intent-scope-drift only follows from the refused
+	// prepare; the CAUSE line names the prepare, ahead of the bind FAIL line.
+	cause := strings.Index(stdout, "dogfood-finish-lane: CAUSE bind ocm-prepare-001 invalid-requirements-section\n")
+	fail := strings.Index(stdout, "dogfood-finish-lane: bind FAIL exit=")
+	if cause < 0 || fail < cause || !strings.Contains(stdout, "  bind ocm-aggregate NOT_PRODUCED intent-scope-drift\n") {
+		t.Fatalf("no CAUSE line naming the ocm-prepare refusal before the bind FAIL line\nstdout=%s\nstderr=%s", stdout, stderr)
+	}
+}

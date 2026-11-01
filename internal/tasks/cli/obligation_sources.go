@@ -38,7 +38,7 @@ func sourceReviewValue(env Env, l *ticket.ObligationLedger, casesFile string) (w
 	}
 	var cases map[string]string
 	if casesFile != "" {
-		raw, err := readBoundedFile("--legacy-cases", casesFile, obligation.MaxLegacyCasesBytes)
+		raw, err := readBoundedFile("--legacy-cases", commandPath(env.Cwd, casesFile), obligation.MaxLegacyCasesBytes)
 		if err != nil {
 			return wire.Value{}, false, err
 		}

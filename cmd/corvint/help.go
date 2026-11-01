@@ -943,9 +943,11 @@ would not be HEAD's; one only a TypeScript unit lists, such as a gitignored
 playwright-report/ bundle, is instead excluded from the graph. One --path
 takes every following value up to the next option, so --path a b c and
 --path a --path b --path c plan the same bytes. Write --path=VALUE for a name
-that begins with -. It does not combine with
---snapshot, --base, --provider, --playwright-config,
---playwright-discovery or --appmap-impact.
+that begins with -. It does not combine with --base (invalid-arguments).
+Under --snapshot, --provider, the Playwright profile (--playwright-config,
+--playwright-discovery) or --appmap-impact it refuses with exit 2 and
+unsupported-affected-path-profile, naming why that profile plans its own
+change set and the recovery: commit the paths and plan with --base <HEAD>.
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
 per LF-separated line, blank lines skipped; FILE is relative to the root unless
@@ -1599,7 +1601,8 @@ Verification options:
                        .corvint/change.cem.json --expected-base B --target T
                        --artifacts DIR --max-unknown 0 --path-policy base
   --guarding-tests     verify only, opt-in: after an ACCEPT, search the base
-                       tests of each uncited Go source hunk's directory for one
+                       tests of each uncited Go source hunk's directory (or,
+                       when it has none, of up to 16 direct importers) for one
                        that passes at the target and fails with only that hunk
                        reverted in a disposable export; adds the guardingTests
                        report (cem-guarding-tests/0) with citation-plan rows. It
@@ -1942,6 +1945,10 @@ Usage:
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
   corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
+  corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]
+  corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]
+  corvint [--root PATH] dogfood export --output FILE [--session-key HASH]
+  corvint [--root PATH] dogfood import --input FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]
@@ -1958,6 +1965,7 @@ Usage:
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
   corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
+  corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -1972,6 +1980,17 @@ runs the strict dogfood check and records satisfaction only on success.
 Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
 non-success. Local satisfaction is caller-owned workflow evidence, never execution
 attestation or Frontier closure. Native event is a separate bounded adapter profile.
+
+hold records a coordinator's preservation hold on the active enrollment, under
+which cancel refuses enrollment-preservation-hold; begin the new base in a
+distinct checkout instead, or release it with --release-authorization TEXT, which
+is kept as a record (LCP-V0-880, LCP-V0-881).
+
+export writes the enrollment, its session files and the artifacts it names to a
+new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the
+Git directory before a worktree is archived. import restores it into a worktree
+at that exact commit and tree with no state for the key, relocating its saved
+paths; it never replaces an enrollment or invents satisfaction (LCP-V0-883..885).
 
 handoff is read-only. Without --receipt it emits a receipt naming the session key,
 root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and
@@ -2020,7 +2039,8 @@ DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
 inputs-check runs only finish-lane's input checks and prepare pass, naming the
 offending input file and row or line, then removes the prepared map: it binds,
 commits and seals nothing. make dogfood-closeout runs it before any bind work
-(DCW-V0-380).
+(DCW-V0-380); a finish-lane run with the same base, HEAD, inputs and binary
+reuses its prepare pass instead of preparing again (DCW-V0-887).
 
 batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
@@ -2043,9 +2063,25 @@ it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
 written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
 and content (else the same path and BASE range), and every re-keyed or dropped row
-is noted on stderr; only the remaining hunks are drafted afresh. The bind refuses a
+is noted on stderr, a re-keyed unknown row's NOTE marked stale for review
+(DCW-V0-884); only the remaining hunks are drafted afresh. Without a
+citation-plan binding, ordinal rows resolve through the one sealed CEM of
+BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
+(DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+prechange records the agent pre-change receipts before the first edit, while
+HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context
+--task into prechange-context.json (orientation only; it satisfies no slot),
+query --task into prechange-query.json and, with PATH, impact PATH... into
+prechange-impact.json, all under the Git directory's corvint/, then
+prechange-binding.json naming BASE, its tree, the Git directory, the task and
+each receipt's digest. --task defaults to DOGFOOD_TASK. It refuses
+prechange-after-change once the change began, and prechange-receipt-exists
+rather than overwrite a receipt it did not write. Each later dogfood change
+notes the bound receipts as OBSERVED, or why one is not (DCW-V0-881).
+For example, run corvint dogfood prechange --task "Fix the parser" BASE internal/parse/parse.go.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

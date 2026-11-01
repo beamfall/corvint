@@ -44,6 +44,60 @@ type binaryExecsFile struct {
 	Packages map[string][]string `json:"packages"`
 }
 
+// BinaryConsumersProfile is the closed profile name of affected.BinaryConsumersPath.
+const BinaryConsumersProfile = "corvint-test-binary-consumers/0"
+
+// binaryConsumersFile maps a repository file that no Go package holds, such as
+// a Node script, to the commands whose built binary it runs (AFP-V0-762). It is
+// a file of its own, so a planner that predates it ignores it rather than
+// refusing affected.BinaryExecsPath.
+type binaryConsumersFile struct {
+	Profile   string              `json:"profile"`
+	Consumers map[string][]string `json:"consumers"`
+}
+
+// readBinaryConsumers returns the declared consumers: nil with no
+// declaration, an error for one that is unreadable, oversized or invalid in
+// any member, under the packages entry grammar.
+func readBinaryConsumers(root *affected.Source) (map[string][]string, error) {
+	body, err := root.ReadBounded(affected.BinaryConsumersPath, maxBinaryExecBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var declared binaryConsumersFile
+	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
+		return nil, err
+	}
+	if declared.Profile != BinaryConsumersProfile || len(declared.Consumers) == 0 || len(declared.Consumers) > maxBinaryExecPackages {
+		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
+	}
+	if err := validExecEntries(declared.Consumers); err != nil {
+		return nil, err
+	}
+	return declared.Consumers, nil
+}
+
+// validExecEntries checks each key and its 1 to 256 strictly ascending
+// command directories.
+func validExecEntries(member map[string][]string) error {
+	for key, entries := range member {
+		if !affected.ValidRelativePath(key) || len(entries) == 0 || len(entries) > maxBinaryExecEntries {
+			return fmt.Errorf("%q", key)
+		}
+		previous := ""
+		for _, entry := range entries {
+			if !affected.ValidRelativePath(entry) || entry <= previous || entry == key {
+				return fmt.Errorf("%q entry %q", key, entry)
+			}
+			previous = entry
+		}
+	}
+	return nil
+}
+
 // applyBinaryExecs sets each unit's command edges, given each unit's
 // directory and module and the command unit in each command directory: the
 // literal edges always, and the declared edges unless the declaration is
@@ -61,6 +115,16 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 	if err != nil {
 		frontier[FrontierBinaryExecsInvalid] = true
 	}
+	// A consumer declaration defect drops only its own entries (AFP-V0-762).
+	consumers, consumersErr := readBinaryConsumers(root)
+	var callers map[string][]string
+	if consumersErr == nil {
+		callers, consumersErr = matchBinaryConsumers(consumers, commands)
+	}
+	if consumersErr != nil {
+		frontier[FrontierBinaryExecsInvalid] = true
+		callers = nil
+	}
 	for index := range units {
 		for _, id := range declaredEdges[index] {
 			edges[index][id] = true
@@ -68,7 +132,30 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 		if len(edges[index]) != 0 {
 			units[index].Execs = sortedKeys(edges[index])
 		}
+		if files := callers[units[index].ID]; len(files) != 0 {
+			units[index].ExecConsumers = files
+		}
 	}
+}
+
+// matchBinaryConsumers returns, by command unit id, the sorted declared
+// consumer files that run its built binary (AFP-V0-762). Every entry must be
+// an observed command.
+func matchBinaryConsumers(consumers map[string][]string, commands map[string]string) (map[string][]string, error) {
+	callers := make(map[string][]string)
+	for file, entries := range consumers {
+		for _, entry := range entries {
+			id, command := commands[entry]
+			if !command {
+				return nil, fmt.Errorf("%s: consumer %q entry %q holds no command", affected.BinaryExecsPath, file, entry)
+			}
+			callers[id] = append(callers[id], file)
+		}
+	}
+	for id := range callers {
+		slices.Sort(callers[id])
+	}
+	return callers, nil
 }
 
 // literalExecs names the commands, other than the unit itself, whose directory
@@ -422,17 +509,8 @@ func readBinaryExecs(root *affected.Source) (map[string][]string, error) {
 	if declared.Profile != BinaryExecsProfile || declared.Packages == nil || len(declared.Packages) > maxBinaryExecPackages {
 		return nil, fmt.Errorf("%s: profile must be %s with at most %d packages", affected.BinaryExecsPath, BinaryExecsProfile, maxBinaryExecPackages)
 	}
-	for directory, entries := range declared.Packages {
-		if !affected.ValidRelativePath(directory) || len(entries) == 0 || len(entries) > maxBinaryExecEntries {
-			return nil, fmt.Errorf("%s: package %q", affected.BinaryExecsPath, directory)
-		}
-		previous := ""
-		for _, entry := range entries {
-			if !affected.ValidRelativePath(entry) || entry <= previous || entry == directory {
-				return nil, fmt.Errorf("%s: package %q entry %q", affected.BinaryExecsPath, directory, entry)
-			}
-			previous = entry
-		}
+	if err := validExecEntries(declared.Packages); err != nil {
+		return nil, fmt.Errorf("%s: package %w", affected.BinaryExecsPath, err)
 	}
 	return declared.Packages, nil
 }

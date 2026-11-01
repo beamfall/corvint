@@ -502,6 +502,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		if len(lines) != 0 {
 			input.GoSelection = lines[len(lines)-1]
 		}
+		testAttributionReasons(input.GoSlices, lines)
 		// A change only inside nested modules no observed module builds
 		// selects no root package; their own units run it (STR-V0-064).
 		if strings.HasPrefix(input.GoSelection, "FALLBACK the selection is empty while ") && sessiontest.ModuleCovered(receipt.Plan.Dirty, input.Unknown) {
@@ -509,6 +510,28 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 		}
 	}
 	return nil
+}
+
+// testAttributionReasons gives each package the AFP-V0-012 attribution adds
+// beyond the plan's own selections, which carries no slice yet, its attribution
+// line as its whole-package reason, such as `importer PKG <- PATH`, so every
+// whole-package selection in the manifest names the rule and path that chose
+// it (V1-3573). The plan's selections and the verdict line are left alone.
+func testAttributionReasons(slices map[string]sessiontest.GoSlice, lines []string) {
+	if len(lines) == 0 {
+		return
+	}
+	for _, line := range lines[:len(lines)-1] {
+		kind, rest, ok := strings.Cut(line, " ")
+		if !ok || kind == "selected" {
+			continue
+		}
+		pkg, _, _ := strings.Cut(rest, " ")
+		pkg = strings.TrimSuffix(pkg, ":")
+		if _, sliced := slices[pkg]; !sliced && pkg != "" {
+			slices[pkg] = sessiontest.GoSlice{Reason: "whole: attributed: " + line}
+		}
+	}
 }
 
 // testGoUniverse is the root Go universe: every graph Go unit the root

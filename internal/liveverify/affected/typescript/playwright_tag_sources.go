@@ -1188,7 +1188,9 @@ func playwrightPlainStringify(clean string, lexed playwrightLexed, at int) bool 
 
 // playwrightMemberAccessAt reports whether a `[` whose previous code byte is at previous opens a
 // member access rather than an array literal: it follows an identifier other than a keyword that
-// precedes an expression, a `)`, a `]` or the `.` of `?.`.
+// precedes an expression, a `)`, a `]` or the `.` of `?.`. A TypeScript non-null assertion `!`
+// counts when such an operand ends before it, so `x![k]` is a member access while `![a]` is the
+// logical not of an array literal (TJAA-V0-810).
 func playwrightMemberAccessAt(clean string, previous int) bool {
 	if previous < 0 {
 		return false
@@ -1196,6 +1198,8 @@ func playwrightMemberAccessAt(clean string, previous int) bool {
 	switch character := clean[previous]; {
 	case character == ')' || character == ']' || character == '.':
 		return true
+	case character == '!':
+		return playwrightMemberAccessAt(clean, playwrightPreviousCode(clean, previous))
 	case !playwrightIdentifierByte(character):
 		return false
 	}

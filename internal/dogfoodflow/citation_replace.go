@@ -19,9 +19,10 @@ type citationMap struct {
 	BaseRevision string `json:"baseRevision"`
 	PatchSha256  string `json:"patchSha256"`
 	Evidence     []struct {
-		ID   string `json:"id"`
-		Path string `json:"path"`
-		Span struct {
+		ID      string `json:"id"`
+		BlobOid string `json:"blobOid"`
+		Path    string `json:"path"`
+		Span    struct {
 			Start int64 `json:"start"`
 			End   int64 `json:"end"`
 		} `json:"span"`

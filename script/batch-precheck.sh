@@ -87,6 +87,12 @@
 # not judged, and with no resolvable base the check is skipped with the reason printed. It runs
 # outside the ledger, whose key is the tree, not the history.
 #
+# Pre-bind run (ASD-V0-837, V1-3550): BATCH_PRECHECK_SKIP_DRIFT=1 leaves out every batch-drift
+# step and writes no receipt, since not every step ran. dogfood-closeout uses it for its precheck
+# before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
+# as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
+# sealed head runs them, once per closeout.
+#
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
@@ -337,7 +343,7 @@ sync_check() {
 # Selection state (ASD-V0-050, ASD-V0-051): sel_on=1 once select_plan narrowed the run; otherwise
 # sel_why says why everything runs. drift_on[i] is 1 for each DRIFT_TESTS entry that runs and
 # cat_skip, when set, is why capability-catalog-check is skipped.
-sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why=''
+sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why='' sel_docs=0
 drift_on=() cat_skip=''
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
@@ -369,12 +375,26 @@ select_plan() {
     { n = split($0, c, "/"); b = c[n]
       if ($0 ~ /\.go$/ || b == "go.mod" || b == "go.sum" || b == "go.work" || b == "go.work.sum") { print; next }
       d = $0; while (sub(/\/[^\/]*$/, "", d)) if (d in dirs) { print; next } }' "$dir/select-go" "$dir/select-changed") || { sel_why='the Go input match failed'; return 0; }
+  # ASD-V0-904 (V1-3441): a diff of documentation alone, with no Go input, cannot reach an @go entry
+  # even when the plan below cannot narrow the run. One grep, not a pipeline: under pipefail an early
+  # `grep -q` exit SIGPIPEs the writer, and the negation would read that as documentation alone.
+  [[ -n $sel_changed && -z $sel_go ]] && ! grep -qvE '(\.md$|^docs/)' <<< "$sel_changed" && sel_docs=1
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | join(", ")' <<< "$plan") ||
+  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
-  [[ -z $reasons ]] || { sel_why="the plan has unknowns: $reasons"; return 0; }
+  # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
+  # whole list on one line.
+  if [[ -n $reasons ]]; then
+    local unknowns n_unknown
+    unknowns=$(git rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt 2> /dev/null) &&
+      printf '%s\n' "$reasons" 2> /dev/null > "$unknowns" ||
+      { unknowns=$dir/unknowns.txt; printf '%s\n' "$reasons" > "$unknowns"; unknowns+=' (removed when the run ends)'; }
+    n_unknown=$(grep -c . <<< "$reasons")
+    sel_why="the plan has $n_unknown unknowns, first: $(head -n 1 <<< "$reasons" | cut -c 1-160); all in $unknowns"
+    return 0
+  fi
   # The plan must be bound to this base, and every selected entry must name a unit; a Go unit that
   # does not map into this module could be a package the batch breaks, so it runs everything.
   jq -e --arg b "$sel_sha" '.range.base == $b' <<< "$plan" > /dev/null 2>&1 ||
@@ -422,8 +442,19 @@ select_report() {
   drift_on=()
   for ((i = 0; i < n; i++)); do
     drift_on[i]=1
-    ((sel_on)) || continue
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    if ((!sel_on && sel_docs)) && [[ " $inputs " == *' @go '* ]]; then
+      # A declared input that changed still runs the entry, as under the selection.
+      read -ra decl <<< "${inputs//@own/}"
+      decl=("${decl[@]/@go/}")
+      read -ra decl <<< "${decl[*]}"
+      if ! ((${#decl[@]})) || ! wanted "" "${decl[@]}"; then
+        drift_on[i]=0
+        skipped+=("$pkg $prefix")
+        continue
+      fi
+    fi
+    ((sel_on)) || continue
     read -ra decl <<< "${inputs//@own/}"
     wanted "$pkg" ${decl[@]+"${decl[@]}"} && continue
     drift_on[i]=0
@@ -431,6 +462,7 @@ select_report() {
   done
   if ((!sel_on)); then
     printf 'batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (%s)\n' "$sel_why"
+    for i in ${skipped[@]+"${!skipped[@]}"}; do printf 'batch-precheck:   NOT_RUN %s (docs-only diff: no Go input changed since %s)\n' "${skipped[i]}" "$sel_sha"; done
     return 0
   fi
   for ((i = 0; i < n; i++)); do ((drift_on[i])) && k=$((k + 1)); done
@@ -491,9 +523,15 @@ steps() {
     contains "$pkg" "${pkgs[@]+"${pkgs[@]}"}" || pkgs+=("$pkg")
     re+="${re:+|}$prefix"
   done
+  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+    k=0 pkgs=() own=()
+    printf 'batch-drift (skipped before the bind)\tprintf "%%s\\n" %q\n' "batch-drift: BATCH_PRECHECK_SKIP_DRIFT=1; the precheck of the sealed head runs it (ASD-V0-837)"
+  fi
   local label="${#pkgs[@]} packages"
   ((k == n)) || label+=", $k of $n tests"
-  if ((k == 0)); then
+  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+    :
+  elif ((k == 0)); then
     # Every entry was skipped under the selection (ASD-V0-050); no go test runs.
     printf 'batch-drift (0 of %d tests)\tprintf "%%s\\n" %q\n' "$n" "batch-drift: no drift test is reachable from the batch diff; every one is skipped"
   elif ((${#pkgs[@]})); then
@@ -528,15 +566,9 @@ steps() {
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'sync-check\t%q --sync-check\n' "$0"
-  # ASD-V0-071 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
-  # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-073 (V1-3238): the
-  # legal-file pins run as the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
-  local tbase thead
-  if tbase=$(git rev-parse --verify -q "${base:-origin/main}^{commit}") && thead=$(git rev-parse --verify -q 'HEAD^{commit}'); then
-    printf 'ai-trailers\t%q --range %q %q\n' "$self_dir/check-ai-trailers.sh" "$tbase" "$thead"
-  else
-    printf 'ai-trailers\tprintf "%%s\\n" %q\n' "skipped: ${base:-origin/main} or HEAD is not a commit"
-  fi
+  # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
+  # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
+  # the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
 }
 
 base=${BATCH_PRECHECK_BASE:-}
@@ -844,7 +876,9 @@ run_one() {
   line=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/steps")
   name=${line%%$'\t'*}
   cmd=${line#*$'\t'}
-  if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} ]]; then
+  # ASD-V0-892 (V1-3572): a print-only row (a skipped step's reason) never goes through the ledger,
+  # whose per-step whole-tree key costs about 0.6 s on Linux and 3 s on a loaded Mac for a printf.
+  if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} && $cmd != 'printf "%s\n" '* ]]; then
     case $name in
       'make '*) lname=${name#make } ;;
       'gofmt '*) lname=go-format-check ;;
@@ -946,9 +980,7 @@ if [[ -n $base ]]; then
     if [[ -n $hr ]]; then
       printf 'batch-precheck: FAIL %s (%ss) host-resource: %s; not compared with %s: free disk or memory (TMPDIR=%s) and rerun\n' \
         "$name" "$secs" "$hr" "$base" "${TMPDIR:-/tmp}"
-    # ASD-V0-071: the ai-trailers step checks the same pinned BASE..HEAD range at the base, so its
-    # failure would always look base-present; a history check is never downgraded.
-    elif [[ $name != ai-trailers ]] && at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
@@ -1017,6 +1049,8 @@ if ((fail)); then
 fi
 if ((warn)); then
   printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+  printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps\n'
 elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]]; then
   # Written beside the receipt and renamed over it, so a failed write leaves no receipt.
   if printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \

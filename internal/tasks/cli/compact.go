@@ -46,6 +46,8 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 		case containsArg(spec.values, a) && i+1 < len(args):
 			rest = append(rest, a, args[i+1])
 			i++
+		case a == "--json":
+			// Output is always one JSON envelope (CTS-V0-871).
 		case a == "--summary":
 			if wantSummary {
 				return compactRefusal(cmd, "duplicate --summary")

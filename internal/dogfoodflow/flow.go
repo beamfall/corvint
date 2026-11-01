@@ -21,6 +21,7 @@ import (
 	"syscall"
 
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
@@ -269,6 +270,34 @@ func (f *flow) requireRoot() {
 	if f.gitValue("rev-parse", "--show-prefix") != "" {
 		f.refuse("not-repository-root")
 	}
+}
+
+// requireTrustedAncestry refuses a checkout whose ancestry info/grafts or a shallow boundary
+// rewrites, before any merge-base, rev-list or --is-ancestor read of the flow answers from it
+// (EEP-V0-772): a shallow clone cannot prove BASE an ancestor or list BASE..HEAD completely, and
+// a graft can invent either. No CI job runs a dogfood flow in a shallow checkout, so the refusal
+// names its fix instead of degrading.
+func (f *flow) requireTrustedAncestry() {
+	// The two probes print a path and a boolean, so they keep their own small bound rather than
+	// the flow's output limit, which a test may lower below a path's length.
+	reason := gitancestry.Rewritten(f.ctx, func(_ context.Context, args ...string) ([]byte, error) {
+		f.checkpoint()
+		command := f.gitCommand(true, args...)
+		output := &cappedOutput{limit: 64 << 10}
+		command.Stdout = output
+		status := exitStatus(command.Run())
+		f.checkpoint()
+		if status != 0 || output.overflow {
+			return nil, errors.New("git read failed")
+		}
+		return []byte(output.text.String()), nil
+	})
+	if reason == "" {
+		return
+	}
+	f.say("%s: REFUSE ancestry-rewritten\n  %s, so BASE..HEAD ancestry cannot be trusted\n", f.prefix, reason)
+	f.say("  fix: run git fetch --unshallow (or reclone without --depth) and remove .git/info/grafts, then rerun\n")
+	f.exit(2)
 }
 
 // resolveAnchor enforces the optional corvint.dogfood.anchor contract.

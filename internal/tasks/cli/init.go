@@ -97,7 +97,7 @@ func initCommand(env Env, args []string) *wire.Result {
 	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 	if report.Receipt == "" {
 		res.Outcome = wire.OutcomeRefused
-		res.Codes = report.Outcome.Codes
+		res.Codes = refusalCodes(report.Outcome)
 		reason := "init committed nothing"
 		if report.Outcome.Outcome == "BLOCKED" {
 			reason = "already initialized: the state dir exists, so init wrote nothing"

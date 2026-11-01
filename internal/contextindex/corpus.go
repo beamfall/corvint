@@ -22,6 +22,20 @@ func BuildRevisionContext(ctx context.Context, root, revision string) (*Index, e
 	return index, nil
 }
 
+// BuildRevisionPin is BuildRevisionContext without compiling the index (DCX-V1-813): the same
+// identity, tree listing, admission and verified source pins, and so the same refusals, but no
+// symbol, import, vocabulary or term table is derived. It suits a caller that only verifies
+// pinned inputs and the tree.
+func BuildRevisionPin(ctx context.Context, root, revision string) (*Index, error) {
+	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	defer cancel()
+	identity, err := revisionIdentity(ctx, root, revision)
+	if err != nil {
+		return nil, err
+	}
+	return buildEvidence(withStatRoutedPins(ctx), root, identity, nil, "")
+}
+
 // revisionIdentity is the repository identity at an explicit full commit, with its tree.
 func revisionIdentity(ctx context.Context, root, revision string) (repositoryIdentity, error) {
 	identity, err := readIdentity(ctx, root)

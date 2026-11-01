@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
@@ -33,7 +34,10 @@ type CheckOptions struct {
 	BaseVerifier      Runner
 	TreeVerifier      Runner
 	Override          *Runner
-	Exception         string
+	// ConcurrentVerifiers runs the base and tree verifiers' cem status
+	// commands at once (DCW-V0-907); the dogfood commands set it.
+	ConcurrentVerifiers bool
+	Exception           string
 	// Verbose prints the full CEM and OCM status JSON on PASS, the output
 	// DCW-V0-020 fixed before DCW-V0-033 (DOGFOOD_VERBOSE=1).
 	Verbose bool
@@ -208,6 +212,7 @@ func (c *check) fail(reason string, lines ...string) {
 
 func (c *check) run() int {
 	c.requireRoot()
+	c.requireTrustedAncestry()
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
 	c.cemPath = ".corvint/change.cem.json"
@@ -568,10 +573,40 @@ func (c *check) verify(runner Runner, args ...string) verification {
 		c.checkpoint()
 		return result
 	}
-	var stdout, stderr bytes.Buffer
-	status := runner.Run(c.ctx, c.root, args, &stdout, &stderr)
+	result := runPlain(c.ctx, c.root, runner, args)
 	c.checkpoint()
+	return result
+}
+
+// runPlain runs one verifier command into its own buffers.
+func runPlain(ctx context.Context, root string, runner Runner, args []string) verification {
+	var stdout, stderr bytes.Buffer
+	status := runner.Run(ctx, root, args, &stdout, &stderr)
 	return verification{status, stdout.Bytes(), stderr.Bytes()}
+}
+
+// verifyPair runs args with the base and the tree verifier. For a cem status
+// pair (status set) with ConcurrentVerifiers set and no aggregate enrollment
+// the two run at once, each into its own buffers, and one checkpoint follows
+// both; the results are compared exactly as when they run one after the other
+// (DCW-V0-907). Every other pair, query abstention among them, stays
+// sequential, and impact never comes here: it takes the non-blocking
+// contextindex snapshot-refresh lock.
+func (c *check) verifyPair(status bool, args ...string) (verification, verification) {
+	if !status || !c.options.ConcurrentVerifiers || c.aggregate != nil {
+		return c.verify(c.options.BaseVerifier, args...), c.verify(c.options.TreeVerifier, args...)
+	}
+	var base verification
+	var wait sync.WaitGroup
+	wait.Add(1)
+	go func() {
+		defer wait.Done()
+		base = runPlain(c.ctx, c.root, c.options.BaseVerifier, args)
+	}()
+	tree := runPlain(c.ctx, c.root, c.options.TreeVerifier, args)
+	wait.Wait()
+	c.checkpoint()
+	return base, tree
 }
 
 func agree(left, right verification) bool {
@@ -587,10 +622,10 @@ func agreeImpact(left, right verification) bool {
 }
 
 // verifyAll runs args with the base and tree verifiers and the optional
-// override, and reports the tree result and whether all of them agree.
-func (c *check) verifyAll(args ...string) (verification, bool) {
-	base := c.verify(c.options.BaseVerifier, args...)
-	tree := c.verify(c.options.TreeVerifier, args...)
+// override, and reports the tree result and whether all of them agree. Only a
+// cem status command (status set) may run its pair concurrently (DCW-V0-907).
+func (c *check) verifyAll(status bool, args ...string) (verification, bool) {
+	base, tree := c.verifyPair(status, args...)
 	if !agree(base, tree) {
 		return tree, false
 	}
@@ -690,7 +725,7 @@ func (c *check) verifyStatus(args ...string) (verification, bool) {
 
 func (c *check) verifyStatusOnce(args ...string) (verification, bool) {
 	if c.outputChange == "" {
-		return c.verifyAll(args...)
+		return c.verifyAll(true, args...)
 	}
 	base, tree, agreed := c.verifyDeclared(args...)
 	c.baseStatusSHA, c.baseRefusal, c.treeStatusSHA = sha256Hex(base.stdout), "", sha256Hex(tree.stdout)
@@ -704,8 +739,7 @@ func (c *check) verifyStatusOnce(args ...string) (verification, bool) {
 // base verifier still runs, the tree verifier fills both roles, and it must
 // agree with itself and with any override (DCW-V0-047).
 func (c *check) verifyDeclared(args ...string) (verification, verification, bool) {
-	base := c.verify(c.options.BaseVerifier, args...)
-	tree := c.verify(c.options.TreeVerifier, args...)
+	base, tree := c.verifyPair(true, args...)
 	if !agree(tree, c.verify(c.options.TreeVerifier, args...)) {
 		return base, tree, false
 	}
@@ -841,6 +875,9 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
 	if note := coverage.unlinkedNote(); note != "" {
+		c.say("%s\n", note)
+	}
+	if note := coverage.outsideNote(); note != "" {
 		c.say("%s\n", note)
 	}
 	if noIntent {
@@ -1131,8 +1168,10 @@ func nonEmpty(lines []string) []string {
 // The line carries the count, the newest and oldest commit and the private file
 // that lists every commit, newest first, one "<label> SHA..." line each. When
 // that file cannot be written the commits are listed inline instead, so the
-// list is never dropped.
-func (c *check) windowNote(note, label string, commits []string, previousBase string) {
+// list is never dropped. window-start names the previous binding whose CEM
+// base starts the window, so a window that starts before a rebased lane's
+// BASE is explained (DCW-V0-903).
+func (c *check) windowNote(note, label string, commits []string, previous, previousBase string) {
 	if len(commits) == 0 {
 		return
 	}
@@ -1144,10 +1183,10 @@ func (c *check) windowNote(note, label string, commits []string, previousBase st
 	newest := strings.Fields(commits[0])[0]
 	oldest := strings.Fields(commits[len(commits)-1])[0]
 	if os.MkdirAll(c.evidence, 0o700) == nil && removeFile(list) == nil && writePrivate(list, []byte(body.String())) == nil {
-		c.say("dogfood-check: NOTE %s count=%d window=%s..%s newest=%s oldest=%s before-base list=%s\n", note, len(commits), previousBase, c.base, newest, oldest, list)
+		c.say("dogfood-check: NOTE %s count=%d window=%s..%s window-start=cem-base-of:%s newest=%s oldest=%s before-base list=%s\n", note, len(commits), previousBase, c.base, previous, newest, oldest, list)
 		return
 	}
-	c.say("dogfood-check: NOTE %s count=%d window=%s..%s\n", note, len(commits), previousBase, c.base)
+	c.say("dogfood-check: NOTE %s count=%d window=%s..%s window-start=cem-base-of:%s\n", note, len(commits), previousBase, c.base, previous)
 	for _, commit := range commits {
 		c.say("  %s %s\n", label, commit)
 	}
@@ -1221,8 +1260,8 @@ func (c *check) reportUnboundCommits() {
 			unbound = append(unbound, commit)
 		}
 	}
-	c.windowNote("unbound-commits", "unbound", unbound, previousBase)
-	c.windowNote("retroactive-bound-commits", "retroactive", retroactive, previousBase)
+	c.windowNote("unbound-commits", "unbound", unbound, previous, previousBase)
+	c.windowNote("retroactive-bound-commits", "retroactive", retroactive, previous, previousBase)
 }
 
 func (c *check) enableAggregateCapture() {

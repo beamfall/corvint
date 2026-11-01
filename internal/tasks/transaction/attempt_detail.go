@@ -135,6 +135,38 @@ func (c leaseContext) collisionDetail(attemptID string, rs []ticket.Resource) st
 	return "attempt " + attemptID
 }
 
+// collisionNextAction names the safe next action for a claim refused against
+// attemptID (ATR-V0-800): a directory key on either side of a colliding pair
+// reserves every path beneath it, and a declared scope is held in place of
+// --scope (ATR-V0-215). It is empty when neither applies.
+func (c leaseContext) collisionNextAction(attemptID string, sc *snapshot.Scope) string {
+	s := ""
+	for _, en := range c.st.reservations.Entries {
+		if en.AttemptID == attemptID && directoryCollision(sc.Resources, en.Resources) {
+			s += "; a directory key reserves every path beneath it: if the tickets write distinct files, declare exact file touchPaths with ticket set-effects before claiming (ATR-V0-800)"
+			break
+		}
+	}
+	if sc.Source == "DECLARED" && c.l.Scope != nil {
+		s += "; this claim holds the ticket's declared scope, not --scope (ATR-V0-215)"
+	}
+	return s
+}
+
+// directoryCollision reports whether a colliding PATH pair of rs and held
+// involves a directory key.
+func directoryCollision(rs, held []ticket.Resource) bool {
+	for _, x := range rs {
+		for _, y := range held {
+			if x.Class == "PATH" && y.Class == "PATH" && (strings.HasSuffix(x.Key, "/") || strings.HasSuffix(y.Key, "/")) &&
+				ticket.Collide([]ticket.Resource{x}, []ticket.Resource{y}) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // describeLive is the mutation path's ATR-V0-190 describer: it decodes the
 // attempt records only when a refusal needs them. A writer route that
 // supplies no attempt records gets the entry's identity only; the CLI then

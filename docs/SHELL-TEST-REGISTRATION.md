@@ -20,7 +20,19 @@ note is the one place that lists them; the checks point here when one is missing
    `.corvint/test-read-scopes.json` (`AFP-V0-023`) or add the file path (for example
    `script/<name>_test.sh`) to `units`, in strictly ascending order, with an entry in `reasons`
    that names the unbounded read and why it cannot be declared (`AFP-V0-025`, `AFP-V0-033`).
-   `make unbounded-readers-check` fails naming the file when neither is done.
+   `make unbounded-readers-check` fails naming the file when neither is done. A shell test that runs
+   a build or language toolchain (`go`, `make`, `node` and the other `shell.Toolchains` words) is
+   marked `shell:runs-toolchain` and has only the second route: `.corvint/test-read-scopes.json` is
+   keyed by Go package and cannot bound a shell unit, so add the file to `units` with a `reasons`
+   entry naming the toolchain read. The refusal names that route for such a unit (V1-3320).
+
+## Pinning a Makefile recipe expansion
+
+Do not pin a recipe with `make -n` from a `script/*_test.sh`: `make` is a toolchain word, so the
+shell test becomes an unbounded reader selected on every change (V1-2159). Pin it from a Go test in a
+package whose `.corvint/test-read-scopes.json` entry already declares `Makefile`, such as
+`tools/test-commands-check`, which runs `make -s -n -C ../.. TARGET VAR=VALUE` and compares the
+output: `TestInstructionConflictsRecipeExpansion` pins the `instruction-conflicts` recipe this way.
 
 Run `make -s --keep-going unbounded-readers-check shell-test-registration-check` after editing, or
 `make doc-gates`, which keeps going past a failing gate and so names every missing registration in

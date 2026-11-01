@@ -62,6 +62,9 @@ const (
 	// OpAttachEvidence records evidence digests and a reason on an OPEN
 	// ticket without changing its acceptance (TEA-V0-001).
 	OpAttachEvidence = "ATTACH_EVIDENCE"
+	// OpProgressSet appends one advisory progress entry to a live native
+	// ticket without changing its acceptance or status (TLF-V0-880).
+	OpProgressSet = "PROGRESS_SET"
 	// OpKnowHowAdd records one know-how note, or supersedes an active one,
 	// on a live native home ticket; OpKnowHowRetract withdraws one
 	// (KHN-V0-003). Neither changes acceptance.
@@ -275,6 +278,12 @@ type AttachEvidencePayload struct {
 
 func (*AttachEvidencePayload) operation() string { return OpAttachEvidence }
 
+// ProgressSetPayload is the closed TLF-V0-880 mark; the entry's actor and
+// time come from the writer.
+type ProgressSetPayload struct{ Mark ticket.ProgressMark }
+
+func (*ProgressSetPayload) operation() string { return OpProgressSet }
+
 // KnowHowAddPayload is the KNOWHOW_ADD payload (KHN-V0-003): the note text,
 // its pinned file anchors and the writer's HEAD commit, optional route
 // tokens, an optional superseded note with its reason, and writer-asserted
@@ -349,6 +358,7 @@ var PayloadKeys = map[string][]string{
 	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
 	OpRevokeApproval:  {"grantId", "reason"},
 	OpAttachEvidence:  {"evidence", "reason"},
+	OpProgressSet:     ticket.ProgressMarkKeys,
 	OpKnowHowAdd:      {"anchors", "attempt", "commit", "evidencePath", "generation", "reason", "routes", "supersedes", "text"},
 	OpKnowHowRetract:  {"note", "reason"},
 	OpNoteSet:         {"text", "supersedes"},
@@ -553,6 +563,9 @@ func decodePayload(op string, r *wire.Reader) (Payload, error) {
 	case OpAttachEvidence:
 		r.Closed(PayloadKeys[op]...)
 		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
+	case OpProgressSet:
+		r.Closed(PayloadKeys[op]...)
+		p = &ProgressSetPayload{Mark: ticket.ReadProgressMark(r)}
 	case OpKnowHowAdd:
 		repository := ""
 		if wire.Has(r.Value(), "repository") {
@@ -978,6 +991,8 @@ func PayloadValue(p Payload) wire.Value {
 	case *AttachEvidencePayload:
 		o.Set("evidence", ticket.DigestsValue(p.Evidence))
 		o.Set("reason", wire.String(p.Reason))
+	case *ProgressSetPayload:
+		ticket.ProgressMarkValue(o, p.Mark)
 	case *KnowHowAddPayload:
 		o.Set("text", wire.String(p.Text))
 		o.Set("anchors", ticket.KnowHowAnchorsValue(p.Anchors))

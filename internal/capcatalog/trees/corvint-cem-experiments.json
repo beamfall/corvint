@@ -1,0 +1,123 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-cem-experiments",
+  "helpJson": "corvint-cem-experiments help --json",
+  "source": "cmd/corvint-cem-experiments usageText",
+  "dispatchSources": [
+    "cmd/corvint-cem-experiments"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "gate"
+      ],
+      "command": "corvint-cem-experiments gate",
+      "summary": "Verify an experiment plan and receipt and apply the experiment gate",
+      "usage": [
+        "corvint-cem-experiments gate --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX [--repo DIR] [--stable-artifact-root DIR]"
+      ],
+      "flags": [
+        "--plan",
+        "--receipt",
+        "--repo",
+        "--stable-artifact-root",
+        "--tasks-executable",
+        "--tasks-sha256"
+      ],
+      "required": [
+        "--plan FILE",
+        "--receipt FILE",
+        "--tasks-executable PATH",
+        "--tasks-sha256 HEX"
+      ],
+      "example": "corvint-cem-experiments gate --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX",
+      "help": "corvint-cem-experiments gate --help"
+    },
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-cem-experiments plan",
+      "summary": "Plan a CEM criterion experiment from a request JSON and print its plan digest",
+      "usage": [
+        "corvint-cem-experiments plan --request FILE --out DIR --tasks-executable PATH --tasks-sha256 HEX [--repo DIR] [--stable-artifact-root DIR]"
+      ],
+      "flags": [
+        "--out",
+        "--repo",
+        "--request",
+        "--stable-artifact-root",
+        "--tasks-executable",
+        "--tasks-sha256"
+      ],
+      "required": [
+        "--request FILE",
+        "--out DIR",
+        "--tasks-executable PATH",
+        "--tasks-sha256 HEX"
+      ],
+      "example": "corvint-cem-experiments plan --request FILE --out DIR --tasks-executable PATH --tasks-sha256 HEX",
+      "help": "corvint-cem-experiments plan --help"
+    },
+    {
+      "path": [
+        "run"
+      ],
+      "command": "corvint-cem-experiments run",
+      "summary": "Run the approved experiment plan as trusted local test execution and print its receipt digest",
+      "usage": [
+        "corvint-cem-experiments run --plan FILE --approve SHA256 --out DIR --experimental --trusted-local --tasks-executable PATH --tasks-sha256 HEX [--repo DIR] [--stable-artifact-root DIR]"
+      ],
+      "flags": [
+        "--approve",
+        "--experimental",
+        "--out",
+        "--plan",
+        "--repo",
+        "--stable-artifact-root",
+        "--tasks-executable",
+        "--tasks-sha256",
+        "--trusted-local"
+      ],
+      "required": [
+        "--plan FILE",
+        "--approve SHA256",
+        "--out DIR",
+        "--experimental",
+        "--trusted-local",
+        "--tasks-executable PATH",
+        "--tasks-sha256 HEX"
+      ],
+      "example": "corvint-cem-experiments run --plan FILE --approve SHA256 --out DIR --experimental --trusted-local --tasks-executable PATH --tasks-sha256 HEX",
+      "help": "corvint-cem-experiments run --help"
+    },
+    {
+      "path": [
+        "verify"
+      ],
+      "command": "corvint-cem-experiments verify",
+      "summary": "Verify an experiment plan and receipt offline",
+      "usage": [
+        "corvint-cem-experiments verify --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX [--repo DIR] [--stable-artifact-root DIR]"
+      ],
+      "flags": [
+        "--plan",
+        "--receipt",
+        "--repo",
+        "--stable-artifact-root",
+        "--tasks-executable",
+        "--tasks-sha256"
+      ],
+      "required": [
+        "--plan FILE",
+        "--receipt FILE",
+        "--tasks-executable PATH",
+        "--tasks-sha256 HEX"
+      ],
+      "example": "corvint-cem-experiments verify --plan FILE --receipt FILE --tasks-executable PATH --tasks-sha256 HEX",
+      "help": "corvint-cem-experiments verify --help"
+    }
+  ]
+}

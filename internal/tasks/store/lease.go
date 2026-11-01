@@ -71,6 +71,17 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 			out.Unretryable = true
 		}
 	}()
+	if (choice.Lease.Verb == transaction.LeaseClaim || choice.Lease.Verb == transaction.LeaseClaimNext) && choice.Lease.Base != "" {
+		// ATR-V0-808: --base resolves any revision naming one commit, as
+		// --scope-from-diff does, and the request records its full OID.
+		if _, e := wire.ParseOID("base", choice.Lease.Base); e != nil {
+			base, err := resolveObjectWith(gitOutput, leaseRoot(repo, choice), choice.Lease.Base, "commit")
+			if err != nil {
+				return nil, wire.Errorf(wire.CodeMalformed, "base", "--base %s does not name a commit in %s: %v; pass a revision `git rev-parse --verify %s^{commit}` resolves, or its full OID (ATR-V0-808)", choice.Lease.Base, leaseRoot(repo, choice), err, choice.Lease.Base)
+			}
+			choice.Lease.Base = base
+		}
+	}
 	if choice.ScopeFromDiff != "" && choice.Lease.ScopeFromDiff == "" {
 		// TCD-V0-181: the request names the exact tree, so a replay under
 		// the same request id that names another tree refuses.
@@ -103,6 +114,9 @@ func Lease(ctx context.Context, repo *intent.Repository, actor mutation.Binding,
 			}
 			if err == nil && (choice.Lease.Verb == transaction.LeasePoolAcquire || choice.Lease.Verb == transaction.LeasePoolRelease) {
 				return report, pooledAttempt(ctx, repo, choice.Lease.AttemptID, report)
+			}
+			if err == nil && choice.Lease.Verb == transaction.LeaseWiden {
+				return report, widenedScope(repo, choice, report)
 			}
 			return report, claimedTicket(repo, choice.Root, choice.KnowHowRepos, choice.Lease.Verb, report, err)
 		}
@@ -223,8 +237,43 @@ func claimedTicket(repo *intent.Repository, root string, repos map[string]string
 			root = repo.PrimaryWorktree
 		}
 		report.ScopeWarnings = scopeDirectoryKeyWarnings(root, a)
+		if a.Scope != nil && a.Scope.Source == "WHOLE_REPOSITORY" {
+			report.ScopeWarnings = append(report.ScopeWarnings, wholeRepositoryFallbackWarning(a))
+		}
 		report.GrantWarnings = claimGrantWarnings(repo, a)
 	}
+	return nil
+}
+
+// WarningWholeRepositoryFallback prefixes the ATR-V0-806 warning.
+const WarningWholeRepositoryFallback = "WHOLE_REPOSITORY_FALLBACK"
+
+func wholeRepositoryFallbackWarning(a *snapshot.Attempt) string {
+	return WarningWholeRepositoryFallback + ": ticket " + a.TicketID.Raw + " declares no PATH scope and the claim gave no --scope or --scope-from-diff, so attempt " + a.AttemptID +
+		" reserves the whole repository and every other claim collides with it until it ends; release it and claim again with --scope PATHS or --scope-from-diff REV, or declare the ticket's paths with ticket set-effects first (ATR-V0-806)"
+}
+
+// widenedScope adds the CAL-V0-211 warning for each requested PATH key a
+// fresh widen committed that names a directory at the base (ATR-V0-807).
+func widenedScope(repo *intent.Repository, choice LeaseChoice, report *Report) error {
+	if report.Kind != "Transaction" || report.Outcome.Outcome != mutation.OutcomeCompleted || report.Outcome.ReceiptSeq == nil || report.AttemptID == "" || len(choice.Lease.Scope) == 0 {
+		return nil
+	}
+	a, err := receiptAttempt(repo, report)
+	if err != nil || a.Scope == nil {
+		return err
+	}
+	held := map[string]bool{}
+	for _, k := range pathKeys(a.Scope.Resources) {
+		held[k] = true
+	}
+	var keys []string
+	for _, k := range choice.Lease.Scope {
+		if held[k] {
+			keys = append(keys, k)
+		}
+	}
+	report.ScopeWarnings = ExactDirectoryKeyWarnings(leaseRoot(repo, choice), a.BaseCommit, keys)
 	return nil
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	cc "github.com/Beamfall/corvint/internal/cemcandidate"
+	"github.com/Beamfall/corvint/internal/clitree"
 )
 
 func main() {
@@ -25,6 +26,14 @@ func main() {
 	os.Exit(command(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 func command(ctx context.Context, args []string, out, errout io.Writer) int {
+	tree := commandTree()
+	if handled, err := clitree.Answer(tree, args, rootHelp(tree), out); handled {
+		if err != nil {
+			fmt.Fprintln(errout, err)
+			return 2
+		}
+		return 0
+	}
 	if len(args) > 0 && args[0] == "assemble-stable" {
 		return stableCommand(ctx, args[1:], out, errout)
 	}
