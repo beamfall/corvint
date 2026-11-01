@@ -1040,3 +1040,101 @@ func TestRunPackagesRefusesPartialOutput(t *testing.T) {
 		})
 	}
 }
+
+// TestRunStepKeysBatchPrecheckScopes replays GL-V0-600 and GL-V0-601: the
+// selection-baseline and capability-catalog steps hit after a change to a CEM
+// or a build log, the paths a post-seal precheck adds, and run after a change
+// to any declared input: a Go file, an embedded file under a Go package
+// directory, a module file, a root-level file, the gate tooling, and each
+// step's own data (the shard costs and change set; a top-level docs page).
+func TestRunStepKeysBatchPrecheckScopes(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	if err := os.Remove(filepath.Join(root, "main.go")); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"pkg/testdata/deep", ".corvint/changes", "docs/build-log", ".github/cishards", "benchmarks/selection-baseline", "script"} {
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(t, root, ".gitignore", "COUNT\n")
+	write(t, root, "pkg/a.go", "package pkg\n")
+	write(t, root, "pkg/testdata/deep/golden.txt", "one\n")
+	write(t, root, "go.mod", "module example.invalid/m\n")
+	write(t, root, "README.md", "one\n")
+	write(t, root, "docs/CAPABILITIES.md", "one\n")
+	write(t, root, ".github/cishards/package-costs.json", "{}\n")
+	write(t, root, "benchmarks/selection-baseline/changes.json", "{}\n")
+	write(t, root, "script/tool.sh", "true\n")
+	for _, step := range []string{"selection-baseline-check+s1", "capability-catalog-check+c1"} {
+		run := append([]string{"run", step}, counting...)
+		if code, out := ledgerRun(t, run...); code != 0 || !strings.Contains(out, "RECORD "+step) {
+			t.Fatalf("%s first run: code %d, %q", step, code, out)
+		}
+		check := func(file, body string, hit bool) {
+			t.Helper()
+			write(t, root, file, body)
+			_, out := ledgerRun(t, run...)
+			if hit && !strings.Contains(out, "HIT "+step) {
+				t.Fatalf("%s: a change to %s missed: %q", step, file, out)
+			}
+			if !hit && !strings.Contains(out, "RUN "+step+": no recorded pass") {
+				t.Fatalf("%s: a change to %s hit: %q", step, file, out)
+			}
+		}
+		check(".corvint/changes/"+step+".cem.json", "{}\n", true)
+		check("docs/build-log/"+step+".md", "entry\n", true)
+		check("pkg/a.go", "package pkg\n\n// "+step+"\n", false)
+		check("pkg/testdata/deep/golden.txt", step+"\n", false)
+		check("go.mod", "module example.invalid/m\n\n// "+step+"\n", false)
+		check("README.md", step+"\n", false)
+		check("script/tool.sh", "# "+step+"\n", false)
+		if step == "selection-baseline-check+s1" {
+			check("docs/CAPABILITIES.md", step+"\n", true)
+			check(".github/cishards/package-costs.json", "{\"a\": 1}\n", false)
+			check("benchmarks/selection-baseline/changes.json", "{\"a\": 1}\n", false)
+		} else {
+			check(".github/cishards/package-costs.json", "{\"b\": 2}\n", true)
+			check("docs/CAPABILITIES.md", step+"\n", false)
+		}
+	}
+}
+
+// TestInScopeBatchPrecheckForms pins the GL-V0-600 scope forms.
+func TestInScopeBatchPrecheckForms(t *testing.T) {
+	for _, c := range []struct {
+		path, scope string
+		want        bool
+	}{
+		{"README.md", rootScope, true},
+		{"docs/README.md", rootScope, false},
+		{"docs/CAPABILITIES.md", "docs/*.md", true},
+		{"docs/build-log/x.md", "docs/*.md", false},
+		{"docs/x.txt", "docs/*.md", false},
+		{"cmd/corvint/main.go", goScope, false}, // goScope is matched by goInput, never by inScope
+	} {
+		if got := inScope(c.path, []string{c.scope}); got != c.want {
+			t.Errorf("inScope(%q, %q) = %v, want %v", c.path, c.scope, got, c.want)
+		}
+	}
+	dirs := goDirectories([]treeEntry{{path: "cmd/corvint/main.go"}, {path: ".github/cishards/x.go"}})
+	for _, c := range []struct {
+		path string
+		want bool
+	}{
+		{"cmd/corvint/main.go", true},
+		{"cmd/corvint/testdata/a/b.json", true},
+		{"internal/new/x.go", true},
+		{"interop/m/go.sum", true},
+		{".github/cishards/package-costs.json", true},
+		{".github/workflows/ci.yml", false},
+		{".corvint/changes/x.cem.json", false},
+		{"docs/build-log/x.md", false},
+		{"cmd/README.md", false},
+	} {
+		if got := goInput(c.path, dirs); got != c.want {
+			t.Errorf("goInput(%q) = %v, want %v", c.path, got, c.want)
+		}
+	}
+}
