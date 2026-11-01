@@ -151,11 +151,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   above it. The frozen evaluation of `TCL-V0-009` MUST keep its recall, refusal count and
   precision.
 - `TCL-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A
-  mutation replayed by its recorded `--request-id` MUST report `replayed: true` and, in `receipt`,
-  the name (`<seq as 12 digits>.json`) of the receipt that committed the original mutation, so a
-  caller that confirms a write by its receipt sees the same name on replay. A replay writes no
-  receipt; `receipt` is empty only when the recorded original carried no receipt sequence. The
-  mutation help (`replay` member) MUST document this envelope.
+  single mutation replayed by its recorded `--request-id` MUST report `replayed: true`, an empty
+  `receipt` (it wrote none, which existing callers and tests read as the no-write marker), and an
+  added `originalReceipt` member naming (`<seq as 12 digits>.json`) the receipt that committed
+  the original, so a caller that confirms a write by its receipt can find it on replay. A fresh
+  commit's envelope is unchanged and has no `originalReceipt`. The mutation help (`replay`
+  member of `--help --verbose`) MUST document this envelope. `--batch` entries are out of scope.
 
 ## Non-goals
 
