@@ -340,9 +340,9 @@ Status: experimental under the standing lane auto-accept (V1-3717).
 in entry-ID order (V1-3718). `docs draft` and `docs consume` accept `--page N` (default 1); the
 page count is the larger of the two lists' page counts, at least 1. A page outside `1..count` is
 refused as `documentation-limit-exceeded`, naming the page and the count. When either list
-exceeds 64 entries the header carries `Page: N of P` and one line per cut list, `TRUNCATED:
-declarations A–B of M on page N of P; the other M-k entries are UNKNOWN on this page.` (importers
-likewise; a list with no entries on the page says `0 of M`), and the same text is a limitation.
+exceeds 64 entries the header carries `Page: N of P` and the limitations carry one line per cut
+list, `TRUNCATED: declarations A–B of M on page N of P; the other M-k entries are UNKNOWN on this
+page.` (importers likewise; a list with no entries on the page says `0 of M`).
 A package whose lists both fit one page keeps its bytes free of any page or TRUNCATED line. The
 `SDD-V0-005` byte bounds still apply per page. `corvint-docs-mcp` and `docs maintain` draft page 1,
 so an over-64 package now yields a labelled first page there instead of a refusal. Evidence:
