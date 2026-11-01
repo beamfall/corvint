@@ -1606,6 +1606,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `missing-intent-scope` fix MUST name the same rule. `docs/LANE-ORCHESTRATION.md` section 3 states
   it for charters. Evidence: `TestDCWV0817RecordIntentHintNamesAcceptedForms`,
   `script/dogfood-change_test.sh`. Rollback: drop the record-intent hint and the added clause.
+- `DCW-V0-818`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3623; refines
+  `DCW-V0-165`) The citation-anchor search `dogfood check` runs after its SUMMARY line to class
+  below-anchored hunks as unanchorable MUST be bounded and visible: when it searches at least 16
+  hunks it MUST first print `dogfood-check: NOTE tier-anchor-search hunks=N budget=Ns` to stderr,
+  and it MUST stop at its budget (60 s), class no hunk unanchorable, so every below-anchored hunk
+  keeps its warning, and print `dogfood-check: NOTE tier-anchor-search NOT_OBSERVED
+  budget-exceeded hunks=N`. An interrupt of the check itself still interrupts it. Evidence:
+  `TestDCWV0818AnchorSearchIsBoundedAndAnnounced`. Rollback: drop the budget and the NOTE lines.
 - `DCW-V0-906`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3483; amends
   `DCW-V0-809` and refines `DCW-V0-967`) A hunk of the defining spec that adds a same-change
   requirement, or only rows naming one, MUST be drafted as the `DCW-V0-967` proposal of the BASE
@@ -3485,6 +3493,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-815` (V1-3594) | `script/dogfood-finish.sh` preflight static checks; `script/dogfood-cache_test.sh` `DCW-V0-815` block | shell fixture |
 | `DCW-V0-816` (V1-3599) | `internal/dogfoodflow/finishlane.go` `bindAdmits`; `TestFinishLaneDCWV0816BindAdmitsAReplacedTrackedSidecar` | unit |
 | `DCW-V0-817` (V1-3621) | `internal/dogfoodflow/change.go` `recordIntentHint`, `intentScopeHint`; `TestDCWV0817RecordIntentHintNamesAcceptedForms`; `script/dogfood-change_test.sh` | unit and shell fixture |
+| `DCW-V0-818` (V1-3623) | `internal/dogfoodflow/check_tiers.go` `unanchorableHunks`; `TestDCWV0818AnchorSearchIsBoundedAndAnnounced` | unit |
 | `DCW-V0-906` (V1-3483) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`; dffric-w1 replay 13 -> 11 unknown of 65 | unit and replay |
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
