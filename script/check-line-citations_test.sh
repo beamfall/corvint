@@ -1007,4 +1007,37 @@ case $output in
 *) fail "--hash on an unmerged path did not name the unmerged entry: $output" ;;
 esac
 
+# 36. DCG-V0-630 (V1-3722): --repin --show-changed prints a changed span's old and new lines and
+#     writes the mapped anchor only on a `y` answer; `n` (or no answer) writes nothing.
+git -C "$test_root" rm -q --cached internal/demo/demo.go
+write_source 1
+printf '%s\n' 'package demo' '' 'func Shown() int { return 1 }' 'func Tail() {}' > "$test_root/internal/demo/show.go"
+stage internal/demo/show.go
+shown=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/show.go:3)
+cite "$shown"
+run >/dev/null || fail "the --show-changed fixture did not pass before the edit: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m show-changed
+printf '%s\n' 'package demo' '// Inserted.' '' 'func Shown() int { return 2 }' 'func Tail() {}' > "$test_root/internal/demo/show.go"
+stage internal/demo/show.go
+out=$(cd "$test_root" && printf 'n\n' | script/check-line-citations.sh --repin --show-changed 2>&1) || fail "--show-changed n failed: $out"
+case $out in
+*'- 3: func Shown() int { return 1 }'*'+ 4: func Shown() int { return 2 }'*'write `internal/demo/show.go:4@'*'? [y/N]'*) ;;
+*) fail "--show-changed did not print both spans and ask: $out" ;;
+esac
+grep -qF "$shown" "$test_root/docs/agent-memory/fixture.md" || fail "--show-changed wrote on n: $(cat "$test_root/docs/agent-memory/fixture.md")"
+run >/dev/null && fail "the declined citation passed the check"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --show-changed 2>&1 </dev/null) || fail "--show-changed with no answer failed: $out"
+grep -qF "$shown" "$test_root/docs/agent-memory/fixture.md" || fail "--show-changed wrote with no answer"
+out=$(cd "$test_root" && printf 'y\n' | script/check-line-citations.sh --repin --show-changed 2>&1) || fail "--show-changed y failed: $out"
+case $out in *'confirmed, written as `internal/demo/show.go:4@'*) ;; *) fail "--show-changed y did not report the write: $out" ;; esac
+grep -qF 'internal/demo/show.go:4@' "$test_root/docs/agent-memory/fixture.md" || fail "--show-changed y did not write: $(cat "$test_root/docs/agent-memory/fixture.md")"
+run >/dev/null || fail "the confirmed citation still fails: $(run)"
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed --show-changed 2>&1) || rc=$?
+[ "$rc" != 0 ] || fail "--changed with --show-changed was accepted: $out"
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --show-changed 2>&1) || rc=$?
+[ "$rc" != 0 ] || fail "--show-changed without --repin was accepted: $out"
+
 echo "check-line-citations_test.sh: ok"

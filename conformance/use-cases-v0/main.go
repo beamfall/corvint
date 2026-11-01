@@ -4,8 +4,12 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"os"
 	"path"
@@ -13,6 +17,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -342,7 +347,21 @@ func (v *validator) receipt(id, class string, reference any, label string, verif
 	} else {
 		for i, subject := range subjects {
 			sl := fmt.Sprintf("%s:subject:%d", label, i)
-			sm, ok := v.closed(subject, []string{"path", "sha256"}, sl)
+			fields := []string{"path", "sha256"}
+			if m, _ := subject.(map[string]any); m != nil {
+				_, hasLines := m["lines"]
+				_, hasSymbol := m["symbol"]
+				if hasLines && hasSymbol {
+					v.fail(sl, "invalid-subject-pin")
+					continue
+				}
+				if hasLines {
+					fields = append(fields, "lines")
+				} else if hasSymbol {
+					fields = append(fields, "symbol")
+				}
+			}
+			sm, ok := v.closed(subject, fields, sl)
 			if !ok {
 				continue
 			}
@@ -359,6 +378,11 @@ func (v *validator) receipt(id, class string, reference any, label string, verif
 			}
 			sr := v.read(sm["path"], sl)
 			if sr == nil {
+				continue
+			}
+			sr, err := subjectBytes(str(sm["path"]), sr, sm["lines"], sm["symbol"])
+			if err != nil {
+				v.fail(sl, "invalid-subject-pin")
 				continue
 			}
 			if digest(sr) != sd {
@@ -640,10 +664,20 @@ func (v *validator) failure() map[string]any {
 func main() {
 	root := flag.String("root", ".", "repository root")
 	ledger := flag.String("ledger", "conformance/use-cases-v0/ledger.json", "repository-relative ledger")
+	symbolDigest := flag.String("subject-digest", "", "print the UCV0-630 digest of PATH#SYMBOL and exit")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected arguments")
 		os.Exit(2)
+	}
+	if *symbolDigest != "" {
+		sum, err := symbolSubjectDigest(*root, *symbolDigest)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "use-cases-v0:", err)
+			os.Exit(1)
+		}
+		fmt.Println(sum)
+		return
 	}
 	result := validate(*root, *ledger)
 	raw, err := contextindex.CanonicalJSON(result)
@@ -679,4 +713,135 @@ func recoveryHint(errs []any, ledger string) []string {
 		out = append(out, "use-cases-v0: fix: a pinned subject changed; run `script/repin-use-case-receipts.sh` to repin the receipts and the ledger, review the diff, then rerun `go run ./conformance/use-cases-v0`")
 	}
 	return out
+}
+
+var spanPattern = regexp.MustCompile(`\A([1-9][0-9]{0,8})-([1-9][0-9]{0,8})\z`)
+
+// subjectBytes returns the bytes a subject's sha256 pins (UCV0-630): the whole file, the lines a
+// `lines` span names with their terminators, or one top-level Go declaration a `symbol` names,
+// from its doc comment through its end.
+func subjectBytes(name string, raw []byte, lines, symbol any) ([]byte, error) {
+	switch {
+	case lines != nil && symbol != nil:
+		return nil, errors.New("a subject pins lines or a symbol, not both")
+	case lines != nil:
+		span, _ := lines.(string)
+		m := spanPattern.FindStringSubmatch(span)
+		if m == nil {
+			return nil, fmt.Errorf("lines %q is not N-M", span)
+		}
+		first, _ := strconv.Atoi(m[1])
+		last, _ := strconv.Atoi(m[2])
+		all := bytes.SplitAfter(raw, []byte("\n"))
+		if len(all) > 0 && len(all[len(all)-1]) == 0 {
+			all = all[:len(all)-1]
+		}
+		if first > last || last > len(all) {
+			return nil, fmt.Errorf("lines %s is outside the file's %d lines", span, len(all))
+		}
+		return bytes.Join(all[first-1:last], nil), nil
+	case symbol != nil:
+		want, _ := symbol.(string)
+		return symbolBytes(name, raw, want)
+	}
+	return raw, nil
+}
+
+func symbolBytes(name string, raw []byte, want string) ([]byte, error) {
+	if want == "" || !strings.HasSuffix(name, ".go") {
+		return nil, errors.New("a symbol pin needs a Go file and a declaration name")
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, name, raw, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+	var found []ast.Node
+	var docs []*ast.CommentGroup
+	add := func(node ast.Node, doc *ast.CommentGroup) { found = append(found, node); docs = append(docs, doc) }
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.FuncDecl:
+			if declName(d) == want {
+				add(d, d.Doc)
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				var names []string
+				doc := d.Doc
+				if ts, ok := spec.(*ast.TypeSpec); ok {
+					names = []string{ts.Name.Name}
+				} else if vs, ok := spec.(*ast.ValueSpec); ok {
+					for _, n := range vs.Names {
+						names = append(names, n.Name)
+					}
+				}
+				if !contains(names, want) {
+					continue
+				}
+				if len(d.Specs) == 1 {
+					add(d, d.Doc)
+					continue
+				}
+				switch sp := spec.(type) {
+				case *ast.TypeSpec:
+					doc = sp.Doc
+				case *ast.ValueSpec:
+					doc = sp.Doc
+				}
+				add(spec, doc)
+			}
+		}
+	}
+	if len(found) != 1 {
+		return nil, fmt.Errorf("symbol %s names %d top-level declarations, not one", want, len(found))
+	}
+	start := found[0].Pos()
+	if docs[0] != nil {
+		start = docs[0].Pos()
+	}
+	from, to := fset.Position(start).Offset, fset.Position(found[0].End()).Offset
+	return raw[from:to], nil
+}
+
+// declName is a function's name, or a method's as Type.Method with any pointer or type
+// parameters dropped from the receiver.
+func declName(d *ast.FuncDecl) string {
+	if d.Recv == nil || len(d.Recv.List) == 0 {
+		return d.Name.Name
+	}
+	expr := d.Recv.List[0].Type
+	for {
+		switch e := expr.(type) {
+		case *ast.StarExpr:
+			expr = e.X
+			continue
+		case *ast.IndexExpr:
+			expr = e.X
+			continue
+		case *ast.IndexListExpr:
+			expr = e.X
+			continue
+		case *ast.Ident:
+			return e.Name + "." + d.Name.Name
+		}
+		return d.Name.Name
+	}
+}
+
+// symbolSubjectDigest prints the digest a PATH#SYMBOL subject pins, for the repin script.
+func symbolSubjectDigest(root, target string) (string, error) {
+	name, symbol, ok := strings.Cut(target, "#")
+	if !ok || name == "" || path.IsAbs(name) || path.Clean(name) != name || strings.HasPrefix(name, "../") {
+		return "", fmt.Errorf("-subject-digest %q is not PATH#SYMBOL with a clean relative path", target)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
+	if err != nil {
+		return "", err
+	}
+	pinned, err := symbolBytes(name, raw, symbol)
+	if err != nil {
+		return "", err
+	}
+	return digest(pinned), nil
 }
