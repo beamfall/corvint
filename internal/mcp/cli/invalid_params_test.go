@@ -23,7 +23,7 @@ func TestMCPV0952InvalidParamsCarryReasonAndField(t *testing.T) {
 		{"unknown tool", call(map[string]any{"name": "corvint.nope", "arguments": map[string]any{}}),
 			map[string]any{"reason": "unknown-tool", "field": "name", "allowed": []any{"corvint.help", "corvint.impact", "corvint.query", "corvint.status"}}},
 		{"bad enum", call(map[string]any{"name": "corvint.help", "arguments": map[string]any{"topic": "everything"}}),
-			map[string]any{"reason": "invalid-enum", "field": "arguments.topic", "allowed": []any{"catalog", "guide"}}},
+			map[string]any{"reason": "invalid-enum", "field": "arguments.topic", "allowed": []any{"guide", "command", "catalog"}}},
 		{"pattern violation", call(map[string]any{"name": "corvint.query", "arguments": map[string]any{"task": "   "}}),
 			map[string]any{"reason": "pattern-mismatch", "field": "arguments.task", "rule": "^[ -~]*[!-~][ -~]*$"}},
 		{"unknown argument", call(map[string]any{"name": "corvint.status", "arguments": map[string]any{"verbose": true}}),
