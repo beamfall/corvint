@@ -275,6 +275,7 @@ for(const host of ['opencode','gemini']) {
   for(const mode of ['malformed','digest','event','host','profile','echo','nodes','overflow','core-error']) {
    const f=fixture(t,mode)
    if(host==='opencode'){const result=await f.runOpen(request(f.root,'user-prompt'));assert.equal(result.ok,false,`${mode}: ${JSON.stringify(result)}`);if(mode==='echo')assert.equal(result.code,'prompt-echo-withheld')}
+   else if(mode==='echo'){const {output}=await f.gemini('user-prompt');assert.equal(output.continue,true);assert.equal(output.systemMessage,undefined,JSON.stringify(output));assert.match(output.hookSpecificOutput?.additionalContext,/degraded \(prompt-echo-withheld\)/)}
    else {const {output}=await f.gemini('user-prompt');assert.equal(output.continue,true);assert.match(output.systemMessage,/degraded/,mode);assert.ok(Buffer.byteLength(JSON.stringify(output))<1000)}
   }
  })

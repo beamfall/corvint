@@ -108,6 +108,7 @@ const CONTEXT_HOOKS = new Map([
 const EXPECTED_DEGRADATIONS = new Set([
   "changed-path-unavailable",
   "host-kill-budget-exhausted",
+  "prompt-echo-withheld",
   "prompt-over-query-bound",
   "prompt-unavailable",
 ]);
@@ -649,7 +650,9 @@ function parseReceipt(result, event, payload) {
     typeof payload.task === "string" &&
     containsExactString(receipt, payload.task)
   ) {
-    throw new Error("corvint-prompt-echo");
+    // AHI-952: a one-word task can equal a symbol name Core rightly returns, so an echo in a
+    // well-formed envelope is an expected abstention (AHI-248), not a fault. No frame is used.
+    throw new Error("prompt-echo-withheld");
   }
   return receipt;
 }
