@@ -208,8 +208,11 @@ func (c *change) run() int {
 	// Query and impact run after the change, so they are coordination-time
 	// receipts; the agent's prechange-*.json receipts are never written here (DCW-V0-026).
 	if c.scope == passFull {
+		// The impact command runs beside the query: both only read the
+		// committed range, and each writes its own files (DCW-V0-756).
+		impact := c.startImpact()
 		c.coordinationQuery(task)
-		c.prechangeImpact()
+		c.prechangeImpact(impact)
 		if c.noDiffYet() {
 			return c.reportNoDiffYet()
 		}
@@ -520,20 +523,69 @@ func (c *change) prepare(name, output string, outdated func(int, []byte, string)
 	return c.runStep(name, output, append(args, "--replace")...)
 }
 
+// impactArgv is the coordination-time impact command.
+func (c *change) impactArgv() []string {
+	return []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
+}
+
+// impactRun is the first impact command, started beside the coordination
+// query (DCW-V0-756); done delivers its exit status.
+type impactRun struct{ done chan int }
+
+// startImpact writes the impact argv record and starts the first impact run
+// in the background, or returns nil when the step runner is not safe to call
+// concurrently or the record cannot be written, so prechangeImpact runs it
+// (and reports a failure) in its own place. The
+// background run never stops the flow itself: prechangeImpact checks the
+// context once it has its status.
+func (c *change) startImpact() *impactRun {
+	if !c.options.Steps.Concurrent || c.options.Steps.Run == nil {
+		return nil
+	}
+	argv := c.impactArgv()
+	artifact := c.evidence + "/coordination-time-impact-abstention.json"
+	if removeFile(artifact) != nil || writePrivate(c.evidence+"/coordination-time-impact.argv", []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
+		return nil
+	}
+	stdout, err := os.Create(c.evidence + "/coordination-time-impact.json")
+	if err != nil {
+		return nil
+	}
+	stderr, err := os.Create(c.evidence + "/coordination-time-impact.stderr")
+	if err != nil {
+		_ = stdout.Close()
+		return nil
+	}
+	run := &impactRun{done: make(chan int, 1)}
+	go func() {
+		defer stdout.Close()
+		defer stderr.Close()
+		run.done <- c.options.Steps.Run(c.ctx, c.root, argv[3:], stdout, stderr)
+	}()
+	return run
+}
+
 // prechangeImpact runs impact and keeps a typed, digest-bound abstention when
-// it refuses with exactly one envelope whose code is an impact abstention.
-func (c *change) prechangeImpact() {
+// it refuses with exactly one envelope whose code is an impact abstention. A
+// started run supplies the first attempt's status.
+func (c *change) prechangeImpact(started *impactRun) {
 	output := c.evidence + "/coordination-time-impact.json"
 	errorFile := c.evidence + "/coordination-time-impact.stderr"
 	argvFile := c.evidence + "/coordination-time-impact.argv"
 	artifact := c.evidence + "/coordination-time-impact-abstention.json"
-	argv := []string{c.options.Steps.Path, "--root", c.root, "impact", "--base", c.base, "--range-profile", "expanded-256", "--limit", "20"}
+	argv := c.impactArgv()
 	failed := func() { c.addStep("coordination-time-impact", "NOT_PRODUCED", "context-abstention-evidence-failed") }
-	if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
-		failed()
-		return
+	var status int
+	if started != nil {
+		status = <-started.done
+		c.checkpoint()
+	} else {
+		if removeFile(artifact) != nil || writePrivate(argvFile, []byte(strings.Join(argv, "\x00")+"\x00")) != nil {
+			failed()
+			return
+		}
+		status = c.exec(argv[3:], output, errorFile)
 	}
-	status := c.exec(argv[3:], output, errorFile)
 	// DCW-V0-075: a Git deadline overrun under host load gets one bounded
 	// retry; a second overrun is a visible, non-blocking abstention.
 	if impactDeadlineOverrun(status, output, errorFile) {

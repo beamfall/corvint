@@ -482,4 +482,33 @@ done
   git rm -q --cached scope_test.go && /bin/rm -f scope_test.go script/check-requirement-definitions.sh
   rmdir tools/test-read-scopes-check tools
 ) || { printf 'DCW-V0-815 inputs-check static doc checks: FAIL\n' >&2; exit 1; }
+# DCW-V0-757 (V1-4197): static checks that passed on a clean worktree are skipped, saying so, by the
+# next run with the same tree, BASE and Go toolchain; a dirty worktree runs them again.
+(
+  cd "$root/repo" || exit 1
+  inputs=(BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed)
+  export TEST_STATIC_LOG="$root/static.log" TEST_FAKE_GO="$root/bin/go"
+  : > "$TEST_STATIC_LOG"
+  printf '#!/bin/sh\necho ran >> "$TEST_STATIC_LOG"\nexit 0\n' > script/check-requirement-definitions.sh
+  chmod +x script/check-requirement-definitions.sh
+  git add -A && git -c user.name=test -c user.email=test@example.invalid commit -qm static || exit 1
+  mkdir -p "$root/envbin"
+  cat > "$root/envbin/go" <<'EOF'
+#!/usr/bin/env bash
+if [[ ${1-} == env && ${2-} == GOVERSION ]]; then printf 'go1.27.3\nlinux\namd64\n\n0\n'; exit 0; fi
+exec "$TEST_FAKE_GO" "$@"
+EOF
+  chmod +x "$root/envbin/go"
+  # The untracked bind sidecar a dogfood change leaves is not an input of the checks.
+  mkdir -p .corvint && printf '{}\n' > .corvint/change.cem.json
+  for run in first second; do
+    PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  done
+  [[ $(wc -l < "$TEST_STATIC_LOG") == 1 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: static checks REUSE: they passed for this clean tree [0-9a-f]+ at BASE [0-9a-f]{12} \(DCW-V0-757\)$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  printf 'x\n' > untracked-input
+  PATH="$root/envbin:$PATH" make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  [[ $(wc -l < "$TEST_STATIC_LOG") == 2 ]] && ! rg -q 'static checks REUSE' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  /bin/rm -f untracked-input .corvint/change.cem.json
+) || { printf 'DCW-V0-757 static check reuse: FAIL\n' >&2; exit 1; }
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'

@@ -3508,6 +3508,41 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   (overlapping, nested and repeated patterns, several matches on a line, CRLF, a last line without
   LF, a binary file, a symbolic link, an excluded path and no match print what Git prints) and
   `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `anchorGrepFastPath` false.
+- `DCW-V0-755`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-942`) `script/dogfood-finish.sh` MUST time its own phases (inputs, verify syntax, the
+  static checks, spec indexes, analyzer schema, setup, the tree and base verifier builds naming
+  `reuse` or `build`, and the nested inputs-check) and print them as one `PREFIX: TIMING wrapper
+  seconds=S phase=S...` line before it hands over to the binary, so the wrapper's seconds and the
+  binary's `TIMING` sections together cover a finish. Bash before 5 prints no wrapper line.
+  Measured on WSL (subject: lane cmd-w26's nine commits, 35 hunks): the wrapper line and the
+  binary's `TIMING total` cover 26.4 of 26.6 s and 23.9 of 24.2 s of `make dogfood-finish`
+  (99%), where 15-20 s had been unattributed. Evidence: the build-log runs. Rollback: drop
+  `wrapper_phase` and `wrapper_timing`.
+- `DCW-V0-756`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-026`) When the step runner is safe for concurrent calls (`Runner.Concurrent`, which `Exec`
+  sets), a full `dogfood change` pass (`dogfood change` itself and finish-lane's rebind) MUST start
+  the coordination-time `impact` command while the coordination-time `query` runs, then record the
+  query row before the impact row as before. Both only read the committed range and each writes its
+  own files, so the rows, their order and the evidence files are those of the sequential run; a
+  runner without the mark, or an argv record that cannot be written, runs them one after the other.
+  The bind pass runs neither, so there is no bind work for the rebind to reuse. Measured with
+  `DCW-V0-757` below. Evidence: `TestChangeDCWV0756ImpactBesideQueryMatchesTheSequentialRun` (also
+  under `-race`). Rollback: drop `startImpact`.
+- `DCW-V0-757`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4197; refines
+  `DCW-V0-815`, `DCW-V0-090` and `IDX-SNAP-V0-891`) After the requirement-definitions,
+  test-read-scopes, spec-index and analyzer-schema checks of `script/dogfood-finish.sh` pass on a
+  worktree that is clean except for the untracked bind sidecar `.corvint/change.cem.json` (which
+  none of them reads), the wrapper MUST record a key of HEAD's tree, BASE and the Go toolchain
+  (`go env GOVERSION GOOS GOARCH GOFLAGS CGO_ENABLED`) in the git directory's
+  `corvint/dogfood-static-pass`, and a later run whose worktree gives the same key MUST skip those
+  checks, printing `static checks REUSE: they passed for this clean tree TREE at BASE BASE
+  (DCW-V0-757)`. A dirty worktree, an unreadable key or any other key runs them. Measured on WSL at
+  load 13-20 on the same subject, old against new code: `make dogfood-finish` 40.2 s to 24.2 s
+  (wrapper 16.8-18.0 s to 4.1-4.4 s; rebind 13.2 s to 10.1 s), `make dogfood-change` 9.1 s to 6.6 s,
+  and two runs at the same base sealed byte-identical CEMs. Evidence: the `DCW-V0-757` case of
+  `script/dogfood-cache_test.sh` (a second run skips the checks with the sidecar present; an
+  untracked file runs them) and `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop the key,
+  the stamp and the `static_reuse` guards.
 
 ## Code vocabulary
 
@@ -3872,6 +3907,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose_blobs.go` `commitTree`, `batchBlob`, `fastBlob`, `closeBlobs`; `propose.go` `blob`, `familyFallbacks`; `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-753` (experimental under the standing lane auto-accept; owner request via the orchestrator) | `script/dogfood-finish.sh` early VERIFY block; `tools/verify-syntax-check`; `internal/dogfoodflow/verify_syntax.go` `CheckVerifySyntax`; `TestDCWV0753VerifySyntaxCheckMatchesThePreflight` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-754` (experimental under the standing lane auto-accept; owner request via the orchestrator) | `internal/dogfoodflow/propose_grep.go` `onlyMatching`, `fixedMatcher`; `propose_blobs.go` `batchRead`; `propose.go` `prepareAnchors`; `TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep` | implemented; focused test PASS; measured in the build log |
+| `DCW-V0-755` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `wrapper_phase`, `wrapper_timing` | implemented; measured in the build log |
+| `DCW-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`, `prechangeImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDCWV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
+| `DCW-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DCW-V0-757` case) | implemented; shell test PASS; measured in the build log |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
