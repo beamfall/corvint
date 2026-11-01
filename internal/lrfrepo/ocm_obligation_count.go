@@ -27,7 +27,7 @@ func IntentObligationCounts(ctx context.Context, root, target string, paths []st
 	reader := &ocmBlobReader{ctx: ctx, repository: repository, cache: map[string][]byte{}}
 	counts := make([]int, 0, len(paths))
 	for _, path := range paths {
-		derived, _, err := deriveIntentAt(ctx, repository, reader, resolved, path, "")
+		derived, _, err := deriveIntentAt(ctx, repository, reader, resolved, path, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -51,7 +51,7 @@ func DeriveIntentAt(ctx context.Context, root, target, path string) (int, error)
 // deriveIntentAt is the one intent derivation PrepareOCM and the obligation
 // counts share: the intent must be a blob at the resolved target and derive in
 // form (DCW-V0-945). It returns the derivation and the intent's blob ID.
-func deriveIntentAt(ctx context.Context, repository *gitauth.Repository, reader *ocmBlobReader, target, path, form string) (intentDerivation, string, error) {
+func deriveIntentAt(ctx context.Context, repository *gitauth.Repository, reader *ocmBlobReader, target, path, form string, subset []string) (intentDerivation, string, error) {
 	entry, exists, err := repository.LookupTreeEntry(ctx, target, path)
 	if err != nil {
 		return intentDerivation{}, "", err
@@ -63,6 +63,6 @@ func deriveIntentAt(ctx context.Context, repository *gitauth.Repository, reader 
 	if err != nil {
 		return intentDerivation{}, "", err
 	}
-	derived, err := deriveIntent(form, path, entry.OID, blob)
+	derived, err := deriveRecordedIntent(form, subset, path, entry.OID, blob)
 	return derived, entry.OID, err
 }

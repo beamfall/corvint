@@ -5491,6 +5491,9 @@ OIF-V0-007	docs/specs/ocm-intent-forms-v0.md	`roadmap-acceptance` treats each un
 OIF-V0-008	docs/specs/ocm-intent-forms-v0.md	A ticket's body is the contiguous following lines that start with a space. Its A	unrecorded	-
 OIF-V0-009	docs/specs/ocm-intent-forms-v0.md	A declared form that yields no requirement fails `missing-requirements`, more th	unrecorded	-
 OIF-V0-010	docs/specs/ocm-intent-forms-v0.md	The `lrf` OCM leg and the change-universe (Frontier/TCQ) OCM surface refuse a ma	unrecorded	-
+OIF-V0-670	docs/specs/ocm-intent-forms-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-2275 A	standing	2026-11-01; V1-2275
+OIF-V0-671	docs/specs/ocm-intent-forms-v0.md	(experimental, as `OIF-V0-670`) The list is recorded as the array member `intent	unrecorded	-
+OIF-V0-672	docs/specs/ocm-intent-forms-v0.md	(experimental, as `OIF-V0-670`) `corvint ocm prepare` accepts `--intent-requirem	unrecorded	-
 OIF-V0-011	docs/specs/ocm-intent-forms-v0.md	The capability is experimental: help labels the flag experimental, and no releas	unrecorded	-
 OCM-V0-001	docs/specs/ocm-v0-dogfood.md	V0 MUST accept exactly one pinned Markdown intent scope containing one	unrecorded	-
 OCM-V0-002	docs/specs/ocm-v0-dogfood.md	the map MUST bind the full target commit, intent path/blob/span/span digest, exa	unrecorded	-
