@@ -669,8 +669,8 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   and free disk before and after.
 - Go build caches (ASD-V0-021, ASD-V0-038, V1-0360, V1-2904): each host has one Go build cache for
   lanes and heavy runs. On a lane host it is the Makefile's `CORVINT_GOCACHE`
-  (`/tmp/corvint-go-build-cache`), which `script/heavy.sh` also gives a local run unless the caller
-  set `GOCACHE`; on an offload host it is the remote env file's `CORVINT_GOCACHE`
+  (`${TMPDIR:-/tmp}/corvint-go-build-cache`, ASD-V0-914), which `script/heavy.sh` also gives a local
+  run unless the caller set `GOCACHE`; on an offload host it is the remote env file's `CORVINT_GOCACHE`
   (`~/.cache/corvint-go-build-cache` on the reference box), which the remote half exports as
   `GOCACHE`. After each batch merge, and whenever free disk falls below about 20%, run
   `make go-cache-trim` (dry run), review the `WOULD-TRIM` and `WOULD-REMOVE` lines, then

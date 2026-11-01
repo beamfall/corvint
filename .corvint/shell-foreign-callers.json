@@ -88,6 +88,7 @@
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",
         "script/codex-review_test.sh",
+        "script/go-cache-trim.sh",
         "script/heavy-groups.sh",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
@@ -95,7 +96,7 @@
         "tools/flow-guide-check/main_test.go",
         "tools/test-shards/main.go"
       ],
-      "reason": "Make, the batch scripts, their test and codex-review.sh (ASD-V0-930) run it by computed path; analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; codex-review_test.sh checks that default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh matches and names it; lane-transcript-metrics.py and flow-guide-check match it; dogfoodflow tests parse it; test-shards and heavy-groups.sh name it in a comment (TSP-V0-005)."
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it."
     },
     "script/lane-guard.sh": {
       "callers": [

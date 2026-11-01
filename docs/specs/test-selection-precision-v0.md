@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -342,6 +342,17 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   a deliberate floor change makes every later replay print the same MOVED lines until it is
   refreshed. Rollback: drop `Moved` and its lines in `verdictLines`; the `recorded` members are then
   ignored, so remove them with it.
+- **TSP-V0-908:** (experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3538) Before any replay, `tools/selection-baseline` SHALL refuse (exit 2) every
+  change of `changes.json` whose base or head commit neither `origin/main` nor any other
+  `refs/remotes/origin/` ref contains, with one line per commit naming the change id, the side and
+  the commit. Adding an entry is a hand edit of `changes.json`, so this same check refuses a new
+  failed-CI entry whose rewritten head origin no longer serves, locally as in CI. Intent: a local
+  clone kept the objects of two rewritten pull-request heads, so `make doc-gates` passed locally and
+  CI then failed with `unable to read tree`. Non-goals: fetching; checking tags. Failure modes: a
+  stale local remote-tracking branch that origin has deleted still counts until
+  `git fetch --prune origin`; a clone without origin refs refuses every entry. Rollback: drop
+  `servedByOrigin` and its call in `main`.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -518,6 +529,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-950 | `readShellReadScopes` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` and their call in `internal/liveverify/affected/shell/shell.go`; `shellReadScopesChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; the `go:` filter in `tools/test-read-scopes-check/main.go` | `TestShellReadScopeDeclaration_TSP_V0_950` in `internal/liveverify/affected/shell/readscopes_test.go` (undeclared: the toolchain test is selected on an unrelated change; declared: it is not, the plan is `BOUNDED`, and a dirty declared entry or a file in its directory selects it; a test that also sources a dynamic path, one that sources a literal helper sourcing a dynamic path directly or two sources away, a non-toolchain test, a source script, an absent file, unsorted or empty reads, a `.git` entry, an empty or multi-line reason, a bad profile, an unknown member and unparsed JSON each name the invalid frontier and keep it unbounded; a dirty declaration is `UNKNOWN`) |
 | TSP-V0-951 | `.corvint/shell-read-scopes.json`; `.corvint/unbounded-readers.json`; the `shell:runs-toolchain` line in `tools/unbounded-readers/main.go` | `TestRepositoryShellReadScopes_TSP_V0_951` and `TestListedDirectoriesKeepSpaces_TSP_V0_951` in `internal/liveverify/affected/shell_readscopes_repo_test.go`; `TestRunsToolchainRefusalNamesTheUnitsEntry` in `tools/unbounded-readers/main_test.go` (an undeclared, unrecorded toolchain test still exits 1 and the line names the declaration) |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
+| TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
 
 ## Rollback
 

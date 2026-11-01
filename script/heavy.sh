@@ -35,6 +35,9 @@
 #   HEAVY_WHOLE_REASON   a `go test` without `-run` (a whole package) is refused with exit 2 unless
 #                        this names why, for example "corvint selected the package whole" or Corvint's
 #                        FALLBACK/UNKNOWN reason. Select units with `corvint test --base SHA --dry-run`.
+#                        It (and HEAVY_LOCAL_REASON) may also be a leading NAME=VALUE word or an
+#                        `env NAME=VALUE` word before the command; `go test -c` runs no test and
+#                        needs no reason (ASD-V0-910).
 #   HEAVY_SMALL_TEST_BYTES  a whole-package `go test` whose every package is a plain local directory
 #                        under tools/ or conformance/ (no `...`) and whose *_test.go files total at
 #                        most this many bytes runs without HEAVY_WHOLE_REASON, logged as
@@ -228,6 +231,11 @@
 # The whole script is function definitions followed by one `main` line, so the remote bash parses
 # it completely before main reads the offload payload that follows it on the same stdin.
 set -uo pipefail
+
+# git ARG...: ASD-V0-909 (V1-3684). heavy.sh's own Git calls ignore a caller's GIT_CONFIG_GLOBAL
+# (a lane that points it at a directory or a scratch file made every rev-parse fail, so the run lost
+# its tested-tree line and its offload); the wrapped command still inherits it unchanged.
+git() { env -u GIT_CONFIG_GLOBAL git "$@"; }
 
 refuse() {
   printf 'heavy.sh: REFUSE %s\n' "$*" >&2
@@ -450,10 +458,15 @@ upstream() {
 # tree objects to the object store.
 tree_identity() {
   local top=$1 index=$2 real
-  heavy_tree= heavy_dirty=
+  heavy_tree= heavy_dirty= heavy_copy_err=
   real=$(git -C "$top" rev-parse --path-format=absolute --git-path index 2> /dev/null) || return 1
   /bin/rm -f "$index"
-  if [[ -f $real ]]; then /bin/cp -f "$real" "$index" || return 1; fi
+  if [[ -f $real ]] && ! heavy_copy_err=$(/bin/cp -f "$real" "$index" 2>&1); then
+    heavy_copy_err=${heavy_copy_err:-cp exited non-zero}
+    /bin/rm -f "$index"
+    return 1
+  fi
+  heavy_copy_err=
   GIT_INDEX_FILE=$index git -C "$top" add -A > /dev/null 2>&1 || return 1
   heavy_tree=$(GIT_INDEX_FILE=$index git -C "$top" write-tree 2> /dev/null) || return 1
   heavy_dirty=$(git -C "$top" diff-tree -r --name-only -z HEAD "$heavy_tree" 2> /dev/null | tr -cd '\0' | wc -c | tr -d ' ')
@@ -846,6 +859,14 @@ store_back() {
   rc=95
 }
 
+# index_copy_refuse DIR ERROR: the ASD-V0-908 refusal, naming DIR's file system (mount point and free
+# KiB, as df -Pk reports them) and the copy's own error line.
+index_copy_refuse() {
+  local vol
+  vol=$(df -Pk "$1" 2> /dev/null | awk 'NR == 2 { printf "%s (%s KiB free)", $6, $4 }')
+  refuse "index-copy-failed cannot copy the Git index to a scratch file in $1 on volume ${vol:-unknown}: ${2//$'\n'/ }; free space there or set TMPDIR to a writable directory with space"
+}
+
 # local_identity COMMAND...: for an offloadable command run here inside a Git checkout, one stderr
 # line naming the tested tree (tree_identity), or tree=unknown when it cannot be computed. It is
 # taken before slot admission, so an edit made while waiting is not reflected.
@@ -854,7 +875,18 @@ local_identity() {
   offloadable "$@" || return 0
   top=$(git rev-parse --show-toplevel 2> /dev/null) || return 0
   head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || head=unknown
-  idx=$(mktemp "${TMPDIR:-/tmp}/heavy-index.XXXXXX") && tree_identity "$top" "$idx" || heavy_tree=unknown heavy_dirty=unknown
+  # ASD-V0-908 (V1-3523): a scratch index that cannot be created or copied (a full or read-only
+  # temp volume) refuses before the command runs, naming the volume, instead of a missed cp error.
+  local tdir=${TMPDIR:-/tmp} err
+  tdir=${tdir%/}
+  if ! idx=$(mktemp "$tdir/heavy-index.XXXXXX" 2>&1); then
+    err=$idx idx=
+    index_copy_refuse "$tdir" "${err:-mktemp failed}"
+  fi
+  if ! tree_identity "$top" "$idx"; then
+    [[ -n ${heavy_copy_err-} ]] && { /bin/rm -f "$idx"; index_copy_refuse "$tdir" "$heavy_copy_err"; }
+    heavy_tree=unknown heavy_dirty=unknown
+  fi
   [[ -n ${idx-} ]] && /bin/rm -f "$idx"
   printf 'heavy.sh: running locally at %s tree=%s dirty=%s\n' "$head" "$heavy_tree" "$heavy_dirty" >&2
 }
@@ -1272,6 +1304,7 @@ selection_policy() {
   local now
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  # ASD-V0-721 (V1-3845) and ASD-V0-910 (V1-3739): `go test -c` only compiles the test binary and runs no test.
   if compile_only "$@"; then
     selection_log "$now whole reason=compile-only pwd=$PWD cmd=$*"
     return 0
@@ -1294,11 +1327,38 @@ selection_policy() {
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
   selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON") pwd=$PWD cmd=$*"
+}
+
+# compile_only COMMAND...: true when the go test carries -c (or -c=true): it builds the test
+# binary and runs nothing (ASD-V0-910).
+compile_only() {
+  local a seen= prev=
+  for a; do
+    [[ -n $seen ]] || { [[ $a == test && $prev == go ]] && seen=1; prev=${a##*/}; continue; }
+    case $a in -c | -c=true | --c | --c=true) return 0 ;; esac
+  done
+  return 1
+}
+
+# env_reasons COMMAND...: ASD-V0-910 (V1-3739). The lane reasons given as leading NAME=VALUE words
+# of an `env` command (`script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...`, also the form a
+# leading NAME=VALUE word becomes) count as set in heavy.sh's environment.
+env_reasons() {
+  local a
+  [[ ${1-} == env ]] || return 0
+  shift
+  for a; do
+    [[ $a =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || return 0
+    case $a in
+      HEAVY_WHOLE_REASON=*) HEAVY_WHOLE_REASON=${a#*=} ;;
+      HEAVY_LOCAL_REASON=*) HEAVY_LOCAL_REASON=${a#*=} ;;
+    esac
+  done
 }
 
 # local_policy COMMAND...: refuse an offloadable command under HEAVY_REMOTE=0 without
@@ -1601,6 +1661,7 @@ main() {
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
     # ASD-V0-890 (V1-3506): evaluate both reason rules, then refuse once naming every missing reason.
     local missing=()
+    env_reasons "$@"
     selection_policy "$@" || missing+=(whole-reason-missing)
     go_test_timeout "$@"
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
@@ -1663,9 +1724,11 @@ main() {
   bound_parallelism "$par"
   [[ -n $heavy_admit_only ]] || local_identity "$@"
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
-  # uses the cache the Makefile uses (CORVINT_GOCACHE, default /tmp/corvint-go-build-cache), so a
-  # plain go test and a make target do not fill two caches.
-  : "${GOCACHE:=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}}"
+  # uses the cache the Makefile uses (CORVINT_GOCACHE, default ${TMPDIR:-/tmp}/corvint-go-build-cache
+  # with TMPDIR's trailing slash dropped, ASD-V0-914), so a plain go test and a make target do not
+  # fill two caches.
+  local cache_tmp=${TMPDIR:-/tmp}
+  : "${GOCACHE:=${CORVINT_GOCACHE:-${cache_tmp%/}/corvint-go-build-cache}}"
   export GOCACHE
   local_disk
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the

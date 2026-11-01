@@ -372,6 +372,11 @@ drift_on=() cat_skip='' sb_skip='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
+# ASD-V0-912 (V1-3804): the selection only decides Go drift tests and the Go catalog check, so a
+# frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
+# it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
+# need FRONTIER_OK, and any other prefix runs everything.
+FRONTIER_OTHER_LANGS='["cfamily","dotnet","python","ruby","swift","typescript"]'
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
@@ -409,7 +414,7 @@ select_plan() {
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
+  reasons=$(jq -r --argjson ok "$FRONTIER_OK" --argjson other "$FRONTIER_OTHER_LANGS" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or (([.detail] - $ok | length) > 0 and ([(.detail | tostring | split(":")[0])] - $other | length) > 0)) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
   # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
   # whole list on one line.
@@ -667,7 +672,9 @@ drift_step() {
 # when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
 # (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
-# step (V1-3232: as one step its targets ran one after another).
+# step (V1-3232: as one step its targets ran one after another). ASD-V0-911 (V1-3789): a doc-gates
+# recipe that exists but matches neither form prints one `drift` line, so the caller names this
+# function instead of silently running the gates serially.
 doc_gate_expansion() {
   awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; next }
     /^doc-gates:[[:space:]]*(##.*)?$/ { on = 1; next }
@@ -676,9 +683,10 @@ doc_gate_expansion() {
     END {
       # ASD-V0-930: either line may carry the host-queue admission prefix.
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
-      if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") exit
+      if (n == 0) exit
+      if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
       m = split(targets, t, /[[:space:]]+/)
-      for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) exit
+      for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
       for (i = 1; i <= m; i++) if (t[i] != "") printf "make\t%s\n", t[i]
       print "gorun\t./conformance/use-cases-v0"
     }' Makefile 2> /dev/null
@@ -742,6 +750,10 @@ steps() {
   fi
   while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
   expanded=$(doc_gate_expansion)
+  if [[ $expanded == drift ]]; then
+    expanded=
+    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
+  fi
   while IFS=$'\t' read -r kind value; do
     case $kind in
       make)

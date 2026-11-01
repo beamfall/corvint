@@ -39,10 +39,25 @@ tmp=$(cd "$tmp" && pwd)
 # of the command under test and the free space of TMPDIR, whose exhaustion once failed this test
 # with an empty log; an exit that bypassed fail says so.
 failed=0
+# ASD-V0-913 (V1-3805): all scratch lives under TMPDIR. A TMPDIR below the floor, or a failure whose
+# output names ENOSPC, is a host-resource refusal (exit 3) naming the directory and the KiB needed,
+# not an ordinary FAIL: a nearly full /tmp tmpfs once failed group 9 whatever the change.
+need_kib=${BATCH_PRECHECK_TEST_MIN_KIB:-65536}
+tmp_avail() { df -Pk "${TMPDIR:-/tmp}" 2> /dev/null | awk 'NR == 2 { print $4 }'; }
+host_refuse() {
+  failed=1
+  printf 'batch-precheck_test: REFUSE host-resource: TMPDIR %s has %sKiB free; this test needs at least %sKiB there (%s): free space or set TMPDIR to a directory with room\n' \
+    "${TMPDIR:-/tmp}" "$(tmp_avail)" "$need_kib" "$1" >&2
+  exit 3
+}
 fail() {
   local line=${BASH_LINENO[0]} group
   group=$(awk -v n="$line" 'NR > n { exit } /^# [0-9]+[a-z]?\. / { g = $0 } END { print substr(g, 3, 70) }' "$script/batch-precheck_test.sh")
   failed=1
+  if [[ -z ${BATCH_PRECHECK_TEST_NO_HOST_CHECK:-} ]] && { [[ $* == *[Nn]'o space left on device'* ]] || grep -qi 'no space left on device' "$tmp/out" 2> /dev/null; }; then
+    avail=$(tmp_avail)
+    [[ $avail =~ ^[0-9]+$ ]] && ((avail < need_kib)) && host_refuse "line $line hit no space left on device"
+  fi
   {
     printf 'batch-precheck_test: FAIL case "%s" line %s: %s\n' "$group" "$line" "$*"
     [[ -s $tmp/out ]] && { printf 'batch-precheck_test: last output (%s), last 40 lines:\n' "$tmp/out"; tail -n 40 "$tmp/out" | sed 's/^/  | /'; }
@@ -56,6 +71,13 @@ on_exit() {
   /bin/rm -rf "$tmp"
 }
 trap on_exit EXIT
+avail=$(tmp_avail)
+[[ $avail =~ ^[0-9]+$ ]] && ((avail < need_kib)) && host_refuse "checked before the first case"
+# ASD-V0-913: a floor above the free space refuses with exit 3, naming the directory and the KiB.
+out=$(BATCH_PRECHECK_TEST_MIN_KIB=999999999999 bash "$script/batch-precheck_test.sh" 2>&1)
+rc=$?
+[[ $rc == 3 && $out == *"REFUSE host-resource: TMPDIR ${TMPDIR:-/tmp} has "*"KiB free; this test needs at least 999999999999KiB there"* ]] ||
+  fail "a short TMPDIR was not a host-resource refusal (exit $rc): $out"
 # The precheck's step TMPDIR (ASD-V0-055) stays inside this test's scratch unless a case sets it.
 export BATCH_PRECHECK_TMPDIR=$tmp/step-tmp
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
@@ -806,6 +828,13 @@ grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input cha
 row_is PASS 'batch-drift (0 of 3 tests)'
 row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
+# ASD-V0-912 (V1-3804): the non-Go frontier details every real plan carries (the TypeScript,
+# C-family, .NET, Python, Ruby and Swift adapters' own gaps) do not widen a doc-only diff.
+plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved"},{"reason":"LANGUAGE_FRONTIER","detail":"cfamily:macro-expansion"},{"reason":"LANGUAGE_FRONTIER","detail":"dotnet:reflection"},{"reason":"LANGUAGE_FRONTIER","detail":"python:dynamic-import"},{"reason":"LANGUAGE_FRONTIER","detail":"ruby:metaprogramming"},{"reason":"LANGUAGE_FRONTIER","detail":"swift:macro"}' golden
+srun --base "$sbase" || fail "a doc-only diff with non-Go frontier details failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: batch-drift runs 0 of 3 drift tests for the diff since $sbase" "$tmp/out" ||
+  fail "non-Go frontier details widened a doc-only diff: $(cat "$tmp/out")"
+plan "$frontier" golden
 # ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
 # through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
 sledger() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/sledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger srun "$@"; }
@@ -871,11 +900,11 @@ run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/
 plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
 run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
 # ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
-many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved %s"}' "$i"; done)
+many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"go:fake-frontier %s"}' "$i"; done)
 plan "$frontier$many" golden
-run_full --base "$sbase"; full 'the plan has 300 unknowns, first: LANGUAGE_FRONTIER typescript:path-alias-unresolved 1; all in '
+run_full --base "$sbase"; full 'the plan has 300 unknowns, first: LANGUAGE_FRONTIER go:fake-frontier 1; all in '
 ufile=$(git -C "$srepo" rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt)
-[[ $(grep -c . "$ufile") == 300 ]] && grep -qx 'LANGUAGE_FRONTIER typescript:path-alias-unresolved 299' "$ufile" &&
+[[ $(grep -c . "$ufile") == 300 ]] && grep -qx 'LANGUAGE_FRONTIER go:fake-frontier 299' "$ufile" &&
   grep -qF "all in $ufile)" "$tmp/out" || fail "unknowns file $ufile: $(head -c 300 "$ufile" 2>&1)"
 (($(awk '{ if (length > m) m = length } END { print m + 0 }' "$tmp/out") < 600)) || fail "an output line still carries the unknown list"
 plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"go:cgo"}' golden
@@ -1108,11 +1137,15 @@ grep -qx 'batch-drift (1 packages)' "$tmp/out" && grep -qx 'batch-drift TestOwn'
 # ASD-V0-930: the recipe admitted through the host queue ($(HEAVY_ADMIT) prefixes) still expands.
 printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "admitted expansion --list: $(cat "$tmp/out")"
+grep -q 'no longer matches doc_gate_expansion' "$tmp/out" && fail "a matching doc-gates recipe was reported as drifted: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the admitted doc-gates recipe was not expanded: $(cat "$tmp/out")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
+# ASD-V0-911 (V1-3789): that drifted recipe names doc_gate_expansion; the known recipe above did not.
+grep -q 'doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh' "$tmp/out" ||
+  fail "a drifted doc-gates recipe gave no pointer to doc_gate_expansion: $(cat "$tmp/out")"
 
 # 9. ASD-V0-070 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
 # naming the unset HOME, a bad argument still exits 2, and --sync-check needs no cache.
@@ -1124,8 +1157,9 @@ grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound vari
 [[ $? == 3 ]] || fail "env -i --list did not exit 3: $(cat "$tmp/out")"
 (cd "$script/.." && env -i "$pre" --bogus) > /dev/null 2>&1
 [[ $? == 2 ]] || fail "env -i bad argument did not exit 2"
-(cd "$script/.." && env -i "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
-(cd "$script/.." && env -i CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
+# ASD-V0-913: the cases that get past the refusal keep their scratch under this test's TMPDIR.
+(cd "$script/.." && env -i TMPDIR="$tmp" "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
+(cd "$script/.." && env -i TMPDIR="$tmp" CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
 
 # 10. ASD-V0-831 (V1-3337): ai-coauthor-trailers is the one AI-trailer step (ASD-V0-071's
 # ai-trailers step is retired; make ai-coauthor-trailers-test covers the check itself). A --base run

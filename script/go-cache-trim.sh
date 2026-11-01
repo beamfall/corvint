@@ -64,6 +64,10 @@ if ((${#caches[@]} == 0)); then
   user_cache_root=${XDG_CACHE_HOME:-$HOME/.cache}
   caches+=("$user_cache_root/corvint-go-build-cache" "$user_cache_root/corvint-work-queue-gocache-$(id -u)"
     /tmp/corvint-go-build-cache "/tmp/corvint-work-queue-gocache-$(id -u)")
+  # ASD-V0-914 (V1-3796): the Makefile and heavy.sh default cache follows TMPDIR.
+  tmp_cache=${TMPDIR:-/tmp}
+  tmp_cache=${tmp_cache%/}/corvint-go-build-cache
+  [[ $tmp_cache == /tmp/corvint-go-build-cache ]] || caches+=("$tmp_cache")
 fi
 if ((${#temp_roots[@]} == 0)); then
   temp_roots=("${TMPDIR:-/tmp}" /tmp)

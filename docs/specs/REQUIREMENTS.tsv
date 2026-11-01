@@ -2073,6 +2073,15 @@ ASD-V0-880	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-905	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3446) Every li	standing	2026-10-31; V1-3446
 ASD-V0-906	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3259; refines	standing	2026-10-31; V1-3259
 ASD-V0-907	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1629) `script/	standing	2026-10-31; V1-1629
+ASD-V0-908	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3523) When `sc	standing	2026-11-01; V1-3523
+ASD-V0-909	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3684) Every Gi	standing	2026-11-01; V1-3684
+ASD-V0-910	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3739) `script/	standing	2026-11-01; V1-3739
+ASD-V0-911	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3789) When the	standing	2026-11-01; V1-3789
+ASD-V0-912	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3804) batch-pr	standing	2026-11-01; V1-3804
+ASD-V0-913	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3805) `script/	standing	2026-11-01; V1-3805
+ASD-V0-914	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3796; refines	standing	2026-11-01; V1-3796
+ASD-V0-915	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3618) Every ex	standing	2026-11-01; V1-3618
+ASD-V0-918	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3522) `make ca	standing	2026-11-01; V1-3522
 ASD-V0-920	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3518; refines	standing	2026-10-31; V1-3518
 ASD-V0-921	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3243; refines	standing	2026-10-31; V1-3243
 ASD-V0-922	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3342; refines	standing	2026-10-31; V1-3342
@@ -6443,6 +6452,7 @@ STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
 STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 STR-V0-920	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines	standing	2026-10-31; V1-3470
+STR-V0-908	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3796; refines	standing	2026-11-01; V1-3796
 STR-V0-770	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)	standing	2026-10-11; V1-3573
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
@@ -7125,6 +7135,7 @@ TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-950	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-951	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-710	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-908	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,	standing	-
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
