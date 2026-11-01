@@ -269,7 +269,7 @@ func BuildCachedExcluding(ctx context.Context, root, dir string, excluded []stri
 	started := time.Now()
 	reader := DiskSourceContext(ctx, root)
 	reader.record = newRecording()
-	graph, results, err := buildDisk(ctx, reader, languages)
+	graph, results, err := buildDisk(ctx, reader, languages, false)
 	if err != nil {
 		return nil, outcome, err
 	}

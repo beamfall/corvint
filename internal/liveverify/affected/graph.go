@@ -177,7 +177,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 		return nil, ErrInvalidLanguage
 	}
 	reader := FSSource(source)
-	return build(context.Background(), languages, declarationsOf(reader), func(language Language) (Result, error) {
+	return build(context.Background(), languages, declarationsOf(reader, false), func(language Language) (Result, error) {
 		explicit, ok := language.(SourceLanguage)
 		if !ok {
 			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
@@ -191,17 +191,28 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 }
 
 func Build(ctx context.Context, root string, languages ...Language) (*Graph, error) {
-	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages)
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages, false)
+	return graph, err
+}
+
+// BuildPartial is Build for a caller that observes only some of the
+// repository's plugins, such as the Playwright graph or a Go-only checker. It
+// cannot tell a stale runtime edge from one whose other side an absent plugin
+// observes, so it applies only the edges whose runs unit and a tests test file
+// it holds and skips the rest; it still refuses an invalid declaration
+// (AFP-V0-819).
+func BuildPartial(ctx context.Context, root string, languages ...Language) (*Graph, error) {
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages, true)
 	return graph, err
 }
 
 // buildDisk is Build over an explicit disk reader, which may record what the
 // observation read (AFP-V0-391). It also returns each plugin's result in
 // language order, the input a cached graph is restored from.
-func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Graph, []Result, error) {
+func buildDisk(ctx context.Context, reader *Source, languages []Language, partial bool) (*Graph, []Result, error) {
 	root := reader.root
 	results := make([]Result, 0, len(languages))
-	graph, err := build(ctx, languages, declarationsOf(reader), func(language Language) (Result, error) {
+	graph, err := build(ctx, languages, declarationsOf(reader, partial), func(language Language) (Result, error) {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
 		}
@@ -235,10 +246,13 @@ type declarations struct {
 	documentation  []string
 	runtimeReaders []RuntimeReader
 	runtimeEdges   []RuntimeEdge
+	// partial marks a graph built from a subset of the plugins, which skips
+	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
+	partial bool
 }
 
 // declarationsOf reads both declarations through reader.
-func declarationsOf(reader *Source) func() (declarations, error) {
+func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 	return func() (declarations, error) {
 		documentation, err := readDocumentationPaths(reader)
 		if err != nil {
@@ -252,7 +266,7 @@ func declarationsOf(reader *Source) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges}, nil
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, partial: partial}, nil
 	}
 }
 
@@ -310,7 +324,7 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
 	graph.runtimeEdges = repository.runtimeEdges
-	if err := graph.applyRuntimeEdges(); err != nil {
+	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
 		return nil, err
 	}
 	graph.finish()
