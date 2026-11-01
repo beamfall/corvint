@@ -60,8 +60,18 @@ that no longer exists (a Claude desktop spare-claimed session can pass its delet
 `~/.claude/spares/spare-*` directory), the server serves the Git worktree enclosing the directory
 it was started in instead, prints `corvint-mcp: --root does not exist; serving the Git worktree
 enclosing the launch directory instead` to its log, and adds a `missing-root-launch-worktree`
-notice block to every tool result (`MCPV0-115`); outside any worktree it still fails to start.
-Restart the session from the intended repository if that worktree is the wrong one.
+notice block to every tool result (`MCPV0-115`). When `${CLAUDE_PROJECT_DIR}` names an existing
+directory outside Git (a spare directory not yet deleted) or arrives unexpanded, the server still
+connects and lists its tools, prints `corvint-mcp: repository unavailable: <reason>` to its log,
+and every repository tool call answers `invalid-root` (`MCPV0-950`, `AHI-860`). Restart the session
+from the intended repository if that worktree is the wrong one or the tools answer `invalid-root`.
+
+If `/mcp` shows the server failed with `CONNECTION_CLOSED`, Claude Code keeps the server's reason
+in its MCP log (`~/Library/Caches/claude-cli-nodejs/<project>/mcp-logs-plugin-corvint-corvint/` on
+macOS), not in the session. A `corvint` built before `MCPV0-950` exits on an unusable root, which
+the host reports only as a closed connection: rebuild or update `corvint` on `PATH`, run
+`claude plugin marketplace update corvint` and `claude plugin update corvint@corvint`, then start a
+new session.
 
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
 check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet
