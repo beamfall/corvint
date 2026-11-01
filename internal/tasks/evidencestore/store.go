@@ -176,7 +176,7 @@ func Put(stateDir string, raw []byte) (*PutResult, error) {
 		total += e.Bytes
 	}
 	if len(entries)+temps.files > MaxFiles || total > MaxStoreBytes {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, Dir, "the witness receipt store would exceed %d files or %d bytes; prune uncited receipts first", MaxFiles, MaxStoreBytes)
+		return nil, wire.Errorf(wire.CodeLimitExceeded, Dir, "the witness receipt store would exceed %d files or %d bytes; prune uncited receipts first", MaxFiles, int64(MaxStoreBytes))
 	}
 	if err := root.Link(tmp, string(d)); err != nil {
 		if errors.Is(err, fs.ErrExist) {

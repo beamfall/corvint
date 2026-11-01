@@ -131,7 +131,7 @@ type ExpiredLease struct {
 }
 
 const (
-	fieldTicket = 1 << iota
+	fieldTicket uint64 = 1 << iota
 	fieldHolder
 	fieldMinutes
 	fieldBranch
@@ -167,7 +167,7 @@ const (
 	fieldAdmitUnderBarrier
 )
 
-type leaseShape struct{ required, allowed int }
+type leaseShape struct{ required, allowed uint64 }
 
 var leaseShapes = map[string]leaseShape{
 	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
@@ -205,9 +205,9 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolHoldRelease: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 }
 
-func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != "", fieldScopeFromDiff: l.ScopeFromDiff != "", fieldAdmitUnderBarrier: l.AdmitUnderBarrier}
-	bits := 0
+func (l *LeaseRequest) present() uint64 {
+	flags := map[uint64]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != "", fieldScopeFromDiff: l.ScopeFromDiff != "", fieldAdmitUnderBarrier: l.AdmitUnderBarrier}
+	bits := uint64(0)
 	for bit, set := range flags {
 		if set {
 			bits |= bit
