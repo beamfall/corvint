@@ -95,6 +95,7 @@ GATE_STEPS = \
   license-headers-test \
   line-citations-check \
   line-citations-test \
+  long-lines-check-test \
   merge-drivers-test \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
@@ -717,6 +718,13 @@ release-artifact-reproducibility-test:
 # exist, or when a gated refusal names no recovery and is not listed in
 # tools/flow-guide-check/unhinted-refusals.tsv, a list that only shrinks (ASD-V0-996, ASD-V0-997).
 # `go run ./tools/flow-guide-check --audit` prints the refusal audit counts (ASD-V0-998).
+# ASD-V0-573 (V1-3461): a tracked text file with a line over 4096 bytes must sit under a glob in
+# .corvint/agent-grep-exclude, which script/agent-grep.sh keeps out of agent searches, or be listed
+# in .corvint/long-line-allow.
+.PHONY: long-lines-check
+long-lines-check:
+	@script/long-lines-check.sh
+
 .PHONY: flow-guide-check
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
@@ -1035,7 +1043,7 @@ shell-test-registration-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check long-lines-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
@@ -1239,6 +1247,7 @@ shell-test: \
   instruction-conflicts-test \
   license-headers-test \
   line-citations-test \
+  long-lines-check-test \
   merge-drivers-test \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
@@ -1314,3 +1323,7 @@ register-shell-test-test:
 .PHONY: merge-drivers-test
 merge-drivers-test:
 	@script/merge-drivers_test.sh
+
+.PHONY: long-lines-check-test
+long-lines-check-test:
+	@script/long-lines-check_test.sh
