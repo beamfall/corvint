@@ -370,7 +370,7 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   attempt and fall back to the ordinary full build. Missing records are ordinary cold inputs.
   JSON payloads are screened before typed decode: at most 250,000 tokens per record, depth 32,
   eight million tokens and 512 MiB encoded bytes per accelerated attempt. The writer skips facts
-  exceeding the representation bounds. Source and aggregate Git bounds still apply. At most four
+  exceeding the representation bounds. Source Git bounds still apply (the aggregate bound is withdrawn by `IDX-SNAP-V0-910`). At most four
   readers run concurrently; supported local platforms open confined no-follow paths nonblocking
   and validate regular-file mode after open, so a FIFO swap cannot block. Because `os.Root` follows
   a leaf symlink whose target stays inside the root, the opened file must also be the same file as
@@ -1074,6 +1074,38 @@ own design and the deployment-neutral gate.
 Traceability: `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps`,
 `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh`; evidence in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-ctxsnap-1021u-deterministic-snapshot.md`.
+
+### Accepted (2026-10-31, V1-2881, owner direction 2026-10-27, standing auto-accept 2026-10-11): no aggregate admission wall
+
+Human intent (owner, 2026-10-27): the 128 MiB aggregate admission bound is a brick wall that would
+block larger projects; if speed is the worry, optimize how the index is built instead of refusing.
+
+- `IDX-SNAP-V0-910`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The
+  index, query, feature and impact builds MUST NOT refuse a committed tree for the total size of its
+  admitted sources. The aggregate refusal of decision 0424 (`unsupported-impact-repository`,
+  `unsupported-feature-repository` or `unsupported-query-repository` naming the 128 MiB bound) is
+  withdrawn. What still bounds a build: the per-source `maxSourceBytes` (1,000,000 bytes, larger
+  blobs are `source-unreadable` exclusions), the vendor/generated path exclusions of
+  `IDX-SNAP-V0-018`, the 64 MiB tree-listing read and the 200,000-entry source count (both
+  unchanged: the count bounds per-entry bookkeeping before any blob is read, and no observed
+  repository approaches it). Blob bodies are read in chunks: one `git cat-file --batch` call reads
+  at most 32 MiB of framed output, its exact length known from the tree sizes before the call, so
+  every reader stays bounded per call and no single read buffer scales with the repository. The
+  compiled index still holds every admitted source in memory, so peak memory grows with admitted
+  bytes; the build log records it on a 575 MB fixture. Output is unchanged for any tree the old
+  bound admitted: chunking changes how bytes are read, never which bytes.
+- `IDX-SNAP-V0-911`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The
+  `index` receipt reports, beside `sources`, `source_bytes` (the summed bytes of the admitted
+  sources) and `build_ms` (the build's elapsed wall time in whole milliseconds, the measurement
+  already recorded as the build cost). Both are report fields only: they enter no snapshot byte and
+  never feed ranking, evidence or authority.
+
+Falsifier: a tree whose admitted sources exceed 128 MiB refused for aggregate size, or a
+`cat-file --batch` read whose limit is derived from the whole candidate set. Rollback: restore
+`validateBlobAdmission` at its call sites and the single-batch `fetchBlobs`; the receipt fields
+can be dropped independently. Traceability: `TestFetchBlobsReadsBoundedChunks_IDXSNAPV0910`,
+`TestLargeAggregateTreeIsAdmitted_IDXSNAPV0910`, `TestIndexReceiptReportsSourceBytes_IDXSNAPV0911`;
+measurements in `docs/build-log/2026-10-31-indexcli-w5.md`.
 
 ## Non-goals and authority
 

@@ -206,7 +206,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a refusal of `corvint impact` as a typed abstention, not a failed step, when the command exits 2
   with empty stdout and stderr of exactly one line `{"code": "CODE", "error": "MESSAGE", "ok":
   false}` whose CODE is `unsupported-impact-range`, `unsupported-impact-repository` (the repository
-  has no slash-qualified Go module, or its native Go index exceeds the aggregate bound) or
+  has no slash-qualified Go module; the aggregate bound it also named is withdrawn by `IDX-SNAP-V0-910`) or
   `unsupported-impact-path` (a changed Go path is at the module root). The row is `NOT_PRODUCED`
   with that exact CODE as its reason, so the three stay distinguishable; the digest-bound
   context-abstention artifact records the same reason under the unchanged

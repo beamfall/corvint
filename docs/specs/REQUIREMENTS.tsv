@@ -4392,6 +4392,8 @@ IDX-SNAP-V0-114	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-115	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept; V1-3133; amends	standing	V1-3133
 IDX-SNAP-V0-106	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two	standing	2026-10-11; V1-2290
 IDX-SNAP-V0-107	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2289);	standing	2026-10-11; V1-2289
+IDX-SNAP-V0-910	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
+IDX-SNAP-V0-911	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-

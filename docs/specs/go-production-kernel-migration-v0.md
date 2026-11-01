@@ -241,7 +241,8 @@ requirements below have evidence. File existence is not parity.
   that packet's expected bytes are authored from this clause's quoted text (decision 0057). No rule
   may be introduced whose only authority is candidate behaviour (`GPK-V0-033`).
   It MUST use immutable committed evidence for clean paths, disclose mixed-worktree
-  freshness, remain read-only/local-only, bound aggregate source admission to 128 MiB, and reject
+  freshness, remain read-only/local-only, bound each admitted source (the 128 MiB aggregate bound is
+  withdrawn by `IDX-SNAP-V0-910`, V1-2881), and reject
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
@@ -253,7 +254,7 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
-  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339): the aggregate-bound refusal names no language.
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339; superseded 2026-10-31 by `IDX-SNAP-V0-910`, which withdraws the refusal): the aggregate-bound refusal names no language.
   Its message states the admitted source bytes, the file count, the total with the per-file framing allowance, the 128 MiB
   bound, and the remedy that paths under `vendor/`, `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not
   admitted (`IDX-SNAP-V0-018`). Each path keeps its own code (impact `unsupported-impact-repository`, `feature` `unsupported-feature-repository`,
