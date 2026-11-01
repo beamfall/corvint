@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/gitprobe"
 )
 
 func testRun(ctx context.Context, root string, _ int, args ...string) ([]byte, error) {
@@ -148,6 +150,10 @@ func TestStatusRefusesUnsupportedMetadataBeforeLiveStatus(t *testing.T) {
 		t.Run(kind, func(t *testing.T) {
 			var initArgs []string
 			if kind == "reftable" {
+				// V1-3582: Git before 2.45 has no reftable init; skip with the reason.
+				if err := gitprobe.Reftable("git"); err != nil {
+					t.Skip(err)
+				}
 				initArgs = []string{"--ref-format=reftable"}
 			}
 			root := fixture(t, initArgs...)
