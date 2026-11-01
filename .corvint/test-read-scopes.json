@@ -271,6 +271,7 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/cem2proto": [
+      ".corvint/changes/",
       ".github/",
       "benchmarks/",
       "cmd/",
