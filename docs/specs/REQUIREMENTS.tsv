@@ -1744,6 +1744,7 @@ PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabil
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
 PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
+PRS-V1-910	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint	standing	2026-10-31; V1-3313
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
 PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
