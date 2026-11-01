@@ -349,12 +349,14 @@
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"
     ],
+    "internal/compactionkernel": [],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
     "internal/corpusserve": [],
     "internal/dashboard/adapters": [
       "internal/secretscreen/"
     ],
+    "internal/dashboard/roadmap": [],
     "internal/dashboard/source": [],
     "internal/delta": [
       "conformance/delta-v0/decision-vectors.json",
@@ -531,6 +533,7 @@
       ".github/cishards/",
       ".github/workflows/ci.yml"
     ],
+    "internal/sharedpath": [],
     "internal/skhproof": [],
     "internal/skillexport": [],
     "internal/specindex": [
@@ -557,6 +560,9 @@
     "internal/tasks/scale": [],
     "internal/tasks/store": [
       "go.mod"
+    ],
+    "internal/tasks/ticket": [
+      "internal/taskman/testdata/issue502-optional-keys-record.json"
     ],
     "internal/tasks/transaction": [],
     "internal/tcq": [
@@ -624,6 +630,7 @@
       "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/worksource": [],
+    "script/spec-coverage-audit": [],
     "tools/beamfall-shadow": [
       "go.mod"
     ],
@@ -709,6 +716,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
       "benchmarks/selection-baseline/changes.json"
