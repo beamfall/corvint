@@ -91,3 +91,23 @@ func TestInvalidBinaryConsumerDeclaresNothing_AFPV0762(t *testing.T) {
 		})
 	}
 }
+
+// AFP-V0-762 (Codex review): a change to both the command's dependency and its own test file
+// still rebuilds the command, so the declared consumer is named although the command's
+// witness is its direct test change.
+func TestMixedChangeStillNamesTheBinaryConsumer_AFPV0762(t *testing.T) {
+	root := binaryExecRepository(t, `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]}}`)
+	writeFiles(t, root, map[string]string{
+		"web/test/e2e.mjs":           "// runs the built tool binary\n",
+		affected.BinaryConsumersPath: `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/test/e2e.mjs":["cmd/tool"]}}`,
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range [][]string{{"lib/lib.go", "cmd/tool/main_test.go"}, {"cmd/tool/main.go", "cmd/tool/main_test.go"}} {
+		if got := consumerUnknowns(affected.Select(graph, dirty)); len(got) != 1 || got[0].Detail != "web/test/e2e.mjs" {
+			t.Errorf("%v: consumer unknowns = %+v, want web/test/e2e.mjs", dirty, got)
+		}
+	}
+}
