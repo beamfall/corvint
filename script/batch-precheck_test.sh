@@ -1134,6 +1134,30 @@ git -C "$brepo" add tools/loose
 [[ $? == 1 ]] && grep -qx 'check-binary-blobs: FAIL tool-output-not-ignored loose: .*add /loose to the root .gitignore' "$tmp/out" ||
   fail "an unignored tool output was not refused: $(cat "$tmp/out")"
 grep -q kept "$tmp/out" && fail "an ignored tool output was refused: $(cat "$tmp/out")"
+# ASD-V0-845 (V1-3500): under the repository's own root .gitignore a throwaway tools/ main and its
+# built root binary pass with no line of their own, LICENSE, Makefile and VERSION stay addable, and a
+# tracked extension-less root file the generic rule ignores is refused with its re-include line.
+git -C "$brepo" rm -q -r --cached tools/loose
+cp "$script/../.gitignore" "$brepo/.gitignore"
+mkdir -p "$brepo/tools/throwaway"
+printf 'package main\n\nfunc main() {}\n' > "$brepo/tools/throwaway/main.go"
+printf '\177ELF\2\1\1\0\0\0' > "$brepo/throwaway"
+printf 'x\n' > "$brepo/LICENSE"; printf 'x\n' > "$brepo/Makefile"; printf 'x\n' > "$brepo/VERSION"
+git -C "$brepo" add -A
+git -C "$brepo" ls-files --error-unmatch throwaway > /dev/null 2>&1 && fail "git add -A added the root tool binary"
+for f in LICENSE Makefile VERSION tools/throwaway/main.go .gitignore; do
+  git -C "$brepo" ls-files --error-unmatch "$f" > /dev/null 2>&1 || fail "git add -A skipped $f"
+done
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1 || fail "a new tool under the generic ignore failed: $(cat "$tmp/out")"
+printf 'x\n' > "$brepo/NOTICE"
+git -C "$brepo" add -f NOTICE
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q '^check-binary-blobs: FAIL tracked-path-ignored NOTICE: .*add !/NOTICE' "$tmp/out" ||
+  fail "a tracked ignored root file was not refused: $(cat "$tmp/out")"
+
+# ASD-V0-846 (V1-2432): the capability catalog drift check is a doc gate, so the local doc gates catch
+# a new command, binary or MCP tool that has no docs/CAPABILITIES.md row.
+grep -qE '^DOC_GATE_TARGETS := (.* )?capabilities-check( |$)' "$script/../Makefile" || fail "capabilities-check is not a doc gate"
 
 # 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)

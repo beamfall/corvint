@@ -565,6 +565,15 @@ test -z "$(ls -A "$frz_dir")" || fail "a refused header wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/INTENT-STATUS-FROZEN.tsv
 write_frozen 'proposed'
 run > /dev/null || fail "a short ID-free header without a frozen row was refused"
+# ASD-V0-844 (V1-3875): a new spec (no frozen row) that names an ID in its header is refused with a
+# reason that says it has no frozen row, never that the ID is missing from frozen header text.
+write_frozen 'FRZ-V0-001 accepted' 'accepted'
+frz_err=$(run 2>&1 > /dev/null) && fail "a header ID without a frozen row was accepted"
+case $frz_err in
+  *'docs/specs/frozen.md:3: its Intent status names FRZ-V0-001, and it has no docs/specs/INTENT-STATUS-FROZEN.tsv row, so, as for every new spec, this line holds the current status only and names no requirement ID, so FRZ-V0-001 belongs on '*) ;;
+  *) fail "the unfrozen-ID refusal does not name the missing row: $frz_err" ;;
+esac
+case $frz_err in *'its frozen header text does not'*) fail "the unfrozen-ID refusal names frozen header text: $frz_err" ;; esac
 write_frozen "accepted $(printf '%0170d' 0)"
 frz_err=$(run 2>&1 > /dev/null) && fail "a header over 160 characters without a frozen row was accepted"
 case $frz_err in
