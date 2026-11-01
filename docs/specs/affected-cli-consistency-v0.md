@@ -39,7 +39,10 @@ driving Corvint from scripts.
   degradation `worktree-path-plan` and a warning that names HEAD and the dirty count and says the
   plan is worktree-derived and is not pinned evidence. `--worktree` without `--path` or
   `--paths-from`, or with `--require-clean`, `--snapshot` or `--base`, SHALL be an argument
-  error. Without `--worktree` the AFP-V0-094 refusal SHALL stay the default.
+  error. Without `--worktree` the AFP-V0-094 refusal SHALL stay the default. Under `--worktree` a
+  directory `--path` SHALL expand from the working tree, untracked and ignored files included
+  beside the files HEAD tracks there, and refuse a nested repository; `--by-path` SHALL carry the
+  same warning and degradation as the plan.
 - **ACX-V0-852:** (experimental, narrowing AFP-V0-021, under the owner's standing lane
   auto-accept, 2026-10-11; V1-3578) For a dirty `_test.go` path that a Go unit owns, another Go
   unit SHALL be a `PATH_LITERAL_READER` only when one of its path tokens names the file itself:
@@ -79,13 +82,16 @@ driving Corvint from scripts.
 - **ACX-V0-857:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
   V1-3734) A bare `make` (no target) SHALL run the `help` target, which only prints the targets
   that carry a `## ` description and the effective `BASE`; it SHALL run no build, test or gate.
-  The file default SHALL be `BASE ?= origin/main`. Dogfood targets SHALL still refuse a file-origin
+  The file default SHALL be `BASE ?= origin/main`. `help` SHALL read `BASE` through the
+  environment, so a value holding a quote prints as given. Dogfood targets SHALL still refuse a file-origin
   `BASE` (ASD-V0-019), and `make gate` SHALL stay an explicit target.
 - **ACX-V0-858:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
   V1-3731) The verbs whose range end is `--target` (`prove`, `surprise`, `lrf`, `obligations`,
   `ocm`, `dogfood-ocm`) SHALL accept `--head` and `--head=VALUE` as that same option, before any
-  verb parser runs; `--target` stays accepted and both together are the verb's duplicate-option
-  refusal. `dogfood change|check|seal|batch-check|propose-citations|prechange` SHALL accept
+  verb parser runs; `--target` stays accepted. `--head` given with `--target`, or twice, SHALL be
+  refused `invalid-arguments` before any verb parser runs, since some keep the last value. Help
+  names only `--target`: `--head` is an undocumented compatibility alias, and the vocabulary test
+  pins help without it. `dogfood change|check|seal|batch-check|propose-citations|prechange` SHALL accept
   `--base BASE` in place of the positional BASE; giving both is `duplicate-local-completion-option`.
   A test SHALL enumerate the range and output flags each verb's help names, so a change to that
   vocabulary is a reviewed edit. Renaming the other spellings (`--revision`, `--rev`, `--json`,
@@ -118,7 +124,7 @@ still runs it.
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | ACX-V0-850 | `Source.Files`, `Source.FilesIncluding` and `ByName` in `internal/liveverify/affected/source.go`; the catalog filters in `internal/liveverify/affected/kotlin/kotlin.go` | `TestSourceFilesOffersRelativePath_V1_3583`; the plugin package tests |
-| ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go` | `TestACXV0851WorktreePathPlan` |
+| ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go`; `affectedWorktreeFilesUnder` in `cmd/corvint/affected_path_directory.go`; `runAffectedByPath` in `cmd/corvint/affected_by_path.go` | `TestACXV0851WorktreePathPlan`; `TestACXV0851WorktreeDirectoryAndByPath` |
 | ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
 | ACX-V0-854 | `setAffectedBase` in `cmd/corvint/affected.go`, `resolveAffectedAbbrevBase` and `affectedBaseHint` in `cmd/corvint/affected_abbrev_base.go` | `TestACXV0854RevisionBase`; `TestAFPV0230AbbreviatedBaseAndTrailingRoot` |
 | ACX-V0-855 | `UnitsSource` in `internal/liveverify/affected/python/python.go` | `TestModuleAndPackageInitShareOneOwner_ACX_V0_855` |
