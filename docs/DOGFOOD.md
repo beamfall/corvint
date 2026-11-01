@@ -121,9 +121,14 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    current row verbatim, re-keys a re-hunked row by path and content or BASE range with a
    `re-keyed OLD -> NEW` note to review, and drafts any other hunk afresh (`DCW-V0-442`).
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
-   needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
-   after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`).
+   needs a binary built from the change's own tree. `make dogfood-inputs-check` builds the
+   lane binary only after it has a readable `CITATIONS` file, so bootstrap in this order from a
+   clean worktree: (1) draft the first plan from the tree itself with
+   `GOTOOLCHAIN=local go run ./cmd/corvint dogfood propose-citations $BASE > plan.tsv`;
+   (2) run `make dogfood-inputs-check` with that plan, which builds
+   `"$(git rev-parse --absolute-git-dir)/corvint/corvint"`; (3) redraft or `--refresh` later plans
+   with that lane-built binary. Leave `CORVINT_BIN` unset for closeout, which otherwise refuses
+   `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
