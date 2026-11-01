@@ -12,13 +12,14 @@ import (
 )
 
 // This audit deliberately includes every production source of contextindex
-// and its extraction dependencies, across platforms. It over-invalidates
-// consumer-only changes rather than risk reusing stale facts. Additions are
+// and its extraction dependencies, across platforms. Additions are
 // discovered, not an enumerated filename allowlist. Review new imports too.
+// The input digest is logged, not pinned (IDX-SNAP-V0-955): the output pin of
+// TestAnalyzerSchemaOutput decides a bump, so an input edit that leaves the
+// golden pack unchanged rewrites no pin line another branch also rewrites.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
 		const auditedSchema = "corvint-analyzer/150"
-		const auditedSHA256 = "3b8e5f8c6b98d4e3f5b6874049bd93ab02f11fecb93a5c4d8292f9f556161ea7"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -49,9 +50,9 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 			}
 			fmt.Fprintf(digest, "%s\x00%s\x00", filepath.ToSlash(path), content)
 		}
-		got := fmt.Sprintf("%x", digest.Sum(nil))
-		if analyzerSchemaID != auditedSchema || got != auditedSHA256 {
-			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, then run script/analyzer-schema.sh bump, which sets the schema number past origin/main's, rewrites both audit pins and repins use-case receipts (IDX-SNAP-V0-060)", analyzerSchemaID, got)
+		t.Logf("analyzer input SHA256=%x over %d inputs", digest.Sum(nil), len(paths))
+		if analyzerSchemaID != auditedSchema {
+			t.Fatalf("analyzer schema pin drift: analyzerSchemaID=%s but the test pins %s; run script/analyzer-schema.sh bump, which sets both from the output pin (IDX-SNAP-V0-955)", analyzerSchemaID, auditedSchema)
 		}
 	})
 }
@@ -104,9 +105,30 @@ var analyzerGoldenCorpus = map[string]string{
 	".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json": "{\"note\":\"cache demux evidence\"}\n",
 }
 
+// TestAnalyzerSchemaOutputDetectsAnalyzerMutation is the mutant check of the
+// one remaining content pin (IDX-SNAP-V0-955): an analyzer that extracts one
+// more fact from the same corpus encodes to another pack, so the output pin
+// fails and a bump is required.
+func TestAnalyzerSchemaOutputDetectsAnalyzerMutation(t *testing.T) {
+	plain := analyzerGoldenOutputWith(t, nil)
+	mutant := analyzerGoldenOutputWith(t, func(index *Index) {
+		index.Symbols = append(index.Symbols, Symbol{Path: "cache/split.go", Name: "Mutant", Kind: "function", Line: 3})
+	})
+	if plain == mutant {
+		t.Fatalf("a mutated analyzer kept the golden output digest %s; the output pin would not catch an analyzer change", plain)
+	}
+}
+
 // analyzerGoldenOutput commits the corpus with fixed identities and dates,
 // compiles it, and returns the SHA-256 of its pack.
 func analyzerGoldenOutput(t *testing.T) string {
+	t.Helper()
+	return analyzerGoldenOutputWith(t, nil)
+}
+
+// analyzerGoldenOutputWith is analyzerGoldenOutput with mutate, when non-nil,
+// applied to the built index before encoding, standing in for a changed analyzer.
+func analyzerGoldenOutputWith(t *testing.T, mutate func(*Index)) string {
 	t.Helper()
 	for name, value := range map[string]string{
 		"GIT_CONFIG_GLOBAL": os.DevNull, "GIT_CONFIG_NOSYSTEM": "1",
@@ -126,6 +148,9 @@ func analyzerGoldenOutput(t *testing.T) string {
 	index, err := Build(ctx, root)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if mutate != nil {
+		mutate(index)
 	}
 	history, historyCommit := packHistoryForWrite(ctx, index)
 	file, err := os.Create(filepath.Join(t.TempDir(), "golden.aip"))
