@@ -112,7 +112,8 @@ func TestReuseCodexRoundFindings(t *testing.T) {
 }
 
 // V1-2624: select presents the patch gitauth CanonicalDiff derives, byte for
-// byte, under a repository configured with diff.noprefix=true.
+// byte, under a repository configured with diff.noprefix=true and an
+// environment carrying GIT_DIFF_OPTS=--unified=7.
 func TestSelectPatchMatchesCanonicalDiffUnderHostileConfig(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not on PATH")
@@ -138,6 +139,10 @@ func TestSelectPatchMatchesCanonicalDiffUnderHostileConfig(t *testing.T) {
 		gitIn("config", setting[0], setting[1])
 	}
 	parent, commit := gitIn("rev-parse", "HEAD~1"), gitIn("rev-parse", "HEAD")
+	// A hostile environment too: GIT_DIFF_OPTS widens the context and a
+	// GIT_CONFIG_PARAMETERS entry asks for no prefix (Codex round 2).
+	t.Setenv("GIT_DIFF_OPTS", "--unified=7")
+	t.Setenv("GIT_CONFIG_PARAMETERS", "'diff.noprefix'='true'")
 	presented, err := canonicalPatch(ctx, root, parent, commit, []string{"internal/play/play.go"})
 	if err != nil {
 		t.Fatal(err)

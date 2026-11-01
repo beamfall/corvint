@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -55,7 +57,7 @@ const (
 // canonicalPatch derives the presented patch over the change's source files
 // byte for byte as gitauth CanonicalDiff would for those paths.
 func canonicalPatch(ctx context.Context, repo, parent, commit string, sourceFiles []string) (string, error) {
-	format, err := gitOutput(ctx, repo, "rev-parse", "--show-object-format")
+	format, err := canonicalGit(ctx, repo, "rev-parse", "--show-object-format")
 	if err != nil {
 		return "", err
 	}
@@ -65,7 +67,39 @@ func canonicalPatch(ctx context.Context, repo, parent, commit string, sourceFile
 	}
 	arguments := append(append([]string{}, canonicalDiffConfig...), "--attr-source="+empty)
 	arguments = append(append(arguments, canonicalDiffArguments...), parent, commit, "--")
-	return gitOutput(ctx, repo, append(arguments, sourceFiles...)...)
+	return canonicalGit(ctx, repo, append(arguments, sourceFiles...)...)
+}
+
+// canonicalEnvironment is gitauth's scrubbed allowlist environment: only the
+// process lookup variables pass, and every Git setting the environment can
+// carry (GIT_DIFF_OPTS, GIT_EXTERNAL_DIFF, GIT_CONFIG_*, global and system
+// files, replace objects, grafts) is dropped or pinned, so the caller's
+// environment cannot change the presented patch bytes (CRT-V0-016).
+func canonicalEnvironment() []string {
+	result := []string{}
+	for _, key := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
+		if value, ok := os.LookupEnv(key); ok {
+			result = append(result, key+"="+value)
+		}
+	}
+	return append(result,
+		"LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0",
+		"GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE="+os.DevNull, "GIT_ASKPASS=",
+		"GIT_ATTR_NOSYSTEM=1", "GCM_INTERACTIVE=never", "GIT_ALLOW_PROTOCOL=",
+	)
+}
+
+// canonicalGit runs git in repo under canonicalEnvironment.
+func canonicalGit(ctx context.Context, repo string, arguments ...string) (string, error) {
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo, "--no-optional-locks"}, arguments...)...)
+	command.Env = canonicalEnvironment()
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	if err := command.Run(); err != nil {
+		return "", fmt.Errorf("git %s: %w: %s", strings.Join(arguments, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
 }
 
 const (
