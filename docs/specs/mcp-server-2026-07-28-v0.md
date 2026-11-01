@@ -763,7 +763,8 @@ Each row cites the first emitting site and states only the condition checked the
   and decision 0103) Every `corvint-mcp` profile (default, `task-review`, `task-review-lsp` and
   `flows`, under either protocol version) MUST advertise one more read-only tool, `corvint.help`,
   under the `MCPV0-007` descriptor rules. Its closed arguments are `{}` or `{"topic": "catalog" |
-  "guide"}`; omission means `catalog`. Any other member, a `null`, non-string or other topic value,
+  "guide"}`; omission means `catalog` (amended by `MCPV0-953`: omission means `guide`, and
+  `command` names one catalog entry). Any other member, a `null`, non-string or other topic value,
   or non-object arguments are `invalid-arguments`. The result is the closed bridge object with
   `state: "READY"`, `epistemicClass: "OBSERVED"`, `authorityClass: "CORVINT_BINARY"`, a null
   `repository`, and the receipt `{schema: "corvint-mcp-help/0", topic, command, byteCount, sha256,
@@ -932,6 +933,22 @@ Each row cites the first emitting site and states only the condition checked the
   diagnosing every runtime-only rule. Falsifier: a -32602 without `data.reason` and `data.field`,
   or a diagnosis that differs between the unified and a dedicated server. Rollback: drop
   `toolgroup.WithInvalidParamsData` and `InvalidParamsAt`, restoring bare errors.
+- `MCPV0-953`: (experimental under the standing lane auto-accept; V1-3701; amends `MCPV0-100`,
+  `MCPV0-007` and `MCPV0-101..103`) `corvint.help`'s closed arguments become `{}`, `{"topic":
+  "guide" | "catalog"}`, or `{"command": NAME}` with an optional `"topic": "command"`, where NAME is
+  in the descriptor's enum of catalogued commands. Omission now means `guide`; `command` returns the
+  bytes of `corvint help --json NAME` (`CAP-V0-950`, under 5 KB) with receipt `command` `corvint help
+  --json NAME`; `catalog` stays the full catalog and must be asked for. A `null` member, a `command`
+  beside `guide` or `catalog`, or `topic: "command"` without one is `invalid-arguments`. The default
+  and a command answer each stay under 32 KB on the wire. Every tool these four servers list whose
+  result carries `structuredContent` MUST declare `outputSchema` `{"type":"object","properties":
+  {"tool":{"type":"string"},"mutates":{"const":false}}}`, which every bridge, group, corpus and
+  tool-error object meets, so a client may read structuredContent instead of the text block that
+  repeats it; the flows tools (`AFU-V1-035`) declare none. Non-goals: paging the full catalog,
+  per-tool output schemas, dropping the text block (hosts that read only text still need it).
+  Falsifier: a default help answer of 32 KB or more, a slice that differs from the CLI's, or a
+  structuredContent tool without `outputSchema`. Rollback: restore the catalog default, drop the
+  command topic and `bridge.WithOutputSchemas`, and repin the goldens.
 - `MCPV0-114`: (experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)
   Under `--follow-ref`, `tools/list` MUST advertise every tool a call binds to the ref with
   `readOnlyHint` false and its description followed by one fixed sentence stating that each call
@@ -1087,6 +1104,7 @@ cleanup remain outside that receipt.
 | `MCPV0-950` | `internal/mcp/rootbind` (`Resolve`), `internal/mcp/bridge` (`Profile.Tools`), `internal/mcp/cli` (`run`, `startUnavailable`, `answerUnavailable`), `script/check-install-lifecycle.sh` | `internal/mcp/cli/unavailable_test.go`'s `TestMCPV0950SubdirectoryRootBindsToplevel`, `TestMCPV0950UnusableRootServesListAndRefusesCalls` (eight unusable roots: same `tools/list`, every tool `invalid-root` but help, unknown tool `-32602`, exact reason line), `TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired`, `TestMCPV0950ProfileToolsMatchRegistries`; `script/check-install-lifecycle_test.sh` step `mcp-unavailable-root` |
 | `MCPV0-951` | `cmd/corvint` (`mcpServerVersion`), `internal/mcp/cli` (`Serve`, `runVersioned`, `declaredPlugin`, `notePluginCompatibility`), `integrations/claude-code/plugins/corvint/.mcp.json` | `internal/mcp/cli/plugin_test.go`'s `TestMCPV0951ServerInfoCarriesTheBuildVersion`, `TestMCPV0951DeclaredPluginIsBounded`, `TestMCPV0951StatusReportsPluginCompatibility`; `cmd/corvint/mcp_test.go`'s `TestMCPV0951MCPVerbReportsTheBuildVersion`; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups` and `TestAHI820ClaudePluginArgsServeTestValidityAndDocs` (declared version and tools); `AHI-198` in `integrations/host-adapters.test.mjs` |
 | `MCPV0-952` | `internal/mcp/protocol` (`InvalidParamsData`, `InvalidParamsAt`), `internal/mcp/server` (`sanitize`), `internal/mcp/toolgroup` (`ListParamsRefusal`, `WithInvalidParamsData`, `diagnose`), the `tools/list` and `tools/call` handlers of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/cli/invalid_params_test.go`'s `TestMCPV0952InvalidParamsCarryReasonAndField` (unknown tool, bad enum, pattern violation and ten more) and `TestMCPV0952LegacyInitializeInvalidParamsCarryField`; `TestMMRV0013ParityWithDedicatedServers` (same data from both servers) |
+| `MCPV0-953` | `internal/mcp/bridge` (`callHelp`, `helpTopicText`, `helpCommandNames`, `validHelpReceipt`, `helpDescriptor`, `WithOutputSchemas`), the `tools/list` surfaces of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (guide default, command slices, refusals, command-topic tamper); `internal/mcp/cli/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (default and slice under 32 KB on the wire) and `TestMCPV0953ToolsDeclareOutputSchema`; `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` and `TestMCPV0105CompanionHelpMatchesTheCLI` (slice equals `corvint help --json impact`); the three `MCPV0-101..103` wire tests; repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |

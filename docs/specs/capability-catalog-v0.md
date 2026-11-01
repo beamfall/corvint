@@ -298,6 +298,17 @@ cannot silently go missing or outlive its command.
   hint when none matches; the outcome stays `ERROR`. A test walks every implemented verb except
   `help`, whose `--help` is the root help (CAL-V0-047), with `--help` and fails on an unknown-verb
   result or help without usage, flags or an example.
+- `CAP-V0-950`: (experimental under the standing lane auto-accept; V1-3701; extends `CAP-V0-015`
+  and `CAP-V0-045`) `corvint help --json COMMAND`, for any top-level `COMMAND`, MUST print one
+  compact, LF-terminated `corvint-capability-command/0` object of at most 5,119 bytes:
+  `catalogSchema`, the command's `corvint help --json` entry unchanged except that
+  `writeStatements` keeps only the leading sentences that fit, `writeStatementsOmitted` counting
+  the rest (which `corvint help COMMAND` and the full catalog still carry), and `fullCatalog`. An
+  unknown `COMMAND` exits 2 naming every command. `corvint-tasks help --tree` and `corvint-test help
+  --tree` MUST print exactly their `help --json` command tree, so all three binaries accept
+  corvint's `help --tree` spelling; `help --json` stays. Non-goals: nested-operation slices, paging
+  the full catalog. Falsifier: a command whose slice exceeds the bound, a slice whose entry differs
+  from the catalog's other than the omitted statements, or a `--tree` that differs from `--json`.
 - `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
   `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
   kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
@@ -470,5 +481,6 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
+| CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`), `cmd/corvint-test` (`helpRequest`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (internal/tasks/cli) and `TestCAPV0045TreeSnapshotIsCurrent` (cmd/corvint-test) |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
