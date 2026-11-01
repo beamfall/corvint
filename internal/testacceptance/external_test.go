@@ -151,6 +151,26 @@ func (f externalFixture) execute(t *testing.T) Report {
 	return report
 }
 
+// failure explains a run that never reached the runner (V1-3860): each run's reasons and hook
+// results, the hook's own input log, and the runner log or the fact that it was never written, so
+// a failed reset names the step that failed instead of only a missing runner.log.
+func (f externalFixture) failure(report Report) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "report verdict=%s blocked=%s reasons=%v\n", report.Verdict, report.Blocked, report.Reasons)
+	for i, run := range report.Runs {
+		hooks, _ := json.Marshal(run.ExternalHooks)
+		fmt.Fprintf(&b, "run %d kind=%s reasons=%v hooks=%s\n", i, run.Kind, run.Reasons, hooks)
+	}
+	for _, name := range []string{filepath.Join(f.hookDir, "hook.log"), filepath.Join(filepath.Dir(f.state), "runner.log")} {
+		if body, err := os.ReadFile(name); err != nil {
+			fmt.Fprintf(&b, "%s: %v\n", filepath.Base(name), err)
+		} else {
+			fmt.Fprintf(&b, "%s:\n%s", filepath.Base(name), body)
+		}
+	}
+	return b.String()
+}
+
 func cloneExternal(r Request) Request {
 	x := *r.ExternalApp
 	x.Environment = slices.Clone(x.Environment)
@@ -310,10 +330,10 @@ func TestNEAV0013DeclaredEnvironment(t *testing.T) {
 	t.Run("runner sees declared keys and nothing ambient", func(t *testing.T) {
 		t.Setenv("GITHUB_TOKEN", "ghp_"+strings.Repeat("Q1w2E3r4T5", 4)[:36])
 		g := externalRequest(t)
-		g.execute(t)
+		report := g.execute(t)
 		log, err := os.ReadFile(filepath.Join(filepath.Dir(g.state), "runner.log"))
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("%v\n%s", err, g.failure(report))
 		}
 		for _, line := range strings.Split(strings.TrimSpace(string(log)), "\n") {
 			if line != "E2E_BASE_URL,E2E_STORAGE_STATE,LANG,LC_ALL,PATH,TMPDIR authenticated" {
@@ -421,6 +441,14 @@ func TestNEAV0015HealthHookFailure(t *testing.T) {
 		}
 		if _, err := os.Stat(filepath.Join(filepath.Dir(f.state), "runner.log")); !os.IsNotExist(err) || f.logins.Load() != 0 {
 			t.Fatalf("runner ran after a failed reset: %v", err)
+		}
+		// V1-3860: the failure text a caller sees names the failed reset, carries the hook's own
+		// log as the runner.log equivalent, and says the runner log was never written.
+		explained := f.failure(report)
+		for _, want := range []string{"external-reset-failed", `"phase":"reset","status":"failed"`, "hook.log:\n", "runner.log: "} {
+			if !strings.Contains(explained, want) {
+				t.Fatalf("failure text lacks %q:\n%s", want, explained)
+			}
 		}
 		if report.Verdict != "blocked" || report.Blocked != "infrastructure" {
 			t.Fatalf("verdict = %s %q", report.Verdict, report.Blocked)
