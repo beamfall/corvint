@@ -1053,20 +1053,20 @@ func TestRunStepKeysBatchPrecheckScopes(t *testing.T) {
 	if err := os.Remove(filepath.Join(root, "main.go")); err != nil {
 		t.Fatal(err)
 	}
-	for _, dir := range []string{"pkg/testdata/deep", ".corvint/changes", "docs/build-log", ".github/cishards", "benchmarks/selection-baseline", "script"} {
+	for _, dir := range []string{"pkg/testdata/deep", ".corvint/changes", "docs/build-log", ".github/cishards", "benchmarks/selection-baseline", "script"} { //corvint:fixture-path
 		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
 	write(t, root, ".gitignore", "COUNT\n")
-	write(t, root, "pkg/a.go", "package pkg\n")
-	write(t, root, "pkg/testdata/deep/golden.txt", "one\n")
-	write(t, root, "go.mod", "module example.invalid/m\n")
-	write(t, root, "README.md", "one\n")
-	write(t, root, "docs/CAPABILITIES.md", "one\n")
-	write(t, root, ".github/cishards/package-costs.json", "{}\n")
-	write(t, root, "benchmarks/selection-baseline/changes.json", "{}\n")
-	write(t, root, "script/tool.sh", "true\n")
+	write(t, root, "pkg/a.go", "package pkg\n")                          //corvint:fixture-path
+	write(t, root, "pkg/testdata/deep/golden.txt", "one\n")              //corvint:fixture-path
+	write(t, root, "go.mod", "module example.invalid/m\n")               //corvint:fixture-path
+	write(t, root, "README.md", "one\n")                                 //corvint:fixture-path
+	write(t, root, "docs/CAPABILITIES.md", "one\n")                      //corvint:fixture-path
+	write(t, root, ".github/cishards/package-costs.json", "{}\n")        //corvint:fixture-path
+	write(t, root, "benchmarks/selection-baseline/changes.json", "{}\n") //corvint:fixture-path
+	write(t, root, "script/tool.sh", "true\n")                           //corvint:fixture-path
 	for _, step := range []string{"selection-baseline-check+s1", "capability-catalog-check+c1"} {
 		run := append([]string{"run", step}, counting...)
 		if code, out := ledgerRun(t, run...); code != 0 || !strings.Contains(out, "RECORD "+step) {
@@ -1083,20 +1083,20 @@ func TestRunStepKeysBatchPrecheckScopes(t *testing.T) {
 				t.Fatalf("%s: a change to %s hit: %q", step, file, out)
 			}
 		}
-		check(".corvint/changes/"+step+".cem.json", "{}\n", true)
-		check("docs/build-log/"+step+".md", "entry\n", true)
-		check("pkg/a.go", "package pkg\n\n// "+step+"\n", false)
-		check("pkg/testdata/deep/golden.txt", step+"\n", false)
-		check("go.mod", "module example.invalid/m\n\n// "+step+"\n", false)
-		check("README.md", step+"\n", false)
-		check("script/tool.sh", "# "+step+"\n", false)
+		check(".corvint/changes/"+step+".cem.json", "{}\n", true)           //corvint:fixture-path
+		check("docs/build-log/"+step+".md", "entry\n", true)                //corvint:fixture-path
+		check("pkg/a.go", "package pkg\n\n// "+step+"\n", false)            //corvint:fixture-path
+		check("pkg/testdata/deep/golden.txt", step+"\n", false)             //corvint:fixture-path
+		check("go.mod", "module example.invalid/m\n\n// "+step+"\n", false) //corvint:fixture-path
+		check("README.md", step+"\n", false)                                //corvint:fixture-path
+		check("script/tool.sh", "# "+step+"\n", false)                      //corvint:fixture-path
 		if step == "selection-baseline-check+s1" {
-			check("docs/CAPABILITIES.md", step+"\n", true)
-			check(".github/cishards/package-costs.json", "{\"a\": 1}\n", false)
-			check("benchmarks/selection-baseline/changes.json", "{\"a\": 1}\n", false)
+			check("docs/CAPABILITIES.md", step+"\n", true)                             //corvint:fixture-path
+			check(".github/cishards/package-costs.json", "{\"a\": 1}\n", false)        //corvint:fixture-path
+			check("benchmarks/selection-baseline/changes.json", "{\"a\": 1}\n", false) //corvint:fixture-path
 		} else {
-			check(".github/cishards/package-costs.json", "{\"b\": 2}\n", true)
-			check("docs/CAPABILITIES.md", step+"\n", false)
+			check(".github/cishards/package-costs.json", "{\"b\": 2}\n", true) //corvint:fixture-path
+			check("docs/CAPABILITIES.md", step+"\n", false)                    //corvint:fixture-path
 		}
 	}
 }
@@ -1107,31 +1107,32 @@ func TestInScopeBatchPrecheckForms(t *testing.T) {
 		path, scope string
 		want        bool
 	}{
-		{"README.md", rootScope, true},
-		{"docs/README.md", rootScope, false},
-		{"docs/CAPABILITIES.md", "docs/*.md", true},
-		{"docs/build-log/x.md", "docs/*.md", false},
-		{"docs/x.txt", "docs/*.md", false},
-		{"cmd/corvint/main.go", goScope, false}, // goScope is matched by goInput, never by inScope
+		{"README.md", rootScope, true},              //corvint:fixture-path
+		{"docs/README.md", rootScope, false},        //corvint:fixture-path
+		{"docs/CAPABILITIES.md", "docs/*.md", true}, //corvint:fixture-path
+		{"docs/build-log/x.md", "docs/*.md", false}, //corvint:fixture-path
+		{"docs/x.txt", "docs/*.md", false},          //corvint:fixture-path
+		// goScope is matched by goInput, never by inScope.
+		{"cmd/corvint/main.go", goScope, false}, //corvint:fixture-path
 	} {
 		if got := inScope(c.path, []string{c.scope}); got != c.want {
 			t.Errorf("inScope(%q, %q) = %v, want %v", c.path, c.scope, got, c.want)
 		}
 	}
-	dirs := goDirectories([]treeEntry{{path: "cmd/corvint/main.go"}, {path: ".github/cishards/x.go"}})
+	dirs := goDirectories([]treeEntry{{path: "cmd/corvint/main.go"}, {path: ".github/cishards/x.go"}}) //corvint:fixture-path
 	for _, c := range []struct {
 		path string
 		want bool
 	}{
-		{"cmd/corvint/main.go", true},
-		{"cmd/corvint/testdata/a/b.json", true},
-		{"internal/new/x.go", true},
-		{"interop/m/go.sum", true},
-		{".github/cishards/package-costs.json", true},
-		{".github/workflows/ci.yml", false},
-		{".corvint/changes/x.cem.json", false},
-		{"docs/build-log/x.md", false},
-		{"cmd/README.md", false},
+		{"cmd/corvint/main.go", true},                 //corvint:fixture-path
+		{"cmd/corvint/testdata/a/b.json", true},       //corvint:fixture-path
+		{"internal/new/x.go", true},                   //corvint:fixture-path
+		{"interop/m/go.sum", true},                    //corvint:fixture-path
+		{".github/cishards/package-costs.json", true}, //corvint:fixture-path
+		{".github/workflows/ci.yml", false},           //corvint:fixture-path
+		{".corvint/changes/x.cem.json", false},        //corvint:fixture-path
+		{"docs/build-log/x.md", false},                //corvint:fixture-path
+		{"cmd/README.md", false},                      //corvint:fixture-path
 	} {
 		if got := goInput(c.path, dirs); got != c.want {
 			t.Errorf("goInput(%q) = %v, want %v", c.path, got, c.want)
