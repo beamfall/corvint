@@ -374,11 +374,15 @@ func TestInstructionConflictsRecipeExpansion(t *testing.T) {
 		{"blank host files", []string{"INSTRUCTION_HOST_FILES= "}, "script/check-instruction-conflicts.sh --repository-only"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			command := exec.Command("make", append([]string{"-s", "-n", "-C", root, "--no-print-directory", "instruction-conflicts"}, c.args...)...)
+			// -f Makefile: under CI's Landlock confinement (AFP-V0-023) the repository root is not
+			// a readable directory, and GNU make finds a default makefile only by listing it.
+			command := exec.Command("make", append([]string{"-s", "-n", "-C", root, "-f", "Makefile", "--no-print-directory", "instruction-conflicts"}, c.args...)...)
 			command.Env = append(os.Environ(), "MAKEFLAGS=", "INSTRUCTION_HOST_FILES=")
+			var stderr strings.Builder
+			command.Stderr = &stderr
 			out, err := command.Output()
 			if err != nil {
-				t.Fatalf("make -n instruction-conflicts: %v", err)
+				t.Fatalf("make -n instruction-conflicts: %v: %s", err, stderr.String())
 			}
 			if got := strings.TrimSpace(string(out)); got != c.want {
 				t.Fatalf("recipe expands to %q, want %q", got, c.want)
