@@ -2225,6 +2225,34 @@ but does not read it; only non-Go syntax impact does.
     the unranked reading every reader gave on base `f60c1b027`).
   - Rollback: delete the `dialect` member and `markDialects`, restore the builder-only ranked set
     and `appmap-builder/2`; maps written with the member must be rebuilt.
+- `AMAP-V0-882`: (experimental under the standing lane auto-accept (2026-11-01); V1-3935; amending
+  `AMAP-V0-003` and `AMAP-V0-190`) In a `react-router/0` router file, a leaf route that a later
+  route tree (another `<Routes>` element, `createBrowserRouter` or `createRoutesFromElements` call in
+  the same file) declares again with the same full path and the same `element` MUST fold into its
+  first declaration, so mutually exclusive trees that render one element at one URL yield one
+  screen and no `ambiguous-template` unknown. Two elements are the same when their attribute
+  expressions have the same tokens, string literals compared by value, ignoring layout and
+  comments. Only a resolved, non-redirect leaf with a generated `react:` name and an exactly read
+  JSX `element` folds; the folded screen's entry carries the union of both declarations'
+  constraints, so a render guard on either keeps `render-guarded`. Every other repeat keeps both
+  screens, and each `ambiguous-template` unknown for a key shared by several screens MUST carry
+  `detail` `declared by <screen id>, <screen id>...` naming every screen with that key, in any
+  dialect. The change ships under the AMAP-V0-881 builder version `appmap-builder/3`.
+  - Non-goals: folding object-form route arrays, whose `element` is not read; folding routes with
+    an explicit `id`, since a flow may name either; deciding which mutually exclusive tree renders.
+  - Failure modes: two trees whose identical element tokens resolve to different components
+    (a shadowed import) fold into one screen; an element written once as `<About />` and once as
+    `{About}` stays ambiguous.
+  - Falsifier: `TestAMAPV0882SameElementAcrossTreesMerges_V13935` in
+    `alternate_routes_v13935_test.go` (the VanillaTwisted legal-page shape: a standalone `<Routes>`
+    and the guarded main tree both declaring `/about` and `/privacy` give one resolved screen per
+    path, `render-guarded`, no `ambiguous-template`, and the `/about` goto attributed; the
+    VanillaTwisted build-38 map reported two `ambiguous-template` unknowns for this shape);
+    `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` (a different `/privacy` element stays
+    ambiguous with a detail naming both screens; a repeat within one tree, an explicit id or an
+    unread element never folds).
+  - Rollback: delete `reactMergeAlternates`, `mergeEntries`, `reactTokenText`, the `tree` and
+    `element` raw-state members and the ambiguity detail; repeated paths read ambiguous again.
 
 ## Wire contract
 
@@ -2549,6 +2577,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-601 | `TestAMAPV0601CoverageReport_V12770`, `TestFlowsAppmapCoverageCLI_V12770` in `coverage_report_v12770_test.go` and `cmd/corvint/flows_appmap_coverage_v12770_test.go` |
 | AMAP-V0-881 | `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a screen with its dialect cleared ranks nothing) |
+| AMAP-V0-882 | `TestAMAPV0882SameElementAcrossTreesMerges_V13935`, `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` in `alternate_routes_v13935_test.go` (VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
