@@ -137,6 +137,16 @@ The baseline is manual archive verification and copying binaries, with external 
   install. Rollback of this requirement:
   remove `relate` and the four result fields; callers compare `installedVersion` and `availableTag`
   by hand, as before.
+- `UPD-V0-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3301) On basis
+  `version`, an installed label whose prerelease ends in the identifier `dev` (`1.0.0-rc.3.dev`, or
+  `1.0.0-dev` for a final release) is a development build of the version without that identifier,
+  and precedes it: against the release tag of that same version the relation is
+  `UPDATE_AVAILABLE` with the `relationReason` "the installed build is a development build of
+  this release; the published release supersedes it", never `LOCAL_NEWER` as plain SemVer
+  precedence would give (`rc.3.dev` sorts above `rc.3`). A tag of any other version compares the
+  label by ordinary precedence, so a development build of `rc.3` is still `LOCAL_NEWER` than
+  `v1.0.0-rc.2`. `apply` is unchanged: it still decides from the verified candidate build.
+  Rollback: drop the development-build rule.
 - `UPD-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An installed
   version label that passes the component identity check and carries build 0 or no build marker
   at all (a marker `build` followed by `.`, space, `=` or `:` that is not read as digits stays

@@ -5116,6 +5116,7 @@ UPD-V0-006	docs/specs/operator-update-v0.md	Owned executable probes MUST isolate
 UPD-V0-007	docs/specs/operator-update-v0.md	(accepted by decision 0440; V1-0929) The state directory MUST	owner	decision 0440; V1-0929
 UPD-V0-008	docs/specs/operator-update-v0.md	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest	unrecorded	-
 UPD-V0-009	docs/specs/operator-update-v0.md	(proposed (V1-0639)) Every `check` result that observes a release MUST state	unrecorded	-
+UPD-V0-910	docs/specs/operator-update-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3301) On basis	standing	2026-10-31; V1-3301
 UPD-V0-010	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An insta	standing	2026-10-11; V1-1364
 UPD-V0-011	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599)	standing	2026-10-11; V1-1599
 UPD-V0-012	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Each	standing	2026-10-11; V1-1599
