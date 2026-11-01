@@ -159,6 +159,9 @@ func TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass(t *testing.T) {
 		"go test -run '^(TestX88[45]_|TestY)$' ./a": `["go","test","-run","^(TestX88[45]_|TestY)$","./a"]`,
 		"go test ./a -run=\"Test[AB]c\"":            `["go","test","./a","-run=Test[AB]c"]`,
 		"go test -run '[45]_' ./a":                  `["go","test","-run","[45]_","./a"]`,
+		"go test -run 'TestX[0-9]' ./a":             `["go","test","-run","TestX[0-9]","./a"]`,
+		"go test -run '[45]' ./a":                   `["go","test","-run","[45]","./a"]`,
+		"go test -run 'TestA[1]|TestB[23]' ./a":     `["go","test","-run","TestA[1]|TestB[23]","./a"]`,
 		"go test -run 'TestA[45]|TestB[1]' -v ./a":  `["go","test","-run","TestA[45]|TestB[1]","-v","./a"]`,
 	} {
 		got := verifyArguments([]byte(line + "\n"))

@@ -30,7 +30,7 @@ const runClassName = `(?:[A-Za-z0-9_./:@=+-]|` + runClass + `)+`
 const runAlternation = `(?:` + runClassName + `(?:\|` + runClassName + `)+` +
 	`|\^\(` + runClassName + `(?:\|` + runClassName + `)+\)\$` +
 	`|\^` + runClassName + `\$(?:\|\^` + runClassName + `\$)+` +
-	`|[A-Za-z0-9_./:@=+-]*` + runClass + runClassName + `?)`
+	`|[A-Za-z0-9_./:@=+-]*` + runClass + `(?:` + runClassName + `)?)`
 
 // runQuotedWord is runAlternation plus the single forms only a quoted word
 // admits: one plain name (-run 'TestA', -run '.'), one anchored name
