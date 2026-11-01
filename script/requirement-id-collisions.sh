@@ -55,9 +55,12 @@ trap '/bin/rm -rf "$work"' EXIT
 git show "$base_sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null | cut -f1 > "$work/base.ids" ||
   refuse "requirements-index-unavailable at $base: use a REF whose tree holds docs/specs/REQUIREMENTS.tsv"
 
-# new_rows prints `ID<TAB>FILE<TAB>TITLE` for each row of a REQUIREMENTS.tsv on stdin whose ID the
-# base index lacks.
-new_rows() { awk -F'\t' 'NR == FNR { known[$1] = 1; next } FNR > 1 && !($1 in known) { print $1 "\t" $2 "\t" $3 }' "$work/base.ids" -; }
+# new_rows [IDS_FILE] prints `ID<TAB>FILE<TAB>TITLE` for each row of a REQUIREMENTS.tsv on stdin
+# whose ID the base index (and IDS_FILE, when given) lacks.
+new_rows() {
+  cat "$work/base.ids" "$@" > "$work/known.ids"
+  awk -F'\t' 'NR == FNR { known[$1] = 1; next } FNR > 1 && !($1 in known) { print $1 "\t" $2 "\t" $3 }' "$work/known.ids" -
+}
 
 # Open refs: every local branch tip and every worktree HEAD, deduplicated by commit, except this
 # checkout's HEAD, commits already in the base, and commits with no history shared with it.
@@ -66,12 +69,28 @@ self=$(git rev-parse -q --verify HEAD 2> /dev/null || true)
   git for-each-ref --format='%(objectname) %(refname:short)' refs/heads
   git worktree list --porcelain | awk '/^worktree / { path = substr($0, 10) } /^HEAD / { print $2 " " path }'
 } | awk '!seen[$1]++' > "$work/refs"
-: > "$work/open"
-open=0
+: > "$work/candidates"
 while read -r sha name; do
   [[ $sha == "$self" ]] && continue
   git merge-base --is-ancestor "$sha" "$base_sha" 2> /dev/null && continue
   git merge-base "$sha" "$base_sha" > /dev/null 2>&1 || continue
+  printf '%s %s\n' "$sha" "$name" >> "$work/candidates"
+done < "$work/refs"
+# A candidate that another candidate or this checkout's HEAD contains, such as a lane head already
+# merged into a batch branch, is skipped: the containing head carries its rows, possibly reworded,
+# and comparing both reported each batch/lane pair as a collision (V1-4065, ASD-V0-820).
+if [[ -s $work/candidates ]]; then
+  # shellcheck disable=SC2046
+  git merge-base --independent $(cut -d' ' -f1 "$work/candidates") ${self:+"$self"} > "$work/outer" 2> /dev/null ||
+    refuse "merge-base-failed: git merge-base --independent over the open refs failed; run git fsck"
+fi
+: > "$work/open"
+open=0
+while read -r sha name; do
+  if ! grep -qxF "$sha" "$work/outer"; then
+    printf '%s: NOTE %s (%s) is contained in another scanned head; skipped\n' "$me" "$name" "${sha:0:12}" >&2
+    continue
+  fi
   open=$((open + 1))
   # A ref whose tree has no index has nothing to compare; one whose index blob cannot be read is
   # an error, never an empty definition set (fail closed).
@@ -84,9 +103,15 @@ while read -r sha name; do
       "$me" "$name" "${sha:0:12}" "$blob" >&2
     exit 2
   }
-  new_rows < "$work/ref.tsv" | awk -F'\t' -v ref="$name (${sha:0:12})" '{ print $0 "\t" ref }' >> "$work/open" ||
+  # IDs the ref shares with this checkout's history (a batch that merged an earlier head of this
+  # lane) are one change, not two definitions (V1-4065, ASD-V0-821).
+  shared=()
+  if [[ -z $block && -n $self ]] && mb=$(git merge-base "$self" "$sha" 2> /dev/null) && [[ $mb != "$base_sha" ]]; then
+    git show "$mb:docs/specs/REQUIREMENTS.tsv" 2> /dev/null | cut -f1 > "$work/shared.ids" && shared=("$work/shared.ids")
+  fi
+  new_rows ${shared[@]+"${shared[@]}"} < "$work/ref.tsv" | awk -F'\t' -v ref="$name (${sha:0:12})" '{ print $0 "\t" ref }' >> "$work/open" ||
     { printf '%s: REFUSE could not read the rows of %s\n' "$me" "$name" >&2; exit 2; }
-done < "$work/refs"
+done < "$work/candidates"
 
 if [[ -n $block ]]; then
   used=$(awk -F'\t' -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '

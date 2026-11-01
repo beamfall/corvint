@@ -75,7 +75,8 @@ printf -- '- `CAL-V0-186`: lane c2 clause.\n' >> "$repo/docs/specs/cal.md"
 g add -- docs/specs/cal.md
 output=$(check) && fail "the batch C CAL-V0-186 collision passed before the commit: $output"
 case $output in
-  *'collision CAL-V0-186 here docs/specs/cal.md "lane c2 clause." vs claude/lane-c1 ('*'"lane c1 clause."'*) ;;
+  # V1-4065: lane c1 is merged into claude/batch-c, so the containing batch is the side named.
+  *'collision CAL-V0-186 here docs/specs/cal.md "lane c2 clause." vs claude/batch-c ('*'"lane c1 clause."'*) ;;
   *) fail "the staged CAL-V0-186 collision was not named: $output" ;;
 esac
 g commit -q -m 'lane c2' && (cd "$repo" && script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv) &&
@@ -108,6 +109,25 @@ done
 case $output in *ASD-V0-040*) fail "this checkout's own ID was reported as used by another ref: $output" ;; esac
 output=$(check --block ASD-V0 050 059) || fail "a free block was refused: $output"
 case $output in *'free ASD-V0-050..ASD-V0-059 on'*) ;; *) fail "the free block line is missing: $output" ;; esac
+
+# ASD-V0-820/821 (V1-4065): a lane head already merged into a batch branch that rewords its row is
+# skipped as contained, and the lane itself does not collide with the batch that carries it.
+g checkout -q -b claude/lane-r main
+define self ASD-V0-060 'lane r clause.'
+g checkout -q -b claude/batch-r claude/lane-r
+sed -i.bak 's/lane r clause\./lane r clause, reworded./' "$repo/docs/specs/self.md" && rm -f "$repo/docs/specs/self.md.bak"
+g add -- docs/specs/self.md
+(cd "$repo" && script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv)
+g add -- docs/specs/REQUIREMENTS.tsv
+g commit -q -m 'batch r rewords'
+g checkout -q claude/lane-r
+output=$(check) || fail "a lane merged into a batch that reworded its row was refused: $output"
+g checkout -q claude/lane-free
+output=$(check --block ASD-V0 060 060) && fail "the batch's ASD-V0-060 was not seen: $output"
+case $output in *'used ASD-V0-060 claude/batch-r ('*) ;; *) fail "the containing batch was not named: $output" ;; esac
+case $output in *'used ASD-V0-060 claude/lane-r ('*) fail "a contained lane head was scanned: $output" ;; esac
+case $output in *'claude/lane-r ('*') is contained in another scanned head; skipped'*) ;; *) fail "the contained head was not noted: $output" ;; esac
+g branch -D -q claude/lane-r claude/batch-r
 
 # Review fix (fail closed): an open ref whose committed index blob cannot be read refuses with
 # exit 2 naming it, rather than reading as a ref that defines nothing; a ref with no index at all
