@@ -1,0 +1,3285 @@
+{
+  "changes": [
+    {
+      "base": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
+      "change": "9971cddbd64aeb3d9210d0243f0fb66d428a3c29",
+      "changeLandedSubject": "Merge pull request #8 from beamfall/claude/batch-1030b",
+      "changeLandedVia": "93b9f5b08ce841875c9c81d17905908d91346f99",
+      "changeSourceFiles": [
+        "cmd/corvint/affected.go",
+        "cmd/corvint/affected_compact.go",
+        "cmd/corvint/dogfood_flow.go",
+        "cmd/corvint/help.go",
+        "cmd/corvint/self_binary.go",
+        "cmd/corvint/test.go",
+        "internal/cem/cemcode/cemcode.go",
+        "internal/observations/observations.go"
+      ],
+      "changeSourceHunks": 16,
+      "changeSubject": "fix: derive admitted CEM codes, flag a stale self-binary, umask-proof cache tests",
+      "escape": "same-merge",
+      "fix": "634a019085a346609cde9c610113ab767181b4cb",
+      "fixLandedVia": "93b9f5b08ce841875c9c81d17905908d91346f99",
+      "fixSubject": "fix(cemcode): register hunk-digest-mismatch (V1-3168 code meets the V1-3215 registry)",
+      "id": "VRP-C001",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3215 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3215"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 12,
+          "fileHunk": 1,
+          "newCount": 25,
+          "newStart": 218,
+          "path": "internal/cem/cemcode/cemcode.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/cem/cemcode/cemcode.go",
+          234
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 1
+    },
+    {
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "change": "80fce85648503ce5a13d7149c597a773abcf5455",
+      "changeLandedSubject": "Merge pull request #12 from beamfall/claude/batch-1030c",
+      "changeLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "changeSourceFiles": [
+        "cmd/corvint/affected.go",
+        "cmd/corvint/affected_shallow.go",
+        "conformance/release-artifact-v0/archive_run.go",
+        "conformance/use-cases-v0/main.go"
+      ],
+      "changeSourceHunks": 6,
+      "changeSubject": "fix(lanes): script and gate friction (V1-3228, V1-3229, V1-3230, V1-3233, V1-3232, V1-3120, V1-3238, V1-3227, V1-3222)",
+      "escape": "same-merge",
+      "fix": "c174cbe2caee5b8e4d14e5adb099c5cec779097f",
+      "fixLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "fixSubject": "fix(lanes): address the independent review; renumber ASD-V0-060..065 to 070..075",
+      "id": "VRP-C002",
+      "laterFixes": [],
+      "qualifies": "fix subject names ASD-V0-060 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "ASD-V0-060"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 268,
+          "path": "cmd/corvint/affected.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/affected.go",
+          268
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 1
+    },
+    {
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "change": "240b6d68e5a6ef72ce809f297918dbfa0d192dbb",
+      "changeLandedSubject": "Merge pull request #12 from beamfall/claude/batch-1030c",
+      "changeLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "changeSourceFiles": [
+        "internal/appmap/stateinject.go",
+        "internal/contextindex/eval_admission.go",
+        "internal/doccorpus/compile.go"
+      ],
+      "changeSourceHunks": 8,
+      "changeSubject": "fix: nested web templates in the admission mask, plain-function spread rebuilds, explicit-empty manifest lists",
+      "escape": "same-merge",
+      "fix": "c4390e8c5c0bf4e4ef05c5770c1eec3b888ee28c",
+      "fixLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "fixSubject": "fix(appmap): read a parameter list through a return type in AMAP-V0-650",
+      "id": "VRP-C003",
+      "laterFixes": [
+        {
+          "fix": "7635084e3876b37629800d956c472d37068cd979",
+          "fixSubject": "fix(appmap): read concise arrow bodies, balanced return types and binding names in AMAP-V0-650 (AMAP-V0-651)",
+          "touchedHunks": [
+            {
+              "changeHunk": 3,
+              "fileHunk": 3,
+              "newCount": 44,
+              "newStart": 397,
+              "path": "internal/appmap/stateinject.go"
+            }
+          ],
+          "touchedLines": [
+            [
+              "internal/appmap/stateinject.go",
+              413
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              414
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              415
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              416
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              421
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              422
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              423
+            ],
+            [
+              "internal/appmap/stateinject.go",
+              424
+            ]
+          ]
+        }
+      ],
+      "qualifies": "fix subject names AMAP-V0-650 shared with the change; 9 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "AMAP-V0-650"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 3,
+          "fileHunk": 3,
+          "newCount": 44,
+          "newStart": 397,
+          "path": "internal/appmap/stateinject.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/appmap/stateinject.go",
+          421
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          422
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          425
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          427
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          428
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          429
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          430
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          432
+        ],
+        [
+          "internal/appmap/stateinject.go",
+          433
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 9
+    },
+    {
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "change": "a239a33c1793ae4a06a4abad357010814602d1b3",
+      "changeLandedSubject": "Merge pull request #10 from beamfall/claude/v1-3244-corvint-mcp-subcommand",
+      "changeLandedVia": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
+      "changeSourceFiles": [
+        "cmd/corvint-mcp/main.go",
+        "cmd/corvint/help.go",
+        "cmd/corvint/main.go",
+        "cmd/corvint/mcp.go",
+        "internal/mcp/cli/follow_ref.go",
+        "internal/mcp/cli/groups.go",
+        "internal/mcp/cli/main.go",
+        "internal/mcp/cli/roots.go",
+        "internal/mcp/cli/signals_other.go",
+        "internal/mcp/cli/signals_unix.go",
+        "internal/mcp/cli/worktree_notice.go",
+        "internal/update/update.go"
+      ],
+      "changeSourceHunks": 21,
+      "changeSubject": "fix(mcp): serve the plugins' MCP server from the core binary as `corvint mcp` (V1-3244)",
+      "escape": "same-merge",
+      "fix": "05422b17e647e944fa0e1d9fd7e6ef0c097657e1",
+      "fixLandedVia": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
+      "fixSubject": "fix(mcp): catalog `corvint mcp` and leave a missing --root value to the root preamble (V1-3244)",
+      "id": "VRP-C004",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3244 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3244"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 12,
+          "fileHunk": 1,
+          "newCount": 56,
+          "newStart": 1,
+          "path": "cmd/corvint/mcp.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/mcp.go",
+          53
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 1
+    },
+    {
+      "base": "1d2557f521d10a7c25f54784a8878fc7a707272a",
+      "change": "6ca594ec388f52dd85e030cb314219b285609ceb",
+      "changeLandedSubject": "Merge pull request #12 from beamfall/claude/batch-1030c",
+      "changeLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/python/python.go"
+      ],
+      "changeSourceHunks": 7,
+      "changeSubject": "fix(affected/python): read imports in one-line compound statement bodies (V1-3044)",
+      "escape": "same-merge",
+      "fix": "0a4ad77f0cafe8a7c41d81077bdb88432e8e2cde",
+      "fixLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "fixSubject": "fix(affected/python): split statements only outside string literals (V1-3044 review)",
+      "id": "VRP-C005",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3044 shared with the change; 9 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3044"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 2,
+          "newStart": 278,
+          "path": "internal/liveverify/affected/python/python.go"
+        },
+        {
+          "changeHunk": 5,
+          "fileHunk": 5,
+          "newCount": 2,
+          "newStart": 307,
+          "path": "internal/liveverify/affected/python/python.go"
+        },
+        {
+          "changeHunk": 6,
+          "fileHunk": 6,
+          "newCount": 57,
+          "newStart": 310,
+          "path": "internal/liveverify/affected/python/python.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/python/python.go",
+          278
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          308
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          315
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          352
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          358
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          359
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          360
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          361
+        ],
+        [
+          "internal/liveverify/affected/python/python.go",
+          362
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 9
+    },
+    {
+      "base": "6ca594ec388f52dd85e030cb314219b285609ceb",
+      "change": "dc89ab41bbe10df414ede4d7dd526c26fb10a731",
+      "changeLandedSubject": "Merge pull request #12 from beamfall/claude/batch-1030c",
+      "changeLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "changeSourceFiles": [
+        "internal/trace/migration.go",
+        "internal/tracemigraterepo/adapter.go"
+      ],
+      "changeSourceHunks": 11,
+      "changeSubject": "fix(migrate-traces): bound deep histories by the trace store instead of refusing (V1-3034)",
+      "escape": "same-merge",
+      "fix": "146fd826179e7a34c7ffb47725d08fdac3544a6b",
+      "fixLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "fixSubject": "fix(migrate-traces): budget Git operations for a store at its maximum (V1-3034 review)",
+      "id": "VRP-C006",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3034 shared with the change; 13 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3034"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 6,
+          "fileHunk": 2,
+          "newCount": 4,
+          "newStart": 19,
+          "path": "internal/tracemigraterepo/adapter.go"
+        },
+        {
+          "changeHunk": 11,
+          "fileHunk": 7,
+          "newCount": 41,
+          "newStart": 165,
+          "path": "internal/tracemigraterepo/adapter.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/tracemigraterepo/adapter.go",
+          22
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          178
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          182
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          185
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          186
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          193
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          194
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          195
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          196
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          197
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          198
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          199
+        ],
+        [
+          "internal/tracemigraterepo/adapter.go",
+          200
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 13
+    },
+    {
+      "base": "93b9f5b08ce841875c9c81d17905908d91346f99",
+      "change": "3ee4401576062869497a626ab9599366056f4701",
+      "changeLandedSubject": "Merge pull request #12 from beamfall/claude/batch-1030c",
+      "changeLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "changeSourceFiles": [
+        "cmd/corvint/host_adapter.go",
+        "cmd/corvint/index_refresh_other.go",
+        "cmd/corvint/index_refresh_unix.go"
+      ],
+      "changeSourceHunks": 13,
+      "changeSubject": "feat(index): name a refresh that ended without publishing in the stale notice (V1-0607)",
+      "escape": "same-merge",
+      "fix": "69ffd04cdb423c06e6fa623b194e926867d59328",
+      "fixLandedVia": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "fixSubject": "fix(index): keep the stale notice within the output limit and soften its claim (V1-0607)",
+      "id": "VRP-C007",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-0607 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-0607"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 4,
+          "newStart": 808,
+          "path": "cmd/corvint/host_adapter.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 1,
+          "newStart": 813,
+          "path": "cmd/corvint/host_adapter.go"
+        },
+        {
+          "changeHunk": 10,
+          "fileHunk": 7,
+          "newCount": 45,
+          "newStart": 57,
+          "path": "cmd/corvint/index_refresh_unix.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/host_adapter.go",
+          809
+        ],
+        [
+          "cmd/corvint/host_adapter.go",
+          810
+        ],
+        [
+          "cmd/corvint/host_adapter.go",
+          813
+        ],
+        [
+          "cmd/corvint/index_refresh_unix.go",
+          98
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "ccf6c05f7a24200bf18174c380b7a747d4393795",
+      "change": "621d44a8b099961abaf0bd065d8cf9f7fd07a31b",
+      "changeLandedSubject": "Merge pull request #14 from beamfall/claude/lane-ci-plan-w8",
+      "changeLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/shell/fresh.go",
+        "internal/liveverify/affected/shell/lex.go",
+        "internal/liveverify/affected/shell/shell.go"
+      ],
+      "changeSourceHunks": 22,
+      "changeSubject": "feat(affected): a source inside a fresh mktemp -d directory is bounded (TSP-V0-004, V1-3325)",
+      "escape": "same-merge",
+      "fix": "c529f8e1d7a870a6d128c1c4029c87d6407ba01e",
+      "fixLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "fixSubject": "fix(shell): allow-list commands between mktemp and a fresh source, refuse shadowed mktemp (TSP-V0-004)",
+      "id": "VRP-C008",
+      "laterFixes": [],
+      "qualifies": "fix subject names TSP-V0-004 shared with the change; 22 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TSP-V0-004"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 131,
+          "newStart": 1,
+          "path": "internal/liveverify/affected/shell/fresh.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 3,
+          "newCount": 1,
+          "newStart": 31,
+          "path": "internal/liveverify/affected/shell/lex.go"
+        },
+        {
+          "changeHunk": 6,
+          "fileHunk": 5,
+          "newCount": 29,
+          "newStart": 110,
+          "path": "internal/liveverify/affected/shell/lex.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          36
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          37
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          38
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          53
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          54
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          55
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          65
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          70
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          71
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          100
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          101
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          117
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          123
+        ],
+        [
+          "internal/liveverify/affected/shell/fresh.go",
+          126
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          31
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          110
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          111
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          112
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          113
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          114
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          123
+        ],
+        [
+          "internal/liveverify/affected/shell/lex.go",
+          124
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 22
+    },
+    {
+      "base": "bb5c1594715b9b501d378d24887a2b4ea4327c45",
+      "change": "988130b15b3abefa028945f10a254581a561c3a6",
+      "changeLandedSubject": "Merge pull request #14 from beamfall/claude/lane-ci-plan-w8",
+      "changeLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "changeSourceFiles": [
+        "cmd/corvint/test.go",
+        "cmd/corvint/test_slices.go",
+        "cmd/corvint/test_source_slices.go"
+      ],
+      "changeSourceHunks": 16,
+      "changeSubject": "feat(test): slice Go source changes to the tests that reach them (TSP-V0-006, V1-2806)",
+      "escape": "same-merge",
+      "fix": "334f3f3ac1e2bba4d6947c88be2d8d9c86a8d5c9",
+      "fixLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "fixSubject": "fix(test): count base bodies and refuse reference writes in source slices (TSP-V0-006)",
+      "id": "VRP-C009",
+      "laterFixes": [],
+      "qualifies": "fix subject names TSP-V0-006 shared with the change; 13 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TSP-V0-006"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 16,
+          "fileHunk": 1,
+          "newCount": 542,
+          "newStart": 1,
+          "path": "cmd/corvint/test_source_slices.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/test_source_slices.go",
+          131
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          132
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          192
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          193
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          214
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          215
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          258
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          259
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          308
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          309
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          481
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          482
+        ],
+        [
+          "cmd/corvint/test_source_slices.go",
+          542
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 13
+    },
+    {
+      "base": "988130b15b3abefa028945f10a254581a561c3a6",
+      "change": "95c415600195e3b894b241d40036d4c3c036a3d1",
+      "changeLandedSubject": "Merge pull request #14 from beamfall/claude/lane-ci-plan-w8",
+      "changeLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "changeSourceFiles": [
+        "tools/corvint-pr-tests/main.go",
+        "tools/corvint-pr-tests/rerun.go"
+      ],
+      "changeSourceHunks": 24,
+      "changeSubject": "feat(corvint-pr-tests): rerun only what the prior PR run did not pass or the fix affects (TSP-V0-007, V1-3050)",
+      "escape": "same-merge",
+      "fix": "be30ca569dc75d355d11c49bb5f48e7bd1548d97",
+      "fixLandedVia": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "fixSubject": "fix(pr-tests): refuse fallback-reason evidence and trailing prior data (TSP-V0-007)",
+      "id": "VRP-C010",
+      "laterFixes": [],
+      "qualifies": "fix subject names TSP-V0-007 shared with the change; 3 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TSP-V0-007"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 24,
+          "fileHunk": 1,
+          "newCount": 267,
+          "newStart": 1,
+          "path": "tools/corvint-pr-tests/rerun.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "tools/corvint-pr-tests/rerun.go",
+          71
+        ],
+        [
+          "tools/corvint-pr-tests/rerun.go",
+          213
+        ],
+        [
+          "tools/corvint-pr-tests/rerun.go",
+          214
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 3
+    },
+    {
+      "base": "64bd47b411cb01a3a0c74a0d10ff8a69718c84fc",
+      "change": "0791ad5e14221d2803bc42305904e1dbe87bccb8",
+      "changeLandedSubject": "Merge pull request #26 from beamfall/claude/lane-friction-w2-1031",
+      "changeLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/change.go",
+        "internal/dogfoodflow/finishlane.go",
+        "internal/dogfoodflow/verify_argv.go"
+      ],
+      "changeSourceHunks": 8,
+      "changeSubject": "fix(dogfood): record env-prefixed verify lines as typed argv (DCW-V0-804, V1-3378)",
+      "escape": "same-merge",
+      "fix": "e2e1d2af5bccc9b2b9176834ab022f25d84db20c",
+      "fixLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "fixSubject": "fix(dogfood): keep heavy.sh out of the DCW-V0-804 examples, so TSP-V0-005 needs no new mention (V1-3378)",
+      "id": "VRP-C011",
+      "laterFixes": [],
+      "qualifies": "fix subject names DCW-V0-804, V1-3378 shared with the change; 2 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "DCW-V0-804",
+        "V1-3378"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 1,
+          "newStart": 2230,
+          "path": "internal/dogfoodflow/change.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 1,
+          "newCount": 1,
+          "newStart": 291,
+          "path": "internal/dogfoodflow/finishlane.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/change.go",
+          2230
+        ],
+        [
+          "internal/dogfoodflow/finishlane.go",
+          291
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 2
+    },
+    {
+      "base": "ba11406b6a780c1b1348858f05e6a709207b0afe",
+      "change": "40426d24f1bcba46258955449883db4504b34135",
+      "changeLandedSubject": "Merge pull request #29 from beamfall/claude/lane-other-w1-1031",
+      "changeLandedVia": "71c4b19666369215360d54a1127eb47aa2a77e7f",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/shell/callers.go",
+        "internal/liveverify/affected/shell/computed.go",
+        "internal/liveverify/affected/shell/shell.go"
+      ],
+      "changeSourceHunks": 15,
+      "changeSubject": "fix(shell): model computed exec names in the foreign-caller scan (V1-3347, TSP-V0-960)",
+      "escape": "same-merge",
+      "fix": "8e1295a96bb554d6452ad299a092891ee70ac589",
+      "fixLandedVia": "71c4b19666369215360d54a1127eb47aa2a77e7f",
+      "fixSubject": "fix(shell,typescript,flowdocs): record a cut computed expansion as unbounded, refuse a destructured loop counter, keep keyword-led JSX masked (TSP-V0-960, AFP-V0-960, AFU-V1-043)",
+      "id": "VRP-C012",
+      "laterFixes": [],
+      "qualifies": "fix subject names TSP-V0-960 shared with the change; 21 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TSP-V0-960"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 6,
+          "fileHunk": 1,
+          "newCount": 257,
+          "newStart": 1,
+          "path": "internal/liveverify/affected/shell/computed.go"
+        },
+        {
+          "changeHunk": 12,
+          "fileHunk": 6,
+          "newCount": 3,
+          "newStart": 189,
+          "path": "internal/liveverify/affected/shell/shell.go"
+        },
+        {
+          "changeHunk": 13,
+          "fileHunk": 7,
+          "newCount": 3,
+          "newStart": 194,
+          "path": "internal/liveverify/affected/shell/shell.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          102
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          134
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          149
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          188
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          198
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          205
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          207
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          217
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          224
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          227
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          235
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          237
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          239
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          240
+        ],
+        [
+          "internal/liveverify/affected/shell/computed.go",
+          256
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          189
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          190
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          191
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          194
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          195
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          196
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 5,
+      "touchedLinesBlamedToChange": 21
+    },
+    {
+      "base": "1a30ec3e7ed07a2806aae0e889dbf348013892eb",
+      "change": "e8e06cbed7c55c578f120205a48a519c7f242af0",
+      "changeLandedSubject": "Merge pull request #26 from beamfall/claude/lane-friction-w2-1031",
+      "changeLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/propose.go",
+        "internal/dogfoodflow/propose_governing.go"
+      ],
+      "changeSourceHunks": 3,
+      "changeSubject": "fix(dogfood): propose-citations cites the decision an amended requirement names (DCW-V0-805, V1-3380)",
+      "escape": "same-merge",
+      "fix": "bbd07b5498a29aea9f660ee4288bd6ac003d7f1f",
+      "fixLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "fixSubject": "fix(dogfood): an added requirement is not drafted to the decision of the one before it (DCW-V0-805, V1-3380)",
+      "id": "VRP-C013",
+      "laterFixes": [],
+      "qualifies": "fix subject names DCW-V0-805, V1-3380 shared with the change; 5 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "DCW-V0-805",
+        "V1-3380"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 3,
+          "fileHunk": 1,
+          "newCount": 143,
+          "newStart": 1,
+          "path": "internal/dogfoodflow/propose_governing.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          102
+        ],
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          104
+        ],
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          105
+        ],
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          107
+        ],
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          114
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 5
+    },
+    {
+      "base": "dc0a5bcb16e62bb407d8d9ccfb4f3d2e028deff5",
+      "change": "fc66c22900f9ae3b19dcc489dbb43f4cff41aeb3",
+      "changeLandedSubject": "Merge pull request #26 from beamfall/claude/lane-friction-w2-1031",
+      "changeLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/shell/shell.go"
+      ],
+      "changeSourceHunks": 5,
+      "changeSubject": "fix(affected): the shell plugin indexes .github scripts, so forward-rows edits narrow (NSA-V0-800, V1-3382)",
+      "escape": "same-merge",
+      "fix": "bee68a7a612e95201143d9fedf149364ea3cc8a0",
+      "fixLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "fixSubject": "fix(affected): read .github shell scripts through a stamped FilesUnder walk so the graph cache stores (NSA-V0-800, review)",
+      "id": "VRP-C014",
+      "laterFixes": [],
+      "qualifies": "fix subject names NSA-V0-800 shared with the change; 37 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "NSA-V0-800"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 19,
+          "path": "internal/liveverify/affected/shell/shell.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 1,
+          "newStart": 23,
+          "path": "internal/liveverify/affected/shell/shell.go"
+        },
+        {
+          "changeHunk": 5,
+          "fileHunk": 5,
+          "newCount": 47,
+          "newStart": 150,
+          "path": "internal/liveverify/affected/shell/shell.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          19
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          20
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          21
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          23
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          156
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          157
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          158
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          159
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          160
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          164
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          165
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          166
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          167
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          168
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          169
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          170
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          171
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          172
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          173
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          174
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          175
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          176
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          177
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          178
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          179
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          180
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          181
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          182
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          183
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          184
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          185
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          186
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          187
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          188
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          189
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          192
+        ],
+        [
+          "internal/liveverify/affected/shell/shell.go",
+          193
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 37
+    },
+    {
+      "base": "6e843c6c37364c298b158fe6109f646345e59899",
+      "change": "a41d3a6017087d4a63676370b2513fd9ea518390",
+      "changeLandedSubject": "Merge pull request #24 from beamfall/claude/lane-bugs-w3-1031",
+      "changeLandedVia": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
+      "changeSourceFiles": [
+        "tools/cem-stable-regen/anyof.go",
+        "tools/cem-stable-regen/main.go"
+      ],
+      "changeSourceHunks": 7,
+      "changeSubject": "fix(cem): admit the plain criterionBinding in RESULT.schema.json via a recorded anyOf branch (CEM-V1-880/881; V1-2615)",
+      "escape": "same-merge",
+      "fix": "eacaf05a0737ddce31b22fd3b970b817afe38af9",
+      "fixLandedVia": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
+      "fixSubject": "fix(cem-stable-regen): refuse an anyOf branch on a $defs or properties map (CEM-V1-880)",
+      "id": "VRP-C015",
+      "laterFixes": [],
+      "qualifies": "fix subject names CEM-V1-880 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "CEM-V1-880"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 179,
+          "newStart": 1,
+          "path": "tools/cem-stable-regen/anyof.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "tools/cem-stable-regen/anyof.go",
+          75
+        ],
+        [
+          "tools/cem-stable-regen/anyof.go",
+          76
+        ],
+        [
+          "tools/cem-stable-regen/anyof.go",
+          95
+        ],
+        [
+          "tools/cem-stable-regen/anyof.go",
+          96
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "e8aee434929d006654ae78b9c36366d4656bd5ba",
+      "change": "012639e65ab678a170122ab0a834ab85c057967b",
+      "changeLandedSubject": "Merge pull request #26 from beamfall/claude/lane-friction-w2-1031",
+      "changeLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/propose.go",
+        "internal/dogfoodflow/propose_governing.go"
+      ],
+      "changeSourceHunks": 3,
+      "changeSubject": "fix(dogfood): a hunk adding a same-change requirement drafts unknown, not another requirement's decision (DCW-V0-809, friction F3)",
+      "escape": "same-merge",
+      "fix": "8226609b8fe7c08ca050e786eb8c3e5b424cf8dd",
+      "fixLandedVia": "9494c7da3cb7cdf1047e3a3ebf6e5164ac43042f",
+      "fixSubject": "fix(dogfood): a definition rewritten in place amends its requirement, not adds it (DCW-V0-809, review)",
+      "id": "VRP-C016",
+      "laterFixes": [],
+      "qualifies": "fix subject names DCW-V0-809 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "DCW-V0-809"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 3,
+          "fileHunk": 2,
+          "newCount": 48,
+          "newStart": 178,
+          "path": "internal/dogfoodflow/propose_governing.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/propose_governing.go",
+          225
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 1,
+      "touchedLinesBlamedToChange": 1
+    },
+    {
+      "base": "884338ba907eecda6986fb5730f411a616a4f9b7",
+      "change": "b2b331ef13f26e763810afbb7af433c6d40184a5",
+      "changeLandedSubject": "Merge pull request #25 from beamfall/claude/lane-linux-w2-1031",
+      "changeLandedVia": "bb52a888317f28539c04c885d3771bad59495ac3",
+      "changeSourceFiles": [
+        "internal/tasks/cli/doctor_ops.go",
+        "internal/tasks/cli/doctor_probe_linux.go"
+      ],
+      "changeSourceHunks": 3,
+      "changeSubject": "fix(tasks): doctor names a btrfs flock holder through its open descriptor when /proc/locks prints another device (TQD-V0-821)",
+      "escape": "same-merge",
+      "fix": "64891e9cd52df7dde436da73368dff750f7dce26",
+      "fixLandedVia": "bb52a888317f28539c04c885d3771bad59495ac3",
+      "fixSubject": "fix(tasks): a btrfs flock holder is named only through a descriptor whose fdinfo owns the lock (TQD-V0-821, Codex review)",
+      "id": "VRP-C017",
+      "laterFixes": [],
+      "qualifies": "fix subject names TQD-V0-821 shared with the change; 10 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TQD-V0-821"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 19,
+          "newStart": 464,
+          "path": "internal/tasks/cli/doctor_ops.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 1,
+          "newCount": 8,
+          "newStart": 34,
+          "path": "internal/tasks/cli/doctor_probe_linux.go"
+        },
+        {
+          "changeHunk": 3,
+          "fileHunk": 2,
+          "newCount": 19,
+          "newStart": 47,
+          "path": "internal/tasks/cli/doctor_probe_linux.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/tasks/cli/doctor_ops.go",
+          482
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          38
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          49
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          56
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          57
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          59
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          60
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          61
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          62
+        ],
+        [
+          "internal/tasks/cli/doctor_probe_linux.go",
+          63
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 10
+    },
+    {
+      "base": "cce9709e7c8cd15828c905fea5e3b581195b54d1",
+      "change": "f71949e171afb8db4b955bfd5b3c7ff538d4799e",
+      "changeLandedSubject": "Merge pull request #32 from beamfall/claude/lane-ctxpkt-w1-1031",
+      "changeLandedVia": "36de9912ed3fcd39b837196a2f944366bdd11ba2",
+      "changeSourceFiles": [
+        "internal/contextindex/ppr.go",
+        "internal/contextindex/spec_cited.go",
+        "internal/contextindex/taskcontext.go"
+      ],
+      "changeSourceHunks": 13,
+      "changeSubject": "fix(context): reserve the code a routed spec cites (V1-1269)",
+      "escape": "same-merge",
+      "fix": "515b2c53c28d648e0ffb4c870d8212b117e7b88d",
+      "fixLandedVia": "36de9912ed3fcd39b837196a2f944366bdd11ba2",
+      "fixSubject": "fix(context): spec-cited rows keep their rescue relation and core spans (V1-1269)",
+      "id": "VRP-C018",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-1269 shared with the change; 2 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-1269"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 13,
+          "fileHunk": 8,
+          "newCount": 2,
+          "newStart": 3337,
+          "path": "internal/contextindex/taskcontext.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/contextindex/taskcontext.go",
+          3337
+        ],
+        [
+          "internal/contextindex/taskcontext.go",
+          3338
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 2
+    },
+    {
+      "base": "037fd330bd557e740494a478faf459114e103d92",
+      "change": "1812946a7cc01a0112e3d25e63c121c0d8cae42c",
+      "changeLandedSubject": "Merge pull request #37 from beamfall/claude/lane-dffric-w1-1031",
+      "changeLandedVia": "dbc1713779fc17ce0386fe95d3e0f6347f5f9aee",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/propose.go"
+      ],
+      "changeSourceHunks": 13,
+      "changeSubject": "fix(dogfood): propose-citations drafts nearest-span proposals and names each unknown hunk's path (DCW-V0-962, DCW-V0-963; V1-3284, V1-3428, V1-3270)",
+      "escape": "same-merge",
+      "fix": "24224f31b8e3f7c1cd731f6b824c2a5452c6de23",
+      "fixLandedVia": "dbc1713779fc17ce0386fe95d3e0f6347f5f9aee",
+      "fixSubject": "fix(dogfood): propose-citations anchors on modified files' stable lines, drafts same-change requirements and prior seals in every route, names HEAD ranges (DCW-V0-963, DCW-V0-966, DCW-V0-967; V1-3284, V1-3428, V1-3270)",
+      "id": "VRP-C019",
+      "laterFixes": [],
+      "qualifies": "fix subject names DCW-V0-963, V1-3270, V1-3284, V1-3428 shared with the change; 27 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "DCW-V0-963",
+        "V1-3270",
+        "V1-3284",
+        "V1-3428"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 4,
+          "newStart": 79,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 3,
+          "newStart": 162,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 3,
+          "fileHunk": 3,
+          "newCount": 2,
+          "newStart": 177,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 4,
+          "newCount": 1,
+          "newStart": 334,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 5,
+          "fileHunk": 5,
+          "newCount": 2,
+          "newStart": 387,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 6,
+          "fileHunk": 6,
+          "newCount": 1,
+          "newStart": 404,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 7,
+          "fileHunk": 7,
+          "newCount": 1,
+          "newStart": 407,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 8,
+          "fileHunk": 8,
+          "newCount": 1,
+          "newStart": 412,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 10,
+          "fileHunk": 10,
+          "newCount": 8,
+          "newStart": 431,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 12,
+          "fileHunk": 12,
+          "newCount": 18,
+          "newStart": 458,
+          "path": "internal/dogfoodflow/propose.go"
+        },
+        {
+          "changeHunk": 13,
+          "fileHunk": 13,
+          "newCount": 3,
+          "newStart": 925,
+          "path": "internal/dogfoodflow/propose.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/propose.go",
+          82
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          163
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          177
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          334
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          388
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          404
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          407
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          412
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          431
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          438
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          458
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          459
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          463
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          464
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          465
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          466
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          467
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          468
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          469
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          470
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          471
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          472
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          473
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          474
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          475
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          925
+        ],
+        [
+          "internal/dogfoodflow/propose.go",
+          927
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 13,
+      "touchedLinesBlamedToChange": 27
+    },
+    {
+      "base": "10dbbeb6c7ab70e45a669e2efe95717305a87dfb",
+      "change": "94464964b7361c71f3c0927a4ebf8d1046dafafe",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/testrunner/platform/android.go"
+      ],
+      "changeSourceHunks": 6,
+      "changeSubject": "fix(testrunner): verify installed Android APKs against the bound digests before instrumenting (TRE-V0-820, V1-1554)",
+      "escape": "same-merge",
+      "fix": "5d47d2a05d0c243048827fe9e9170c3f4512c3cc",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(testrunner): rehash installed APKs after instrumentation and refuse a run whose APKs changed (TRE-V0-820, review P1)",
+      "id": "VRP-C020",
+      "laterFixes": [],
+      "qualifies": "fix subject names TRE-V0-820 shared with the change; 11 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "TRE-V0-820"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 4,
+          "fileHunk": 4,
+          "newCount": 2,
+          "newStart": 40,
+          "path": "internal/testrunner/platform/android.go"
+        },
+        {
+          "changeHunk": 5,
+          "fileHunk": 5,
+          "newCount": 48,
+          "newStart": 50,
+          "path": "internal/testrunner/platform/android.go"
+        },
+        {
+          "changeHunk": 6,
+          "fileHunk": 6,
+          "newCount": 15,
+          "newStart": 122,
+          "path": "internal/testrunner/platform/android.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/testrunner/platform/android.go",
+          41
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          52
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          84
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          87
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          88
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          89
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          92
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          95
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          133
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          134
+        ],
+        [
+          "internal/testrunner/platform/android.go",
+          136
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 11
+    },
+    {
+      "base": "6c967b21caa2ffb0324a681f873a891996d82e34",
+      "change": "29d40e81b24869ad5097658aeeb5b157210587ee",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/mcp/cli/main.go",
+        "internal/mcp/cli/missing_root.go"
+      ],
+      "changeSourceHunks": 4,
+      "changeSubject": "fix(mcp): serve the launch worktree when a plain --root no longer exists (V1-3497)",
+      "escape": "same-merge",
+      "fix": "67e066e203cc72c8df8da2523dc726d7756b0860",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(mcp): stop the missing-root fallback at the nearest .git entry (V1-3497)",
+      "id": "VRP-C021",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3497 shared with the change; 5 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3497"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 10,
+          "newStart": 138,
+          "path": "internal/mcp/cli/main.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 1,
+          "newCount": 54,
+          "newStart": 1,
+          "path": "internal/mcp/cli/missing_root.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/mcp/cli/main.go",
+          146
+        ],
+        [
+          "internal/mcp/cli/missing_root.go",
+          6
+        ],
+        [
+          "internal/mcp/cli/missing_root.go",
+          7
+        ],
+        [
+          "internal/mcp/cli/missing_root.go",
+          49
+        ],
+        [
+          "internal/mcp/cli/missing_root.go",
+          54
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 2,
+      "touchedLinesBlamedToChange": 5
+    },
+    {
+      "base": "1cf1e549522ab2986abe858b3fff56690c675b3f",
+      "change": "41c1d135fffba3ae0cb1844c7ec08844e5366954",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/graph.go",
+        "internal/liveverify/affected/graphcache.go",
+        "internal/liveverify/affected/runtime_edges.go",
+        "internal/liveverify/affected/select.go",
+        "internal/liveverify/affected/typescript/frontier_reach.go",
+        "internal/liveverify/affected/typescript/playwright.go"
+      ],
+      "changeSourceHunks": 14,
+      "changeSubject": "feat(affected): keep cross-language runtime frontiers and add declared runtime edges (V1-2906)",
+      "escape": "same-merge",
+      "fix": "891911cd85ae0deffd1685e98e4d8eb50e12b127",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(affected): partial graphs skip out-of-graph runtime edges and Playwright sources bind the declaration (V1-2906)",
+      "id": "VRP-C022",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2906 shared with the change; 13 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2906"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 3,
+          "fileHunk": 3,
+          "newCount": 1,
+          "newStart": 235,
+          "path": "internal/liveverify/affected/graph.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 4,
+          "newCount": 5,
+          "newStart": 249,
+          "path": "internal/liveverify/affected/graph.go"
+        },
+        {
+          "changeHunk": 5,
+          "fileHunk": 5,
+          "newCount": 4,
+          "newStart": 310,
+          "path": "internal/liveverify/affected/graph.go"
+        },
+        {
+          "changeHunk": 11,
+          "fileHunk": 1,
+          "newCount": 153,
+          "newStart": 1,
+          "path": "internal/liveverify/affected/runtime_edges.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/graph.go",
+          235
+        ],
+        [
+          "internal/liveverify/affected/graph.go",
+          253
+        ],
+        [
+          "internal/liveverify/affected/graph.go",
+          311
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          103
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          105
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          106
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          108
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          110
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          111
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          114
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          121
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          122
+        ],
+        [
+          "internal/liveverify/affected/runtime_edges.go",
+          123
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 13
+    },
+    {
+      "base": "16768e87bcf7dce4bd4aa4cdacd8d9d841280129",
+      "change": "a411c285b37e9ed7e184f54b7f663fe140c5df2d",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/appmap/compile.go",
+        "internal/appmap/manifest.go",
+        "internal/appmap/types.go"
+      ],
+      "changeSourceHunks": 13,
+      "changeSubject": "fix(appmap): read imports inside page.evaluate callbacks as browser-context references (V1-3527)",
+      "escape": "same-merge",
+      "fix": "4f912d357b45fc4cb88bb86041dc6b83d02f8e83",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(appmap): browser targets are no test edges, later evaluate arguments stay Node imports, web_root . (V1-3527)",
+      "id": "VRP-C023",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3527 shared with the change; 5 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3527"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 96,
+          "path": "internal/appmap/compile.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 17,
+          "newStart": 333,
+          "path": "internal/appmap/compile.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 4,
+          "newCount": 29,
+          "newStart": 353,
+          "path": "internal/appmap/compile.go"
+        },
+        {
+          "changeHunk": 11,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 129,
+          "path": "internal/appmap/manifest.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/appmap/compile.go",
+          96
+        ],
+        [
+          "internal/appmap/compile.go",
+          97
+        ],
+        [
+          "internal/appmap/compile.go",
+          333
+        ],
+        [
+          "internal/appmap/compile.go",
+          354
+        ],
+        [
+          "internal/appmap/manifest.go",
+          129
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 5
+    },
+    {
+      "base": "4d81b4f8ba792140dc7936cf7e0fd1761c46d506",
+      "change": "3abb15ccdbe12084c3efc5f416e8a2582ac21c5e",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/tasks/archive/manifest.go",
+        "internal/tasks/cli/cli.go",
+        "internal/tasks/cli/command_help.go",
+        "internal/tasks/store/restore.go"
+      ],
+      "changeSourceHunks": 10,
+      "changeSubject": "feat(V1-3554): archive restore into an absent state dir (TRL-V0-870, TRL-V0-871)",
+      "escape": "same-merge",
+      "fix": "7a460cc73302723a6c96aed7a94a8eb7c2e3fb3f",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(V1-3554, V1-0814, V1-3263): restore intent atomicity, bounded intent compare, unique staged members, reload note statuses, --root file arguments",
+      "id": "VRP-C024",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3554 shared with the change; 39 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3554"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 6,
+          "fileHunk": 5,
+          "newCount": 31,
+          "newStart": 2134,
+          "path": "internal/tasks/cli/cli.go"
+        },
+        {
+          "changeHunk": 10,
+          "fileHunk": 1,
+          "newCount": 318,
+          "newStart": 1,
+          "path": "internal/tasks/store/restore.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/tasks/cli/cli.go",
+          2145
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          80
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          85
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          90
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          106
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          155
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          156
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          159
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          177
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          181
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          185
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          206
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          207
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          210
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          219
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          231
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          232
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          240
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          243
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          258
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          259
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          262
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          267
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          279
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          280
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          283
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          285
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          286
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          288
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          304
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          305
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          307
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          309
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          310
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          311
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          313
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          314
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          315
+        ],
+        [
+          "internal/tasks/store/restore.go",
+          317
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 3,
+      "touchedLinesBlamedToChange": 39
+    },
+    {
+      "base": "b224005b6ae569583a64acc07e0d77eb6947f87d",
+      "change": "97f0fb5ffa11ed88a038dfda1f18b2c187b1a717",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/typescript/playwright.go",
+        "internal/liveverify/affected/typescript/playwright_discovery.go",
+        "internal/liveverify/affected/typescript/playwright_package_manager.go"
+      ],
+      "changeSourceHunks": 3,
+      "changeSubject": "fix(affected): launch Playwright argv through the repository's package manager (V1-3498)",
+      "escape": "same-merge",
+      "fix": "34725eaa6a8490a8284102c59ad179fc2138822a",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(affected): Playwright argv use the package manager bound by the final source check (V1-3498)",
+      "id": "VRP-C025",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3498 shared with the change; 11 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3498"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 4,
+          "newStart": 328,
+          "path": "internal/liveverify/affected/typescript/playwright.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 1,
+          "newCount": 1,
+          "newStart": 121,
+          "path": "internal/liveverify/affected/typescript/playwright_discovery.go"
+        },
+        {
+          "changeHunk": 3,
+          "fileHunk": 1,
+          "newCount": 75,
+          "newStart": 1,
+          "path": "internal/liveverify/affected/typescript/playwright_package_manager.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/typescript/playwright.go",
+          329
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_discovery.go",
+          121
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          7
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          8
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          34
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          35
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          37
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          38
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          48
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          49
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_package_manager.go",
+          50
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 11
+    },
+    {
+      "base": "897c079ef6cd075397a9b036f1e7b1c7ab9d526a",
+      "change": "8e48cacc83ff30bb3236aace474efe1271b87d49",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/liveverify/affected/typescript/playwright.go",
+        "internal/liveverify/affected/typescript/playwright_narrowing.go",
+        "internal/liveverify/affected/typescript/playwright_symbols.go"
+      ],
+      "changeSourceHunks": 11,
+      "changeSubject": "feat(affected/playwright): taint only tests reaching a sited frontier and key multi-binding exports per name (V1-2060)",
+      "escape": "same-merge",
+      "fix": "82be2215ad79a2bea7d7e59ef3a496ba77790a9b",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(affected/playwright): a generic comma in a typed export binds no symbol (V1-2060 review)",
+      "id": "VRP-C026",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2060 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2060"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 10,
+          "fileHunk": 3,
+          "newCount": 55,
+          "newStart": 272,
+          "path": "internal/liveverify/affected/typescript/playwright_symbols.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/liveverify/affected/typescript/playwright_symbols.go",
+          293
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_symbols.go",
+          314
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_symbols.go",
+          323
+        ],
+        [
+          "internal/liveverify/affected/typescript/playwright_symbols.go",
+          324
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "ca8763d35eaa6c0391b6b0ab207a3bdb2670949e",
+      "change": "05d61310b2721b26a6309e51a064fa40a0d8bc14",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "cmd/corvint/dogfood_flow.go",
+        "internal/dogfoodflow/check.go",
+        "internal/dogfoodflow/finishlane.go"
+      ],
+      "changeSourceHunks": 12,
+      "changeSubject": "feat(dogfood): retain the dogfood-change run count, name the report to review, run the cem status verifier pair concurrently (ASD-V0-907, DCW-V0-907, DCW-V0-908; V1-1629, V1-3188)",
+      "escape": "same-merge",
+      "fix": "28c45287bf15998a89fad243fe81291b2fd41e66",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(dogfood): only the cem status verifier pair runs concurrently; query abstention stays sequential (DCW-V0-907)",
+      "id": "VRP-C027",
+      "laterFixes": [],
+      "qualifies": "fix subject names DCW-V0-907 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "DCW-V0-907"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 6,
+          "fileHunk": 5,
+          "newCount": 23,
+          "newStart": 587,
+          "path": "internal/dogfoodflow/check.go"
+        },
+        {
+          "changeHunk": 7,
+          "fileHunk": 6,
+          "newCount": 1,
+          "newStart": 625,
+          "path": "internal/dogfoodflow/check.go"
+        },
+        {
+          "changeHunk": 8,
+          "fileHunk": 7,
+          "newCount": 1,
+          "newStart": 739,
+          "path": "internal/dogfoodflow/check.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/check.go",
+          593
+        ],
+        [
+          "internal/dogfoodflow/check.go",
+          594
+        ],
+        [
+          "internal/dogfoodflow/check.go",
+          625
+        ],
+        [
+          "internal/dogfoodflow/check.go",
+          739
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "8b64c1d61fc7d02ddc72d289e00750d6363252c2",
+      "change": "db2d4cb89d1445591e53a8f460265dc3ac1df475",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/ocm_coverage.go"
+      ],
+      "changeSourceHunks": 4,
+      "changeSubject": "fix(dogfood): change coverage traces compact test-name suffixes and table-row ranges (OCM-V0-900; V1-3455)",
+      "escape": "same-merge",
+      "fix": "af7ef310fa51bdaf8cc4840ecadf961efb610b71",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(dogfood): a mixed-prefix row range traces no requirement (OCM-V0-900; V1-3455)",
+      "id": "VRP-C028",
+      "laterFixes": [],
+      "qualifies": "fix subject names OCM-V0-900, V1-3455 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "OCM-V0-900",
+        "V1-3455"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 4,
+          "fileHunk": 4,
+          "newCount": 54,
+          "newStart": 389,
+          "path": "internal/dogfoodflow/ocm_coverage.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/ocm_coverage.go",
+          416
+        ],
+        [
+          "internal/dogfoodflow/ocm_coverage.go",
+          434
+        ],
+        [
+          "internal/dogfoodflow/ocm_coverage.go",
+          435
+        ],
+        [
+          "internal/dogfoodflow/ocm_coverage.go",
+          436
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "6f475183f3b7d30fa798fa7b29166b941afdcde7",
+      "change": "5c7ce771766856aa1e375e2f8e4a5dfc4d140126",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/tasks/store/deferred_retention.go",
+        "internal/tasks/store/mutate.go",
+        "internal/tasks/store/writer_checkpoint.go",
+        "internal/tasks/store/writer_route.go"
+      ],
+      "changeSourceHunks": 14,
+      "changeSubject": "perf(tasks/store): Mutate, lease writer route and refresh retain checkpoints outside the writer lock (V1-2358, JSG-V0-891)",
+      "escape": "same-merge",
+      "fix": "507a486b1bdc3e57dd04d34d1cd0c9e7933951e0",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(tasks/store): a checkpoint that cannot be staged is not retained under the writer lock (V1-2358 review)",
+      "id": "VRP-C029",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2358 shared with the change; 3 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2358"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 9,
+          "fileHunk": 5,
+          "newCount": 3,
+          "newStart": 564,
+          "path": "internal/tasks/store/writer_checkpoint.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/tasks/store/writer_checkpoint.go",
+          564
+        ],
+        [
+          "internal/tasks/store/writer_checkpoint.go",
+          565
+        ],
+        [
+          "internal/tasks/store/writer_checkpoint.go",
+          566
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 3
+    },
+    {
+      "base": "45e1ff12d478af764b327978634d59aa4a335e9b",
+      "change": "dac46014cfebea92a9913aa32a05c8af2c6acbfd",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "internal/tasks/journal/seal_checkpoint.go",
+        "internal/tasks/store/lease_write.go",
+        "internal/tasks/store/mutate.go",
+        "internal/tasks/store/sealed_base_rebase.go",
+        "internal/tasks/store/writer_route.go"
+      ],
+      "changeSourceHunks": 9,
+      "changeSubject": "feat(tasks): base-at-S capture keeps the sealed base across a complete-route write (V1-2621, LGL-V0-891)",
+      "escape": "same-merge",
+      "fix": "0a1112c44cd00b9e61a22e21eccfd5bd13f382cc",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(tasks): sealed-base re-base checks the base's historical aggregates against the complete audit (V1-2621 review)",
+      "id": "VRP-C030",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2621 shared with the change; 16 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2621"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 33,
+          "newStart": 211,
+          "path": "internal/tasks/journal/seal_checkpoint.go"
+        },
+        {
+          "changeHunk": 3,
+          "fileHunk": 2,
+          "newCount": 3,
+          "newStart": 360,
+          "path": "internal/tasks/store/lease_write.go"
+        },
+        {
+          "changeHunk": 7,
+          "fileHunk": 2,
+          "newCount": 17,
+          "newStart": 162,
+          "path": "internal/tasks/store/mutate.go"
+        },
+        {
+          "changeHunk": 8,
+          "fileHunk": 1,
+          "newCount": 42,
+          "newStart": 1,
+          "path": "internal/tasks/store/sealed_base_rebase.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/tasks/journal/seal_checkpoint.go",
+          221
+        ],
+        [
+          "internal/tasks/store/lease_write.go",
+          360
+        ],
+        [
+          "internal/tasks/store/mutate.go",
+          171
+        ],
+        [
+          "internal/tasks/store/mutate.go",
+          172
+        ],
+        [
+          "internal/tasks/store/mutate.go",
+          173
+        ],
+        [
+          "internal/tasks/store/mutate.go",
+          177
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          8
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          16
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          17
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          24
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          25
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          28
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          29
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          30
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          31
+        ],
+        [
+          "internal/tasks/store/sealed_base_rebase.go",
+          32
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 16
+    },
+    {
+      "base": "6793d3c07522c0812f8abe47b3269e24e362139e",
+      "change": "a6c36e6d62aed147c6d8cc1171da9542edf3aae3",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "tools/cem-trial/main.go",
+        "tools/cem-trial/register.go",
+        "tools/cem-trial/score.go",
+        "tools/cem-trial/select.go"
+      ],
+      "changeSourceHunks": 27,
+      "changeSubject": "fix(cem-trial): close the seven CRT-V0-016 reuse findings and pin the canonical patch (V1-2624)",
+      "escape": "same-merge",
+      "fix": "c948283ba2d70e1d0d51279a3ea2a4ac53650b26",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(cem-trial): derive the presented patch under gitauth's scrubbed environment (V1-2624 review)",
+      "id": "VRP-C031",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2624 shared with the change; 2 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2624"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 26,
+          "fileHunk": 1,
+          "newCount": 40,
+          "newStart": 30,
+          "path": "tools/cem-trial/select.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "tools/cem-trial/select.go",
+          58
+        ],
+        [
+          "tools/cem-trial/select.go",
+          68
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 2
+    },
+    {
+      "base": "e03ce0191f68a3a963c7b762270345248e329e0e",
+      "change": "a240df7c91f19c4263b6e58c91a187aee917299c",
+      "changeLandedSubject": "Merge pull request #39 from beamfall/claude/batch-1031b",
+      "changeLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "changeSourceFiles": [
+        "tools/retrieval-bench/contextbench.go",
+        "tools/retrieval-bench/main.go"
+      ],
+      "changeSourceHunks": 3,
+      "changeSubject": "feat(retrieval-bench): abstention-separated ContextBench precision and a length-matched baseline (V1-2761)",
+      "escape": "same-merge",
+      "fix": "a69c6710340a827d0789c5cc5f821120ccce7364",
+      "fixLandedVia": "99e6e6c676c1e68e84338f0d8c90b03e2a1315eb",
+      "fixSubject": "fix(retrieval-bench): rederive ContextBench file metrics after a --summarize merge (V1-2761 review)",
+      "id": "VRP-C032",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-2761 shared with the change; 5 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2761"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 7,
+          "newStart": 139,
+          "path": "tools/retrieval-bench/contextbench.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 27,
+          "newStart": 156,
+          "path": "tools/retrieval-bench/contextbench.go"
+        },
+        {
+          "changeHunk": 3,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 917,
+          "path": "tools/retrieval-bench/main.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "tools/retrieval-bench/contextbench.go",
+          139
+        ],
+        [
+          "tools/retrieval-bench/contextbench.go",
+          140
+        ],
+        [
+          "tools/retrieval-bench/contextbench.go",
+          163
+        ],
+        [
+          "tools/retrieval-bench/contextbench.go",
+          168
+        ],
+        [
+          "tools/retrieval-bench/main.go",
+          918
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 5
+    },
+    {
+      "base": "168070bc84efdadf39a41fe6340f8bce2155227c",
+      "change": "f9034c34ec5db346b946d2d870968d565d9b2149",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/perfbudget/cmd/perf-budget/main.go",
+        "internal/perfbudget/harness.go"
+      ],
+      "changeSourceHunks": 16,
+      "changeSubject": "feat(perf-budget): --scenario filter and --record-baseline-from a quiet host's report (V1-3418, PRB-V0-970..971)",
+      "escape": "same-merge",
+      "fix": "b166b9b987dc9b1459db785e0dc923d295fb016e",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(perf-budget): --record-baseline-from refuses a report without metadata, judgement or exact scenario coverage (V1-3418 review)",
+      "id": "VRP-C033",
+      "laterFixes": [
+        {
+          "fix": "cb96a455289fe4ed2810bdb936c64ace67169864",
+          "fixSubject": "fix(perf-budget): a filtered run builds the index snapshot before context-query and lifecycle-hook (V1-3418 review)",
+          "touchedHunks": [
+            {
+              "changeHunk": 13,
+              "fileHunk": 4,
+              "newCount": 2,
+              "newStart": 171,
+              "path": "internal/perfbudget/harness.go"
+            },
+            {
+              "changeHunk": 14,
+              "fileHunk": 5,
+              "newCount": 3,
+              "newStart": 174,
+              "path": "internal/perfbudget/harness.go"
+            }
+          ],
+          "touchedLines": [
+            [
+              "internal/perfbudget/harness.go",
+              172
+            ],
+            [
+              "internal/perfbudget/harness.go",
+              176
+            ]
+          ]
+        }
+      ],
+      "qualifies": "fix subject names V1-3418 shared with the change; 3 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3418"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 9,
+          "fileHunk": 9,
+          "newCount": 42,
+          "newStart": 259,
+          "path": "internal/perfbudget/cmd/perf-budget/main.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/perfbudget/cmd/perf-budget/main.go",
+          298
+        ],
+        [
+          "internal/perfbudget/cmd/perf-budget/main.go",
+          299
+        ],
+        [
+          "internal/perfbudget/cmd/perf-budget/main.go",
+          300
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 3
+    },
+    {
+      "base": "0aef1dff6a0d4c10129c5b44512cfc17211c8b32",
+      "change": "1de456a2e1a5608b890ebbff44f43295d0702a65",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/breakagemap/compile.go",
+        "internal/breakagemap/go_refs.go"
+      ],
+      "changeSourceHunks": 13,
+      "changeSubject": "fix(breakage): a withheld Go mapping names the missing go.mod path (V1-3529)",
+      "escape": "same-merge",
+      "fix": "656feede24adae4c525b05ea77d2c6b1666097b8",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(breakage): name a stale declared go.mod pin as stale, not undeclared (V1-3529 review)",
+      "id": "VRP-C034",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3529 shared with the change; 6 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3529"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 1,
+          "fileHunk": 1,
+          "newCount": 4,
+          "newStart": 177,
+          "path": "internal/breakagemap/compile.go"
+        },
+        {
+          "changeHunk": 2,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 17,
+          "path": "internal/breakagemap/go_refs.go"
+        },
+        {
+          "changeHunk": 10,
+          "fileHunk": 9,
+          "newCount": 2,
+          "newStart": 43,
+          "path": "internal/breakagemap/go_refs.go"
+        },
+        {
+          "changeHunk": 11,
+          "fileHunk": 10,
+          "newCount": 18,
+          "newStart": 46,
+          "path": "internal/breakagemap/go_refs.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/breakagemap/compile.go",
+          179
+        ],
+        [
+          "internal/breakagemap/go_refs.go",
+          19
+        ],
+        [
+          "internal/breakagemap/go_refs.go",
+          44
+        ],
+        [
+          "internal/breakagemap/go_refs.go",
+          49
+        ],
+        [
+          "internal/breakagemap/go_refs.go",
+          51
+        ],
+        [
+          "internal/breakagemap/go_refs.go",
+          52
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 6
+    },
+    {
+      "base": "078730bae1aaade737cfe3dda5e45f7fa5a90ba3",
+      "change": "deee84dd304fb82c3f8a8d298e569619659bea6c",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/dogfoodflow/finishlane.go",
+        "internal/dogfoodflow/verify_argv.go"
+      ],
+      "changeSourceHunks": 6,
+      "changeSubject": "fix(dogfoodflow): admit quoted bracket-class -run words and name the refused character (V1-3642)",
+      "escape": "same-merge",
+      "fix": "e26fb7e9e9fbf7afa917658f95af94be5cb85cfd",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(dogfoodflow): a class-only or class-ended -run name needs no suffix (V1-3642 review)",
+      "id": "VRP-C035",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3642 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3642"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 5,
+          "fileHunk": 2,
+          "newCount": 7,
+          "newStart": 25,
+          "path": "internal/dogfoodflow/verify_argv.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/dogfoodflow/verify_argv.go",
+          31
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 1
+    },
+    {
+      "base": "b574025882abc81369512576829394256309ae3c",
+      "change": "910444cface04c3a0e27151daa749b35a2a633c0",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "cmd/corvint/affected.go",
+        "cmd/corvint/affected_by_path.go",
+        "cmd/corvint/help.go"
+      ],
+      "changeSourceHunks": 7,
+      "changeSubject": "feat(affected): --by-path lists shared unbounded readers once, then per-path additions (V1-3648)",
+      "escape": "same-merge",
+      "fix": "aa7a4ac680b376c484f8ed6c66845e62375404a9",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(affected): --by-path carries the AFP-V0-846 binary freshness degradation (V1-3648 review)",
+      "id": "VRP-C036",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3648 shared with the change; 8 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3648"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 5,
+          "fileHunk": 1,
+          "newCount": 132,
+          "newStart": 1,
+          "path": "cmd/corvint/affected_by_path.go"
+        },
+        {
+          "changeHunk": 7,
+          "fileHunk": 2,
+          "newCount": 11,
+          "newStart": 935,
+          "path": "cmd/corvint/help.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/affected_by_path.go",
+          44
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          45
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          56
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          57
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          58
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          118
+        ],
+        [
+          "cmd/corvint/affected_by_path.go",
+          119
+        ],
+        [
+          "cmd/corvint/help.go",
+          943
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 8
+    },
+    {
+      "base": "fc12b7f12d491b060c496cc8a4e79bdd5e3b06ba",
+      "change": "46506399106e207dabb93b101e169c105319df27",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "cmd/corvint/help.go",
+        "cmd/corvint/repository_guidance.go"
+      ],
+      "changeSourceHunks": 4,
+      "changeSubject": "feat(guidance): features carry the featureId and inert feature call (V1-3532)",
+      "escape": "same-merge",
+      "fix": "67ae1e8fbd5ba1af296bd342a4fc6583f5bd725c",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(guidance): featureCall uses the ledger-only --limit 1 form (V1-3532 review)",
+      "id": "VRP-C037",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-3532 shared with the change; 2 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-3532"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 2,
+          "fileHunk": 2,
+          "newCount": 3,
+          "newStart": 2067,
+          "path": "cmd/corvint/help.go"
+        },
+        {
+          "changeHunk": 4,
+          "fileHunk": 2,
+          "newCount": 3,
+          "newStart": 428,
+          "path": "cmd/corvint/repository_guidance.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint/help.go",
+          2068
+        ],
+        [
+          "cmd/corvint/repository_guidance.go",
+          429
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 2
+    },
+    {
+      "base": "39b7bf537ca45bbac5a4de82eef9d150d793e64b",
+      "change": "99fce5b469e5500f8ad521165952e01c71e30498",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "cmd/corvint-corpus-republish/help.go",
+        "cmd/corvint-corpus-republish/main.go",
+        "cmd/corvint-dashboard-snapshot/help.go",
+        "cmd/corvint-dashboard-snapshot/main.go",
+        "cmd/corvint-go-test-provider/help.go",
+        "cmd/corvint-go-test-provider/main.go",
+        "cmd/corvint-intake/help.go",
+        "cmd/corvint-intake/main.go",
+        "cmd/corvint-js-test-provider/help.go",
+        "cmd/corvint-js-test-provider/main.go",
+        "cmd/corvint-postmerge-connect/help.go",
+        "cmd/corvint-postmerge-connect/main.go",
+        "cmd/corvint-postmerge-metrics/help.go",
+        "cmd/corvint-postmerge-metrics/main.go",
+        "cmd/corvint-postmerge-workflow/help.go",
+        "cmd/corvint-postmerge-workflow/main.go",
+        "cmd/corvint-pulse/help.go",
+        "cmd/corvint-pulse/main.go",
+        "cmd/corvint-ruby-test-provider/help.go",
+        "cmd/corvint-ruby-test-provider/main.go",
+        "cmd/corvint/command_tree.go",
+        "internal/clitree/clitreetest/clitreetest.go",
+        "internal/clitree/help.go",
+        "tools/capabilities-check/trees.go"
+      ],
+      "changeSourceHunks": 25,
+      "changeSubject": "feat(capcatalog): command trees for the ten subcommand companions; ratchet 50 to 40 (V1-2685)",
+      "escape": "same-merge",
+      "fix": "56b4568a6611ed26499156180bcdb85789da2f69",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(capcatalog): companion tree tests declare their snapshot reads; go provider help hook leaves main.go; Windows build tags (V1-2685)",
+      "id": "VRP-C038",
+      "laterFixes": [
+        {
+          "fix": "48e34bb8ff52e582fbf20d6f0f79fb4c5d57900f",
+          "fixSubject": "fix(capcatalog,heavy): explicit qualify-keep-reporters flags, required leading options, load sampled once the slot is held (V1-2685, V1-2209 review)",
+          "touchedHunks": [
+            {
+              "changeHunk": 10,
+              "fileHunk": 1,
+              "newCount": 61,
+              "newStart": 1,
+              "path": "cmd/corvint-js-test-provider/help.go"
+            },
+            {
+              "changeHunk": 18,
+              "fileHunk": 1,
+              "newCount": 29,
+              "newStart": 1,
+              "path": "cmd/corvint-pulse/help.go"
+            }
+          ],
+          "touchedLines": [
+            [
+              "cmd/corvint-js-test-provider/help.go",
+              18
+            ],
+            [
+              "cmd/corvint-js-test-provider/help.go",
+              28
+            ],
+            [
+              "cmd/corvint-pulse/help.go",
+              11
+            ],
+            [
+              "cmd/corvint-pulse/help.go",
+              15
+            ]
+          ]
+        }
+      ],
+      "qualifies": "fix subject names V1-2685 shared with the change; 3 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-2685"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 7,
+          "fileHunk": 1,
+          "newCount": 3,
+          "newStart": 128,
+          "path": "cmd/corvint-go-test-provider/main.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "cmd/corvint-go-test-provider/main.go",
+          128
+        ],
+        [
+          "cmd/corvint-go-test-provider/main.go",
+          129
+        ],
+        [
+          "cmd/corvint-go-test-provider/main.go",
+          130
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 3
+    },
+    {
+      "base": "057a8b4728793ffacaa4171dd00267e5691650f8",
+      "change": "ff684e94dc23770ad187cbbec61fefd8544f6290",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "internal/contextindex/eval_query.go",
+        "internal/contextindex/impact.go"
+      ],
+      "changeSourceHunks": 9,
+      "changeSubject": "fix(query,impact): the spec citing the task's named paths ranks first and outranks a referencing decision (V1-0179)",
+      "escape": "same-merge",
+      "fix": "df392fc70b38cca791820d5a59bf775ce8c4b1d8",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(query): a case-folded path mention names every match deterministically (V1-0179, review)",
+      "id": "VRP-C039",
+      "laterFixes": [],
+      "qualifies": "fix subject names V1-0179 shared with the change; 4 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "V1-0179"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 6,
+          "fileHunk": 6,
+          "newCount": 51,
+          "newStart": 745,
+          "path": "internal/contextindex/eval_query.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/contextindex/eval_query.go",
+          757
+        ],
+        [
+          "internal/contextindex/eval_query.go",
+          759
+        ],
+        [
+          "internal/contextindex/eval_query.go",
+          765
+        ],
+        [
+          "internal/contextindex/eval_query.go",
+          766
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 4
+    },
+    {
+      "base": "174b6af9fa8e41bbc5541eb6e1be1663144e363e",
+      "change": "2b8decaa0836c672ba281c5daf0f3cc9c274ec83",
+      "changeLandedSubject": "Merge pull request #41 from beamfall/claude/batch-1101a",
+      "changeLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "changeSourceFiles": [
+        "cmd/corvint/eval.go",
+        "cmd/corvint/eval_friction.go",
+        "cmd/corvint/help.go",
+        "internal/frictionmetric/frictionmetric.go"
+      ],
+      "changeSourceHunks": 5,
+      "changeSubject": "feat(eval): deterministic friction metrics with a labelled benchmark (URE-V0-996..998, V1-0822)",
+      "escape": "same-merge",
+      "fix": "6a86ad0a1a18d18de90978421d177d711d748d9f",
+      "fixLandedVia": "e9a5d6c803cb0a1cce3d4eebf74ab1da84dcd4e1",
+      "fixSubject": "fix(eval): friction records refuse a trailing closing delimiter (URE-V0-996, V1-0822)",
+      "id": "VRP-C040",
+      "laterFixes": [],
+      "qualifies": "fix subject names URE-V0-996, V1-0822 shared with the change; 1 touched non-test Go line(s) blame to the change",
+      "sharedIds": [
+        "URE-V0-996",
+        "V1-0822"
+      ],
+      "touchedHunks": [
+        {
+          "changeHunk": 5,
+          "fileHunk": 1,
+          "newCount": 364,
+          "newStart": 1,
+          "path": "internal/frictionmetric/frictionmetric.go"
+        }
+      ],
+      "touchedLines": [
+        [
+          "internal/frictionmetric/frictionmetric.go",
+          81
+        ]
+      ],
+      "touchedLinesBlamedElsewhere": 0,
+      "touchedLinesBlamedToChange": 1
+    }
+  ],
+  "fixCommitsWithIds": 255,
+  "profile": "corvint-vrp-selection/0",
+  "qualifying": 52,
+  "ref": "b7ffc233396da54e2ac5a094ec314dc3b067f6fb",
+  "repository": "https://github.com/beamfall/corvint",
+  "requirements": [
+    "VRP-V0-010",
+    "VRP-V0-011",
+    "VRP-V0-012",
+    "VRP-V0-013"
+  ],
+  "rootExcluded": [
+    "9477995d776ddf88d7f6a82790dd9c22d51da765"
+  ],
+  "selected": 40,
+  "selectionRule": "Population: non-merge commits F reachable from REF, excluding the root snapshot, whose subject matches ^fix(\\(scope\\))?!?: and names at least one ticket or requirement ID (V1-NNNN or PREFIX-VN-NNN). Touched lines: the old-side lines of F's -U0 myers diff over non-test .go files that are code (not blank, not starting with //, /* or *); a pure insertion of at least one code line touches the old-side lines immediately before and after it; a hunk whose removed and added lines are equal once every ID is masked (an ID renumbering) touches nothing. Each touched line is blamed at F^ (git blame --porcelain, no -M/-C); blame to the root snapshot is dropped. Linked change P: among blamed commits that share at least one ID with F's subject, the one owning the most touched lines (ties: earlier committer date, then SHA). P qualifies when it has between 1 and 60 non-test .go source hunks in its -U0 myers diff against its first parent. One row per P: the earliest qualifying F is the fix, later ones are listed. Rows are ordered by P committer date then SHA; when more than 50 qualify, 40 are taken at index floor(i*n/40). touchedHunks names P's source hunks (changeHunk: 1-based over P's non-test Go hunks in path order) containing a touched line by blame's original line number; touchedLines lists the same lines as [path, line in P] so any hunking (the CEM canonical diff included) can be mapped; laterFixes carry their own touchedHunks and touchedLines. escape is post-merge when P reached the first-parent line of REF in an earlier first-parent commit than F, else same-merge (found by review or integration before P reached main).",
+  "status": "SELECTED",
+  "ticket": "V1-2600"
+}
