@@ -736,6 +736,21 @@ separate exact extension tuple remains governed by AHI-024.
   for another reason is still named, which is the observed shape, not a diagnosis. Evidence:
   `TestAHI802SharedCloneFallbackNamesObjectAlternates` (`cmd/corvint`). Rollback: drop
   `alternatesCauseLine` so the generic AHI-970 cause line returns.
+- `AHI-803`: (experimental under the standing lane auto-accept (2026-11-01); V1-3728; amends
+  `AHI-019` and `SOL-V0-030`) A Claude Code `post-tool` target that resolves outside the project
+  root but inside another Git work tree (the closest ancestor of the resolved target with a `.git`
+  entry, which does not enclose the project root) MUST be attributed to that owning repository: the
+  adapter runs the shared post-tool `harness event` with `--root` set to the owner and the target
+  spelled as its resolved absolute path, returns that receipt under the `AHI-019` rendering rules,
+  and appends one trusted line `Corvint attributed this edit to the sibling repository at OWNER.`
+  No `post-tool-path-outside-project` exclusion is recorded for the session's project. A target in
+  no repository keeps the `AHI-019` exclusion; an unresolvable target keeps its degradation. The
+  owner lookup reads directory entries only and runs no extra Git process. Non-goals: Codex
+  post-tool routing; `breakage` reading `workspace-repos.json`; a write in the owner's ledgers.
+  Failure modes: a nested repository the owner did not intend (for example a vendored checkout) is
+  still the nearest repository and receives the receipt. Evidence:
+  `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` (`cmd/corvint`). Rollback: drop the
+  `postToolOwningRepository` branch so the exclusion returns.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2721,6 +2736,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-800` (experimental under the standing lane auto-accept (2026-11-01); V1-1496) | `cmd/corvint/host_adapter_deadline.go` (`deadlineMeasuredLines`), `cmd/corvint/local_completion_event.go` | `TestAHI800DeadlineNamesLoadDominatedCause`, `TestAHI800DeadlineNamesDirtySetDominatedCause`, `TestAHI800DeadlineWithoutMeasurementsSaysNotMeasured`, `TestAHI800HostLoadMeasurementIsBounded` |
 | `AHI-801` (experimental under the standing lane auto-accept (2026-11-01); V1-3556) | `cmd/corvint/host_adapter_deadline.go` (`withReducedPacket`) | `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket`, `TestAHI801UserPromptDeadlineEmitsReducedPacket` |
 | `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
+| `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
