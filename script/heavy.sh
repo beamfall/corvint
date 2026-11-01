@@ -1152,6 +1152,7 @@ load_wait() {
     src="HEAVY_LOAD_PER_CPU=$per x $cpus CPUs = $max"
   fi
   [[ $limit =~ ^[0-9]{1,5}$ ]] || refuse "invalid-load-wait HEAVY_LOAD_WAIT=$limit (want 0..99999 seconds)"
+  t0=$SECONDS # after the validation, so its own time never eats into a short bound
   while l=$(load1) && [[ $l =~ ^[0-9]+$ ]] && ((l > max && SECONDS - t0 < limit)); do
     # Never sleep past the bound (V1-3232): a 1-second bound waits 1 second, not one 5-second poll.
     sleep $((limit - (SECONDS - t0) < 5 ? limit - (SECONDS - t0) : 5))
@@ -1201,7 +1202,12 @@ for (my $i = 0; $i < length $s; $i++) {
     if ($q eq "'") { if ($c eq "'") { $q = "" } else { $cur .= $c } next }
     if ($q eq '"') { exit 3 if $c =~ /[\$`\\]/; if ($c eq '"') { $q = "" } else { $cur .= $c } next }
     if ($c eq "'" || $c eq '"') { ($q, $have) = ($c, 1); next }
-    if ($c eq "\\") { exit 3 if ++$i >= length $s; ($cur, $have) = ($cur . substr($s, $i, 1), 1); next }
+    if ($c eq "\\") {
+        exit 3 if ++$i >= length $s;
+        next if substr($s, $i, 1) eq "\n"; # a line continuation: the shell removes the pair
+        ($cur, $have) = ($cur . substr($s, $i, 1), 1);
+        next;
+    }
     if ($c eq " " || $c eq "\t") { push @w, $cur if $have; ($cur, $have) = ("", 0); next }
     exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/;
     ($cur, $have) = ($cur . $c, 1);

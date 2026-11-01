@@ -1040,7 +1040,7 @@ HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
 # ASD-V0-932: unset HEAVY_MAX_LOAD, the threshold is floor(HEAVY_LOAD_PER_CPU x CPUs), default 1.0.
 # ASD-V0-935: the load wait and the slot wait are reported apart from the run time.
-HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=50.00 HEAVY_LOAD_PER_CPU=2 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" &&
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=50.00 HEAVY_LOAD_PER_CPU=2 HEAVY_LOAD_WAIT=2 pv true 2> "$pol/err" &&
   grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_LOAD_PER_CPU=2 x 12 CPUs = 24)$' "$pol/err" &&
   grep -Eq '^heavy.sh: done queue=[0-9]+\.[0-9]s \(load=[1-9][0-9]*s slot=[0-9]+\.[0-9]s\) run=[0-9]+\.[0-9]s rc=0$' "$pol/err" &&
   tail -n 1 "$pol/sel.log" | grep -Eq "^$d $l rc=0 load=[1-9][0-9]*s queue=[0-9]+\.[0-9]s pwd=$pol cmd=true$h" ||
@@ -1049,7 +1049,7 @@ HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=20.00 HEAVY_LOAD_PER_CPU=2 pv true 2> "$p
   fail "heavy.sh waited at a load within HEAVY_LOAD_PER_CPU x CPUs"
 HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=12.90 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
   fail "heavy.sh default threshold is not 1.0 x CPUs"
-HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" && grep -q '(HEAVY_LOAD_PER_CPU=1.0 x 12 CPUs = 12)' "$pol/err" ||
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_LOAD_WAIT=2 pv true 2> "$pol/err" && grep -q '(HEAVY_LOAD_PER_CPU=1.0 x 12 CPUs = 12)' "$pol/err" ||
   fail "heavy.sh default per-CPU threshold did not wait above 12 on 12 CPUs: $(cat "$pol/err")"
 STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_MAX_LOAD=20 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" || fail "HEAVY_MAX_LOAD did not win over the per-CPU default"
 for bad in x 65 1.2345; do
@@ -1083,10 +1083,10 @@ ok
 # through HEAVY_ADMIT, script/heavy.sh by default and empty under CI.
 adm() { (cd "$script/.." && env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory --eval 'heavy-admit-show: ; @printf "[%s]\n" "$(HEAVY_ADMIT)"' heavy-admit-show); }
 [[ $(adm) == '[script/heavy.sh --admit-only]' && $(adm CI=true) == '[]' && $(adm HEAVY_ADMIT=) == '[]' ]] || fail "HEAVY_ADMIT default: $(adm) $(adm CI=true)"
-(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-finish 2> /dev/null) > "$tmp/admit.out"
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -q '^WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
-  grep -q 'WRAP script/dogfood-finish.sh' "$tmp/admit.out" && grep -q '^make --no-print-directory --keep-going ' "$tmp/admit.out" &&
+  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -q '^make --no-print-directory --keep-going ' "$tmp/admit.out" &&
   grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
 ok
@@ -1120,6 +1120,13 @@ out=$(PATH=$lp/bin:$PATH LANE_PRESSURE_PROC=$lp/proc "$script/lane-pressure.sh" 
 [[ $? == 3 && $out == 'level=1 load_per_cpu=unknown memory=- swap=0.00 admit=3 unreadable' ]] || fail "lane-pressure.sh unreadable sample: $out"
 "$script/lane-pressure.sh" --level 3 > /dev/null 2>&1
 [[ $? == 2 ]] || fail "lane-pressure.sh accepted --level 3"
+# Review (ASD-V0-936): the platform's memory signal is part of the sample; a failed Darwin pressure
+# query or Linux meminfo without swap lines keeps the current level and exits 3, never reads calm.
+out=$(PATH=$lp/bin:$PATH STUB_OS=Darwin STUB_LOAD=6.00 STUB_MEM= "$script/lane-pressure.sh" --level 2)
+[[ $? == 3 && $out == 'level=2 load_per_cpu=unknown memory=unknown swap=- admit=1 unreadable' ]] || fail "lane-pressure.sh Darwin memory query failure: $out"
+printf '6.00 1.00 1.00 1/100 1\n' > "$lp/proc/loadavg" && printf 'MemTotal: 100 kB\n' > "$lp/proc/meminfo"
+out=$(PATH=$lp/bin:$PATH LANE_PRESSURE_PROC=$lp/proc "$script/lane-pressure.sh" --level 2)
+[[ $? == 3 && $out == 'level=2 load_per_cpu=unknown memory=- swap=unknown admit=1 unreadable' ]] || fail "lane-pressure.sh missing Linux swap lines: $out"
 ok
 # ASD-V0-938 (V1-3630): a go test naming no timeout gets -timeout 30m after `test`; ASD-V0-939
 # (V1-3628): a simple sh -c string is unwrapped, a compound one refused; ASD-V0-937: a local run
@@ -1143,6 +1150,7 @@ tv() { (cd "$to" && env PATH="$to/bin:$PATH" HEAVY_LOCK_DIR="${TLOCK:-$to/slots}
 TO=5 tv go test -run X ./x > /dev/null
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-go-test-timeout' "$to/err" || fail "heavy.sh accepted HEAVY_GO_TEST_TIMEOUT=5"
 [[ $(tv sh -c 'go test -run X ./x') == 'args: test -timeout 30m -run X ./x' ]] && grep -qx 'heavy.sh: unwrapped sh -c: go test -run X ./x' "$to/err" &&
+  [[ $(tv sh -c $'go test \\\n  -run X \\\n  ./x') == "$(sh -c $'printf "args: test -timeout 30m"; printf " %s" \\\n  -run X \\\n  ./x')" ]] &&
   [[ $(tv bash -c "GOTOOLCHAIN=local go test -run '^TestA\$' \"./x\"") == 'args: test -timeout 30m -run ^TestA$ ./x' ]] ||
   fail "heavy.sh did not unwrap a simple sh -c go test: $(cat "$to/err")"
 for c in 'cd x && go test ./...' 'go test ./... | tail' 'go test $PKGS' 'go vet ./*'; do
@@ -1159,6 +1167,18 @@ out=$(tv --admit-only sh -c 'echo "go test ./x | tail"; exit 4')
 out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY_LOCK_DIR=$to/slots "$script/codex-review.sh" 'review the diff; run go test ./internal/x' 2> "$to/err")
 [[ $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review the diff; run go test ./internal/x' ]] && grep -q '^heavy.sh: slot 1/' "$to/err" ||
   fail "codex-review through heavy.sh misread its prompt: $out $(cat "$to/err")"
+# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too: with the only
+# slot held, its recipe waits for it (a stub admission wrapper stands in for the preflight build).
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
+(HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
+holder=$!
+sleep 0.5
+s0=$SECONDS
+(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" 2> "$to/admit.err")
+rc=$?
+wait "$holder"
+((rc == 0 && SECONDS - s0 >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
+  fail "dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, $((SECONDS - s0))s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
 MAKEFLAGS='n --no-print-directory' tv --admit-only true && ! grep -q 'slot' "$to/err" || fail "a make dry run took a slot: $(cat "$to/err")"
 MAKEFLAGS=' --no-print-directory' tv --admit-only true && grep -q 'slot 1/1' "$to/err" || fail "a long make flag read as a dry run"
 TLOCK=$to/slots/ tv sh -c 'HEAVY_LOCK_DIR=$1 perl -e "alarm 10; exec @ARGV" "$heavy" true 2> "$1/../nested.err"' _ "$to/slots"

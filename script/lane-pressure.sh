@@ -7,7 +7,8 @@
 # where admit is the number of Go-test-heavy lanes that level admits (0: 4, 1: 3, 2: 1). Inputs: the
 # 1-minute load average per online CPU, plus the memory-pressure level on Darwin
 # (kern.memorystatus_vm_pressure_level: 1 normal, 2 warn, 4 critical) or used/total swap on Linux; the
-# signal a host lacks prints as `-`. The sample enters the highest level whose entry rule holds; from
+# signal a platform does not have prints as `-`; one it has but cannot read makes the sample
+# unreadable. The sample enters the highest level whose entry rule holds; from
 # CURRENT (default 0) a lower level needs that level's release rule, so a sample between thresholds
 # keeps CURRENT. The orchestrator still requires two agreeing samples (ticksToChange 2) before it
 # changes the cap, and pressure holds only new heavy launches.
@@ -36,15 +37,16 @@ if [[ $(uname -s 2> /dev/null) == Darwin ]]; then
   load=$(sysctl -n vm.loadavg 2> /dev/null | awk '{ print $2 }')
   cpus=$(sysctl -n hw.ncpu 2> /dev/null)
   mem=$(sysctl -n kern.memorystatus_vm_pressure_level 2> /dev/null)
-  [[ $mem =~ ^[124]$ ]] || mem=-
+  [[ $mem =~ ^[124]$ ]] || mem=unknown
 else
   proc=${LANE_PRESSURE_PROC:-/proc}
   load=$(awk '{ print $1 }' "$proc/loadavg" 2> /dev/null)
   cpus=$(getconf _NPROCESSORS_ONLN 2> /dev/null)
-  swap=$(awk '/^SwapTotal:/ { t = $2 } /^SwapFree:/ { f = $2 } END { if (t == "") exit 1; printf "%.2f", (t > 0 ? (t - f) / t : 0) }' "$proc/meminfo" 2> /dev/null) || swap=-
+  swap=$(awk '/^SwapTotal:/ { t = $2 } /^SwapFree:/ { f = $2 } END { if (t == "" || f == "") exit 1; printf "%.2f", (t > 0 ? (t - f) / t : 0) }' "$proc/meminfo" 2> /dev/null) || swap=unknown
 fi
 
-if ! [[ $load =~ ^[0-9]+(\.[0-9]+)?$ && $cpus =~ ^[1-9][0-9]*$ ]]; then
+# The platform's memory signal is part of the sample: without it a sample never reads as calm.
+if ! [[ $load =~ ^[0-9]+(\.[0-9]+)?$ && $cpus =~ ^[1-9][0-9]*$ && $mem != unknown && $swap != unknown ]]; then
   admit=(4 3 1)
   printf 'level=%s load_per_cpu=unknown memory=%s swap=%s admit=%s unreadable\n' "$cur" "$mem" "$swap" "${admit[cur]}"
   exit 3

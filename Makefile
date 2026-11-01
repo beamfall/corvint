@@ -850,7 +850,7 @@ dogfood-finish:
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check:
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
@@ -1035,7 +1035,7 @@ perf-budget: go-version
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
 # ASD-V0-930 (V1-3626): the heavy non-test targets (build, tasks-build, doc-gates, batch-precheck,
-# dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
+# dogfood-inputs-check, dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
 # script/heavy.sh queue as go test; steps they run through heavy.sh nest without a second slot
 # (ASD-V0-931). --admit-only: a slot only, no offload or argument rules. Empty under CI, and
 # HEAVY_ADMIT= opts out.
