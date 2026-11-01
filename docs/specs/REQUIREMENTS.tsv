@@ -2710,6 +2710,7 @@ LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203,
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
 LGL-V0-890	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203; experimental under the standing lane auto-accept and the own	standing	V1-2203
 LGL-V0-891	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2621; experimental under the standing lane auto-accept and the own	standing	V1-2621
+LGL-V0-885	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3950; experimental under the standing lane auto-accept) `gate run`	standing	V1-3950
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
 LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757

@@ -88,6 +88,11 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		if err != nil {
 			return &Report{}, err
 		}
+		releaseResource, err := lockGateResource(repo, def)
+		if err != nil {
+			return &Report{}, err
+		}
+		defer releaseResource()
 		repos, err := attemptRepositories(proof, a)
 		if err != nil {
 			return &Report{}, err
@@ -438,8 +443,9 @@ func runnable(a *snapshot.Attempt, l transaction.LeaseRequest, now time.Time) bo
 }
 
 // commandGate is the policy gate this runner supports: a COMMAND gate run in
-// the worktree with an expected exit code and no reducer, no shared resource, no declared inputs, and at most
-// the captured output as its evidence.
+// the worktree with an expected exit code and no reducer, no declared inputs, and at most
+// the captured output as its evidence. A sharedResource serializes the run
+// instead of refusing it (lockGateResource, LGL-V0-885).
 func commandGate(policy *intent.Policy, gateID string) (*intent.GateDefinition, error) {
 	def := policy.Gate(gateID)
 	if def == nil {
@@ -451,8 +457,8 @@ func commandGate(policy *intent.Policy, gateID string) (*intent.GateDefinition, 
 	if def.Cwd != "WORKTREE" {
 		return nil, wire.Errorf(wire.CodeUnsupported, "gate", "gate %s runs in %s, not the worktree", gateID, def.Cwd)
 	}
-	if def.SharedResource != nil || len(def.Inputs) != 0 {
-		return nil, wire.Errorf(wire.CodeUnsupported, "gate", "gate %s declares a shared resource or inputs", gateID)
+	if len(def.Inputs) != 0 {
+		return nil, wire.Errorf(wire.CodeUnsupported, "gate", "gate %s declares inputs", gateID)
 	}
 	for _, label := range def.Evidence {
 		if label != "output" {
