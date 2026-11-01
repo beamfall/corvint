@@ -78,7 +78,10 @@ done and number requirements that a peer branch already used.
   refs with a different file or first line, is defined in two files of one ref, or is defined on a
   ref in a different file than on the base. An amendment of an existing ID's text in its own file is
   not a collision. It MUST exit 1 on a collision, 0 when none, and 2 on a read failure or more than
-  256 lane heads, MUST print the scanned heads, and MUST write nothing.
+  256 lane heads, MUST print the scanned heads, and MUST write nothing. Its Git reads MUST NOT
+  lazily fetch a missing promisor object or use any transport (a missing object is a read failure,
+  exit 2), and repository configuration such as `grep.lineNumber` or `grep.column` MUST NOT change
+  how a defining bullet is parsed.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
   detached worktree head not contained in the screened ref that shares a root commit with it (an
   unrelated lineage is no lane), at most `--limit` commits each outside
@@ -87,11 +90,16 @@ done and number requirements that a peer branch already used.
   `DELIVERED` and ahead of `TRUNCATED` and `CLEAR`, and a candidate whose effective progress phase is
   `DELIVERED_ON_BRANCH`, `IN_REVIEW`, `IN_MERGE_QUEUE` or `MERGED_AWAITING_CLOSEOUT` as `IN_FLIGHT`;
   the item lists the scanned `laneHeads`, and more than 256 such heads is refused
-  `LIMIT_EXCEEDED`. Without the flag the screen MUST be unchanged.
+  `LIMIT_EXCEEDED`. A lane scan cut at `--limit` MUST be reported as `scanTruncated` on its
+  `laneHeads` entry and `laneScanTruncated` on the item, and a candidate not otherwise resolved that
+  was created before the oldest scanned commit of such a lane is `TRUNCATED`, never `CLEAR`.
+  Without the flag the screen MUST be unchanged.
 - `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is
   `UNKNOWN`, propose touch paths derived from repository paths named in the ticket's title, body
   and acceptance criteria that exist in the worktree, each with the text span that named it, and
-  report tickets with no candidate as `NO_PROPOSAL`. It is a pure read: it MUST NOT write the store,
+  report tickets with no candidate as `NO_PROPOSAL`. A path token holds a slash or an extension,
+  or is a bare name (a dotfile such as `.gitignore`, or an extensionless name such as `Makefile`)
+  that exactly matches a non-directory entry of the worktree root. It is a pure read: it MUST NOT write the store,
   the journal or the repository.
 - `TLF-V0-889`: A proposal MUST NOT change claimability, eligibility, blockers, planning or any
   record until an operator applies it with `ticket set-effects`; the proposal output is labelled
@@ -125,9 +133,9 @@ done and number requirements that a peer branch already used.
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
 | TLF-V0-884, TLF-V0-885 | V1-3577 | none yet | none | all |
-| TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions` | none |
-| TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead` | none |
-| TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
+| TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
+| TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
+| TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
 
 ## Resolved decisions
 
