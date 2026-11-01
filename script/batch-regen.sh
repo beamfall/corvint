@@ -10,8 +10,9 @@
 #                                         worktree, never staging or committing;
 #                                         script/batch-precheck.sh runs this first
 #   script/batch-regen.sh --golden-tests  print the "<package> <test>" goldens it rewrites
+#   script/batch-regen.sh --list          print the full run's "name<TAB>command" steps in order
 #
-# Order: spec-requirements (REQUIREMENTS.tsv, INDEX.json, README.md), capability-catalog
+# Order: spec-requirements (REQUIREMENTS.tsv, INDEX.json, README.md), documentation-paths, capability-catalog
 # (internal/capcatalog), analyzer-schema (bump only when `script/analyzer-schema.sh check` fails),
 # the GOLDEN_TESTS goldens (CORVINT_UPDATE_GOLDEN=1, always local: HEAVY_REMOTE=0), host package
 # version bumps, the line-citation repin (`script/check-line-citations.sh --repin`), and last the
@@ -24,9 +25,11 @@
 # A host package whose version file already differs from HEAD in the worktree is not bumped
 # again, because host-package-versions-check reads committed history only.
 #
-# The line-citation repin rewrites only citations whose cited lines moved unchanged; a changed
-# span needs a human read before its anchor is rewritten, so it stays a batch-precheck failure
-# (line-citations-check). Not regenerated: tests that pin their expectation in Go source
+# The full run's line-citation step (ASD-V0-922, V1-3342) also re-anchors a changed span the diff
+# from the batch base (BATCH_REGEN_BASE, default origin/main) maps to its new lines
+# (`--repin --changed --base`), and lists each one for the integrator to read; --mechanical still
+# rewrites only citations whose cited lines moved unchanged. The documentation-paths step
+# regenerates .corvint/documentation-paths.json (ASD-V0-105) after the spec index. Not regenerated: tests that pin their expectation in Go source
 # (TestAffectedReceiptMembersAreClosedAndByteStable, the spec enumeration tests): batch-precheck
 # runs them, and the fix is a code edit.
 set -uo pipefail
@@ -81,16 +84,20 @@ host_packages() {
 
 citations() { script/check-line-citations.sh --repin; }
 
+# changed_citations: ASD-V0-922. Moves and, against the batch base, changed spans.
+changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }
+
 receipts() { script/repin-use-case-receipts.sh; }
 
 # Steps as "name<TAB>command"; BATCH_REGEN_STEPS replaces them (tests).
 STEPS=(
   "spec-requirements	make -s spec-requirements"
+  "documentation-paths	make -s documentation-paths"
   "capability-catalog	make -s capability-catalog"
   "analyzer-schema	analyzer"
   "goldens	goldens"
   "host-package-versions	host_packages"
-  "line-citations	citations"
+  "line-citations	changed_citations"
   "use-case-receipts	receipts"
 )
 MECHANICAL=(
@@ -127,10 +134,11 @@ run_step() {
 mode=full commit=1
 case ${1:-} in
   --golden-tests) printf '%s\n' "${GOLDEN_TESTS[@]}"; exit 0 ;;
+  --list) printf '%s\n' "${STEPS[@]}"; exit 0 ;;
   --mechanical) mode=mechanical ;;
   --no-commit) commit=0 ;;
   '') ;;
-  *) printf 'usage: script/batch-regen.sh [--no-commit|--mechanical|--golden-tests]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-regen.sh [--no-commit|--mechanical|--golden-tests|--list]\n' >&2; exit 2 ;;
 esac
 
 if [[ $mode == mechanical ]]; then

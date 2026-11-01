@@ -7,11 +7,25 @@
 # ledger reuse of ASD-V0-042 (V1-2985), the drift and catalog selection of ASD-V0-050 and
 # ASD-V0-051 (V1-3134, V1-3136), the one rerun of a failed step (ASD-V0-046, V1-3122) and the
 # sealed CEM name check (ASD-V0-109, V1-3267).
+# ASD-V0-923 (V1-3341): only bash outside POSIX mode runs this file. Under `sh` (dash, or bash in
+# POSIX mode as macOS sh is) a `VAR=x func` assignment persists after the call and case 3 failed
+# falsely, so this POSIX-parseable guard refuses first.
+if [ -z "${BASH_VERSION-}" ] || case :${SHELLOPTS-}: in *:posix:*) true ;; *) false ;; esac; then
+  printf 'batch-precheck_test: REFUSE not-bash: run it as script/batch-precheck_test.sh or with bash, not sh\n' >&2
+  exit 2
+fi
 set -uo pipefail
 export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
 pre=$script/batch-precheck.sh
 regen=$script/batch-regen.sh
+# ASD-V0-923: the guard above refuses dash and bash in POSIX mode.
+for sh_mode in sh 'bash --posix'; do
+  command -v "${sh_mode%% *}" > /dev/null 2>&1 || continue
+  out=$($sh_mode "$script/batch-precheck_test.sh" 2>&1)
+  rc=$?
+  [[ $rc == 2 && $out == *'REFUSE not-bash'* ]] || { printf 'batch-precheck_test: FAIL %s did not refuse (exit %s): %s\n' "$sh_mode" "$rc" "$out" >&2; exit 1; }
+done
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
   { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
 # batch-precheck resolves the step TMPDIR with `cd && pwd`; macOS TMPDIR ends in `/`, so the
@@ -484,6 +498,15 @@ STUB_FAIL=1 lrun && fail "a failure was reused"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "failure rerun: $(cat "$tmp/out")"
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
+# ASD-V0-922 (V1-3342): the full batch-regen run regenerates the documentation-paths declaration
+# after the spec index and repins changed line-citation spans against the batch base.
+want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
+[[ $want_steps == 'spec-requirements documentation-paths capability-catalog analyzer-schema goldens host-package-versions line-citations use-case-receipts ' ]] ||
+  fail "batch-regen --list steps: $want_steps"
+"$regen" --list | grep -qx $'documentation-paths\tmake -s documentation-paths' && "$regen" --list | grep -qx $'line-citations\tchanged_citations' &&
+  grep -q '^changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }$' "$regen" ||
+  fail "batch-regen does not regenerate documentation-paths or repin changed citations against the base"
+
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
 rg() { BATCH_REGEN_ROOT=$repo BATCH_REGEN_STEPS=$1 "$regen" > "$tmp/out" 2>&1; }
@@ -949,7 +972,11 @@ grep -qF "check-ai-trailers: REFUSE ai-trailer $bad2: $gen_line" "$tmp/out" || f
 (cd "$trepo" && "$script/check-ai-trailers.sh" --range no-such-rev) > /dev/null 2>&1
 [[ $? == 2 ]] || fail "an unresolvable base did not exit 2"
 # The precheck step itself, on the fixture with --base: the ai-trailers row fails.
-(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) | grep -qx 'ai-trailers' || fail "no ai-trailers step"
+# V1-3492: the listing derives its doc-gates rows from the fixture's own workflow, so the fixture
+# carries one (without it awk printed `can't open file .github/workflows/ci.yml` on a pass).
+mkdir -p "$trepo/.github/workflows" && cp "$repo/.github/workflows/ci.yml" "$trepo/.github/workflows/ci.yml" || fail "trailer fixture workflow"
+(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) 2> "$tmp/list.err" | grep -qx 'ai-trailers' || fail "no ai-trailers step"
+[[ ! -s $tmp/list.err ]] || fail "the trailer fixture listing wrote to stderr: $(cat "$tmp/list.err")"
 # A full --base run with an AI trailer since the base fails: the step reruns at the base on the
 # same pinned range and fails the same way there, but a history check is never base-present.
 gclone=$tmp/gclone
