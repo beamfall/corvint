@@ -6,8 +6,11 @@
 # view of a line drops both, and the expansion rules read a view that keeps double-quoted text.
 # A line that must keep a construct, for example a fixture that feeds one to a refusal test, ends
 # with `# bash32: allow`. A scan that cannot read every script refuses; it never prints ok.
-# Not detected: an empty array expanded under `set -u`, which needs data flow; use the
-# ${a[@]+"${a[@]}"} idiom (ASD-V0-750 non-goal).
+# ASD-V0-945 (V1-3632): under `set -u`, Bash before 4.4 aborts on "${a[@]}" or "${a[*]}" when
+# the array is empty ("a[@]: unbound variable"). The empty-array-nounset rule flags such a plain
+# expansion of an array the script initializes as NAME=() when the script sets -u and no
+# ${#NAME[@]} guard precedes it; write ${a[@]+"${a[@]}"} or "${a[*]-}". It is a per-file
+# heuristic, not data flow: an array filled before every use still needs the idiom or an allow.
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -30,6 +33,11 @@ case-fallthrough	code	(;;&|[^;];&([[:space:]]|$))
 automatic-fd	code	(^|[[:space:]])[{][A-Za-z_][A-Za-z0-9_]*[}][<>]
 wait-next	code	${W}wait[[:space:]]+-n
 brace-step	code	[{]-?[0-9]+[.][.]-?[0-9]+[.][.]-?[0-9]+[}]"
+
+# PATH:NAME pairs exempt from empty-array-nounset, each provably non-empty where it expands and in
+# a file this gate's owner cannot mark with an allow. script/heavy.sh:words: unwrap_shell expands
+# words only after "$3" matched `go test` or `go vet`, so the parse holds at least two words.
+nounset_exempt='script/heavy.sh:words'
 
 # The scanner keeps quote state across lines, so a multi-line string stays text. A here-document
 # body is scanned line by line with fresh quote state, so an apostrophe in its prose cannot hide
@@ -54,13 +62,39 @@ function view(raw,   i, n, c, prev) {
     CODE = CODE c; DQ = DQ c; prev = c
   }
 }
+# nounset applies empty-array-nounset (ASD-V0-945) to the current views: it records set -u,
+# NAME=() initializers and ${#NAME[@]} guards, then reports a plain expansion of an empty-initialized,
+# unguarded array. Expansions with an operator (${a[@]+...}, ${a[*]-}) are dropped first.
+function nounset(raw,   s, m) {
+  if (CODE ~ /(^|[;&|({[:space:]])set[[:space:]]+-[A-Za-z]*u/ || CODE ~ /(^|[;&|({[:space:]])set[[:space:]]+-o[[:space:]]+nounset/) setu = 1
+  s = CODE
+  while (match(s, /(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*=[(][)]/)) {
+    m = substr(s, RSTART, RLENGTH); sub(/^[^A-Za-z_]/, "", m); sub(/=[(][)]$/, "", m); empty[m] = 1
+    s = substr(s, RSTART + RLENGTH)
+  }
+  s = DQ
+  while (match(s, /[$][{]#[A-Za-z_][A-Za-z0-9_]*[[][@*][]][}]/)) { guard[substr(s, RSTART + 3, RLENGTH - 7)] = 1; s = substr(s, RSTART + RLENGTH) }
+  if (!setu || raw ~ /# bash32: allow$/) return
+  s = DQ
+  gsub(/[$][{][A-Za-z_][A-Za-z0-9_]*[[][@*][]][-+:=?][^}]*[}][}]?/, "_", s)
+  while (match(s, /[$][{][A-Za-z_][A-Za-z0-9_]*[[][@*][]][}]/)) {
+    m = substr(s, RSTART + 2, RLENGTH - 6)
+    if ((m in empty) && !(m in guard) && !((f ":" m) in exempt)) {
+      printf "check-bash32: FAIL empty-array-nounset %s:%d: %s is expanded under set -u and may be empty; Bash before 4.4 aborts; write ${%s[@]+\"${%s[@]}\"} or \"${%s[*]-}\"\n", f, ln, m, m, m, m
+      fails++
+    }
+    s = substr(s, RSTART + RLENGTH)
+  }
+}
 BEGIN {
   SQ = sprintf("%c", 39)
   nr = split(ENVIRON["BASH32_RULES"], rl, "\n")
   for (k = 1; k <= nr; k++) { split(rl[k], part, "\t"); lab[k] = part[1]; vw[k] = part[2]; re[k] = part[3] }
+  ne = split(ENVIRON["BASH32_NOUNSET_EXEMPT"], ex, " ")
+  for (k = 1; k <= ne; k++) exempt[ex[k]] = 1
   fails = 0; scanned = 0
   for (a = 1; a < ARGC; a++) {
-    f = ARGV[a]; st = 0; term = ""; ln = 0
+    f = ARGV[a]; st = 0; term = ""; ln = 0; setu = 0; split("", empty); split("", guard)
     while ((r = (getline raw < f)) > 0) {
       ln++
       if (term != "") {
@@ -78,6 +112,7 @@ BEGIN {
           }
         }
       }
+      if (term == "") nounset(raw)
       if (term == "" && st == 0 && CODE ~ /<</ && CODE !~ /<<</ && match(raw, /<<-?[[:space:]]*[^[:alnum:]_<()$;&|[:space:]]?[A-Za-z_][A-Za-z0-9_]*/)) {
         term = substr(raw, RSTART + 2, RLENGTH - 2); sub(/^[^A-Za-z_]*/, "", term)
       }
@@ -114,7 +149,7 @@ refuse() {
   echo "check-bash32: FAIL incomplete scan: $1; refusing rather than reporting ok (ASD-V0-750)" >&2
   exit 2
 }
-out=$(BASH32_RULES=$rules awk "$prog" "${files[@]}") || refuse "the scanner exited $?; fix: the awk error above names the cause, then rerun make bash32-check"
+out=$(BASH32_RULES=$rules BASH32_NOUNSET_EXEMPT=$nounset_exempt awk "$prog" "${files[@]}") || refuse "the scanner exited $?; fix: the awk error above names the cause, then rerun make bash32-check"
 summary=${out##*$'\n'}
 case $summary in
   "#END "*) ;;
@@ -128,7 +163,7 @@ if [[ $3 != "${#files[@]}" ]]; then
 fi
 if ((fails)); then
   printf '%s\n' "${out%$'\n'*}"
-  echo "check-bash32: $fails Bash 4+ construct(s) in ${#files[@]} scripts; rewrite them for Bash 3.2 (ASD-V0-750)" >&2
+  echo "check-bash32: $fails Bash 4+ construct(s) in ${#files[@]} scripts; rewrite them for Bash 3.2 (ASD-V0-750, ASD-V0-945)" >&2
   exit 1
 fi
 echo "check-bash32: ok, ${#files[@]} scripts"

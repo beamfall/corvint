@@ -140,4 +140,36 @@ grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail
 # GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
 awk '/^GATE_STEPS = /,/end of GATE_STEPS/' "$root/Makefile" | grep -qE '(^|[[:space:]])bash32-check([[:space:]]|$)' || fail "bash32-check is not in GATE_STEPS"
 
+# 11. ASD-V0-945 (V1-3632): under set -u, a plain expansion of an array initialized empty is
+# refused naming file:line and the array (the pr-landing-watch.sh repo_args repro); the guarded
+# idioms, a ${#a[@]} guard, a script without set -u, an allow marker and the exempt heavy.sh pair
+# pass.
+{
+  echo '#!/usr/bin/env bash'
+  echo 'set -euo pipefail'
+  echo 'repo_args=()'
+  echo 'gh pr view 1 "${repo_args[@]}" --json state'
+  echo 'echo "${repo_args[*]}"'
+  echo 'gh pr view 1 ${repo_args[@]+"${repo_args[@]}"}; echo "${repo_args[*]-}"'
+  echo 'seen=()'
+  echo '((${#seen[@]})) && printf "%s\n" "${seen[@]}"'
+  echo 'kept=()'
+  echo 'echo "${kept[@]}" # bash32: allow'
+  echo "echo '\${kept[@]}'"
+} > "$repo/bad.sh"
+printf '#!/bin/bash\nx=()\necho "${x[@]}"\n' > "$repo/loose.sh"
+mkdir -p "$repo/script"
+printf '#!/bin/bash\nset -u\nwords=()\necho "${words[*]}"\n' > "$repo/script/heavy.sh"
+if run_gate; then fail "empty array under set -u passed"; fi
+expect 'check-bash32: FAIL empty-array-nounset bad.sh:4: repo_args is expanded under set -u and may be empty' "$tmp/out"
+expect 'check-bash32: FAIL empty-array-nounset bad.sh:5: repo_args' "$tmp/out"
+expect '2 Bash 4+ construct(s) in 3 scripts' "$tmp/out"
+absent 'bad.sh:6:' "$tmp/out"
+absent 'bad.sh:8:' "$tmp/out"
+absent 'bad.sh:10:' "$tmp/out"
+absent 'bad.sh:11:' "$tmp/out"
+absent 'loose.sh' "$tmp/out"
+absent 'heavy.sh' "$tmp/out"
+/bin/rm -f "$repo/bad.sh" "$repo/loose.sh" "$repo/script/heavy.sh"
+
 echo 'check-bash32_test: PASS'
