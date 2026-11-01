@@ -514,7 +514,7 @@ git -C "$test_root" rm -q --cached -- docs/specs/dupa.md
 long=$(printf 'accepted (decision 0001); FRZ-V0-001 accepted (decision 0002) %0100d' 0)
 write_frozen() {
   # shellcheck disable=SC2016
-  printf '# Frozen\n\nIntent status: %s\nDelivery status: experimental\n\n## Agent digest\n- Claim: The frozen fixture keeps its header.\n- Status: %s / experimental\n\n- `FRZ-V0-001`: (accepted, decision 0002) The first clause.\n- `FRZ-V0-002`: (accepted under the owner'"'"'s standing auto-accept (2026-10-31); V1-3458) The second clause.\n' \
+  printf '# Frozen\n\nIntent status: %s\nDelivery status: experimental\n\n## Agent digest\n- Claim: The frozen fixture keeps its header.\n- Status: %s / experimental\n\n## Requirements\n\n- `FRZ-V0-001`: (accepted, decision 0002) The first clause.\n- `FRZ-V0-002`: (accepted under the owner'"'"'s standing auto-accept (2026-10-31); V1-3458) The second clause.\n' \
     "$1" "${2:-$1}" > "$test_root/docs/specs/frozen.md"
   stage docs/specs/frozen.md
 }
@@ -527,7 +527,7 @@ run > /dev/null || fail "a shortened header was refused"
 write_frozen "$long; FRZ-V0-002 accepted (2026-10-31)" "$long"
 frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the Intent status was accepted"
 for want in \
-  'docs/specs/frozen.md: its Intent status names FRZ-V0-002, which its frozen header text does not' \
+  'docs/specs/frozen.md:3: its Intent status names FRZ-V0-002, which its frozen header text does not; this line is frozen (docs/specs/INTENT-STATUS-FROZEN.tsv), so FRZ-V0-002 belongs on its own definition line inside docs/specs/frozen.md'"'"'s ## Requirements section (lines 10..13)' \
   "docs/specs/frozen.md: its Intent status is $((${#long} + 34)) characters; the limit is its frozen length, ${#long}" \
   "record an acceptance or amendment in the requirement's own leading note" \
   'acceptance and acceptedBy columns' '(SRG-V0-009, SRG-V0-981)' '(SRG-V0-980)'; do
@@ -537,7 +537,7 @@ case $frz_err in *FRZ-V0-001*) fail "a frozen ID was refused: $frz_err" ;; esac
 write_frozen 'accepted' 'accepted; FRZ-V0-002 accepted'
 frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the digest Status was accepted"
 case $frz_err in
-  *'docs/specs/frozen.md: its Agent digest Status names FRZ-V0-002'*) ;;
+  *'docs/specs/frozen.md:8: its Agent digest Status names FRZ-V0-002, which its frozen header text does not; this line is frozen'*'(lines 10..13)'*) ;;
   *) fail "the digest refusal lacks the field and ID: $frz_err" ;;
 esac
 # A range or slash after a frozen ID names the IDs it reaches.
@@ -565,5 +565,31 @@ case $frz_err in
   *) fail "the unfrozen length refusal lacks the lengths: $frz_err" ;;
 esac
 git -C "$test_root" rm -q --cached -- docs/specs/frozen.md
+
+# 14. SRG-V0-891 (V1-3295): an OCM-form definition after the spec's one ## Requirements section is
+# refused in every mode with its line and the section range, unless the frozen RDG-V0-021 baseline
+# lists it; a fenced example and a spec with no Requirements section pass.
+# shellcheck disable=SC2016
+printf '# Placed\n\n## Requirements\n\n- `PLC-V0-001`: (proposed) Inside.\n\n## Later\n\n```\n- `PLC-V0-003`: (proposed) A fenced example.\n```\n\n- `PLC-V0-002`: (proposed) Outside.\n' > "$test_root/docs/specs/placed.md"
+stage docs/specs/placed.md
+plc_err=$(run 2>&1 > /dev/null) && fail "a definition outside ## Requirements was accepted"
+case $plc_err in
+  *'docs/specs/placed.md:13: PLC-V0-002 is defined outside the ## Requirements section (lines 3..6)'*'(SRG-V0-891, RDG-V0-021)'*) ;;
+  *) fail "the misplaced-definition refusal lacks the line and range: $plc_err" ;;
+esac
+case $plc_err in *PLC-V0-001* | *PLC-V0-003*) fail "an inside or fenced definition was refused: $plc_err" ;; esac
+plc_dir="$test_root/plc-out"
+mkdir "$plc_dir"
+(cd "$test_root" && script/gen-spec-requirements.sh --all "$plc_dir") > /dev/null 2>&1 && fail "--all accepted a misplaced definition"
+mkdir -p "$test_root/script"
+printf '# baseline\ndocs/specs/placed.md PLC-V0-002\n' > "$test_root/script/requirement-definitions-outside-section.txt"
+stage script/requirement-definitions-outside-section.txt
+run > /dev/null || fail "a baselined outside definition was refused"
+git -C "$test_root" rm -q --cached -- script/requirement-definitions-outside-section.txt docs/specs/placed.md
+# shellcheck disable=SC2016
+printf '# Unsectioned\n\n- `PLC-V0-004`: (proposed) No Requirements section here.\n' > "$test_root/docs/specs/placed.md"
+stage docs/specs/placed.md
+run > /dev/null || fail "a spec without a Requirements section was refused"
+git -C "$test_root" rm -q --cached -- docs/specs/placed.md
 
 printf 'ok\n'
