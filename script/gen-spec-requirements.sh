@@ -302,9 +302,10 @@ for my $file (sort @specs) {
             $fence = $run;
         }
         $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
-        # SRG-V0-966 (V1-3660): a rollback section restates IDs (`ID: revert ...`) without
-        # defining them, so its lines never rank 0; the next heading ends the section.
-        $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
+        # SRG-V0-966 (V1-3660): a rollback section restates IDs (`ID: revert ...`, bulleted or
+        # not) without defining them, so its lines never rank 0 and never count as an
+        # out-of-section definition (SRG-V0-891); the next heading ends the section.
+        $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $run eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
         if ($fence eq '' && $run eq '') {
             if ($line =~ /^## Requirements\r?\n?\z/) {
                 ($in_section, $sections) = (1, $sections + 1);
@@ -312,7 +313,7 @@ for my $file (sort @specs) {
             } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
-            } elsif (!$in_section && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+            } elsif (!$in_section && !$rollback && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
                 push @outside, [$1 // $2, $line_number];
             }
         }

@@ -111,7 +111,7 @@ for my $file (tracked_spec_docs()) {
     # three backticks or tildes indented at most three spaces opens one (a backtick fence's info
     # string holds no backtick), and only a run of the same character at least as long, followed
     # by nothing but spaces or tabs, closes it.
-    my ($fence, $in_section, $sections) = ('', 0, 0);
+    my ($fence, $in_section, $sections, $rollback) = ('', 0, 0, 0);
     my @outside;
     my $continues = 0;
     for my $line (index_lines($file)) {
@@ -130,11 +130,14 @@ for my $file (tracked_spec_docs()) {
             ($in_section, $sections) = (1, $sections + 1);
         } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
             $in_section = 0;
-        } elsif (!$in_section
+        } elsif (!$in_section && !$rollback
             && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
             push @outside, "$file " . ($1 // $2);
         }
         $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
+        # SRG-V0-966 (V1-3660): a heading whose text starts with Rollback opens a rollback section
+        # (any level from ##), which the next heading ends; the generator tracks it the same way.
+        $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $run eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
         # RDG-V0-022: a definition-shaped line with a parenthetical between the id and its colon,
         # such as - `ID` (V1-x): text, is no definition under the grammar above, so an id with no
         # other definition would silently fall back to a table row or vanish. It fails, naming the
@@ -147,6 +150,8 @@ for my $file (tracked_spec_docs()) {
         # `PUB-V0-011..015`. read as a second definition of PUB-V0-011. The
         # backreference makes the closing backtick required exactly when one opened.
         next if $wrapped;
+        # SRG-V0-966 (V1-3660): an ID restated under a Rollback heading is no definition.
+        next if $rollback;
         next unless $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?(`?)([A-Z][A-Z0-9-]*-[0-9]{3})\1(?:\*\*)?(?:\s*:|\.(?!\.))/;
         push @{ $defined{$2} }, "$file:$line_number";
     }

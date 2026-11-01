@@ -193,4 +193,23 @@ case $out in
     *) fail "git ls-files failure should be diagnosed, got: $out" ;;
 esac
 
+# SRG-V0-966 (V1-3660): an ID restated under a Rollback heading, bulleted or not, is no
+# definition for the generator or this check. The fixture is generated with the real generator
+# and then checked, so both doc-gate steps see the same fixture: no out-of-section refusal
+# (SRG-V0-891, RDG-V0-021), no duplicate, and the row keeps its Requirements definition.
+rbk=$test_root/rbk
+mkdir -p "$rbk/script" "$rbk/docs/specs"
+cp "$source_root/script/check-requirement-definitions.sh" "$source_root/script/gen-spec-requirements.sh" "$rbk/script/"
+git -C "$rbk" init -q
+# shellcheck disable=SC2016
+printf '# Rollback fixture\n\n## Requirements\n\n- `RBK-V0-001`: the definition.\n\n### Rollback\n\nRBK-V0-001: revert inside the section.\n\n## Rollback\n\n- `RBK-V0-001`: revert the commit that added it.\nRBK-V0-001: and drop its test.\n' > "$rbk/docs/specs/rbk.md"
+git -C "$rbk" add -A
+(cd "$rbk" && script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv) 2> "$rbk/gen.err" ||
+    fail "the generator refused a rollback restatement: $(cat "$rbk/gen.err")"
+grep -q '^RBK-V0-001	docs/specs/rbk.md	the definition\.' "$rbk/docs/specs/REQUIREMENTS.tsv" ||
+    fail "a rollback restatement displaced the definition: $(cat "$rbk/docs/specs/REQUIREMENTS.tsv")"
+git -C "$rbk" add -A
+rbk_out=$(cd "$rbk" && script/check-requirement-definitions.sh 2>&1) ||
+    fail "the definition check refused a rollback restatement: $rbk_out"
+
 printf 'ok\n'
