@@ -29,7 +29,7 @@ Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
     [--profile local|ci [--confine PATH]] [--go-parallel N]
-    [--dry-run [--summary|--pins]] [--manifest PATH] [--receipt PATH]
+    [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
@@ -183,7 +183,7 @@ func parseTestOptions(args []string) (testOptions, error) {
 	f.BoolVar(&options.summary, "summary", false, "")
 	f.BoolVar(&options.pins, "pins", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary|--pins]] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary] [--pins]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
