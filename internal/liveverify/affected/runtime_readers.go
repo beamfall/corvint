@@ -37,6 +37,22 @@ const (
 type RuntimeReader struct {
 	Path   string `json:"path"`
 	Reason string `json:"reason"`
+	// NoUnboundedReaders is the project's statement that no unbounded reader
+	// (AFP-V0-012 rule (d)) reads the path: a dirty path the entry holds then
+	// selects no unbounded reader and follows no root locator (AFP-V0-772).
+	NoUnboundedReaders bool `json:"noUnboundedReaders,omitempty"`
+}
+
+// unboundedDirty returns dirty without the paths an entry with
+// NoUnboundedReaders holds (AFP-V0-772).
+func (graph *Graph) unboundedDirty(dirty []string) []string {
+	kept := make([]string, 0, len(dirty))
+	for _, path := range dirty {
+		if index := graph.runtimeReaderEntry(path); index < 0 || !graph.runtimeReaders[index].NoUnboundedReaders {
+			kept = append(kept, path)
+		}
+	}
+	return kept
 }
 
 type runtimeReadersFile struct {

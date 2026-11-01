@@ -2,8 +2,14 @@
   "profile": "corvint-runtime-readers/0",
   "entries": [
     {
+      "path": ".corvint/change.cem.json",
+      "reason": "the shared bind path of the change-evidence map (DOGFOOD.md section 4; V1-3571, AFP-V0-772); written, read and moved into .corvint/changes/ by the CEM and dogfood tools through path literals, never loaded by a computed name or a build or CI driver",
+      "noUnboundedReaders": true
+    },
+    {
       "path": ".corvint/changes/",
-      "reason": "sealed change-evidence maps (V1-1820, AFP-V0-152); read by the CEM and dogfood tools through path literals, declared read scopes and root-locator readers, never loaded by a computed name or a build or CI driver"
+      "reason": "sealed change-evidence maps (V1-1820, AFP-V0-152); read by the CEM and dogfood tools through path literals and declared read scopes, never by an unbounded reader alone (AFP-V0-772, measured for V1-3571: none of the 37 unbounded readers reads them) and never loaded by a computed name or a build or CI driver",
+      "noUnboundedReaders": true
     },
     {
       "path": ".corvint/test-read-scopes.json",

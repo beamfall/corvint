@@ -329,7 +329,8 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range reached {
 		followed[id] = true
 	}
-	if len(normalized) != 0 {
+	unbounded := graph.unboundedDirty(normalized)
+	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {
 			followed[id] = true
 		}
@@ -345,7 +346,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.execUsersOf(reached, built)
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
-	graph.unboundedReadersOf(reached, normalized)
+	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive
 }
