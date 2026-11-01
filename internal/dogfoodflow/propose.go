@@ -417,6 +417,8 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		delete(p.proposals, ordinal)
 		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
+	rows, refused := p.vetRows(owed, rows)
+	notes = append(notes, refused...)
 	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
