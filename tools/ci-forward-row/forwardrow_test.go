@@ -878,8 +878,27 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		f.nar[k] = narrowingRecord(k, "FULL", prRun, nil, nil)
 		f.nar[k]["sample"] = doc{"k": 10, "seed": 4, "selected": []string{}}
 	}
-	if r := collect(t, f, prRun, "pull_request", "claude/x", "868", nil); r.sample != "ci-forward-SAMPLE-pr868-"+queueSHA+"-e1-k10-m1" {
-		t.Fatalf("sampled pull-request row %q sample = %q\n%s", r.name, r.sample, r.summary)
+	sampledFixture := f
+	first := collect(t, f, prRun, "pull_request", "claude/x", "868", nil)
+	if first.sample != "ci-forward-SAMPLE-pr868-"+prHead+"-e1-k10-m1" {
+		t.Fatalf("sampled pull-request row %q sample = %q\n%s", first.name, first.sample, first.summary)
+	}
+	// The same head tested against another base (another merge target) is the same sample, so
+	// the bar counts it once (Codex P2, AFP-V0-984 (4)).
+	otherTarget := strings.Repeat("e", 40)
+	for k := range sampledFixture.sel {
+		sampledFixture.sel[k]["target"] = otherTarget
+		sampledFixture.out[k]["target"] = otherTarget
+	}
+	second := collect(t, sampledFixture, prRun, "pull_request", "claude/x", "868", nil)
+	if second.sample != first.sample || second.name == first.name {
+		t.Fatalf("one head against two targets: rows %q and %q, samples %q and %q", first.name, second.name, first.sample, second.sample)
+	}
+	bar := run(t, nil, "sh", "-c", `printf '%s\n%s\n' "$1" "$2" | jq -R -s -r --arg epoch 1 --arg format json -f "$3"`, "sh",
+		second.sample, first.sample, script(t, "bar.jq"))
+	var verdict doc
+	if err := json.Unmarshal([]byte(bar), &verdict); err != nil || num(sub(verdict, "sampledMissRate")["sampled"]) != 1 {
+		t.Fatalf("bar over one head's two samples = %s (%v)", bar, err)
 	}
 	// AFP-V0-052: the real job list of run 38686348902, whose go-product-shard (5) failed at
 	// "Set up job" while every other shard succeeded, names shard 5 of the outcomes run.
