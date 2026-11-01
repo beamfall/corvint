@@ -11,12 +11,13 @@ import (
 )
 
 // TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference reproduces
-// V1-1384: `ticket create` without --issued-at defaults issuedAt to the
-// current second, and issuedAt is part of the request digest, so a byte-
-// identical retry in a later second is REQUEST_ID_CONFLICT (TM-V0-006). The
-// refusal must name issuedAt as the differing non-payload input, the original
-// issuedAt and ticket, and the retry that replays; that retry must replay the
-// original ticketId with replayed:true and write no second ticket.
+// V1-1384 and V1-3958: `ticket create` without --issued-at defaults issuedAt
+// to the current second, and issuedAt is part of the request digest, so a
+// byte-identical retry in a later second used to be REQUEST_ID_CONFLICT
+// (TM-V0-006). TCL-V0-735: the CLI recovers the recorded issuedAt, resubmits
+// at it and replays the original ticketId with replayed:true, naming the
+// recovered issuedAt; no second ticket is written. A different payload under
+// the same request ID is still a real conflict.
 func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
@@ -37,32 +38,30 @@ func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 	}
 
 	again := atm(t, r.Root, stdin, args...)
-	if again.res.Outcome != wire.OutcomeRefused || len(again.res.Codes) != 1 || again.res.Codes[0] != wire.CodeRequestIDConflict {
-		t.Fatalf("defaulted-issuedAt retry: %s", again.stdout)
+	if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool || field(again.res.Items[0], "ticketId").Str != id {
+		t.Fatalf("plain retry did not replay %s: %s", id, again.stdout)
 	}
 	text := strings.Join(again.res.Warnings, " ")
-	const marker = "differs from the recorded request only in issuedAt: the original was "
+	const marker = "is recorded with issuedAt "
 	at := strings.Index(text, marker)
-	if at < 0 || !strings.Contains(text, "request retry-1384 is recorded for ticket "+id) {
-		t.Fatalf("refusal does not name the differing input: %s", text)
+	if at < 0 || !strings.Contains(text, "replayed the recorded result") {
+		t.Fatalf("replay does not name the recovered issuedAt: %s", text)
 	}
 	original := text[at+len(marker) : at+len(marker)+len("2006-01-02T15:04:05Z")]
-	if !strings.Contains(text, "retry with --issued-at "+original+" to replay") {
-		t.Fatalf("refusal does not name the replaying retry: %s", text)
-	}
 
 	replay := atm(t, r.Root, stdin, append(args, "--issued-at", original)...)
 	if replay.res.Outcome != wire.OutcomeOK || !field(replay.res.Items[0], "replayed").Bool || field(replay.res.Items[0], "ticketId").Str != id {
-		t.Fatalf("named retry did not replay %s: %s", id, replay.stdout)
+		t.Fatalf("retry at the named issuedAt did not replay %s: %s", id, replay.stdout)
 	}
 	if listed := atm(t, r.Root, nil, "ticket", "list"); len(listed.res.Items) != 1 {
 		t.Fatalf("a retry wrote another ticket: %s", listed.stdout)
 	}
 
 	// A different payload under the same request ID is a real conflict: it is
-	// never attributed to issuedAt alone.
+	// never attributed to issuedAt alone and never replayed.
 	changed := atm(t, r.Root, []byte(strings.Replace(createPayloadJSON, "Console ticket", "Other ticket", 1)), args...)
-	if w := strings.Join(changed.res.Warnings, " "); changed.res.Outcome != wire.OutcomeRefused || strings.Contains(w, marker) || !strings.Contains(w, "a retry replays only with the original --issued-at") {
+	if w := strings.Join(changed.res.Warnings, " "); changed.res.Outcome != wire.OutcomeRefused || !hasCode(changed.res, wire.CodeRequestIDConflict) ||
+		strings.Contains(w, "only in issuedAt") || !strings.Contains(w, "a retry replays only with the original --issued-at") {
 		t.Fatalf("changed payload attributed to issuedAt: %s", changed.stdout)
 	}
 }
@@ -103,10 +102,10 @@ func TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers(t *testing.T) {
 	}
 	again := atm(t, r.Root, nil, lost...)
 	text := strings.Join(again.res.Warnings, " ")
-	const marker = "differs from the recorded request only in issuedAt: the original was "
+	const marker = "is recorded with issuedAt "
 	at := strings.Index(text, marker)
-	if !hasCode(again.res, wire.CodeRequestIDConflict) || at < 0 {
-		t.Fatalf("lost-output retry after a later update does not recover issuedAt: %s", again.stdout)
+	if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool || at < 0 {
+		t.Fatalf("lost-output retry after a later update does not recover issuedAt and replay (TCL-V0-735): %s", again.stdout)
 	}
 	original := text[at+len(marker) : at+len(marker)+len("2006-01-02T15:04:05Z")]
 	replay := atm(t, r.Root, nil, append(lost, "--issued-at", original)...)

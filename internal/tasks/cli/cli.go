@@ -85,8 +85,8 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket orphan-lanes", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
+	"queue status", "queue snapshot", "queue parity", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -227,7 +227,7 @@ func Run(env Env) int {
 			wide.showItems = true
 			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketSearch(wide, a) }}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
-			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
+			return ticketShowCommand(env, args[2:])
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "closeout-debt":
@@ -238,6 +238,8 @@ func Run(env Env) int {
 			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
 		case "effects-proposals":
 			return emit(env.Stdout, effectsProposalsCommand(env, args[2:]))
+		case "orphan-lanes":
+			return emit(env.Stdout, orphanLanesCommand(env, args[2:]))
 		case "batch-close":
 			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
@@ -292,6 +294,9 @@ func Run(env Env) int {
 		// --line is the documented plain-text exception (TQD-V0-012).
 		if len(args) == 2 && args[1] == "--line" {
 			return doctorLine(env)
+		}
+		if len(args) == 2 && args[1] == "--rebuild-closed-index" {
+			return emit(env.Stdout, doctorRebuildClosedIndex(env))
 		}
 		return emit(env.Stdout, doctorCommand(env, args[1:]))
 	case "pool":
@@ -351,10 +356,13 @@ func Run(env Env) int {
 		if len(args) >= 2 && args[1] == "snapshot" {
 			return queueSnapshot(env, args[2:])
 		}
+		if len(args) >= 2 && args[1] == "parity" {
+			return emit(env.Stdout, queueParity(env, args[2:]))
+		}
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status or snapshot"))
+		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status, snapshot or parity"))
 	case "roadmap":
 		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
@@ -826,16 +834,17 @@ func projectionStale(rc *readCtx) string {
 // flags parses `--name value` / `--name=value` pairs; positional arguments
 // are returned in order. Unknown flags are reported.
 func flags(args []string, known ...string) (map[string]string, []string, error) {
+	out, _, pos, err := flagsBool(args, nil, known...)
+	return out, pos, err
+}
+
+// flagsBool is flags with declared boolean flags (TCL-V0-737, V1-3606): a
+// name in bools is a bare `--name` that takes no value, reported in the
+// second map; `--name=value` on it is refused. Value flags parse as flags.
+func flagsBool(args []string, bools []string, known ...string) (map[string]string, map[string]bool, []string, error) {
 	out := map[string]string{}
+	set := map[string]bool{}
 	var pos []string
-	isKnown := func(n string) bool {
-		for _, k := range known {
-			if k == n {
-				return true
-			}
-		}
-		return false
-	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if !strings.HasPrefix(a, "--") {
@@ -843,19 +852,26 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 			continue
 		}
 		name, val, hasVal := strings.Cut(a[2:], "=")
-		if !isKnown(name) {
-			return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
+		if slices.Contains(bools, name) {
+			if hasVal {
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s takes no value", name)
+			}
+			set[name] = true
+			continue
+		}
+		if !slices.Contains(known, name) {
+			return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
 		}
 		if !hasVal {
 			if i+1 >= len(args) {
-				return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
 			}
 			i++
 			val = args[i]
 		}
 		out[name] = val
 	}
-	return out, pos, nil
+	return out, set, pos, nil
 }
 
 // pageValueFlags and searchValueFlags are the value-taking flags of the paged
@@ -863,7 +879,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle", "--supersedes"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1216,6 +1232,9 @@ type searchFilter struct {
 	text      *string // lower-cased substring of title or body
 	phase     *string // effective progress phase or NONE (TLF-V0-882)
 	lifecycle *string // derived delivery lifecycle (TLC-V0-009)
+	// supersedes is the ticket argument whose typed supersedes link a
+	// match must carry (TCL-V0-739); it is resolved against the store.
+	supersedes *string
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1308,12 +1327,18 @@ func parseSearchFilter(fl map[string]string, all bool) (searchFilter, error) {
 	if f.lifecycle, err = enumFlag(fl, "lifecycle", lifecycleStates); err != nil {
 		return f, err
 	}
-	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil
+	if v, ok := fl["supersedes"]; ok {
+		if v == "" {
+			return f, wire.Errorf(wire.CodeMalformed, "--supersedes", "--supersedes names a ticket")
+		}
+		f.supersedes = &v
+	}
+	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil || f.supersedes != nil
 	if all && filtered {
 		return f, wire.Errorf(wire.CodeMalformed, "--all", "--all lists every ticket and takes no filter flag")
 	}
 	if !all && !filtered {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle, --supersedes); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
 	}
 	return f, nil
 }
@@ -1403,7 +1428,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle", "supersedes")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1422,12 +1447,21 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		inv := rc.store.Inventory
+		supersedes := ""
+		if f.supersedes != nil {
+			id, err := resolveTicketArg(rc, *f.supersedes)
+			if err != nil {
+				return err
+			}
+			supersedes = id
+		}
 		for _, id := range inv.Sorted() {
 			if s, _ := inv.Summary(id); !f.matchesSummary(s) || !f.matchesPhase(inv, id, s) {
 				continue
 			}
-			if f.text != nil {
-				if rec, _ := inv.Get(id); !f.matchesText(rec) {
+			if f.text != nil || supersedes != "" {
+				rec, _ := inv.Get(id)
+				if !f.matchesText(rec) || (supersedes != "" && (rec.Supersedes == nil || rec.Supersedes.Raw != supersedes)) {
 					continue
 				}
 			}

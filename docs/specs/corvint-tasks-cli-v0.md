@@ -278,6 +278,99 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   it MUST submit the earlier revision whose rebuilt envelope digest equals the recorded digest,
   so a retry of an applied hold replays its recorded result instead of refusing
   `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
+- `TCL-V0-735`: (experimental under the standing lane auto-accept (2026-11-01); V1-3958; refines
+  CAL-V0-250 and ATR-V0-275) A mutation given no `--issued-at` that the store refuses
+  `REQUEST_ID_CONFLICT` MUST be resubmitted once at the recorded issuedAt that the CAL-V0-250 /
+  ATR-V0-275 reconstruction proves (the rebuilt envelope digest equals the recorded digest), so a
+  plain retry with the same request ID and payload replays the recorded result (`replayed: true`,
+  the original ticket) and warns with the recovered issuedAt. Every mutate verb shares this path.
+  A retry whose other bytes differ still refuses `REQUEST_ID_CONFLICT` with the CAL-V0-250
+  explanation, and nothing is written.
+- `TCL-V0-736`: (experimental under the standing lane auto-accept (2026-11-01); V1-4148)
+  `release readiness` MUST take its readiness inputs, member counts, milestone drift and member
+  lifecycles from one store read, so a write that lands during the read retries the whole
+  assessment instead of mixing an earlier intent load with a later lifecycle read. Only when that
+  read fails does it fall back to a plain intent load, counting every member lifecycle `UNKNOWN`
+  with a `lifecycle NOT_OBSERVED` warning as before.
+- `TCL-V0-737`: (experimental under the standing lane auto-accept (2026-11-01); V1-3606)
+  The shared flag parser MUST accept declared boolean flags: a declared boolean is a bare
+  `--name` in any argument position, a value on it (`--name=v`) is refused `MALFORMED` with
+  "takes no value", and an undeclared flag is still refused. `ticket delivery-screen` MUST parse
+  `--lane-refs` and `--json` through it rather than stripping them by hand, and the flags its usage
+  names MUST equal the booleans and value flags its parser declares.
+- `TCL-V0-738`: (experimental under the standing lane auto-accept (2026-11-01); V1-3485; ships
+  TCX-V0-988) `corvint-tasks doctor --rebuild-closed-index`, given alone, MUST validate the store
+  with the inventory read (a journaled store, or a journal-free copy whose tracked intent tree
+  loads) and then write the closed-ticket index with the writer the CLI runs after a committed
+  mutation, reporting `path`, `journal` (`PRESENT` or `ABSENT`) and `indexSha256`. The index file
+  is its only write. A repository with no store, or a tree that does not load, MUST refuse with
+  the read's own code and write nothing; a snapshot bundle refuses `UNSUPPORTED`; the flag with
+  any other argument refuses `MALFORMED`.
+- `TCL-V0-739`: (experimental under the standing lane auto-accept (2026-11-01); V1-3272; extends
+  TCL-V0-004) The record's existing typed `supersedes` link (written by a create or refine payload
+  and by `ticket split`) is the duplicate-of link. `ticket search --supersedes TICKET` MUST match
+  exactly the tickets whose `supersedes` names TICKET, given as a full or local ID in the queue,
+  in conjunction with the other filters. The `TCL-V0-004` guard MUST treat a payload whose
+  `supersedes` resolves to a candidate as naming that candidate, so the create records the
+  duplicate as the typed link; a link to any other ticket names nothing, and the refusal names the
+  link as a remedy. No record, payload or wire format changes.
+- `TCL-V0-741`: (experimental under the standing lane auto-accept (2026-11-01); V1-3353, V1-3817)
+  `ticket show <ticket> --format text` (or `--format=text`) MUST print the one ticket as plain
+  text: a header line marking the content untrusted, the ticket ID and title, status, priority,
+  kind and revision, milestone when set, labels, touch paths, coverage, requirement refs when
+  set, then the body and the acceptance criteria numbered from 1, each verbatim with no JSON
+  escaping and with control characters other than newline and tab dropped. `--format json`, the
+  default, is the unchanged envelope. A refusal stays the JSON envelope, and `--format text` with
+  `--summary` or `--fields`, or a format other than `json` or `text`, refuses `MALFORMED`. A lane
+  ticket packet is this output.
+- `TCL-V0-742`: (experimental under the standing lane auto-accept (2026-11-01); V1-3931)
+  `queue parity --against FILE` MUST compare the store this host reads (its worktree store, or
+  the `CORVINT_TASKS_SNAPSHOT` bundle) with the authoritative `queue snapshot` FILE by intent file
+  sha256 and return one item naming `inSync`, the host's tree digest and source, the authority's
+  path, host, primary worktree, tree digest, `producedAt`, age and journal sequence, and the ticket
+  IDs `missing` (in the authority only), `stale` (different content) and `extra` (on the host
+  only), plus differing non-ticket files, each with a whole count and a list capped at 200. A host
+  whose tree digest differs MUST be refused `STALE_TICKET` (the closed wire code set, SPEC section
+  11, has no store-level code) with a warning naming both trees, the counts and the
+  `CORVINT_TASKS_SNAPSHOT` remedy; an unreadable or tampered FILE refuses as `queue snapshot`
+  reads do, and a missing or empty `--against` refuses `MALFORMED`. It is a read verb and runs
+  under `CORVINT_TASKS_SNAPSHOT`. Every snapshot read's warning MUST also name the snapshot's age
+  and tree digest. `script/agent-preflight.sh` MUST print a `tasks-store` row from this verb
+  against `CORVINT_TASKS_AUTHORITY` or the newest staged `queue-snapshot.json`, and never fail on
+  it. Non-goals: syncing or repairing the host store, which stays the orchestrator's export.
+- `TCL-V0-743`: (experimental under the standing lane auto-accept (2026-11-01); V1-3696, V1-3622)
+  A `ticket create` whose request ID is not yet recorded and whose payload declares
+  `effects.touchPaths` MUST check each path at `origin/HEAD`, else `origin/main`, in this clone
+  without fetching (a directory key ending in `/` is present when anything lies under it). When
+  any path is absent there, the create MUST be refused `MALFORMED` with nothing written, naming
+  the base, its commit and each absent path, unless `--creates-paths` declares that the ticket
+  creates them or the body records where the code lives with a line `Source ref: BRANCH@SHA`
+  (SHA a full 40-hex commit). A recorded commit present in this clone MUST hold every absent path
+  or the create is refused naming those still absent; one not in this clone is accepted with a
+  `NOT_OBSERVED` warning. An accepted create whose paths are absent from the base carries a
+  warning naming the source ref. A clone with neither ref, or a git observation that fails,
+  MUST NOT refuse: it warns that subject presence is `NOT_OBSERVED`. `--creates-paths` MUST NOT
+  enter the payload or the request digest and is refused by every other verb. The body line is the
+  record: `script/lane-dispatch-check.sh` names it on an `ABSENT` finding (ASD-V0-645), and the
+  dispatch-time dependency decision is to order such a ticket after its branch lands rather than
+  dispatch it against a base that lacks the code. Non-goals: symbol-level presence (tickets declare
+  paths, not symbols) and a typed source-ref record field.
+- `TCL-V0-744`: (experimental under the standing lane auto-accept (2026-11-01); V1-3856)
+  `ticket orphan-lanes [--ref REF] [--batch GLOB] [--limit N]` MUST, without a lock or a write,
+  list every commit on a local branch or detached worktree head that the screened ref (as
+  `ticket closeout-debt` resolves it) does not contain (the lane heads of `TLF-V0-887`), that no
+  local branch matching GLOB (default `claude/batch-*`, matched on the name under `refs/heads/`)
+  contains beyond the ref, and that delivers (`TCD-V0-167`) an `OPEN` ticket, as one
+  `taskman-orphan-lanes/0` item with `ref`, `refCommit`, `batchGlob`, `batchRefs` (ref, commit,
+  `scanTruncated`), `laneHeads` (ref, commit, `orphanCount`, `scanTruncated`), `orphanCount` and
+  `orphans` (ref, commit, `ticketId`, `local`, subject; sorted by ticket, ref, commit; at most 500
+  listed). Each head is read at most `--limit` commits beyond the ref; a cut scan sets its
+  `scanTruncated` and adds a warning that the list is incomplete. No branch matching GLOB MUST add a
+  warning that in-flight batches are `NOT_OBSERVED`. A ticket ID argument, a bad `--limit` or an
+  invalid glob refuses `MALFORMED`. `script/lane-dispatch-check.sh --orphans FILE` (ASD-V0-645)
+  reads this result and reports `ORPHAN` for each assigned ticket it lists. Non-goals: reading
+  another host's branches; the orchestrator pushes batch branches to each lane host clone before
+  dispatch (`docs/LANE-ORCHESTRATION.md`).
 
 - `TCL-V0-815`: (experimental under the standing lane auto-accept (2026-11-01); V1-4184; refines
   CAL-V0-131) `tools/tasks-profiles-check` (`make tasks-profiles-check`, a `DOC_GATE_TARGETS`
@@ -367,6 +460,33 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
 - `internal/tasks/cli/review_fixes_test.go`:
   `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
+- `internal/tasks/cli/create_retry_issued_at_test.go`:
+  `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`,
+  `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-735).
+- `internal/tasks/cli/release_one_read_internal_test.go`:
+  `TestTCLV0736_ReadinessReadsTheStoreOnce`; the wsl-lanes byte and syscall measurement in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-736).
+- `internal/tasks/cli/flags_bool_internal_test.go`:
+  `TestTCLV0737_FlagsParseDeclaredBooleans`, `TestTCLV0737_DeliveryScreenUsageMatchesParser`
+  (TCL-V0-737).
+- `internal/tasks/cli/doctor_closed_index_test.go`:
+  `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; the wsl-lanes live rebuild in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-738).
+- `internal/tasks/cli/supersedes_link_test.go`:
+  `TestTCLV0739_DuplicateRecordedAsSupersedesLink`; `TestTCLV0004_CreateGuard` (TCL-V0-739).
+- `internal/tasks/cli/ticket_show_text_test.go`:
+  `TestTCLV0741_ShowFormatTextRendersBodyAndAcceptance` (TCL-V0-741).
+- `internal/tasks/cli/queue_parity_test.go`:
+  `TestTCLV0742_QueueParityNamesMissingAndStaleTickets`; `script/agent-preflight_test.sh` case 6
+  (`tasks-store` row); the wsl-lanes live snapshot read in `docs/build-log/2026-11-01-tcl-w31.md`
+  (TCL-V0-742).
+- `internal/tasks/cli/create_source_ref_test.go`:
+  `TestTCLV0743_CreateRecordsSourceRefForAbsentPaths`; `make lane-scripts-test` group `ASD-V0-645`
+  (an `ABSENT` finding naming a recorded source ref) (TCL-V0-743).
+- `internal/tasks/cli/orphan_lanes_test.go`:
+  `TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries`; `make lane-scripts-test` group
+  `ASD-V0-645` (`ORPHAN` and a bad `--orphans` file); the wsl-lanes live run in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-744).
 - `tools/tasks-profiles-check/main_test.go`: `TestTCLV0815_UnregisteredProfileFailsUntilRegistered`,
   `TestTCLV0815_ProfileInTwoListsFails` (TCL-V0-815).
 

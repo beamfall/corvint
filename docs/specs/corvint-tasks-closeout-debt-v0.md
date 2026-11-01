@@ -68,7 +68,7 @@ closeout step is missing.
 
 ## Requirements
 
-- `TCD-V0-001`: `corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a read
+- `TCD-V0-001`: `corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N]` is a read
   verb listed in `ReadVerbs` with a help entry. It takes no positional argument.
   - `--ref` defaults to `refs/remotes/origin/<intentBranch>` when that ref resolves to a commit, and to
     `refs/heads/<intentBranch>` when it does not resolve (a Git failure is refused, `TCD-V0-002`).
@@ -637,6 +637,27 @@ closeout step is missing.
   same ticket, so a batch merge does not repeat its lane merge's row; separate merges that each cite
   a ticket, and a merge commit that is the only citer, still list. Non-goal: no GitHub query for the PR's commits. Rollback: revert; the batch verbs read PR
   text only and closeout-debt lists merge commits again.
+- `TCD-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); V1-3829; amends
+  TCD-V0-001 and TCD-V0-003) `ticket closeout-debt --skip N` (default 0, at most 10000000) MUST
+  start the commit scan after the newest N commits of the range (`git log --skip`). The item MUST
+  carry `skip` and `nextSkip`: on a scan cut at `--limit`, `nextSkip` is `skip + commitsScanned`
+  and the truncation warning names `--skip nextSkip`; otherwise it is null. Paging with
+  `--skip nextSkip` until `nextSkip` is null scans the whole range, so a full count needs no limit
+  above 10000. A negative, non-numeric or over-bound `--skip` refuses `MALFORMED`. Each page is
+  its own read: the TCD-V0-731 merge dedupe sees only the page's commits.
+- `TCD-V0-741`: (experimental under the standing lane auto-accept (2026-11-01); V1-3870; amends
+  TCD-V0-005) A cited OPEN ticket's citation by a commit MUST NOT make it a candidate when a line
+  of that commit's message, or a line the commit adds under `docs/build-log/`, names the ticket
+  together with `NOT DELIVERED`, `BLOCKED` or `PARTIAL` in capitals (reason
+  `MARKED_NOT_DELIVERED`), or when the commit changes at least one path and every path it changes
+  is under `docs/build-log/` (reason `BUILD_LOG_ONLY`). A ticket every citation of which is
+  excluded MUST be listed in `excludedCandidates` (`ticketId`, `local`, `reason`, the citing
+  `commits`), with `MARKED_NOT_DELIVERED` winning, and in a human line; a ticket with any other
+  citation or a progress-head row stays a candidate with those rows only. A merge commit has no
+  changed paths here, so only its message markers exclude it. When the changed-path read fails
+  the command warns `build-log exclusion NOT_OBSERVED` and only message markers apply.
+  Non-goals: checking that a delivery claim matches the code, and the same exclusion in
+  `delivery-screen`. Rollback: revert; every citation is a candidate again.
 
 ## Failure modes
 
@@ -858,6 +879,8 @@ closeout step is missing.
 | TCD-V0-967 | V1-3646 | `internal/tasks/cli` (`multiTargetSubmit`, `targetRequestID`, `landedRevision`) | `TestTCDV0967_InterruptedMultiTargetWriteResumes` (NOTE_SET), `TestTCDV0967_InterruptedMultiTargetHoldResumes` (HOLD: interrupted, resumed, converged; single-target retry; changed payload refused) | none |
 | TCD-V0-730 | V1-3713 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.idReferences`, `references`, `prReferences`, `commitReferences`) | `TestTCDV0730_ReferencesVetoPerID`, `TestTCDV0730_PRTitleMidLineDelivers` (mid-line Delivers, ALREADY-DELIVERED and BLOCKED IDs on one line, ID-led line and title scope overridden by a per-ID body veto, commit line-leading rule kept); `TestTCDV0731_BatchDeliveredPR25And38Shapes` | none |
 | TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeoutProposals`, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows` (a lane merge and the batch merge enclosing it as the only citers list once); `TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit` (batch-delivered and closeout-debt proposals over a batch of two lane merges); `TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit` | none |
+| TCD-V0-740 | V1-3829 criteria 1, 2 | `internal/tasks/cli` (`closeoutDebtCommand` `--skip`, `nextSkip`), `internal/tasks/store` (`ScanCommitsFrom`) | `TestTCDV0740_SkipContinuesATruncatedScan` (pages at `--limit 2` list every row of the full scan; refusals) | none |
+| TCD-V0-741 | V1-3870 criteria 1, 2 | `internal/tasks/cli` (`closeoutIndex.markedNotDelivered`, `setExcluded`), `internal/tasks/store` (`CommitChanges`, `CommitChange.BuildLogOnly`) | `TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery` (build-log-only NOT DELIVERED citation, unmarked build-log-only citation, PARTIAL code commit, code commit citation, mixed citers) | delivery-screen exclusion not in scope |
 
 ## Rollout and rollback
 
