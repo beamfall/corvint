@@ -3860,6 +3860,7 @@ EEP-V0-025	docs/specs/external-evidence-provider-v0.md	The expansion is at most 
 EEP-V0-026	docs/specs/external-evidence-provider-v0.md	An absent or failing provider yields no record and no partial rows: the section	unrecorded	-
 EEP-V0-027	docs/specs/external-evidence-provider-v0.md	The shared CLI/MCP Go provider reads root ancestry through the bounded Git	unrecorded	-
 EEP-V0-028	docs/specs/external-evidence-provider-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-1757) Before	standing	2026-10-11; V1-1757
+EEP-V0-820	docs/specs/external-evidence-provider-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-0482) The Go	standing	2026-10-31; V1-0482
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode	unrecorded	-
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with	unrecorded	-
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin	unrecorded	-
@@ -4225,6 +4226,13 @@ GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20,
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
 GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
+GTE-V0-820	docs/specs/go-test-evidence-v0.md	`gotest-evidence record -ledger FILE -tree SHA` MUST read one `go test -json`	unrecorded	-
+GTE-V0-821	docs/specs/go-test-evidence-v0.md	Each record MUST name its package, its test (empty for the package outcome) and	unrecorded	-
+GTE-V0-822	docs/specs/go-test-evidence-v0.md	Writes MUST be idempotent. A record's `id` is the SHA-256 of its schema, the	unrecorded	-
+GTE-V0-823	docs/specs/go-test-evidence-v0.md	Identity is the package and the full test path. A renamed test is a new identity	unrecorded	-
+GTE-V0-824	docs/specs/go-test-evidence-v0.md	A test that started (`run`) and never reached a terminal event, as after a panic	unrecorded	-
+GTE-V0-825	docs/specs/go-test-evidence-v0.md	`gotest-evidence summary -ledger FILE` MUST print, per package and test, the	unrecorded	-
+GTE-V0-826	docs/specs/go-test-evidence-v0.md	Nothing in Corvint reads the ledger for ranking, evidence, authority or learning	unrecorded	-
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
@@ -6433,6 +6441,7 @@ TRE-V0-117	docs/specs/test-runner-execution-v0.md	(accepted under the owner's st
 TRE-V0-118	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1567) For	standing	2026-10-11; V1-1567
 TRE-V0-119	docs/specs/test-runner-execution-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2341) For	standing	2026-10-11; V1-2341
 TRE-V0-120	docs/specs/test-runner-execution-v0.md	(experimental under the standing lane auto-accept; V1-2589) When a test fails an	standing	V1-2589
+TRE-V0-820	docs/specs/test-runner-execution-v0.md	(experimental under the standing lane auto-accept; V1-1554) The Android	standing	V1-1554
 TRE-V0-036	docs/specs/test-runner-execution-v0.md	`boost-test-junit` MUST execute the pinned test executable with	unrecorded	-
 TRE-V0-037	docs/specs/test-runner-execution-v0.md	The dedicated parser MUST accept exactly one `boost-junit.xml`	unrecorded	-
 TRE-V0-038	docs/specs/test-runner-execution-v0.md	A row without an outcome is `PASSED`; `skipped` is `SKIPPED`; a	unrecorded	-

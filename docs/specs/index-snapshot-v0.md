@@ -1070,7 +1070,9 @@ Failure modes: the golden corpus misses a fact class (residual, see the build lo
 path (`IDX-SNAP-V0-016`, off by default) is not in the golden pack. V1-2232 (a re-index still
 writes the whole file, 182,598,749 bytes after a one-file commit) is not addressed here:
 deterministic bytes are the precondition for a content-addressed segment format, which needs its
-own design and the deployment-neutral gate.
+own design and the deployment-neutral gate. Measured 2026-10-31 and declined for 1.0: chunking
+would cut a one-file re-index's writes to about 2% but adds a per-read reassembly cost
+(`docs/build-log/2026-10-31-lsp-cem-w2.md`).
 Traceability: `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps`,
 `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh`; evidence in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-ctxsnap-1021u-deterministic-snapshot.md`.

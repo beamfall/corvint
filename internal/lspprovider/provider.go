@@ -427,7 +427,8 @@ func record(request Request, origin string, found expansion, query map[string]an
 	seen := map[key]bool{}
 	relations := []any{}
 	var origins []string
-	omitted := 0
+	// Each omission is counted by its cause (EEP-V0-820).
+	unpinned, rowBound, byteBound := 0, 0, 0
 	for _, found := range found.links {
 		kind := relationType(found.method)
 		if seen[key{found.from, found.to, kind}] {
@@ -435,8 +436,12 @@ func record(request Request, origin string, found expansion, query map[string]an
 		}
 		seen[key{found.from, found.to, kind}] = true
 		fromBlob, toBlob, ok := blobs(request, found)
-		if !ok || len(relations) == MaxRows {
-			omitted++
+		if !ok {
+			unpinned++
+			continue
+		}
+		if len(relations) == MaxRows {
+			rowBound++
 			continue
 		}
 		relations = append(relations, relation(found, kind, fromBlob, toBlob, query["sha256"].(string)))
@@ -458,10 +463,13 @@ func record(request Request, origin string, found expansion, query map[string]an
 	for len(encoded) > MaxRecordBytes && len(relations) > 0 {
 		relations = relations[:len(relations)-1]
 		document["relations"] = relations
-		omitted++
+		byteBound++
 		encoded, _ = json.Marshal(document)
 	}
-	query["omitted_rows"] = omitted
+	query["omitted_rows"] = unpinned + rowBound + byteBound
+	query["omitted_unpinned"] = unpinned
+	query["omitted_row_bound"] = rowBound
+	query["omitted_byte_bound"] = byteBound
 	return encoded, origins
 }
 

@@ -16,7 +16,7 @@ import (
 func TestPreCleanupDevicePlanRefusedForExecution(t *testing.T) {
 	sum := strings.Repeat("a", 64)
 	for _, r := range []tr.Request{
-		{Runner: "android-junit", Root: "/source", Executable: "/sdk/platform-tools/adb", ExecutableSha256: sum, Target: "emulator-5554", Project: "local.proof.test/androidx.test.runner.AndroidJUnitRunner", Selectors: []string{"local.proof.Case#test"}, InputFiles: map[string]string{"src/Case.kt": sum}, ReportDir: "/fresh", TimeoutSeconds: 60},
+		{Runner: "android-junit", Root: "/source", Executable: "/sdk/platform-tools/adb", ExecutableSha256: sum, Target: "emulator-5554", Project: "local.proof.test/androidx.test.runner.AndroidJUnitRunner", Selectors: []string{"local.proof.Case#test"}, InputFiles: map[string]string{"src/Case.kt": sum, "app-debug-androidTest.apk": sum}, ReportDir: "/fresh", TimeoutSeconds: 60},
 		{Runner: "appium-uiautomator2-wdio", Root: "/source", Executable: "/tools/wdio", ExecutableSha256: sum, Config: "config.mjs", ConfigSha256: sum, Reporter: "/tools/reporter.js", ReporterSha256: sum, ReportDir: "/fresh", Project: "http://127.0.0.1:4723/", Target: "emulator-5580", Selectors: []string{"test.cjs"}, InputFiles: map[string]string{"test.cjs": sum}, TimeoutSeconds: 60},
 	} {
 		current, e := registry.Build(r)
