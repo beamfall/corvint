@@ -533,7 +533,8 @@ drift_step() {
 
 # doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
 # when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
-# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
+# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930), the first also by `script/doc-gates-summary.sh `
+# (ASD-V0-782) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
 # step (V1-3232: as one step its targets ran one after another).
 doc_gate_expansion() {
@@ -543,6 +544,8 @@ doc_gate_expansion() {
     on { on = 0 }
     END {
       # ASD-V0-930: either line may carry the host-queue admission prefix.
+      # ASD-V0-782: the first may also run through script/doc-gates-summary.sh.
+      sub(/^\t@script\/doc-gates-summary\.sh /, "\t@", recipe[1])
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") exit
       m = split(targets, t, /[[:space:]]+/)
@@ -840,6 +843,11 @@ if [[ -n $step_tmp ]]; then
   (umask 077 && mkdir -p "$step_tmp") && step_tmp=$(cd "$step_tmp" && pwd) ||
     { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
   export TMPDIR=$step_tmp
+fi
+# ASD-V0-781 (V1-4016): an exported GOTMPDIR that does not exist fails every go step, so it is
+# created mode 0700 first.
+if [[ -n ${GOTMPDIR-} && ! -d $GOTMPDIR ]]; then
+  (umask 077 && mkdir -p "$GOTMPDIR") || { printf 'batch-precheck: cannot create GOTMPDIR %s\n' "$GOTMPDIR" >&2; exit 2; }
 fi
 # A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
 # compiler, test and sort spills there fail with no space left on device (ASD-V0-054).
