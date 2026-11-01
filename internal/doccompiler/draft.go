@@ -111,6 +111,21 @@ func IsDryRunDraft(provided []byte) bool {
 	return bytes.Contains(provided, []byte("\nProfile: "+draftDryRunProfile+"\n"))
 }
 
+// PrecheckDraft refuses, before any index is built, a draft whose package is
+// not one module directory or whose owner source is not Markdown or not in the
+// commit the index reads, with exactly the error DraftSources returns for it
+// (SDD-V0-700). committed reports whether the commit holds the path; nil means
+// only the index can decide.
+func PrecheckDraft(sourcePath, directory string, committed func(string) bool) error {
+	if err := draftDirectory(directory); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(sourcePath, ".md") || !committed(sourcePath) {
+		return failure("unsupported-documentation-source", "owner source must be admitted tracked Markdown")
+	}
+	return nil
+}
+
 func draftDirectory(directory string) error {
 	if path.Clean(directory) != directory || directory == "." || strings.HasPrefix(directory, "/") || strings.HasPrefix(directory, "../") {
 		return failure("unsupported-documentation-source", "package must name one repository-relative module directory")
