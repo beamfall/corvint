@@ -51,6 +51,8 @@ const (
 	maxSessionBytes  = 64 << 20
 	maxStderrBytes   = 64 << 10
 	maxText          = 512
+	maxExecutable    = 1 << 30
+	positionEncoding = "utf-16"
 )
 
 // Request names the repository, the seed paths in priority order, the
@@ -88,6 +90,11 @@ type expansion struct {
 	failed   int
 	first    string
 	foreign  string
+	// Negotiated before any query (EEP-V0-821).
+	encoding    string
+	methods     map[string]bool
+	unavailable []string
+	refused     string
 }
 
 // Expand runs one bounded expansion. It never fails: an unusable seed set,
@@ -104,6 +111,12 @@ func Expand(ctx context.Context, request Request) Result {
 		result.Failure = "gopls executable not found"
 		return result
 	}
+	digest, err := executableDigest(request.Executable)
+	if err != nil {
+		result.Failure = "gopls executable unreadable"
+		return result
+	}
+	result.Query["executable_sha256"] = digest
 	root, err := filepath.EvalSymlinks(request.Root)
 	if err != nil {
 		result.Failure = "repository root unavailable"
@@ -115,6 +128,17 @@ func Expand(ctx context.Context, request Request) Result {
 		return result
 	}
 	found, failure := run(ctx, root, request, seeds)
+	if found.encoding != "" {
+		methods := []string{}
+		for _, method := range []string{queryDefinition, queryReferences} {
+			if found.methods[method] {
+				methods = append(methods, method)
+			}
+		}
+		result.Query["position_encoding"] = found.encoding
+		result.Query["methods"] = methods
+		result.Query["unavailable_methods"] = append([]string{}, found.unavailable...)
+	}
 	if failure != "" {
 		result.Failure = failure
 		return result
@@ -225,6 +249,8 @@ func run(ctx context.Context, root string, request Request, seeds []string) (exp
 		return found, "gopls cancelled"
 	case found.foreign != "":
 		return found, "language server did not identify as gopls; refused"
+	case found.refused != "":
+		return found, found.refused
 	case found.version == "":
 		return found, "gopls session failed"
 	case !observation.ExitObserved || observation.ExitStatus != 0:
@@ -264,7 +290,8 @@ func dialogue(root string, request Request, seeds []string, reader io.Reader, wr
 	counted := &limitedReader{reader: reader, remaining: maxSessionBytes}
 	s := &session{reader: bufio.NewReader(counted), writer: writer, root: root}
 	initialized, err := s.call("initialize", map[string]any{
-		"processId": nil, "rootUri": fileURI(root), "capabilities": map[string]any{},
+		"processId": nil, "rootUri": fileURI(root),
+		"capabilities":     map[string]any{"general": map[string]any{"positionEncodings": []string{positionEncoding}}},
 		"workspaceFolders": []any{map[string]any{"uri": fileURI(root), "name": "root"}},
 	})
 	if err != nil {
@@ -273,10 +300,14 @@ func dialogue(root string, request Request, seeds []string, reader io.Reader, wr
 	if name := serverName(initialized); name != ProviderID {
 		return expansion{foreign: name}, errForeign
 	}
+	negotiated := negotiate(initialized)
+	if negotiated.refused != "" {
+		return negotiated, errRefused
+	}
 	if err := s.notify("initialized", map[string]any{}); err != nil {
 		return expansion{}, err
 	}
-	walk := walker{session: s, root: root, request: request, started: time.Now(), known: map[string]bool{}}
+	walk := walker{session: s, root: root, request: request, started: time.Now(), known: map[string]bool{}, found: negotiated}
 	for _, seed := range seeds {
 		walk.known[seed] = true
 	}
@@ -316,6 +347,9 @@ type walker struct {
 func (walk *walker) expand(origin string, hop int, seed, via string) error {
 	text, _, _ := walk.request.Committed(origin)
 	for _, query := range targets(text, perKind) {
+		if !walk.found.methods[query.method] {
+			continue
+		}
 		if walk.found.stopped != "" {
 			return nil
 		}
@@ -520,6 +554,73 @@ func relation(found link, kind, fromBlob, toBlob, digest string) map[string]any 
 var versionUnsafe = regexp.MustCompile(`[^A-Za-z0-9._/-]`)
 
 var errForeign = errors.New("language server is not gopls")
+
+var errRefused = errors.New("language server negotiation refused")
+
+// negotiate reads the initialize result's position encoding and method
+// providers (EEP-V0-821). Only UTF-16, the encoding targets computes, is
+// accepted; an omitted encoding has the protocol-defined UTF-16 meaning. A
+// method is admitted only when its provider is true or an options object.
+func negotiate(initialized json.RawMessage) expansion {
+	var response struct {
+		Capabilities struct {
+			PositionEncoding json.RawMessage `json:"positionEncoding"`
+			Definition       json.RawMessage `json:"definitionProvider"`
+			References       json.RawMessage `json:"referencesProvider"`
+		} `json:"capabilities"`
+	}
+	_ = json.Unmarshal(initialized, &response)
+	if raw := response.Capabilities.PositionEncoding; len(raw) > 0 {
+		var encoding string
+		if json.Unmarshal(raw, &encoding) != nil || encoding != positionEncoding {
+			return expansion{refused: "gopls negotiated an unsupported position encoding; refused"}
+		}
+	}
+	found := expansion{encoding: positionEncoding, methods: map[string]bool{}, unavailable: []string{}}
+	for _, method := range []struct {
+		name string
+		raw  json.RawMessage
+	}{{queryDefinition, response.Capabilities.Definition}, {queryReferences, response.Capabilities.References}} {
+		if advertised(method.raw) {
+			found.methods[method.name] = true
+		} else {
+			found.unavailable = append(found.unavailable, method.name)
+		}
+	}
+	if len(found.methods) == 0 {
+		found.refused = "gopls advertised neither definition nor references; refused"
+	}
+	return found
+}
+
+func advertised(raw json.RawMessage) bool {
+	var yes bool
+	if json.Unmarshal(raw, &yes) == nil {
+		return yes
+	}
+	var options map[string]json.RawMessage
+	return json.Unmarshal(raw, &options) == nil && options != nil
+}
+
+// executableDigest is the SHA-256 of the executable bytes read before launch
+// (EEP-V0-821). It is observed, not authenticated: a binary replaced between
+// this read and the launch is not detected.
+func executableDigest(path string) (string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	hash := sha256.New()
+	copied, err := io.Copy(hash, io.LimitReader(file, maxExecutable+1))
+	if err != nil {
+		return "", err
+	}
+	if copied > maxExecutable {
+		return "", errors.New("executable exceeds its read bound")
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
+}
 
 // serverName is the bounded initialize serverInfo.name used only for identity
 // comparison; it is never copied into a provider reason (EEP-V0-024).
