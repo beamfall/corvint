@@ -268,6 +268,7 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		b.screens[b.out.Screens[i].ID] = &b.out.Screens[i]
 	}
 	b.idx = newScreenIndex(b.m.HashPrefix, b.m.BasePath, screens)
+	b.idx.rankReact(b.m.App, b.m.Routers, raws, spans)
 	for _, k := range b.idx.ambiguousKeys() {
 		b.unknown(Unknown{Kind: "template", Ref: k, Reason: "ambiguous-template"})
 	}
