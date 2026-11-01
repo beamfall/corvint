@@ -228,13 +228,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
 		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
-	register := observeCoreEnumerations(t)
+	register := observeCoreEnumerations(t, len(cases))
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			document := runCoreMode(t, test.invoke, test.exit)
 			register.observe(t, document)
+			register.modeRan()
 			golden := filepath.Join("testdata", "core-freeze", strings.ReplaceAll(test.name, " ", "-")+".json")
 			if os.Getenv("CORVINT_UPDATE_GOLDEN") == "1" {
 				time.Sleep(1100 * time.Millisecond) // a later second gives the second fixture new commit ids
@@ -889,6 +890,9 @@ type coreEnumerationObserver struct {
 	rows    []coreEnumeration
 	mu      sync.Mutex
 	reached map[int]bool
+	// modes is how many frozen modes the parent declares and ran how many observed a document; the
+	// coverage check needs them equal, since a -run filter or an earlier failure leaves rows unseen.
+	modes, ran int
 }
 
 var registerCell = regexp.MustCompile("`([^`]+)`")
@@ -929,24 +933,66 @@ func coreEnumerationRegister(t *testing.T) []coreEnumeration {
 
 // observeCoreEnumerations pins CCF-V1-007 (d) and the CCF-V1-006 enumeration rule: a value outside
 // its register row fails the observing mode, and once every mode has run, a row no mode reached
-// fails the parent test, so the register cannot list a member the frozen modes never emit.
-func observeCoreEnumerations(t *testing.T) *coreEnumerationObserver {
+// fails the parent test, so the register cannot list a member the frozen modes never emit. When
+// fewer than all modes observed a document (a filtered -run such as a golden regeneration of two
+// modes, or a mode that already failed), the coverage half is skipped with a log line (V1-3908).
+func observeCoreEnumerations(t *testing.T, modes int) *coreEnumerationObserver {
 	t.Helper()
-	observer := &coreEnumerationObserver{rows: coreEnumerationRegister(t), reached: map[int]bool{}}
+	observer := &coreEnumerationObserver{rows: coreEnumerationRegister(t), reached: map[int]bool{}, modes: modes}
 	t.Cleanup(func() {
-		for index, row := range observer.rows {
-			if !observer.reached[index] {
-				t.Errorf("CCF-V1-007 register row %s (%v) is reached by no frozen Core mode", row.member, row.tools)
-			}
+		unreached, complete := observer.unreached()
+		if !complete {
+			t.Logf("CCF-V1-007 register coverage skipped: %d of %d frozen Core modes ran (filtered -run or an earlier failure)", observer.ran, observer.modes)
+			return
+		}
+		for _, row := range unreached {
+			t.Errorf("CCF-V1-007 register row %s (%v) is reached by no frozen Core mode", row.member, row.tools)
 		}
 	})
 	return observer
+}
+
+// unreached lists the register rows no mode reached; complete is false, and the list empty, when
+// fewer than all declared modes ran, since then an unreached row proves nothing.
+func (observer *coreEnumerationObserver) unreached() (rows []coreEnumeration, complete bool) {
+	observer.mu.Lock()
+	defer observer.mu.Unlock()
+	if observer.ran < observer.modes {
+		return nil, false
+	}
+	for index, row := range observer.rows {
+		if !observer.reached[index] {
+			rows = append(rows, row)
+		}
+	}
+	return rows, true
+}
+
+// V1-3908: register coverage is judged only when every declared frozen mode ran, so a filtered
+// golden regeneration passes, while a full run still names each unreached row.
+func TestCoreEnumerationCoverageNeedsEveryMode(t *testing.T) {
+	observer := &coreEnumerationObserver{rows: []coreEnumeration{{member: "a"}, {member: "b"}}, reached: map[int]bool{0: true}, modes: 2}
+	observer.modeRan()
+	if rows, complete := observer.unreached(); complete || len(rows) != 0 {
+		t.Fatalf("filtered run: rows=%v complete=%v, want skipped", rows, complete)
+	}
+	observer.modeRan()
+	if rows, complete := observer.unreached(); !complete || len(rows) != 1 || rows[0].member != "b" {
+		t.Fatalf("full run: rows=%v complete=%v, want row b", rows, complete)
+	}
 }
 
 // provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
 // it (accepted 2026-09-26, decision 0422; from decision 0398): `prove` embeds the query or impact
 // packet unchanged as `packet`.
 var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
+
+// modeRan records that one declared frozen mode observed its document.
+func (observer *coreEnumerationObserver) modeRan() {
+	observer.mu.Lock()
+	observer.ran++
+	observer.mu.Unlock()
+}
 
 func (observer *coreEnumerationObserver) observe(t *testing.T, document map[string]any) {
 	t.Helper()

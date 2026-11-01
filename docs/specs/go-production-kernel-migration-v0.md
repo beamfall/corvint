@@ -903,8 +903,8 @@ which is the whole of what the row asserts.
   read (`gitstatus.Status`) behind `corvint impact` and the standalone `corvint context` probe MUST
   work in a read-only filesystem sandbox whose ambient temporary directory is not writable. When
   the private metadata scratch directory cannot be created under `os.TempDir()` (or that directory
-  cannot be resolved), it MUST try `/tmp` (not on Windows) and then the user cache directory, in
-  that order, applying the same containment checks to each: a fallback inside the repository or
+  cannot be resolved), it MUST try the user cache directory and then `/tmp` (not on Windows), in
+  that order (amended by `GPK-V0-882`), applying the same containment checks to each: a fallback inside the repository or
   its Git directory is skipped, never used. When none is writable it MUST refuse
   `repository-probe-failed` (`scratch-dir`) with the fixed reason naming every location tried and
   the remedy (set `TMPDIR` to a writable directory outside the repository). A caller that passes
@@ -918,6 +918,19 @@ which is the whole of what the row asserts.
   message before the change) and
   `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR`. Rollback: make `Status`
   call `StatusIn(os.TempDir())` again and delete `ambientScratchParents` and `scratchUnder`.
+- `GPK-V0-882`: (experimental 2026-11-01, standing lane auto-accept; V1-3921) With `TMPDIR` unset
+  off Windows, `gitstatus.Status` MUST NOT make the shared `/tmp` its first scratch parent: it MUST
+  try the user cache directory (`os.UserCacheDir()`) first and `/tmp` last, and the first entry's
+  strict refusals (inside the repository, not absolute) apply only to an operator-set `TMPDIR` (and
+  to `os.TempDir()` on Windows). The refusal naming every location MUST list them in the order
+  tried: `TMPDIR, the user cache directory or /tmp`. When writing a private metadata copy fails
+  with `ENOSPC`, the refusal MUST stay typed `scratch-dir` with the fixed reason that the scratch
+  filesystem is full and the remedy, never a bare `no space left on device`. Non-goals: no retry
+  of a half-written scratch in the next parent, no free-space probe. Failure mode closed: on a lane
+  host whose `/tmp` was 100% full, status reads failed with `ENOSPC` though the user cache directory
+  had room. Acceptance evidence: `TestGPKV0882UnsetTMPDIRPrefersUserCacheOverTmp`,
+  `TestGPKV0882StatusUsesUserCacheWhenTMPDIRUnset`, `TestGPKV0882FullScratchRefusalIsTyped`.
+  Rollback: restore the `os.TempDir()`, `/tmp`, user-cache order and drop the `explicit` flag.
 
 ### Conformance authority
 
@@ -2073,6 +2086,7 @@ negative result.
 | `GPK-V0-975` (experimental 2026-10-31, V1-0179) | `evalNamedPaths`, `evalCitedNamedPaths`, `evalRankDocuments` in `internal/contextindex/eval_query.go` | `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`, `TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975`; `DR-0047` |
 | `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
+| `GPK-V0-882` (experimental 2026-11-01, V1-3921) | `Status`, `ambientScratchParents`, `scratchUnder`, the private-copy write in `statusIn`, `internal/gitstatus/status.go` | `TestGPKV0882UnsetTMPDIRPrefersUserCacheOverTmp`, `TestGPKV0882StatusUsesUserCacheWhenTMPDIRUnset`, `TestGPKV0882FullScratchRefusalIsTyped` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |
 
 ## Amendment 2026-11-01 (V1-3873, V1-2081): the suffix refusal names `affected --path`, and the capability listing states the reverse-import closure

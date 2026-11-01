@@ -73,11 +73,11 @@ func TestGPKV0336ScratchRefusalNamesEveryTriedLocation(t *testing.T) {
 	first, second := t.TempDir(), t.TempDir()
 	readOnlyTree(t, first)
 	readOnlyTree(t, second)
-	_, err := scratchUnder(context.Background(), []string{first, second}, root)
+	_, err := scratchUnder(context.Background(), []string{first, second}, true, root)
 	if !errors.Is(err, errScratchNowhere) || RefusalClass(err) != string(classScratchDir) {
 		t.Fatalf("all-unwritable error=%v class=%s", err, RefusalClass(err))
 	}
-	want := "Git status cannot safely observe repository metadata: private metadata scratch directory cannot be created in TMPDIR, /tmp or the user cache directory; set TMPDIR to a writable directory outside the repository"
+	want := "Git status cannot safely observe repository metadata: private metadata scratch directory cannot be created in TMPDIR, the user cache directory or /tmp; set TMPDIR to a writable directory outside the repository"
 	if RefusalMessage(err) != want {
 		t.Fatalf("refusal=%q want %q", RefusalMessage(err), want)
 	}
@@ -85,7 +85,7 @@ func TestGPKV0336ScratchRefusalNamesEveryTriedLocation(t *testing.T) {
 		t.Fatalf("caller-owned unwritable parent error=%v, want the original refusal", err)
 	}
 	// A fallback inside the repository is skipped, never used.
-	if _, err := scratchUnder(context.Background(), []string{first, root}, root); !errors.Is(err, errScratchNowhere) {
+	if _, err := scratchUnder(context.Background(), []string{first, root}, true, root); !errors.Is(err, errScratchNowhere) {
 		t.Fatalf("fallback inside the repository error=%v", err)
 	}
 }

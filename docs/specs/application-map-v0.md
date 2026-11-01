@@ -2149,6 +2149,18 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
+- `AMAP-V0-880`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3911) The
+  JavaScript lexer MUST lex an identifier written with a well-formed `\uHHHH` or `\u{H+}` escape,
+  at its start or inside it, as one identifier token marked `escaped`, whose text is the raw
+  source and never the decoded name, so it equals no name or keyword. A braced escape takes any
+  number of hex digits, leading zeros included, whose value is at most `0x10FFFF`; a larger value
+  is malformed. The shared object reader and the endpoint config-key reader MUST treat an escaped
+  identifier key as doubt (a non-plain member, never the key it decodes to): an `$http` or axios
+  config, or an axios init or verb-call config, with an escaped key is not a plain object
+  (`non-literal-config`, AMAP-V0-213), and a fetch init with one reads `*`; the readers that
+  refuse an escaped identifier (the React routes binding, the state-constant export audit) MUST
+  read the token flag; a malformed escape stays a backslash punctuation token, as before. Non-goals: decoding escaped identifiers into names. Failure mode closed: each keyed
+  reader repeated its own backslash check, and one that did not read an escaped key as plain.
 
 - `AMAP-V0-810`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2770) `flows appmap coverage --map FILE`
   MUST emit a deterministic `application-map-coverage/0` report computed from the map file alone;
@@ -2536,6 +2548,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-814 | `TestAMAPV0814CypressRefs` |
 | AMAP-V0-815 | `TestAMAPV0815TestIDAttribute`; `TestAMAPV0815AliasedRootTestIDAttribute` (a bound aliased root's own `playwright.config` attribute is checked) |
 | AMAP-V0-816 | `TestAMAPV0816AnchoredRegexRoutes` (an `i`-flag literal start matches a parameterized route without case; top-level alternation keeps the label) |
+| AMAP-V0-880 | `TestAMAPV0880EscapedIdentifierToken` (an escaped identifier is one raw-text token marked escaped; a malformed escape stays punctuation), `TestAMAPV0880EscapedIdentifierKeyIsDoubt` (the shared object reader reads an escaped key as doubt, a plain key as its name), `TestAMAPV0880EscapedEndpointConfigKey` (an escaped `method` or `baseURL` key refuses the config or reads `*`, never the plain verb), `TestAMAPV0880BracedEscapeDigits` (leading-zero braced escapes up to `0x10FFFF` are one escaped identifier; a larger value stays punctuation) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
