@@ -475,7 +475,8 @@ case $output in
 *'cited content changed'*"appears at 2 positions (\`internal/demo/demo.go:4-5@$pin\`, \`internal/demo/demo.go:6-7@$pin\`)"*) ;;
 *) fail "the ambiguous move was relocated or its candidate positions not named: $output" ;;
 esac
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with nothing to move failed"
+rc=0; (cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin with nothing to move exited $rc, not 1 (DCG-V0-842: the citation still fails)"
 grep -q "internal/demo/demo.go:3-4@$pin" "$test_root/docs/agent-memory/fixture.md" ||
   fail "--repin rewrote an ambiguous citation"
 
@@ -508,7 +509,8 @@ case $output in
 *'cited content changed'*'appears once at `internal/demo/demo.go:7@'*'not relocated'*) ;;
 *) fail "the one-line match was not named as unrelocated: $output" ;;
 esac
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with a one-line match failed"
+rc=0; (cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin with a one-line match exited $rc, not 1 (DCG-V0-842: the citation still fails)"
 grep -q "$single" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a one-line match"
 
 # 28b. DCW-V0-354 (V1-2852) with the DCG-V0-044 threshold: one cited line of 29 non-whitespace
@@ -614,7 +616,8 @@ case $output in
 *"$single"*'cited content changed'*'appears at 2 positions'*) ;;
 *) fail "the ambiguous one-line move was not named: $output" ;;
 esac
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with an ambiguous one-line match failed"
+rc=0; (cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin with an ambiguous one-line match exited $rc, not 1 (DCG-V0-842: the citation still fails)"
 grep -q "$single" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote an ambiguous one-line match"
 # Missing: the line changed, so there is nothing to move to.
 printf '%s\n' 'package demo' '' 'func Lone() {' '	message := "the cited line was edited"' '}' > "$test_root/internal/demo/demo.go"
@@ -627,7 +630,8 @@ case $output in
 *"$single"*'cited content changed'*) ;;
 *) fail "the missing one-line match was not named: $output" ;;
 esac
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin with a missing one-line match failed"
+rc=0; (cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin with a missing one-line match exited $rc, not 1 (DCG-V0-842: the citation still fails)"
 grep -q "$single" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a missing one-line match"
 
 # 32. DCG-V0-045 (V1-2820): lines inserted above cited spans move every one by the same offset.
@@ -661,7 +665,8 @@ case $output in
 esac
 rc=0
 repinned=$(cd "$test_root" && script/check-line-citations.sh --repin 2>/dev/null) || rc=$?
-[ "$rc" = 0 ] || fail "--repin of diff-proven moves exited $rc: $repinned"
+# DCG-V0-842: the changed span still fails, so --repin rewrites the moves and exits 1.
+[ "$rc" = 1 ] || fail "--repin of diff-proven moves beside a changed span exited $rc, not 1: $repinned"
 moved_block="internal/demo/shift.go:7-9@${block##*@}"
 moved_short="internal/demo/shift.go:8@${short##*@}"
 suggested=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/shift.go:13-14)
@@ -784,10 +789,15 @@ case $out in *'re-anchored'* | *'the diff maps it to'*) fail "--repin --changed 
 grep -qF "$twin" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed rewrote a deleted block's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
 rc=0
 output=$(run) || rc=$?
-# Without a base the plain check cannot see the deletion, so it may report the twin as a move; it
-# still fails, and only --repin consults the diff.
+# DCG-V0-841 (V1-3671): the plain check reads the deletion from HEAD's diff to the index, so the
+# twin is not reported as a move and the hint names the recovery, never --repin, which refuses it.
 [ "$rc" = 1 ] && case $output in *"$twin"*) true ;; *) false ;; esac ||
   fail "a citation of a deleted duplicate block did not stay a failure (exit $rc): $output"
+case $output in
+*'--repin rewrites it'* | *'run script/check-line-citations.sh --repin'*) fail "the plain check suggested --repin for a deleted block: $output" ;;
+*"$twin"*'cited lines were deleted since HEAD'*'restore the deleted lines, or cite the surviving copy with a new anchor from `script/check-line-citations.sh --hash internal/demo/dup.go:4-5`'*) ;;
+*) fail "the plain check did not name the restore or --hash recovery for a deleted block: $output" ;;
+esac
 git -C "$test_root" rm -q --cached internal/demo/dup.go
 rm -f "$test_root/internal/demo/dup.go"
 cite "$single"
@@ -870,8 +880,12 @@ printf '%s\n' 'package demo' '' '// one' '// two' 'func ProseTarget() int { retu
 stage internal/demo/prose.go
 perl -0pi -e 's/`retry:3`/`retry:0`/' "$test_root/docs/specs/prose.md"
 stage docs/specs/prose.md
-# One --repin moves the inner citation and stages it (DCG-V0-048); its second pass must refuse.
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of the prose chain exited non-zero"
+# One --repin moves the inner citation and stages it (DCG-V0-048); its second pass must refuse, and
+# DCG-V0-842 prints the outer citation's reason and exits 1.
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] && case $out in *"--repin left 1 citation(s)"*"$outer"*'cited content changed'*) true ;; *) false ;; esac ||
+  fail "--repin of the prose chain did not print the refused outer citation and exit 1 (exit $rc): $out"
 grep -q "internal/demo/prose.go:5@${inner##*@}\` with \`retry:0\`" "$test_root/docs/specs/prose.md" ||
   fail "the prose fixture was not set up: $(cat "$test_root/docs/specs/prose.md")"
 grep -qF "$outer" "$test_root/docs/agent-memory/fixture.md" ||
@@ -972,7 +986,8 @@ case $output in
 esac
 rc=0
 repinned=$(cd "$test_root" && script/check-line-citations.sh --repin 2>/dev/null) || rc=$?
-[ "$rc" = 0 ] || fail "--repin of a history-proven short-line move exited $rc: $repinned"
+# DCG-V0-842: the changed gone_line still fails, so --repin rewrites the move and exits 1.
+[ "$rc" = 1 ] || fail "--repin of a history-proven short-line move beside a changed line exited $rc, not 1: $repinned"
 moved_line="internal/demo/rules.mk:7@${short_line##*@}"
 case $repinned in
 *"$short_line"*" -> \`$moved_line\`"*) ;;
@@ -992,6 +1007,52 @@ esac
 git -C "$test_root" rm -q --cached internal/demo/rules.mk
 rm "$test_root/internal/demo/rules.mk"
 write_source 1
+
+# 37. DCG-V0-840 (V1-3613): a --repin that moves citations names their number, though its last
+#     pass (rereading the staged rewrite) finds nothing further to move.
+printf '%s\n' 'package demo' '' 'func FirstCounted() int { return 1 }' 'func FirstTail() {}' '' \
+  'func SecondCounted() int { return 2 }' 'func SecondTail() {}' > "$test_root/internal/demo/count.go"
+stage internal/demo/count.go
+first=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/count.go:3-4)
+second=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/count.go:6-7)
+cite "$first\` and \`$second"
+run >/dev/null || fail "the count fixture did not pass before the move: $(run)"
+commit_all counted
+printf '%s\n' 'package demo' '' '// one' '// two' 'func FirstCounted() int { return 1 }' 'func FirstTail() {}' '' \
+  'func SecondCounted() int { return 2 }' 'func SecondTail() {}' > "$test_root/internal/demo/count.go"
+stage internal/demo/count.go
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 0 ] || fail "--repin of two moved citations exited $rc: $out"
+case $out in
+*'found no citation whose content moved unchanged'*) fail "--repin said nothing moved after moving two citations: $out" ;;
+*'rewrote 2 citation(s) in 1 document(s)'*'rewrote 2 citation(s) across 2 pass(es)'*) ;;
+*) fail "--repin did not report the number of citations it moved: $out" ;;
+esac
+run >/dev/null || fail "the check failed after --repin moved two citations: $(run)"
+git -C "$test_root" rm -q --cached internal/demo/count.go
+rm -f "$test_root/internal/demo/count.go"
+
+# 38. DCG-V0-842 (V1-3672): --repin over a citation whose lines the change deleted prints that
+#     citation's reason and exits 1, rather than exiting 0 before the reasons reach the user.
+printf '%s\n' 'package demo' '' 'func Kept() {}' 'func Removed() int {' '	return 38' '}' > "$test_root/internal/demo/gone.go"
+stage internal/demo/gone.go
+removed=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/gone.go:4-6)
+cite "$removed"
+run >/dev/null || fail "the deletion fixture did not pass before the deletion: $(run)"
+commit_all removed
+printf '%s\n' 'package demo' '' 'func Kept() {}' > "$test_root/internal/demo/gone.go"
+stage internal/demo/gone.go
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin over a deleted citation exited $rc, not 1: $out"
+case $out in
+*'--repin left 1 citation(s) that do not resolve:'*"$removed"*) ;;
+*) fail "--repin did not print the deleted citation's reason: $out" ;;
+esac
+grep -qF "$removed" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a deleted citation"
+git -C "$test_root" rm -q --cached internal/demo/gone.go
+rm -f "$test_root/internal/demo/gone.go"
 
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.

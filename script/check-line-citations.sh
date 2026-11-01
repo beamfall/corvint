@@ -371,13 +371,24 @@ sub check {
         if (!$in_range || anchor_of($lines, @numbers) !~ /^\Q$pin\E/) {
             # DCG-V0-920: a span the diff from the base deletes is never moved, even when an identical
             # block survives elsewhere; the deletion guard runs before the hash relocation.
-            my $deleted = defined $repin_base && diff_deletes($path, $pin, @numbers);
+            my $deleted = defined $repin_base && diff_deletes($path, $pin, undef, @numbers);
             my @shifts = $deleted ? () : relocations($lines, $pin, @numbers);
             my $shift = @shifts == 1 && relocatable($lines, $shifts[0], @numbers) ? $shifts[0] : undef;
             $shift //= diff_relocation($path, $lines, $pin, @numbers) if defined $repin_base && !$deleted;
             $shift //= history_relocation($path, $lines, $pin, @numbers) if defined $repin_base && !$deleted;
             if (defined $shift) {
                 my $moved = shifted_token($token, $shift);
+                # DCG-V0-841 (V1-3671): the plain check has no base, so a surviving copy of lines the
+                # index deleted since HEAD looks like a move; --repin refuses that case, so the hint
+                # names the recovery instead of --repin.
+                my $head = defined $repin_base_label ? undef : head_commit();
+                if (defined $head && diff_deletes($path, $pin, $head, @numbers)) {
+                    my ($span) = $moved =~ /^`?([^`\@]+)/;
+                    push @failures, "$doc:$line_number  $token  cited lines were deleted since HEAD; an identical copy "
+                        . "survives at $moved, which --repin refuses to move to: restore the deleted lines, or cite the "
+                        . "surviving copy with a new anchor from `script/check-line-citations.sh --hash $span`";
+                    return;
+                }
                 push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
                     . "(script/check-line-citations.sh --repin rewrites it)";
                 push @repins, [$doc, $line_number, $token, $moved, $token_at];
@@ -622,16 +633,27 @@ sub history_relocation {
 # DCG-V0-920: whether the pin matched these lines at the base and a hunk with no new lines (a
 # pure deletion) removed any of them.
 sub diff_deletes {
-    my ($path, $pin, @numbers) = @_;
-    my $base = base_lines($path) or return 0;
+    my ($path, $pin, $commit, @numbers) = @_;
+    my $base = base_lines($path, $commit) or return 0;
     return 0 if grep { $_ < 1 || $_ > @$base } @numbers;
     return 0 unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
-    my $hunks = base_hunks($path) or return 0;
+    my $hunks = base_hunks($path, $commit) or return 0;
     for my $number (@numbers) {
         my ($moved, undef, $count) = map_line($hunks, $number);
         return 1 if !defined $moved && !$count;
     }
     return 0;
+}
+
+# DCG-V0-841: HEAD's commit for the plain check's deletion hint, or undef on an unborn HEAD.
+my $head_commit;
+sub head_commit {
+    return $head_commit eq q() ? undef : $head_commit if defined $head_commit;
+    open my $resolve, '-|', 'git', 'rev-parse', '--verify', '--quiet', 'HEAD^{commit}' or die "git rev-parse: $!\n";
+    chomp(my $commit = <$resolve> // '');
+    close $resolve;
+    $head_commit = $commit =~ /\A[0-9a-f]{40,64}\z/ ? $commit : '';
+    return $head_commit eq '' ? undef : $head_commit;
 }
 
 # For a pinned span whose text changed since the base, the span the diff maps it to and that
@@ -893,7 +915,7 @@ if (defined $selects_base) {
 # it then stages exactly those rewritten documents (the index held their pre-rewrite bytes, so
 # nothing else is staged) and reruns itself until a pass rewrites nothing, at most five passes, so a
 # transitive chain resolves in one call and the index-reading check passes with no manual staging.
-# Every other finding is left for the ordinary check to report.
+# DCG-V0-842: every other finding is printed with its reason and fails the run.
 if ($repin) {
     my (%by_doc, @refused);
     push @{ $by_doc{$_->[0]} }, $_ for @repins;
@@ -940,6 +962,10 @@ if ($repin) {
     my @rewritten = grep { my $doc = $_; !grep { $_ eq $doc } @refused } sort keys %by_doc;
     my $count = grep { my $doc = $_->[0]; grep { $_ eq $doc } @rewritten } @repins;
     my $pass = ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) =~ /\A[1-9]\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1 : 1;
+    # DCG-V0-840 (V1-3613): the citations earlier passes rewrote, so the last pass, which rewrites
+    # nothing, still reports them instead of saying nothing moved.
+    my $earlier = ($ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} // '') =~ /\A\d{1,9}\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} : 0;
+    my $total = $earlier + (@rewritten ? $count : 0);
     my $staged = 0;
     if (@rewritten) {
         # Literal pathspecs: a document named docs/[ab].md must not also stage docs/a.md.
@@ -948,7 +974,11 @@ if ($repin) {
             . ($staged ? "staged them (git add -- @rewritten)\n"
                 : "could not stage them; run `git add -- @rewritten` and rerun the check\n");
     }
-    print STDERR "line citations: --repin found no citation whose content moved unchanged\n" unless @repins;
+    if (!@repins && $total) {
+        print STDERR "line citations: --repin rewrote $total citation(s) across $pass pass(es); this pass found no further move\n";
+    } elsif (!@repins) {
+        print STDERR "line citations: --repin found no citation whose content moved unchanged\n";
+    }
     print_unstaged('--repin', @rewritten);
     print_skipped();
     exit 1 if @refused;
@@ -963,7 +993,16 @@ if ($repin) {
         }
         print STDERR "line citations: --repin pass " . ($pass + 1) . " rereads the staged rewrite\n";
         $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} = $pass + 1;
+        $ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} = $total;
         exec 'bash', $ENV{CHECK_LINE_CITATIONS_SELF}, @original_argv or die "rerun --repin: $!\n";
+    }
+    # DCG-V0-842 (V1-3672): every citation --repin did not resolve is printed with its reason, and
+    # the run fails, so a deletion found under the base is never reported as a clean repin.
+    my @unresolved = grep { !/--repin rewrites it/ } @failures;
+    if (@unresolved) {
+        print STDERR "line citations: --repin left " . scalar(@unresolved) . " citation(s) that do not resolve:\n";
+        print STDERR "  $_\n" for @unresolved;
+        exit 1;
     }
     exit 0;
 }
