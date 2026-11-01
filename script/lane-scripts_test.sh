@@ -1470,7 +1470,8 @@ CT=6h ctrun
 out=$(tv --admit-only sh -c 'echo "go test ./x | tail"; exit 4')
 [[ $? == 4 && $out == 'go test ./x | tail' ]] && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "heavy.sh --admit-only read its command: $out $(cat "$to/err")"
 out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY_LOCK_DIR=$to/slots "$script/codex-review.sh" 'review the diff; run go test ./internal/x' 2> "$to/err")
-[[ $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review the diff; run go test ./internal/x' ]] && grep -q '^heavy.sh: slot 1/' "$to/err" ||
+# Its first line pins the reviewed checkout (ASD-V0-1020); the review output follows unchanged.
+[[ $out == 'codex-review: reviewed-head='*$'\n''reviewed:exec -m gpt-6.1-sol -s read-only review the diff; run go test ./internal/x' ]] && grep -q '^heavy.sh: slot 1/' "$to/err" ||
   fail "codex-review through heavy.sh misread its prompt: $out $(cat "$to/err")"
 # ICL-V0-030 (V1-1629): a missing input is refused before admission, so a held slot or host load
 # cannot delay it; the admission wrapper is never invoked and the refusal names every missing input.

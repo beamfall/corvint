@@ -883,6 +883,16 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
   unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
   A label is a disclosure and changes no verdict.
+- `CEM-V1-1020`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)
+  Every tracked `.corvint/changes/NAME.cem.json` MUST cite only Git objects reachable from `HEAD`
+  (the bind commit `NAME`, `baseRevision`, each `evidence[].blobOid` and a migrated map's
+  `provenance.sourceBlobOid`), so a fresh clone of the public history replays it, or MUST have a
+  `.corvint/cem-lineage.tsv` row (`CEM-V1-963`), which records it as historical-only. The check
+  MUST name each unreachable object of any other map by map path and cited kind; a shallow or
+  history-less checkout is NOT_RUN outside CI and fails under `CI=true`.
+- `CEM-V1-1021`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)
+  The `CEM-V1-1020` check MUST also refuse a register row whose map is now fully replayable or is
+  not committed, and a row with an unknown label, so the historical-only list cannot go stale.
 - `CEM-V1-750`: (experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`.
   A map's `hunks` array MUST list the canonical patch's hunks in patch order: position `i` holds
   the hunk whose `@@` header is the `i`-th in the canonical patch. Both the native verifier
@@ -5868,3 +5878,33 @@ Rollback: delete the register, the scripts and their Makefile targets; no map ch
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-963 | `script/check-cem-base-retained_test.sh` (`make cem-base-retention-test`) | `make cem-base-retention-check` over the committed corpus |
+
+## Fresh-clone replay of committed maps (V1-3852, 2026-11-01)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852.
+
+Decision: `CEM-V1-963` checks only each map's base against a retained ref. Lane cemint-u10 found a
+fresh clone also lacks bind commits and evidence blobs, so the fork taken is a Go test over every
+cited object, reachable from `HEAD`, that reuses decision 0588's register as the historical-only
+disposition instead of a second list. The ticket named two maps; the measurement found 17
+(74 distinct objects), all 17 already labelled.
+
+Requirements: `CEM-V1-1020` and `CEM-V1-1021`, in the Requirements section.
+
+Non-goals: no rewrite of a sealed map, no new ref, no fetch of the archive repository.
+
+Failure modes: a shallow checkout or a missing `git rev-list` is NOT_RUN outside CI; a register
+row only discloses the gap and makes no map verify.
+
+Acceptance evidence: `TestCEMV11020CommittedMapObjectsReplayable` passes in the lane checkout and
+in a fresh `git init` plus `git fetch` of `origin/main` (176 replayable, 17 historical-only); with
+the register rows removed it names 307 unreachable cited objects by map path and kind.
+`TestCEMV11021ReplayCheckControls` covers a complete map, a missing base, a listed map, and stale,
+uncommitted and reasonless rows. See `docs/build-log/2026-11-01-spl-w24.md`.
+
+Rollback: delete `internal/cem/corpusbinding/replay_test.go` and this section; no map changes.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-1020 | `TestCEMV11020CommittedMapObjectsReplayable` (`internal/cem/corpusbinding`) | 176 replayable + 17 registered over 193 committed maps, lane checkout and fresh clone |
+| CEM-V1-1021 | `TestCEMV11021ReplayCheckControls` (`internal/cem/corpusbinding`) | stale, uncommitted and reasonless rows named |
