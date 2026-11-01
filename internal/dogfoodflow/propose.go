@@ -508,13 +508,18 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
-	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
+	row, cite, filtered := p.anchoredProposal(hunk, ordinal, edited, used)
+	if row != "" {
 		return row, cite, ""
+	}
+	if filtered != "" {
+		// The set-aside candidates are named for a same-file proposal too.
+		p.weak = append(p.weak, "row "+ordinal+": no anchor was drafted"+filtered)
 	}
 	// A draft anchors only on files the change leaves untouched (DCW-V0-393):
 	// a hunk with no anchor elsewhere gets its own file's nearest stable line
 	// as a marked proposal, or stays unknown (DCW-V0-962).
-	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds"
+	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds" + filtered
 	if dataPath(hunk.path) {
 		missing += "; a data record is never cited, so cite the BASE contract of the code that writes or reads it (DCW-V0-841)"
 	}
@@ -603,10 +608,20 @@ func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[
 // anchoredProposal returns the first row, on a span no other row cites, whose stable
 // BASE line earns hunk a CEM-V1-081 anchor (DCW-V0-161): the line defining a
 // requirement ID the hunk adds, then a line naming the hunk path, a
-// specification first. It returns "" when there is none.
-func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string) {
+// specification first. It returns "" when there is none, with a note naming
+// the candidates DCW-V0-847 set aside.
+func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	derived := p.derivedHunk(hunk)
 	_, ids := verify.SpanAnchors(derived, nil)
+	filtered := ""
+	if !p.basenames {
+		// An ID a test or data hunk names only as fixture text anchors
+		// nothing (DCW-V0-847).
+		var fixture []string
+		if ids, fixture = p.ownRequirementIDs(hunk.path, ids); len(fixture) > 0 {
+			filtered += "; " + hunk.path + " names " + strings.Join(fixture, ", ") + " only in test or fixture text, which is not an anchor (DCW-V0-847)"
+		}
+	}
 	candidates := []spanLine{}
 	for _, id := range ids {
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
@@ -639,6 +654,10 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 {
 			continue
 		}
+		// A mention inside a test or data file is not an anchor (DCW-V0-847).
+		if !p.basenames && testSourcePath(candidate.path) {
+			continue
+		}
 		// A path match inside a longer path, such as README.md within
 		// docs/specs/README.md, names another file (DCW-V0-381).
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
@@ -651,18 +670,29 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		// Families named only by the change's other files do not stop a line
 		// of an untouched file naming the hunk's whole path from anchoring it
 		// (DCW-V0-841).
-		pathLine := index >= definitions && changeWide && !p.changed[candidate.path] && namesWholePath(text, anchorPath(derived))
+		// DCW-V0-847: that admission never covers a line carrying another
+		// requirement's IDs, such as a traceability row of another spec, and
+		// a line naming requirement IDs anchors a hunk that names IDs only
+		// when it carries one of them, never a neighbouring requirement's row.
+		pathLine := index >= definitions && changeWide && !p.changed[candidate.path] && namesWholePath(text, anchorPath(derived)) &&
+			!requirementToken.Match(text)
 		if !p.basenames && !pathLine && !relevantRequirementLine(families, text) {
 			continue
+		}
+		if index >= definitions && !p.basenames {
+			if foreign := foreignRequirementLine(ids, text); foreign != "" {
+				filtered += fmt.Sprintf("; %s:%d names %s but none of the hunk's %s, so it is another requirement's line (DCW-V0-847)", candidate.path, candidate.line, foreign, strings.Join(ids, ", "))
+				continue
+			}
 		}
 		relation := proposalRelation(candidate.path)
 		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
 		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
 			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
 		}
-		return row, cite
+		return row, cite, ""
 	}
-	return "", ""
+	return "", "", filtered
 }
 
 // requirementToken is one requirement ID, such as DCW-V0-402, whose family
