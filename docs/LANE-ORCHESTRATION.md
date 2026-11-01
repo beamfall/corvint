@@ -912,7 +912,7 @@ One lane runs this flow, in order; each step names the command and the section t
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
    Repin per commit, not once at the end (V1-3821): before each per-ticket commit, stage the
    ticket's files, run `make line-citations-check`, and when it names a moved citation run
-   `make repin BASE=<lane BASE>` and commit the staged repins with that ticket. A later
+   `make repin BASE=<lane-base>` and commit the staged repins with that ticket. A later
    catch-up repin commit leaves every earlier commit red for anyone who checks it out or bisects.
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..

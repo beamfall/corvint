@@ -114,17 +114,17 @@ refuse() {
   echo "check-bash32: FAIL incomplete scan: $1; refusing rather than reporting ok (ASD-V0-750)" >&2
   exit 2
 }
-out=$(BASH32_RULES=$rules awk "$prog" "${files[@]}") || refuse "the scanner exited $?"
+out=$(BASH32_RULES=$rules awk "$prog" "${files[@]}") || refuse "the scanner exited $?; fix: the awk error above names the cause, then rerun make bash32-check"
 summary=${out##*$'\n'}
 case $summary in
   "#END "*) ;;
-  *) refuse "the scanner printed no summary" ;;
+  *) refuse "the scanner printed no summary; fix: rerun make bash32-check" ;;
 esac
 # shellcheck disable=SC2086
 set -- $summary
 fails=$2
 if [[ $3 != "${#files[@]}" ]]; then
-  refuse "scanned $3 of ${#files[@]} scripts"
+  refuse "scanned $3 of ${#files[@]} scripts; fix: make every listed script readable, then rerun make bash32-check"
 fi
 if ((fails)); then
   printf '%s\n' "${out%$'\n'*}"
