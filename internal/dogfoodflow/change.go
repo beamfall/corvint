@@ -1006,10 +1006,34 @@ func (c *change) recitesCitedHunk(plan []byte) bool {
 	return false
 }
 
+// bytesSpanPrefix marks a plan row whose third field is a byte span,
+// bytes:START:END, the coordinates a CEM records, instead of a one-based line
+// span START:END (V1-3637, the grammar dogfood-bind-range.sh accepts).
+const bytesSpanPrefix = "bytes:"
+
+// citeSpanArgs is the cem cite span flag for a plan row's third field:
+// --bytes for bytes:START:END and --lines for a line span.
+func citeSpanArgs(span string) []string {
+	if bytesSpan, ok := strings.CutPrefix(span, bytesSpanPrefix); ok {
+		return []string{"--bytes", bytesSpan}
+	}
+	return []string{"--lines", span}
+}
+
 // baseLineSpan is the byte span START:END that cem cite derives from a
 // one-based, inclusive line span of path at BASE, or false when the blob or
 // span does not resolve (CEM evidenceSpan).
 func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (string, bool) {
+	if span, ok := strings.CutPrefix(lines, bytesSpanPrefix); ok {
+		// A bytes:START:END row already names the byte span the map records.
+		start, end, found := strings.Cut(span, ":")
+		first, firstErr := strconv.Atoi(start)
+		last, lastErr := strconv.Atoi(end)
+		if !found || firstErr != nil || lastErr != nil || first < 0 || last < first {
+			return "", false
+		}
+		return fmt.Sprintf("%d:%d", first, last), true
+	}
 	left, right, found := strings.Cut(lines, ":")
 	first, firstErr := strconv.Atoi(left)
 	last, lastErr := strconv.Atoi(right)
@@ -1093,7 +1117,7 @@ func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 	replaced := map[string]bool{}
 	for index, line := range readLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
-		args := []string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3]}
+		args := append([]string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1]}, append(citeSpanArgs(fields[2]), "--relation", fields[3])...)
 		if unknownRow(fields) {
 			args = []string{"cem", "mark", "--map", citeMap, "--hunk", fields[0], "--disposition", "unknown", "--reason", fields[2]}
 		}
@@ -1149,7 +1173,7 @@ func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason s
 			continue
 		}
 		errorFile := c.runTmp + "/cem-cite-probe.stderr"
-		status := c.exec([]string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3], "--output", probe},
+		status := c.exec(append(append([]string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1]}, citeSpanArgs(fields[2])...), "--relation", fields[3], "--output", probe),
 			c.runTmp+"/cem-cite-probe.json", errorFile)
 		_ = removeFile(c.path(probe))
 		if status != 0 {
@@ -1186,7 +1210,7 @@ func (c *change) precheckCitationPlan() int {
 			continue
 		}
 		errorFile := c.runTmp + "/cem-cite-precheck.stderr"
-		status := c.exec([]string{"cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3], "--output", probe},
+		status := c.exec(append(append([]string{"cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", fields[0], "--evidence-path", fields[1]}, citeSpanArgs(fields[2])...), "--relation", fields[3], "--output", probe),
 			c.runTmp+"/cem-cite-precheck.json", errorFile)
 		_ = removeFile(c.path(probe))
 		if status == 0 {
@@ -2190,7 +2214,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-plan-unavailable", "DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves"},
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk (corvint dogfood propose-citations {base} prints a per-hunk draft to review and write there), or unset DOGFOOD_CITATIONS to prepare the map without citing (DCW-V0-150)"},
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
-	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
+	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order (START:END a BASE line span, or bytes:START:END a byte span), LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-relation-unknown", "RELATION, the fourth field of a cite row, is one of {relations}; a test file or test case cited as evidence takes test-claim (tests is not a relation); fix that row and every other, then rerun (DCW-V0-402)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change; for example 1<TAB>docs/specs/x-v0.md<TAB>40:44<TAB>specification for a spec hunk and 2<TAB>internal/x/x.go<TAB>120:126<TAB>dependency for the code hunk that implements it; corvint dogfood propose-citations {base} prints a per-hunk draft to review and write to the plan (DCW-V0-048, DCW-V0-150)"},
@@ -2198,7 +2222,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:citation-replace-digest-mismatch", "DOGFOOD_CITATION_REPLACE expects an earlier state of hunk {recitedHunk}: the map changed since the digest was read, so nothing was cited or marked; reread the map and, if the replacement is still wanted, rerun DOGFOOD_CITATION_REPLACE={recitedHunk}={recitedDigest} corvint dogfood change {base} (DCW-V0-391)"},
 	{"cem-cite:citation-replace-invalid", "DOGFOOD_CITATION_REPLACE takes at most 16 comma- or space-separated HUNK_ID=DIGEST entries, each naming by full hunk ID, once, a hunk of .corvint/change.cem.json that the plan names, with its 64-hex digest from the citation-plan-recites-cited-hunk fix line; nothing was cited or marked (DCW-V0-391)"},
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
-	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
+	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file (or bytes:START:END a byte span); any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
 	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; plan spans are BASE line numbers, counted in the file as it is at BASE {base}, not at HEAD; cite a START:END span the change leaves unchanged (DCW-V0-845)"},
 	{"cem-cite:cite-self-modified-authority", "plan row {row} cites a governing file (spec, decision or other authority) that this change itself modifies, which cannot govern it; cite a governing source the change leaves unmodified, or keep the hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE (CEM-V1-114)"},
