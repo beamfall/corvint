@@ -108,7 +108,7 @@ func readGitHubExport(flag, file string, out any) error {
 // export from stdin under the same byte bound (TCD-V0-171).
 func readGitHubExportArg(env Env, flag, file string, out any) error {
 	if file != "-" {
-		return readGitHubExport(flag, file, out)
+		return readGitHubExport(flag, commandPath(env.Cwd, file), out)
 	}
 	if env.Stdin == nil {
 		return wire.Errorf(wire.CodeMissingEvidence, flag, "the %s export on stdin is unreadable", flag)
@@ -615,7 +615,7 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	runsFile, runsObserved := fl["runs"]
 	in.runsObserved = runsObserved
 	if err == nil && runsObserved {
-		err = readGitHubExport("--runs", runsFile, &in.runs)
+		err = readGitHubExport("--runs", commandPath(env.Cwd, runsFile), &in.runs)
 	}
 	for i := range prs {
 		in.byNumber[prs[i].Number] = &prs[i]
