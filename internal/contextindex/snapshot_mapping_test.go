@@ -338,6 +338,25 @@ func equalIgnoringLease(want, got *Index) bool {
 	wantLease, gotLease := want.lease, got.lease
 	want.lease, got.lease = nil, nil
 	defer func() { want.lease, got.lease = wantLease, gotLease }()
+	return equalIgnoringSymbolTerms(want, got)
+}
+
+// equalIgnoringSymbolTerms is reflect.DeepEqual except for the gob
+// snapshot's derived symbol term table (IDX-SNAP-V0-807), which only that
+// encoding carries: each side's table, when present, must equal the table
+// built from that side's own symbols, and the rest must be equal.
+func equalIgnoringSymbolTerms(want, got *Index) bool {
+	if want == nil || got == nil {
+		return reflect.DeepEqual(want, got)
+	}
+	for _, index := range []*Index{want, got} {
+		if index.symbolTerms != nil && !reflect.DeepEqual(index.symbolTerms, buildSymbolTermTable(index)) {
+			return false
+		}
+	}
+	wantTable, gotTable := want.symbolTerms, got.symbolTerms
+	want.symbolTerms, got.symbolTerms = nil, nil
+	defer func() { want.symbolTerms, got.symbolTerms = wantTable, gotTable }()
 	return reflect.DeepEqual(want, got)
 }
 

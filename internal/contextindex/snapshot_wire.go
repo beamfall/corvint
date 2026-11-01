@@ -200,6 +200,9 @@ type snapshotWire struct {
 	ApproximateImports                                        int
 	ExtractionNotes                                           []ExtractionNote
 	Vocabulary                                                *TermTable
+	// symbolTerms is unexported, so gob never sees it: only the /3 body
+	// carries it, as a blob after the term table (IDX-SNAP-V0-807).
+	symbolTerms *symbolTermTable
 }
 
 func snapshotWireOf(index *Index) *snapshotWire {
@@ -228,6 +231,7 @@ func (wire *snapshotWire) index() (*Index, error) {
 		return nil, err
 	}
 	index.Vocabulary = wire.Vocabulary
+	index.symbolTerms = wire.symbolTerms
 	return index, nil
 }
 

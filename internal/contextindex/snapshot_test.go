@@ -187,7 +187,7 @@ func TestSnapshotLoadJoinsAnEngineDigestThatFinishesLast(t *testing.T) {
 	if got.err != nil || !got.hit {
 		t.Fatalf("load behind a late engine digest: hit=%v err=%v", got.hit, got.err)
 	}
-	if !reflect.DeepEqual(got.index, index) {
+	if !equalIgnoringSymbolTerms(got.index, index) {
 		t.Fatal("the snapshot loaded behind a late engine digest differs from the written index")
 	}
 }
@@ -230,7 +230,7 @@ func TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree(t *testing.T) {
 	if err != nil || !hit {
 		t.Fatalf("IDX-SNAP-V0-002: hit=%v err=%v", hit, err)
 	}
-	if !reflect.DeepEqual(loaded, index) {
+	if !equalIgnoringSymbolTerms(loaded, index) {
 		t.Fatalf("IDX-SNAP-V0-001: loaded index differs from the built one")
 	}
 	event, hit, err := LoadEventSnapshot(context.Background(), root, false)

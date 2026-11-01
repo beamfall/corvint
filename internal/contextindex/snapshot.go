@@ -545,7 +545,9 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 	if err := encoder.Encode(snapshotHeader{Format: gobSnapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
-	if err := encodeSnapshotBody(encoder, snapshotWireOf(index)); err != nil {
+	wire := snapshotWireOf(index)
+	wire.symbolTerms = buildSymbolTermTable(index)
+	if err := encodeSnapshotBody(encoder, wire); err != nil {
 		return 0, err
 	}
 	if _, err := file.Write(digest.Sum(nil)); err != nil {

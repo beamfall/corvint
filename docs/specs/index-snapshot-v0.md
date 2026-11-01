@@ -1198,6 +1198,8 @@ only.
   - when a term table is present, a vocabulary spine (its `Paths` and the length of each of its
     five binary blobs, `-1` for one gob would omit);
   - each blob in chunks of at most 4 MiB, which the reader copies into one buffer of the exact
+    length;
+  - the symbol term table of `IDX-SNAP-V0-807`, in the same blob chunks, when the spine gives it a
     length.
 
   The decode of a `/3` file MUST equal, value for value (`reflect.DeepEqual`), the `/2`
@@ -1238,6 +1240,49 @@ only.
 
   Rollback: write `snapshotWireOf` as one message under format `/2` and restore the single
   `Decode`. `/3` files then miss and rebuild.
+- `IDX-SNAP-V0-807`: (experimental under the standing lane auto-accept, 2026-11-01) The gob
+  snapshot MUST carry, after the term table and in bounded chunks, a symbol term table built when
+  it is written: for each symbol in `Index.Symbols` order, the id of its `compactText(name)` and the
+  ascending ids of its `terms(name)`; and, over every symbol, the count of symbols per compact name
+  and per term of `terms(name) ∪ terms(path)` (the `nameFrequency` and `termFrequency` that
+  `evalPrepareSymbols` counted on every query).
+
+  When a loaded index carries a table built for its symbol count and the query has symbol windows,
+  the ranking:
+  - takes both frequency tables from the counts;
+  - prefilters every symbol with integer ids and the window sets;
+  - prepares in full, exactly as before, only a symbol that may still score: its name may match
+    exactly, two query terms meet `terms(name) ∪ terms(path)`, or three meet its context window.
+
+  The ranking drops every other symbol before scoring. The version narrowing still sees whether any
+  admitted symbol's path carries a version term. Any other index (built in process, an overlay
+  view, a pack or sectioned load, a table for another symbol count, or no windows) takes the full
+  pass, unchanged. The ranked candidates, the returned term frequencies, the `evalRank` results
+  and the task-context packet MUST be identical with and without the table. The event loads do not
+  read the table. A table whose counts, offsets or ids do not fit is refused on decode, which is
+  the IDX-SNAP-V0-003 miss.
+
+  Gate, same session as above, load 8.8 to 11.4, interleaved:
+
+  | Measure | Base | Chunked only | Chunked with this table |
+  |---|---|---|---|
+  | Snapshot size | 176,933,456 bytes | 176,933,840 bytes | 182,712,002 bytes (+3.3% over base) |
+  | Three cold `index` runs | 2.52-2.59 s | 2.10-2.34 s | 2.30-2.38 s |
+  | Reuse `index` | 2.16 s | 1.56 s | 1.85 s |
+  | 20 `context` loads | p50 1.00 s, p95 1.12 s, max RSS 861 MB | p50 0.76 s, p95 0.81 s, 492 MB | p50 0.65 s, p95 0.69 s, 509 MB |
+  | `context` mean CPU (6 runs) | 2.06 s | 1.53 s | 0.97 s |
+  | `user-prompt` p50 | 0.66 s | 0.40 s | 0.40 s |
+  | `session-start` p50 | 0.64 s | 0.40 s | 0.40 s |
+  | `impact` | 0.58 s | 0.33 s | 0.34 s |
+
+  `context`, `user-prompt`, `session-start` and `impact` outputs are byte-identical across the three
+  binaries, and three writes of one tree hash alike for each. The ranking prepare step fell from
+  30% of `context` CPU to 1.7%.
+
+  Failure modes: the table is a function of the extractor, `terms` and `compactText`. A change to
+  any of them changes the executable, and so the engine key, and so it rebuilds with the snapshot.
+
+  Rollback: stop writing the table (`SymbolTermsLength` 0); every load then takes the full pass.
 - `IDX-SNAP-V0-805`: (experimental under the standing lane auto-accept, 2026-11-01) The
   hook-triggered refresh worker (`spawnSnapshotRefresh`, IDX-SNAP-V0-912) MUST NOT inherit the
   `CORVINT_CPUPROFILE` or `CORVINT_MEMPROFILE` knobs, as it already drops `GOMAXPROCS` and the
@@ -1484,6 +1529,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-002 | `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitReportsTheLiveCommitForTheSameTree`, `TestLoadSnapshotMissesWhenIdentityChangesDuringStatusRead` |
 | IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `decodeSnapshotValue`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
 | IDX-SNAP-V0-806 | `encodeSnapshotBody`, `decodeSnapshotBody`, `decodeSnapshotWire` (`snapshot_chunks.go`), `gobSnapshotFormat` | `TestSnapshotChunkedBodyEqualsSingleMessage_IDXSNAPV0806`, `TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`, `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestSnapshotBytesAreDeterministic` |
+| IDX-SNAP-V0-807 | `buildSymbolTermTable`, `evalPreparePrecomputed`, `symbolTermTable` binary codec (`symbol_terms.go`), `evalPrepareRanking` | `TestSymbolTermTableRankingEqualsFullPass_IDXSNAPV0807`, `TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807`, `TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807` |
 | IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
 | IDX-SNAP-V0-005 | `runTaskContext` (no writer), `WriteSnapshot` (`.gitignore`), `snapshotDirectoryPresent` (readers) | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |

@@ -58,6 +58,9 @@ type snapshotSpine struct {
 	ApproximateImports                                        int
 	ExtractionNotes                                           []ExtractionNote
 	VocabularyPresent                                         bool
+	// SymbolTermsLength is the byte length of the symbol term table blob
+	// that follows the term table, 0 when there is none (IDX-SNAP-V0-807).
+	SymbolTermsLength int
 }
 
 // snapshotVocabularySpine is a TermTable's Paths and the length of each of
@@ -99,9 +102,19 @@ func snapshotSpineOf(wire *snapshotWire) snapshotSpine {
 		UnsupportedSuffixCount: wire.UnsupportedSuffixCount,
 		Features:               wire.Features, Scenarios: wire.Scenarios, Documents: wire.Documents, Markers: wire.Markers,
 		SymbolCount: len(wire.Symbols), FieldCount: len(wire.Fields), Imports: wire.Imports,
-		Unparsed: wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
+		SymbolTermsLength: len(symbolTermsBlob(wire)),
+		Unparsed:          wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
 		VocabularyPresent: wire.Vocabulary != nil,
 	}
+}
+
+// symbolTermsBlob is the marshalled symbol term table, nil without one.
+func symbolTermsBlob(wire *snapshotWire) []byte {
+	if wire.symbolTerms == nil {
+		return nil
+	}
+	data, _ := wire.symbolTerms.MarshalBinary()
+	return data
 }
 
 // encodeSnapshotChunks writes the messages after the spine.
@@ -124,12 +137,27 @@ func encodeSnapshotChunks(encoder *gob.Encoder, wire *snapshotWire) error {
 			}
 		}
 	}
-	if wire.Vocabulary == nil {
-		return nil
+	if wire.Vocabulary != nil {
+		if err := encodeVocabularyChunks(encoder, wire.Vocabulary); err != nil {
+			return err
+		}
 	}
+	return encodeBlobChunks(encoder, symbolTermsBlob(wire))
+}
+
+func encodeBlobChunks(encoder *gob.Encoder, data []byte) error {
+	for low := 0; low < len(data); low += snapshotChunkBytes {
+		if err := encoder.Encode(data[low:min(low+snapshotChunkBytes, len(data))]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func encodeVocabularyChunks(encoder *gob.Encoder, table *TermTable) error {
 	blobs := make([][]byte, 0, 5)
-	vocabulary := snapshotVocabularySpine{Paths: wire.Vocabulary.Paths}
-	for _, blob := range vocabularyBlobs(wire.Vocabulary) {
+	vocabulary := snapshotVocabularySpine{Paths: table.Paths}
+	for _, blob := range vocabularyBlobs(table) {
 		// Gob omits a zero-valued field, and a nil graph, from a struct, so the
 		// /2 decode left them zero; -1 keeps that distinction.
 		value := reflect.ValueOf(blob)
@@ -149,10 +177,8 @@ func encodeSnapshotChunks(encoder *gob.Encoder, wire *snapshotWire) error {
 		return err
 	}
 	for _, data := range blobs {
-		for low := 0; low < len(data); low += snapshotChunkBytes {
-			if err := encoder.Encode(data[low:min(low+snapshotChunkBytes, len(data))]); err != nil {
-				return err
-			}
+		if err := encodeBlobChunks(encoder, data); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -215,9 +241,33 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth) (*snapsho
 			*read.target = append(*read.target, chunk...)
 		}
 	}
-	if depth == snapshotBodyEvents || !spine.VocabularyPresent {
+	if depth == snapshotBodyEvents {
 		return wire, nil
 	}
+	if spine.VocabularyPresent {
+		table, err := decodeVocabularyChunks(decoder)
+		if err != nil {
+			return nil, err
+		}
+		wire.Vocabulary = table
+	}
+	if spine.SymbolTermsLength < 0 {
+		return nil, errSnapshotChunks
+	}
+	if spine.SymbolTermsLength > 0 {
+		data, err := decodeSnapshotBlob(decoder, spine.SymbolTermsLength)
+		if err != nil {
+			return nil, err
+		}
+		wire.symbolTerms = &symbolTermTable{}
+		if err := wire.symbolTerms.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+	}
+	return wire, nil
+}
+
+func decodeVocabularyChunks(decoder *gob.Decoder) (*TermTable, error) {
 	var vocabulary snapshotVocabularySpine
 	if err := decoder.Decode(&vocabulary); err != nil {
 		return nil, err
@@ -247,8 +297,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth) (*snapsho
 	if !graphPresent {
 		table.IdentGraph = nil
 	}
-	wire.Vocabulary = table
-	return wire, nil
+	return table, nil
 }
 
 // decodeSnapshotBlob reads one blob of length bytes from its chunk messages

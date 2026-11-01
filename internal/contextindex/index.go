@@ -286,6 +286,9 @@ type Index struct {
 	// committedSources is an overlay view's HEAD source map, the only
 	// source of project-owned authority such a view may read; nil otherwise.
 	committedSources map[string]Source
+	// symbolTerms is the gob snapshot's precomputed symbol term table
+	// (IDX-SNAP-V0-807); nil on an index that was not read from one.
+	symbolTerms *symbolTermTable
 }
 
 // vocabulary returns the term table, building it once for an index compiled
