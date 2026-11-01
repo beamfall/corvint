@@ -17,7 +17,7 @@ import (
 // real readers of that binary's whole import closure: every non-standard
 // directory the build compiles, and go.mod and go.sum, must lie in a declared
 // entry, so a change anywhere in the closure still selects the package. The
-// declarations name no docs/specs path, the Makefile or a root script, which
+// declarations name no docs/specs path, the Makefile or AGENTS.md, which
 // those tests never read, so a spec, REQUIREMENTS.tsv or Makefile edit no
 // longer selects them.
 func TestRepositoryBuiltReaderDeclarations_AFPV0873(t *testing.T) {
@@ -57,7 +57,7 @@ func TestRepositoryBuiltReaderDeclarations_AFPV0873(t *testing.T) {
 				t.Errorf("%s builds with go but does not declare %s", pkg, file)
 			}
 		}
-		for _, path := range []string{"docs/specs/affected-plan-v0.md", "docs/specs/REQUIREMENTS.tsv", "Makefile", "script/heavy.sh"} {
+		for _, path := range []string{"docs/specs/affected-plan-v0.md", "docs/specs/REQUIREMENTS.tsv", "Makefile", "AGENTS.md"} {
 			if covered(path) {
 				t.Errorf("%s declares %s, which its tests never read", pkg, path)
 			}
