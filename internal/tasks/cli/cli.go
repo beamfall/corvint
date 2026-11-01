@@ -1793,7 +1793,8 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	var item *wire.Value
 	notFound, candidates := "", ""
 	read := withStore
-	if includeRecord {
+	if includeRecord || snapshotBundlePath(env.Cwd) != "" {
+		// TCL-V0-869: blockers is served from a snapshot too.
 		read = withInventoryStore
 	}
 	rc, err := read(env, func(rc *readCtx) error {

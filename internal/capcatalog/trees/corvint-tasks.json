@@ -1816,14 +1816,15 @@
       "command": "corvint-tasks queue",
       "summary": "",
       "usage": [
-        "corvint-tasks queue snapshot [--out FILE]",
+        "corvint-tasks queue snapshot [--out FILE] [--worktree DIR]",
         "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]"
       ],
       "flags": [
         "--fields",
         "--out",
         "--retries",
-        "--summary"
+        "--summary",
+        "--worktree"
       ],
       "required": [],
       "example": "corvint-tasks queue snapshot",
@@ -1837,10 +1838,11 @@
       "command": "corvint-tasks queue snapshot",
       "summary": "",
       "usage": [
-        "corvint-tasks queue snapshot [--out FILE]"
+        "corvint-tasks queue snapshot [--out FILE] [--worktree DIR]"
       ],
       "flags": [
-        "--out"
+        "--out",
+        "--worktree"
       ],
       "required": [],
       "example": "corvint-tasks queue snapshot",

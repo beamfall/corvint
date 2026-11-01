@@ -51,20 +51,30 @@ type snapshotBundleFile struct {
 // snapshotVerbs are the verbs SnapshotEnv serves (TCL-V0-011).
 var snapshotVerbs = map[string]bool{
 	"version": true, "--version": true, "roadmap": true, "queue status": true,
-	"ticket search": true, "ticket show": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
+	"ticket search": true, "ticket show": true, "ticket blockers": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 }
 
 // queueSnapshot writes the intent tree as one snapshot object to --out, or
 // raw to stdout (TCL-V0-010).
 func queueSnapshot(env Env, args []string) int {
 	cmd := []string{"queue", "snapshot"}
-	values, _, bad := listFlags(cmd, args, []string{"out"}, nil, nil)
+	values, _, bad := listFlags(cmd, args, []string{"out", "worktree"}, nil, nil)
 	if bad != nil {
 		return emit(env.Stdout, bad)
 	}
 	var raw []byte
 	var b snapshotBundle
-	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+	read := withInventoryStore
+	if v := values["worktree"]; len(v) == 1 {
+		dir := v[0]
+		if !filepath.IsAbs(dir) {
+			dir = filepath.Join(env.Cwd, dir)
+		}
+		read = func(_ Env, body func(*readCtx) error) (*readCtx, error) {
+			return withWorktreeStore(filepath.Clean(dir), body)
+		}
+	}
+	rc, err := read(env, func(rc *readCtx) error {
 		host, _ := os.Hostname()
 		b = snapshotBundle{Profile: snapshotBundleSchema, SourceHost: host, PrimaryWorktree: rc.repo.PrimaryWorktree,
 			ProducedAt: time.Now().UTC().Format("2006-01-02T15:04:05Z"), TreeSha256: string(rc.store.Tree.Sha256)}
@@ -112,6 +122,26 @@ func queueSnapshot(env Env, args []string) int {
 	o.Set("lastSeq", snapshotSeqValue(b.Journal))
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	return emit(env.Stdout, res)
+}
+
+// withWorktreeStore loads the intent tree at dir/.taskman with no
+// repository resolution and no journal, for a linked or pruned worktree
+// whose store the primary checkout would otherwise shadow (TCL-V0-869).
+func withWorktreeStore(dir string, body func(*readCtx) error) (*readCtx, error) {
+	if fi, err := os.Stat(filepath.Join(dir, intent.Dir)); err != nil || !fi.IsDir() {
+		return nil, wire.Errorf(wire.CodeUninitialized, filepath.Join(dir, intent.Dir), "--worktree names no intent store directory")
+	}
+	rc := &readCtx{repo: &intent.Repository{PrimaryWorktree: dir}, journalAbsent: true}
+	tree, err := intent.TreeDigest(dir)
+	if err != nil {
+		return rc, err
+	}
+	st, err := intent.LoadTree(dir, tree, "")
+	if err != nil {
+		return rc, err
+	}
+	rc.store = st
+	return rc, body(rc)
 }
 
 func snapshotSeqValue(j *snapshotBundleJournal) wire.Value {
