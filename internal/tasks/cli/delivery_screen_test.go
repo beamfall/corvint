@@ -349,3 +349,49 @@ func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
 		t.Fatalf("help: %s", help.stdout)
 	}
 }
+
+// TestTLFV0887_TruncatedLaneScanIsNotClear: a lane whose penultimate commit
+// delivers a ticket and whose tip does not, read with --lane-refs --limit 1,
+// leaves that ticket TRUNCATED (never CLEAR, exit 1) and reports the cut on
+// the lane head and the item (TLF-V0-887).
+func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := ergStore(t)
+	_, hidden := tcdTicket(t, root, "hidden", "")
+	out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := strings.TrimSpace(string(out))
+	git(t, root, "checkout", "-q", "-b", "claude/lane-y")
+	tcdCommit(t, root, "tasks: lane work\n\nRefs "+hidden)
+	tcdCommit(t, root, "docs: unrelated tip")
+	git(t, root, "checkout", "-q", "-f", main)
+	prs := tdsExport(t, "prs.json", "[]")
+
+	x := tdsRun(t, root, "ticket", "delivery-screen", hidden, "--prs", prs, "--lane-refs", "--limit", "1")
+	if got := tdsVerdicts(t, x); x.code != 1 || got[hidden] != "TRUNCATED" {
+		t.Fatalf("truncated lane: exit %d verdicts %v\n%s", x.code, got, x.stdout)
+	}
+	heads := field(x.res.Items[0], "laneHeads").Arr
+	if len(heads) != 1 || !field(heads[0], "scanTruncated").Bool || !field(x.res.Items[0], "laneScanTruncated").Bool {
+		t.Fatalf("lane truncation not reported: %s", x.stdout)
+	}
+	x = tdsRun(t, root, "ticket", "delivery-screen", hidden, "--prs", prs, "--lane-refs")
+	if got := tdsVerdicts(t, x); got[hidden] != "DELIVERED_ON_LANE" || field(x.res.Items[0], "laneScanTruncated").Bool {
+		t.Fatalf("full lane scan: verdicts %v\n%s", got, x.stdout)
+	}
+}
+
+// TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs: --lane-refs belongs to
+// delivery-screen; closeout-debt refuses it, so its help must not offer it.
+func TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := ergStore(t)
+	if x := tdsRun(t, root, "ticket", "closeout-debt", "--lane-refs"); !hasCode(x.res, wire.CodeMalformed) {
+		t.Fatalf("closeout-debt --lane-refs: %s", x.stdout)
+	}
+	if help := tdsRun(t, root, "ticket", "closeout-debt", "--help", "--verbose"); strings.Contains(string(help.stdout), "--lane-refs") {
+		t.Fatalf("closeout-debt help offers --lane-refs: %s", help.stdout)
+	}
+}

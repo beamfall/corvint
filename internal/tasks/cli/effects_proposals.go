@@ -28,8 +28,9 @@ const (
 	verdictNoProposal = "NO_PROPOSAL"
 )
 
-// proposalPath is a repository-relative path token: at least one slash, or a
-// file name with an extension, made of path characters.
+// proposalPath is a repository-relative path token made of path characters:
+// at least one slash, a file name with an extension, or a bare name that
+// exactly matches a non-directory entry of the worktree root.
 var proposalPath = regexp.MustCompile(`[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)*/?`)
 
 type proposal struct{ path, source, span string }
@@ -38,12 +39,28 @@ type proposal struct{ path, source, span string }
 // each once, with its first source and span.
 func proposalsFor(root string, sources [][2]string) []proposal {
 	seen := map[string]bool{}
+	var rootFiles map[string]bool // exact-case root file names, read once
 	var out []proposal
 	for _, s := range sources {
 		for _, loc := range proposalPath.FindAllStringIndex(s[1], -1) {
 			tok := strings.TrimRight(s[1][loc[0]:loc[1]], ".-")
-			if !strings.Contains(tok, "/") && !strings.Contains(tok, ".") || strings.HasPrefix(tok, ".") && !strings.Contains(tok, "/") {
-				continue
+			// A bare dotfile (.gitignore) or extensionless name (Makefile)
+			// is a path only when it names a root file exactly: a prose
+			// word must not match a directory or, on a case-insensitive
+			// file system, a differently cased file.
+			if !strings.Contains(tok, "/") && (strings.HasPrefix(tok, ".") || !strings.Contains(tok, ".")) {
+				if rootFiles == nil {
+					rootFiles = map[string]bool{}
+					entries, _ := os.ReadDir(root)
+					for _, e := range entries {
+						if !e.IsDir() {
+							rootFiles[e.Name()] = true
+						}
+					}
+				}
+				if !rootFiles[tok] {
+					continue
+				}
 			}
 			clean := filepath.ToSlash(filepath.Clean(tok))
 			if clean == "." || strings.HasPrefix(clean, "../") || filepath.IsAbs(tok) {

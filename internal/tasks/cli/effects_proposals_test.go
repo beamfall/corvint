@@ -114,3 +114,35 @@ func TestTLFV0889_ProposalsAreNotAuthority(t *testing.T) {
 		t.Fatalf("blockers moved:\n%s\n%s", before, after)
 	}
 }
+
+// TestTLFV0888_RootFilesWithoutExtension: a ticket naming an existing root
+// dotfile or extensionless root file gets it proposed; a bare word that
+// names no root file, or names a directory, is not proposed (TLF-V0-888).
+func TestTLFV0888_RootFilesWithoutExtension(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, _ := ergStore(t)
+	for _, f := range []string{".gitignore", "Makefile"} {
+		if err := os.WriteFile(filepath.Join(root, f), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(root, "tools"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	id := tlfUnknownTicket(t, root, "rootfiles", "Ignore build output in .gitignore and add a Makefile target.", "tools and makefile stay untouched")
+	for _, r := range field(tlfProposals(t, root), "tickets").Arr {
+		if field(r, "ticketId").Str != id {
+			continue
+		}
+		var paths []string
+		for _, p := range field(r, "touchPaths").Arr {
+			paths = append(paths, field(p, "path").Str)
+		}
+		if strings.Join(paths, " ") != ".gitignore Makefile" {
+			t.Fatalf("root files: %v\n%s", paths, wire.Encode(r))
+		}
+		return
+	}
+	t.Fatalf("ticket %s not screened", id)
+}

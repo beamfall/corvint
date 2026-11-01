@@ -352,6 +352,22 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil && laneRefs {
 		lanes, err = scanLaneHeads(root, refCommit, limit)
 	}
+	// laneWindowStart is the latest oldest-scanned-commit time over the lane
+	// scans cut at --limit: a ticket created before it may be delivered by a
+	// lane commit the scan never read, so it is TRUNCATED, never CLEAR
+	// (TLF-V0-887).
+	var laneWindowStart time.Time
+	laneTruncated := false
+	for _, l := range lanes {
+		if err != nil || !l.scan.Truncated || len(l.scan.Commits) == 0 {
+			continue
+		}
+		laneTruncated = true
+		var at time.Time
+		if at, err = store.CommitTime(root, l.scan.Commits[len(l.scan.Commits)-1].Commit); err == nil && at.After(laneWindowStart) {
+			laneWindowStart = at
+		}
+	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
 	}
@@ -435,7 +451,8 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			r.verdict = verdictDelivered
 		case onLane:
 			r.verdict = verdictOnLane
-		case !windowStart.IsZero() && r.created.Before(windowStart.Add(time.Second)):
+		case !windowStart.IsZero() && r.created.Before(windowStart.Add(time.Second)),
+			!laneWindowStart.IsZero() && r.created.Before(laneWindowStart.Add(time.Second)):
 			r.verdict = verdictTruncated
 		case cited:
 			r.verdict = verdictCited
@@ -457,16 +474,17 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	}
 	for _, l := range lanes {
 		if l.scan.Truncated {
-			res.Warnings = append(res.Warnings, "lane head "+prose(l.ref)+" scan stopped at --limit "+strconv.Itoa(limit)+"; older lane commits are not reported")
+			res.Warnings = append(res.Warnings, "lane head "+prose(l.ref)+" scan stopped at --limit "+strconv.Itoa(limit)+"; older lane commits are not reported, and a ticket created before its oldest scanned commit is TRUNCATED")
 		}
 	}
 	item := deliveryScreenValue(rows, ref, refCommit, observed, len(prs), len(scan.Commits), scan.Truncated)
 	if laneRefs {
 		scanned := make([]wire.Value, 0, len(lanes))
 		for _, l := range lanes {
-			scanned = append(scanned, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(l.ref)).Set("commit", wire.String(l.commit)).Set("commitsScanned", count(len(l.scan.Commits)))))
+			scanned = append(scanned, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(l.ref)).Set("commit", wire.String(l.commit)).Set("commitsScanned", count(len(l.scan.Commits))).Set("scanTruncated", wire.Bool(l.scan.Truncated))))
 		}
 		item.Obj.Set("laneHeads", wire.Array(scanned...))
+		item.Obj.Set("laneScanTruncated", wire.Bool(laneTruncated))
 		if tickets, ok := item.Obj.Get("tickets"); ok {
 			for i, t := range tickets.Arr {
 				t.Obj.Set("laneCommits", wire.Array(rows[i].lanes...))

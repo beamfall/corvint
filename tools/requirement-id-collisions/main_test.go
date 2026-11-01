@@ -111,3 +111,62 @@ func TestTLFV0886_ReproducesASDV0Collisions(t *testing.T) {
 		t.Fatalf("help: exit %d %s", code, errb.String())
 	}
 }
+
+// collidingRepo builds a base with ASD-V0-031 and two lanes that each take
+// ASD-V0-032 for a different requirement.
+func collidingRepo(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	tgit(t, dir, "init", "-q", "-b", "main")
+	base := "- `ASD-V0-031`: base.\n"
+	commitSpec(t, dir, "s.md", base)
+	tgit(t, dir, "checkout", "-q", "-b", "lane-a", "main")
+	commitSpec(t, dir, "s.md", base+"- `ASD-V0-032`: lane a.\n")
+	tgit(t, dir, "checkout", "-q", "-b", "lane-b", "main")
+	commitSpec(t, dir, "s.md", base+"- `ASD-V0-032`: lane b.\n")
+	tgit(t, dir, "checkout", "-q", "main")
+	return dir
+}
+
+// TestTLFV0886_LineNumberConfigStillParses: repository-local
+// grep.lineNumber and grep.column do not hide a collision (TLF-V0-886).
+func TestTLFV0886_LineNumberConfigStillParses(t *testing.T) {
+	dir := collidingRepo(t)
+	tgit(t, dir, "config", "grep.lineNumber", "true")
+	tgit(t, dir, "config", "grep.column", "true")
+	var out, errb bytes.Buffer
+	if code := run([]string{"--repo", dir, "--base", "main"}, &out, &errb); code != 1 || !strings.Contains(out.String(), "REQUIREMENT_ID_COLLISION ASD-V0-032") {
+		t.Fatalf("exit %d\n%s%s", code, out.String(), errb.String())
+	}
+}
+
+// TestTLFV0886_PartialCloneNeverFetches: in a blob-less partial clone whose
+// promisor remote can serve the missing spec blobs, the check fails as a
+// read failure (exit 2) and fetches nothing into .git (TLF-V0-886).
+func TestTLFV0886_PartialCloneNeverFetches(t *testing.T) {
+	origin := collidingRepo(t)
+	tgit(t, origin, "config", "uploadpack.allowFilter", "true")
+	clone := filepath.Join(t.TempDir(), "clone")
+	tgit(t, filepath.Dir(clone), "clone", "-q", "--no-checkout", "--filter=blob:none", "file://"+origin, clone)
+	tgit(t, clone, "branch", "lane-a", "origin/lane-a")
+	tgit(t, clone, "branch", "lane-b", "origin/lane-b")
+	objects := func() string {
+		var b strings.Builder
+		filepath.WalkDir(filepath.Join(clone, ".git", "objects"), func(p string, d os.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				b.WriteString(p + "\n")
+			}
+			return nil
+		})
+		return b.String()
+	}
+	before := objects()
+	var out, errb bytes.Buffer
+	code := run([]string{"--repo", clone, "--base", "main"}, &out, &errb)
+	if after := objects(); after != before {
+		t.Fatalf("the check fetched objects (exit %d):\n%s\n---\n%s", code, before, after)
+	}
+	if code != 2 {
+		t.Fatalf("exit %d, want 2 on missing promisor blobs\n%s%s", code, out.String(), errb.String())
+	}
+}

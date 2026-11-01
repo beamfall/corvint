@@ -2909,7 +2909,7 @@
         "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",
         "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
         "corvint-tasks ticket blockers <ticketId|local>",
-        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--lane-refs]",
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]",
@@ -3205,10 +3205,9 @@
       "command": "corvint-tasks ticket closeout-debt",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--lane-refs]"
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]"
       ],
       "flags": [
-        "--lane-refs",
         "--limit",
         "--ref",
         "--since"

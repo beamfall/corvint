@@ -203,7 +203,9 @@ func laneHeads(repo, baseCommit string) ([]head, error) {
 
 // definitions reads every defining bullet of commit's docs/specs/*.md.
 func definitions(repo, ref, commit string) (map[string][]site, error) {
-	out, err := git(repo, "grep", "-I", "--no-color", "--full-name", "-E", "^- `[A-Z][A-Z0-9]*-V[0-9]+-[0-9]+`:", commit, "--", specs)
+	// Explicit format flags win over repository grep.* configuration, so the
+	// output is always commit:path:text (TLF-V0-886).
+	out, err := git(repo, "grep", "-I", "--no-color", "--full-name", "--no-line-number", "--no-column", "-E", "^- `[A-Z][A-Z0-9]*-V[0-9]+-[0-9]+`:", commit, "--", specs)
 	if err != nil {
 		if exit, ok := err.(*exitError); ok && exit.code == 1 && exit.stderr == "" {
 			return map[string][]site{}, nil // no match
@@ -270,9 +272,11 @@ func (e *exitError) Error() string {
 }
 
 // git runs one read-only git command under a sanitized environment that
-// reads no global or system configuration and takes no optional locks.
+// reads no global or system configuration, takes no optional locks, never
+// lazily fetches a missing promisor object and may use no transport, so a
+// partial clone fails the read instead of writing .git (TLF-V0-886).
 func git(repo string, args ...string) (string, error) {
-	c := exec.Command("git", append([]string{"-c", "core.fsmonitor=false", "-c", "credential.helper="}, args...)...)
+	c := exec.Command("git", append([]string{"-c", "core.fsmonitor=false", "-c", "credential.helper=", "-c", "protocol.allow=never"}, args...)...)
 	c.Dir = repo
 	var env []string
 	for _, kv := range os.Environ() {
@@ -280,7 +284,8 @@ func git(repo string, args ...string) (string, error) {
 			env = append(env, kv)
 		}
 	}
-	c.Env = append(env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0", "LC_ALL=C")
+	c.Env = append(env, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0",
+		"GIT_NO_LAZY_FETCH=1", "GIT_ALLOW_PROTOCOL=", "GIT_NO_REPLACE_OBJECTS=1", "LC_ALL=C")
 	var stdout, stderr bytes.Buffer
 	c.Stdout, c.Stderr = &stdout, &stderr
 	if err := c.Run(); err != nil {
