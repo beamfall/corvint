@@ -45,7 +45,9 @@ Reads every local branch and detached worktree head not contained in --base
 (default origin/main) and reports REQUIREMENT_ID_COLLISION for each
 requirement ID (a "- `+"`ID`"+`:" bullet in docs/specs/*.md) that is new on two
 refs with different first lines, defined in two files of one ref, or defined
-on a ref in a different file than on the base (TLF-V0-886). Writes nothing.
+on a ref in a different file than on the base (TLF-V0-886). A head another
+scanned head contains, such as a lane already merged into a batch branch, is
+skipped and listed (TLF-V0-960). Writes nothing.
 Exit 0 when none, 1 on a collision, 2 on a read failure.
 
 Example: go run ./tools/requirement-id-collisions --base origin/main
@@ -63,7 +65,7 @@ Example: go run ./tools/requirement-id-collisions --base origin/main
 		fmt.Fprintln(stderr, "requirement-id-collisions: no positional argument is accepted")
 		return 2
 	}
-	collisions, scanned, err := check(*repo, *base)
+	collisions, scanned, skipped, err := check(*repo, *base)
 	if err != nil {
 		fmt.Fprintf(stderr, "requirement-id-collisions: %v\n", err)
 		return 2
@@ -76,6 +78,13 @@ Example: go run ./tools/requirement-id-collisions --base origin/main
 		fmt.Fprintf(stdout, " %s@%s", h.ref, h.commit[:12])
 	}
 	fmt.Fprintln(stdout)
+	if len(skipped) > 0 {
+		fmt.Fprintf(stdout, "skipped %d lane head(s) another scanned head contains:", len(skipped))
+		for _, h := range skipped {
+			fmt.Fprintf(stdout, " %s@%s", h.ref, h.commit[:12])
+		}
+		fmt.Fprintln(stdout)
+	}
 	if len(collisions) > 0 {
 		fmt.Fprintf(stdout, "%d collision(s)\n", len(collisions))
 		return 1
@@ -83,19 +92,23 @@ Example: go run ./tools/requirement-id-collisions --base origin/main
 	return 0
 }
 
-func check(repo, base string) ([]string, []head, error) {
+func check(repo, base string) ([]string, []head, []head, error) {
 	out, err := git(repo, "rev-parse", "--verify", "--end-of-options", base+"^{commit}")
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	baseCommit := strings.TrimSpace(out)
 	heads, err := laneHeads(repo, baseCommit)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
+	}
+	heads, skipped, err := outermost(repo, heads)
+	if err != nil {
+		return nil, nil, nil, err
 	}
 	baseDefs, err := definitions(repo, "base", baseCommit)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var collisions []string
 	report := func(id, why string, sites ...site) {
@@ -109,7 +122,7 @@ func check(repo, base string) ([]string, []head, error) {
 	for _, h := range heads {
 		defs, err := definitions(repo, h.ref, h.commit)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		for _, id := range sortedKeys(defs) {
 			sites := defs[id]
@@ -134,7 +147,36 @@ func check(repo, base string) ([]string, []head, error) {
 			}
 		}
 	}
-	return collisions, heads, nil
+	return collisions, heads, skipped, nil
+}
+
+// outermost drops every head that another scanned head contains, such as a
+// lane head already merged into a batch branch, whose bullets that batch
+// carries and may since have reworded (TLF-V0-960, V1-3650). It returns the
+// heads kept and the heads skipped, each in ref order.
+func outermost(repo string, heads []head) (kept, skipped []head, err error) {
+	for _, h := range heads {
+		contained := false
+		for _, other := range heads {
+			if other.commit == h.commit {
+				continue
+			}
+			_, ancestorErr := git(repo, "merge-base", "--is-ancestor", "--end-of-options", h.commit, other.commit)
+			if ancestorErr == nil {
+				contained = true
+				break
+			}
+			if exit, ok := ancestorErr.(*exitError); !ok || exit.code != 1 {
+				return nil, nil, ancestorErr
+			}
+		}
+		if contained {
+			skipped = append(skipped, h)
+		} else {
+			kept = append(kept, h)
+		}
+	}
+	return kept, skipped, nil
 }
 
 // laneHeads lists local branches and detached worktree heads that share
