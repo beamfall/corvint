@@ -109,9 +109,10 @@ Gates before the final commit: `make doc-gates` targets (without `selection-base
 on its own: OK), `go run ./conformance/use-cases-v0` (valid), `gofmt -l` (clean), `make windows-vet`
 (rc 0) and `make test-read-scopes-check unbounded-readers-check` passed. `make line-citations-check`
 fails on one citation, `docs/AUTOMATION.md:97` (`cmd/corvint/main.go:1266-1349@b2b338b9`, cited
-content changed), which fails identically on the base `5ffe8ed4a`; this lane does not touch
-`cmd/corvint/main.go` and left it for the owning lane, after repinning the 8 moved citations its
-own edits caused.
+content changed), which fails identically on the base `5ffe8ed4a`: `fc25d1af6` added a five-line ancestry refusal
+inside the cited impact block. It blocked the self-seal's batch-precheck, so the lane re-anchored it
+as `cmd/corvint/main.go:1266-1354@17c42df8` after reading the block (same exits and ledger calls,
+same closing lines), besides repinning the 8 moved citations its own edits caused.
 
 Codex review (2026-11-01) found two P2s, both fixed with regressions that fail on the pre-fix code:
 `corvint dogfood propose --refresh` passed because the lookup fell back to the `dogfood`
