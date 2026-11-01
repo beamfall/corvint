@@ -2963,6 +2963,7 @@
         "corvint [--root PATH] docs maintain --page PATH --source PATH --package DIRECTORY --enable (--preview|--apply) [--max-writes N] [--max-wall-clock DURATION] [--watch]"
       ],
       "flags": [
+        "--apply",
         "--enable",
         "--max-wall-clock",
         "--max-writes",

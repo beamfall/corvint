@@ -321,6 +321,15 @@ cannot silently go missing or outlive its command.
   lines leave the `flows appmap`, `flows appmap build`, `mcp`, `repro` and `repro record` usage
   (and `repro record` loses the `--path` flag its example contributed). Rollback: restore the
   previous `Synopses` and regenerate the snapshots.
+- `CAP-V0-975`: (experimental under the standing lane auto-accept (2026-11-01); V1-4071; refines
+  `CAP-V0-040`) The flag extractor (`clitree.Flags`) MUST read every `|` alternative of a synopsis
+  field as its own token, so `[--summary|--pins]`, `(--preview|--apply)` and `-c|--cee` name each
+  option, not only the first; an alternative that is not an option (`json|text`, `<path|->`) adds
+  nothing. Failure mode: a node's `flags` omitted every alternative after the first, so
+  `capabilities-check` could not see those options as documented. Evidence:
+  `TestCAPV0975FlagsSplitAlternatives` (`internal/clitree`) and the regenerated
+  `internal/capcatalog/trees/corvint.json`, where `docs maintain` gains `--apply`. Rollback:
+  restore the single-token read and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -646,6 +655,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
+| CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |

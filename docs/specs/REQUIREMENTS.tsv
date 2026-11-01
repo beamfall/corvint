@@ -842,6 +842,7 @@ AMAP-V0-816	docs/specs/application-map-v0.md	(accepted under the owner's standin
 AMAP-V0-600	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3932; amendin	standing	2026-11-01; V1-3932
 AMAP-V0-881	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3954; amendin	standing	2026-11-01; V1-3954
 AMAP-V0-882	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3935; amendin	standing	2026-11-01; V1-3935
+AMAP-V0-960	docs/specs/application-map-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4077; ref	standing	2026-10-11; V1-4077
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -1004,6 +1005,7 @@ CAP-V0-048	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) A root	standing	2026-10-11; V1-2685
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
 CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
+CAP-V0-975	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4071; refines	standing	2026-11-01; V1-4071
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
 CAP-V0-950	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3701; extends `CAP-V0-015`	standing	V1-3701
 CAP-V0-700	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3737, V1-3499) Every compa	standing	V1-3737; V1-3499
@@ -7129,6 +7131,7 @@ TSP-V0-003	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-004	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
 TSP-V0-005	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
 TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)	standing	2026-10-11; V1-2806
+TSP-V0-961	docs/specs/test-selection-precision-v0.md	(experimental, refining TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
 TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
 TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
