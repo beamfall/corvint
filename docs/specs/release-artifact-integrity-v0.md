@@ -256,7 +256,7 @@ The implementation is accepted for this experimental slice when:
    obligation this step formerly tested: each is superseded by a named `ARTIFACT-GO-V0-0NN`
    requirement (separately accepted; see `## Accepted amendment: Go binary archive profile`),
    still live, or retired; and
-5. the `make gate` target (`Makefile:111@97034f12`) remains green. There is no separate Python gate: decision
+5. the `make gate` target (`Makefile:114@97034f12`) remains green. There is no separate Python gate: decision
    0088 (`docs/decisions/0088-go-only-cutover-and-oracle-retirement-2026-09-11.md`) retired the
    Python oracle and packaging, and the Makefile defines no python target (`grep -n -i python
    Makefile` returns nothing).

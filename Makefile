@@ -17,6 +17,9 @@ GO_TEST_TIMEOUT ?= 30m
 # without -count=1: the ledger tier (GL-V0-004) adds it itself where a package's reads lack bounds.
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
+# DOC_GATE_GO_TEST runs a doc gate's go test through script/heavy.sh, so doc-gates queues on the
+# host test semaphore (and may offload) like every other Go test (ASD-V0-924, V1-3442).
+DOC_GATE_GO_TEST = script/heavy.sh $(GO_TEST_COMMAND)
 
 
 .PHONY: build
@@ -338,8 +341,8 @@ spec-requirements-check:
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
 	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 	@script/spec-requirements-worktree-check.sh
-	$(GO_TEST_COMMAND) ./internal/specindex
-	$(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
+	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
+	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -567,6 +570,13 @@ host-package-versions-test:
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
 # stale one (ASD-V0-105, V1-3174).
+# line-citations-selects names the pinned line citations into files changed since BASE, so a lane
+# knows its change needs make line-citations-check (DCG-V0-921, V1-3323).
+.PHONY: line-citations-selects
+line-citations-selects:
+	@test -n "$(BASE)" || { echo "usage: make line-citations-selects BASE=<rev>" >&2; exit 2; }
+	@script/check-line-citations.sh --selects '$(BASE)'
+
 .PHONY: documentation-paths
 documentation-paths:
 	@script/gen-documentation-paths.sh
@@ -931,17 +941,19 @@ dogfood-inputs-check:
 # internal/liveverify/affected package (DCW-V0-812).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(GO_TEST_COMMAND) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(DOC_GATE_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
 # shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
 # executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
 # committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
 .PHONY: shell-test-registration-check
 shell-test-registration-check:
-	$(GO_TEST_COMMAND) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
+	$(DOC_GATE_GO_TEST) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
+# ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
+# first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
