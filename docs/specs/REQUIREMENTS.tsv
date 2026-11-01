@@ -4378,6 +4378,7 @@ GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30,
 GPK-V0-975	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s	standing	2026-10-31; V1-0179
 GPK-V0-976	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST	standing	2026-10-31; V1-0179
 GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377
+GPK-V0-882	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-11-01, standing lane auto-accept; V1-3921) With `TMPDIR` unse	standing	2026-11-01; V1-3921
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
