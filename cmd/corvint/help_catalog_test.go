@@ -132,6 +132,11 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	}
 }
 
+// catalogDriftHint names the recovery when the embedded catalog no longer
+// matches the CLI (V1-3659): the snapshot the help tool serves is regenerated,
+// not edited.
+const catalogDriftHint = "; the embedded catalog is stale: run `make capability-catalog` and commit internal/capcatalog/"
+
 // MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
 // and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
 // CLI's own stdout byte for byte, for both topics, in structuredContent. Each
@@ -146,7 +151,7 @@ func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
 		structured, _ := answer["structuredContent"].(map[string]any)
 		receipt, _ := structured["receipt"].(map[string]any)
 		if text, _ := receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("companion corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+			t.Fatalf("companion corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
 		}
 	}
 }
@@ -169,7 +174,16 @@ func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
 			t.Fatal(callErr)
 		}
 		if text, _ := result.Receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+			t.Fatalf("corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
 		}
+	}
+}
+
+// TestMCPV0100DriftFailureNamesTheRecovery (V1-3659): the MCPV0-100 and
+// MCPV0-105 drift failures name the regeneration command, not only the diff.
+func TestMCPV0100DriftFailureNamesTheRecovery(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(catalogDriftHint, "make capability-catalog") {
+		t.Fatalf("drift hint %q names no recovery command", catalogDriftHint)
 	}
 }

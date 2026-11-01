@@ -869,14 +869,19 @@ func claimSelectorMissMessage(selector string) string {
 	message := "claim selector is outside the extracted worklist"
 	_, suffix, found := strings.Cut(selector, "/case:")
 	if !found {
-		return message
+		return message + claimSelectorRecovery
 	}
 	normalized := selectorFragment(suffix)
 	if normalized != suffix {
 		message += "; normalized case fragment: " + normalized
 	}
-	return message + goCaseAnchorShapes
+	return message + goCaseAnchorShapes + claimSelectorRecovery
 }
+
+// claimSelectorRecovery names where a valid selector comes from (V1-3659): the
+// prepared map's worklist, or enumerateClaims in a test, never a hand-written
+// t.Run case selector.
+const claimSelectorRecovery = "; fix: copy it from the corvint ocm status worklist (tests: enumerateClaims)"
 
 func matchClaims(claims []ocmClaim, selector string) []ocmClaim {
 	if decimalSelector.MatchString(selector) {
