@@ -2725,6 +2725,20 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `cem cite --bytes START:END`; any other value stays a `--lines` range. Evidence:
   `script/dogfood-bind-range_test.sh` DCW-V0-827 case (both forms, and a malformed `bytes:0` falls
   back to `--lines` for the cite pre-flight to refuse). Rollback: drop the `bytes:` branch.
+- `DCW-V0-980`: (experimental under the standing lane auto-accept, 2026-11-01; lane cit-u18 friction;
+  refines `DCW-V0-840`) When the `DCW-V0-840` vet refuses a `START:END` cite row because its BASE
+  lines overlap lines a hunk removes or because its text is not stable after the change,
+  `corvint dogfood propose-citations` MUST first try to move the row to the nearest span the vet
+  admits: the longest part of the span no hunk removes, then single lines outward from it up to 8
+  lines away, nearest first and the earlier line on a tie, skipping a span another printed row
+  already cites. A moved row keeps its relation, its note names the refused and the new span with
+  `DCW-V0-980`, and a drafted proposal's reason asks the author to confirm the new span still
+  supports the hunk. A row with no admissible span within reach stays the `DCW-V0-840` unknown row.
+  A `bytes:` row and other refusals are never moved. Non-goals: judging whether the moved span is
+  the right evidence. Evidence: `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`
+  (a deleted test line re-pinned to its nearest line, a deleted file's row kept unknown, and the
+  draft passing the real `cem cite` precheck), `TestProposeCitationsDCWV0840VetsCarriedRows` and
+  `TestSurvivingPartsDCWV0980`. Rollback: drop `nearestSurvivingSpan` from `vetRows`.
 - `DCW-V0-990`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends
   `DCW-V0-827`) `corvint dogfood change`, `inputs-check` and `finish-lane` MUST accept the same
   `bytes:START:END` span field: every cite, cite probe and cite pre-check passes it as
@@ -2791,8 +2805,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   path the change modifies, its patch group is not binary, and the BASE lines either belong to a
   file the change leaves unchanged or occur exactly once in the file as the patch leaves it. A row
   whose BASE lines overlap the lines a hunk of the same file edits (its removed lines, not its
-  context) is refused as well, naming the overlapped hunk. A refused row MUST be printed as an
-  `unknown insufficient-evidence` row whose note names the refusal and the row it replaces, so no
+  context) is refused as well, naming the overlapped hunk. A refused row that `DCW-V0-980` cannot
+  move to a surviving span MUST be printed as an `unknown insufficient-evidence` row whose note names the refusal and the row it replaces, so no
   printed span is later refused `cite-span-not-stable`. Design: replay of the 2026-10-31 gate9 lane
   showed fresh drafts already passing, and the refused spans came from carried or hand-kept rows,
   one inside the change's own edited lines. Evidence: `internal/dogfoodflow` tests drive a refresh
@@ -3698,6 +3712,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
+| `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
