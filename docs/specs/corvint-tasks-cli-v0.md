@@ -355,6 +355,22 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   dispatch-time dependency decision is to order such a ticket after its branch lands rather than
   dispatch it against a base that lacks the code. Non-goals: symbol-level presence (tickets declare
   paths, not symbols) and a typed source-ref record field.
+- `TCL-V0-744`: (experimental under the standing lane auto-accept (2026-11-01); V1-3856)
+  `ticket orphan-lanes [--ref REF] [--batch GLOB] [--limit N]` MUST, without a lock or a write,
+  list every commit on a local branch or detached worktree head that the screened ref (as
+  `ticket closeout-debt` resolves it) does not contain (the lane heads of `TLF-V0-887`), that no
+  local branch matching GLOB (default `claude/batch-*`, matched on the name under `refs/heads/`)
+  contains beyond the ref, and that delivers (`TCD-V0-167`) an `OPEN` ticket, as one
+  `taskman-orphan-lanes/0` item with `ref`, `refCommit`, `batchGlob`, `batchRefs` (ref, commit,
+  `scanTruncated`), `laneHeads` (ref, commit, `orphanCount`, `scanTruncated`), `orphanCount` and
+  `orphans` (ref, commit, `ticketId`, `local`, subject; sorted by ticket, ref, commit; at most 500
+  listed). Each head is read at most `--limit` commits beyond the ref; a cut scan sets its
+  `scanTruncated` and adds a warning that the list is incomplete. No branch matching GLOB MUST add a
+  warning that in-flight batches are `NOT_OBSERVED`. A ticket ID argument, a bad `--limit` or an
+  invalid glob refuses `MALFORMED`. `script/lane-dispatch-check.sh --orphans FILE` (ASD-V0-645)
+  reads this result and reports `ORPHAN` for each assigned ticket it lists. Non-goals: reading
+  another host's branches; the orchestrator pushes batch branches to each lane host clone before
+  dispatch (`docs/LANE-ORCHESTRATION.md`).
 
 ## Non-goals
 
@@ -454,6 +470,10 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/create_source_ref_test.go`:
   `TestTCLV0743_CreateRecordsSourceRefForAbsentPaths`; `make lane-scripts-test` group `ASD-V0-645`
   (an `ABSENT` finding naming a recorded source ref) (TCL-V0-743).
+- `internal/tasks/cli/orphan_lanes_test.go`:
+  `TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries`; `make lane-scripts-test` group
+  `ASD-V0-645` (`ORPHAN` and a bad `--orphans` file); the wsl-lanes live run in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-744).
 
 ## Rollback
 

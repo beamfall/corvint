@@ -5,7 +5,7 @@
 # RESOURCE_COLLISION check nothing to compare, and a ticket whose paths are absent at the lane base
 # targets code the lane cannot see.
 #
-#   script/lane-dispatch-check.sh [--base REV] [--waive TICKET]... LANE=FILE...
+#   script/lane-dispatch-check.sh [--base REV] [--orphans FILE] [--waive TICKET]... LANE=FILE...
 #
 # Each FILE is one lane's tickets: a JSON array of tickets carrying ticketId and
 # record.effects.touchPaths (the form of a charter's tickets file). One line per finding:
@@ -17,6 +17,9 @@
 #              git ls-tree); --waive a ticket that creates its paths. A ticket whose body records
 #              a "Source ref: BRANCH@SHA" line (TCL-V0-743, V1-3696) names that ref, so the ticket
 #              is ordered after the branch lands instead of searched for
+#   ORPHAN     with --orphans FILE (the `corvint-tasks ticket orphan-lanes` output, TCL-V0-744,
+#              V1-3856), an assigned ticket is delivered on a lane head no batch or base contains;
+#              never waived: batch that head instead of rebuilding the ticket
 # --waive takes a full ticket ID or its last segment (V1-3768) and waives EMPTY and ABSENT for that
 # ticket only. Exit 0 with a PASS line, 1 on any finding, 2 on a usage error, an unreadable file,
 # malformed JSON, an empty ticketId or one holding a control character, a base that is not a commit
@@ -24,14 +27,15 @@
 set -uo pipefail
 export LC_ALL=C
 me='lane-dispatch-check'
-usage() { printf 'usage: script/lane-dispatch-check.sh [--base REV] [--waive TICKET]... LANE=FILE...\n' >&2; exit 2; }
+usage() { printf 'usage: script/lane-dispatch-check.sh [--base REV] [--orphans FILE] [--waive TICKET]... LANE=FILE...\n' >&2; exit 2; }
 refuse() { printf '%s: %s\n' "$me" "$*" >&2; exit 2; }
 command -v jq > /dev/null 2>&1 || refuse 'jq is not installed'
-base='' sha='' waive=() lanes=() files=()
+base='' sha='' orphans='' waive=() lanes=() files=()
 while (($#)); do
   case $1 in
     --base) { (($# >= 2)) && [[ -n $2 ]]; } || usage; base=$2; shift 2 ;;
     --waive) { (($# >= 2)) && [[ -n $2 ]]; } || usage; waive+=("${2##*:}"); shift 2 ;;
+    --orphans) { (($# >= 2)) && [[ -n $2 ]]; } || usage; orphans=$2; shift 2 ;;
     -*) usage ;;
     *=*) lanes+=("${1%%=*}"); files+=("${1#*=}"); shift ;;
     *) usage ;;
@@ -40,6 +44,14 @@ done
 ((${#lanes[@]})) || usage
 if [[ -n $base ]]; then
   sha=$(git rev-parse --verify -q "$base^{commit}") || refuse "base $base is not a commit; use a commit SHA or a ref that names one"
+fi
+# The orphan rows of --orphans: local ticket ID, ref, commit (TCL-V0-744).
+orphan_rows=''
+if [[ -n $orphans ]]; then
+  [[ -r $orphans ]] || refuse "cannot read --orphans $orphans; write it with corvint-tasks ticket orphan-lanes > FILE"
+  orphan_rows=$(jq -r '.items[0] | select(.profile == "taskman-orphan-lanes/0") | .orphans[] | [.local, .ref, .commit] | join("\t")' "$orphans" 2> /dev/null) &&
+    jq -e '.items[0].profile == "taskman-orphan-lanes/0"' "$orphans" > /dev/null 2>&1 ||
+    refuse "--orphans $orphans is not a taskman-orphan-lanes/0 result; write it with corvint-tasks ticket orphan-lanes > FILE"
 fi
 rows=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || refuse 'mktemp failed'
 refs=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || { /bin/rm -f "$rows"; refuse 'mktemp failed'; }
@@ -87,6 +99,15 @@ while IFS=$'\t' read -r lane t p; do
     fi
   fi
 done < "$rows"
+# ORPHAN: an assigned ticket delivered on an unbatched lane head (TCL-V0-744).
+if [[ -n $orphan_rows ]]; then
+  while IFS=$'\t' read -r lane t; do
+    while IFS=$'\t' read -r local oref ocommit; do
+      [[ $local == "${t##*:}" ]] &&
+        finding "ORPHAN lane=$lane ticket=$t is delivered on lane head $oref at $ocommit that no batch or base contains; batch that head instead of rebuilding the ticket"
+    done <<< "$orphan_rows"
+  done < <(cut -f1,2 "$rows" | sort -u)
+fi
 # DUPLICATE: one ticket (by its last segment) in two lanes.
 while IFS=$'\t' read -r t ls; do
   finding "DUPLICATE ticket=$t is in lanes $ls; dispatch it to one lane"

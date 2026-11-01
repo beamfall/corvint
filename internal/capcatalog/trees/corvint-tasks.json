@@ -2981,6 +2981,7 @@
         "corvint-tasks ticket obligations show --target <ticketId|local> [--legacy-cases FILE]",
         "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID (--from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain] | --declared ID,... --manifest-sha256 SHA256 --test-id TEXT --reason TEXT | --reviewed ID --review FILE [--exclude-author ID,...]) [--attempt ID --generation G] [--test-commit OID] [--environment-tree OID] [--evidence-ref TEXT] [--test-title TEXT] [--test-repository NAME] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
         "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]",
+        "corvint-tasks ticket orphan-lanes [--ref REF] [--batch GLOB] [--limit N] [--json]",
         "corvint-tasks ticket prioritize --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket progress --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket recur <ticketId|local> --context TEXT --request-id ID [--issued-at TS] [--role OWNER|OPERATOR]",
@@ -4169,6 +4170,26 @@
       "required": [],
       "example": "corvint-tasks ticket obligations worklist",
       "help": "corvint-tasks ticket obligations worklist --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "orphan-lanes"
+      ],
+      "command": "corvint-tasks ticket orphan-lanes",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket orphan-lanes [--ref REF] [--batch GLOB] [--limit N] [--json]"
+      ],
+      "flags": [
+        "--batch",
+        "--json",
+        "--limit",
+        "--ref"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket orphan-lanes",
+      "help": "corvint-tasks ticket orphan-lanes --help"
     },
     {
       "path": [

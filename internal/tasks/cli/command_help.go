@@ -326,6 +326,7 @@ var commandUsage = map[string]string{
 	"ticket delivery-screen":   "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]",
 	"ticket batch-delivered":   "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
 	"ticket effects-proposals": "corvint-tasks ticket effects-proposals",
+	"ticket orphan-lanes":      "corvint-tasks ticket orphan-lanes [--ref REF] [--batch GLOB] [--limit N] [--json]   (lists every lane commit that delivers an OPEN ticket and that neither REF, default the intent branch's origin ref, nor any local branch matching GLOB, default claude/batch-*, contains, as taskman-orphan-lanes/0 with laneHeads, batchRefs and orphans {ref, commit, ticketId, local, subject}; no batch branch warns that in-flight batches are NOT_OBSERVED (TCL-V0-744). Example: corvint-tasks ticket orphan-lanes --batch 'claude/batch-*')",
 	"ticket batch-close":       "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",
 	"ticket export":            "corvint-tasks ticket export [--offset N] [--limit N]",
 	"ticket similar":           "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]   (example: corvint-tasks ticket similar --text 'heavy.sh ignores unstaged files')",

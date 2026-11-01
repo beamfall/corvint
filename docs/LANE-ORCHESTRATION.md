@@ -476,6 +476,25 @@ in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at t
 never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
 not a commit exits 2.
 
+An `ABSENT` path whose ticket body records `Source ref: BRANCH@SHA` (`TCL-V0-743`, V1-3696) names
+that ref: dispatch the ticket after the branch lands instead of against a base that lacks the code.
+
+Orphan lane heads (`TCL-V0-744`, V1-3856). A lane head that delivered a ticket but was never merged
+into a batch is invisible to dispatch, and the ticket gets rebuilt. Make the in-flight batch branches
+readable where the screen runs, then list the orphans and screen the batch against them:
+
+```sh
+git push <lane-host>:<repo> 'refs/heads/claude/batch-*:refs/heads/claude/batch-*'   # each lane host
+corvint-tasks ticket orphan-lanes > orphans.json
+make lane-dispatch-check BASE=<sha> ORPHANS=orphans.json LANES="..."
+```
+
+`ticket orphan-lanes` lists every lane commit that delivers an OPEN ticket and that neither the
+integration ref nor any `claude/batch-*` branch (`--batch GLOB`) contains; with no batch branch in
+the clone it warns that in-flight batches are `NOT_OBSERVED`. `ORPHAN` (never waived) names each
+assigned ticket so delivered: batch that head instead of rebuilding the ticket. A charter's
+pre-build screen (`git log --all --grep=<ID>`) sees batch work only where those branches were pushed.
+
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
 build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,

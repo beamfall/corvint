@@ -2044,6 +2044,13 @@ printf '[{"ticketId":"T:V1-7","record":{"body":"lane code\\nSource ref: lane-x@%
 out=$(ldcrun --base HEAD s="$ldc/src.json")
 [[ $? == 1 && $out == *"ABSENT lane=s ticket=T:V1-7 path=new/file.go is not at the lane base"*"records source ref lane-x@$src: dispatch it after that branch lands"* ]] ||
   fail "lane-dispatch-check absent with a source ref: $out"
+# TCL-V0-744 (V1-3856): an assigned ticket an orphan-lanes result lists is ORPHAN; a bad file exits 2.
+printf '{"items":[{"profile":"taskman-orphan-lanes/0","orphans":[{"local":"V1-2","ref":"refs/heads/claude/lane-w8","commit":"%s"}]}]}\n' "$src" > "$ldc/orphans.json"
+out=$(ldcrun --orphans "$ldc/orphans.json" a="$ldc/a.json" b="$ldc/b.json")
+[[ $? == 1 && $out == *"ORPHAN lane=b ticket=T:V1-2 is delivered on lane head refs/heads/claude/lane-w8 at $src"* && $out != *'ticket=T:V1-1 is delivered'* ]] ||
+  fail "lane-dispatch-check orphan: $out"
+out=$(ldcrun --orphans "$ldc/a.json" a="$ldc/a.json")
+[[ $? == 2 && $out == *'is not a taskman-orphan-lanes/0 result'* ]] || fail "lane-dispatch-check bad orphans file: $out"
 out=$(ldcrun a="$ldc/bad.json")
 [[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
 # A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
