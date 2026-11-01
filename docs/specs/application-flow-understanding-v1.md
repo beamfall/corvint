@@ -1706,3 +1706,29 @@ Playwright counts it green.
 
 Rollback: revert this section, the `ParsePlaywrightJSON` expected-status check and the shared
 fixture test. `ParsePlaywrightJSON` then reports a passing `test.fail()` test as `passed` again.
+
+## Frontier exclusions in the e2e-safe selection (V1-2907)
+
+Human-owned intent: when the affected plan leaves a plugin's frontier out of `unknown` because the
+change reaches only terminal units of it (`frontierExcluded`, AFP-V0-560), the e2e-safe selection
+does not silently treat that frontier as resolved: it states the exclusion it relied on. Accepted
+under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-810**: `e2e-safe-selection/1` MUST carry `frontier_excluded`, one entry per plan
+  `frontierExcluded` entry with the plan's `language`, `reason` and `units`, and with `frontier`
+  narrowed to the excluded frontier reasons that would have widened the selection to every changed
+  path had the plan listed them as `language-frontier` unknowns (the same test `unmapped` and
+  `unexplained` apply). An exclusion none of whose frontier reasons would have done so is left out,
+  and the member is omitted when no exclusion is left. The member only states the plan's
+  exclusion; it does not change the selection state, the selected tests or the fallback codes, so
+  a plan without `frontierExcluded` yields the same document as before.
+
+Acceptance: `TestAFUV1810FrontierExclusionNamed` selects with a plan whose `frontierExcluded` holds a
+TypeScript exclusion with one bounding reason (`typescript:dynamic-import`) and one e2e-runtime
+reason that the selection already tolerates, and checks that `frontier_excluded` names the
+TypeScript exclusion with only the bounding reason, and that a plan without the exclusion omits the
+member.
+
+Non-goals: re-deciding the plan's exclusion; changing `internal/liveverify/affected`.
+
+Rollback: remove the member and its field; the selection decision is unchanged.
