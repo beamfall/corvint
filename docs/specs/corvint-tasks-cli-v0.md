@@ -292,6 +292,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   assessment instead of mixing an earlier intent load with a later lifecycle read. Only when that
   read fails does it fall back to a plain intent load, counting every member lifecycle `UNKNOWN`
   with a `lifecycle NOT_OBSERVED` warning as before.
+- `TCL-V0-737`: (experimental under the standing lane auto-accept (2026-11-01); V1-3606)
+  The shared flag parser MUST accept declared boolean flags: a declared boolean is a bare
+  `--name` in any argument position, a value on it (`--name=v`) is refused `MALFORMED` with
+  "takes no value", and an undeclared flag is still refused. `ticket delivery-screen` MUST parse
+  `--lane-refs` and `--json` through it rather than stripping them by hand, and the flags its usage
+  names MUST equal the booleans and value flags its parser declares.
 
 ## Non-goals
 
@@ -374,6 +380,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/release_one_read_internal_test.go`:
   `TestTCLV0736_ReadinessReadsTheStoreOnce`; the wsl-lanes byte and syscall measurement in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-736).
+- `internal/tasks/cli/flags_bool_internal_test.go`:
+  `TestTCLV0737_FlagsParseDeclaredBooleans`, `TestTCLV0737_DeliveryScreenUsageMatchesParser`
+  (TCL-V0-737).
 
 ## Rollback
 

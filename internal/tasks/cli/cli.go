@@ -826,16 +826,17 @@ func projectionStale(rc *readCtx) string {
 // flags parses `--name value` / `--name=value` pairs; positional arguments
 // are returned in order. Unknown flags are reported.
 func flags(args []string, known ...string) (map[string]string, []string, error) {
+	out, _, pos, err := flagsBool(args, nil, known...)
+	return out, pos, err
+}
+
+// flagsBool is flags with declared boolean flags (TCL-V0-737, V1-3606): a
+// name in bools is a bare `--name` that takes no value, reported in the
+// second map; `--name=value` on it is refused. Value flags parse as flags.
+func flagsBool(args []string, bools []string, known ...string) (map[string]string, map[string]bool, []string, error) {
 	out := map[string]string{}
+	set := map[string]bool{}
 	var pos []string
-	isKnown := func(n string) bool {
-		for _, k := range known {
-			if k == n {
-				return true
-			}
-		}
-		return false
-	}
 	for i := 0; i < len(args); i++ {
 		a := args[i]
 		if !strings.HasPrefix(a, "--") {
@@ -843,19 +844,26 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 			continue
 		}
 		name, val, hasVal := strings.Cut(a[2:], "=")
-		if !isKnown(name) {
-			return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
+		if slices.Contains(bools, name) {
+			if hasVal {
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s takes no value", name)
+			}
+			set[name] = true
+			continue
+		}
+		if !slices.Contains(known, name) {
+			return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
 		}
 		if !hasVal {
 			if i+1 >= len(args) {
-				return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
+				return nil, nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s needs a value", name)
 			}
 			i++
 			val = args[i]
 		}
 		out[name] = val
 	}
-	return out, pos, nil
+	return out, set, pos, nil
 }
 
 // pageValueFlags and searchValueFlags are the value-taking flags of the paged
