@@ -567,23 +567,33 @@ capabilities-check:
 # shipped agent guide or any node's help drifts from the code (CAP-V0-019, CAP-V0-040 to CAP-V0-048,
 # docs/specs/capability-catalog-v0.md).
 .PHONY: capability-catalog
+# Each snapshot is generated into <file>.tmp and renamed onto <file> only when the generator
+# succeeded, so a failed go run (ENOSPC, a compile error) leaves the committed snapshot
+# byte-identical and the target exits nonzero (ASD-V0-918). CAPCATALOG_RUN is overridable so
+# script/capability-catalog_test.sh can stand in a failing generator.
+CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
+capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog:
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --tree > internal/capcatalog/trees/corvint.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-candidate help --json > internal/capcatalog/trees/corvint-cem-candidate.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-experiments help --json > internal/capcatalog/trees/corvint-cem-experiments.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-corpus-republish help --json > internal/capcatalog/trees/corvint-corpus-republish.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-dashboard-snapshot help --json > internal/capcatalog/trees/corvint-dashboard-snapshot.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-go-test-provider help --json > internal/capcatalog/trees/corvint-go-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-intake help --json > internal/capcatalog/trees/corvint-intake.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-js-test-provider help --json > internal/capcatalog/trees/corvint-js-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-connect help --json > internal/capcatalog/trees/corvint-postmerge-connect.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-metrics help --json > internal/capcatalog/trees/corvint-postmerge-metrics.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-workflow help --json > internal/capcatalog/trees/corvint-postmerge-workflow.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-pulse help --json > internal/capcatalog/trees/corvint-pulse.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-ruby-test-provider help --json > internal/capcatalog/trees/corvint-ruby-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
+	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
+	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
+	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
+	$(call capcatalog_write,./cmd/corvint-cem-experiments help --json,internal/capcatalog/trees/corvint-cem-experiments.json)
+	$(call capcatalog_write,./cmd/corvint-corpus-republish help --json,internal/capcatalog/trees/corvint-corpus-republish.json)
+	$(call capcatalog_write,./cmd/corvint-dashboard-snapshot help --json,internal/capcatalog/trees/corvint-dashboard-snapshot.json)
+	$(call capcatalog_write,./cmd/corvint-go-test-provider help --json,internal/capcatalog/trees/corvint-go-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-intake help --json,internal/capcatalog/trees/corvint-intake.json)
+	$(call capcatalog_write,./cmd/corvint-js-test-provider help --json,internal/capcatalog/trees/corvint-js-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-connect help --json,internal/capcatalog/trees/corvint-postmerge-connect.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-metrics help --json,internal/capcatalog/trees/corvint-postmerge-metrics.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-workflow help --json,internal/capcatalog/trees/corvint-postmerge-workflow.json)
+	$(call capcatalog_write,./cmd/corvint-pulse help --json,internal/capcatalog/trees/corvint-pulse.json)
+	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-tasks help --json,internal/capcatalog/trees/corvint-tasks.json)
+	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
+
+.PHONY: capability-catalog-test
+capability-catalog-test:
+	@script/capability-catalog_test.sh
 
 .PHONY: capability-catalog-check
 capability-catalog-check:
