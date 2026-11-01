@@ -13,7 +13,7 @@ import (
 // never changes the selection; one line is one decision (textWord).
 func renderAffectedText(receipt affectedCompactReceipt) string {
 	var out strings.Builder
-	fmt.Fprintf(&out, "affected %s revision=%s", receipt.Summary.Line, receipt.Revision)
+	fmt.Fprintf(&out, "affected %s worktree=%d revision=%s", receipt.Summary.Line, receipt.Summary.Worktree, receipt.Revision)
 	if receipt.Range.Base != "" {
 		fmt.Fprintf(&out, " base=%s", receipt.Range.Base)
 	}

@@ -175,7 +175,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Warning:      full.Warning,
 		Degradations: full.Degradations,
 		Tiers:        tierAffectedSelections(full.Plan.Selected),
-		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count),
+		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
 	}, nil
 }
 

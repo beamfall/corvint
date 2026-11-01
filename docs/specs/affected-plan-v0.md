@@ -4587,6 +4587,33 @@ selected package unrun. The full fallback is unchanged.
   excludes. Rollback: drop the `deletedGoTest` check in `seed`; the path raises
   `UNINDEXED_SOURCE_PATH` again.
 
+- **AFP-V0-820:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-510 and AFP-V0-928) With `--base`, `plan.dirty` is the worktree status set unioned
+  with the committed range (AFP-V0-010), so `summary.dirty` alone cannot tell a clean lane tree from
+  a dirty one. The compact summary SHALL also carry `committed`, the number of committed range
+  paths, and `worktree`, the number of worktree status paths before the union; a clean tree reads
+  `worktree=0`. `summary.line` is unchanged, and the text form's header SHALL read
+  `affected <summary.line> worktree=N revision=SHA [base=SHA]`. The two members are optional
+  additions to the frozen summary (CCF-V1-006). Failure mode: a path both committed and edited
+  counts once in `dirty` and in each of `committed` and `worktree`, so the two may sum to more than
+  `dirty`. Rollback: drop the two members and the header field.
+
+- **AFP-V0-821:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-620) A dirty non-test `.go` path that no unit lists drops its
+  `UNINDEXED_SOURCE_PATH` entry when only the Go plugin claims it, no directory the Go plugin reports
+  as unobserved encloses it, its directory is not a package the graph observes, and that directory
+  is absent from the disk checkout the graph was observed from: the whole package was deleted or
+  moved away since the base. Its importers, if any are left, import a package the graph no longer
+  observes, and rule (a) already selects every unit with an edge to an absent package; command edges
+  (AFP-V0-037) name only observed commands, so a deleted command has no remaining executor. A
+  directory that is still present (a package whose other files remain, or a file the graph cannot
+  see) keeps the entry, and the language frontier still applies. Example: the deletion of
+  `internal/tasks/cmd/closed-index/` (`46e9ee1fd`) no longer keeps a clean lane tree `UNKNOWN`.
+  A dirty `Makefile` still raises `UNOWNED_DIRTY_PATH` (AFP-V0-601), whose frontier entries each
+  name a language (AFP-V0-511); that is a driver input every gate consumer reads, not a defect of
+  this rule. Falsifier: a deleted package whose loss changes a test outcome in a unit the plan
+  excludes. Rollback: drop the `deletedGoPackage` check in `seed`.
+
 - **AFP-V0-615:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)
   A package whose tests launch a sandbox of their own is never declared in
   `.corvint/test-read-scopes.json`: AFP-V0-023 runs a declared package under the Landlock wrapper,
@@ -6108,6 +6135,8 @@ traceability table.
 | AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
+| AFP-V0-820 | `WorktreeDirty` in `affectedReceipt` (`cmd/corvint/affected.go`); `Committed` and `Worktree` in `affectedSummary`, `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`); the text header in `cmd/corvint/affected_text.go` | `TestAFPV0820CleanTreeWithARangeReadsWorktreeZero` (a committed-only range reads `worktree=0` and `committed=dirty`; an edit reads `worktree=1`; the text header names it), `TestAFPV0510AffectedCompactSummary`, `TestAFPV0928*` and the regenerated core-freeze goldens in `cmd/corvint` |
+| AFP-V0-821 | `deletedGoPackage` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestDeletedGoPackageIsAttributedToItsImporters_AFPV0821` in `internal/liveverify/affected/golang/deletedtests_test.go` (a deleted command package is `BOUNDED` with nothing selected; a deleted library package selects its importer's tests; a deleted file whose directory remains keeps `UNINDEXED_SOURCE_PATH`) |
 | AFP-V0-980 | `readExistenceReaders`, `manifestNames`, `existenceReaderUnits`, `existenceReadersOf`, `absent` in `internal/liveverify/affected/existence_readers.go`; `declarations`, `digestBody.ExistenceReaders` in `graph.go`; `cacheEntry.ExistenceReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `terminalWitness` in `select.go`; the repository declaration `.corvint/existence-readers.json` | `TestDeletedManifestNameSelectsExistenceReader_AFPV0980`, `TestExistenceReadersDeclarationIsValidated_AFPV0980` (`internal/liveverify/affected/golang/existence_readers_test.go`, the first fails before the change); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980` (`cmd/corvint/affected_existence_readers_unix_test.go`: `corvint affected`, the gate selector the CI driver runs on its receipt, and the shadow `corvint test --dry-run` all select the reader; fails before the change); build log 2026-11-01-rts-w9 |
 | AFP-V0-981 | `statReaders` and its call in `check`, `tools/test-read-scopes-check/main.go` | `TestStatOfDataDerivedPathFails_V1_3772` (`tools/test-read-scopes-check/main_test.go`); on this repository the check found `internal/observations` (`TestFixedFrontierDegradationIsReportedByDesign` stats the decision records `degradationByDesign` names), now declared |
 | AFP-V0-982 | `AllowedUnknown` and `UnobservedModule` in `internal/gateselect/allowlist.go`, called by `unknownNarrowing` in `select.go` and `allowedUnknown`/`moduleDirectory` in `internal/sessiontest/plan.go`; `make selection-baseline-check` keeps its floor of 12 | `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest/allowlist_afpv0982_test.go`: every planner unknown reason against every Go frontier detail and non-Go frontiers; five entries diverged before the change); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` unchanged |

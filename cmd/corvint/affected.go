@@ -57,6 +57,10 @@ type affectedReceipt struct {
 	// Degradations names conditions that make this receipt less trustworthy
 	// than current source would, such as self-binary-stale (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// WorktreeDirty is the size of the worktree status set alone, before the
+	// committed range is unioned into plan.dirty; the compact summary
+	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
+	WorktreeDirty int `json:"-"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -1203,6 +1207,8 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Revision: revision,
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
+
+		WorktreeDirty: len(dirty),
 	}
 	if invocation.Worktree {
 		receipt.Warning = affectedWorktreeWarning(revision, dirty)
