@@ -4673,6 +4673,37 @@ selected package unrun. The full fallback is unchanged.
   with the base (`6c967b21c`) and the changed binary over the 20 newest merges of that base: 0
   selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
   names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
+- **AFP-V0-725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571;
+  amending `AFP-V0-446` and `AFP-V0-818`) A located, unpinned TypeScript
+  `typescript:e2e-runtime-dependency` site whose file a unit under a `testdata` directory owns
+  SHALL be that unit's own frontier, under the same conditions (i) and (ii) of `AFP-V0-446` and
+  with the same promotion back to the plugin when no Go unit hosts the directory, unless an
+  end-to-end runner configuration (Playwright, Cypress, WebdriverIO, TestCafe, Nightwatch or Detox)
+  whose directory encloses the site file lies outside that `testdata` directory. The Go toolchain
+  runs nothing below `testdata`, so such a spec runs only when some harness drives it, and that
+  harness is either a test of the hosting package (selected by `AFP-V0-004` rule (b) whenever the
+  fixture changes) or a test elsewhere that a declared runtime edge (`AFP-V0-819`) names; a runner
+  configuration outside the fixture would collect the spec as part of the repository's own suite,
+  so its site stays plugin-wide. A localized site then bears on a plan only when the plan reaches
+  the fixture unit. This repository's `.corvint/runtime-edges.json` declares the remaining
+  cross-language edges outside `testdata` (the interactive-alpha conformance spec runs against
+  `cmd/corvint-console` and `cmd/corvint-dashboard-snapshot`, the web-flows fixture runs
+  `cmd/corvint-web-flows`, the obligation qualification spec is a manual fixture of
+  `internal/tasks/obligation`) and, for the three escaped `testdata` fixtures rule (ii) keeps
+  plugin-wide, an edge from their `tests/` directories to their own `server.cjs`. Non-goal: listing
+  every site behind the plugin's `+N` summary, which `AFP-V0-818` still never covers. Failure
+  modes: a harness outside the package that runs a localized spec without a declared edge is
+  missed when only the binary it drives changes; an e2e configuration added outside the fixture
+  later returns the site to the plugin. Rollback: drop the `FrontierE2ERuntimeDependency` pass in
+  `localizeFixtureFrontier` and the declaration's V1-3571 edges.
+  Acceptance: `TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725` (fails first on the base: the
+  fixture spec's site leaves the plugin frontier for its unit; a plan over an unrelated source is
+  `BOUNDED`; a plan over the spec names it) and `TestFixtureE2ESiteStaysPluginWide_AFPV0725` (a
+  root Playwright config and an escaped import keep it plugin-wide; an unhosted fixture is
+  promoted back, failing first on the base) in `internal/liveverify/affected/typescript`;
+  `TestSealOnlyCEMDeltaStaysBounded_V13571` (`internal/liveverify/affected`, real repository: the
+  seal-only dirty set with `.corvint/change.cem.json` is `BOUNDED`, 0 unknowns, where the base
+  named 18).
 - **AFP-V0-640:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;
   witness contract decided by the orchestrator: reference, not copy) In the `affected-plan/1`
   document (AFP-V0-035) each `selected` witness MUST replace `via` with `viaLength`, the length of
@@ -6104,6 +6135,7 @@ traceability table.
 | AFP-V0-601 | `goReadData`, `namedGoReadData`, `confinedReaders` and `driverInput` in `internal/liveverify/affected/select.go`, called from `seed` | `TestGoReadDataIsAttributedToItsReader_AFPV0601` (`ownership_test.go`: read-scope entry, declared subtree, read-scoped package subtree, hosted fixture, declared documentation, unattributed and root-scope paths), `TestEmbeddedDriverInputStaysUnowned_AFPV0601`, `TestUnconfinedReaderKeepsReadDataUnowned_AFPV0601` (`ownership_test.go`); `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`: unconfined then declared readers); `TestTestdataIsFixtureDataNotAPackage_AFPV0008` (`golang/golang_test.go`); measured counts in the build-log entry |
 | AFP-V0-602 | `readRuntimeReaders`, `validRuntimeReaderPath`, `runtimeReaderPaths` in `internal/liveverify/affected/runtime_readers.go`; `declarations`, `declarationsOf`, `digestBody.RuntimeReaders` in `graph.go`; `cacheEntry.RuntimeReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `declarationPath` in `documentation.go`; `selectPlan` in `select.go`; the repository declaration `.corvint/runtime-readers.json` | `TestDeclaredRuntimeReadersIsNonSourceNotUnknown_AFPV0602`, `TestDeclaredRuntimeReadersKeepsEveryReader_AFPV0602`, `TestRuntimeReadersDeclarationIsValidated_AFPV0602`, `TestRuntimeReadersDeclarationIsInTheDigest_AFPV0602`, `TestRuntimeReadersDeclarationIsCorvintDeclaration_AFPV0602`, `TestDeclaredRuntimeReadersLeavesDriversAndSelectionAlone_AFPV0602` (`runtime_readers_test.go`); the `runtime readers declaration appears at a path read as absent` row of `TestAFPV0392CacheFailsClosedOnAnyMismatch` (`graphcache_test.go`); `TestBatchReplayDeclaredRuntimeReaders_V12941` (`replay_v12941_test.go`, built over the repository with every plugin: batch 1028c and 1028a replays and a documentation-only plan); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-2941-runtime-readers-declaration.md` |
 | AFP-V0-603 | `Select` and `SelectStructural` in `internal/gateselect/select.go`; `plan` in `tools/corvint-pr-tests/main.go`; `CORVINT_TEST_SHADOW_SOURCE` in `.github/workflows/ci.yml` (rule (3)) | `TestDriverSelectionCoversTheShadow_V13067` (`internal/liveverify/affected/replay_v13067_test.go`: PR #1961 replay, `benchmarks/runner` pin; mutation-checked against `resolvedEvidence`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3067-driver-shadow-pin-skew.md` |
+| AFP-V0-725 | `localizeFixtureFrontier` (the `FrontierE2ERuntimeDependency` pass) and `collectedOutside` in `internal/liveverify/affected/typescript/fixture_frontier.go`, fed by the e2e configuration directories `observe` returns; the V1-3571 edges of `.corvint/runtime-edges.json` | `internal/liveverify/affected/typescript/fixture_e2e_frontier_test.go` TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725, TestFixtureE2ESiteStaysPluginWide_AFPV0725; `internal/liveverify/affected/seal_only_selection_v13571_test.go` TestSealOnlyCEMDeltaStaysBounded_V13571 |
 | AFP-V0-818, AFP-V0-819 | `runtime_edges.go`, the cross-language loop in `frontierUnknowns`, `declarationsOf`, `applyRuntimeEdges` in `build` and the graph cache's declaration stamps in `internal/liveverify/affected`; `CrossLanguageFrontiers` in `internal/liveverify/affected/typescript/frontier_reach.go` | `TestCrossLanguageRuntimeFrontierIsNeverExcluded_AFP_V0_818`, `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819`, `TestRuntimeEdgesDeclarationRefusals_AFP_V0_819`, `TestGoServerChangeSelectsDeclaredE2ESpec_V12906`, `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`, `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819`, `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819`, `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819` |
 | AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
