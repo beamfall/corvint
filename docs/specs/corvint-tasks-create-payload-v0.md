@@ -51,12 +51,14 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   `--template bug`) MUST be refused with a usage error that names the flag, says it takes no
   value, gives both accepted spellings and says the ticket kind is set in the payload's `kind`
   field, instead of the generic `unknown flag`. Help MUST advertise only the accepted spellings.
-- `TCT-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3515) A
-  single-target mutation whose `--request-id` is longer than `wire.MaxRequestIDBytes` (64 bytes)
-  MUST be refused `LIMIT_EXCEEDED` before any store read, with a message that names
-  `--request-id`, its length in bytes and the 64-byte maximum, and writes nothing. Every
-  mutation's `--help --verbose` (including `ticket create --help --verbose`) MUST state the limit in a `requestId`
-  member. Multi-target and `--batch` forms keep their derived-ID handling and limits.
+- `TCT-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3515) Any
+  command whose `--request-id` (or `--request-id=VALUE`) is longer than `wire.MaxRequestIDBytes`
+  (64 bytes) MUST be refused `LIMIT_EXCEEDED` before any store read, by one check that runs ahead
+  of every command parser, with a message that names `--request-id`, its length in bytes and the
+  64-byte maximum, and writes nothing. This includes multi-target and `--batch` forms: a caller's
+  base ID is held to the same limit before targets or entries derive their IDs. Every command
+  whose command-tree flags include `--request-id` MUST state the limit in a `requestId` member of
+  its `--help --verbose` (including `ticket create` and `ticket note clear`).
 
 ## Non-goals
 
@@ -90,6 +92,11 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
 - `TestTCTV0991_LongRequestIDNamesTheLimit` (`internal/tasks/cli/create_skeleton_test.go`): a
   65-byte `--request-id` is refused naming the flag and its maximum, writes nothing, a 64-byte one
   is accepted, and `ticket create --help --verbose` states the limit.
+- `TestTCTV0991_EveryRequestIDFlagIsLimitedBeforeStoreAccess`
+  (`internal/tasks/cli/request_id_limit_test.go`): every command-tree node with `--request-id`
+  states the limit in verbose help, and a 65-byte ID on `ticket note clear`, a multi-target form,
+  a `--batch` form and the `=VALUE` spelling is refused `LIMIT_EXCEEDED` on a root with no store,
+  rather than `UNINITIALIZED`, writing nothing.
 
 ## Rollback
 
