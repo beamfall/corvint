@@ -351,13 +351,21 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   `docs/specs/INDEX.json` MUST index. No separate `Command maturity:` section repeats the verbs.
   Every dispatched verb is exactly one of Core or labelled, and
   `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb` requires every `topLevelCommands` verb in
-  `Commands:`. The only verbs dispatched outside `topLevelCommands` are the three CCF-V1-003
+  `Commands:`. (amended under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-01)
+  The experimental verbs are split by job into headers that each start `Experimental, ` (context
+  and review; tests; agent hosts and local records; lab research metrics), after the single Core
+  group. One line MAY name a family of verbs that share one help topic and one owner, separated by
+  ` | `. The verbs of `hiddenCommands` (internal or historical: `lrf`, `dogfood-ocm`,
+  `migrate-traces`, `migration-ratchet`, `changes`, `prove-observe`) are the one exception to
+  listing: they stay dispatched and in `topLevelCommands`, are absent from `Commands:`, are listed by
+  `corvint help --json`, and their own help ends with a note that they are unlisted. `init` is
+  listed as an alias of `adopt`; both share one help topic. The only verbs dispatched outside `topLevelCommands` are the three CCF-V1-003
   plumbing verbs; they MUST stay out of root help, and a fourth such verb fails
   `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`.
 - **CCF-V1-009:** (accepted, decision 0548; V1-0945) Root help is a compact verb index of at most
   `rootHelpMaxBytes` (4,096) bytes. Its `Usage:` has exactly three generic lines (`COMMAND
-  [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has the two CCF-V1-008
-  group headers and exactly one line per `topLevelCommands` verb, the verb and a short gloss; and
+  [OPTIONS]`, `COMMAND --help | help COMMAND`, `--version`); `Commands:` has the CCF-V1-008
+  group headers and exactly one line per listed verb or verb family, the name and a short gloss; and
   it carries no per-verb option. Per-verb usage, options and writes stay in each verb's shared help
   topic (GPK-V0-059). The support boundary's local-only, read-only, self-observation-ledger and
   writer disclosures stay. Help invocations still read no stdin and inspect no repository. Root
@@ -367,6 +375,16 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   their glosses and labels take 2,578 bytes and the support boundary 761, both required above.
   The `context` and `query` default limits were reviewed against the frozen evaluations and are
   unchanged (build log 2026-10-07-v1-0945-root-help-verb-index; 2026-10-20-v1-0945-root-help-maturity).
+- **CCF-V1-650:** (accepted under the owner's standing auto-accept (2026-10-11); V1-3730,
+  2026-11-01) Every `topLevelCommands` verb's help MUST follow the house format: a first line that
+  is a one-line summary ending in `.`, then a blank line, then `Usage:`, and at least one
+  `  corvint ` usage line. `feature` help MUST give an example ID that passes the feature-ID check
+  and name the requirement-prefix form the check refuses. Non-goals: renaming, removing or merging
+  any dispatched verb; a stability promise for any experimental verb. Failure modes: a family line
+  hides that its verbs differ in options, so each verb keeps its own usage in its help topic; a
+  hidden verb is harder to discover from root help, so `help --json` and its own help still list
+  it. Rollback: restore the previous `rootHelp`, help constants and tests; help is stdout text only
+  and no stored state changes.
 - **CCF-V1-010:** (accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel
   blocker B6) N-1 refusal replay. `make core-n1-replay` also runs `TestCoreRefusalsKeepTheFrozenEnvelope`
   with `CORVINT_CORE_N1_BINARY`, so each of its twelve refusal cases, one per Core verb, also runs
@@ -455,7 +473,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
 | CCF-V1-007 (c) | `TestProveObserveRejectsWhatIsNotAProof`, `TestProveObserveRecordsOnlyTheVerdictCounts`, `TestStatementIsByteStableAcrossCalls`, `TestPUBV0024InstalledCoreDiscoveryWorkflows` |
 | CCF-V1-007 (d), CCF-V1-006 enumerations | `TestCoreVerbsEmitTheFrozenProfiles` (every registered member it reaches, including the rows of the `prove` `packet`); (accepted 2026-09-26, decision 0422; from decision 0398) the same test under `make core-n1-replay` (`replayCoreModeN1`) for the N-1 replay, run against the documented baselines `v1.0.0-rc.1` and `v0.8.1` by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml` (V1-1382; a deliberately broken N-1 `dogfood status` claim fails the target locally, build log 2026-10-15-gate-tooling; hosted run NOT_RUN) |
 | CCF-V1-010 | `TestCoreRefusalsKeepTheFrozenEnvelope` under `make core-n1-replay` (`replayCoreRefusalN1`), run by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml`; three stand-in N-1 binaries (renamed code, exit 1, an extra member) each fail all twelve cases, build log 2026-10-16-v1-0285-n1-refusal-replay |
-| CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp` |
+| CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`, `TestHiddenVerbsStayCallableButUnlisted`, `TestInitIsDocumentedAsAnAliasOfAdopt` |
+| CCF-V1-650 | `TestEveryVerbHelpFollowsTheHouseFormat`, `TestFeatureHelpGivesAValidFeatureIDExample` |
 | CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
 
 ## Rollback

@@ -967,6 +967,7 @@ CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
+CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1752,6 +1753,7 @@ CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	Breaking-change rule. For 
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
 CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST label every dispatched top-level verb with its maturity. (amended	unrecorded	-
 CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; V1-0945) Root help is a compact verb index of at most	owner	decision 0548; V1-0945
+CCF-V1-650	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730,	standing	2026-10-11; V1-3730
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
