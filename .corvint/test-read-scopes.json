@@ -322,6 +322,7 @@
       "internal/cem/verify/",
       "internal/cem/wire/",
       "internal/groupreap/",
+      "internal/jsonend/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
