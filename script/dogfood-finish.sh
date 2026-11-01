@@ -29,7 +29,8 @@ verify=${4-}
 outcome=${5-}
 # Every missing or unusable input is named in one refusal before any build runs (ASD-V0-015).
 # DOGFOOD_FINISH_LANE=1 (`make dogfood-finish LANE=1`) also requires INTENTS, VERIFY and OUTCOME,
-# the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md).
+# the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md);
+# the pre-flight binds nothing, so it does not require OUTCOME (DCW-V0-848).
 missing=()
 [[ -n $base_arg ]] || missing+=(BASE)
 [[ -n $citations ]] || missing+=(CITATIONS)
@@ -37,7 +38,7 @@ if [[ ${DOGFOOD_FINISH_LANE-} == 1 ]]; then
   [[ -z $base_arg || $base_arg =~ ^[0-9a-f]{40}$ ]] || missing+=(BASE:not-full-sha)
   [[ -n $intents ]] || missing+=(INTENTS)
   [[ -n $verify ]] || missing+=(VERIFY)
-  [[ -n $outcome ]] || missing+=(OUTCOME)
+  [[ -n $outcome || ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]] || missing+=(OUTCOME)
 fi
 for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
   [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")

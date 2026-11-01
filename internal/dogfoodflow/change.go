@@ -172,6 +172,7 @@ func (c *change) run() int {
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	// finish-lane checks once before its first pass; its passes skip it.
 	if !c.nested {
+		c.requireBaseAncestor(c.base, c.target)
 		c.requireFreshWorktree(c.base, c.gitDir, true)
 	}
 	task := c.options.Task
