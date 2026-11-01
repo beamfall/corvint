@@ -14,6 +14,18 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 test -z "${GIT_INDEX_FILE:-}" || exit 0
 
+# SRG-V0-923 (V1-3362): CI compares the committed generated files, so a regenerated one left
+# unstaged (make spec-requirements run, git add forgotten) passes a worktree comparison here and
+# fails there. Each generated file must match its index copy.
+unstaged_generated=$(GIT_OPTIONAL_LOCKS=0 git -c core.quotepath=off diff --name-only -- \
+  docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md)
+if test -n "$unstaged_generated"; then
+  printf '%s: generated spec index file(s) differ between the working tree and the index, so CI would check other bytes:\n' "$0" >&2
+  printf '%s\n' "$unstaged_generated" | sed 's/^/  /' >&2
+  printf '%s: fix: git add them (after make spec-requirements), or git restore them (SRG-V0-923)\n' "$0" >&2
+  exit 1
+fi
+
 unstaged=$(GIT_OPTIONAL_LOCKS=0 git -c core.quotepath=off diff --name-only --diff-filter=AM -- 'docs/specs/*.md' |
   grep -v -x docs/specs/README.md || true)
 test -n "$unstaged" || exit 0

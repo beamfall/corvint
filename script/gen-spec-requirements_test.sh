@@ -551,9 +551,14 @@ for segment in 'FRZ-V0-001..002' 'FRZ-V0-001/002'; do
 done
 frz_dir="$test_root/frz-out"
 mkdir "$frz_dir"
-if (cd "$test_root" && script/gen-spec-requirements.sh --all "$frz_dir") > /dev/null 2>&1; then
+# V1-3471: the refusal must be the frozen-header one, not an unrelated fixture failure.
+if frz_err=$( (cd "$test_root" && script/gen-spec-requirements.sh --all "$frz_dir") 2>&1 > /dev/null); then
   fail "--all accepted a new header segment"
 fi
+case $frz_err in
+  *'docs/specs/frozen.md: its Intent status names FRZ-V0-002'*'(SRG-V0-980)'*) ;;
+  *) fail "--all did not refuse with the frozen-header diagnostic: $frz_err" ;;
+esac
 test -z "$(ls -A "$frz_dir")" || fail "a refused header wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/INTENT-STATUS-FROZEN.tsv
 write_frozen 'proposed'
