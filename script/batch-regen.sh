@@ -59,7 +59,7 @@ goldens() {
   done
   [[ -n $gocache ]] || { printf 'batch-regen: REFUSE home-unset: HOME, XDG_CACHE_HOME and CORVINT_GOCACHE are all unset; set HOME (or CORVINT_GOCACHE) and rerun\n' >&2; exit 3; }
   env CORVINT_UPDATE_GOLDEN=1 HEAVY_REMOTE=0 HEAVY_LOCAL_REASON=golden-regen $heavy \
-    env GOCACHE="$gocache" GOTOOLCHAIN=local go test -count=1 -run "^($names)\$" "${pkgs[@]}"
+    env GOCACHE="$gocache" GOTOOLCHAIN=local go test -count=1 -run "^($names)\$" ${pkgs[@]+"${pkgs[@]}"}
 }
 
 analyzer() {
@@ -108,7 +108,7 @@ MECHANICAL=(
 if [[ -n ${BATCH_REGEN_STEPS:-} ]]; then
   STEPS=()
   while IFS= read -r line; do [[ -n $line ]] && STEPS+=("$line"); done <<< "$BATCH_REGEN_STEPS"
-  MECHANICAL=("${STEPS[@]}")
+  MECHANICAL=(${STEPS[@]+"${STEPS[@]}"})
 fi
 
 # stage adds every tracked change and every untracked file that was not there before the run.
@@ -134,7 +134,7 @@ run_step() {
 mode=full commit=1
 case ${1:-} in
   --golden-tests) printf '%s\n' "${GOLDEN_TESTS[@]}"; exit 0 ;;
-  --list) printf '%s\n' "${STEPS[@]}"; exit 0 ;;
+  --list) printf '%s\n' ${STEPS[@]+"${STEPS[@]}"}; exit 0 ;;
   --mechanical) mode=mechanical ;;
   --no-commit) commit=0 ;;
   '') ;;
@@ -156,7 +156,7 @@ untracked_before=$(mktemp "${TMPDIR:-/tmp}/batch-regen.XXXXXX") || exit 2
 trap '/bin/rm -f "$untracked_before"' EXIT
 git ls-files --others --exclude-standard > "$untracked_before"
 start=$SECONDS
-for step in "${STEPS[@]}"; do
+for step in ${STEPS[@]+"${STEPS[@]}"}; do
   run_step "${step%%	*}" "${step#*	}" < /dev/null || { stage; printf 'batch-regen: stopped; changes so far are staged, nothing committed\n' >&2; exit 1; }
   stage || exit 1
 done

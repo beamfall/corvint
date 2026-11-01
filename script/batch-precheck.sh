@@ -282,7 +282,7 @@ golden_tests() {
 drift_names() {
   local line re
   local pkg prefix
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix _ <<< "$line"
     [[ $pkg == "$1" ]] || continue
     re="^$prefix"
@@ -312,7 +312,7 @@ sync_check() {
       }
     done < <(job_block "$job" | grep -oE 'gofmt -l [^)"]+' | sed -E 's/^gofmt -l //; s/[[:space:]]+$//')
   done
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix inputs <<< "$line"
     found=$(grep -lE "^func ${prefix}[A-Za-z0-9_]*\(t \*testing\.T\)" "$pkg"/*_test.go 2> /dev/null | head -n 1)
     [[ -n $found ]] || {
@@ -455,7 +455,7 @@ select_report() {
       # A declared input that changed still runs the entry, as under the selection.
       read -ra decl <<< "${inputs//@own/}"
       decl=("${decl[@]/@go/}")
-      read -ra decl <<< "${decl[*]}"
+      read -ra decl <<< "${decl[*]-}"
       if ! ((${#decl[@]})) || ! wanted "" "${decl[@]}"; then
         drift_on[i]=0
         skipped+=("$pkg $prefix")
@@ -1097,10 +1097,10 @@ printf 'batch-precheck: | result | seconds | step\n'
 [[ -f $dir/sealed.rc ]] && row 'sealed-cem-names' "$dir/sealed.rc"
 for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc"; done
 printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" "$fail" $((SECONDS - start)) "$summed"
-((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]}")"
+((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]-}")"
 ((reused)) && printf 'batch-precheck: %d of %d steps reused a ledger pass on identical inputs (CORVINT_GATE_LEDGER=off reruns them)\n' "$reused" "$n"
 if ((warn)); then
-  printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]}")"
+  printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]-}")"
 fi
 if ((fail)); then
   if ((repin_rc)); then
@@ -1119,7 +1119,7 @@ if ((fail)); then
     [[ -z $again ]] || printf 'batch-precheck: failing tests: %s\n' "$again"
     tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
   done
-  printf 'batch-precheck: failed: %s\n' "$(IFS=,; printf '%s' "${failed[*]}")"
+  printf 'batch-precheck: failed: %s\n' "$(IFS=,; printf '%s' "${failed[*]-}")"
   exit 1
 fi
 if ((warn)); then

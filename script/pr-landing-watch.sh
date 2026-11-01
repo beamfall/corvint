@@ -59,7 +59,7 @@ escalate() { # escalate REASON DETAIL
   exit 3
 }
 
-view=$("$gh" pr view "$pr" "${repo_args[@]}" --json state,autoMergeRequest,headRefOid \
+view=$("$gh" pr view "$pr" ${repo_args[@]+"${repo_args[@]}"} --json state,autoMergeRequest,headRefOid \
   --jq '[.state, (.autoMergeRequest != null), .headRefOid] | @tsv') || die "gh pr view $pr failed"
 IFS=$'\t' read -r pr_state armed head <<< "$view"
 case $pr_state in
@@ -71,11 +71,11 @@ esac
 [[ $head =~ ^[0-9a-f]{40}$ ]] || die "no head commit for PR $pr"
 
 # 1. A failed CI run of the head: rerun a listed flake, escalate anything else.
-failed=$("$gh" run list "${repo_args[@]}" --commit "$head" --json databaseId,conclusion \
+failed=$("$gh" run list ${repo_args[@]+"${repo_args[@]}"} --commit "$head" --json databaseId,conclusion \
   --jq '.[] | select(.conclusion == "failure") | .databaseId') || die "gh run list failed"
 run=$(printf '%s\n' "$failed" | grep -E '^[0-9]+$' | sort -n | head -1)
 if [[ -n $run ]]; then
-  log=$("$gh" run view "$run" "${repo_args[@]}" --log-failed) || die "gh run view $run failed"
+  log=$("$gh" run view "$run" ${repo_args[@]+"${repo_args[@]}"} --log-failed) || die "gh run view $run failed"
   tests=$(printf '%s\n' "$log" | grep -oE -- '--- FAIL: [^ ]+' | cut -d' ' -f3 | sort -u)
   [[ -n $tests ]] || escalate real-failure "run=$run names no failing Go test"
   patterns=$(grep -vE '^[[:space:]]*(#|$)' "$flakes")
@@ -86,7 +86,7 @@ if [[ -n $run ]]; then
   ((n < 3)) || escalate rerun-cap "run=$run tests=$(printf '%s' "$tests" | tr '\n' ' ')"
   n=$((n + 1))
   put "rerun_$head" "$n"
-  if ((act)); then "$gh" run rerun "$run" "${repo_args[@]}" --failed > /dev/null || die "gh run rerun $run failed"; fi
+  if ((act)); then "$gh" run rerun "$run" ${repo_args[@]+"${repo_args[@]}"} --failed > /dev/null || die "gh run rerun $run failed"; fi
   printf 'RERUN run=%s attempt=%s/3\n' "$run" "$n"
   exit 0
 fi
@@ -112,7 +112,7 @@ if [[ $armed != true ]]; then
       put requeue "$n"
       put requeue_event "$at"
     fi
-    if ((act)); then "$gh" pr merge "$pr" "${repo_args[@]}" --auto > /dev/null || die "gh pr merge $pr --auto failed"; fi
+    if ((act)); then "$gh" pr merge "$pr" ${repo_args[@]+"${repo_args[@]}"} --auto > /dev/null || die "gh pr merge $pr --auto failed"; fi
     printf 'REQUEUE attempt=%s/2\n' "$n"
     exit 0
   fi
