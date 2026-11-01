@@ -1757,6 +1757,19 @@ printf 'ABC-V0-104\n' > "$ids/uncommitted.txt"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tmp/ids.err")
 [[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-105 b.txt:1' && $(cat "$tmp/ids.err") == *'2 of 6 IDs in ABC-V0-100..ABC-V0-105 are used at HEAD'* ]] ||
   fail "used IDs: $out $(cat "$tmp/ids.err")"
+# ASD-V0-660 (V1-3876): a used block names the first same-width block free at REF above HI, then
+# below LO, or NONE; stdout and the exit code stay as before.
+[[ $(cat "$tmp/ids.err") == *'next free block ABC-V0-106..ABC-V0-111 at HEAD ('*'); check open refs with make requirement-ids-free PREFIX=ABC-V0 RANGE=106..111'* ]] ||
+  fail "used block names no next free block: $(cat "$tmp/ids.err")"
+printf 'ABC-V0-998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm top || fail "top fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 996 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
+  fail "full upper range does not wrap below LO: $out $(cat "$tmp/ids.err")"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 1000 IDs is free at HEAD ('* ]] ||
+  fail "full namespace does not print NONE: $(cat "$tmp/ids.err")"
+git -C "$ids" rm -q top.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untop || fail "top fixture removal"
 # Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
 # byte is a colon (`:ABC-V0-103`) keeps its path and line.
 mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" && git -C "$ids" add sub/colon.txt &&
