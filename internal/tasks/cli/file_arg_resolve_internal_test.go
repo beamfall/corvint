@@ -28,9 +28,10 @@ func TestCALV0225_FileArgumentsResolveAgainstEnvCwd(t *testing.T) {
 		t.Fatalf("readPlanFile = %q, %v", raw, err)
 	}
 	res := archiveVerify(Env{Cwd: cwd, Stdin: bytes.NewReader(nil)}, []string{"absent.tar"})
-	out, err := res.Encode()
-	if err != nil || !strings.Contains(string(out), filepath.Join(cwd, "absent.tar")) {
-		t.Fatalf("archive verify did not open the file under env.Cwd: %s %v", out, err)
+	// The decoded warning text, not the JSON envelope, which escapes a
+	// Windows path's backslashes.
+	if warnings := strings.Join(res.Warnings, "\n"); !strings.Contains(warnings, filepath.Join(cwd, "absent.tar")) {
+		t.Fatalf("archive verify did not open the file under env.Cwd: %q", warnings)
 	}
 }
 
