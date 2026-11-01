@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -36,3 +38,67 @@ func TestTCLV0860_CurrentRevisionRetryReplays(t *testing.T) {
 
 // claimedRepo is papercutRepo with the tree committed and the ticket
 // claimed, so its attempt is live in the journal's reservation set.
+func claimedRepo(t *testing.T) (string, string) {
+	t.Helper()
+	r := fixture.TempRepo(t)
+	policy := fixture.PolicyValue()
+	budgets, _ := policy.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), wire.EncodeFile(policy))
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init: %s", x.stdout)
+	}
+	git(t, r.Root, "init", "-q", "-b", "main")
+	fixture.Write(t, filepath.Join(r.Root, "src", "a.go"), []byte("a"))
+	git(t, r.Root, "add", "src")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "base")
+	created := atm(t, r.Root, nil, "ticket", "create", "--request-id", "req-c", "--issued-at", "2026-09-07T12:00:00Z", "--payload", createPayloadJSON)
+	if created.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("ticket create: %s", created.stdout)
+	}
+	id := field(created.res.Items[0], "ticketId").Str
+	if c := atm(t, r.Root, nil, "claim", id, "--holder", "agent", "--request-id", "claim-1"); c.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim: %s", c.stdout)
+	}
+	return r.Root, id
+}
+
+// TestTCLV0867_RoadmapRowsMatchFacets: a live claimed ticket's roadmap row
+// is judged with the reservation set, as its facets are, so the row and
+// the byEligibility/byNextAction counts agree.
+func TestTCLV0867_RoadmapRowsMatchFacets(t *testing.T) {
+	root, _ := claimedRepo(t)
+	x := atm(t, root, nil, "roadmap", "--facets")
+	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 || x.res.Facets == nil {
+		t.Fatalf("roadmap: %s", x.stdout)
+	}
+	row := x.res.Items[0]
+	elig, next := field(row, "eligibility").Str, field(row, "nextAction").Str
+	if got := field(field(*x.res.Facets, "byEligibility"), elig).Str; got != "1" {
+		t.Fatalf("row eligibility %s, facets %s: %s", elig, got, x.stdout)
+	}
+	if got := field(field(*x.res.Facets, "byNextAction"), next).Str; got != "1" {
+		t.Fatalf("row nextAction %s, facets %s: %s", next, got, x.stdout)
+	}
+}
+
+// TestTCLV0867_CountWarnsWhenReservationsUnreadable: a count-only list or
+// search whose reservation set cannot be read still carries the store-wide
+// ATTEMPT_LIVE warning, as the paged read does.
+func TestTCLV0867_CountWarnsWhenReservationsUnreadable(t *testing.T) {
+	r, _, _ := papercutRepo(t)
+	if err := os.WriteFile(filepath.Join(r.Root, ".git", "taskman", "reservations.json"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	paged := atm(t, r.Root, nil, "ticket", "list")
+	if !strings.Contains(strings.Join(paged.res.Warnings, " "), "store-wide unknown "+wire.CodeAttemptLive) {
+		t.Fatalf("paged list carries no ATTEMPT_LIVE warning, so the fixture does not exercise the failure: %s", paged.stdout)
+	}
+	for _, args := range [][]string{{"ticket", "list", "--count"}, {"ticket", "search", "--priority", "P2", "--count"}, {"roadmap", "--count"}} {
+		x := atm(t, r.Root, nil, args...)
+		if x.res.Outcome != wire.OutcomeOK || !strings.Contains(strings.Join(x.res.Warnings, " "), "store-wide unknown "+wire.CodeAttemptLive) {
+			t.Fatalf("%v: %s", args, x.stdout)
+		}
+	}
+}
