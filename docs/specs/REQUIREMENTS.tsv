@@ -2464,6 +2464,8 @@ TCD-V0-162	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket delivery-screen`
 TCD-V0-163	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]` takes no	unrecorded	-
 TCD-V0-164	docs/specs/corvint-tasks-closeout-debt-v0.md	A ticket the batch or a lane only mentions, and that none delivers, is listed un	unrecorded	-
 TCD-V0-165	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` that executes its command gate and commits the result in that call	unrecorded	-
+TCD-V0-800	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3940) The `TCD-V0-165`	standing	V1-3940
+TCD-V0-801	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3940) A policy gate MAY ca	standing	V1-3940
 TCD-V0-166	docs/specs/corvint-tasks-closeout-debt-v0.md	Every executed command gate result retains its full captured output, within the	unrecorded	-
 TCD-V0-167	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) A ref	standing	2026-10-11; V1-2303
 TCD-V0-168	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) When the	standing	2026-10-11; V1-2303

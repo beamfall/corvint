@@ -1825,7 +1825,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		if rc.journalAbsent {
 			val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
 		} else {
-			val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+			val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, rc.store.Policy, attempts, id))
 		}
 		// V1-2038: the gate set complete enforces, policy-required gates included.
 		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))

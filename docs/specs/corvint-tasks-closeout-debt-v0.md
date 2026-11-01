@@ -288,6 +288,18 @@ closeout step is missing.
   gate, state, class, exit, failing line and output path. A `PASSED` result has null `tail` and
   `failingLine` and no warning. A reuse, a CI-run record, a replay or a refusal reports
   `gateResult: null`, because no gate ran in that call.
+- `TCD-V0-800`: (experimental under the standing lane auto-accept; V1-3940) The `TCD-V0-165`
+  `failingLine` choice, and the same choice in `lastFailedGate` (`CAL-V0-322`), MUST skip a make
+  driver's own wrapper lines (`make: *** [...] Error N`, `make[N]: *** ...`, `make[N]: Entering
+  directory` and `Leaving directory`, `gmake` alike) when it picks the last line that names an
+  error; they name the target, never the failing step. When every such line is a wrapper line the
+  fallback stays the last tail line.
+- `TCD-V0-801`: (experimental under the standing lane auto-accept; V1-3940) A policy gate MAY carry
+  an optional `failurePattern`: an RE2 expression of 1..256 bytes, refused `MALFORMED` at policy
+  decode when empty, longer or not RE2. For a gate that has one, `failingLine` MUST be the last tail
+  line that matches it and is not withheld; when none matches, the `TCD-V0-800` choice applies. The
+  member is part of the gate's canonical entry, so it is covered by the gate's `definitionSha256`;
+  a policy without it decodes and hashes as before. An older binary refuses a policy that sets it.
 - `TCD-V0-166`: Every executed command gate result retains its full captured output, within the
   16 MiB gate output bound, as the evidence blob `evidence/<sha256>` that the result's `output`
   evidence entry names, whatever the gate definition's `evidence` labels say. `evidence: []` does
@@ -780,6 +792,8 @@ closeout step is missing.
 | TCD-V0-162 | V1-2251 | `internal/tasks/cli` (`emitDeliveryScreen`) | `TestTCDV0159_DeliveryScreenVerdicts` (exit 0 all CLEAR, 1 otherwise, 2 refused) | none |
 | TCD-V0-163 | V1-2254 criterion 1 (listing) | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (lanes from `#N`, rows with lane, batch, merge commit, green runs at merge commit and head only; NOT_OBSERVED without runs; open batch `PREREQUISITE_UNSATISFIED`; absent batch `MALFORMED`) | listing a real merged batch: NOT_RUN |
 | TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
+| TCD-V0-800 | V1-3940 criteria 1, 3 | `internal/tasks/obligation` (`FailureTailMatching`, `makeWrapperLine`) | `TestTCDV0800_FailingLineSkipsMakeWrapper` (nested make failure names the FAIL line; wrapper-only log falls back) | a failing live Beamfall core gate: NOT_RUN |
+| TCD-V0-801 | V1-3940 criterion 2 | `internal/tasks/intent` (`GateDefinition.FailurePattern`), `internal/tasks/store` (`GateExecution.FailurePattern`), `internal/tasks/cli` (`gateResultValue`, `failedGateValue`) | `TestTCDV0801_FailurePatternPicksTheLine`; `TestTCDV0801_PolicyGateFailurePattern` (absent, valid, empty, over-long, invalid); `TestTCDV0801_GateRunCarriesTheFailurePattern` | none |
 | TCD-V0-165 | V1-2196 criteria 2, 3 | `internal/tasks/store` (`GateRun`, `GateExecution`), `internal/tasks/obligation` (`FailureTail`), `internal/tasks/cli` (`gateResultValue`) | `TestTCDV0165_GateRunReportsFailingTail` (FAILED exit 2, failing `make` line, four-line tail with the secret line withheld and absent from stdout, warning with path; PASSED null tail and no warning; replay null; receipt audit passes); `TestTCDV0165_FailureTail` (order, bound, blank lines, escapes, last actionable line, secret past the excerpt bound withheld); `TestTCDV0165_FailureTailKeyBlockBeforeTail` (a terminated and an unterminated private-key block whose BEGIN line lies before the 20-line tail emit no key material) | a failing live `focused-docs` run: NOT_RUN |
 | TCD-V0-166 | V1-2196 criterion 1 | `internal/tasks/store` (`runGate`), `internal/tasks/transaction` (`LeaseGateRun` evidence post) | `TestTCDV0165_GateRunReportsFailingTail` (gate declared `evidence: []`; the full output, secret included, is at `output.path`); live store 2026-10-21: FAILED `focused-docs` record `b0248975` names output blob `c04e7d9e` (30377 bytes) ending in the `line-citations-check` failure | none |
 | TCD-V0-167 | V1-2303 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.commitReferences`, `subjectTickets`) | `TestTCDV0167_DeliveryScreenCitedAndTruncated` (a prose mention is CITED; a `Refs:` trailer, a leading ID, a `feat(ID):` scope and a final `(ID, ...)` deliver; fails on the pre-change every-line rule); `TestTCDV0159_DeliveryScreenVerdicts` (a vetoed commit line is CITED) | none |

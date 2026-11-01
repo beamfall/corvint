@@ -97,6 +97,22 @@ func FirstActionableLine(log string) string {
 // screen covers all of it, so a key block whose BEGIN line lies before the
 // tail never leaks its body.
 func FailureTail(log string, n int) (tail []string, failing string) {
+	return FailureTailMatching(log, n, nil)
+}
+
+// makeWrapperLine is a make driver's own report of a failed recipe or a
+// directory change ("make: *** [gate] Error 1", "make[2]: *** [Makefile:9:
+// test] Error 2", "make[1]: Leaving directory ..."). It names the target,
+// never the failing step, so the default choice of failing skips it
+// (TCD-V0-800, V1-3940).
+var makeWrapperLine = regexp.MustCompile(`^g?make(\[[0-9]+\])?: (\*\*\* |Entering directory|Leaving directory)`)
+
+// FailureTailMatching is FailureTail with a policy gate's failurePattern
+// (TCD-V0-801): when pattern is non-nil, failing is the last tail line it
+// matches that is not withheld; when it matches none, or pattern is nil,
+// failing is the last actionable tail line that is not a make wrapper line,
+// else the last tail line.
+func FailureTailMatching(log string, n int, pattern *regexp.Regexp) (tail []string, failing string) {
 	type picked struct {
 		start, end int
 		text       string
@@ -112,6 +128,7 @@ func FailureTail(log string, n int) (tail []string, failing string) {
 	if len(picks) == 0 {
 		return nil, ""
 	}
+	matched := ""
 	spans := secretscreen.MatchIndexes(log)
 	for i, sp := range spans {
 		if unterminatedKeyBlock(log[sp[0]:sp[1]]) {
@@ -129,10 +146,16 @@ func FailureTail(log string, n int) (tail []string, failing string) {
 				text = ExcerptWithheld
 			}
 		}
-		if failing == "" && actionableLine.MatchString(p.text) {
+		if failing == "" && actionableLine.MatchString(p.text) && !makeWrapperLine.MatchString(p.text) {
 			failing = text
 		}
+		if pattern != nil && matched == "" && text != ExcerptWithheld && pattern.MatchString(p.text) {
+			matched = text
+		}
 		tail[len(picks)-1-i] = text
+	}
+	if matched != "" {
+		failing = matched
 	}
 	if failing == "" {
 		failing = tail[len(tail)-1]

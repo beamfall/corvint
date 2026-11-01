@@ -3,6 +3,7 @@ package intent
 import (
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -61,7 +62,14 @@ type GateDefinition struct {
 	SharedResource *struct{ Class, Key string }
 	Reusable       bool
 	Required       bool
+	// FailurePattern is the optional failurePattern (TCD-V0-801): an RE2
+	// expression of 1..256 bytes naming the gate's failing-step line, used
+	// to pick a failed run's failingLine. nil when absent.
+	FailurePattern *regexp.Regexp
 }
+
+// MaxGateFailurePatternBytes bounds a gate's failurePattern (TCD-V0-801).
+const MaxGateFailurePatternBytes = 256
 
 // RuntimeEntry is one policy runtime (§3.1).
 type RuntimeEntry struct {
@@ -534,8 +542,8 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	envKeys.Closed("allowedEnvKeys")
 	p.AllowedEnvKeys = envKeys.Field("allowedEnvKeys").Strings(-1, false, (*wire.Reader).Identifier)
 	for _, g := range r.Field("gates").Array(-1, true) {
-		g.Closed("gateId", "kind", "argv", "cwd", "env", "timeoutSeconds", "expected", "evidence", "inputs",
-			"sharedResource", "reusable", "required")
+		g.Closed(wire.OptionalKeys(g.Value(), []string{"gateId", "kind", "argv", "cwd", "env", "timeoutSeconds", "expected", "evidence", "inputs",
+			"sharedResource", "reusable", "required"}, "failurePattern")...)
 		gd := GateDefinition{}
 		gd.GateID = g.Field("gateId").Label()
 		if g.Err() == nil && gateIDs[gd.GateID] {
@@ -567,6 +575,21 @@ func DecodePolicy(data []byte) (*Policy, error) {
 		}
 		gd.Reusable = g.Field("reusable").Bool()
 		gd.Required = g.Field("required").Bool()
+		if wire.Has(g.Value(), "failurePattern") {
+			fp := g.Field("failurePattern")
+			text := fp.String()
+			if fp.Err() == nil {
+				re, err := regexp.Compile(text)
+				switch {
+				case len(text) < 1 || len(text) > MaxGateFailurePatternBytes:
+					fp.Fail(wire.CodeMalformed, "failurePattern must be 1..%d bytes", MaxGateFailurePatternBytes)
+				case err != nil:
+					fp.Fail(wire.CodeMalformed, "failurePattern is not an RE2 expression: %v", err)
+				default:
+					gd.FailurePattern = re
+				}
+			}
+		}
 		p.Gates = append(p.Gates, gd)
 	}
 	p.SerialFallback = r.Field("serialFallback").Enum("BLOCK", "WHOLE_REPOSITORY")
