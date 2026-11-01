@@ -90,25 +90,58 @@ BEGIN {
 }'
 
 all=$(git -c core.quotePath=false ls-files)
-files=()
+cands=()
 oldifs=$IFS
 IFS=$'\n'
 set -f
 for f in $all; do
   [[ -f $f && ! -L $f ]] || continue
-  case $f in
-    # The rule table above names every construct, so the gate does not scan itself.
-    script/check-bash32.sh) ;;
-    *.sh) files+=("$f") ;;
-    *) head -n 1 -- "$f" 2> /dev/null | grep -Eq '^#!.*([/ ]bash)([[:space:]]|$)' && files+=("$f") ;;
-  esac
+  # The rule table above names every construct, so the gate does not scan itself.
+  [[ $f == script/check-bash32.sh ]] || cands+=("$f")
 done
 set +f
 IFS=$oldifs
+# ASD-V0-600 (V1-4100): one awk reads the first line of each candidate that is not a *.sh file,
+# instead of a head|grep pair per tracked file (about 11000 of them, 40-85 s on a loaded lane
+# host). A file it cannot read is not listed, as before; a failed finder refuses, never prints ok.
+files=()
+if ((${#cands[@]})); then
+  # shellcheck disable=SC2016
+  list=$(printf '%s\n' "${cands[@]}" | awk '
+    /\.sh$/ { print; next }
+    { f = $0; line = ""; if ((getline line < f) > 0 && line ~ /^#!.*([\/ ]bash)([[:space:]]|$)/) print f; close(f) }') || {
+    echo "check-bash32: FAIL incomplete scan: the script finder exited $?; refusing rather than reporting ok (ASD-V0-750)" >&2
+    exit 2
+  }
+  IFS=$'\n'
+  set -f
+  for f in $list; do files+=("$f"); done
+  set +f
+  IFS=$oldifs
+fi
 
 if ((${#files[@]} == 0)); then
   echo "check-bash32: ok, 0 scripts"
   exit 0
+fi
+# ASD-V0-601 (V1-4100): a scan whose inputs match the last passing scan in this worktree is not
+# repeated. The key hashes the checker itself (rules and scanner), the awk and Bash identities and
+# every listed script's path and content, so a changed, added or removed script, a changed checker
+# or another awk rescans. Only a full ok scan writes the key, to a derived file in the git dir;
+# CORVINT_GATE_LEDGER=off always rescans, and a key that cannot be computed rescans.
+pass_file='' key=''
+if [[ ${CORVINT_GATE_LEDGER:-} != off ]] && pass_file=$(git rev-parse --git-path bash32-check-pass 2> /dev/null); then
+  key=$({
+    printf 'bash32-check/1\nbash %s\n' "${BASH_VERSION-}"
+    { awk --version 2>&1 < /dev/null || true; } | sed -n 1p
+    git hash-object --no-filters -- script/check-bash32.sh
+    printf '%s\n' "${files[@]}"
+    printf '%s\n' "${files[@]}" | git hash-object --no-filters --stdin-paths
+  } 2> /dev/null | git hash-object --stdin) || key=''
+  if [[ -n $key && -f $pass_file && $(cat "$pass_file" 2> /dev/null) == "$key" ]]; then
+    echo "check-bash32: ok, ${#files[@]} scripts (reused: the scripts, this checker, awk and bash match the last passing scan, key $key; CORVINT_GATE_LEDGER=off rescans)"
+    exit 0
+  fi
 fi
 refuse() {
   echo "check-bash32: FAIL incomplete scan: $1; refusing rather than reporting ok (ASD-V0-750)" >&2
@@ -131,4 +164,5 @@ if ((fails)); then
   echo "check-bash32: $fails Bash 4+ construct(s) in ${#files[@]} scripts; rewrite them for Bash 3.2 (ASD-V0-750)" >&2
   exit 1
 fi
+[[ -z $key || -z $pass_file ]] || printf '%s\n' "$key" > "$pass_file" 2> /dev/null || true
 echo "check-bash32: ok, ${#files[@]} scripts"

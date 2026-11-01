@@ -135,6 +135,39 @@ set -e
 expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
 /bin/rm -f "$repo/ok.sh"
 
+# 11. A scan whose inputs match the last passing scan is reused with a reason line; a changed
+# script, a new bash-shebang script and a changed checker each force a full scan, and
+# CORVINT_GATE_LEDGER=off always rescans (ASD-V0-601, V1-4100).
+printf '#!/bin/bash\necho ok\n' > "$repo/ok.sh"
+run_gate || { cat "$tmp/out" >&2; fail "clean script refused"; }
+absent '(reused:' "$tmp/out"
+run_gate || { cat "$tmp/out" >&2; fail "unchanged rerun refused"; }
+expect 'check-bash32: ok, 1 scripts (reused: ' "$tmp/out"
+printf '#!/bin/bash\n%s\n' "map""file x" > "$repo/ok.sh"
+if run_gate; then fail "a changed script reused the last pass"; fi
+expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
+printf '#!/bin/bash\necho ok\n' > "$repo/ok.sh"
+run_gate || { cat "$tmp/out" >&2; fail "restored script refused"; }
+printf '#!/usr/bin/env bash\n%s\n' "map""file y" > "$repo/script/tool2"
+if run_gate; then fail "a new bash-shebang script reused the last pass"; fi
+expect "check-bash32: FAIL map""file script/tool2:2:" "$tmp/out"
+/bin/rm -f "$repo/script/tool2"
+run_gate || { cat "$tmp/out" >&2; fail "tree without tool2 refused"; }
+run_gate || { cat "$tmp/out" >&2; fail "unchanged rerun refused"; }
+expect '(reused: ' "$tmp/out"
+echo '# a checker change' >> "$repo/script/check-bash32.sh"
+run_gate || { cat "$tmp/out" >&2; fail "changed checker refused"; }
+absent '(reused:' "$tmp/out"
+expect 'check-bash32: ok, 1 scripts' "$tmp/out"
+git -C "$repo" add -A
+set +e
+(cd "$repo" && CORVINT_GATE_LEDGER=off script/check-bash32.sh) > "$tmp/out" 2>&1
+rc=$?
+set -e
+[[ $rc == 0 ]] || { cat "$tmp/out" >&2; fail "CORVINT_GATE_LEDGER=off exited $rc"; }
+absent '(reused:' "$tmp/out"
+/bin/rm -f "$repo/ok.sh"
+
 # 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
 grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
 # GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
