@@ -163,3 +163,35 @@ func TestV10750_StrictParseRefusesWhitespaceBeforeTheReencode(t *testing.T) {
 		t.Errorf("sorted keys with a solidus escape: %v, want the escape-form message", err)
 	}
 }
+
+// TestCTSV0780UnsortedSetNamesTheOrderAndTheEntry is V1-3562: a hand-built
+// import map whose entries are out of order is refused naming the first
+// out-of-order pair, and for an object the member that sorts it first.
+func TestCTSV0780UnsortedSetNamesTheOrderAndTheEntry(t *testing.T) {
+	v, err := ParseInput([]byte(`[{"appliedSeq":"2","sourceItemId":"a"},{"appliedSeq":"1","sourceItemId":"b"}]`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = CheckSortedUnique("/entries", v.Arr)
+	if err == nil {
+		t.Fatal("an unsorted object set was accepted")
+	}
+	for _, want := range []string{
+		"not canonical-byte sorted at index 1",
+		"sort its elements by their canonical JSON bytes",
+		`so first by "appliedSeq"`,
+		`element 1 {"appliedSeq":"1","sourceItemId":"b"} sorts before element 0 {"appliedSeq":"2","sourceItemId":"a"}`,
+	} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q does not contain %q", err, want)
+		}
+	}
+	long := strings.Repeat("é", 80)
+	v, _ = ParseInput([]byte(`["b` + long + `","a"]`))
+	err = CheckSortedUnique("/labels", v.Arr)
+	if err == nil || strings.Contains(err.Error(), "first by") || !strings.Contains(err.Error(), `...`) || !utf8ValidString(err.Error()) {
+		t.Errorf("a long string element is not clipped on a rune boundary: %v", err)
+	}
+}
+
+func utf8ValidString(s string) bool { return strings.ToValidUTF8(s, "�") == s }
