@@ -234,6 +234,21 @@ var pins atomic.Int64
 // PinsForTest returns how many input pins this process has run. Production code never calls it.
 func PinsForTest() int64 { return pins.Load() }
 
+// artifactEncodes counts whole-artifact encodes, so a test can show that a compile encodes its
+// artifact once (DCS-V1-976).
+var artifactEncodes atomic.Int64
+
+func countArtifactEncode(value any) {
+	switch value.(type) {
+	case *Artifact, Artifact:
+		artifactEncodes.Add(1)
+	}
+}
+
+// ArtifactEncodesForTest returns how many whole-artifact encodes this process has run.
+// Production code never calls it.
+func ArtifactEncodesForTest() int64 { return artifactEncodes.Load() }
+
 // TrustUnattestedBuilderForTest lets a test binary, whose builder label is
 // always `unrecorded`, exercise the verified read; the returned function
 // restores the refusal. Production code never calls it.

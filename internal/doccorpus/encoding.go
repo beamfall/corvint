@@ -25,6 +25,7 @@ import (
 
 func Digest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
 func Encode(value any) ([]byte, error) {
+	countArtifactEncode(value)
 	data, err := json.Marshal(value, json.Deterministic(true))
 	if err != nil {
 		return nil, err
@@ -500,6 +501,7 @@ func (t artifactTail) verify(a *Artifact) error {
 // also hides a *bytes.Buffer from jsontext, whose bytes.Buffer path regrows the buffer whenever
 // less than a quarter of its length is free and would defeat a pre-sized Grow.
 func EncodeTo(w io.Writer, value any) (int64, error) {
+	countArtifactEncode(value)
 	c := countingWriter{w: w}
 	err := json.MarshalWrite(&c, value, json.Deterministic(true))
 	return c.n, err
