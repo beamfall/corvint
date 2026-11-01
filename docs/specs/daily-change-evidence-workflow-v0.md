@@ -3475,6 +3475,22 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   link, directory and missing path read the same both ways) and
   `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `blobFastPath` false and drop
   `familyFallbacks`.
+- `DCW-V0-753`: (experimental under the standing lane auto-accept, 2026-11-01; owner request
+  2026-11-01 through the orchestrator, repro from lane rdp-w33; refines `DCW-V0-380` and
+  `DCW-V0-092`) `script/dogfood-finish.sh`, and so `make dogfood-inputs-check`, `make
+  dogfood-finish` and `make dogfood-closeout`, MUST check a given VERIFY file before any Git read,
+  static check or build with `go run ./tools/verify-syntax-check`, which calls
+  `dogfoodflow.CheckVerifySyntax`, finish-lane's own `requireVerifyInput`, so the early and late
+  checks share one validator and print the same lines. A refusal prints those lines and `nothing was
+  built, prepared or bound` and exits 2; a tool that does not build or run leaves the late check to
+  refuse. Measured on WSL: the repro line `go test -run '^TestA|^TestB' ./pkg` was refused after
+  17.7 s wall (22.3 s user CPU; 24.6 s and 63.8 s CPU in rdp-w33's run), and is now refused after
+  0.17 s with identical lines (`go run` 0.08 s warm, 0.93 s on the first, linking run). Non-goals:
+  changing what is admitted or any refusal text. Evidence:
+  `TestDCWV0753VerifySyntaxCheckMatchesThePreflight` (four refused forms print exactly the
+  pre-flight's lines within 1 s and without Git; a valid file is silent) and
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop the early block from
+  `script/dogfood-finish.sh`.
 
 ## Code vocabulary
 
@@ -3837,6 +3853,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-750` (experimental under the standing lane auto-accept; V1-3615, V1-3790) | `script/dogfood-cache_test.sh` (`DCW-V0-750` case) | implemented; shell test PASS |
 | `DCW-V0-751` (experimental under the standing lane auto-accept; V1-3854) | `script/batch-precheck_test.sh` (`DCW-V0-751` case) | implemented; shell test PASS |
 | `DCW-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose_blobs.go` `commitTree`, `batchBlob`, `fastBlob`, `closeBlobs`; `propose.go` `blob`, `familyFallbacks`; `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` | implemented; focused test PASS; measured in the build log |
+| `DCW-V0-753` (experimental under the standing lane auto-accept; owner request via the orchestrator) | `script/dogfood-finish.sh` early VERIFY block; `tools/verify-syntax-check`; `internal/dogfoodflow/verify_syntax.go` `CheckVerifySyntax`; `TestDCWV0753VerifySyntaxCheckMatchesThePreflight` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

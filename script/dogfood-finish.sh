@@ -65,6 +65,19 @@ if ((${#missing[@]} > 0)); then
   exit 2
 fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
+# DCW-V0-753: a VERIFY file finish-lane would refuse is refused here first, with finish-lane's own
+# lines, by the same Go validator (tools/verify-syntax-check calls it), before any Git read, static
+# check or build: a warm go run takes about 0.1 s, against about 18-25 s to reach the late check.
+# A tool that does not build or run (an older tree, no Go) leaves the late check to refuse.
+if [[ -n $verify && -f $repo/tools/verify-syntax-check/main.go ]]; then
+  verify_out=$(cd "$repo" && GOCACHE=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}} \
+    GOTOOLCHAIN=local go run ./tools/verify-syntax-check --prefix "$prefix" --base "$base_arg" "$([[ $verify == /* ]] && printf '%s' "$verify" || printf '%s' "$PWD/$verify")" 2>&1 < /dev/null)
+  if [[ $verify_out == "$prefix: REFUSE "* ]]; then
+    grep -v -E '^exit status [0-9]+$' <<< "$verify_out" >&2
+    printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
+    exit 2
+  fi
+fi
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 # DCW-V0-815 (V1-3594): the cheap static doc checks that batch-precheck would otherwise fail minutes
