@@ -3239,6 +3239,7 @@ DRC-V0-009	docs/specs/diagnostic-repair-contract-v0.md	The bounded repair loop M
 DRC-V0-010	docs/specs/diagnostic-repair-contract-v0.md	A non-zero exit or an `ok: false` envelope MUST NOT be reported as success at an	unrecorded	-
 DRC-V0-011	docs/specs/diagnostic-repair-contract-v0.md	A gate MUST enumerate every diagnostic-emitting site under `internal/` and `cmd/	unrecorded	-
 DRC-V0-012	docs/specs/diagnostic-repair-contract-v0.md	`message` MUST remain human-readable prose and MUST NOT be parsed by any Corvint	unrecorded	-
+DRC-V0-910	docs/specs/diagnostic-repair-contract-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2585) An uncod	standing	2026-10-31; V1-2585
 DCLI-V0-001	docs/specs/direct-native-cli-authority-v0.md	**One real host.** Root-protected candidate/completed records bind host=`codex`,	unrecorded	-
 DCLI-V0-002	docs/specs/direct-native-cli-authority-v0.md	**Smallest parent topology.** Consumer's immediate kernel parent must be that ex	unrecorded	-
 DCLI-V0-003	docs/specs/direct-native-cli-authority-v0.md	**Current immutable image and existing admission boundary.** Bind exact executab	unrecorded	-

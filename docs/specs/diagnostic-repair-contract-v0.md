@@ -161,6 +161,16 @@ those codes to the self-observation ledger.
   `internal/diagnostic`: such a file MUST NOT pass `.Message` or `.Error()` to a `strings`, `bytes`,
   or `regexp` function or compare either with `==` or `!=`; other consumers stay review-only
   (decision 0201 (k)).
+- `DRC-V0-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2585) An uncoded
+  index refusal whose cause is a failure to start the Git executable keeps its exact `error` bytes
+  (`Git error: cannot start Git`) and adds one member, `"git_start_error"`, after `error` and before
+  `ok`: the start error's closed class, one of `ETXTBSY`, `ENOENT` (also a missing executable on
+  `PATH`), `EACCES`, `EPERM`, `ENOEXEC` or `other`. No errno text, path or other start detail is
+  emitted, so the member is bounded and secret-free. `contextindex.GitStartErrorClass` returns the
+  same class, or the empty string for any other failure, to callers that record or report a fallback
+  (`GitFailureDetails` keeps the full start error in process). Every other envelope is unchanged
+  (`DRC-V0-006`). Falsifier: an ETXTBSY or ENOENT start that refuses without the member, or a member
+  holding anything outside the closed set. Rollback: drop the member and the function.
 
 ## Non-goals and simpler baseline
 
@@ -217,6 +227,7 @@ that an implementation cannot be graded by inspection.
 | DRC-V0-008 | a seeded secret and a 4 KiB value in both `subject` and `evidence` are screened and truncated with disclosure | PASS — `TestDiagnosticValuesScreenedAndBounded` (`internal/diagnostic/bound_test.go`), `go test ./internal/diagnostic` 2026-09-13; the CLI emits only the bounded form once `DRC-V0-006` serialization lands |
 | DRC-V0-009 | a three-round repair transcript over a seeded multi-diagnostic input stops at the stated bound and reports the remainder unresolved | PASS — `TestRepairLoopTerminates` (`internal/diagnostic/repair_test.go`), `go test ./internal/diagnostic` 2026-09-13 |
 | DRC-V0-010 | a forced refusal is asserted non-zero with an `ok: false` envelope and no stdout at every layer carrying a converted family (the CLI alone for `unsupported-working-tree-impact-*`, decision 0201 (i), and for the later families except the impact path suffix, also asserted at its `batch` row and `harness event` `file-change` layers), and the pre-existing artifact is asserted untouched | PASS — `TestRefusalIsNeverSuccess` (`cmd/corvint/diagnostic_envelope_test.go`); exit 2, `ok: false` and empty stdout for each of the thirty later sites in `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`); the batch row and harness envelope in `TestImpactPathSuffixDiagnosticReachesEveryLayer` (same file), `go test -run` on the named tests `./cmd/corvint` 2026-09-13 |
+| DRC-V0-910 | `GitStartErrorClass` (`internal/contextindex/git.go`); the uncoded branch of `emitError` (`cmd/corvint/main.go`) | `TestGitStartErrorClass_DRCV0910`; `TestEmitErrorNamesTheGitStartClass_DRCV0910` |
 | DRC-V0-011, DRC-V0-012 | the gate runs over the tree, reports a covered-site count of at least seven, fails a planted uncovered site, fails a start below seven, fails a planted `message` parse, and fails each planted uninspectable refusal form | PASS — `TestDiagnosticCoverageRatchet` (`internal/diagnostic/gate_test.go`) via `script/check-diagnostic-coverage.sh` reports 37 covered sites equal to `script/diagnostic-coverage.count`; the first seven sites are frozen by `TestWorkingTreeImpactRefusalDiagnostics` (`internal/worktreeimpact/diagnostics_test.go`) and the thirty later sites, each emitting only registered fixes, by `TestConvertedRefusalDiagnostics` (`cmd/corvint/diagnostic_refusals_test.go`), 2026-09-13 |
 
 ## Traceability
