@@ -5701,7 +5701,7 @@ DIRTY-CACHE-006	docs/specs/revision-cache-dirty-worktree-v0.md	worktree status c
 DIRTY-CACHE-007	docs/specs/revision-cache-dirty-worktree-v0.md	existing cache bounds remain: 128 MiB per disk entry, eight disk entries,	unrecorded	-
 DIRTY-CACHE-008	docs/specs/revision-cache-dirty-worktree-v0.md	regressions MUST cover memory and fresh-process disk dirty hits, dirty cold	unrecorded	-
 DIRTY-CACHE-009	docs/specs/revision-cache-dirty-worktree-v0.md	a 30-sample dogfood run MUST distinguish cold and primed-dirty phases, keep	unrecorded	-
-DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay, session, background process, database,	unrecorded	-
+DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay (except the explicit opt-in	unrecorded	-
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	each index build MUST resolve the repository storage object format and exact	unrecorded	-
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)	unrecorded	-
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	the native disk snapshot store (`index-snapshot-v0`) MUST live at	unrecorded	-
@@ -5711,6 +5711,9 @@ DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decis
 DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
 DIRTY-CACHE-018	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2218)**.	unrecorded	-
 DIRTY-CACHE-019	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2880)**.	unrecorded	-
+DIRTY-CACHE-940	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-941	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-942	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
