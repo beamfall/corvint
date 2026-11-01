@@ -49,6 +49,8 @@
         "script/heavy-groups.sh",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
+        "script/test-run-pattern.sh",
+        "script/test-run-pattern_test.sh",
         "tools/flow-guide-check/main.go",
         "tools/flow-guide-check/main_test.go",
         "tools/test-shards/main.go"
