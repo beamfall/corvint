@@ -312,7 +312,7 @@ printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
 printf 'untracked\n' > "$off/lc/sub/untracked.txt"
 printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
 # shellcheck disable=SC2088 # the remote expands ~
-hv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+hv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="${PICK_SSH:-$off/bin/ssh}" \
   HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
   HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
 out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
@@ -374,7 +374,69 @@ grep -qx 'heavy.sh: offloading to box, which neither builds nor runs 2 darwin-on
 HEAVY_REMOTE_HOST=box hv go test -run X ./both ./mac/missing > /dev/null 2> "$off/err"
 HEAVY_REMOTE_HOST=box hv go test -run X . >> /dev/null 2>> "$off/err"
 grep -q 'darwin-only' "$off/err" && fail "heavy.sh named darwin-only files outside the tested packages: $(cat "$off/err")"
+# ASD-V0-934: on a Darwin host (a stub uname) the same run never offloads; it runs here without
+# HEAVY_LOCAL_REASON and its admission is logged on stderr, in the fallback log and the selection log.
+mkdir -p "$off/darwin" && printf '#!/bin/sh\necho Darwin\n' > "$off/darwin/uname" && chmod +x "$off/darwin/uname" || fail "uname stub"
+: > "$off/ssh.log"
+out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOSTS='box box2' hv go test -run X ./... 2> "$off/err")
+[[ $out == where=local* && ! -s $off/ssh.log ]] &&
+  grep -qx 'heavy.sh: 2 darwin-only file(s), first ./mac/a_darwin_test.go: running on this darwin host, not offloading' "$off/err" &&
+  grep -qE 'reason=darwin-local n=2 first=\./mac/a_darwin_test\.go cmd=go test -run X \./\.\.\.$' "$off/fallback.log" &&
+  grep -qE '^[0-9TZ:-]+ darwin-local n=2 first=\./mac/a_darwin_test\.go pwd=.*/lc/sub cmd=go test -run X \./\.\.\. script=' "$tmp/selection.log" ||
+  fail "heavy.sh offloaded darwin-only work from a Darwin host or did not record it: $out ssh=$(cat "$off/ssh.log") $(cat "$off/err")"
+out=$(PATH=$off/darwin:$PATH HEAVY_REMOTE_HOST=box hv go test -run X ./both 2> "$off/err")
+[[ $out == where=remote* ]] || fail "heavy.sh kept a portable package on a Darwin host: $out $(cat "$off/err")"
 /bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both"
+ok
+# ASD-V0-933 (V1-3518): with HEAVY_REMOTE_HOSTS each host is probed for its load and CPUs and the
+# offload goes to the lowest load per CPU; an unavailable host passes the run to the next one before
+# any retry; only when all are unavailable does the run retry and fall back; one host is not probed.
+# ssh-pick wraps the stub: quiet (load 1 on 12 CPUs) and busy (40 on 12) answer the real probe through
+# a stub sysctl and getconf; gone answers a probe of load 0.10 and refuses every other call.
+for h in quiet:1.00 busy:40.00; do
+  mkdir -p "$off/fake-${h%%:*}" &&
+    printf '#!/bin/sh\n[ "$2" = vm.loadavg ] && echo "{ %s 1.00 1.00 }"\n' "${h#*:}" > "$off/fake-${h%%:*}/sysctl" &&
+    printf '#!/bin/sh\necho 12\n' > "$off/fake-${h%%:*}/getconf" && chmod +x "$off/fake-${h%%:*}/sysctl" "$off/fake-${h%%:*}/getconf" || fail "pick fixture"
+done
+cat > "$off/bin/ssh-pick" << PICK
+#!/usr/bin/env bash
+args=("\$@")
+while [[ \$1 == -o ]]; do shift 2; done
+printf '%s\n' "\$1" >> "$off/pick.log"
+IFS= read -r first
+if [[ \$1 == gone ]]; then
+  [[ \$first == __heavy_probe=1 ]] && { echo 'heavy.sh: probe load=0.10 cpus=12'; exit 0; }
+  exit 255
+fi
+{ printf '%s\n' "\$first"; cat; } | PATH="$off/fake-\$1:\$PATH" exec "$off/bin/ssh" "\${args[@]}"
+PICK
+chmod +x "$off/bin/ssh-pick" || fail "ssh-pick stub"
+pk() { PICK_SSH=$off/bin/ssh-pick hv "$@"; }
+: > "$off/pick.log"
+out=$(HEAVY_REMOTE_HOSTS='busy down quiet' HEAVY_REMOTE_HOST=ignored pk go test -run X ./... 2> "$off/err")
+[[ $out == where=remote* && $(tr '\n' ' ' < "$off/pick.log") == 'busy down quiet quiet ' ]] &&
+  grep -qx 'heavy.sh: remote hosts by load per CPU: busy:40.00/12,down:down,quiet:1.00/12; trying quiet first' "$off/err" &&
+  grep -qE '^[0-9TZ:-]+ pick hosts=busy:40\.00/12,down:down,quiet:1\.00/12 chose=quiet probe=[0-9]+\.[0-9]s pwd=.*/lc/sub cmd=go test -run X \./\.\.\. script=' "$tmp/selection.log" &&
+  grep -qE '^[0-9TZ:-]+ offload host=quiet ' "$tmp/selection.log" ||
+  fail "heavy.sh did not offload to the least-loaded host: $out calls=$(cat "$off/pick.log") $(cat "$off/err")"
+: > "$off/pick.log"
+out=$(HEAVY_REMOTE_HOSTS='busy,gone' pk go test -run X ./... 2> "$off/err")
+[[ $out == where=remote* && $(tr '\n' ' ' < "$off/pick.log") == 'busy gone gone busy ' ]] &&
+  grep -qx 'heavy.sh: offload to gone unavailable; trying the next host' "$off/err" && ! grep -q 'retrying' "$off/err" ||
+  fail "heavy.sh did not move on from an unavailable host: $out calls=$(cat "$off/pick.log") $(cat "$off/err")"
+: > "$off/pick.log"
+out=$(HEAVY_REMOTE_HOSTS='gone down' pk go test -run X ./... 2> "$off/err")
+[[ $out == where=local* && $(tr '\n' ' ' < "$off/pick.log") == 'gone down gone down gone ' ]] &&
+  grep -q '^heavy.sh: offload to gone unavailable; retrying in 0s$' "$off/err" &&
+  grep -qE '^[0-9TZ:-]+ fallback host=gone ' "$tmp/selection.log" ||
+  fail "heavy.sh did not retry once and fall back when every host was unavailable: $out calls=$(cat "$off/pick.log") $(cat "$off/err")"
+: > "$off/pick.log"
+# shellcheck disable=SC2088 # the remote expands ~
+out=$(HEAVY_REMOTE_HOSTS=quiet HEAVY_REMOTE_CLONE='~/corvint' pk go test -run X ./... 2> "$off/err")
+[[ $out == where=remote* && $(tr '\n' ' ' < "$off/pick.log") == 'quiet ' ]] && ! grep -q 'remote hosts by load' "$off/err" ||
+  fail "heavy.sh probed a single configured host: calls=$(cat "$off/pick.log") $(cat "$off/err")"
+HEAVY_REMOTE_HOSTS='a b' HEAVY_REMOTE_PROBE_TIMEOUT=0 pk go test -run X ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-probe-timeout' "$off/err" || fail "heavy.sh accepted HEAVY_REMOTE_PROBE_TIMEOUT=0"
 ok
 : > "$off/ssh.log"
 : > "$off/fallback.log"
@@ -873,7 +935,8 @@ ok
 pol=$tmp/policy
 mkdir -p "$pol/bin" && printf '#!/bin/sh\nexit 0\n' > "$pol/bin/go" &&
   printf '#!/bin/sh\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$STUB_LOAD"\n' > "$pol/bin/sysctl" &&
-  chmod +x "$pol/bin/go" "$pol/bin/sysctl" || fail "policy fixture setup failed"
+  printf '#!/bin/sh\n[ -n "$STUB_CPUS" ] && { echo "$STUB_CPUS"; exit 0; }\nexec %s "$@"\n' "$(command -v getconf)" > "$pol/bin/getconf" &&
+  chmod +x "$pol/bin/go" "$pol/bin/sysctl" "$pol/bin/getconf" || fail "policy fixture setup failed"
 pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log" HEAVY_FALLBACK_LOG="$pol/fb.log" \
   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD="${STUB_LOAD:-1.00}" HEAVY_SLOTS=1 "$heavy" "$@"); }
 HEAVY_WHOLE_REASON= pv go test ./x 2> "$pol/err"
@@ -909,8 +972,8 @@ grep -v ' local wait=' "$pol/sel.log" | tail -n 6 > "$pol/sel.all"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
 [[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
-  grep -Eq "^$d $l rc=0 pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
-  grep -Eq "^$d $l rc=3 pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
+  grep -Eq "^$d $l rc=0 load=0s queue=[0-9]+\.[0-9]s pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
+  grep -Eq "^$d $l rc=3 load=0s queue=[0-9]+\.[0-9]s pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
 HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
 [[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
   grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
@@ -939,6 +1002,88 @@ STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
 HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
+# ASD-V0-932: unset HEAVY_MAX_LOAD, the threshold is floor(HEAVY_LOAD_PER_CPU x CPUs), default 1.0.
+# ASD-V0-935: the load wait and the slot wait are reported apart from the run time.
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=50.00 HEAVY_LOAD_PER_CPU=2 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" &&
+  grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_LOAD_PER_CPU=2 x 12 CPUs = 24)$' "$pol/err" &&
+  grep -Eq '^heavy.sh: done queue=[0-9]+\.[0-9]s \(load=[1-9][0-9]*s slot=[0-9]+\.[0-9]s\) run=[0-9]+\.[0-9]s rc=0$' "$pol/err" &&
+  tail -n 1 "$pol/sel.log" | grep -Eq "^$d $l rc=0 load=[1-9][0-9]*s queue=[0-9]+\.[0-9]s pwd=$pol cmd=true$h" ||
+  fail "heavy.sh per-CPU load wait or its queue report: $(cat "$pol/err") $(tail -n 1 "$pol/sel.log")"
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=20.00 HEAVY_LOAD_PER_CPU=2 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
+  fail "heavy.sh waited at a load within HEAVY_LOAD_PER_CPU x CPUs"
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=12.90 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
+  fail "heavy.sh default threshold is not 1.0 x CPUs"
+HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" && grep -q '(HEAVY_LOAD_PER_CPU=1.0 x 12 CPUs = 12)' "$pol/err" ||
+  fail "heavy.sh default per-CPU threshold did not wait above 12 on 12 CPUs: $(cat "$pol/err")"
+STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_MAX_LOAD=20 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" || fail "HEAVY_MAX_LOAD did not win over the per-CPU default"
+for bad in x 65 1.2345; do
+  HEAVY_MAX_LOAD= HEAVY_LOAD_PER_CPU=$bad pv true 2> "$pol/err"
+  [[ $? == 2 ]] && grep -q 'REFUSE invalid-load-per-cpu' "$pol/err" || fail "heavy.sh accepted HEAVY_LOAD_PER_CPU=$bad"
+done
+ok
+# ASD-V0-931: the holder exports HEAVY_HELD; a heavy.sh inside an admitted command takes the
+# holder's inner token (or a free slot) without waiting for the slot its own holder keeps, skips the
+# load gate, and two nested commands never overlap on one token; a HEAVY_HELD of another lock dir
+# is ignored.
+got=$(pv sh -c 'printf "%s\n" "$HEAVY_HELD"' 2> /dev/null)
+[[ $got == "$pol/slots/slot1" ]] || fail "heavy.sh did not export HEAVY_HELD: $got"
+printf '#!/bin/sh\nmkdir "$1" || exit 9\nsleep 1\nrmdir "$1"\n' > "$pol/bin/excl" && chmod +x "$pol/bin/excl" || fail "excl stub"
+export heavy
+s0=$SECONDS
+STUB_LOAD=50.00 HEAVY_MAX_LOAD=99 pv sh -c 'STUB_LOAD=50.00 HEAVY_MAX_LOAD=1 HEAVY_LOAD_WAIT=5 "$heavy" excl "$1/run" 2> "$1/n1.err" &
+  STUB_LOAD=50.00 HEAVY_MAX_LOAD=1 HEAVY_LOAD_WAIT=5 "$heavy" excl "$1/run" 2> "$1/n2.err"; r=$?; wait $! && exit $r' _ "$pol" 2> "$pol/err"
+rc=$?
+((rc == 0 && SECONDS - s0 < 8)) && grep -q '^heavy.sh: slot 1.inner/1 after ' "$pol/n1.err" && grep -q '^heavy.sh: slot 1.inner/1 after ' "$pol/n2.err" &&
+  ! grep -q waited "$pol/n1.err" "$pol/n2.err" ||
+  fail "nested heavy.sh did not share the holder token without overlap or a load wait (rc=$rc, $((SECONDS - s0))s): $(cat "$pol/n1.err" "$pol/n2.err")"
+pv sh -c 'sleep 2' 2> /dev/null &
+holder=$!
+sleep 0.5
+HEAVY_HELD=/elsewhere/slot1 pv true 2> "$pol/err"
+wait "$holder"
+grep -Eq '^heavy.sh: slot 1/1 after [1-9]' "$pol/err" || fail "a foreign HEAVY_HELD skipped the host slot: $(cat "$pol/err")"
+ok
+# ASD-V0-930: the Makefile admits build, tasks-build, doc-gates, batch-precheck and dogfood-finish
+# through HEAVY_ADMIT, script/heavy.sh by default and empty under CI.
+adm() { (cd "$script/.." && env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory --eval 'heavy-admit-show: ; @printf "[%s]\n" "$(HEAVY_ADMIT)"' heavy-admit-show); }
+[[ $(adm) == '[script/heavy.sh]' && $(adm CI=true) == '[]' && $(adm HEAVY_ADMIT=) == '[]' ]] || fail "HEAVY_ADMIT default: $(adm) $(adm CI=true)"
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-finish 2> /dev/null) > "$tmp/admit.out"
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
+[[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -q '^WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
+  grep -q 'WRAP script/dogfood-finish.sh' "$tmp/admit.out" && grep -q '^make --no-print-directory --keep-going ' "$tmp/admit.out" &&
+  grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
+  fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
+ok
+# ASD-V0-936 (V1-1627): lane-pressure.sh classifies one sample by the ASD-V0-013 table, keeping the
+# current level between thresholds; stub uname/getconf/sysctl and a procfs fixture supply the inputs.
+lp=$tmp/pressure
+mkdir -p "$lp/bin" "$lp/proc"
+printf '#!/bin/sh\necho "${STUB_OS:-Linux}"\n' > "$lp/bin/uname"
+printf '#!/bin/sh\necho 12\n' > "$lp/bin/getconf"
+printf '#!/bin/sh\ncase $2 in vm.loadavg) echo "{ $STUB_LOAD 1.00 1.00 }" ;; hw.ncpu) echo 12 ;; kern.memorystatus_vm_pressure_level) echo "$STUB_MEM" ;; esac\n' > "$lp/bin/sysctl"
+chmod +x "$lp/bin/uname" "$lp/bin/getconf" "$lp/bin/sysctl" || fail "pressure fixture"
+lps() { # lps LOAD SWAPFREE_OF_100 [ARG...]
+  printf '%s 1.00 1.00 1/100 1\n' "$1" > "$lp/proc/loadavg"
+  printf 'SwapTotal: 100 kB\nSwapFree: %s kB\n' "$2" > "$lp/proc/meminfo"
+  shift 2
+  PATH=$lp/bin:$PATH LANE_PRESSURE_PROC=$lp/proc "$script/lane-pressure.sh" "$@"
+}
+[[ $(lps 6.00 100) == 'level=0 load_per_cpu=0.50 memory=- swap=0.00 admit=4' &&
+  $(lps 18.00 100) == 'level=1 load_per_cpu=1.50 memory=- swap=0.00 admit=3' &&
+  $(lps 60.00 100) == 'level=2 load_per_cpu=5.00 memory=- swap=0.00 admit=1' &&
+  $(lps 6.00 10) == 'level=2 load_per_cpu=0.50 memory=- swap=0.90 admit=1' &&
+  $(lps 14.40 100 --level 1) == 'level=1 load_per_cpu=1.20 memory=- swap=0.00 admit=3' &&
+  $(lps 14.40 100 --level 2) == 'level=1 load_per_cpu=1.20 memory=- swap=0.00 admit=3' &&
+  $(lps 24.00 100 --level 2) == 'level=2 load_per_cpu=2.00 memory=- swap=0.00 admit=1' &&
+  $(lps 6.00 100 --level 2) == 'level=0 load_per_cpu=0.50 memory=- swap=0.00 admit=4' ]] ||
+  fail "lane-pressure.sh levels: $(lps 14.40 100 --level 2) $(lps 24.00 100 --level 2)"
+out=$(PATH=$lp/bin:$PATH STUB_OS=Darwin STUB_LOAD=6.00 STUB_MEM=4 "$script/lane-pressure.sh")
+[[ $out == 'level=2 load_per_cpu=0.50 memory=4 swap=- admit=1' ]] || fail "lane-pressure.sh Darwin memory level: $out"
+: > "$lp/proc/loadavg"
+out=$(PATH=$lp/bin:$PATH LANE_PRESSURE_PROC=$lp/proc "$script/lane-pressure.sh" --level 1)
+[[ $? == 3 && $out == 'level=1 load_per_cpu=unknown memory=- swap=0.00 admit=3 unreadable' ]] || fail "lane-pressure.sh unreadable sample: $out"
+"$script/lane-pressure.sh" --level 3 > /dev/null 2>&1
+[[ $? == 2 ]] || fail "lane-pressure.sh accepted --level 3"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases

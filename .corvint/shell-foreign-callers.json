@@ -7,7 +7,10 @@
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh"
       ],
-      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it (TSP-V0-005)."
+      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930) (TSP-V0-005).",
+      "mentions": [
+        "script/lane-scripts_test.sh"
+      ]
     },
     "script/batch-regen.sh": {
       "callers": [
@@ -28,6 +31,7 @@
         "script/batch-precheck.sh",
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh",
+        "script/codex-review.sh",
         "script/lane-scripts_test.sh"
       ],
       "mentions": [
@@ -39,11 +43,12 @@
         "cmd/corvint/test_whole_reason_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
+        "script/codex-review_test.sh",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
         "tools/test-shards/main.go"
       ],
-      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts and their test run it through computed paths, lane-scripts_test.sh tests it and golang_test.go plans over its text; cmd/corvint prints it in a message, lane-guard.sh matches and names it in a deny message, lane-transcript-metrics.py matches it in transcripts and test-shards names it in a comment (TSP-V0-005)."
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts and their test and codex-review.sh (ASD-V0-930) run it through computed paths, lane-scripts_test.sh tests it, codex-review_test.sh checks that default and golang_test.go plans over its text; cmd/corvint prints it in a message, lane-guard.sh matches and names it in a deny message, lane-transcript-metrics.py matches it in transcripts and test-shards names it in a comment (TSP-V0-005)."
     },
     "script/lane-guard.sh": {
       "callers": [

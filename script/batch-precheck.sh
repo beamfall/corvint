@@ -459,7 +459,8 @@ drift_step() {
 }
 
 # doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
-# when the doc-gates recipe is exactly its two known lines (`$(MAKE) --no-print-directory --keep-going
+# when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
+# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
 # step (V1-3232: as one step its targets ran one after another).
 doc_gate_expansion() {
@@ -468,6 +469,8 @@ doc_gate_expansion() {
     on && /^\t/ { recipe[++n] = $0; next }
     on { on = 0 }
     END {
+      # ASD-V0-930: either line may carry the host-queue admission prefix.
+      for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") exit
       m = split(targets, t, /[[:space:]]+/)
       for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) exit

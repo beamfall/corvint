@@ -21,7 +21,7 @@ GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAI
 
 .PHONY: build
 build: go-version
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
+	$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
 
 # Optional protected Pi distribution; dependency installation/download is explicit.
 .PHONY: pi-protected-build
@@ -663,7 +663,7 @@ pre-push-dogfood-seal-test:
 # batch-check (ASD-V0-043, V1-2986).
 .PHONY: batch-precheck
 batch-precheck:
-	@script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@$(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: batch-regen
 batch-regen:
@@ -842,7 +842,7 @@ dogfood_finish_quote = '$(subst ','\'',$(1))'
 # VERIFY and OUTCOME (ASD-V0-015).
 .PHONY: dogfood-finish
 dogfood-finish:
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
@@ -872,8 +872,8 @@ DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
-	@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
-	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
+	@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
+	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
@@ -975,7 +975,7 @@ vscode-check-install-test:
 CORVINT_TASKS_BIN ?= corvint-tasks
 .PHONY: tasks-build
 tasks-build: go-version
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_TASKS_BIN) ./cmd/corvint-tasks
+	$(HEAVY_ADMIT) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_TASKS_BIN) ./cmd/corvint-tasks
 
 .PHONY: tasks-test
 tasks-test: go-version
@@ -1034,6 +1034,11 @@ perf-budget: go-version
 # STR-V0-006-pinned go-test and ledger/go-test recipes stay unprefixed; script/heavy.sh lowers them.
 # HEAVY_NICE=0 opts out; a host without nice(1) runs them unchanged.
 HEAVY_NICE ?= 10
+# ASD-V0-930 (V1-3626): the heavy non-test targets (build, tasks-build, doc-gates, batch-precheck,
+# dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
+# script/heavy.sh queue as go test; steps they run through heavy.sh nest without a second slot
+# (ASD-V0-931). Empty under CI, and HEAVY_ADMIT= opts out.
+HEAVY_ADMIT ?= $(if $(CI),,script/heavy.sh)
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
 
 # cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright
