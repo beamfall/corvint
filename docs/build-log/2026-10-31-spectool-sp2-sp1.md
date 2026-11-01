@@ -86,6 +86,16 @@ places (V1-3593).
 - `corvint affected` selected 100 units with scope `UNKNOWN`; per the charter only the focused units
   above ran. `cmd/corvint` and the remaining dependency-path and unbounded-reader units are `NOT_RUN`.
 
+## Review fixes (Codex on 1c7fcd205)
+
+- P2: `script/requirement-id-collisions.sh` now fails closed (exit 2, `REFUSE ref-unreadable`) when
+  an open ref's index blob cannot be read, and skips with a `NOTE` a ref with no index; the test
+  builds a commit whose index blob is missing and one with no index.
+- P3: the SRG-V0-953 continuation check reads the whole leading parenthetical, nested parentheses
+  included (`leading_note`); case 15 covers a nested note refused and a nested aside passing.
+- P3: `TestOCMV0951LinkKeepsOtherTestPaths` now links two hunks across two paths and asserts the
+  kept hunk union, then the relinked path.
+
 ## Rollback
 
 Each requirement block reverts with its commits: SRG-V0-950..954 (generator, test, Makefile recipes),
@@ -116,3 +126,6 @@ per-path branch of `linkObligation`). No generated row moves except the new requ
 - `ocm link` claim selectors are normalized (`keeps` becomes `keep`, lower case), so a test guessing
   the selector from the `t.Run` text misses; the miss message only explains `/case:` fragments.
 - The charter forbids editing historical build-log entries while V1-3512 AC2 requires correcting one.
+- `docs/specs/spec-requirement-index-generator-v0.md:95` pins a line of `script/gen-spec-requirements.sh`,
+  so every edit above that line fails `line-citations-check` until `script/check-line-citations.sh --repin`;
+  repro: add a line near the top of the generator and run `make line-citations-check`.
