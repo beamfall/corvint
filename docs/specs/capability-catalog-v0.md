@@ -362,6 +362,13 @@ cannot silently go missing or outlive its command.
   a verb is accepted there and ignored, as before. Rollback: restore the two ratchet rows and the
   ceiling of 52, delete the two snapshots, their `commandTreeRefs`, `llms.txt`, Makefile and
   Command trees entries, the two `help.go` files and `clitree.Answer`.
+- `CAP-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
+  CAP-V0-961) A command row's `Subcommands` sentence MUST have a typed structure: every backticked
+  span at parenthesis depth zero in it is exactly one subcommand name (`^[a-z][a-z0-9-]*$`); a
+  span holding a flag, an argument or an example is a `subcommand-span-malformed` finding naming
+  the verb, the span and the row line, and such detail goes inside parentheses, which the reader
+  skips. CAP-V0-961 then reads names rather than relying on the first-word prose convention.
+  Rollback: drop `checkSubcommandSpans` and its call; the CAP-V0-961 reader is unchanged.
 
 ## Boundaries and failure modes
 
@@ -484,6 +491,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-009 | `ScanWords`, `refusalCode`, `checkRefusals` | `TestCAPV0009RemovedRefusalCodeFails`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-960 | `treeSubcommands`, `MergeSubcommands` | `TestCAPV0960TreeSubcommandUndocumentedFails`, `TestCAPV0002RepositoryCatalogMatchesInventory` |
 | CAP-V0-961 | `documentedSubcommands`, `checkStaleSubcommands` | `TestCAPV0961StaleDocumentedSubcommandFails`, `TestCAPV0961DocumentedSubcommandsParse` |
+| CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
