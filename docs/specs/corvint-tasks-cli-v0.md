@@ -142,11 +142,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   this spec; requirements already numbered elsewhere (for example `CAP-V0-060`) stay where they
   are and are cross-referenced.
 - `TCL-V0-990`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The
-  duplicate threshold of `TCL-V0-004` MUST also require at least two matched query terms whose
-  idf is at least 3.0 (discriminating terms). One shared rare term among common words MUST NOT
-  reach a duplicate verdict, however much of the query's idf mass it carries; `ticket similar`
-  still ranks and lists such a candidate. The frozen evaluation of `TCL-V0-009` MUST keep its
-  recall, refusal count and precision.
+  duplicate threshold of `TCL-V0-004` MUST also require at least one matched query term in the
+  candidate's title or ID field (a title anchor). A candidate whose matches all come from its
+  body, labels or paths, such as a long ticket that holds the query's vocabulary in unrelated
+  prose or one shared rare term among common words, MUST NOT reach a duplicate verdict, however
+  much of the query's idf mass it covers; `ticket similar` still ranks and lists it. An absolute
+  idf floor is not used, because idf scales with the store's size and a small store has no term
+  above it. The frozen evaluation of `TCL-V0-009` MUST keep its recall, refusal count and
+  precision.
 
 ## Non-goals
 
