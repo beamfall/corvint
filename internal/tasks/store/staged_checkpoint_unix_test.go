@@ -200,16 +200,15 @@ func TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock(t *testing.T) {
 	}
 }
 
-// V1-2638: the route by which a complete-route claim writes the read
-// checkpoint under the writer lock and no writer delta. An outside edit under
-// the first commit's lock moves the snapshot; the second round resumes from
-// the first round's audit on the writer route, which retains the read
-// checkpoint under the lock (CAL-V0-119), after the first round had already
-// staged it, and publishes no writer delta.
+// V1-2638, V1-2358: an outside edit under the first commit's lock moves the
+// snapshot; the second round resumes from the first round's audit on the
+// writer route, which once retained the read checkpoint under the lock
+// (CAL-V0-119). It now encodes and writes it after the lock is released
+// (JSG-V0-891), so no read checkpoint byte is written under the lock.
 func TestJSGV0015_MovedClaimResumesOnTheWriterRoute(t *testing.T) {
 	_, got, timing := completeRouteClaimMoved(t, 40, true)
 	cp := filepath.Base(journal.CheckpointPath("taskman"))
-	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] == 0 || got.unlocked[cp] == 0 {
+	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] != 0 || got.unlocked[cp] == 0 {
 		t.Fatalf("moved claim: rounds %d resumed %d, locked %v, staged %v", timing.Rounds, timing.Resumed, got.locked, got.unlocked)
 	}
 }

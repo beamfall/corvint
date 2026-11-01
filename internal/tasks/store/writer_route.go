@@ -131,7 +131,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	}
 	// The lock is held and the head is the audited one: the read checkpoint
 	// advances with the writer's chain (CAL-V0-060, CAL-V0-119 proposed).
-	retainCheckpoint(repo, w.proof)
+	keepReadCheckpoint(ctx, repo, w.proof)
 	at = writerStage(ctx, "readCheckpoint", at)
 	report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 	report.Receipt, err = apply(repo, session, result.Plan)
@@ -149,7 +149,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		report.Ticket = receipt.TicketID.Raw
 		retainMutationEffects(report, env.Operation, result.Plan, receipt.TicketID.Local)
 	}
-	if advanceWriterCheckpoint(repo, w) {
+	if advanceWriterCheckpoint(ctx, repo, w) {
 		*refresh = true
 	}
 	writerStage(ctx, "checkpoint", at)
@@ -214,6 +214,11 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if resume == nil && !writerRouteReady(repo, request) {
 		return false, false, nil, nil
 	}
+	// The derived checkpoints are encoded and written after the lock is
+	// released (V1-2358, JSG-V0-891).
+	retention := &deferredRetention{}
+	defer retention.publish(ctx, repo)
+	ctx = withDeferredRetention(ctx, retention)
 	timing, wait := leaseTimingOf(ctx), time.Now()
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{CallerWait: leaseLockWaitOf(ctx)})
 	timing.LockWait += time.Since(wait)
@@ -345,7 +350,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		// A liveness write retains the read checkpoint only when it also
 		// advances the writer checkpoint, so a heartbeat encodes no O(n)
 		// checkpoint (decision 0549).
-		retainCheckpoint(repo, w.proof)
+		keepReadCheckpoint(ctx, repo, w.proof)
 	}
 	checkpointed := writerStage(ctx, "lease.readCheckpoint", bound)
 	write := time.Now()
@@ -368,7 +373,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	if report.Receipt, err = applyLease(repo, session, result.Plan, beforeCommit); err != nil {
 		return true, false, nil, err
 	}
-	refresh = advanceWriterCheckpoint(repo, w)
+	refresh = advanceWriterCheckpoint(ctx, repo, w)
 	writerStage(ctx, "lease.commit", checkpointed)
 	return true, refresh, w.proof, nil
 }

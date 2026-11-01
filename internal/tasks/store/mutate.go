@@ -65,6 +65,11 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			refreshWriterCheckpoint(ctx, repo)
 		}
 	}()
+	// The derived checkpoints are encoded and written after the lock is
+	// released, before the scheduled refresh (V1-2358, JSG-V0-891).
+	retention := &deferredRetention{}
+	defer retention.publish(ctx, repo)
+	ctx = withDeferredRetention(ctx, retention)
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
@@ -151,11 +156,9 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	retainCheckpoint(repo, canonical)
+	keepReadCheckpoint(ctx, repo, canonical)
 	token = verifyWriterCheckpoint(ctx, repo, token, audit.VerifyWriterCheckpoint)
-	if wc, err := audit.WriterCheckpoint(); err == nil {
-		retainWriterCheckpoint(repo, wc, token)
-	}
+	keepWriterCheckpoint(ctx, repo, audit.WriterCheckpoint, token)
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}

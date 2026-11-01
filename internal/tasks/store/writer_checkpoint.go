@@ -456,11 +456,10 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 // is due on an unsegmented store: the head this write produced is exactly
 // WriterRefreshInterval receipts past the complete audit the checkpoint
 // descends from, or a further multiple of writerRefreshRetry (PSR-V0-169).
-func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
+func advanceWriterCheckpoint(ctx context.Context, repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
-		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
-			retainWriterCheckpoint(repo, next, w.token)
-		}
+		proof, phys := w.proof, w.phys
+		keepWriterCheckpoint(ctx, repo, func() (*journal.WriterCheckpoint, error) { return proof.WriterCheckpoint(phys) }, w.token)
 	}
 	if w.proof.Head.Segments != nil {
 		// On a segmented store each seal re-runs the complete validators
@@ -521,6 +520,19 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 		}
 	}
 	mutationStage(ctx, "refresh.audited")
+	// The derived checkpoints grow with the store, so they are encoded and
+	// staged before the lock; under it the refresh only renames them into
+	// place (V1-2358, JSG-V0-891, as JSG-V0-015 does for a lease commit).
+	var stagedRead *stagedFile
+	var stagedWriter *stagedWriterCheckpoint
+	if err == nil {
+		stagedWriter = stageWriterCheckpoint(repo, next, token)
+		if proof.Mode == journal.ModeFull {
+			stagedRead = stageReadCheckpoint(repo, proof)
+		}
+	}
+	defer stagedRead.discard()
+	defer stagedWriter.discard()
 	lock, lockErr := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if lockErr != nil {
 		return
@@ -544,12 +556,14 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if current, _ := boundWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {
 		return
 	}
-	retainWriterCheckpoint(repo, next, token)
+	retainStagedWriterCheckpoint(repo, next, token, stagedWriter)
 	if proof.Mode != journal.ModeFull {
 		return
 	}
 	if raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes); err == nil && wire.Sum(raw) == proof.Identity.HeadSha256 {
-		retainCheckpoint(repo, proof)
+		if !stagedRead.publish() {
+			retainCheckpoint(repo, proof)
+		}
 	}
 }
 
