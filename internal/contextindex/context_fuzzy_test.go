@@ -94,10 +94,66 @@ func TestContextFuzzyFallbackIsLabelled(t *testing.T) {
 	})
 	t.Run("TCP-V0-652/record-data-named-by-path", func(t *testing.T) {
 		t.Setenv("CORVINT_CONTEXT_FUZZY", "on")
-		position, _ := fuzzyRow(t, index, "corvint scopes config", ".corvint/scopes.json")
-		code, _ := fuzzyRow(t, index, "corvint scopes config", "tools/scopes/scopes.go")
+		// Two path-field credits only: `scopes` and the configuration word.
+		position, _ := fuzzyRow(t, index, "scopes config", ".corvint/scopes.json")
+		code, _ := fuzzyRow(t, index, "scopes config", "tools/scopes/scopes.go")
 		if position < 0 || code >= 0 && position > code {
 			t.Fatalf("path-named configuration at %d after code at %d", position, code)
+		}
+	})
+}
+
+func TestContextFuzzyCorroborationIsLabelled(t *testing.T) {
+	t.Run("TCP-V0-650", func(t *testing.T) {
+		files := map[string]string{
+			"go.mod":        "module example.test/corroborate\n\ngo 1.27.0\n",
+			"pkg/a.go":      "package a\n\nfunc A() {}\n",
+			"pkg/a_test.go": "package a\n\n// ledger\nfunc TestA() {}\n",
+		}
+		for index := range 8 {
+			files[fmt.Sprintf("other/o%d/o.go", index)] = fmt.Sprintf("package o%d\n\n// ledger entries\nfunc f() {}\n", index)
+		}
+		index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_FUZZY", "on")
+		packet, err := TaskContext(context.Background(), index, "ledgr", "pkg/a.go", 20)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, row := range mapsFromAny(packet["results"]) {
+			if row["id"] != "pkg/a_test.go" {
+				continue
+			}
+			summary, _ := row["summary"].(string)
+			reason, _ := mapsFromAny(row["evidence"])[0]["reason"].(string)
+			if !strings.Contains(summary, "lexical") || !strings.HasPrefix(reason, "fuzzy `ledgr`~`ledger`; ") {
+				t.Fatalf("fuzzy corroboration undisclosed: summary %q, reason %q", summary, reason)
+			}
+			return
+		}
+		t.Fatal("counterpart test missing from the packet")
+	})
+}
+
+func TestContextFuzzyVerbatimKeepsCase(t *testing.T) {
+	t.Run("TCP-V0-651", func(t *testing.T) {
+		index, err := Build(context.Background(), impactRepositoryWithFiles(t, map[string]string{
+			"go.mod":      "module example.test/verbatim\n\ngo 1.27.0\n",
+			"ci/upper.sh": "#!/bin/sh\ncurl -H X-Request-ID:1 example.test\n",
+			"ci/lower.sh": "#!/bin/sh\necho x-request-id\n",
+			"pkg/p/p.go":  "package p\n\nfunc f() {}\n",
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv("CORVINT_CONTEXT_FUZZY", "on")
+		if _, reason := fuzzyRow(t, index, "X-Request-ID", "ci/upper.sh"); !strings.Contains(reason, "`X-Request-ID`") {
+			t.Fatalf("verbatim literal missed its case-exact source: %q", reason)
+		}
+		if _, reason := fuzzyRow(t, index, "X-Request-ID", "ci/lower.sh"); strings.Contains(reason, "verbatim") {
+			t.Fatalf("lowercase source took the verbatim credit: %q", reason)
 		}
 	})
 }

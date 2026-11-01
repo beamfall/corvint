@@ -92,6 +92,9 @@ type contextRow struct {
 	score, line int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
+	// fuzzy is the TCP-V0-650 disclosure prefix of a lexical row that took a
+	// fuzzy credit, kept so a row it only corroborates still discloses it.
+	fuzzy string
 }
 
 type taskIdentifier struct {
@@ -199,6 +202,9 @@ type taskContextCompiler struct {
 	graphRanking bool
 	// fuzzy is TCP-V0-650's opt-in fallback, set by `CORVINT_CONTEXT_FUZZY=on`.
 	fuzzy bool
+	// fuzzySupport is the TCP-V0-650 disclosure of a fuzzy lexical row that
+	// corroborated a path another relation admitted.
+	fuzzySupport map[string]string
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -356,6 +362,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		terms:         taskLexicalTerms(task),
 		chosen:        map[string]struct{}{},
 		support:       map[string][]string{},
+		fuzzySupport:  map[string]string{},
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
@@ -605,11 +612,21 @@ func (compiler *taskContextCompiler) corroborate(rows []contextRow) []contextRow
 		}
 		rows[index].score += 50 * len(others)
 		rows[index].summary += "; also " + strings.Join(others, ", ")
+		rows[index].reason = discloseFuzzy(rows[index].reason, compiler.fuzzySupport[rows[index].path])
 	}
 	sort.SliceStable(rows, func(left, right int) bool {
 		return len(compiler.support[rows[left].path]) > len(compiler.support[rows[right].path])
 	})
 	return rows
+}
+
+// discloseFuzzy prefixes reason with the TCP-V0-650 disclosure of a fuzzy
+// lexical row that corroborated or was promoted into the row, once.
+func discloseFuzzy(reason, disclosure string) string {
+	if disclosure == "" || strings.HasPrefix(reason, disclosure) {
+		return reason
+	}
+	return disclosure + reason
 }
 
 // take appends candidates not yet chosen and never the subject, up to cap.
@@ -625,6 +642,9 @@ func (compiler *taskContextCompiler) take(rows, candidates []contextRow, cap int
 		}
 		if _, seen := compiler.chosen[candidate.path]; seen {
 			compiler.support[candidate.path] = appendRelation(compiler.support[candidate.path], candidate.kind)
+			if compiler.fuzzySupport[candidate.path] == "" {
+				compiler.fuzzySupport[candidate.path] = candidate.fuzzy
+			}
 			continue
 		}
 		compiler.chosen[candidate.path] = struct{}{}
@@ -1585,8 +1605,10 @@ func lexicalContextRow(item lexicalHit, strongest float64) contextRow {
 	if item.role != nil {
 		reason = roleReason(item.role) + reason
 	}
+	disclosure := ""
 	if len(item.fuzzy) > 0 {
-		reason = fuzzyReason(item.fuzzy) + reason
+		disclosure = fuzzyReason(item.fuzzy)
+		reason = disclosure + reason
 	}
 	if item.documentation {
 		kind = "documentation"
@@ -1596,7 +1618,7 @@ func lexicalContextRow(item lexicalHit, strongest float64) contextRow {
 		kind: kind, path: item.path, score: lexicalScore(item.score, strongest), line: 1,
 		summary:    fmt.Sprintf("%d task terms match", item.distinct),
 		reason:     reason,
-		confidence: "low", authority: "vocabulary",
+		confidence: "low", authority: "vocabulary", fuzzy: disclosure,
 	}
 }
 
@@ -1878,6 +1900,7 @@ func (compiler *taskContextCompiler) reserve(rows []contextRow) []contextRow {
 		compiler.promoted[row.path] = row.kind
 		compiler.reserved[index].summary += "; also " + strings.Join(
 			orderRelations(append([]string{row.kind}, compiler.support[row.path]...)), ", ")
+		compiler.reserved[index].reason = discloseFuzzy(compiler.reserved[index].reason, row.fuzzy+compiler.fuzzySupport[row.path])
 	}
 	return append(compiler.reserved, kept...)
 }

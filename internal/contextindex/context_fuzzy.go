@@ -215,6 +215,7 @@ func (compiler *taskContextCompiler) fuzzyCredits(table *TermTable, idfOf func(i
 			idf := idfOf(len(sources))
 			for _, source := range sources {
 				credit(1, source, "configuration file", idf, idf*contextFuzzyGain)
+				pathNamed[source]++
 				note(source, term, "configuration file")
 			}
 		}
@@ -240,7 +241,7 @@ func (compiler *taskContextCompiler) fuzzyCredits(table *TermTable, idfOf func(i
 		}
 	}
 	for _, literal := range contextFuzzyCompound.FindAllString(compiler.task, contextAnchorCap) {
-		literal = strings.ToLower(literal)
+		// The literal keeps its case: anchorOccurrences matches it verbatim.
 		if len(literal) < contextAnchorMinBytes || compiler.anchored(literal) {
 			continue
 		}
