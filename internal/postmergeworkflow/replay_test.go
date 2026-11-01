@@ -39,6 +39,9 @@ func TestAdapterHelper(t *testing.T) {
 	if json.NewDecoder(os.Stdin).Decode(&request) != nil {
 		os.Exit(10)
 	}
+	if mode == "historical" {
+		historicalAdapter(request, args[index+2:])
+	}
 	if mode == "hang" {
 		child := exec.Command("/bin/sleep", "30")
 		if child.Start() != nil {
