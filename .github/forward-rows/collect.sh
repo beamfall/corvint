@@ -253,11 +253,15 @@ CLEAN | FLAKY | MISS)
     echo "cost=ci-forward-cost-pr$pr-$row_sha-e$epoch-$class-f$failing-$cost" >> "$GITHUB_OUTPUT"
   fi
   # AFP-V0-984: a complete sampled pull-request row also names its sample, k and whether a failed
-  # package fell outside the driver's selection, so the bar estimates the miss rate from names.
+  # package fell outside the driver's selection, so the bar estimates the miss rate from names. The
+  # name carries the validated pull-request head, not the tested merge commit, so one head tested
+  # against two bases is one sample.
   sample=$(jq -r 'if (.sample | type) == "object" then "k\(.sample.k)-m\(if .sample.missed then 1 else 0 end)" else empty end' \
     "$dir/row.json" 2> /dev/null) || sample=""
   if printf '%s' "$sample" | grep -Eqx 'k[0-9]{1,6}-m[01]'; then
-    echo "sample=ci-forward-SAMPLE-pr$pr-$row_sha-e$epoch-$sample" >> "$GITHUB_OUTPUT"
+    if hex40 "$head"; then
+      echo "sample=ci-forward-SAMPLE-pr$pr-$head-e$epoch-$sample" >> "$GITHUB_OUTPUT"
+    fi
   fi
   ;;
 esac
