@@ -85,7 +85,7 @@ snapshot `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl` and, for V1-3
   the pre-snapshot lineage.
 - V1-1470 criterion 1: `CEM-V1-245` retry ladder in `TestStableLifecycleOpTimeoutRetiresDescendants`.
   It passed 5 of 5 here with 60 busy loops running.
-- V1-2036 criterion 1: decision 0553 and `TestPLEV0013CodecPackageAdmitsTestdata` (passes).
+- V1-2036 criterion 1: decision 0553 and `TestPLEV0013CodecPackageAdmitsTestdata` (passes; nested module: `(cd tools/local-authority && go test -run '^TestPLEV0013CodecPackageAdmitsTestdata$' .)`).
 - V1-0775: `ATR-V0-241` records the limit, and `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite`
   proves the lease write commits under a mapped write on ext4 and tmpfs. Closing the window needs
   a content re-read under the lock, which `CAL-V0-263` forbids.
