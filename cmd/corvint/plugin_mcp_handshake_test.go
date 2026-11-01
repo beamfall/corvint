@@ -14,9 +14,10 @@ import (
 // AHI-860: the server the Claude Code plugin declares completes the 2025-11-25 handshake and lists
 // its tools for every project-directory shape Claude Code has been observed to substitute for
 // ${CLAUDE_PROJECT_DIR} (V1-3894), so the host never records CONNECTION_CLOSED. A repository
-// call answers from the launch worktree when the substituted root is a worktree path or no longer
-// exists, and answers invalid-root, never a dead connection, when it is an existing directory
-// outside Git or the variable was not expanded.
+// call answers from the repository when the substituted root is a worktree path, and from the
+// launch worktree when it no longer exists (MCPV0-115) or is an existing directory outside Git
+// (MCPV0-861); it answers invalid-root, never a dead connection, when the variable was not
+// expanded.
 func TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".mcp.json"))
 	if err != nil {
@@ -57,10 +58,7 @@ func TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes(t *testing.T) {
 		{"repository", repository, ""},
 		{"subdirectory", subdirectory, ""},
 		{"deleted spare", deletedSpare, ""},
-		// Current specified behaviour (MCPV0-115 is narrow, MCPV0-950 serves unavailable). It
-		// becomes "" if MCPV0-115 is widened to substitute the launch worktree for an existing
-		// non-worktree root (the blocked internal/mcp/cli change recorded for V1-3894).
-		{"existing non-worktree spare", spare, "invalid-root"},
+		{"existing non-worktree spare", spare, ""},
 		{"unexpanded variable", "${CLAUDE_PROJECT_DIR}", "invalid-root"},
 	}
 	requests := strings.Join([]string{

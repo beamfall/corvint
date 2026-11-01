@@ -157,10 +157,11 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+corpusBindReason)
 		return 2
 	}
-	// MCPV0-115: a missing plain --root falls back to the launch worktree, visibly.
-	fallbackRoot, substituted := missingRootFallback(roots, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
+	// MCPV0-115, MCPV0-861: a missing or non-worktree plain --root falls back to the launch
+	// worktree, visibly.
+	fallbackRoot, substitution, substituted := missingRootFallback(roots, unavailable, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
 	if substituted {
-		// The launch worktree replaces the missing root's MCPV0-950 outcome: it is
+		// The launch worktree replaces the declared root's MCPV0-950 outcome: it is
 		// resolved as a direct --root would be, so an unusable candidate is served
 		// unavailable with its own reason.
 		toplevel, reason := rootbind.Resolve(fallbackRoot)
@@ -182,7 +183,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 			return 2
 		}
 		if substituted {
-			_, _ = fmt.Fprintln(stderr, missingRootStderr)
+			_, _ = fmt.Fprintln(stderr, substitution.stderr)
 		}
 		handler.registry = registry
 		bindings[registry] = roots[0].root
@@ -223,7 +224,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		handler.notices = launchWorktreeNotices(launch, bindings)
 	}
 	if substituted {
-		handler.notices = map[*bridge.Registry]string{handler.registry: missingRootNoticeText}
+		handler.notices = map[*bridge.Registry]string{handler.registry: substitution.notice}
 	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,

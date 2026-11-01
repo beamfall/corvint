@@ -12,6 +12,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 )
 
 // startupSession runs one in-process session like multiRootSession, but
@@ -112,6 +114,52 @@ func TestMCPV0115MissingRootServesLaunchWorktree(t *testing.T) {
 	}
 }
 
+// MCPV0-861 (V1-3894): a --root that exists but is not inside any Git worktree, as
+// a Claude desktop spare directory not yet deleted is, serves the Git worktree
+// enclosing the launch directory with its own stderr line and notice code; the
+// first block and structuredContent are those of a direct --root of that worktree.
+func TestMCPV0861NonWorktreeRootServesLaunchWorktree(t *testing.T) {
+	skipUnqualifiedStatus(t)
+	main := makeHostileRepository(t, "core")
+	if err := os.Mkdir(filepath.Join(main, "sub"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spare := filepath.Join(filepath.Clean(t.TempDir()), "spares", "spare-0002")
+	if err := os.MkdirAll(spare, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, inside := launchWorktreeCandidate(spare); inside {
+		t.Skip("the temporary directory is inside a Git worktree")
+	}
+	t.Chdir(main)
+	direct := multiRootSession(t, []string{"--root", main}, toolCall(1, "corvint.status", map[string]any{}))["1"]
+	t.Chdir(filepath.Join(main, "sub"))
+	exit, stderr, responses := startupSession(t, []string{"--root", spare}, toolCall(1, "corvint.status", map[string]any{}))
+	if exit != 0 || stderr != "corvint-mcp: --root is not inside a Git worktree; serving the Git worktree enclosing the launch directory instead\n" {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr)
+	}
+	if got, want := statusRevision(t, responses["1"]), headRevision(t, main); got != want {
+		t.Fatalf("served revision %s, want the launch worktree's %s", got, want)
+	}
+	result, baseline := responses["1"]["result"].(map[string]any), direct["result"].(map[string]any)
+	content := result["content"].([]any)
+	if len(content) != 2 || !reflect.DeepEqual(content[0], baseline["content"].([]any)[0]) ||
+		!reflect.DeepEqual(result["structuredContent"], baseline["structuredContent"]) {
+		t.Fatalf("substituted result=%#v direct=%#v", result, baseline)
+	}
+	notice := content[1].(map[string]any)
+	var object map[string]any
+	if notice["type"] != "text" || json.Unmarshal([]byte(notice["text"].(string)), &object) != nil ||
+		object["schema"] != worktreeNoticeSchema || object["code"] != "non-worktree-root-launch-worktree" || object["mutates"] != false {
+		t.Fatalf("notice=%#v", notice)
+	}
+	for _, path := range []string{spare, main} {
+		if strings.Contains(notice["text"].(string), path) || strings.Contains(stderr, path) {
+			t.Fatal("substitution notice names a path")
+		}
+	}
+}
+
 // MCPV0-115 with MCPV0-950: with no launch worktree to stand in, a missing --root
 // keeps its MCPV0-950 outcome, served unavailable with a reason that names no path.
 func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
@@ -125,15 +173,17 @@ func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
 		stderr != "corvint-mcp: repository unavailable: --root does not exist; serving tools/list, and every repository tool call answers invalid-root\n" {
 		t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
 	}
-	if _, substituted := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, false, false,
-		func() (string, error) { return "", errors.New("getwd") }); substituted {
-		t.Fatal("unobservable launch directory substituted a root")
+	for _, reason := range []string{rootbind.ReasonMissing, rootbind.ReasonNoWorktree} {
+		if _, _, substituted := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, reason, false, false,
+			func() (string, error) { return "", errors.New("getwd") }); substituted {
+			t.Fatalf("%s: unobservable launch directory substituted a root", reason)
+		}
 	}
 }
 
-// MCPV0-115: only one plain, missing --root without --follow-ref or
-// --corpus-artifact falls back; every other startup failure is unchanged even
-// when launched inside a worktree.
+// MCPV0-115, MCPV0-861: only one plain --root that is missing or an existing
+// directory outside Git, without --follow-ref or --corpus-artifact, falls back;
+// every other startup failure is unchanged even when launched inside a worktree.
 func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 	main := makeHostileRepository(t, "core")
 	plain := filepath.Clean(t.TempDir())
@@ -151,7 +201,12 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 		wantExit   int
 		wantStderr string
 	}{
-		{"existing directory outside Git", []string{"--root", plain}, 0, "corvint-mcp: repository unavailable: --root is not inside a Git worktree; serving tools/list, and every repository tool call answers invalid-root\n"},
+		// MCPV0-861 (V1-3894): substituted, like a missing root; TestMCPV0861NonWorktreeRootServesLaunchWorktree.
+		{"existing directory outside Git", []string{"--root", plain}, 0, nonWorktreeRootSubstitution.stderr + "\n"},
+		{"regular file", []string{"--root", file}, 0, "corvint-mcp: repository unavailable: --root is not a directory; serving tools/list, and every repository tool call answers invalid-root\n"},
+		{"inside the git directory", []string{"--root", filepath.Join(main, ".git")}, 0, "corvint-mcp: repository unavailable: --root is inside a .git directory, not a worktree; serving tools/list, and every repository tool call answers invalid-root\n"},
+		{"aliased existing directory outside Git", []string{"--root", "core=" + plain}, 2, "corvint-mcp: repository unavailable: --root is not inside a Git worktree\n"},
+		{"existing directory outside Git with --follow-ref", []string{"--root", plain, "--follow-ref", "feature"}, 2, "corvint-mcp: repository unavailable: --root is not inside a Git worktree\n"},
 		{"path through a regular file", []string{"--root", filepath.Join(file, "repo")}, 0, "corvint-mcp: repository unavailable: --root does not exist; serving tools/list, and every repository tool call answers invalid-root\n"},
 		{"aliased missing root", []string{"--root", "core=" + missing}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
 		{"missing root with --follow-ref", []string{"--root", missing, "--follow-ref", "feature"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},

@@ -5124,6 +5124,7 @@ MCPV0-953	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standin
 MCPV0-954	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3704; amends `MCPV0-820` a	standing	V1-3704
 MCPV0-114	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)	standing	V1-3030
 MCPV0-115	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3497; amends `MCPV0-001` a	standing	V1-3497
+MCPV0-861	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3894; amends	standing	2026-11-01; V1-3894
 MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-

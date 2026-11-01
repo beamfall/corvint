@@ -976,12 +976,11 @@ separate exact extension tuple remains governed by AHI-024.
   directory outside Git, and the unexpanded variable. A Claude desktop spare session (2.1.316)
   substitutes the spare directory in argv while the server's working directory and its
   `CLAUDE_PROJECT_DIR` environment name the real project. `corvint.status` MUST answer from the
-  repository, with `io.corvint/pluginCompatibility` compatible, for the first three shapes
-  (`MCPV0-115` serves the launch worktree for the deleted spare), and MUST answer `invalid-root`
-  with the reason on stderr for the last two (`MCPV0-950`). Non-goals: changing the server's root
-  resolution (`internal/mcp/cli`, owned by `MCPV0-115`; the proposal to also substitute the launch
-  worktree for an existing non-worktree root is recorded in `docs/build-log/2026-11-01-plg-m17.md`),
-  the host's argv expansion, and the plugin cache an install left behind. Failure mode: a binary
+  repository, with `io.corvint/pluginCompatibility` compatible, for the first four shapes
+  (`MCPV0-115` serves the launch worktree for the deleted spare, `MCPV0-861` for the existing one),
+  and MUST answer `invalid-root` with the reason on stderr for the unexpanded variable
+  (`MCPV0-950`). Non-goals: root resolution itself (owned by `MCPV0-115` and `MCPV0-861`), the
+  host's argv expansion, and the plugin cache an install left behind. Failure mode: a binary
   older than `MCPV0-950` exits 2 on an unusable root and Claude Code reports only
   `CONNECTION_CLOSED`; the reason is in the host's MCP log, not the session. Evidence:
   `TestAHI860ClaudePluginHandshakeAcrossProjectDirShapes` (`cmd/corvint`, the declared args run in
