@@ -2486,6 +2486,7 @@ JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
 JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
 JSG-V0-004	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R4) The writer checkpoint is two derived files: a seale	owner	decision 0549
+JSG-V0-780	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-2592) Amending	standing	2026-10-31; V1-2592
 JSG-V0-005	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed seg	owner	decision 0549
 JSG-V0-006	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (	owner	decision 0549
 JSG-V0-007	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R7) Every writer audit lists `receipts/` exactly and re	owner	decision 0549
