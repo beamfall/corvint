@@ -113,6 +113,12 @@ content changed), which fails identically on the base `5ffe8ed4a`; this lane doe
 `cmd/corvint/main.go` and left it for the owning lane, after repinning the 8 moved citations its
 own edits caused.
 
+Codex review (2026-11-01) found two P2s, both fixed with regressions that fail on the pre-fix code:
+`corvint dogfood propose --refresh` passed because the lookup fell back to the `dogfood`
+dispatcher, which owns `--refresh` (now an unknown child of a node with children is refused,
+ASD-V0-996 amended); and a record followed by a stray `]` or `}` was accepted because
+`Decoder.More` is false before a closing delimiter (now the next decode must be `io.EOF`).
+
 ## NOT_RUN
 
 - The exhaustive gate (`go test ./...`), by the owner's standing preference for scoped issue work;
