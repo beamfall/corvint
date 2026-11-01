@@ -7,7 +7,8 @@
 # (AFP-V0-097). Environment: GH_TOKEN, REPO, BASE_REF, PR_BASE, PR_HEAD,
 # PR_NUMBER, TESTED_MERGE, SHARD, SHARDS, TOOL_SOURCE, VERDICT_RUN, PR_BIN (the
 # pinned corvint, selector and driver), SHADOW (the pinned shadow corvint),
-# SELECTION (optional, AFP-V0-731), CI_SHARDS, CONFINE, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, RUNNER_TEMP,
+# SELECTION (optional, AFP-V0-731), CORVINT_PR_SAMPLE_K and CORVINT_PR_SAMPLE_SEED (optional,
+# AFP-V0-984; a merge-queue SELECTION is never sampled), CI_SHARDS, CONFINE, GITHUB_RUN_ID, GITHUB_RUN_ATTEMPT, RUNNER_TEMP,
 # GITHUB_OUTPUT and GITHUB_STEP_SUMMARY. Writes
 # $RUNNER_TEMP/corvint-narrowing/narrowing.json, the executed package list
 # beside it, and the step output `mode` (NARROWED or FULL). A NARROWED shard
@@ -82,6 +83,8 @@ else
   : > "$out/balanced-packages"
   : > "$out/balanced-slices"
 fi
+sample_k=${CORVINT_PR_SAMPLE_K:-}
+[ -z "${SELECTION:-}" ] || sample_k=""
 # full REASON: drop the record and its sidecar, so the shard runs whole.
 full() {
   echo "AFP-V0-098 shard $SHARD: FULL ($1)" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
@@ -98,6 +101,7 @@ if ! jq -n -c --slurpfile driver "$out/driver/selection.json" --slurpfile shadow
   --arg head "$PR_HEAD" --arg target "$TESTED_MERGE" --arg pr "$PR_NUMBER" --arg runId "$GITHUB_RUN_ID" \
   --arg runAttempt "$GITHUB_RUN_ATTEMPT" --arg shard "$SHARD" --arg shards "$SHARDS" \
   --arg toolSource "$TOOL_SOURCE" --arg verdictRun "$VERDICT_RUN" \
+  --arg sampleK "$sample_k" --arg sampleSeed "${CORVINT_PR_SAMPLE_SEED:-}" \
   -f "$here/narrow.jq" > "$out/narrowing.json" 2> "$out/narrow.err"; then
   full "the narrowing decision failed: $(head -c 200 "$out/narrow.err")"
 fi

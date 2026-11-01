@@ -434,6 +434,12 @@ jobs:
       # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
       # AFP-V0-098 superset rule records FULL on every batch.
       CORVINT_TEST_SHADOW_SOURCE: "8daec98ce4349c1583186692726d2c3a782ac647"
+      # AFP-V0-984 (V1-3751): narrow.sh runs 1 in CORVINT_PR_SAMPLE_K pull-request runs that would
+      # narrow in full, chosen by the head commit and this seed, so the forward bar can estimate the
+      # narrowing miss rate. Empty K turns sampling off. Read only by narrow.sh of the
+      # CORVINT_PR_TOOL_SOURCE checkout, so it takes effect with a pin that carries it.
+      CORVINT_PR_SAMPLE_K: "10"
+      CORVINT_PR_SAMPLE_SEED: "3751"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
       # the 1.0 mint, so no earlier row counts toward the AFP-V0-029 bar. The first shadow
@@ -1185,6 +1191,32 @@ jobs:
         with:
           name: ci-outcomes-${{ github.event_name }}-${{ strategy.job-index }}
           path: ${{ runner.temp }}/forward-outcomes/outcomes.json
+          if-no-files-found: ignore
+          overwrite: true
+      - name: Classify a failed main shard's packages for the main-miss link (AFP-V0-983)
+        # V1-3750: a failed full push shard of main keeps failed.jq's classification of its
+        # capture, so the ci-control-plane main-miss job can link the failed packages back to the
+        # narrowed pull requests that skipped them. It never changes the shard's status.
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 2
+        # The job checks the tested commit out into source/, where failed.jq lives.
+        working-directory: source
+        run: |
+          mkdir -p "$RUNNER_TEMP/main-failed"
+          # A failed classification leaves no file, so the upload below retains nothing rather
+          # than an empty document the main-miss job would read as no failed package.
+          jq -R -s -c -f .github/forward-rows/failed.jq "$RUNNER_TEMP/shard-costs/shard-${{ strategy.job-index }}.json" \
+            > "$RUNNER_TEMP/main-failed/failed.json.tmp" &&
+            mv "$RUNNER_TEMP/main-failed/failed.json.tmp" "$RUNNER_TEMP/main-failed/failed.json"
+      - name: Retain a failed main shard's packages (AFP-V0-983)
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-failed-push-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/main-failed/failed.json
           if-no-files-found: ignore
           overwrite: true
       - name: Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-428)
