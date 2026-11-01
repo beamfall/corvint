@@ -409,6 +409,40 @@ func TestSnapshotRefreshInterrupted(t *testing.T) {
 	}
 }
 
+// IDX-SNAP-V0-912 regression: a worker whose build does not observe cancellation (the injected
+// Git ignores it, as compilation does) is still stopped by its CPU budget: the budget records
+// `expired` and retires the whole group, so neither the leader nor its descendant outlives it.
+func TestSnapshotRefreshCPUBudgetRetiresWorkThatIgnoresCancel_IDXSNAPV0912(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	path, ready := slowRefreshGit(t, root)
+	ctx, commands := refreshTestContext(t, root, path, "V1128_REFRESH_CPU=1ns")
+	if status := startSnapshotRefresh(ctx, root); status != "started" {
+		t.Fatal(status)
+	}
+	waitRefresh(t, func() bool { _, err := os.Stat(ready); return err == nil })
+	data, _ := os.ReadFile(ready)
+	var descendant int
+	if _, err := fmt.Sscan(string(data), &descendant); err != nil || descendant <= 0 {
+		t.Fatalf("no injected descendant: %s", data)
+	}
+	waitRefreshExit(t, (*commands)[0])
+	waitRefresh(t, func() bool { return errors.Is(syscall.Kill(descendant, 0), syscall.ESRCH) })
+	if _, fresh, err := contextindex.ProbeSnapshot(context.Background(), root); err != nil || fresh {
+		t.Fatalf("a budget-stopped writer published: %t %v", fresh, err)
+	}
+	lock, err := contextindex.AcquireSnapshotRefreshLock(root)
+	if err != nil || lock == nil {
+		t.Fatalf("lock not released: %v", err)
+	}
+	defer lock.Close()
+	if previous := previousSnapshotRefresh(lock); !strings.Contains(previous, "it reached its work limit (55 CPU-seconds") {
+		t.Fatalf("previous outcome %q, want the CPU work limit", previous)
+	}
+}
+
 // IDX-SNAP-V0-033: inspect effective priority, not the requested syscall value.
 // Linux checks every runtime thread while Git is blocked and a Git descendant.
 func TestSnapshotRefreshEffectivePriority(t *testing.T) {
@@ -576,7 +610,8 @@ func TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit(t *testing.T) {
 // build with the budget cause (recorded as expired); an unspent one leaves the
 // work running however long it waits, and process CPU time is what is read.
 func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
-	spent, stop := snapshotRefreshCPUContext(context.Background(), 0, 5*time.Millisecond)
+	var fired atomic.Bool
+	spent, stop := snapshotRefreshCPUContext(context.Background(), 0, 5*time.Millisecond, func() { fired.Store(true) })
 	defer stop()
 	select {
 	case <-spent.Done():
@@ -586,12 +621,24 @@ func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
 	if !errors.Is(context.Cause(spent), errSnapshotRefreshCPUBudget) || errors.Is(spent.Err(), context.DeadlineExceeded) {
 		t.Fatalf("cause = %v, err = %v", context.Cause(spent), spent.Err())
 	}
-	waiting, stopWaiting := snapshotRefreshCPUContext(context.Background(), time.Hour, 5*time.Millisecond)
+	// Work that never reads ctx (compilation) is stopped by exceeded, not by the cancel:
+	// exceeded runs while such work is still spinning, and stop then reports it lost.
+	for hang := time.Now().Add(time.Minute); !fired.Load(); {
+		if time.Now().After(hang) {
+			t.Fatal("a spent budget never reached work that ignores its context")
+		}
+	}
+	if stop() {
+		t.Fatal("stop won after the budget fired")
+	}
+	waiting, stopWaiting := snapshotRefreshCPUContext(context.Background(), time.Hour, 5*time.Millisecond, func() { t.Error("an unspent budget fired") })
 	time.Sleep(100 * time.Millisecond)
 	if waiting.Err() != nil {
 		t.Fatalf("an idle wait spent the CPU budget: %v", context.Cause(waiting))
 	}
-	stopWaiting()
+	if !stopWaiting() || !stopWaiting() {
+		t.Fatal("stop lost to a budget that never fired")
+	}
 	// Busy work must advance the process CPU clock. Poll for progress rather than assume a wall
 	// share: under contention the loop may get little CPU, so only a hang bound limits it.
 	before := snapshotRefreshCPUTime()
