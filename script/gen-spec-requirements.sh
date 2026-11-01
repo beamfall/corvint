@@ -388,10 +388,18 @@ for my $id (grep { !requirement_id($_) } keys %best) {
 }
 @outside_section = grep { requirement_id($_->[1]) } @outside_section;
 # SRG-V0-791 (V1-3793): a definition-shaped id under a known prefix that is not the prefix and three
-# or more digits (`CIN-V0-01`, `CIN-V0-1010a`) is refused with its file and line, never dropped.
-if (my @refused = grep { $known_prefix{id_prefix($_->[2])} } @malformed) {
+# or more digits (`CIN-V0-01`, `CIN-V0-1010a`, `CIN-V0-1010-bad`) is refused with its file and line,
+# never dropped. malformed_prefix is the longest known prefix the id starts with before a digit.
+sub malformed_prefix {
+    my ($id) = @_;
+    for my $prefix (sort { length $b <=> length $a || $a cmp $b } keys %known_prefix) {
+        return $prefix if $id =~ /\A\Q$prefix\E[0-9]/;
+    }
+    return '';
+}
+if (my @refused = grep { malformed_prefix($_->[2]) ne '' } @malformed) {
     print STDERR "$_->[0]:$_->[1]: $_->[2] looks like a requirement definition of prefix "
-        . id_prefix($_->[2]) . " but is not that prefix followed by three or more digits\n" for @refused;
+        . malformed_prefix($_->[2]) . " but is not that prefix followed by three or more digits\n" for @refused;
     die "write each requirement id as PREFIX-NNN with three or more digits, then rerun make "
         . "spec-requirements (SRG-V0-791)\n";
 }
@@ -662,7 +670,9 @@ sub readme_text {
         # the span of the ids of that prefix the spec defines, so it cannot drift from the TSV.
         if ($columns[2] =~ /\A(.*?\]\([^)]+\)\s+)([A-Z][A-Z0-9-]*-)([0-9]{3,})(?:\.\.([0-9]{3,}))?(?=\s*(?:;|\z))/s) {
             my ($lead, $prefix) = ($1, $2);
-            my @numbers = sort { $a <=> $b } map { substr $_, length $prefix }
+            # SRG-V0-790: equal numbers of different widths (`001`, `0001`) tie-break as text, so the
+            # range never follows hash order.
+            my @numbers = sort { $a <=> $b || $a cmp $b } map { substr $_, length $prefix }
                 grep { $best{$_}{file} eq $path && /\A\Q$prefix\E[0-9]{3,}\z/ } keys %best;
             @numbers or die "$path: its README row shows a $prefix range but the spec defines no $prefix id\n";
             my $range = $prefix . $numbers[0] . ($numbers[-1] ne $numbers[0] ? "..$numbers[-1]" : '');

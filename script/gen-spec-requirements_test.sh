@@ -604,11 +604,11 @@ test "$(printf '%s\n' "$lid_out" | grep '^CIN-V0-' | cut -f1 | tr '\n' ' ')" = '
 case $lid_out in *V1-0789* | *DR-0046*) fail "a ticket or record ID became a requirement row" ;; esac
 test "$(lines | grep '^CIN-V0-' | cut -f1 | tr '\n' ' ')" = 'CIN-V0-999 CIN-V0-1010 ' ||
   fail "--lines does not order CIN-V0-999 before CIN-V0-1010: $(lines | grep '^CIN-V0-' | cut -f1)"
-printf '# Long ids\n\n## Requirements\n\n- **CIN-V0-999:** (proposed) Three digits.\n- **CIN-V0-01:** (proposed) Two digits.\n- **CIN-V0-1010a:** (proposed) A lower-case tail.\n- **CIN-V0-999A:** (proposed) A lettered sub-requirement.\n' > "$test_root/docs/specs/longid.md"
+printf '# Long ids\n\n## Requirements\n\n- **CIN-V0-999:** (proposed) Three digits.\n- **CIN-V0-01:** (proposed) Two digits.\n- **CIN-V0-1010a:** (proposed) A lower-case tail.\n- **CIN-V0-1010-bad:** (proposed) A hyphenated tail.\n- **CIN-V0-999A:** (proposed) A lettered sub-requirement.\n' > "$test_root/docs/specs/longid.md"
 stage docs/specs/longid.md
 lid_err=$(run 2>&1 > /dev/null) && fail "a malformed requirement definition was accepted"
 case $lid_err in
-  *'docs/specs/longid.md:6: CIN-V0-01 looks like a requirement definition'*'docs/specs/longid.md:7: CIN-V0-1010a looks like a requirement definition'*'(SRG-V0-791)'*) ;;
+  *'docs/specs/longid.md:6: CIN-V0-01 looks like a requirement definition'*'docs/specs/longid.md:7: CIN-V0-1010a looks like a requirement definition'*'docs/specs/longid.md:8: CIN-V0-1010-bad looks like a requirement definition of prefix CIN-V0- '*'(SRG-V0-791)'*) ;;
   *) fail "the malformed-definition refusal lacks the lines and IDs: $lid_err" ;;
 esac
 case $lid_err in *CIN-V0-999A*) fail "a lettered sub-requirement was refused: $lid_err" ;; esac
@@ -617,5 +617,32 @@ mkdir "$lid_dir"
 (cd "$test_root" && script/gen-spec-requirements.sh --all "$lid_dir") > /dev/null 2>&1 && fail "--all accepted a malformed definition"
 test -z "$(ls -A "$lid_dir")" || fail "a refused malformed definition wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/longid.md
+# The README range of a prefix with equal numbers of different widths is the same in every run,
+# whatever Perl's hash order: the lowest number, ties broken as text, then the highest.
+long_project=$test_root/long-project
+mkdir -p "$long_project/script" "$long_project/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$long_project/script/"
+git -C "$long_project" init -q -b main
+cat > "$long_project/docs/specs/long.md" <<'SPEC'
+# Long spec
+
+Intent status: proposed
+Delivery status: not-started
+
+## Agent digest
+- Claim: Long ids sort by number.
+
+- CIN-V0-001: (proposed) Three digits.
+- CIN-V0-0001: (proposed) The same number in four digits.
+- CIN-V0-999: (proposed) The highest three-digit id.
+- CIN-V0-1010: (proposed) Four digits.
+SPEC
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n| Long scope | [`long.md`](long.md) CIN-V0-001 | proposed | not-started | Long ids sort by number. |\n' > "$long_project/docs/specs/README.md"
+git -C "$long_project" add -- docs/specs
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  long_readme=$(cd "$long_project" && script/gen-spec-requirements.sh --readme) || fail "--readme failed on equal-valued IDs"
+  case $long_readme in *'| [`long.md`](long.md) CIN-V0-0001..1010 |'*) ;;
+    *) fail "the README range of equal-valued IDs is not CIN-V0-0001..1010: $long_readme" ;; esac
+done
 
 printf 'ok\n'
