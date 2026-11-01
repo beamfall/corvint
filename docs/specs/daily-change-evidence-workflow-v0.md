@@ -2928,6 +2928,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (code, test and new test hunks cite the
   refined definition), `TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown` and `TestProposeCitationsDCWV0967NamesAnEditedRequirementDefinition`.
   Rollback: drop `propose_samechange.go` and its calls.
+- `DCW-V0-921`: (experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane
+  friction; refines `DCW-V0-031`) A pre-change `dogfood change` run (`PRECHANGE no-diff-yet`) MUST,
+  for each of `prechange-query` and `prechange-impact` whose receipt is not a regular file under
+  `<git-dir>/corvint/`, print `  agent receipt NAME absent: write it before the first edit:
+  COMMAND`, COMMAND being the `docs/DOGFOOD.md` §1 command with that absolute path (`corvint query
+  --task "THE CHANGE" --limit 1 > PATH` or `corvint impact PATH... --limit 10 > PATH`), because that
+  run is the one an agent makes before editing and it alone could still write them; a lane that ran
+  only `make dogfood-change` before its first edit closed with both `NOT_OBSERVED
+  agent-receipt-absent`. The lines change no report row, `"complete"` or exit status. Non-goals:
+  writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
+  `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
+  commands; a present one is not). Rollback: drop the lines.
 
 ## Code vocabulary
 
@@ -3205,6 +3217,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
 | `DCW-V0-900` (tasks-w1 friction) | `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` (recipe order and the ASD-V0-045 missing-input refusal before any precheck) | recipe-order regression; live closeout NOT_RUN in this change |
+| `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
