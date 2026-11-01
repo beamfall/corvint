@@ -7,8 +7,8 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
-# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go
-# build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
+# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
+# lane-stage-inputs.sh (ASD-V0-742). No Go build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
 # tested by script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name
 # Python (GOC-V0-008).
 set -uo pipefail
@@ -2055,6 +2055,43 @@ out=$(ldcrun --base nope a="$ldc/a.json")
 [[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
 out=$(ldcrun)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+ok
+
+# ASD-V0-742 (V1-3245): lane-stage-inputs exports each ticket's show JSON and text, copies them to
+# ~/lane-inputs/ticket-bodies-LANE on the target and passes only when every file is there and
+# non-empty; a refused export copies nothing, a lost copy is MISSING, a bad argument exits 2.
+lsi=$tmp/lsi
+mkdir -p "$lsi/bin" "$lsi/home"
+cat > "$lsi/bin/corvint-tasks" << 'STUB'
+#!/usr/bin/env bash
+[[ $1 == ticket && $2 == show && $3 != V1-BAD ]] || { printf '{"outcome":"REFUSED"}\n'; exit 1; }
+if [[ ${4:-} == --format ]]; then printf '%s  title\n' "$3"; else printf '{"outcome":"OK","items":[{"ticketId":"%s"}]}\n' "$3"; fi
+STUB
+cat > "$lsi/bin/ssh" << 'STUB'
+#!/usr/bin/env bash
+shift
+if [[ -n ${FAKE_LOSE:-} && $1 == *'tar -C'* ]]; then cat > /dev/null; exit 0; fi
+exec bash -c "$1"
+STUB
+chmod +x "$lsi/bin/corvint-tasks" "$lsi/bin/ssh"
+lsirun() { HOME=$lsi/home CORVINT_TASKS_BIN=$lsi/bin/corvint-tasks LANE_SSH=$lsi/bin/ssh "$script/lane-stage-inputs.sh" "$@" 2>&1; }
+out=$(lsirun --host wsl-lanes ln1 V1-1 V1-2)
+[[ $? == 0 && $out == 'lane-stage-inputs: PASS 2 tickets staged and verified at wsl-lanes:~/lane-inputs/ticket-bodies-ln1' ]] || fail "lane-stage-inputs pass: $out"
+[[ $(cat "$lsi/home/lane-inputs/ticket-bodies-ln1/V1-2.txt") == 'V1-2  title' && -s $lsi/home/lane-inputs/ticket-bodies-ln1/V1-1.json ]] || fail "lane-stage-inputs staged files"
+out=$(lsirun ln2 V1-3)
+[[ $? == 0 && $out == *'PASS 1 tickets staged and verified at this host:~/lane-inputs/ticket-bodies-ln2' ]] || fail "lane-stage-inputs local: $out"
+out=$(lsirun --host wsl-lanes ln3 V1-1 V1-BAD)
+[[ $? == 1 && $out == *'EXPORT ticket=V1-BAD:'* && $out == *'FAIL 1 of 2 tickets did not export; nothing was copied'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln3 ]] ||
+  fail "lane-stage-inputs export refusal: $out"
+out=$(FAKE_LOSE=1 lsirun --host wsl-lanes ln4 V1-1)
+[[ $? == 1 && $out == *'MISSING wsl-lanes:~/lane-inputs/ticket-bodies-ln4/V1-1.json is absent or empty'* && $out == *'V1-1.txt is absent'* && $out != *PASS* ]] ||
+  fail "lane-stage-inputs lost copy: $out"
+out=$(lsirun 'bad/lane' V1-1)
+[[ $? == 2 && $out == *"lane name 'bad/lane' is not valid"* ]] || fail "lane-stage-inputs bad lane: $out"
+out=$(lsirun ln5 'V1-1;x')
+[[ $? == 2 && $out == *"ticket 'V1-1;x' is not valid"* ]] || fail "lane-stage-inputs bad ticket: $out"
+out=$(lsirun ln5)
+[[ $? == 2 && $out == usage:* ]] || fail "lane-stage-inputs usage: $out"
 ok
 
 # ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the

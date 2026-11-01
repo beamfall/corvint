@@ -1015,6 +1015,11 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
 
+Stage the ticket bodies with `script/lane-stage-inputs.sh --host HOST LANE ID...` on the Mac
+(ASD-V0-742, V1-3245). It exports both files per ticket, copies them to
+`~/lane-inputs/ticket-bodies-<lane>/` on HOST and lists that directory there. Start the lane session
+only after it prints `PASS`; an `EXPORT` or `MISSING` line names the ticket or file to fix first.
+
 Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
 format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
 from the lane brief. Observed 2026-11-01 from the Unraid lane spectool-r: the send returned
