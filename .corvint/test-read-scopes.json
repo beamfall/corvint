@@ -391,6 +391,23 @@
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
+    "internal/opencodequalification": [
+      ".github/cishards/",
+      "cmd/",
+      "go.mod",
+      "go.sum",
+      "integrations/",
+      "internal/",
+      "tools/"
+    ],
+    "internal/perfbudget": [
+      ".github/cishards/",
+      "cmd/",
+      "experimental/analyzers/sqlnative/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "internal/perfbudget/cmd/perf-budget": [
       "Makefile",
       "internal/perfbudget/budgets.json"

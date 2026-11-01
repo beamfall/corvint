@@ -5454,6 +5454,31 @@ per-tier counts and tier-0 unit names out of a 44.7 KB plan, the only parts a la
   default plan was 37,369 bytes. Rollback: delete `cmd/corvint/affected_verdict.go`, the flag and
   its help paragraph.
 
+### Built-binary readers declare their closure (AFP-V0-873; V1-3763, V1-3587, V1-3788)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3763, V1-3587, V1-3788): a
+one-line spec, `REQUIREMENTS.tsv` or Makefile edit selected about 70 units, 42 of them on the
+unbounded floor that every change selects, though most of those packages read only Go source.
+
+- **AFP-V0-873:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788) `internal/perfbudget` and `internal/opencodequalification`, whose tests
+  `go build` repository binaries (`./cmd/corvint`, `./cmd/corvint-corpus-mcp`,
+  `./tools/qualify-opencode`), SHALL carry AFP-V0-023 declarations that name `go.mod`, `go.sum`
+  and directory entries covering every non-standard directory of those builds' import closure,
+  plus their literal reads, and SHALL leave `.corvint/unbounded-readers.json`. A change inside the
+  closure still selects them as `DECLARED_READ_SCOPE`; a `docs/specs`, Makefile or root script
+  edit no longer does. Decision (lane aff-w23): a package stays on the floor when its confined
+  run (`.github/testconfine`, Landlock) fails or needs `.git` or `/`: `internal/postmergehost`,
+  `internal/postmergeworkflow`, `conformance/dashboard-snapshot-v0` and `internal/mcp/docsbridge`
+  were tried and kept. Non-goals: narrowing any other floor unit; listing the closure directory by
+  directory. Failure mode: a new import outside the declared entries fails the confined CI shard
+  and `TestRepositoryBuiltReaderDeclarations_AFPV0873`, never under-selects silently. Acceptance
+  evidence: `TestRepositoryBuiltReaderDeclarations_AFPV0873` (the closure of each build lies in
+  the declaration, which names no spec, Makefile or script path; removing `tools/` from the
+  OpenCode declaration fails it), both packages passing under `test-confine`, and the before and
+  after counts in `docs/build-log/2026-11-01-aff-w23.md`. Rollback: delete the two declarations
+  and restore the two units and their reasons in `.corvint/unbounded-readers.json`.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)
