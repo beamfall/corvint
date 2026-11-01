@@ -120,3 +120,28 @@ Recorded after the seal; see the lane report.
 - `heavy.sh` copies its index to `${TMPDIR:-/tmp}/heavy-index.*`; on the full `/tmp` it printed `cp:
   error writing ... No space left on device` and the test it wrapped still ran, so the warning is
   easy to miss. Repro: run `~/lanes/heavy.sh` with `/tmp` full and `TMPDIR` unset.
+
+## Review fixes
+
+- P1 staged uniformity guard compared lines with bytes: FIXED e911e5849. Plan rows give inclusive
+  one-based BASE lines, and CEM evidence records zero-based byte spans of the pinned blob
+  (`workflow.Cite` `evidenceSpan`). `carriedUniform` now converts the rows' lines through the BASE
+  blob (`lineByteSpan`) before comparing. `TestDCWV0883StagedUniformPlan` cites through the real
+  `cem` producer; without the fix it fails ("after 2 cites; want citation-plan-uniform").
+- P2 sealed ordinal refresh compared lines with bytes: FIXED e8205f4e1. `sealedHolds` reads the
+  evidence's own `blobOid` and matches the row's lines as that blob's byte span.
+  `TestProposeCitationsDCWV0885` now seals real producer output; without the fix it fails ("ordinal 1
+  carried to map[]").
+- P2 relocation corrupted a frozen plan with absolute argv: FIXED a5a1f3e62 (spec LCP-V0-884/885)
+  and 36d72baea. Relocation skips the plan. An import that moves a plan naming the source root or
+  Git directory refuses `import-plan-not-relocatable` before writing anything.
+  `TestLCPV0884ImportRefusesPlanNamingSourceRoot` fails without the fix (`enrollment-drift`).
+- P2 archive and restore dropped preservation holds: FIXED a5a1f3e62 (spec LCP-V0-883) and
+  36d72baea. Export carries the hold and its release records. In
+  `TestLCPV0883RestoredHoldStillGuardsCancel`, the restored held enrollment refuses cancel and keeps
+  `release-001.json`; without the fix the cancel succeeds.
+- P2 import rejected symlinked temp ancestors: FIXED a5a1f3e62 (spec LCP-V0-884) and 36d72baea.
+  `readBundle` resolves the parent directory and still refuses a symlinked bundle file.
+  `TestLCPV0883ExportImportRestoresActiveEnrollment` now exports under a symlinked directory; without
+  the fix it fails with `import-bundle-unreadable`. The agent TMPDIR (`/private/tmp/...`) is not
+  symlinked, which is why the earlier tests passed on macOS.
