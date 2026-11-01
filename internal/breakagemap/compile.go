@@ -174,8 +174,10 @@ func Compile(parent context.Context, raw []byte, bindings map[string]string, api
 	selected, ok := sources[apiKey]
 	if !ok {
 		r.unknown(apiKey, "selected API source unavailable")
-	} else if strings.HasSuffix(selected.source.Path, ".go") && !moduleBoundary(ctx, bindings[selected.repo.ID], selected, sources) {
-		r.unknown(apiKey, "module boundary has an undeclared or unavailable go.mod; syntax mapping withheld")
+	} else if !strings.HasSuffix(selected.source.Path, ".go") {
+		analyzeGo(&r, sources, selected, parts[2])
+	} else if bounded, why := moduleBoundary(ctx, bindings[selected.repo.ID], selected, sources); !bounded {
+		r.unknown(apiKey, "module boundary has an undeclared or unavailable go.mod; syntax mapping withheld: "+why)
 	} else {
 		analyzeGo(&r, sources, selected, parts[2])
 	}

@@ -14,32 +14,57 @@ import (
 
 // Probe only the bounded ancestor go.mod metadata of the explicitly selected
 // API. An unlisted nested module must not acquire the root module's identity.
-func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured) bool {
+// A withheld boundary returns the reason naming each failing go.mod path
+// (BKM-V0-955), so the caller can declare the missing source.
+func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured) (bool, string) {
 	args := []string{"ls-tree", "-z", c.repo.Commit, "--"}
+	probed := []string{}
 	for dir := path.Dir(c.source.Path); ; dir = path.Dir(dir) {
-		args = append(args, path.Join(dir, "go.mod"))
+		probed = append(probed, path.Join(dir, "go.mod"))
 		if dir == "." {
 			break
 		}
 	}
+	args = append(args, probed...)
 	raw, err := git(ctx, root, args...)
 	if err != nil {
-		return false
+		return false, "go.mod lookup failed at commit " + c.repo.Commit
 	}
 	found := false
+	var failed []string
 	for _, row := range strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00") {
+		if row == "" {
+			continue
+		}
 		pair := strings.SplitN(row, "\t", 2)
 		if len(pair) != 2 {
-			return false
+			return false, "malformed go.mod lookup output"
 		}
-		s, ok := sources[sourceKey(c.repo.ID, pair[1])]
+		key := sourceKey(c.repo.ID, pair[1])
+		s, ok := sources[key]
 		fields := strings.Fields(pair[0])
-		if !ok || len(fields) != 3 || fields[1] != "blob" || s.source.Blob != fields[2] {
-			return false
+		switch {
+		case len(fields) != 3 || fields[1] != "blob":
+			failed = append(failed, key+" is not a regular blob at the pinned commit")
+		case !ok:
+			failed = append(failed, key+" is tracked at the pinned commit but not a declared manifest source; add `--source "+key+"` to `breakage manifest`")
+		case s.source.Blob != fields[2]:
+			failed = append(failed, key+" is declared with blob "+s.source.Blob+" but the pinned tree has "+fields[2])
+		default:
+			found = true
 		}
-		found = true
 	}
-	return found
+	if len(failed) > 0 {
+		return false, strings.Join(failed, "; ")
+	}
+	if !found {
+		keys := make([]string, len(probed))
+		for i, p := range probed {
+			keys[i] = sourceKey(c.repo.ID, p)
+		}
+		return false, "no go.mod is tracked at the pinned commit at " + strings.Join(keys, ", ")
+	}
+	return true, ""
 }
 
 func declarationBytes(b []byte, name string) (string, bool) {

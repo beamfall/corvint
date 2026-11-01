@@ -644,3 +644,84 @@ func TestBreakageOversizeProviderAnchorCannotAdvance(t *testing.T) {
 		t.Fatal("oversize physical span gap missing")
 	}
 }
+
+// BKM-V0-955 (V1-3529): across two repositories, a withheld Go mapping names the
+// exact SDK-root go.mod path and why it failed; declaring it yields the edge.
+func TestBreakageModuleBoundaryNamesMissingGoMod(t *testing.T) {
+	m, bindings, _ := fixture(t)
+	m.Providers = []json.RawMessage{}
+	without := func(key string) Manifest {
+		out := m
+		out.Sources = nil
+		for _, s := range m.Sources {
+			if sourceKey(s.Repository, s.Path) != key {
+				out.Sources = append(out.Sources, s)
+			}
+		}
+		return out
+	}
+	reason := func(mm Manifest) string {
+		t.Helper()
+		r, e := Compile(context.Background(), encode(t, mm), bindings, "api:pkg/api.go:Changed", "")
+		if e != nil {
+			t.Fatal(e)
+		}
+		for _, u := range r.Unknowns {
+			if strings.Contains(u.Reason, "module boundary") {
+				return u.Reason
+			}
+		}
+		callers := 0
+		for _, edge := range r.Edges {
+			if edge.Relation == nil {
+				callers++
+			}
+		}
+		if callers == 0 {
+			t.Fatalf("declared boundary yielded no caller edge: %+v", r.Edges)
+		}
+		return ""
+	}
+	if got := reason(m); got != "" {
+		t.Fatalf("declared go.mod withheld: %s", got)
+	}
+	got := reason(without("api:go.mod"))
+	if !strings.Contains(got, "api:go.mod is tracked at the pinned commit but not a declared manifest source; add `--source api:go.mod`") {
+		t.Fatalf("undeclared go.mod reason = %q", got)
+	}
+	stale := m
+	stale.Sources = append([]Source(nil), m.Sources...)
+	for i := range stale.Sources {
+		if sourceKey(stale.Sources[i].Repository, stale.Sources[i].Path) == "api:go.mod" {
+			stale.Sources[i].Blob = stale.Sources[i].Blob[:len(stale.Sources[i].Blob)-1] + "0"
+			if stale.Sources[i].Blob == m.Sources[i].Blob {
+				stale.Sources[i].Blob = stale.Sources[i].Blob[:len(stale.Sources[i].Blob)-1] + "1"
+			}
+		}
+	}
+	if r, e := Compile(context.Background(), encode(t, stale), bindings, "api:pkg/api.go:Changed", ""); e == nil {
+		joined := ""
+		for _, u := range r.Unknowns {
+			joined += u.Reason + "\n"
+		}
+		if !strings.Contains(joined, "api:go.mod") {
+			t.Fatalf("stale go.mod blob not named: %s", joined)
+		}
+	}
+	if e := os.Remove(filepath.Join(bindings["api"], "go.mod")); e != nil {
+		t.Fatal(e)
+	}
+	commit(t, bindings["api"])
+	bare := without("api:go.mod")
+	bare.Repositories = append([]Repository(nil), m.Repositories...)
+	bare.Repositories[0] = pinRepo(t, "api", bindings["api"])
+	for i := range bare.Sources {
+		if bare.Sources[i].Repository == "api" {
+			bare.Sources[i] = pinSource(t, bare.Repositories[0], bindings["api"], bare.Sources[i].Path)
+		}
+	}
+	got = reason(bare)
+	if !strings.Contains(got, "no go.mod is tracked at the pinned commit at api:pkg/go.mod, api:go.mod") {
+		t.Fatalf("absent go.mod reason = %q", got)
+	}
+}
