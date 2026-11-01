@@ -76,15 +76,14 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	// kept, in file order, and an import of the name reaches all of them
 	// (AFP-V0-682).
 	moduleNames := make(map[string][]string, len(files)*2)
-	seenUnit := make(map[string]bool, len(files))
+	// seenUnit maps a unit identity to its index in units. pkg.py and
+	// pkg/__init__.py share the identity python:pkg, so the later file joins
+	// the earlier one's unit and an edit to either has that owner (ACX-V0-855).
+	seenUnit := make(map[string]int, len(files))
 	units := make([]affected.Unit, 0, len(files))
 	rawImports := make(map[string][]importRef, len(files))
 	for _, relative := range files {
 		id := "python:" + primaryModuleName(relative)
-		if seenUnit[id] {
-			continue
-		}
-		seenUnit[id] = true
 		body, readErr := root.Read(relative)
 		if readErr != nil {
 			frontier[FrontierUnreadableSource] = true
@@ -95,14 +94,18 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		for flag := range flags {
 			frontier[flag] = true
 		}
-		unit := affected.Unit{ID: id}
-		if isTestFile(relative) {
-			unit.Tests = []string{relative}
-		} else {
-			unit.Sources = []string{relative}
+		index, seen := seenUnit[id]
+		if !seen {
+			index = len(units)
+			seenUnit[id] = index
+			units = append(units, affected.Unit{ID: id})
 		}
-		units = append(units, unit)
-		rawImports[id] = refs
+		if isTestFile(relative) {
+			units[index].Tests = append(units[index].Tests, relative)
+		} else {
+			units[index].Sources = append(units[index].Sources, relative)
+		}
+		rawImports[id] = append(rawImports[id], refs...)
 		for _, name := range moduleAliases(relative) {
 			if !slices.Contains(moduleNames[name], id) {
 				moduleNames[name] = append(moduleNames[name], id)
@@ -540,7 +543,8 @@ func parseImportLine(line string) []importRef {
 }
 
 // primaryModuleName is the dotted name derived from the repository root. It is
-// the unit identity, so it is unique per file regardless of source-root layout.
+// the unit identity regardless of source-root layout; pkg.py and
+// pkg/__init__.py share it and so share one unit (ACX-V0-855).
 func primaryModuleName(relative string) string {
 	trimmed := strings.TrimSuffix(relative, ".py")
 	trimmed = strings.TrimSuffix(trimmed, "/__init__")
