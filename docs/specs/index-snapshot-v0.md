@@ -760,7 +760,8 @@ snapshots refreshed automatically without a manual warmup.
   or metadata writes; linked leaves, hardlinks and non-regular lock files are refused.
 - `IDX-SNAP-V0-033`: (accepted, decision 0517) The child owns a new session,
   redirects all standard streams to `/dev/null`, uses nice priority at least +10 and GOMAXPROCS=1,
-  cancels work at 55 seconds and kills its process group at a hard 60-second wall bound. It
+  cancels work at 55 seconds and kills its process group at a hard 60-second wall bound (both
+  bounds superseded by `IDX-SNAP-V0-912`: 55 CPU-seconds of work under a 10-minute wall). It
   refuses to build if lowering priority is denied; a started notice still acknowledges only spawn.
   Nice >= +10 covers every worker thread and inherited Git priority. On Linux a locked OS thread
   lowers its priority, then execs the same image once using an internal deadline/stage marker; fd 3 retains
@@ -810,6 +811,29 @@ snapshots refreshed automatically without a manual warmup.
   record without a parseable start names nothing. The read is at most 512 bytes of the lock the
   hook already holds. The record never feeds ranking, evidence or authority, and the priority,
   GOMAXPROCS, work and hard wall bounds of `IDX-SNAP-V0-033` are unchanged.
+- `IDX-SNAP-V0-912`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3310;
+  supersedes only the 55-second work and 60-second hard wall bounds of `IDX-SNAP-V0-033`) The
+  writer's work bound is CPU time, not wall time: it cancels its build once the worker and its
+  reaped Git children have used 55 CPU-seconds (user plus system, read with `getrusage` once a
+  second), and records `expired` as before. Its hard wall bound is 10 minutes: the work context
+  also ends 50 seconds before it, and the group is killed at it. Rationale: the bound protects the
+  host from a runaway writer, which CPU time measures, while a nice +10 writer under sustained
+  normal-priority load is starved, not runaway. With 36 nice-0 busy loops on 12 CPUs it receives
+  about 3.6% of one CPU, so a refresh that costs 8 CPU-seconds idle needs about 220 seconds of wall
+  time and could never finish inside 60 (V1-0607 evidence: every writer killed, 0 of 20 hooks got
+  context). A starved writer costs almost nothing while it waits and converges as CPU frees. While
+  it runs it holds the single-flight lock (`IDX-SNAP-V0-032`), so later hooks report `already
+  running` and start no other writer; a writer that exhausts its CPU budget needs that much work
+  on an idle host too. Priority, GOMAXPROCS=1, the session, stream redirection, lock, record and
+  publication rules of `IDX-SNAP-V0-031` to `IDX-SNAP-V0-036` and `IDX-SNAP-V0-515` are unchanged,
+  and the child stays one finite process group (invariant 7). The `IDX-SNAP-V0-515` notice names the
+  new limits: the 55-second CPU work limit for `expired`, the 10-minute hard limit for a record
+  left running. Falsifier: under the recorded load a writer killed before its CPU budget or wall
+  bound, or a second writer started while one runs. Rollback: restore the wall bounds
+  (`snapshotRefreshWallBound = time.Minute`, the work deadline at 55 s) and drop the CPU ticker.
+  Traceability: `TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912`,
+  `TestSnapshotRefreshPreviousOutcome`; loaded qualification in
+  `docs/build-log/2026-10-31-indexcli-w5.md`.
 
 ### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
 
