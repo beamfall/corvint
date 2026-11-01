@@ -81,6 +81,15 @@ driving Corvint from scripts.
   that carry a `## ` description and the effective `BASE`; it SHALL run no build, test or gate.
   The file default SHALL be `BASE ?= origin/main`. Dogfood targets SHALL still refuse a file-origin
   `BASE` (ASD-V0-019), and `make gate` SHALL stay an explicit target.
+- **ACX-V0-858:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-3731) The verbs whose range end is `--target` (`prove`, `surprise`, `lrf`, `obligations`,
+  `ocm`, `dogfood-ocm`) SHALL accept `--head` and `--head=VALUE` as that same option, before any
+  verb parser runs; `--target` stays accepted and both together are the verb's duplicate-option
+  refusal. `dogfood change|check|seal|batch-check|propose-citations|prechange` SHALL accept
+  `--base BASE` in place of the positional BASE; giving both is `duplicate-local-completion-option`.
+  A test SHALL enumerate the range and output flags each verb's help names, so a change to that
+  vocabulary is a reviewed edit. Renaming the other spellings (`--revision`, `--rev`, `--json`,
+  `--summary`) is out of scope here.
 
 ## Non-goals
 
@@ -108,6 +117,7 @@ still runs it.
 | ACX-V0-856 | `frontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
 | ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
+| ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 
 ## Rollback
 
