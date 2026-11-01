@@ -5263,6 +5263,57 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### Declared existence readers (AFP-V0-980, AFP-V0-981; V1-3772)
+
+Intent (red-team test-selection audit, 2026-11-01; V1-3772): `git rm` of a skill file named in a
+`docs/specs/INDEX.json` implementation array planned neither `internal/specindex` nor any other
+unit that fails on it. `TestIndexImplementationPathsExist` stats every implementation path the
+index names; its declared read scope is `docs/specs/`, and Landlock does not confine `stat`, so
+the confined shard never shows the read. The deletion changed no file in that scope, so no rule
+selected the package, and the failure surfaced only in the nightly release gates.
+
+- **AFP-V0-980:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3772)
+  The repository MAY declare, in `.corvint/existence-readers.json` (closed profile
+  `corvint-existence-readers/0`: `{"profile", "entries": [{"package", "manifests", "reason"}]}`),
+  each Go package directory whose tests test the existence of paths named inside manifest files.
+  Entries are strictly ascending by `package`; each names a clean relative package directory, one
+  to eight distinct clean relative manifest paths, each read through the graph's source with a
+  4 MiB bound, and a non-empty printable reason of at most 512 bytes. The declaration is at most
+  64 KiB and holds at most 64 entries. Corvint SHALL read the declaration and its manifests when
+  the graph is built, and take from each manifest every maximal run of the bytes
+  `A-Za-z0-9._/@+-` as a name, kept when it is a valid repository path either as written or
+  joined to the manifest's directory (a Markdown link is relative to its file), at most 65536 names
+  per entry. The names enter the graph digest and cache entry, and the declaration's stamp is
+  required of a cached entry, so an entry recorded before the declaration rebuilds. A missing
+  declaration declares nothing; an invalid declaration, an unreadable or oversized manifest, a name
+  bound overrun, or a package the Go plugin does not observe fails the build. `Select` SHALL select
+  the Go unit of an entry, witness `DECLARED_EXISTENCE_READER` (a terminal witness, not traversed),
+  for the smallest dirty path that one of its manifests names and that is absent from the graph's
+  checkout (deleted or renamed away), or for any dirty path when the graph has no disk root; and
+  for any dirty path when the declaration itself is dirty. The rule only adds selections; no
+  unknown entry is added or removed. This repository declares `internal/specindex` (manifest
+  `docs/specs/INDEX.json`) and `tools/capabilities-check` (manifest `docs/CAPABILITIES.md`,
+  whose links `Check` stats relative to `docs/`). Non-goals: reading content through a computed
+  path (the read scope and Landlock already bound that read); inferring existence readers from
+  test source; selecting a reader for a path that is only edited, whose existence is unchanged.
+  Failure modes: a manifest that names a path in a form neither rule resolves (an absolute path or
+  one assembled from fragments) is not matched; a name that coincides with a deleted path selects
+  the reader although it does not stat it, which only adds a unit. Falsifier: a fixture that
+  deletes a file named in a declared manifest and is planned without the declared package.
+  Rollback: delete `.corvint/existence-readers.json` and `existence_readers.go`, and the
+  `ExistenceReaders` members of the digest and cache entry.
+- **AFP-V0-981:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3772)
+  `test-read-scopes-check` SHALL fail, naming the package, file and line, when a test file of a
+  package declared in `.corvint/test-read-scopes.json` calls `os.Stat`, `os.Lstat` or
+  `os.Readlink` on a `filepath.Join` or `path.Join` whose first argument is a string literal made
+  only of parent components (`..`, `../..`) and some later argument is not a string literal, unless
+  the package is an AFP-V0-980 entry: such a call tests the existence of a repository path the test
+  read from data, which neither the read scope nor Landlock bounds. Non-goals: following a
+  repository root held in a variable or passed to non-test code (such as `Check`'s `linkBase`
+  in `tools/capabilities-check`, which is declared by inspection instead); flagging stat calls on
+  temporary directories. Failure mode: a root-relative stat through any other expression shape is
+  not flagged. Rollback: delete `statReaders` and its call in `check`.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
