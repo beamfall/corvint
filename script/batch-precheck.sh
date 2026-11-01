@@ -93,6 +93,13 @@
 # as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
 # sealed head runs them, once per closeout.
 #
+# Lane closeout (ASD-V0-825, V1-4069): with LANE=1 (dogfood-closeout exports it), an `@own` entry
+# (the companion-release reproducible builds, about 170 s each) runs only when a COMPANION_INPUTS
+# path changed since the base; otherwise it is skipped with the reason printed, and the batch
+# precheck, which runs without LANE, runs it. With no readable diff it runs. A receipt written by
+# such a run gets a `.lane` sidecar naming its head, and a since-receipt run without LANE=1 does
+# not narrow from that receipt.
+#
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
@@ -130,6 +137,10 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 # recipe itself, the CI shard costs and the fixed change set; it replays fixed historical commits,
 # so nothing else changes its result (ASD-V0-944, V1-3550).
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
+# What the @own companion-release builds read beyond the Go module: their package, the Tasks
+# command they archive and its external-agent fixtures and guide (ASD-V0-825, V1-4069).
+COMPANION_INPUTS=(internal/companionrelease/ cmd/corvint-tasks/ internal/tasks/cli/testdata/external-agents/ docs/TASKS-EXTERNAL-AGENTS.md go.mod go.sum)
+lane_skipped=0
 planner=${BATCH_PRECHECK_PLANNER-corvint}
 # Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
 # (ASD-V0-047, V1-3142).
@@ -489,6 +500,26 @@ select_report() {
   select_baseline
 }
 
+# lane_own_skip leaves out, under LANE=1, each @own entry no COMPANION_INPUTS path reaches
+# (ASD-V0-825, V1-4069); with no readable diff every entry stays.
+lane_own_skip() {
+  local i n=${#DRIFT_TESTS[@]} pkg prefix inputs
+  [[ ${LANE:-} == 1 ]] || return 0
+  if ((!sel_diff)); then
+    printf 'batch-precheck: lane closeout runs the @own companion builds (%s)\n' "$sel_why"
+    return 0
+  fi
+  for ((i = 0; i < n; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] || continue
+    read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    [[ " $inputs " == *" @own "* ]] || continue
+    wanted "" "${COMPANION_INPUTS[@]}" && continue
+    drift_on[i]=0
+    lane_skipped=1
+    printf 'batch-precheck:   skipped %s %s (lane closeout: no companion input changed since %s; the batch precheck runs it, ASD-V0-825)\n' "$pkg" "$prefix" "$sel_sha"
+  done
+}
+
 # select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
 # diff read but no usable plan, only when no Go input and no declared input changed at all.
 select_baseline() {
@@ -804,6 +835,8 @@ since_receipt() {
   head=$(git rev-parse HEAD)
   if [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
     printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
+  elif [[ ${LANE:-} != 1 && $(cat "$(receipt_path).lane" 2> /dev/null) == "$named" ]]; then
+    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)\n'
   elif [[ $named == "$head" ]] && tree_clean; then
     printf 'batch-precheck: SKIP receipt already names HEAD %s and the checkout is clean; no step reruns (ASD-V0-943)\n' "$head"
     exit 0
@@ -819,7 +852,7 @@ since_receipt() {
 since_base=
 [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-/bin/rm -f "$receipt"
+/bin/rm -f "$receipt" "$receipt.lane"
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -942,6 +975,7 @@ fi
 # Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
 select_plan
 select_report
+lane_own_skip
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for
@@ -1131,6 +1165,8 @@ elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_bef
   if printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
     "$head_before" "$((pass + fail))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
+    # A lane closeout receipt that skipped @own entries is marked so no batch narrows from it.
+    ((!lane_skipped)) || printf '%s\n' "$head_before" > "$receipt.lane" || /bin/rm -f "$receipt"
   else
     /bin/rm -f "$receipt.tmp"
     printf 'batch-precheck: could not write the receipt %s\n' "$receipt" >&2
