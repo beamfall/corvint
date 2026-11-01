@@ -181,7 +181,7 @@ start until it is removed. More than 64 links are announced across successive st
   `handoffTokens` receives the notice in-session through the shipped plugin module and the compiled
   hook): `TestDSGV0008_OpenCodeSessionReceivesHandoffInSession`
   (internal/tasks/cli/dispatch_opencode_notice_internal_test.go); live OpenCode qualification NOT_RUN.
-- DSG-V0-684: `TestDSGV0684_KeepLeaseMustOutlastTwoTicks` (internal/tasks/dispatch/keeper_test.go); a live
+- For DSG-V0-684, `TestDSGV0684_KeepLeaseMustOutlastTwoTicks` (internal/tasks/dispatch/keeper_test.go); a live
   long-running kept attempt (V1-1556 AC1) NOT_RUN.
 - DSG-V0-010 to 015: `TestDSGV0011_UpgradeApplyRequestsOrRefuses`
   (internal/tasks/cli/dispatch_upgrade_internal_test.go); `TestDSGV0012_HandoverFailureAndInterruption`

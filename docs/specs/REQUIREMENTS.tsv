@@ -2529,6 +2529,7 @@ DSG-V0-012	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A
 DSG-V0-013	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The handed-over dispatcher lock MUST pass as an inherited fi	unrecorded	-
 DSG-V0-014	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The new image MUST emit `upgraded` with `from`, `fromSha256`	unrecorded	-
 DSG-V0-015	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A start that finds phase `EXEC` with no inherited lock (the	unrecorded	-
+DSG-V0-684	docs/specs/corvint-tasks-dispatch-signals-v0.md	(standing lane auto-accept, 2026-11-01; V1-1556) Amending CAL-V0-311, a	standing	2026-11-01; V1-1556
 DSG-V0-940	docs/specs/corvint-tasks-dispatch-signals-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved fr	standing	2026-10-11; V1-1389
 TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
 TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
