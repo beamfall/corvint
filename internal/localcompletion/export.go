@@ -227,9 +227,20 @@ func readBundle(input, key string) (*exportBundle, error) {
 		if decodeErr != nil || digest(data) != file.SHA256 || !validPath(file.Path) || (file.Anchor != "session" && file.Anchor != "gitdir" && file.Anchor != "root") {
 			return nil, errors.New("import-bundle-invalid")
 		}
+		// LCP-V0-960 (V1-3634): every Git-directory file an export writes is
+		// Corvint's own, under corvint/; any other path, such as
+		// hooks/pre-commit, could plant code Git runs, so the bundle is refused
+		// before anything is written.
+		if file.Anchor == "gitdir" && !strings.HasPrefix(file.Path, gitDirExportPrefix) {
+			return nil, errors.New("import-gitdir-path-refused")
+		}
 	}
 	return &bundle, nil
 }
+
+// gitDirExportPrefix is the one Git-directory subtree an export carries and an
+// import writes: Corvint's own state, never Git's hooks, config or objects.
+const gitDirExportPrefix = "corvint/"
 
 // Import restores an exported enrollment into this worktree (LCP-V0-884): HEAD
 // must be the bundle's exact commit and tree, the session must have no state
