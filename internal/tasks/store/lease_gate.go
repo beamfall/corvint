@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -109,7 +110,10 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		}
 		if !reused {
 			executed = true
-			if run, err = runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock); err != nil {
+			stopBeats := gateHeartbeat(ctx, repo, actor, choice, policy, clock)
+			run, err = runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock)
+			stopBeats()
+			if err != nil {
 				return &Report{}, err
 			}
 		}
@@ -149,6 +153,9 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			report.GateReusedFrom = gateReuseOf(choice.gate.source)
 		case report.Kind == "Transaction" && choice.gate != nil:
 			report.GateExecuted = &GateExecution{Record: choice.gate.record, Output: choice.gate.output}
+			if def := policy.Gate(choice.Lease.Gate); def != nil {
+				report.GateExecuted.FailurePattern = def.FailurePattern
+			}
 		case report.Kind == "Replay" && report.Outcome.ReceiptSeq != nil:
 			report.GateReusedFrom = recordedReuse(repo, report.Outcome.ReceiptSeq.Uint64(), choice.Lease.AttemptID, choice.Lease.Gate)
 		}
@@ -159,7 +166,12 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 // GateExecution is the encoded gate result record a gate run executed and
 // committed in this call, and the output it captured, retained as evidence
 // under the record's "output" digest (TCD-V0-165, TCD-V0-166).
-type GateExecution struct{ Record, Output []byte }
+type GateExecution struct {
+	Record, Output []byte
+	// FailurePattern is the gate's policy failurePattern, nil when it has
+	// none (TCD-V0-801).
+	FailurePattern *regexp.Regexp
+}
 
 // GateReuse names the earlier result a gate run reused: its digest and the
 // attempt that executed it (CAL-V0-240).

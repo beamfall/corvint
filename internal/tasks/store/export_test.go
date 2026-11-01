@@ -203,3 +203,12 @@ func SetStageWallForTest(stateDir string, wall func(context.Context) (context.Co
 	stageWalls.Store(stateDir, wall)
 	return func() { stageWalls.Delete(stateDir) }
 }
+
+// SetGateBeatIntervalForTest sets LGL-V0-810's gate-run heartbeat gap until
+// the returned function restores it. A test that calls it must not run in
+// parallel.
+func SetGateBeatIntervalForTest(d time.Duration) func() {
+	prev := gateBeatInterval
+	gateBeatInterval = func(int64) time.Duration { return d }
+	return func() { gateBeatInterval = prev }
+}

@@ -2647,6 +2647,9 @@ TCL-V0-866	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-867	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3715) Where	standing	2026-10-11; V1-3715
 TCL-V0-868	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket	standing	2026-10-11; V1-3794
 TCL-V0-869	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3173)	standing	2026-10-11; V1-3173
+TCL-V0-800	docs/specs/corvint-tasks-cli-v0.md	(V1-3958; supersedes the "MUST NOT synthesize" clause of `CAL-V0-250`) A	unrecorded	-
+TCL-V0-801	docs/specs/corvint-tasks-cli-v0.md	(V1-3606) The CLI's shared flag parser MUST accept declared boolean flags: a	unrecorded	-
+TCL-V0-802	docs/specs/corvint-tasks-cli-v0.md	(V1-3948) The `taskman-policy/0` fields `reviewLane.required`,	unrecorded	-
 TCL-V0-870	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A	standing	2026-10-11; V1-3552
 TCL-V0-990	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The	standing	2026-10-11; V1-3517
 TCL-V0-991	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A	standing	2026-10-11; V1-3766
@@ -2688,6 +2691,8 @@ TCD-V0-162	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket delivery-screen`
 TCD-V0-163	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]` takes no	unrecorded	-
 TCD-V0-164	docs/specs/corvint-tasks-closeout-debt-v0.md	A ticket the batch or a lane only mentions, and that none delivers, is listed un	unrecorded	-
 TCD-V0-165	docs/specs/corvint-tasks-closeout-debt-v0.md	A `gate run` that executes its command gate and commits the result in that call	unrecorded	-
+TCD-V0-800	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3940) The `TCD-V0-165`	standing	V1-3940
+TCD-V0-801	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3940) A policy gate MAY ca	standing	V1-3940
 TCD-V0-166	docs/specs/corvint-tasks-closeout-debt-v0.md	Every executed command gate result retains its full captured output, within the	unrecorded	-
 TCD-V0-167	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) A ref	standing	2026-10-11; V1-2303
 TCD-V0-168	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2303) When the	standing	2026-10-11; V1-2303
@@ -2927,7 +2932,8 @@ TLF-V0-885	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket split --dry-run` MUS
 TLF-V0-886	docs/specs/corvint-tasks-lane-flow-v0.md	`tools/requirement-id-collisions` MUST read every local branch and detached work	unrecorded	-
 TLF-V0-960	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3650; refines	standing	2026-10-31; V1-3650
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
-TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
+TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket in the `TLF-V0-800`	unrecorded	-
+TLF-V0-800	docs/specs/corvint-tasks-lane-flow-v0.md	The population `ticket effects-proposals` screens MUST be the population the	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
 TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
@@ -2953,6 +2959,7 @@ LGL-V0-891	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2621;
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
 LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757
+LGL-V0-810	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3941; experimental under the standing lane auto-accept) While	standing	V1-3941
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
