@@ -31,6 +31,7 @@ var closed = map[string][]string{
 	".corvint/gated-root-locators.json":         {"", "/packages/*"},
 	".corvint/runtime-readers.json":             {"", "/entries/*"},
 	".corvint/shell-foreign-callers.json":       {"", "/scripts/*"},
+	".corvint/shell-read-scopes.json":           {"", "/tests/*"},
 	".corvint/test-binary-consumers.json":       {""},
 	".corvint/test-binary-execs.json":           {""},
 	".corvint/test-nested-sandboxes.json":       {""},
