@@ -35,6 +35,7 @@ var mutationVerbs = map[string]string{
 	"grant-approval":   mutation.OpGrantApproval,
 	"revoke-approval":  mutation.OpRevokeApproval,
 	"attach-evidence":  mutation.OpAttachEvidence,
+	"progress":         mutation.OpProgressSet,
 }
 
 type mutateFlags struct {
@@ -289,6 +290,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	}
 	if operation == mutation.OpAttachEvidence {
 		o.Set("attachEvidence", wire.String("Records 1..16 sha256 digests (sorted unique; the CLI sorts them) and a nonblank reason of at most 512 bytes on an OPEN native ticket (TEA-V0-001). Revision advances by one; acceptanceRevision, status, gates, attempts and every other record field are unchanged, so attached evidence never satisfies a gate or acceptance criterion. A digest already attached at the current acceptanceRevision refuses DUPLICATE_ID; at most 32 entries per ticket. OWNER by default; OPERATOR only through an explicit policy row. Retry with the same --request-id and --issued-at to replay."))
+	}
+	if operation == mutation.OpProgressSet {
+		o.Set("progress", wire.String("Appends one advisory progress entry {phase, lane, host, branch, head, pr, reason} to a DRAFT, OPEN or HELD native ticket (TLF-V0-880). phase is IN_PROGRESS, DELIVERED_ON_BRANCH (needs branch, head), IN_REVIEW or IN_MERGE_QUEUE (need pr), MERGED_AWAITING_CLOSEOUT (needs head), BLOCKED (needs reason) or CLEARED (reason only); absent members are null. Revision advances by one; acceptanceRevision, status, gates and claims are unchanged, and no admission, claim, ranking or completion read consults progress (TLF-V0-881), so it is admitted under an OPERATOR/ADMISSION barrier. Completion and archive clear it. A mark equal to the latest entry refuses DUPLICATE_ID; at most 64 entries. OWNER and OPERATOR by default. Example: corvint-tasks ticket progress --request-id r1 --target V1-1 --expected-revision 3 --payload '{\"branch\":null,\"head\":null,\"host\":\"mac\",\"lane\":\"w4\",\"phase\":\"IN_REVIEW\",\"pr\":\"42\",\"reason\":null}'"))
 	}
 	if operation == mutation.OpCompleteManual {
 		o.Set("completeManual", wire.String(completeManualHelp))

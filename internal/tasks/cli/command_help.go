@@ -302,7 +302,7 @@ var commandUsage = map[string]string{
 
 	"version":                 "corvint-tasks version (alias --version)",
 	"ticket list":             "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
-	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
