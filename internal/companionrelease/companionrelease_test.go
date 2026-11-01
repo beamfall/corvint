@@ -1349,15 +1349,26 @@ func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 		}
 		scratch := t.TempDir()
 		names := []string{"corvint", "corvint-console", "corvint-dashboard-snapshot", "corvint-tasks"}
+		// PUB-V0-054, V1-3799: measure the file system the builds' $WORK uses,
+		// the closed env's own GOTMPDIR under a component home in scratch
+		// (PUB-V0-965), not whatever TMPDIR names. It does not exist yet, so its
+		// nearest existing ancestor is measured.
+		measured := goTmpDir(closedGoEnv(filepath.Join(scratch, names[0], "home-a-"+names[0]), supportedTarget))
+		for {
+			if _, err := os.Stat(measured); err == nil {
+				break
+			}
+			measured = filepath.Dir(measured)
+		}
 		var stat syscall.Statfs_t
-		if err := syscall.Statfs(scratch, &stat); err != nil {
-			t.Fatalf("free space under %s: %v", scratch, err)
+		if err := syscall.Statfs(measured, &stat); err != nil {
+			t.Fatalf("free space under %s: %v", measured, err)
 		}
 		free := uint64(stat.Bavail) * uint64(stat.Bsize)
 		workers := doubleBuildWorkers(free, len(names))
 		if workers == 0 {
-			t.Skipf("PUB-V0-054: %d MiB free under %s (TMPDIR), below the %d MiB one component's cold double build needs; free space or point TMPDIR at a larger file system",
-				free>>20, filepath.Dir(scratch), doubleBuildScratchBytes>>20)
+			t.Skipf("PUB-V0-054: %d MiB free under %s (the builds' GOTMPDIR file system), below the %d MiB one component's cold double build needs; free space or point TMPDIR at a larger file system",
+				free>>20, measured, doubleBuildScratchBytes>>20)
 		}
 		// The components share nothing but the read-only module tree, so they
 		// build concurrently (V1-2740), as many at once as the scratch admits;

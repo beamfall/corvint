@@ -98,17 +98,22 @@ func closedGoEnv(home, targetGOOSArch string) []string {
 	return dedupeEnv(env)
 }
 
+// goTmpDir is the GOTMPDIR an environment names, or "" when it names none.
+func goTmpDir(env []string) string {
+	for i := len(env) - 1; i >= 0; i-- {
+		if dir, ok := strings.CutPrefix(env[i], "GOTMPDIR="); ok {
+			return dir
+		}
+	}
+	return ""
+}
+
 // ensureGoTmp creates the GOTMPDIR an environment names, if any, since Go
 // refuses a GOTMPDIR that does not exist (PUB-V0-965). An environment
 // without one is left alone.
 func ensureGoTmp(env []string) error {
-	for i := len(env) - 1; i >= 0; i-- {
-		if dir, ok := strings.CutPrefix(env[i], "GOTMPDIR="); ok {
-			if dir == "" {
-				return nil
-			}
-			return os.MkdirAll(dir, 0o700)
-		}
+	if dir := goTmpDir(env); dir != "" {
+		return os.MkdirAll(dir, 0o700)
 	}
 	return nil
 }
