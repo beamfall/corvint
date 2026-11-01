@@ -175,7 +175,9 @@ func TestAFPV0040AdvisoryReportNeverFailsOnFindings(t *testing.T) {
 	// near drifts by 100s (ratio 1.33, under 10%): not reported. big drifts by 400s within
 	// factor 2 but over 10%: material. new is a material missing package; small drifts beyond
 	// factor 2 but is not material; tiny is a minor missing package; gone is stale, never material.
-	wantOut := "::warning title=CI shard cost drift::missing example.org/new observed=500000ms misplaces 500.0s (50%25 of the ideal shard); refresh " + table + " (AFP-V0-040)\n" +
+	// Shard 0 costs 1400s against a 900s prediction, 395s over the ideal shard: stale (AFP-V0-604).
+	wantOut := "::warning title=CI shard balance stale::shard 0 observed 1400.0s against 900.0s predicted, 39%25 over the ideal shard 1005.0s; refresh " + table + " (AFP-V0-604)\n" +
+		"::warning title=CI shard cost drift::missing example.org/new observed=500000ms misplaces 500.0s (50%25 of the ideal shard); refresh " + table + " (AFP-V0-040)\n" +
 		"::warning title=CI shard cost drift::drift example.org/big recorded=600000ms observed=1000000ms misplaces 400.0s (40%25 of the ideal shard); refresh " + table + " (AFP-V0-040)\n" +
 		"::warning title=CI shard cost drift::3 further findings (1 drift, 1 missing, 1 stale); see the job summary (AFP-V0-040)\n"
 	if out.String() != wantOut {
@@ -197,7 +199,7 @@ func TestAFPV0040AdvisoryReportNeverFailsOnFindings(t *testing.T) {
 
 	// A stated share applies; a clean table reports no finding.
 	out.Reset()
-	if code, _ := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--share", "50", shard0, shard1}, &out); code != 0 || strings.Count(out.String(), "::warning") != 1 {
+	if code, _ := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--share", "50", shard0, shard1}, &out); code != 0 || strings.Count(out.String(), "::warning") != 1 || strings.Contains(out.String(), "balance stale") {
 		t.Fatalf("share 50: code=%d out:\n%s", code, out.String())
 	}
 	clean := filepath.Join(t.TempDir(), "clean.json")
@@ -665,5 +667,53 @@ func TestSTRV0056RefreshRetainsDatedTables(t *testing.T) {
 		if code, err := run(mode, args, nil); code != 2 || err == nil {
 			t.Errorf("%s: code=%d err=%v", name, code, err)
 		}
+	}
+}
+
+// TestAFPV0604ShardBalanceStaleTrigger proves the advisory report flags a stale
+// table when the slowest shard exceeds the ideal shard by the material share and
+// its prediction by as much, reports every shard's balance in the summary, and
+// stays quiet once a refreshed table predicts the same imbalance.
+func TestAFPV0604ShardBalanceStaleTrigger(t *testing.T) {
+	// Ideal shard: (100+500)s / 2 = 300s, so 10% is 30s. Shard 1 costs 500s, 200s over
+	// the ideal shard, against a 100s prediction: stale.
+	table := write(t, "costs.json", `{"profile":"corvint-ci-package-costs/0","source":{"revision":"`+revision+`","runURL":"`+runURL+`","goVersion":"go1.27.1"},"milliseconds":{"example.org/a":100000,"example.org/b":100000}}`)
+	shard0 := write(t, "shard-0.json", passed("example.org/a", "100"))
+	shard1 := write(t, "shard-1.json", passed("example.org/b", "500"))
+	summary := write(t, "summary.md", "")
+	var out bytes.Buffer
+	if code, err := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--summary", summary, shard0, shard1}, &out); code != 0 || err != nil {
+		t.Fatalf("code=%d err=%v", code, err)
+	}
+	want := "::warning title=CI shard balance stale::shard 1 observed 500.0s against 100.0s predicted, 67%25 over the ideal shard 300.0s; refresh " + table + " (AFP-V0-604)\n"
+	if !strings.HasPrefix(out.String(), want) {
+		t.Fatalf("annotations:\n%s", out.String())
+	}
+	got, _ := os.ReadFile(summary)
+	for _, w := range []string{"| 0 | 100.0s | 100.0s | -66.7% |\n| 1 | 100.0s | 500.0s | 66.7% |\n", "**Stale:** shard 1 is the slowest, 200.0s over the ideal shard and 400.0s over its prediction."} {
+		if !strings.Contains(string(got), w) {
+			t.Fatalf("summary lacks %q:\n%s", w, got)
+		}
+	}
+
+	// A refreshed table predicts the imbalance two packages cannot avoid: not stale.
+	clean := filepath.Join(t.TempDir(), "clean.json")
+	if code, err := run("refresh", []string{"--table", clean, "--shards", "2", "--revision", revision, "--run-url", runURL, shard0, shard1}, nil); code != 0 || err != nil {
+		t.Fatal(code, err)
+	}
+	out.Reset()
+	cleanSummary := filepath.Join(t.TempDir(), "clean.md")
+	if code, err := run("check", []string{"--table", clean, "--advisory", "--shards", "2", "--summary", cleanSummary, shard0, shard1}, &out); code != 0 || err != nil || out.Len() != 0 {
+		t.Fatalf("refreshed: code=%d err=%v out=%s", code, err, out.String())
+	}
+	if got, _ := os.ReadFile(cleanSummary); !strings.Contains(string(got), "The slowest shard is within the material share") {
+		t.Fatalf("refreshed summary:\n%s", got)
+	}
+
+	// Balanced shards are never stale, however wrong the per-package costs.
+	out.Reset()
+	even := write(t, "shard-1b.json", passed("example.org/b", "100"))
+	if code, err := run("check", []string{"--table", table, "--advisory", "--shards", "2", "--share", "50", shard0, even}, &out); code != 0 || err != nil || strings.Contains(out.String(), "balance stale") {
+		t.Fatalf("balanced: code=%d err=%v out=%s", code, err, out.String())
 	}
 }
