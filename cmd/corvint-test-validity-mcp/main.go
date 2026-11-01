@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -42,9 +43,13 @@ const usage = "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 
 	"       corvint-test-validity-mcp --version\n" +
 	"A local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\n" +
 	"Deprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile test-validity\n" +
-	"serves the same tools with the same results."
+	"serves the same tools with the same results.\n" +
+	"Example: corvint-test-validity-mcp --root /absolute/repo"
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))

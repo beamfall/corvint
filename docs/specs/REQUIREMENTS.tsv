@@ -965,6 +965,8 @@ CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
 CAP-V0-950	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3701; extends `CAP-V0-015`	standing	V1-3701
+CAP-V0-700	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3737, V1-3499) Every compa	standing	V1-3737; V1-3499
+CAP-V0-701	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3737, V1-3499)	standing	V1-3737; V1-3499
 CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines	standing	2026-10-30; V1-3153
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-931	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
@@ -6341,6 +6343,7 @@ SDD-V0-014	docs/specs/source-documentation-draft-v0.md	A page holding `internal/
 SDD-V0-015	docs/specs/source-documentation-draft-v0.md	The blinded maintainer task (audit section 13) is defined by	unrecorded	-
 SDD-V0-018	docs/specs/source-documentation-draft-v0.md	`docs draft`, `docs consume` and `corvint-docs-mcp` accept a module directory in	unrecorded	-
 SDD-V0-019	docs/specs/source-documentation-draft-v0.md	`docs draft --dry-run` and `corvint.docs_draft` with `dry_run: true` preview a f	unrecorded	-
+SDD-V0-700	docs/specs/source-documentation-draft-v0.md	(experimental under the standing lane auto-accept; V1-3706) `corvint.docs_draft`	standing	V1-3706
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-

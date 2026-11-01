@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/dashboard/model"
 )
 
@@ -301,6 +302,19 @@ func runProcess(arguments []string, stdout, stderr io.Writer, compile compiler) 
 	return runContext(ctx, arguments, stdout, stderr, compile)
 }
 
+// usage is the companion contract's --help text (CAP-V0-700).
+const usage = `usage: corvint-dashboard-snapshot snapshot --root ROOT [--source NAME=PATH]... [--generated-at TIME] [--conformance]
+       corvint-dashboard-snapshot roadmap --root ROOT [--store DIR] [--tasks FILE] [--receipts-dir DIR]
+                                  [--requirements FILE] [--docs-state FILE] [--generated-at TIME]
+       corvint-dashboard-snapshot cem-stable --root ROOT --cem FILE --ocm FILE --expected-base OID --target OID
+                                  [--artifact-root DIR]
+Compile the read-only dashboard snapshot JSON for one repository; any other argument is
+DASHBOARD_INVALID_ARGUMENT.
+Example: corvint-dashboard-snapshot snapshot --root /absolute/repo`
+
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-dashboard-snapshot", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
 	os.Exit(runProcess(os.Args[1:], os.Stdout, os.Stderr, compileSnapshot))
 }

@@ -32,7 +32,11 @@ CAP-V0-950), `corvint-cem-candidate help --json`, `corvint-cem-experiments help 
 `corvint-dashboard-snapshot`, `corvint-go-test-provider`, `corvint-intake`,
 `corvint-js-test-provider`, `corvint-postmerge-connect`, `corvint-postmerge-metrics`,
 `corvint-postmerge-workflow`, `corvint-pulse` and `corvint-ruby-test-provider`), committed as `internal/capcatalog/trees/BINARY.json` and linked from the
-`commandTrees` member of `corvint help --json`. Any node answers `--help` and `-h` with its own help
+`commandTrees` member of `corvint help --json`. The companion binaries without a tree (`corvint-console`,
+`corvint-update`, the MCP servers, `corvint-web-flows`) each answer
+`--help`, `help`, `help --json` (`corvint-companion-help/0`), `--version` and `--version --json`
+(`corvint-companion-version/0`) on stdout with exit 0 and without touching a repository (CAP-V0-700);
+`corvint-dashboard-snapshot` answers help from its tree and takes only the `--version` forms. Any node answers `--help` and `-h` with its own help
 and exits 0. `tools/capabilities-check` fails when a binary dispatches a subcommand or option its
 tree lacks, when a node has no usage, example or help, and when a new `cmd/` binary has neither a
 tree nor a row in the shrink-only `internal/capcatalog/CLI-RATCHET.tsv`. The repository's root

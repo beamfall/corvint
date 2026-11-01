@@ -339,6 +339,28 @@ cannot silently go missing or outlive its command.
   corvint's `help --tree` spelling; `help --json` stays. Non-goals: nested-operation slices, paging
   the full catalog. Falsifier: a command whose slice exceeds the bound, a slice whose entry differs
   from the catalog's other than the omitted statements, or a `--tree` that differs from `--json`.
+- `CAP-V0-700`: (experimental under the standing lane auto-accept; V1-3737, V1-3499) Every companion
+  binary a release ships beside `corvint` and `corvint-tasks` (`corvint-console`, `corvint-update`,
+  `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`, `corvint-corpus-mcp`,
+  `corvint-dashboard-snapshot`, `corvint-web-flows`) MUST answer, through `internal/companioncli`,
+  before it parses anything else: `--help`, `-h` and `help` with one usage text starting
+  `usage: BINARY` and naming an `Example: BINARY ...`; `help --json` with
+  `corvint-companion-help/0` `{binary, version, usage[]}`, the usage lines; `--version` with the one
+  line `BINARY VERSION`; and `--version --json` with `corvint-companion-version/0` `{binary,
+  version, commit, commitState}` from the binary's own build information (`unknown` without VCS
+  stamping). Each form writes stdout only, exits 0, and reads no repository, port or network.
+  `corvint-dashboard-snapshot`, which has a command tree (`CAP-V0-972`), answers the three help
+  forms and `help --json` from that tree and takes only the two `--version` forms from
+  `internal/companioncli`.
+  `VERSION` is `0.1.0-experimental` until a companion ships its own release line, so the MCP
+  servers' existing `--version` bytes are unchanged. Non-goals: command trees for these binaries
+  (`CLI-RATCHET.tsv` keeps them); per-subcommand help. Falsifier: a companion that starts work,
+  exits non-zero or writes stderr on one of the five forms.
+- `CAP-V0-701`: (experimental under the standing lane auto-accept; V1-3737, V1-3499)
+  `corvint-console` MUST refuse any positional argument with `unexpected argument "WORD"` and exit
+  2 before it reads a repository or listens; `corvint-update` MUST refuse an action other than
+  `check`, `apply` or `rollback` (including none) with its usage on stderr and exit 2 before it reads
+  state, and its usage names every action, `--allow-network` and `--component core|tasks`.
 - `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
   `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
   kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
@@ -594,6 +616,8 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
 | CAP-V0-950 | `internal/capcatalog/slice.go` (`Slice`), `cmd/corvint` (`parseHelpInvocation`, `catalogCommandJSON`, root help), `internal/tasks/cli` (`Run`), `cmd/corvint-test` (`helpRequest`) | `TestCAPV0950EveryCommandSlicesUnderTheBudget` (internal/capcatalog), `TestCAPV0950HelpJSONCommandSlice` (cmd/corvint), the `help --tree` cases of `TestCAPV0046HelpJSONIsTheTree` (internal/tasks/cli) and `TestCAPV0045TreeSnapshotIsCurrent` (cmd/corvint-test) |
+| CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) |
+| CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |

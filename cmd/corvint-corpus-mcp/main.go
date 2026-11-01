@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
@@ -39,9 +40,13 @@ const usage = "usage: corvint-corpus-mcp --root ROOT --artifact ARTIFACT [--map 
 	"A local read-only stdio MCP server for the documentation corpus ARTIFACT of the Git worktree at ROOT.\n" +
 	"Deprecated alias for the corpus tools, kept for one release:\n" +
 	"corvint-mcp --root ROOT --tool-profile corpus --corpus-artifact ARTIFACT serves the same corpus tools\n" +
-	"with the same results; --map, --consolidation, --legacy-cases and --outcome-log stay here."
+	"with the same results; --map, --consolidation, --legacy-cases and --outcome-log stay here.\n" +
+	"Example: corvint-corpus-mcp --root /absolute/repo --artifact corpus.json"
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-corpus-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))

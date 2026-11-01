@@ -22,6 +22,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/console"
 )
 
@@ -30,7 +31,17 @@ type options struct {
 	timeout                                    time.Duration
 }
 
+// usage is the companion contract's --help text (CAP-V0-700).
+const usage = `usage: corvint-console [-addr HOST:PORT] [-repo DIR] [-specs DIR] [-tasks FILE] [-snapshot FILE]
+                       [-stable-artifact-root DIR] [-timeout D]
+Serve the loopback-only Corvint Console for one repository (-repo, default the working directory);
+a non-loopback -addr is refused and any positional argument is refused before anything starts.
+Example: corvint-console -repo /absolute/repo -addr 127.0.0.1:7777`
+
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-console", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
 	parsed, err := parseOptions(os.Args[1:], os.Stderr)
 	if err == flag.ErrHelp {
 		return
@@ -116,6 +127,9 @@ func parseOptions(arguments []string, output io.Writer) (options, error) {
 		"per-invocation timeout for corvint-tasks, git and the snapshot compiler; the snapshot is the slowest source and may need longer on a loaded host")
 	if err := flags.Parse(arguments); err != nil {
 		return options{}, err
+	}
+	if flags.NArg() != 0 { // CAP-V0-701: refused before any repository read or listen.
+		return options{}, fmt.Errorf("unexpected argument %q; corvint-console takes flags only (corvint-console --help)", flags.Arg(0))
 	}
 	seen := make(map[string]bool)
 	flags.Visit(func(current *flag.Flag) { seen[current.Name] = true })
