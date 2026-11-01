@@ -535,6 +535,28 @@ no SIMD or assembly. Rollback: do not create the block scanner in `decodeArtifac
 revert the implementing change; the `DCR-V1-551` scan and the sequential scan are unchanged
 beneath it, and no stored state needs migration.
 
+### One commit batch per checkout for pinned revisions (V1-2657)
+
+The `DCR-V1-410` recorded-identity check resolved a checkout's pinned revisions one at a time,
+each `CommitTree` starting its own `git cat-file --batch -z` process, so a checkout with six pinned
+revisions started six. Status for `DCR-V1-975`: experimental under the standing lane auto-accept;
+V1-2657.
+
+- `DCR-V1-975`: The pinned-revision verification resolves every pinned revision of one checkout
+  through a single `git cat-file --batch -z` process (`CommitTrees`): two requests per revision in
+  sorted order, the commit peel and the tree peel, each record self-hashed and each present commit
+  required to name the tree its tree peel returns, exactly the checks `CommitTree` makes for one
+  revision. Checkouts are still verified in parallel, one process each. A revision that is not a
+  full object ID refuses before Git starts; a missing or mismatched revision refuses with the
+  message `CommitTree` gives, the first such revision in sorted order deciding; the primary
+  revision must still resolve to the recorded tree. Non-goals: no change to `gitauth.Open`, to the
+  checkout grouping or to any refusal. Failure mode: one malformed record fails the whole batch,
+  as it failed the one revision it belonged to. Acceptance:
+  `TestDCRV1975PinnedRevisionsOneBatchPerCheckout` (a checkout with six pinned revisions verifies
+  under the Git operation bound one revision needs, which six one-revision batches exceed),
+  `TestDCRV1410VerifiedReadRefusals` and every other pin-verification refusal test unchanged.
+  Rollback: call `CommitTree` per revision again.
+
 ## Non-goals
 
 The parent contract's non-goals and simpler baseline apply; these blocks add none of their own.
@@ -587,6 +609,7 @@ DCPV1.
 | DCR-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCRV1431StreamedDecodeMatchesInMemory`, `TestDCRV1434DecodeTimeClaimTermsMatchIndex`, `TestDCRV1419FastIndexMatchesReference` |
 | DCR-V1-554..558 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go`, `claim_audit.go`, `read.go` | `TestDCRV1554UndecodableHeaderMemberRefuses`, `TestDCRV1431StreamedDecodeMatchesInMemory`, `TestDCRV1414ParallelDecodeMatchesClosedDecode`, `TestDCRV1419FastIndexMatchesReference`, `TestDCRV1419FastIndexDeclinesEveryRefusal`, `TestDCRV1557ClaimAuditGapsMatchReference`, `TestDCRV1410VerifiedReadRefusals`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-corpus-warm-read.md |
 | DCR-V1-559 | `internal/doccorpus/artifact_scan.go`, `artifact_decode.go` | `TestDCRV1559BlockScanMatchesScan`, `TestDCRV1552ParallelScanMatchesSequential`; measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-corpus-block-prescan.md` |
+| DCR-V1-975 | `internal/doccorpus/read.go`, `internal/cem/gitauth/tree.go` | `TestDCRV1975PinnedRevisionsOneBatchPerCheckout`, `TestDCRV1410VerifiedReadRefusals` |
 | DCR-V1-460..462 | `internal/doccorpus/delta_open.go`, `delta.go`, `read.go`, `artifact_decode.go`, `compile.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus_help.go` | `TestDCRV1460DeltaVerifiedReadMatchesRederived`, `TestDCRV1460DeltaVerifiedReadRefusesClosed`, `TestDCRV1460DeltaVerifiedReadUnavailableCheckout`, `TestDCRV1460DeltaCLIVerifiedRead`, `TestDCRV1461PreviousOverDefaultBound`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCR-V1-463 | `internal/perfbudget/budgets.json`, `harness.go` | `TestPRBV0050UnchangedDeltaBudget`, `TestDCRV1460DeltaCLIVerifiedRead`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-corpus-delta-verified-read.md |
 | DCR-V1-464 | `internal/doccorpus/delta_open.go` | `TestDCRV1464DeltaVerifiedReadChecksInputBindings` |
