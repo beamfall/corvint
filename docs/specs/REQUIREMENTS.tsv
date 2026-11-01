@@ -1837,6 +1837,9 @@ ASD-V0-036	docs/specs/corvint-self-development-v0.md	(accepted under the owner's
 ASD-V0-860	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; lane ci-select-w1	standing	2026-10-31
 ASD-V0-890	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3506; refines	standing	2026-10-31; V1-3506
 ASD-V0-891	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3397; refines	standing	2026-10-31; V1-3397
+ASD-V0-720	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3847) `script/	standing	2026-11-01; V1-3847
+ASD-V0-721	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3845; refines	standing	2026-11-01; V1-3845
+ASD-V0-722	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3851; refines	standing	2026-11-01; V1-3851
 ASD-V0-892	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3572; refines	standing	2026-10-31; V1-3572
 ASD-V0-893	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3260; refines	standing	2026-10-31; V1-3260
 ASD-V0-894	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3387) `script/	standing	2026-10-31; V1-3387
@@ -4141,6 +4144,7 @@ GL-V0-008	docs/specs/gate-ledger-v0.md	Two runs of one key at once MUST execute 
 GL-V0-009	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A resolved package MUST run under its own key, step `g	owner	decision 0511
 GL-V0-050	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package	standing	2026-10-11; V1-0634
 GL-V0-051	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-2985; amends	standing	2026-10-28; V1-2985
+GL-V0-720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends	standing	2026-11-01; V1-3846
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841
