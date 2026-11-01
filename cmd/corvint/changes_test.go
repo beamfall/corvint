@@ -13,7 +13,8 @@ import (
 
 func TestChangesCLI(t *testing.T) {
 	t.Run("UCL1142-V0-005 UCL1142-V0-006 help and dispatch", func(t *testing.T) {
-		for _, args := range [][]string{{"--help"}, {"changes", "--help"}, {"help", "changes"}} {
+		// Root help leaves changes unlisted (CCF-V1-008, V1-3730); help --json still lists it.
+		for _, args := range [][]string{{"help", "--json"}, {"changes", "--help"}, {"help", "changes"}} {
 			var out, err bytes.Buffer
 			if code := run(args, strings.NewReader(""), &out, &err); code != 0 || !strings.Contains(out.String(), "changes") {
 				t.Fatalf("%v: %d %s %s", args, code, &out, &err)
