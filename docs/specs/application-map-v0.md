@@ -2149,6 +2149,28 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
+- `AMAP-V0-600`: (experimental under the standing lane auto-accept (2026-11-01); V1-3932; amending
+  `AMAP-V0-003` and `AMAP-V0-005`) When a literal test URL (a spec's or page object's own `goto`,
+  `waitForURL` or `toHaveURL`) matches several routable screens and every candidate was declared by a
+  `react-router/0` router file, the build MUST rank them as React Router does: each candidate scores
+  its path segments plus one, plus 10 per static segment, 3 per parameter segment and 1 for the
+  leading empty segment, and a trailing splat subtracts 2. The single highest score is the match, so
+  `/new` beside `/*` places `/new` and `/dynamic/new` beside `/dynamic/:id` places `/dynamic/new`.
+  A tie, or any candidate from another dialect (Rails and UI-Router keep declaration-order or
+  their own ranking), keeps `ambiguous-template`. A render guard (`AMAP-V0-193`) never changes the
+  match: a guarded route is ranked like any other. Template lookups and the `ambiguous-template`
+  unknown for two screens sharing one key are unchanged.
+  - Non-goals: ranking for other dialects; index-route and optional-segment bonuses, since the
+    shared template key has neither.
+  - Failure modes: a screen that shares its state name with another dialect's state is not
+    ranked, so the lookup stays `UNKNOWN`.
+  - Falsifier: `TestAMAPV0600SpecificRouteBeatsSplat_V13932` in `goto_splat_v13932_test.go`
+    (render-guarded react routes beside a `/*` splat: `/new` and `/dynamic/new` gotos attribute to
+    their screens, `/dynamic/42` to `/dynamic/{id}`, `/kindred` to the splat), failing on base
+    `e9a5d6c80`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a mixed-dialect or tied match stays
+    ambiguous).
+  - Rollback: drop `screenIndex.ranked` and the ranking in `byURL`; map bytes change only in the
+    newly attributed specs.
 
 ## Wire contract
 
@@ -2470,6 +2492,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
+| AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
