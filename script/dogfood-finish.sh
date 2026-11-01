@@ -14,6 +14,16 @@ corvint_bin=${CORVINT_BIN-}
 
 base_arg=${1-}
 citations=${2-}
+# ASD-V0-902 (V1-3481): every up-front refusal names the entry the operator ran, the pre-flight
+# (dogfood-inputs-check, also the closeout's first step) or the finish, and its fix line names that
+# make target.
+prefix=dogfood-finish-lane
+entry=dogfood-finish
+if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
+  prefix=dogfood-inputs-check
+  entry=dogfood-inputs-check
+fi
+[[ ${DOGFOOD_FINISH_ENTRY-} != dogfood-closeout ]] || entry=dogfood-closeout
 intents=${3-}
 verify=${4-}
 outcome=${5-}
@@ -32,19 +42,23 @@ fi
 for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
   [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")
 done
+# ASD-V0-903 (V1-3482): a plan with no row is refused here, exit 2, not by the later cem-cite precheck.
+if [[ -n $citations && -f $citations && -r $citations ]] && ! grep -q -v -E '^[[:space:]]*(#|$)' -- "$citations"; then
+  missing+=(CITATIONS:empty)
+fi
 case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid) ;; esac
 if ((${#missing[@]} > 0)); then
-  printf 'dogfood-finish-lane: REFUSE missing-inputs %s\n' "${missing[*]}" >&2
-  printf 'fix: make dogfood-finish BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' >&2
+  printf '%s: REFUSE missing-inputs %s\n' "$prefix" "${missing[*]}" >&2
+  printf 'fix: make %s BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' "$entry" >&2
   # ASD-V0-045 (V1-3119): a missing or unreadable plan names how to draft and pre-check one; this
   # refusal ran no build, prepare or bind, so it does not use up a closeout try.
-  if [[ " ${missing[*]} " == *' CITATIONS '* || " ${missing[*]} " == *' CITATIONS:unreadable '* ]]; then
+  if [[ " ${missing[*]} " == *' CITATIONS '* || " ${missing[*]} " == *' CITATIONS:unreadable '* || " ${missing[*]} " == *' CITATIONS:empty '* ]]; then
     printf 'fix: draft the plan with corvint dogfood propose-citations %s > plan.tsv, then check it with make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv (the same INTENTS, VERIFY and OUTCOME)\n' \
       "${base_arg:-<full sha>}" "${base_arg:-<full sha>}" >&2
     # ASD-V0-961 (V1-3394): a record-only change (a build-log entry alone) has its own recipe.
     printf 'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file, and cite each hunk to the BASE lines of the decision or spec the entry records with relation decision, one row per hunk, for example 1<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision; one span may serve every hunk (DCW-V0-057, DCW-V0-058; docs/DOGFOOD.md "Record-only closeout")\n' >&2
   fi
-  printf 'dogfood-finish-lane: nothing was built, prepared or bound\n' >&2
+  printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
   exit 2
 fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
@@ -67,7 +81,7 @@ if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
     stale+=(generation-failed)
   fi
   if ((${#stale[@]} > 0)); then
-    printf 'dogfood-finish-lane: REFUSE spec-requirements-stale %s\n' "${stale[*]}" >&2
+    printf '%s: REFUSE spec-requirements-stale %s\n' "$prefix" "${stale[*]}" >&2
     printf 'fix: stage the changed spec, run make spec-requirements, commit the regenerated files, then rerun\n' >&2
     exit 2
   fi
@@ -77,13 +91,24 @@ fi
 # ASD-V0-087 (V1-3154): a CORVINT_BIN built before this change cannot run the change's own dogfood
 # tooling, and a matching VERSION does not prove otherwise. When the change touches that tooling, only
 # the lane-built tree binary may run the steps, so an override is refused before any build.
+# ASD-V0-901 (V1-3431): test files build into no binary, and a binary whose Go build stamp is HEAD,
+# unmodified, with no tooling path changed since HEAD, was built from this change.
+tooling_paths=(internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go' ':(exclude,glob)**/*_test.go')
+tooling_admitted() {
+  local stamp revision modified
+  [[ -z $(git -C "$repo" diff --name-only HEAD -- "${tooling_paths[@]}") ]] || return 1
+  stamp=$(GOTOOLCHAIN=local go version -m "$corvint_bin" 2> /dev/null) || return 1
+  revision=$(awk '$1 == "build" && $2 ~ /^vcs\.revision=/ { sub(/^vcs\.revision=/, "", $2); print $2 }' <<< "$stamp")
+  modified=$(awk '$1 == "build" && $2 ~ /^vcs\.modified=/ { sub(/^vcs\.modified=/, "", $2); print $2 }' <<< "$stamp")
+  [[ -n $revision && $revision == "$(git -C "$repo" rev-parse HEAD)" && $modified == false ]]
+}
 if [[ -n $corvint_bin_set && $corvint_bin != "$git_dir/corvint/corvint" ]]; then
-  tooling=$(git -C "$repo" diff --name-only "$base" -- internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go') || exit 2
-  if [[ -n $tooling ]]; then
-    printf 'dogfood-finish-lane: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=%s changed=%s (%d paths)\n' \
+  tooling=$(git -C "$repo" diff --name-only "$base" -- "${tooling_paths[@]}") || exit 2
+  if [[ -n $tooling ]] && ! tooling_admitted; then
+    printf '%s: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=%s changed=%s (%d paths)\n' "$prefix" \
       "$corvint_bin" "${tooling%%$'\n'*}" "$(printf '%s\n' "$tooling" | wc -l | tr -d ' ')" >&2
-    printf 'fix: unset CORVINT_BIN and rerun the same make target (dogfood-closeout, dogfood-finish or dogfood-inputs-check) with the same inputs; the lane-built tree binary %s then runs every step (nothing was built, prepared or bound)\n' \
-      "$git_dir/corvint/corvint" >&2
+    printf 'fix: unset CORVINT_BIN and rerun make %s with the same inputs, or rebuild CORVINT_BIN from HEAD with no uncommitted change (go build -o PATH ./cmd/corvint); the lane-built tree binary %s then runs every step (nothing was built, prepared or bound)\n' \
+      "$entry" "$git_dir/corvint/corvint" >&2
     exit 2
   fi
 fi

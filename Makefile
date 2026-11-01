@@ -884,7 +884,9 @@ doc-gates:
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
+# ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
 dogfood-closeout: export LANE = 1
+dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@$(MAKE) --no-print-directory batch-precheck

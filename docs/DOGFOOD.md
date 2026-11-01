@@ -123,7 +123,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
    needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
    after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`).
+   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
+   Go build stamp is `HEAD` with no uncommitted change, or only `*_test.go` tooling files changed
+   (`ASD-V0-901`). A plan with no row is refused up front as `CITATIONS:empty` (`ASD-V0-903`), and
+   every up-front refusal names the target you ran (`ASD-V0-902`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to

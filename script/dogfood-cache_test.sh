@@ -238,7 +238,8 @@ git clone -q "$root/repo" "$root/bound"
 status=0
 make -s dogfood-closeout LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || exit 1
-rg -q '^dogfood-finish-lane: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTCOME$' "$root/output" || exit 1
+rg -q '^dogfood-inputs-check: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTCOME$' "$root/output" || exit 1
+rg -q '^fix: make dogfood-closeout BASE=<full sha> ' "$root/output" || exit 1
 rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
 rg -qF 'make dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface' "$root/output" || exit 1
 ! rg -q 'batch-precheck' "$root/output" || exit 1
@@ -248,7 +249,28 @@ printf '1\tsource-marker\t1:1\timplementation\n' > "$root/closeout-cites.tsv"
 status=0
 env -u LANE make -s dogfood-closeout BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
-rg -q '^dogfood-finish-lane: REFUSE missing-inputs INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+rg -q '^dogfood-inputs-check: REFUSE missing-inputs INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+# ASD-V0-902 (V1-3481): an unreadable plan through the pre-flight alone, or through the closeout, is
+# refused under the dogfood-inputs-check prefix, and the fix line names the target that ran.
+for entry in dogfood-inputs-check dogfood-closeout; do
+  status=0
+  make -s "$entry" BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS=/dev/null > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: REFUSE missing-inputs .*CITATIONS:unreadable' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -q "^fix: make $entry BASE=<full sha> " "$root/output" || { cat "$root/output" >&2; exit 1; }
+  ! rg -q 'dogfood-finish-lane|make dogfood-finish ' "$root/output" || { cat "$root/output" >&2; exit 1; }
+done
+# ASD-V0-903 (V1-3482): a plan with no row (empty, or only blank and comment lines) is refused with
+# the other inputs, exit 2, naming propose-citations, before any build.
+printf '# draft\n\n' > "$root/comments.tsv"
+: > "$root/empty.tsv"
+for plan in "$root/empty.tsv" "$root/comments.tsv"; do
+  status=0
+  make -s dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$plan" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: REFUSE missing-inputs CITATIONS:empty$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
+done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head.
 recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
@@ -265,7 +287,35 @@ status=0
 CORVINT_BIN="$TEST_FAKE_CORVINT" bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG && ! -s $TEST_FLOW_LOG ]] || { cat "$root/output" >&2; exit 1; }
 rg -qF "dogfood-finish-lane: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=$TEST_FAKE_CORVINT changed=internal/dogfoodflow/new.go (1 paths)" "$root/output" || exit 1
-rg -q '^fix: unset CORVINT_BIN and rerun the same make target .*/\.git/corvint/corvint then runs every step' "$root/output" || exit 1
+rg -q '^fix: unset CORVINT_BIN and rerun make dogfood-finish with the same inputs, or rebuild CORVINT_BIN from HEAD .*/\.git/corvint/corvint then runs every step' "$root/output" || exit 1
+# ASD-V0-901 (V1-3431): a binary whose Go build stamp is HEAD, unmodified, is admitted; one stamped
+# at another commit, or modified, still refuses. A fake go prints the stamp.
+stamp_bin="$root/stamp-bin"
+mkdir -p "$stamp_bin"
+printf '#!/bin/sh\nprintf "%%s: go1.27.3\\n\\tbuild\\tvcs.revision=%%s\\n\\tbuild\\tvcs.modified=%%s\\n" "$3" "$TEST_STAMP_REV" "$TEST_STAMP_MODIFIED"\n' > "$stamp_bin/go"
+chmod +x "$stamp_bin/go"
+git -c user.name=test -c user.email=test@example.invalid commit -qm tooling
+head=$(git rev-parse HEAD)
+: > "$TEST_FLOW_LOG"
+PATH="$stamp_bin:$PATH" TEST_STAMP_REV=$head TEST_STAMP_MODIFIED=false CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
+for stamp in "$base:false" "$head:true"; do
+  status=0
+  PATH="$stamp_bin:$PATH" TEST_STAMP_REV=${stamp%:*} TEST_STAMP_MODIFIED=${stamp#*:} CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 ]] && rg -q '^dogfood-inputs-check: REFUSE corvint-bin-predates-tree-tooling ' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -q '^fix: unset CORVINT_BIN and rerun make dogfood-inputs-check ' "$root/output" || exit 1
+done
+git reset -q --soft HEAD^
+# A change only to a _test.go file under the tooling builds into no binary, so the override runs.
+git rm -q --cached internal/dogfoodflow/new.go
+/bin/mv internal/dogfoodflow/new.go internal/dogfoodflow/new_test.go
+git add internal/dogfoodflow/new_test.go
+: > "$TEST_FLOW_LOG"
+CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
+git rm -q --cached internal/dogfoodflow/new_test.go
+/bin/mv internal/dogfoodflow/new_test.go internal/dogfoodflow/new.go
+git add internal/dogfoodflow/new.go
 DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
 rg -q -- '^dogfood inputs-check --base .* --corvint-bin .*/repo/\.git/corvint/corvint$' "$TEST_FLOW_LOG" || exit 1
 git rm -q --cached internal/dogfoodflow/new.go
