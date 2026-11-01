@@ -279,7 +279,14 @@ type screenRow struct {
 // row carries the ticket's holds and latest operator note (TCD-V0-170).
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
-	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
+	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
+	kept := make([]string, 0, len(args))
+	for _, a := range args {
+		if a != "--json" {
+			kept = append(kept, a)
+		}
+	}
+	fl, pos, err := flags(kept, "prs", "ref", "since", "limit")
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}

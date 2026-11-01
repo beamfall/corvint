@@ -2913,7 +2913,7 @@
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]",
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]",
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--json]",
         "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]",
         "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]",
         "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]",
@@ -2984,6 +2984,7 @@
         "--generation",
         "--ids",
         "--issued-at",
+        "--json",
         "--kind",
         "--label",
         "--legacy-cases",
@@ -3270,9 +3271,10 @@
       "command": "corvint-tasks ticket delivery-screen",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]"
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--json]"
       ],
       "flags": [
+        "--json",
         "--limit",
         "--prs",
         "--ref",

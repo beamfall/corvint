@@ -94,3 +94,20 @@ func TestTCDV0171_DeliveryScreenReadsPRsFromStdin(t *testing.T) {
 		t.Fatalf("empty stdin: exit %d %s", x.code, x.stdout)
 	}
 }
+
+// TCD-V0-955 (V1-3607): delivery-screen always prints JSON, so a bare --json is
+// a no-op with byte-identical output and exit code; --json=VALUE stays malformed.
+func TestTCDV0955_DeliveryScreenAcceptsJSONAsNoOp(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, inflight := tcdTicket(t, root, "inflight", "")
+	file := tdsExport(t, "prs.json", `[{"number":10,"state":"OPEN","title":"lane","body":"`+tdsJSON("Refs "+inflight)+`","labels":[]}]`)
+	plain := tdsRun(t, root, "ticket", "delivery-screen", inflight, "--prs", file)
+	withJSON := tdsRun(t, root, "ticket", "delivery-screen", "--json", inflight, "--prs", file)
+	if plain.code != withJSON.code || !bytes.Equal(plain.stdout, withJSON.stdout) || tdsVerdicts(t, withJSON)[inflight] != "IN_FLIGHT" {
+		t.Fatalf("--json changed the output: exit %d vs %d\n%s\n%s", plain.code, withJSON.code, plain.stdout, withJSON.stdout)
+	}
+	if x := tdsRun(t, root, "ticket", "delivery-screen", inflight, "--json=x"); x.code != 2 || x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("--json=x accepted: exit %d %s", x.code, x.stdout)
+	}
+}

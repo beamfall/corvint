@@ -306,7 +306,7 @@ var commandUsage = map[string]string{
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
-	"ticket delivery-screen":  "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]",
+	"ticket delivery-screen":  "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--json]",
 	"ticket batch-delivered":  "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
 	"ticket batch-close":      "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",
 	"ticket export":           "corvint-tasks ticket export [--offset N] [--limit N]",
