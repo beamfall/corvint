@@ -538,7 +538,10 @@ leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a ci
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
-worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before the first
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
+it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or
+`.corvint/test-read-scopes.json` changed, refusing `requirement-definitions-invalid` or
+`test-read-scopes-invalid` (`DCW-V0-815`). Before the first
 bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
 a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
 `REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).
@@ -642,6 +645,15 @@ evidence for the composition only. Failed outcomes observed while integrating (t
 fixes, preservation manifests and qualification limits are per exact engine and scope; no broad
 outcome follows. Not reproduced in this lane: whether current main still refuses the cases above
 (the `NOTE sealed-cem-merged` text predates them); a lane that meets the refusal retains the log.
+
+#### Resealing after a seal
+
+Commits a lane makes after its own seal commit are bound by a second, incremental seal whose
+`BASE` is the previous seal head, the last seal commit on `HEAD`'s first-parent path, not the
+merge base with `origin/main` and not the lane's original base. The range then holds only the
+new commits, so the plan stays inside the 256-row bound a whole-branch rebind can exceed, and
+`corvint dogfood batch-check` and the pre-push seal check verify each chained seal against its own
+base and bind commit. List only the specs that govern the new commits in `DOGFOOD_INTENTS_FILE`.
 
 #### Stacking on a sealed predecessor
 
@@ -1359,8 +1371,8 @@ offending byte and the admitted set. A command that needs quotes or regular-expr
 as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
 `sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). One quoted `-run`
 word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0-384`,
-`DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`) or the whole package (`-run '.'`,
-`-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
+`DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`; `-run '^TestA'`, `-run 'TestA$'` and
+`-run '^(TestA|TestB)'`, `DCW-V0-814`) or the whole package (`-run '.'`, `-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
 `HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
 (`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
 with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
@@ -1399,7 +1411,9 @@ The `.corvint/` outputs live in the worktree root. Repository-wide Git state (ob
 `info/exclude`) is shared with the main checkout, so the ignore entries need adding only once.
 
 Within the same task, resume with `corvint dogfood status`; the unkeyed examples below use the
-current `CODEX_THREAD_ID` or `CODEX_SESSION_ID`. For a handoff of the same enrolled work, retain the
+current `CODEX_THREAD_ID` or `CODEX_SESSION_ID`, or inside Claude Code `CLAUDE_CODE_SESSION_ID`
+hashed as its native hook does; with both hosts' identities set, pass `--session-key KEY`
+(LCP-V0-810). For a handoff of the same enrolled work, retain the
 original worktree and explicit 64-hex session key from its emitted `nextActions`. Resume there with
 `corvint dogfood status --session-key KEY`. Every subsequent dogfood invocation must retain that
 key: use the returned keyed `nextActions` for verify, review and finish instead of the unkeyed

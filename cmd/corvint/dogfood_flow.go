@@ -130,7 +130,8 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		positional = positional[:1]
 	}
 	if len(positional) != 1 {
-		return nil, "", errors.New("dogfood-base-required")
+		// Every other subverb takes BASE as its one positional argument (DCW-V0-808, V1-3735).
+		return nil, "", dogfoodFlagError{"dogfood-base-required", "dogfood " + action + " takes the base as its one positional argument: corvint dogfood " + action + " BASE (a full commit SHA)"}
 	}
 	return flags, positional[0], nil
 }

@@ -154,16 +154,37 @@ func SessionKey(explicit string) (string, error) {
 		}
 		return explicit, nil
 	}
+	// Inside Claude Code the default key is the one its native hook derives, so
+	// a manual command resumes the enrollment the hook reports; with a Codex
+	// identity also set the host is ambiguous and the caller names the key
+	// (LCP-V0-810).
+	claude := ""
+	if os.Getenv("CLAUDECODE") == "1" {
+		claude = os.Getenv("CLAUDE_CODE_SESSION_ID")
+	}
 	for _, name := range []string{"CODEX_THREAD_ID", "CODEX_SESSION_ID"} {
 		if raw := os.Getenv(name); raw != "" {
+			if claude != "" {
+				return "", errors.New("session-identity-ambiguous")
+			}
 			if len(raw) > 4096 {
 				return "", errors.New("invalid-session-identity")
 			}
 			return HashSession(raw), nil
 		}
 	}
+	if claude != "" {
+		if len(claude) > 4096 {
+			return "", errors.New("invalid-session-identity")
+		}
+		return digest([]byte(claudeSessionDomain + "\x00" + claude)), nil
+	}
 	return "", errors.New("session-identity-required")
 }
+
+// claudeSessionDomain is the Claude Code native hook's session hash domain
+// (LCP-V0-002); the adapter's claudeSessionHash uses the same bytes.
+const claudeSessionDomain = "corvint-local-completion-session/claude-code/0"
 
 func digest(raw []byte) string     { sum := sha256.Sum256(raw); return hex.EncodeToString(sum[:]) }
 func valueDigest(value any) string { raw, _ := json.Marshal(value); return digest(raw) }

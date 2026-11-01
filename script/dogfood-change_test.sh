@@ -108,7 +108,7 @@ trap 'exit 143' TERM
 mkdir -p "$test_root/repo/script" "$test_root/repo/docs/specs" "$test_root/bin"
 # The scripts are wrappers over `corvint dogfood change|check` (DCW-V0-020); every fake binary
 # hands that subverb to this real driver, which runs the flow with the fake as its steps.
-(cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
+(cd "$source_root" && GOCACHE="${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}" GOTOOLCHAIN=local \
   go build -o "$test_root/driver" ./cmd/corvint)
 export DOGFOOD_TEST_DRIVER="$test_root/driver"
 source "$source_root/script/dogfood-fixture-scripts.sh"
@@ -711,7 +711,7 @@ phase_jobs="$phase_jobs $!"
   # silently (regression check for the swallowed-reason bug).
   rg -q '^dogfood-change: FAIL not-complete$' <<< "$missing_manifest_output"
   rg -q '^  ocm-aggregate: missing-intent-scope$' <<< "$missing_manifest_output"
-  rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change' <<< "$missing_manifest_output"
+  rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change; a docs/build-log/*.md entry or docs/decisions/*.md file is an intent only of a record change, one that touches nothing else but CEM sidecars (DCW-V0-058, DCW-V0-817)' <<< "$missing_manifest_output"
   rg -q '^  full report: .*/\.corvint/dogfood-report\.json$' <<< "$missing_manifest_output"
 
   # DCW-V0-024: the explicit no-intent declaration passes through the wrapper,

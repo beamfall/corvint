@@ -81,6 +81,12 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 		if strings.Contains(stderr, "FAIL") {
 			t.Fatalf("%s: no-diff-yet run reported a failure:\n%s", label, stderr)
 		}
+		// DCW-V0-819: the bound recorder is named first, before the per-receipt lines.
+		prechange := `  agent receipts absent: record them bound to BASE before the first edit: make dogfood-prechange BASE=` + base +
+			` TASK="THE CHANGE" PATHS="PATH..." (corvint dogfood prechange --task "THE CHANGE" ` + base + " PATH...)\n"
+		if at := strings.Index(stderr, prechange); at < 0 || at > strings.Index(stderr, "agent receipt prechange-query absent") {
+			t.Fatalf("%s: stderr lacks the dogfood-prechange line before the per-receipt lines:\n%s", label, stderr)
+		}
 		// DCW-V0-921: each absent agent receipt is named with the command that writes it.
 		for _, want := range []string{
 			`agent receipt prechange-query absent: write it before the first edit: corvint query --task "THE CHANGE" --limit 1 > `,
@@ -109,6 +115,13 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 	if _, stderr, _ := run(ChangeOptions{}); strings.Contains(stderr, "agent receipt prechange-query absent") ||
 		!strings.Contains(stderr, "agent receipt prechange-impact absent") {
 		t.Fatalf("a written prechange-query receipt was still named absent, or the impact one was not:\n%s", stderr)
+	}
+	// DCW-V0-819: with both receipts present no recorder line is printed.
+	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "prechange-impact.json"), []byte("{}\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, _ := run(ChangeOptions{}); strings.Contains(stderr, "agent receipts absent") || strings.Contains(stderr, "agent receipt prechange-impact absent") {
+		t.Fatalf("both receipts present, still named absent:\n%s", stderr)
 	}
 	queryStatus = 1
 	if code, stderr, _ := run(ChangeOptions{}); code == 0 || !strings.Contains(stderr, "FAIL not-complete") {
