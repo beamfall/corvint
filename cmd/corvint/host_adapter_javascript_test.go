@@ -23,10 +23,7 @@ func testHostAdapterJavaScriptHosts(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("host adapters explicitly refuse unsupported Windows process-tree cleanup")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("Node is required to verify the optional Gemini/OpenCode host adapters")
-	}
+	node := nodeForTest(t)
 	path, err := filepath.Abs("../../integrations/host-adapters.test.mjs")
 	if err != nil {
 		t.Fatal(err)
@@ -58,6 +55,53 @@ func testHostAdapterJavaScriptHosts(t *testing.T) {
 	}
 }
 
+// requireNode resolves node for the node-backed host adapter tests (ASD-V0-644, V1-3740). A
+// missing node is a skip naming NOT_RUN, so a lane host without node is not a red package, unless
+// CORVINT_REQUIRE_NODE is set (make host-adapter-test sets it), when it is a failure.
+func requireNode(lookPath func(string) (string, error), getenv func(string) string) (path, reason string, fatal bool) {
+	path, err := lookPath("node")
+	if err == nil {
+		return path, "", false
+	}
+	return "", "NOT_RUN: node is not on PATH; set CORVINT_REQUIRE_NODE=1 to fail instead", getenv("CORVINT_REQUIRE_NODE") != ""
+}
+
+func nodeForTest(t *testing.T) string {
+	t.Helper()
+	path, reason, fatal := requireNode(exec.LookPath, os.Getenv)
+	if fatal {
+		t.Fatal(reason)
+	}
+	if reason != "" {
+		t.Skip(reason)
+	}
+	return path
+}
+
+func TestASDV0644RequireNode(t *testing.T) {
+	t.Parallel()
+	missing := func(string) (string, error) { return "", exec.ErrNotFound }
+	env := func(value string) func(string) string {
+		return func(key string) string {
+			if key == "CORVINT_REQUIRE_NODE" {
+				return value
+			}
+			return ""
+		}
+	}
+	const reason = "NOT_RUN: node is not on PATH; set CORVINT_REQUIRE_NODE=1 to fail instead"
+	if path, got, fatal := requireNode(missing, env("")); path != "" || got != reason || fatal {
+		t.Fatalf("missing node, unset: %q %q %v", path, got, fatal)
+	}
+	if path, got, fatal := requireNode(missing, env("1")); path != "" || got != reason || !fatal {
+		t.Fatalf("missing node, CORVINT_REQUIRE_NODE=1: %q %q %v", path, got, fatal)
+	}
+	found := func(string) (string, error) { return "/opt/node/bin/node", nil }
+	if path, got, fatal := requireNode(found, env("1")); path != "/opt/node/bin/node" || got != "" || fatal {
+		t.Fatalf("found node: %q %q %v", path, got, fatal)
+	}
+}
+
 func TestHostAdapterJavaScriptHosts(t *testing.T) {
 	t.Parallel()
 	t.Run("GOC-V0-008 native core and JavaScript host safety", testHostAdapterJavaScriptHosts)
@@ -67,6 +111,8 @@ func TestHostAdapterJavaScriptHarnessInterruption(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("host adapters explicitly refuse Windows process-tree cleanup")
 	}
+	// The child run skips without node, so the witness would never appear (ASD-V0-644).
+	nodeForTest(t)
 	witness := filepath.Join(t.TempDir(), "descendant.pid")
 	directory, err := os.Getwd()
 	if err != nil {

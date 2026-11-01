@@ -7,9 +7,10 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
-# (ASD-V0-955). No Go build runs. The Python operator tool lane-transcript-metrics.py
-# (ASD-V0-834, ASD-V0-836) is tested by script/lane-transcript-metrics_test.py, not here: a
-# script/*.sh test may not name Python (GOC-V0-008).
+# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go
+# build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
+# tested by script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name
+# Python (GOC-V0-008).
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1951,6 +1952,123 @@ out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
 [[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
 out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
 [[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
+ok
+
+# ASD-V0-645 (V1-3768, V1-3770): lane-dispatch-check screens a batch's ticket files before lanes
+# start: an empty ticket fails unless waived, two lanes touching one file (or a directory key that
+# holds it) and one ticket in two lanes always fail, an absent path fails only under --base, and a
+# malformed file or usage error exits 2.
+ldc=$tmp/ldc
+mkdir -p "$ldc/repo/pkg" && printf 'x\n' > "$ldc/repo/pkg/a.go" && printf 'y\n' > "$ldc/repo/README.md"
+git -C "$ldc/repo" init -q && git -C "$ldc/repo" add -A &&
+  git -C "$ldc/repo" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "lane-dispatch-check fixture repo"
+tk() { printf '{"ticketId":"%s","record":{"effects":{"touchPaths":[%s]}}}' "$1" "$2"; }
+printf '[%s]\n' "$(tk T:V1-1 '"pkg/a.go"')" > "$ldc/a.json"
+printf '[%s]\n' "$(tk T:V1-2 '"README.md"')" > "$ldc/b.json"
+printf '[%s]\n' "$(tk T:V1-3 '')" > "$ldc/empty.json"
+printf '[%s]\n' "$(tk T:V1-4 '"pkg/"')" > "$ldc/dir.json"
+printf '[%s]\n' "$(tk T:V1-1 '"docs/x.md"')" > "$ldc/dup.json"
+printf '[%s]\n' "$(tk T:V1-5 '"new/file.go"')" > "$ldc/new.json"
+printf '{"ticketId":1}\n' > "$ldc/bad.json"
+ldcrun() { (cd "$ldc/repo" && "$script/lane-dispatch-check.sh" "$@" 2>&1); }
+out=$(ldcrun --base HEAD a="$ldc/a.json" b="$ldc/b.json")
+[[ $? == 0 && $out == 'lane-dispatch-check: PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check pass: $out"
+out=$(ldcrun a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 1 && $out == *'EMPTY lane=e ticket=T:V1-3: no touchPaths'*'--waive V1-3'* && $out == *'FAIL 1 finding(s) in 2 lanes, 2 tickets' ]] ||
+  fail "lane-dispatch-check empty: $out"
+out=$(ldcrun --waive V1-3 a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 0 && $out == *'PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check empty waived: $out"
+out=$(ldcrun a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *'OVERLAP lanes a (T:V1-1 pkg/a.go) and d (T:V1-4 pkg/)'* ]] || fail "lane-dispatch-check overlap: $out"
+out=$(ldcrun --waive V1-4 a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *OVERLAP* ]] || fail "lane-dispatch-check overlap is never waived: $out"
+out=$(ldcrun a="$ldc/a.json" x="$ldc/dup.json")
+[[ $? == 1 && $out == *'DUPLICATE ticket=V1-1 is in lanes a,x'* && $out != *OVERLAP* ]] || fail "lane-dispatch-check duplicate: $out"
+out=$(ldcrun n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent without --base: $out"
+out=$(ldcrun --base HEAD n="$ldc/new.json")
+[[ $? == 1 && $out == *'ABSENT lane=n ticket=T:V1-5 path=new/file.go is not at the lane base'* ]] || fail "lane-dispatch-check absent: $out"
+out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
+out=$(ldcrun a="$ldc/bad.json")
+[[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
+# A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
+# of two lanes on one file, so the ID is refused.
+printf '[%s]\n' "$(tk 'T:V1-1\tx' '"pkg/a.go"')" > "$ldc/tab.json"
+printf '[%s]\n' "$(tk 'T:V1-6\nx' '"pkg/a.go"')" > "$ldc/nl.json"
+printf '[%s]\n' "$(tk T:V1-2 '"pkg/a.go"')" > "$ldc/same.json"
+out=$(ldcrun a="$ldc/tab.json" b="$ldc/same.json")
+[[ $? == 2 && $out == *'lane a: ticketId "T:V1-1\tx" in '*'holds a control character'* ]] || fail "lane-dispatch-check tab in a ticket ID: $out"
+out=$(ldcrun b="$ldc/same.json" n="$ldc/nl.json")
+[[ $? == 2 && $out == *'lane n: ticketId "T:V1-6\nx" in '* ]] || fail "lane-dispatch-check newline in a ticket ID: $out"
+out=$(ldcrun a="$ldc/a.json" a="$ldc/b.json")
+[[ $? == 2 && $out == *'lane a is named twice'* ]] || fail "lane-dispatch-check duplicate lane: $out"
+out=$(ldcrun --base nope a="$ldc/a.json")
+[[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
+out=$(ldcrun)
+[[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+ok
+
+# ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the
+# line, and a directory digest is stable and independent of file write order.
+rdd=$tmp/rdd
+mkdir -p "$rdd/a/sub" "$rdd/b/sub"
+out=$("$script/retained-data-digest.sh" --check "$script/../benchmarks/retained-data.tsv" 2>&1)
+[[ $? == 0 && $out == *'PASS '*'retained-data rows' ]] || fail "retained-data manifest: $out"
+grep -q $'^v2716f\tV1-2761\t' "$script/../benchmarks/retained-data.tsv" || fail "retained-data manifest has no V1-2761 row"
+head -n 1 "$script/../benchmarks/retained-data.tsv" > "$rdd/bad.tsv"
+printf 'x\tV1-1\th\tp\tabc\t1\t2\tNOT_OBSERVED\t2026-11-01\t\nx\tV1-1\th\tp\tNOT_OBSERVED\t1\t2\t%040d\t2026-11-01\twhy\nshort\n' 0 >> "$rdd/bad.tsv"
+out=$("$script/retained-data-digest.sh" --check "$rdd/bad.tsv" 2>&1)
+[[ $? == 1 && $out == *'bad.tsv:2 sha256 abc is not 64 hex digits'* && $out == *'bad.tsv:2 a NOT_OBSERVED value needs its reason'* &&
+  $out == *'bad.tsv:3 id x repeats line 2'* && $out == *'bad.tsv:4 has 1 columns, want 10'* ]] || fail "retained-data bad manifest: $out"
+printf 'one\n' > "$rdd/a/1.txt" && printf 'two\n' > "$rdd/a/sub/2.txt"
+printf 'two\n' > "$rdd/b/sub/2.txt" && printf 'one\n' > "$rdd/b/1.txt"
+da=$("$script/retained-data-digest.sh" "$rdd/a") db=$(cd "$rdd" && "$script/retained-data-digest.sh" b)
+[[ $da == "$db" && $da =~ ^sha256=[0-9a-f]{64}\ files=2\ bytes=8$ ]] || fail "retained-data digest order or mount dependent: $da / $db"
+printf 'three\n' > "$rdd/b/sub/2.txt"
+[[ $("$script/retained-data-digest.sh" "$rdd/b") != "$da" ]] || fail "retained-data digest ignored a content change"
+out=$("$script/retained-data-digest.sh" "$rdd/missing" 2>&1)
+[[ $? == 2 && $out == *'is not a readable directory'* ]] || fail "retained-data missing directory: $out"
+# A failed byte count (cat fails) or listing hash (sha256sum on stdin fails) exits 2, never
+# printing bytes=0 or an empty sha256 with exit 0.
+mkdir -p "$rdd/bin-cat" "$rdd/bin-hash"
+printf '#!/bin/sh\nexit 1\n' > "$rdd/bin-cat/cat"
+real_sha=$(command -v sha256sum)
+printf '#!/bin/sh\n[ $# -gt 0 ] && exec %s "$@"\nexit 1\n' "$real_sha" > "$rdd/bin-hash/sha256sum"
+chmod +x "$rdd/bin-cat/cat" "$rdd/bin-hash/sha256sum"
+out=$(PATH="$rdd/bin-cat:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot read the files under'* && $out != *bytes=* ]] || fail "retained-data failed byte count: $out"
+out=$(PATH="$rdd/bin-hash:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot hash the listing of'* && $out != *sha256=* ]] || fail "retained-data failed listing hash: $out"
+ok
+
+# ASD-V0-641 (V1-3745): check-test-script-refs matches the full file name (a test naming
+# exists.sh.bak is not read as exists.sh), scans a tracked test whose name Git would quote
+# (core.quotePath), and exits 2 when git ls-files fails instead of scanning nothing and passing. The
+# references are assembled, so this file does not itself name a missing script.
+tsr=$tmp/tsr
+mkdir -p "$tsr/script" && printf '#!/bin/sh\n' > "$tsr/script/exists.sh"
+printf '"$%s/exists.sh" --check\n' script > "$tsr/script/a_test.sh"
+git -C "$tsr" init -q && git -C "$tsr" add -A &&
+  git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "check-test-script-refs fixture repo"
+sref='$'script
+tsrrun() { (cd "$tsr" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.quotePath GIT_CONFIG_VALUE_0=true "$script/check-test-script-refs.sh" 2>&1); }
+out=$(tsrrun)
+[[ $? == 0 && $out == 'check-test-script-refs: PASS 1 script references resolve' ]] || fail "check-test-script-refs pass: $out"
+printf '"$%s/exists.sh.bak" --check\n' script > "$tsr/script/b_test.sh"
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm bak || fail "check-test-script-refs bak commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *"FAIL script/b_test.sh:1 names $sref/exists.sh.bak, but script/exists.sh.bak does not exist"* ]] ||
+  fail "check-test-script-refs read exists.sh.bak as exists.sh: $out"
+git -C "$tsr" rm -q script/b_test.sh && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm 'drop bak' || fail "check-test-script-refs bak cleanup"
+printf '"$%s/gone.sh"\n' script > "$tsr/script/"$'caf\303\251_test.sh'
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm cafe || fail "check-test-script-refs quoted-name commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *$'FAIL script/caf\303\251_test.sh:1 names '"$sref/gone.sh, but script/gone.sh does not exist"* ]] ||
+  fail "check-test-script-refs skipped a quoted file name: $out"
+printf 'not an index' > "$tsr/.git/index"
+out=$(tsrrun)
+[[ $? == 2 && $out == *'git ls-files failed'* && $out != *PASS* ]] || fail "check-test-script-refs passed when git ls-files failed: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

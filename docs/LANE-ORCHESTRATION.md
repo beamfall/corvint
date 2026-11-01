@@ -460,6 +460,22 @@ the lane to run `make requirement-id-collisions` after staging a spec that adds 
 final commit, and the orchestrator runs it in the batch checkout before integrating each lane
 (`ASD-V0-950`, `ASD-V0-951`).
 
+A charter that lets a lane add divergence-register entries hands it a DR-number block the same way,
+because each lane would otherwise take the next free `DR-` number from its own base. The batch
+precheck's `dr-numbers` step (`make dr-numbers-check`, `script/check-dr-numbers.sh`, `ASD-V0-642`)
+fails when the merged `conformance/divergence-register.md` defines one `DR-` heading number twice,
+naming every defining line; renumber the later entry before the batch push.
+
+Before any lane starts, the orchestrator screens the batch's ticket files with
+`make lane-dispatch-check BASE=<sha> LANES="lane-a=tickets-a.json lane-b=tickets-b.json"`
+(`script/lane-dispatch-check.sh`, `ASD-V0-645`). Each file is one lane's JSON ticket array. The
+check fails (exit 1) on `EMPTY`, a ticket without `record.effects.touchPaths`; `DUPLICATE`, one
+ticket in two lanes; `OVERLAP`, two lanes whose tickets name the same path or a directory key (ending
+in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at the lane base. `WAIVE=V1-N`
+(space separated) waives `EMPTY` and `ABSENT` for a ticket that creates its paths; an overlap is
+never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
+not a commit exits 2.
+
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
 build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
@@ -614,6 +630,10 @@ every gap above the threshold with the time the watchdog would have flagged it.
   patch file kept outside the checkout (`git diff > ../p.patch`, then `git apply -R ../p.patch`;
   restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
   `script/lane-clean.sh` keeps any checkout that still has a stash entry.
+  A lane charter template carries this line verbatim (V1-3767; a charter that omitted it let a
+  lane stash in a shared-object worktree): "Never run `git stash` in a lane: the stash is shared
+  by every worktree of the clone. Park work in a named WIP commit on the lane branch, a patch file
+  outside the checkout, or a scratch `git worktree add` off the lane branch."
 - Scratch logs go outside the checkout (untracked files make dogfood report
   `record-index-failed`), into a directory only this lane writes (ASD-V0-108, V1-3156):
   `"$(git rev-parse --absolute-git-dir)/corvint/lane-logs/"`, unique per worktree like
@@ -711,6 +731,14 @@ integrator therefore:
   A lane runs it as `make batch-precheck BASE=<lane base sha>` (ASD-V0-032): a failure the base
   already shows prints as a base-present `WARN` and does not fail the lane, but it still fails
   batch CI, so the lane names it in its report for the integrator to fix or file;
+- relies on the precheck's `make lane-scripts-test` step (ASD-V0-640, V1-3744) to run the lane
+  shell tests on the merged tree, where two lanes' fixtures first meet: it runs alone after the
+  parallel steps, and under `BASE` only when a `script/`, `Makefile` or `docs/DOGFOOD.md` path
+  changed (a print-only skip row says so otherwise);
+- runs `go vet` through `script/heavy.sh` like any heavy Go command, from the batch worktree:
+  `set -o pipefail; script/heavy.sh env GOTOOLCHAIN=local go vet ./... 2>&1 | tail -n 40` for the
+  root module, and `(cd interop/cem01-go && ../../script/heavy.sh env GOTOOLCHAIN=local go vet ./...)`
+  for the interop module (heavy.sh runs it in the same subdirectory of its tree);
 - after a CI failure, fixes every failure the run reported, then pushes once more (one push per
   failure round);
 - never pushes a partial batch to "start CI early"; a constituent that arrives late joins the next

@@ -24,6 +24,11 @@
 #                      crediting Claude as a GitHub contributor (V1-3227,
 #                      ASD-V0-561); script/check-ai-coauthor-trailers.sh refuses
 #                      those commits, and this check names the setting.
+#   landlock           test-confine -probe reported landlock abi 0 in the Unraid
+#                      lane container, so read-scope violations surfaced only in
+#                      CI (V1-3741, ASD-V0-643). The row reports the host's ABI
+#                      and never fails the preflight; CORVINT_LANDLOCK_PROBE names
+#                      a probe command to run instead of building test-confine.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 status=0
@@ -130,6 +135,49 @@ else
 	on) fail "claude-attribution" "attribution is set but not empty in $from -- Claude Code will add an AI Co-Authored-By trailer; $attribution_fix $from" ;;
 	*) fail "claude-attribution" "unset -- Claude Code adds an AI Co-Authored-By trailer to every commit by default; $attribution_fix $claude_dir/settings.json" ;;
 	esac
+fi
+# Landlock ABI for confined test runs (ASD-V0-643): test-confine refuses a declared package below
+# ABI 2, so a lane on such a host never sees a read-scope violation before CI.
+host=$(hostname 2>/dev/null || uname -n)
+probe=${CORVINT_LANDLOCK_PROBE:-}
+probe_dir=
+if [ -z "$probe" ] && [ "$(uname -s)" != Linux ]; then
+	note "landlock" "probe is Linux-only ($(uname -s) on $host) -- confined test runs happen on a Linux host or in CI"
+else
+	why="cannot build test-confine from .github/testconfine/cmd"
+	if [ -z "$probe" ]; then
+		# A temporary-directory failure is an UNKNOWN row, not a set -e abort of the preflight.
+		if probe_dir=$(mktemp -d 2>/dev/null) && [ -n "$probe_dir" ]; then
+			probe=$probe_dir/test-confine
+			(cd "$root" && go build -trimpath -buildvcs=false -o "$probe" ./.github/testconfine/cmd >/dev/null 2>&1) || probe=
+		else
+			probe_dir=
+			why="cannot create a temporary directory for the test-confine build (TMPDIR=${TMPDIR:-unset})"
+		fi
+	fi
+	if [ -z "$probe" ]; then
+		note "landlock" "UNKNOWN on $host: $why"
+	else
+		probed=$("$probe" -probe 2>&1) && probe_rc=0 || probe_rc=$?
+		abi=${probed#landlock abi }
+		case $probed in
+		'landlock abi '*) ;;
+		*) abi= ;;
+		esac
+		# test-confine -probe exits 0 for an ABI of 2 or more and 1 below it; any other exit, or one
+		# that disagrees with the printed ABI, is not a probe result.
+		case $abi in
+		'' | *[!0-9]*) ;;
+		0 | 1) [ "$probe_rc" = 1 ] || abi= ;;
+		*) [ "$probe_rc" = 0 ] || abi= ;;
+		esac
+		case $abi in
+		'' | *[!0-9]*) note "landlock" "UNKNOWN on $host: test-confine -probe exited $probe_rc and printed '$probed'" ;;
+		0 | 1) note "landlock" "WARN abi $abi on $host: test-confine refuses confined runs here (exit 2); read-scope violations surface only in CI, so run confined tests in CI or on a host whose probe reports abi 2 or more" ;;
+		*) note "landlock" "abi $abi on $host, confined test runs enforce read scopes" ;;
+		esac
+	fi
+	[ -z "$probe_dir" ] || rm -rf "$probe_dir"
 fi
 printf '\n%s\n' "Build and test only the packages you own; a red ./... here is usually not yours."
 exit "$status"

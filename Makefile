@@ -166,7 +166,7 @@ host-adapter-node-test:
 
 .PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
+	CORVINT_REQUIRE_NODE=1 GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
 .PHONY: go-version
 go-version:
@@ -1114,6 +1114,22 @@ dogfood-change-runs:
 .PHONY: lane-scripts-test
 lane-scripts-test:
 	@script/lane-scripts_test.sh
+
+# ASD-V0-641 (V1-3745): every script a shell test or a Makefile recipe names exists.
+.PHONY: test-script-refs-check
+test-script-refs-check:
+	@script/check-test-script-refs.sh
+
+# ASD-V0-642 (V1-3764): no DR- number is defined twice in the divergence register.
+.PHONY: dr-numbers-check
+dr-numbers-check:
+	@script/check-dr-numbers.sh
+
+# ASD-V0-645 (V1-3768, V1-3770): screen lane ticket files before dispatch, e.g.
+# make lane-dispatch-check BASE=$(git rev-parse origin/main) LANES="a=tickets-a.json b=tickets-b.json" WAIVE=V1-1
+.PHONY: lane-dispatch-check
+lane-dispatch-check:
+	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
 
 # ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
 # shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.

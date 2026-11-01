@@ -340,6 +340,9 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
+# ASD-V0-640 (V1-3744): with no base the lane shell tests run on the merged tree.
+grep -q '^make -s lane-scripts-test GOPROXY=unset$' "$tmp/calls" || fail "lane-scripts-test not run without a base: $(cat "$tmp/calls")"
+grep -q '^batch-precheck: lane-scripts-test runs (no --base)$' "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $((rows - 3)) passed, 3 failed in " "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
@@ -354,6 +357,7 @@ STUB_SERIAL_PROBE=1 run
 [[ $? == 0 ]] || fail "serial probe run failed: $(cat "$tmp/out")"
 [[ -s $tmp/overlap ]] && fail "host-adapter-node-test ran beside: $(sort -u "$tmp/overlap" | paste -sd ' ' -)"
 grep -q '^batch-precheck: | PASS | *[0-9]*s | make host-adapter-node-test$' "$tmp/out" || fail "serial row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | make lane-scripts-test$' "$tmp/out" || fail "lane-scripts-test serial row: $(cat "$tmp/out")"
 read -r w s <<< "$(sed -n 's/.* in \([0-9]*\)s wall, \([0-9]*\)s summed$/\1 \2/p' "$tmp/out")"
 ((w < s)) || fail "the other steps no longer ran in parallel (wall $w, summed $s)"
 /bin/rm -f "$receipt"
@@ -491,6 +495,14 @@ git -C "$repo" checkout -q -- derived.txt
 # from the worktree and CORVINT_GATE_LEDGER=off reuse nothing; a failure is never reused.
 (cd "$script/.." && GOTOOLCHAIN=local go build -o "$tmp/gate-ledger" ./tools/gate-ledger) > "$tmp/out" 2>&1 || fail "gate-ledger build: $(cat "$tmp/out")"
 lrun() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run; }
+# ASD-V0-641 (V1-3745): the print-only rows come from --list-print-only, so no count below names a
+# step; under BATCH_PRECHECK_SKIP_DRIFT=1 the skipped drift row is one of them.
+run --list-print-only || fail "--list-print-only: $(cat "$tmp/out")"
+nprint=$(grep -c . "$tmp/out")
+BATCH_PRECHECK_SKIP_DRIFT=1 run --list-print-only || fail "skip-drift --list-print-only: $(cat "$tmp/out")"
+nprint_skip=$(grep -c . "$tmp/out")
+grep -qxF 'batch-drift (skipped before the bind)' "$tmp/out" && ((nprint_skip == nprint + 1)) ||
+  fail "--list-print-only missed the skipped drift row ($nprint, $nprint_skip): $(cat "$tmp/out")"
 lrun || fail "first ledger run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: ledger reuse on ($tmp/gate-ledger)$" "$tmp/out" || fail "ledger not on: $(cat "$tmp/out")"
 grep -q 'REUSE' "$tmp/out" && fail "a first run reused: $(cat "$tmp/out")"
@@ -500,21 +512,17 @@ grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-# This fixture lists no print-only row since V1-3337 retired the ai-trailers step, so every listed
-# step reuses and only the repin row (never a listed step) reruns as a PASS (V1-3818). The
-# print-only row case (ASD-V0-892) runs on the selection fixture of group 7, whose skipped
-# capability-catalog-check is one.
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 1 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | repin (mechanical)$' "$tmp/out" ||
-  fail "a listed step reran under the ledger: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $nsteps of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+# Only the repin row and the print-only rows run; every other listed step reuses.
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - nprint)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 # ASD-V0-892 (V1-3572): a print-only row (here the drift step skipped before the bind) never goes
 # through the ledger, so it reruns as a PASS while every other step reuses.
 BATCH_PRECHECK_SKIP_DRIFT=1 lrun || fail "skip-drift reuse run failed: $(cat "$tmp/out")"
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" ||
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint_skip)) ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" ||
   fail "print-only row went through the ledger: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "print-only reuse count: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - nprint_skip)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "print-only reuse count: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -545,6 +553,40 @@ want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
 "$regen" --list | grep -qx $'documentation-paths\tmake -s documentation-paths' && "$regen" --list | grep -qx $'line-citations\tchanged_citations' &&
   grep -q '^changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }$' "$regen" ||
   fail "batch-regen does not regenerate documentation-paths or repin changed citations against the base"
+
+# 4c. ASD-V0-641 (V1-3745): the test-script-refs step fails when a shell test names a script that is
+# not in the tree, naming the file, line and path, and passes once the script exists.
+mkdir -p "$repo/script"
+# The reference is assembled, so this file does not itself name a missing script.
+gone='$'script/gone.sh
+printf '#!/bin/sh\nscript=$(cd "$(dirname "$0")" && pwd)\n"%s" --check\n' "$gone" > "$repo/script/caller_test.sh"
+git -C "$repo" add script/caller_test.sh && git -C "$repo" commit -q -m caller || fail "caller commit"
+run && fail "a test naming a missing script passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | test-script-refs$' "$tmp/out" || fail "test-script-refs row: $(cat "$tmp/out")"
+grep -qF "check-test-script-refs: FAIL script/caller_test.sh:3 names $gone, but script/gone.sh does not exist" "$tmp/out" || fail "missing script not named: $(cat "$tmp/out")"
+printf '#!/bin/sh\n' > "$repo/script/gone.sh"
+git -C "$repo" add script/gone.sh && git -C "$repo" commit -q -m gone || fail "gone commit"
+run || fail "an existing script failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | test-script-refs$' "$tmp/out" || fail "test-script-refs pass row: $(cat "$tmp/out")"
+git -C "$repo" rm -q -r script && git -C "$repo" commit -q -m 'drop caller' || fail "caller cleanup"
+/bin/rm -f "$receipt"
+
+# 4d. ASD-V0-642 (V1-3764): the dr-numbers step fails when two merged lanes both defined one DR-
+# number, naming the number and both lines, and passes once the later entry is renumbered. A tree
+# without a register passes (every earlier case).
+mkdir -p "$repo/conformance"
+printf '# Register\n\n### DR-0046 \xe2\x80\x94 a\n\n### DR-0047 \xe2\x80\x94 lane one\n\n### DR-0047 \xe2\x80\x94 lane two\n' > "$repo/conformance/divergence-register.md"
+git -C "$repo" add conformance && git -C "$repo" commit -q -m register || fail "register commit"
+run && fail "a duplicate DR number passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | dr-numbers$' "$tmp/out" || fail "dr-numbers row: $(cat "$tmp/out")"
+grep -qF 'check-dr-numbers: FAIL DR-0047 is defined 2 times (conformance/divergence-register.md:5, conformance/divergence-register.md:7)' "$tmp/out" ||
+  fail "duplicate DR number not named: $(cat "$tmp/out")"
+sed -i.bak '7s/DR-0047/DR-0048/' "$repo/conformance/divergence-register.md" && /bin/rm -f "$repo/conformance/divergence-register.md.bak"
+git -C "$repo" commit -q -am renumber || fail "renumber commit"
+run || fail "distinct DR numbers failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | dr-numbers$' "$tmp/out" || fail "dr-numbers pass row: $(cat "$tmp/out")"
+git -C "$repo" rm -q -r conformance && git -C "$repo" commit -q -m 'drop register' || fail "register cleanup"
+/bin/rm -f "$receipt"
 
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
@@ -743,6 +785,25 @@ sledger --base "$sbase" || fail "selection ledger rerun failed: $(cat "$tmp/out"
 row_is PASS 'make capability-catalog-check'
 row_is REUSE 'sync-check'
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | make capability-catalog-check$' "$tmp/out" && fail "print-only row went through the ledger: $(cat "$tmp/out")"
+# ASD-V0-640 (V1-3744): no script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path
+# changed, so lane-scripts-test is a print-only skip; a new file under script/ runs it, and so does a
+# change to the retained-data manifest alone, which the ASD-V0-646 group validates.
+grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md, benchmarks/retained-data.tsv) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
+row_is PASS 'make lane-scripts-test'
+grep -q 'lane-scripts-test' "$tmp/scalls" && fail "a skipped lane-scripts-test ran: $(cat "$tmp/scalls")"
+mkdir -p "$srepo/script" && printf '#!/bin/sh\n' > "$srepo/script/new.sh"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a script/ change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a script/ change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/script"
+mkdir -p "$srepo/benchmarks" && printf 'id\n' > "$srepo/benchmarks/retained-data.tsv"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a retained-data manifest change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" ||
+  fail "lane-scripts-test skipped for a manifest-only change: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a manifest-only change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/benchmarks"
 # A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
 # real drift, introduced since the base.
 printf 'v2\n' > "$srepo/golden/testdata/want.txt"
