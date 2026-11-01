@@ -13,8 +13,11 @@ type moduleCount struct {
 	Count int    `json:"count"`
 }
 
+// moduleUnknown is an unknown screen, or (Ref set, Screen empty) a router-level unknown such as a
+// non-literal state name (AMAP-V0-811).
 type moduleUnknown struct {
-	Screen string `json:"screen"`
+	Screen string `json:"screen,omitempty"`
+	Ref    string `json:"ref,omitempty"`
 	Reason string `json:"reason"`
 }
 
@@ -82,6 +85,15 @@ func moduleCoverage(m *Map) []moduleRow {
 			r.UnreachedID = append(r.UnreachedID, s.ID)
 		}
 	}
+	// A router-level unknown is never a screen count, but its file is a module that the map could
+	// not read whole, even when it declared no screen (AMAP-V0-811).
+	for _, u := range m.Unknowns {
+		if (u.Kind == "router" || u.Kind == "state") && u.Reason != "router-not-declared" && u.Path != "" {
+			r := row(moduleKey(Anchor{Repo: u.Repo, Path: u.Path}))
+			r.Status = StatusUnknown
+			r.Unknown = append(r.Unknown, moduleUnknown{Ref: u.Ref, Reason: u.Reason})
+		}
+	}
 	if m.AppCoverage != nil {
 		for _, p := range m.AppCoverage.Undeclared {
 			if rows[p] == nil {
@@ -103,7 +115,12 @@ func moduleCoverage(m *Map) []moduleRow {
 			r.ReachedBy = append(r.ReachedBy, moduleCount(sc))
 		}
 		sort.Strings(r.UnreachedID)
-		sort.Slice(r.Unknown, func(a, b int) bool { return r.Unknown[a].Screen < r.Unknown[b].Screen })
+		sort.Slice(r.Unknown, func(a, b int) bool {
+			if r.Unknown[a].Screen != r.Unknown[b].Screen {
+				return r.Unknown[a].Screen < r.Unknown[b].Screen
+			}
+			return r.Unknown[a].Ref < r.Unknown[b].Ref
+		})
 		out[i] = *r
 	}
 	return out

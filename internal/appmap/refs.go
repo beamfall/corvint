@@ -137,7 +137,7 @@ func anchoredRegex(src string) *regexp.Regexp {
 	for k := len(body) - 2; k >= 0 && body[k] == '\\'; k-- {
 		escapes++
 	}
-	if escapes%2 == 1 {
+	if escapes%2 == 1 || topLevelAlternation(body) {
 		return nil
 	}
 	if flags == "i" {
@@ -148,6 +148,29 @@ func anchoredRegex(src string) *regexp.Regexp {
 		return nil
 	}
 	return re
+}
+
+// topLevelAlternation reports whether body holds an unescaped `|` outside every group and class,
+// which leaves `^` and `$` anchoring only one branch each (AMAP-V0-816).
+func topLevelAlternation(body string) bool {
+	depth, class := 0, false
+	for k := 0; k < len(body); k++ {
+		switch c := body[k]; {
+		case c == '\\':
+			k++
+		case class:
+			class = c != ']'
+		case c == '[':
+			class = true
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+		case c == '|' && depth <= 0:
+			return true
+		}
+	}
+	return false
 }
 
 // testIDAttrs reads the test-id attributes that a `testIdAttribute: '<name>'` property or a
@@ -565,9 +588,17 @@ func routeCheck(x *screenIndex, v refValue) (miss bool, class, reason string) {
 	} else {
 		concrete = splitSegments(path)
 	}
+	// Under the i flag the expression's literal start is compared without case (AMAP-V0-816).
+	fold := v.re != nil && strings.HasPrefix(v.re.String(), "(?i)")
+	if fold {
+		concrete, partial = lowerAll(concrete), strings.ToLower(partial)
+	}
 	matched, catchAll := false, false
 	for _, c := range routes {
 		r, splat := c.r, c.splat
+		if fold {
+			r.segments = lowerAll(r.segments)
+		}
 		var hit bool
 		switch {
 		case v.re != nil && !splat && !parameterized(r.segments):
@@ -595,6 +626,14 @@ func routeCheck(x *screenIndex, v refValue) (miss bool, class, reason string) {
 		return true, classCatchAll, ""
 	}
 	return true, "", ""
+}
+
+func lowerAll(ss []string) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = strings.ToLower(s)
+	}
+	return out
 }
 
 func parameterized(segments []string) bool {
@@ -693,6 +732,10 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 	if err != nil {
 		return nil, err
 	}
+	configs, err := playwrightConfigs(r, m.Revision)
+	if err != nil {
+		return nil, err
+	}
 	// A map test file of an aliased root is read at the map's pin of that root, so that root must
 	// be bound with --repo or --workspace; an unbound one refuses the check instead of counting
 	// its files unread and passing with no references (SKH-V0-189, AMAP-V0-350).
@@ -715,6 +758,12 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 		if err != nil {
 			return nil, err
 		}
+		// A bound aliased root's own Playwright config may set the attribute its tests use.
+		cfg, err := playwrightConfigs(ar, arev)
+		if err != nil {
+			return nil, err
+		}
+		configs = append(configs, cfg...)
 		unread += n
 		for p, b := range more {
 			if prev, ok := testRepo[p]; ok {
@@ -771,10 +820,7 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 			skipped++
 		}
 	}
-	attrs, err := configuredTestIDAttrs(r, m.Revision, tests)
-	if err != nil {
-		return nil, err
-	}
+	attrs := configuredTestIDAttrs(configs, tests)
 	names := newNameIndex(files)
 	idx := newScreenIndex(m.HashPrefix, m.BasePath, m.Screens)
 	type missKey struct{ kind, value, match, class string }
@@ -922,9 +968,18 @@ func readTestFiles(r repo, m *Map) (map[string][]byte, int, error) {
 	return out, unread, err
 }
 
-// configuredTestIDAttrs reads the test-id attributes configured in the map test files and in a
-// committed playwright.config.* at the repository root (AMAP-V0-815).
-func configuredTestIDAttrs(r repo, rev string, tests map[string][]byte) ([]string, error) {
+// configuredTestIDAttrs reads the test-id attributes configured in the map test files and in the
+// committed root playwright.config.* files read (AMAP-V0-815).
+func configuredTestIDAttrs(configs [][]byte, tests map[string][]byte) []string {
+	texts := append([][]byte{}, configs...)
+	for _, b := range tests {
+		texts = append(texts, b)
+	}
+	return testIDAttrs(texts...)
+}
+
+// playwrightConfigs reads every committed playwright.config.* at the root of r at rev.
+func playwrightConfigs(r repo, rev string) ([][]byte, error) {
 	configs := []string{}
 	for _, ext := range []string{"ts", "js", "mjs", "cjs", "mts", "cts"} {
 		configs = append(configs, "playwright.config."+ext)
@@ -947,10 +1002,7 @@ func configuredTestIDAttrs(r repo, rev string, tests map[string][]byte) ([]strin
 	for _, e := range mine {
 		texts = append(texts, data[e.oid])
 	}
-	for _, b := range tests {
-		texts = append(texts, b)
-	}
-	return testIDAttrs(texts...), nil
+	return texts, nil
 }
 
 // readMapTests reads the map test files of one root (alias, "" for --root) at rev; a file whose

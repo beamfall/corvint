@@ -14,9 +14,10 @@ func TestAMAPV0810ModuleCoverage(t *testing.T) {
 	root, _ := fixtureRepo(t)
 	writeFile(t, root, "app/admin.routes.js", "angular.module('admin').config(function ($stateProvider) {\n  $stateProvider\n    .state('adminUsers', { url: '/admin/users' })\n    .state('adminAudit', { url: '/admin/audit' });\n});\n")
 	writeFile(t, root, "app/extra.routes.js", "// not declared\n")
+	writeFile(t, root, "app/dyn.routes.js", "angular.module('dyn').config(function ($stateProvider) {\n  $stateProvider.state(name, { url: '/dyn' });\n});\n")
 	writeFile(t, root, "e2e/specs/admin.spec.ts", "import { test } from '@playwright/test';\ntest('users', async ({ page }) => { await page.goto('/#!/admin/users'); });\n")
 	writeFile(t, root, "appmap.json", `{"schema":"application-map-manifest/0","app":"admin","hash_prefix":"#!",`+
-		`"routers":[{"path":"app/routes.js","dialect":"ui-router-states/0"},{"path":"app/admin.routes.js","dialect":"ui-router-states/0"}],`+
+		`"routers":[{"path":"app/routes.js","dialect":"ui-router-states/0"},{"path":"app/admin.routes.js","dialect":"ui-router-states/0"},{"path":"app/dyn.routes.js","dialect":"ui-router-states/0"}],`+
 		`"router_globs":["app/*.routes.js"],"flows":"flows",`+
 		`"tests":{"root":"e2e","specs":["e2e/specs"],"page_objects":["e2e/pages"],"workflows":["e2e/workflows"],"scenarios":["e2e/scenarios"]},`+
 		`"page_object_screens":[{"path":"e2e/pages/teesheet.page.ts","state":"app.clubs.teesheets"}]}`)
@@ -63,6 +64,12 @@ func TestAMAPV0810ModuleCoverage(t *testing.T) {
 	if *base.Reached != reached || reached == 0 {
 		t.Fatalf("base reached %d, want %d", *base.Reached, reached)
 	}
+	// A declared router that yields only a router-level unknown is still an UNKNOWN module.
+	dyn, ok := byName["app/dyn.routes.js"]
+	if !ok || dyn.Status != StatusUnknown || *dyn.Total != 0 || *dyn.UnknownN != 0 || len(dyn.Unknown) != 1 ||
+		dyn.Unknown[0].Screen != "" || dyn.Unknown[0].Ref == "" || dyn.Unknown[0].Reason != "non-literal-name" {
+		t.Fatalf("router-level unknown module: %+v", dyn)
+	}
 	extra := byName["app/extra.routes.js"]
 	if extra.Status != StatusUnknown || extra.Total != nil || extra.Reached != nil || extra.TotalSource != "router-not-declared" {
 		t.Fatalf("undeclared module: %+v", extra)
@@ -83,13 +90,13 @@ func TestAMAPV0810ModuleCoverage(t *testing.T) {
 		Unreached int              `json:"screens_unreached"`
 		Modules   []map[string]any `json:"modules"`
 	}
-	if json.Unmarshal(raw, &doc) != nil || doc.Schema != ModuleCoverageSchema || doc.Status != StatusUnknown || len(doc.Modules) != 3 {
+	if json.Unmarshal(raw, &doc) != nil || doc.Schema != ModuleCoverageSchema || doc.Status != StatusUnknown || len(doc.Modules) != 4 {
 		t.Fatalf("report: %s", raw)
 	}
 	if doc.Total != *base.Total+2 || doc.Reached != *base.Reached+1 || doc.Reached+doc.Unreached != doc.Total {
 		t.Fatalf("head totals: %s", raw)
 	}
-	if doc.Modules[2]["module"] != "app/routes.js" || doc.Modules[1]["screens_total"] != nil {
+	if doc.Modules[3]["module"] != "app/routes.js" || doc.Modules[2]["screens_total"] != nil {
 		t.Fatalf("module order or null counts: %s", raw)
 	}
 }

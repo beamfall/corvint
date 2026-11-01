@@ -44,10 +44,14 @@ func TestANLV0810DeclaredImpactExemption(t *testing.T) {
 	}
 
 	head := gitTest(t, root, "rev-parse", "HEAD")
-	impactCommit(t, f, map[string]string{"docs/more.md": "more\n", "notes/plan.txt": "plan\n", "app/models/club.rb": "class Club; end\n"})
+	// A template or script extension the classifier does not read as UI is never exempt, even
+	// under a matching glob: it may still render a screen.
+	impactCommit(t, f, map[string]string{"docs/more.md": "more\n", "notes/plan.txt": "plan\n", "app/models/club.rb": "class Club; end\n",
+		"docs/views/club.html.erb": "<p>club</p>\n", "docs/tools/build.mts": "export {};\n"})
 	r = impactRun(t, f, nil, head, Options{})
 	got := impactReasons(r)
-	if r.Verdict != VerdictFullSuite || r.Ignored != 1 || len(got) != 2 || got["notes/plan.txt"] != "non-ui-path" || got["app/models/club.rb"] != "non-ui-path" {
+	if r.Verdict != VerdictFullSuite || r.Ignored != 1 || len(got) != 4 || got["notes/plan.txt"] != "non-ui-path" || got["app/models/club.rb"] != "non-ui-path" ||
+		got["docs/views/club.html.erb"] != "non-ui-path" || got["docs/tools/build.mts"] != "non-ui-path" {
 		t.Fatalf("change outside the exemption: %+v", r)
 	}
 

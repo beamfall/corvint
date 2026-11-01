@@ -2004,11 +2004,14 @@ func (t *constTable) readBundlerAliases() {
 			t.anyLocal = true
 			return
 		}
-		if !strings.Contains(text, "alias") {
+		// An escape may spell the key, so only a config with neither is skipped unread.
+		if !strings.Contains(text, "alias") && !strings.Contains(text, `\`) {
 			continue
 		}
-		toks, _ := lexJS(text)
-		if len(toks) > 0 && toks[0].unsure {
+		toks, code := lexJS(text)
+		// A backslash left in code (literal bodies blanked) is an escaped identifier, which may
+		// spell an alias key the tokens do not decode.
+		if len(toks) > 0 && toks[0].unsure || strings.Contains(code, `\`) {
 			t.anyLocal = true
 			return
 		}

@@ -954,8 +954,18 @@ func impactExemptions(r repo, m *Map) impactExemptRules {
 	return out
 }
 
+// impactUnexemptable names template and script extensions the classifier does not read as UI:
+// such a path may still render a screen, so no exemption covers it (ANL-V0-810).
+var impactUnexemptable = map[string]bool{".mts": true, ".cts": true, ".erb": true, ".haml": true, ".slim": true,
+	".ejs": true, ".njk": true, ".twig": true, ".liquid": true, ".mustache": true, ".handlebars": true, ".jinja": true,
+	".jinja2": true, ".j2": true, ".jsp": true, ".php": true, ".cshtml": true, ".razor": true, ".astro": true,
+	".coffee": true, ".styl": true, ".tpl": true}
+
 // covers counts p under ignored_paths when a declared exemption matches it (ANL-V0-810).
 func (rules impactExemptRules) covers(p string, rep *ImpactReport) bool {
+	if impactUnexemptable[strings.ToLower(path.Ext(p))] {
+		return false
+	}
 	for _, x := range rules {
 		if globRoute(x.Path, p) {
 			rep.Ignored++

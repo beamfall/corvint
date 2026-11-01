@@ -116,7 +116,12 @@ func TestAMAPV0816AnchoredRegexRoutes(t *testing.T) {
 		{`/^\/(home|orders)$/`, false, ""},
 		{`/^\/orders\/\d+$/`, false, ""},
 		{`/^\/files\/.+$/`, false, ""},
+		{`/^\/ORDERS\/\d+$/i`, false, ""},
+		{`/^\/home[|]?$/`, false, ""},
 		{`/^\/home\/extra$/`, true, ""},
+		{`/^\/ORDERS\/\d+$/`, true, ""},
+		{`/^\/missing|gone$/`, true, classRegex},
+		{`/^\/home\/extra|\/orders$/i`, true, classRegex},
 		{`/^\/reports$/`, true, ""},
 		{`/^\/reports\/(?=x)$/`, true, classRegex}, // not RE2
 		{`/^\/home\/extra$/g`, true, classRegex},

@@ -24,6 +24,8 @@ func TestAMAPV0813BundlerAliasIsNotExternal(t *testing.T) {
 		"vite array alias":     {"vite.config.mts", "export default { resolve: { alias: [{ find: /^~/, replacement: '/app' }] } };\n", false},
 		"computed alias":       {"config/webpack.dev.js", "const a = require('./aliases');\nmodule.exports = { resolve: { alias: a } };\n", false},
 		"assigned alias":       {"webpack.config.js", "const c = {};\nc.resolve.alias = { 'tables': './app/tables/routes' };\nmodule.exports = c;\n", false},
+		"escaped literal key":  {"vite.config.ts", "export default { resolve: { \"\\u0061lias\": { 'tables': '/app/tables/routes' } } };\n", false},
+		"escaped ident key":    {"vite.config.ts", "export default { resolve: { \\u0061lias: { 'tables': '/app/tables/routes' } } };\n", false},
 		"unrelated alias only": {"vite.config.ts", "export default { resolve: { alias: { 'other-lib': '/app/other' } } };\n", true},
 		"no alias":             {"vite.config.ts", "export default { server: { port: 3000 } };\n", true},
 	} {
