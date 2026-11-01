@@ -8447,8 +8447,8 @@ change to exit statuses.
   mutation with the request id `<ID>-<local>` (a digest suffix when that exceeds 64 bytes) and one
   shared `issuedAt`. Its resume protocol after any partial failure or interruption MUST be: rerun
   the same command with the same `--request-id`, `--issued-at` and targets; a target already
-  applied MUST replay (`replayed: true`, its original receipt), and a target not yet applied MUST
-  apply, so the rerun converges without a second write to any ticket. This holds for a base request
+  applied MUST replay (`replayed: true`, the same `resultingRevision`, no new receipt), and a target
+  not yet applied MUST apply, so the rerun converges without a second write to any ticket. This holds for a base request
   id long enough that every derived id takes the digest form.
 
 Failure modes: a reader that bypasses `commandPath` reads a file under the process directory
