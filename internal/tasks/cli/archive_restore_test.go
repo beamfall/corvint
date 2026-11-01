@@ -183,3 +183,28 @@ func TestTRLV0871_RestoreAtANewPathThenRelocate(t *testing.T) {
 		t.Fatalf("audit after relocate: %s", a.stdout)
 	}
 }
+
+// TestCTSV0871_RootGovernsRelativeFileArguments (CTS-V0-871, V1-3263): with
+// a leading --root, a relative archive argument is taken from the target
+// directory, not from the caller's or the process's directory.
+func TestCTSV0871_RootGovernsRelativeFileArguments(t *testing.T) {
+	r, path, archived := restoreSource(t)
+	fixture.Write(t, filepath.Join(r.Root, "backup.tar"), archived)
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	caller := fixture.TempDirOutside(t)
+	fixture.Write(t, filepath.Join(caller, "backup.tar"), []byte("not an archive"))
+	if x := atm(t, caller, nil, "--root", r.Root, "archive", "verify", "backup.tar"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("verify of the target's relative archive: %s", x.stdout)
+	}
+	if err := os.RemoveAll(r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(r.IntentDir, "tickets")); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, caller, nil, "--root", r.Root, "archive", "restore", "backup.tar"); x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "intentWritten").Str == "0" {
+		t.Fatalf("restore of the target's relative archive: %s", x.stdout)
+	}
+}

@@ -77,11 +77,10 @@ func dispatchCommand(env Env, args []string) *wire.Result {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
 	defer func() { cancel() }()
-	// The queue plans with the applied configuration's pools, which a
-	// reload may change (CAL-V0-127).
+	// The queue plans with the applied configuration's pools and matched
+	// statuses, which a reload may change (CAL-V0-127, ON-V0-870).
 	var d *dispatch.Dispatcher
-	q := newDispatchQueue(env, c)
-	q.pools = func() []string { return d.Config.TicketPools() }
+	q := newDispatchQueue(env, func() *dispatch.Config { return d.Config })
 	d, e = dispatch.Open(values["--program"], c, q, env.Stderr)
 	if e != nil {
 		return dispatchReaderError(cmd, e)
@@ -979,11 +978,12 @@ type dispatchQueue struct {
 	statuses func() map[string]bool
 }
 
-// newDispatchQueue is the queue of a dispatcher running config c, with its
-// ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
-func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
-	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{},
-		statuses: func() map[string]bool { return matchedStatuses(c) }}
+// newDispatchQueue is the queue of a dispatcher whose applied config
+// returns at each observation, with that config's ticket pools and matched
+// statuses; `dispatch` and `service run` share it (CAL-V0-142, ON-V0-870).
+func newDispatchQueue(env Env, applied func() *dispatch.Config) dispatchQueue {
+	return dispatchQueue{env: env, pools: func() []string { return applied().TicketPools() }, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{},
+		statuses: func() map[string]bool { return matchedStatuses(applied()) }}
 }
 
 // matchedStatuses are the ticket statuses some ticket role of c can match:
