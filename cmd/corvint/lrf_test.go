@@ -231,9 +231,17 @@ func TestLRFOutsideRootRefusalNamesRulePathAndRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, stdout, stderr := runCLI(t, "--root", fixture.root, "lrf", "--cem", outside)
-	if code != 2 || stdout != "" || !strings.Contains(stderr, `"code": "invalid-arguments"`) ||
-		!strings.Contains(stderr, "must remain inside repository root") || !strings.Contains(stderr, outside) ||
-		!strings.Contains(stderr, root) || !strings.Contains(stderr, "corvint cem verify --map") {
-		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	// Decode the envelope first: JSON escapes backslashes and quotes in the paths.
+	var envelope struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("stderr is not one error envelope: %v %q", err, stderr)
+	}
+	if code != 2 || stdout != "" || envelope.Code != "invalid-arguments" ||
+		!strings.Contains(envelope.Error, "must remain inside repository root") || !strings.Contains(envelope.Error, outside) ||
+		!strings.Contains(envelope.Error, root) || !strings.Contains(envelope.Error, "corvint cem verify --map") {
+		t.Fatalf("exit=%d stdout=%q envelope=%+v", code, stdout, envelope)
 	}
 }
