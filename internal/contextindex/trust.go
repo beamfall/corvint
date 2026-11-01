@@ -55,6 +55,7 @@ var trustByAuthority = map[string]string{
 	UnverifiedLedgerAuthority:       TrustToolOutput,
 	"local-task-trace":              TrustToolOutput,
 	"generated-documentation":       TrustToolOutput,
+	WorktreeOverlayAuthority:        TrustToolOutput, // DIRTY-CACHE-942: uncommitted bytes
 }
 
 // TrustClass derives the one trust class of a row from its authority label.

@@ -31,6 +31,7 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 	// count taken after it makes `omitted_results` structurally zero and lets
 	// the receipt assert a completeness it never measured.
 	admittedResults := len(rawResults)
+	rawResults = markWorktreeResults(index, rawResults)
 	if len(rawResults) > limit {
 		rawResults = rawResults[:limit]
 	}
@@ -74,6 +75,7 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 		"exclusions": map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
 	}
 	setVerification(result, index, verification(index, rawResults))
+	worktreeOverlayFreshness(index, result["freshness"].(map[string]any))
 	if taskState != nil {
 		result["freshness"].(map[string]any)["task_state"] = taskState
 	}
@@ -596,6 +598,14 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 }
 
 func criticalResults(mode string, results []map[string]any) []any {
+	// A worktree overlay result is advisory and never critical (DIRTY-CACHE-942).
+	committed := make([]map[string]any, 0, len(results))
+	for _, item := range results {
+		if item["worktree_overlay"] != true {
+			committed = append(committed, item)
+		}
+	}
+	results = committed
 	if mode == "feature" {
 		if len(results) == 0 {
 			return []any{}

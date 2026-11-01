@@ -56,6 +56,12 @@ const rubyAutoloadAdvisoryUncertainty = "Ruby autoload-convention references are
 func advisoryUncertainty(results []map[string]any) []any {
 	lines := rubyAdvisoryUncertainty(results)
 	for _, item := range results {
+		if item["worktree_overlay"] == true { // DIRTY-CACHE-942
+			lines = append(lines, worktreeOverlayUncertainty)
+			break
+		}
+	}
+	for _, item := range results {
 		if item["kind"] == "learned-path" {
 			return append([]any{"learned path relationships are advisory"}, lines...)
 		}
@@ -67,7 +73,7 @@ func advisoryUncertainty(results []map[string]any) []any {
 // autoload-convention row, which path and range receipts both add.
 func rubyAdvisoryUncertainty(results []map[string]any) []any {
 	for _, item := range results {
-		if item["kind"] != "learned-path" && item["advisory"] == true {
+		if item["kind"] != "learned-path" && item["advisory"] == true && item["worktree_overlay"] != true {
 			return []any{rubyAutoloadAdvisoryUncertainty}
 		}
 	}

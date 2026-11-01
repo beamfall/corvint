@@ -146,6 +146,36 @@ func TestRepositoryQueryMixedWorktreeDoesNotReadMalformedTraceStore(t *testing.T
 	assertJSONNumber(t, learning, "matched_local_traces", 0)
 }
 
+// V1-2612: a mixed-worktree packet captured after HEAD moved binds to the live
+// HEAD. `revision` is the HEAD tree id by contract and `learning.history_tip`
+// is the HEAD commit, so a tree id next to a different commit id is not a stale
+// base (the suspected VanillaTwisted receipt showed exactly that pair).
+func TestRepositoryQueryMixedWorktreeBindsLiveHeadAfterHeadMoves(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	before := decodeRepositoryQueryContext(t, runRepositoryQueryProcess(t, root).stdout)
+	target := filepath.Join(root, "internal", "parser", "token.go")
+	if err := os.WriteFile(target, []byte("package parser\n\n// ParseToken moved.\nfunc ParseToken(input string) string { return input + \"\" }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitOutput(t, root, "commit", "-qam", "move HEAD")
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte("# Project instructions\n\ndirty\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after := decodeRepositoryQueryContext(t, runRepositoryQueryProcess(t, root).stdout)
+	tree, commit := gitOutput(t, root, "rev-parse", "HEAD^{tree}"), gitOutput(t, root, "rev-parse", "HEAD")
+	freshness := objectField(t, after, "freshness")
+	if after["revision"] != tree || freshness["revision"] != tree || freshness["state"] != "mixed-worktree" {
+		t.Fatalf("revision=%v freshness=%#v, want live HEAD tree %s", after["revision"], freshness, tree)
+	}
+	if tip := objectField(t, after, "learning")["history_tip"]; tip != commit {
+		t.Fatalf("history_tip=%v, want live HEAD %s", tip, commit)
+	}
+	if before["revision"] == after["revision"] {
+		t.Fatalf("revision %v did not follow the moved HEAD", after["revision"])
+	}
+}
+
 func TestRepositoryQueryTraceStateFailuresAreTypedAndNonmutating(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
