@@ -173,6 +173,10 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible, as for a package whose tests launch a nested sandbox recorded in .corvint/test-nested-sandboxes.json (AFP-V0-615); a shell test is registered as described in docs/SHELL-TEST-REGISTRATION.md.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
 		for _, directory := range slices.Compact(slices.Clone(unrecorded)) {
+			// V1-3780, TSP-V0-723: name the record's entry shape, so the last-resort
+			// route needs no reading of the record's reader first.
+			fmt.Fprintf(stderr, "  %s: to record it, insert %q into units of %s in ascending order and add %q: \"<the unbounded read, and why %s cannot declare it>\" to its reasons\n",
+				directory, directory, recordPath, directory, affected.ReadScopesPath)
 			for _, id := range ids[directory] {
 				fmt.Fprintf(stderr, "  %s\n", explain(graph, id))
 				if unit, ok := graph.Unit(id); ok && unit.UnboundedReads == shell.UnboundedRunsToolchain {
