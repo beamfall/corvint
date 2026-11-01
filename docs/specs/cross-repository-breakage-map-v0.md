@@ -224,7 +224,8 @@ an undeclared tracked SDK-root go.mod, a stale declared blob, and no tracked go.
 the path, and declaring the go.mod yields the caller edge.
 `TestModuleBoundaryNamesTheMissingGoMod_V13529` (`module_boundary_v13529_test.go`) covers
 `BKM-V0-710` with two repositories: an omitted root `go.mod` is named with its `--source`, a
-declared one yields syntax edges, and an unreadable declared one is named as such. Rollback of
+declared one yields syntax edges, and one declared with a stale blob is named as such. The
+reasons come from the same `moduleBoundary` code as `BKM-V0-955`. Rollback of
 `BKM-V0-710`: return the bare reason from `moduleBoundary` again.
 
 Non-goals of `BKM-V0-009` to `BKM-V0-012`: no parser for languages other than Go and the
