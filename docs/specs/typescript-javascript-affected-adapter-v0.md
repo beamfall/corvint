@@ -1614,6 +1614,21 @@ cannot, from the same graph phase and closure walk the plan uses.
     `e9a5d6c80`.
   - Rollback: drop the shorthand branch in `playwrightUseLayerItems`; no persisted format or
     receipt changes.
+- `TJAA-V0-601`: (experimental under the standing lane auto-accept (2026-11-01); V1-3933) A literal
+  `devices[...]` spread whose descriptor's browser is not modelled (`iPhone 13`, `Pixel 5`, ...)
+  MUST keep the project identity when either `use` layer names the browser with a literal
+  `browserName`, since an explicit `browserName` outranks the descriptor's `defaultBrowserType` in
+  Playwright. The identity is the literal browser plus the device name. Without a literal
+  `browserName` in either layer it MUST stay unresolved with the detail `device "<name>" has no
+  modelled browser` at the spread.
+  - Non-goals: modelling the full Playwright device registry.
+  - Failure modes: a descriptor that Playwright changes between versions keeps the device name in
+    the identity, so the project fragment and its argv are unchanged.
+  - Falsifier: `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in
+    `playwright_shorthand_v13933_test.go` (the spread in either layer and either order with a literal
+    `browserName` resolves; without one it names the spread), failing on base `e9a5d6c80`.
+  - Rollback: refuse the unmodelled spread in `playwrightUseLayerItems` again and drop the deferred
+    check in `playwrightInheritedUse`; no persisted format or receipt changes.
 
 - `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
   Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
@@ -2053,6 +2068,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-601` (V1-3933) | `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in `playwright_shorthand_v13933_test.go` (unmodelled device plus literal browserName resolves; without one it stays unresolved and names the spread) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
