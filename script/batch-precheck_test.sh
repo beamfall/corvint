@@ -744,6 +744,22 @@ run_full --base "$sbase"; full 'a changed path needs quoting'
 /bin/rm -f "$srepo/notes/a\"b.txt"
 run_full; full 'no --base or BATCH_PRECHECK_BASE'
 /bin/rm -rf "$srepo/notes"
+# ASD-V0-904 (V1-3441): a docs-only diff under a planner that cannot narrow the run still skips each
+# @go entry, naming why, unless a declared input of it changed (TestFreeze's spec); a Go change runs
+# them again.
+printf 'changed\n' >> "$srepo/docs/specs/freeze.md"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "docs-only fallback run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (.*affected exited 3' "$tmp/out" || fail "docs-only fallback reason: $(cat "$tmp/out")"
+grep -qx "batch-precheck:   NOT_RUN ./golden TestGoldenDrift (docs-only diff: no Go input changed since $sbase)" "$tmp/out" || fail "docs-only golden not skipped: $(cat "$tmp/out")"
+grep -q 'NOT_RUN ./golden TestFreeze' "$tmp/out" && fail "docs-only diff skipped TestFreeze, whose declared input changed: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages, 2 of 3 tests)'
+printf 'package golden\n' > "$srepo/golden/extra.go"
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "Go fallback run failed: $(cat "$tmp/out")"
+grep -q 'NOT_RUN' "$tmp/out" && fail "a Go change skipped an @go entry: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+/bin/rm -f "$srepo/golden/extra.go"
+git -C "$srepo" checkout -q -- docs/specs/freeze.md
 
 # 8. ASD-V0-046 (V1-3122): a failed step reruns once before it is classified. A pass on the rerun
 # is FLAKY (counted passed, both attempts named, attempt 1's failing test named); a second failure
