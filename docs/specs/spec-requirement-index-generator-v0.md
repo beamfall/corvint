@@ -436,6 +436,13 @@ No requirement below diverges from the implementation.
   spec-requirements-resolve` when a generated file is unmerged or is staged holding a
   conflict-marker line; the resolve restarts such a staged file from `HEAD`. Non-goals: resolving
   within `make spec-requirements` itself.
+- `SRG-V0-923`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3362; refines
+  `SRG-V0-800`) `make spec-requirements-check` (through
+  `script/spec-requirements-worktree-check.sh`, outside a private `GIT_INDEX_FILE`) MUST fail when
+  `docs/specs/REQUIREMENTS.tsv`, `INDEX.json` or `README.md` differs between the working tree and
+  the index, naming each and the fix (`git add` them after `make spec-requirements`, or restore
+  them), because CI compares the committed bytes and a regenerated file left unstaged passed
+  locally. Non-goals: comparing against HEAD (a staged regeneration is what the commit will hold).
 
 ## Non-goals and simpler baseline
 
@@ -556,6 +563,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-920 | `script/spec-requirements-conflict_test.sh`: a merge that conflicts only in a spec's prose resolves with exit 0 and the `no unmerged path` line; outside a merge a staged spec edit is regenerated and staged |
 | SRG-V0-921 | `script/spec-requirements-conflict_test.sh`: two lanes that each add a new spec and repin a different receipt conflict in INDEX.json and the ledger; the resolve alone finishes the merge, every generated file equals the regenerated one, both new requirements are rows and both receipts are current |
 | SRG-V0-922 | `script/spec-requirements-conflict_test.sh`: in that merge `make spec-requirements` refuses with one line naming INDEX.json and `make spec-requirements-resolve`, and again once INDEX.json is staged with its markers |
+| SRG-V0-923 | `script/spec-requirements-worktree-check_test.sh`: a staged spec edit whose regenerated INDEX.json is left unstaged fails naming INDEX.json and the fix; staging it passes |
 
 ## Traceability
 
@@ -598,6 +606,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-920 | `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
 | SRG-V0-921 | `script/spec-requirements-resolve.sh` ledger reconcile and repin step | `spec-requirements-test` |
 | SRG-V0-922 | the `spec-requirements` target's unmerged check in `Makefile`; the staged-marker restart in `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
+| SRG-V0-923 | the generated-file index comparison in `script/spec-requirements-worktree-check.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 

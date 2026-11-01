@@ -280,6 +280,10 @@ a checkout whose script reads `heavy.env`; the old wrapper is kept as
 the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
 --print-lock-dir` prints the directory a run would use.
 
+A lane's focused checks include `make line-citations-selects BASE=<base>` (`DCG-V0-921`, V1-3323):
+when it names a pinned citation into a file the change touched, run `make line-citations-check`
+then, not only at doc-gates.
+
 A lane host that offloads (the Mac lane host, for example) sets `HEAVY_REMOTE_HOST` in this file, not
 in a lane charter or a session's environment: a worktree session started from the standard charter
 then offloads with no export (V1-3518). Every run prints `heavy.sh: host=H why=W` first
