@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"path"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -655,6 +657,7 @@ func evalRankRecords(index *Index, queryText string, queryTerms map[string]struc
 
 func evalRankDocuments(index *Index, queryText string, queryTerms map[string]struct{}, intent evalIntent) ([]evalDocumentCandidate, error) {
 	compactQuery := compactText(queryText)
+	named := evalNamedPaths(index, queryText)
 	result := make([]evalDocumentCandidate, 0)
 	for _, record := range sortedRecords(index.Documents) {
 		if record.Kind == "instructions" && intent.id == "repository" {
@@ -683,10 +686,17 @@ func evalRankDocuments(index *Index, queryText string, queryTerms map[string]str
 		if record.Kind == "instructions" && intent.id == "project-operations" {
 			minimum = 1
 		}
-		if len(overlap) < minimum && !exactTitle {
+		cited := 0
+		if record.Kind != "instructions" {
+			cited = evalCitedNamedPaths(record, named)
+		}
+		if len(overlap) < minimum && !exactTitle && cited == 0 {
 			continue
 		}
-		score := len(overlap) * 18
+		score := len(overlap)*18 + cited*evalNamedPathCredit
+		if cited >= 2 && cited == len(named) {
+			score += evalNamedPathCredit
+		}
 		if exactTitle {
 			score += 80
 		}
@@ -730,6 +740,57 @@ func evalRankDocuments(index *Index, queryText string, queryTerms map[string]str
 		return result[left].id < result[right].id
 	})
 	return result, nil
+}
+
+// evalNamedPathCredit is what a document earns for each indexed path the task
+// names that its own references cite, and once more when it cites every one of
+// two or more (GPK-V0-975): a little more than two shared words each, so the
+// document that governs the named files outranks one that only repeats their
+// path tokens or cites one of them among many.
+const evalNamedPathCredit = 40
+
+// evalNamedPaths is the sorted indexed paths the task names by full path or by
+// an unambiguous basename carrying a dot after its first byte (GPK-V0-975),
+// the reading TCP-V0-003's `mentioned` rule gives a task.
+func evalNamedPaths(index *Index, queryText string) []string {
+	byBase := map[string][]string{}
+	lowered := map[string]string{}
+	for candidate := range index.Sources {
+		lowered[pythonLower(candidate)] = candidate
+		base := pythonLower(path.Base(candidate))
+		byBase[base] = append(byBase[base], candidate)
+	}
+	named := make([]string, 0)
+	for _, token := range contextPathTokens(pythonLower(queryText)) {
+		if candidate, ok := lowered[token]; ok {
+			named = append(named, candidate)
+			continue
+		}
+		if !strings.Contains(token, ".") || strings.HasPrefix(token, ".") {
+			continue
+		}
+		if owners := byBase[token]; len(owners) == 1 {
+			named = append(named, owners[0])
+		}
+	}
+	sort.Strings(named)
+	return slices.Compact(named)
+}
+
+// evalCitedNamedPaths counts the named paths a document's references cite; a
+// document never cites itself, so the named file earns nothing from its own name.
+func evalCitedNamedPaths(record Record, named []string) int {
+	if len(named) == 0 {
+		return 0
+	}
+	references := stringsField(record.Fields["references"])
+	cited := 0
+	for _, candidate := range named {
+		if candidate != record.Path && stringIn(references, candidate) {
+			cited++
+		}
+	}
+	return cited
 }
 
 // evalRankSymbols returns the ranked candidates and the index-wide symbol term
