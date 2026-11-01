@@ -2684,7 +2684,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   when its name is not `--` plus at most 41 lowercase letters, digits and hyphens) and every option
   the subverb takes; `--verify-file` to a subverb that takes `--verify` MUST also name `--verify FILE`
   and `DOGFOOD_VERIFY_FILE` as its environment form. `finish-lane` and `inputs-check` refusing a
-  positional or missing base (`dogfood-base-required`) MUST say the base is `--base BASE`. Design:
+  positional or missing base (`dogfood-base-required`) MUST say the base is `--base BASE`; every
+  other subverb refusing it (`seal`, `check`, `change`, `prechange` and the rest) MUST say it takes
+  BASE as its one positional argument, naming `dogfood ACTION BASE` (V1-3735). Design:
   on 2026-10-31 `dogfood finish-lane --verify-file FILE ... BASE` printed only the bare code, so the
   operator could not tell which of five inputs was wrong. Non-goals: accepting `--verify-file` as an
   alias. Evidence: `TestDCWV0808DogfoodOptionRefusalNamesTheFault`. Rollback: return the bare codes.
