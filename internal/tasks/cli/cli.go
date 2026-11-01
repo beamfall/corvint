@@ -429,17 +429,24 @@ func Run(env Env) int {
 	if isOmitted(args[0]) {
 		return emit(env.Stdout, notRun([]string{args[0]}))
 	}
-	return emit(env.Stdout, usage([]string{"help"}, unknownVerbHint(args[0])))
+	res := usage([]string{"help"}, unknownVerbHint(args[0]))
+	res.Codes = []string{wire.CodeMalformed} // TCL-V0-859
+	return emit(env.Stdout, res)
 }
 
 // unknownVerbHint names the implemented verbs whose last word is the unknown
-// first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`.
+// first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`,
+// then the first verb words a typo is near (TCL-V0-859), so `tikcet` routes
+// to `ticket`.
 func unknownVerbHint(word string) string {
 	var matches []string
 	for _, verb := range ReadVerbs {
 		if i := strings.LastIndexByte(verb, ' '); i >= 0 && verb[i+1:] == word {
 			matches = append(matches, "`corvint-tasks "+verb+" --help`")
 		}
+	}
+	for _, first := range nearVerbWords(word) {
+		matches = append(matches, "`corvint-tasks "+first+" --help`")
 	}
 	if len(matches) == 0 {
 		return "unknown verb; run `corvint-tasks help`"
@@ -1818,6 +1825,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		} else {
 			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue"+candidates)
 		}
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items = []wire.Value{*item}

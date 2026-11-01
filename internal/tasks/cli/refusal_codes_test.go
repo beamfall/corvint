@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -28,5 +29,33 @@ func TestTCLV0870_StaleUpdateCarriesStaleTicket(t *testing.T) {
 		"--expected-revision", "9", "--issued-at", "2026-09-20T12:01:30Z", "--payload", releaseCreatePayload("v0-9", "Changed", id, ""))
 	if stale.res.Outcome != wire.OutcomeRefused || len(stale.res.Codes) == 0 {
 		t.Fatalf("stale release update: %s", stale.stdout)
+	}
+}
+
+// TestTCLV0859_UnknownVerbAndMissingTicketCarryCodes (TCL-V0-859, V1-3736):
+// an unknown first word carries MALFORMED and a typo hint names the near
+// verb; each read of a ticket absent from the queue refuses with MALFORMED.
+func TestTCLV0859_UnknownVerbAndMissingTicketCarryCodes(t *testing.T) {
+	r, _ := attachStore(t)
+	typo := atm(t, r.Root, nil, "tikcet", "show")
+	if typo.res.Outcome != wire.OutcomeError || !hasCode(typo.res, wire.CodeMalformed) ||
+		!strings.Contains(strings.Join(typo.res.Warnings, ";"), "did you mean `corvint-tasks ticket --help`") {
+		t.Fatalf("typo verb: %s", typo.stdout)
+	}
+	if far := atm(t, r.Root, nil, "no-such-verb"); !hasCode(far.res, wire.CodeMalformed) || strings.Contains(strings.Join(far.res.Warnings, ";"), "did you mean") {
+		t.Fatalf("unrelated verb: %s", far.stdout)
+	}
+	for _, args := range [][]string{
+		{"ticket", "show", "NOPE-404"},
+		{"ticket", "note", "show", "NOPE-404"},
+		{"ticket", "note", "history", "NOPE-404"},
+		{"critical-path", "NOPE-404"},
+		{"ticket", "escalation", "show", "NOPE-404", "q-1"},
+		{"ticket", "escalation", "history", "NOPE-404", "q-1"},
+	} {
+		x := atm(t, r.Root, nil, args...)
+		if x.res.Outcome != wire.OutcomeRefused || !hasCode(x.res, wire.CodeMalformed) {
+			t.Errorf("%v: %s", args, x.stdout)
+		}
 	}
 }

@@ -168,7 +168,7 @@ func parse(arguments []string) (options, error) {
 		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + "; to print the version, run corvint --version (or corvint --version --json)")
 	}
 	if arguments[index] != "harness" {
-		return result, invalidChoice("command", arguments[index], topLevelCommands)
+		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + didYouMean(arguments[index], topLevelCommands))
 	}
 	if index+1 >= len(arguments) {
 		return result, argumentError("the following arguments are required: harness_command")

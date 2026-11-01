@@ -111,6 +111,13 @@
     "cmd/corvint-work-queue": [
       ".corvint/work-queue-policy.json"
     ],
+    "conformance/cli-errors-v0": [
+      ".github/cishards/",
+      "cmd/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "conformance/go-live-test-v0": [
       "cmd/corvint-go-test-provider/",
       "go.mod",
