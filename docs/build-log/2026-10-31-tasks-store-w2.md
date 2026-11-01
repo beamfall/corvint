@@ -259,6 +259,29 @@ rebuilt from the lane head `f1680433b` (the old ones kept as `*.pre-r35.bak`), w
   under the first commit's lock moves the snapshot). It passes 4/4 here; confirmation on macOS is
   NOT_RUN from this lane.
 
+### Review fixes (Codex review of f1680433b..bd93c2a6f)
+
+1. FIXED, `seal_checkpoint.go` (V1-2621, LGL-V0-891): the re-base copied the retained base's
+   historical receipt bytes and archive cost without checking them. Verified: a base forged with
+   lowered costs and correct current totals was reused. `Result.SealedBaseCheckpoint` now derives
+   the aggregates at S from the complete audit's own reads (receipts 1..S and every request
+   afterimage posted at or before S) and refuses unless the base carries exactly those; the raw
+   re-base is unexported. `TestLGLV0891_ForgedSealedBaseAggregatesAreNotReused` uses a test-only
+   journal seam, `ForgeSealedBaseAggregatesForTest`, and fails with the comparison removed. The
+   base's intent aggregate at S is still not re-derived; the checkpoint's live intent totals come
+   from the delta, which rebase checks against the audit.
+2. FIXED, `deferred_retention.go` and refresh (V1-2358, JSG-V0-891): a fresh base that failed to
+   stage came back as nil and was re-encoded under the lock, and the refresh retried a failed read
+   checkpoint under the lock. The lease commit had the same fallback, against JSG-V0-015's own rule.
+   Verified with an injected staging failure (`stageCreate` seam). `stageWriterCheckpoint` now
+   returns a failed result, which `retainStagedWriterCheckpoint` skips, and the refresh dropped its
+   locked retry. `TestJSGV0891_FailedStagingRetainsNothingUnderTheLock` writes nothing under the
+   lock. With the old code it finds 6.5 KB (read checkpoint), 15.5 KB (refresh base) and 7.4 KB
+   (lease commit base).
+3. FIXED, `qualify_reuse_test.go`: the race detector confirmed that the hook's plain counters race
+   under the overlapped publish syncs. They are now atomics, and the syncs stay concurrent.
+   Race-clean 5/5; the other new tests from this round are race-clean too.
+
 ## Friction
 
 - `TestCALV0095_PreparationQueueObservation*` (internal/tasks/authority) fails at the base on this
