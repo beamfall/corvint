@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-// AHI-805 (V1-0402): Read and Grep PreToolUse calls are answered with permissionDecision defer and
+// AHI-805 (V1-0402), AHI-806 (V1-0878): Read, Grep and ExitPlanMode PreToolUse calls are answered with permissionDecision defer and
 // bounded evidence or a named degradation; no case ever emits deny, ask or a blocking member.
 func TestAHI805PreToolReadAlwaysDefers(t *testing.T) {
 	t.Parallel()
@@ -53,6 +53,14 @@ func TestAHI805PreToolReadAlwaysDefers(t *testing.T) {
 	}
 	if hook, text := run("Grep", map[string]any{"pattern": "ParseToken", "path": "internal/parser/token.go"}); hook["additionalContext"] == nil {
 		t.Fatalf("Grep target has no evidence: %s", text)
+	}
+	// AHI-806 (V1-0878): a submitted plan gets its anchors' evidence and governance, never approval.
+	plan := "1. Change internal/parser/token.go so ParseToken accepts tabs.\n2. Add a test."
+	if hook, text := run("ExitPlanMode", map[string]any{"plan": plan}); !strings.Contains(text, "internal/parser/token.go") || !strings.Contains(hook["additionalContext"].(string), untrustedDataPrefix) {
+		t.Fatalf("plan has no evidence: %s", text)
+	}
+	if hook, text := run("ExitPlanMode", map[string]any{"plan": "  "}); len(hook) != 2 {
+		t.Fatalf("an empty plan must get the bare defer: %s", text)
 	}
 	// A missing file is a named path degradation, still deferred.
 	if _, text := run("Read", map[string]any{"file_path": "internal/parser/absent.go"}); !strings.Contains(text, "defer") {

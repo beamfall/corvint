@@ -12,12 +12,13 @@ import (
 // `defer`. A Read file_path or Grep path inside the project is compiled as a one-path user-prompt
 // anchor, adding that path's evidence as additionalContext or a named degradation; any other tool
 // or target gets the bare defer. It records nothing the user-prompt path does not already record:
-// unplanned-read rows stay gated on the operator marker (AGENTS.md invariant 4, SOL-V0-010).
+// unplanned-read rows stay gated on the operator marker (AGENTS.md invariant 4, SOL-V0-010). An
+// ExitPlanMode call gets the same answer for its plan text (AHI-806): evidence, never approval.
 func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[string]any {
 	output := map[string]any{}
-	if target, ok := preToolReadTarget(ctx, payload); ok {
+	if text, ok := preToolPrompt(ctx, payload); ok {
 		prompt := maps.Clone(payload)
-		prompt["prompt"] = "`" + target + "`"
+		prompt["prompt"] = text
 		prompt["hook_event_name"] = "UserPromptSubmit"
 		output = runClaudeAdapter(ctx, "user-prompt", prompt)
 	}
@@ -34,6 +35,19 @@ func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[strin
 	hook["permissionDecision"] = "defer"
 	output["hookSpecificOutput"] = hook
 	return output
+}
+
+// preToolPrompt is the prompt text a pre-tool call compiles: the backticked target of a Read or
+// Grep, or the submitted plan of an ExitPlanMode call (AHI-806, V1-0878), whose path, requirement
+// ID and identifier anchors resolve as a prompt's do. False means the bare defer.
+func preToolPrompt(ctx context.Context, payload map[string]any) (string, bool) {
+	if payload["tool_name"] == "ExitPlanMode" {
+		input, _ := payload["tool_input"].(map[string]any)
+		plan, _ := input["plan"].(string)
+		return plan, strings.TrimSpace(plan) != ""
+	}
+	target, ok := preToolReadTarget(ctx, payload)
+	return "`" + target + "`", ok
 }
 
 // preToolReadTarget is the project-relative path a Read or Grep call names, or false for another
