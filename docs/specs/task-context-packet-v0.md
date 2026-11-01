@@ -1284,6 +1284,24 @@ as withheld. This amendment reserves what the routed spec cites.
   `internal/contextindex/spec_cited.go`, its call in `reservedRows`, `contextRankOrder` and the
   `omitted_spec_cited` call, and repin the analyzer input digest; packets without a spec citation
   are unaffected either way.
+- `TCP-V0-960`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3709)
+  When the packet's own `coverage.answerability.verdict` is `no-specific-terms`, the packet MUST
+  consult `corvint query`'s ranking pass and relevance floor (GPK-V0-066, GPK-V0-093) over the same
+  task text, through `contextindex.QueryRelevanceAbstention`, which shares that pass and floor with
+  `EvalQuery` and reads only the index (no trace learning, no Git observation). When the floor
+  rejects the ranked candidates (`below-relevance-floor`), the packet MUST carry a top-level
+  `abstention` member `{"active": true, "reason": "below-relevance-floor", "source": "query
+  relevance floor"}` and a `coverage.uncertainty` line saying query abstains and the rows are
+  lexical neighbours, not answers; its rows and `state` stay as compiled. Query's
+  `no-relevant-candidates` (its record, document and symbol classes ranked nothing) passes no
+  judgement on the packet's lexical file rows and MUST add nothing, and a task over query's length
+  limit is not judged. Falsifier: an out-of-domain task that query withdraws `OUT_OF_SCOPE`
+  `below-relevance-floor` while the context packet reports `READY` with no abstention. Tests:
+  `TestTaskContextAgreesWithQueryAbstention`, `TestTaskContextIgnoresQueryEmptyUniverse`.
+  Trace-learned query candidates can lift query's floor; this check does not read them, so on a
+  repository with matching traces context may abstain where query does not. Rollback: delete
+  `queryFloorCoverage` and its call; `evalRank`/`relevanceFloor` are a behavior-neutral split of
+  `evalQuery`.
 
 ## Non-goals and authority
 
@@ -1781,3 +1799,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
 | TCP-V0-995 (experimental, standing lane auto-accept, V1-1269) | `relationRows`, `instructionReservation`, `spanRanker.coreSpans` | `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
+| TCP-V0-960 (experimental, standing lane auto-accept, V1-3709) | `queryFloorCoverage`, `QueryRelevanceAbstention`, `evalRank`, `evalRanked.relevanceFloor` | `TestTaskContextAgreesWithQueryAbstention`, `TestTaskContextIgnoresQueryEmptyUniverse` |
