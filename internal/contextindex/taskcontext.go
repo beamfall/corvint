@@ -832,7 +832,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 	// score and citation when a rarer name the task also names defines it.
 	seen := map[string]int{}
 	for _, identifier := range compiler.identifiers {
-		if !definitionEligible(identifier) {
+		if !compiler.definitionSlotEligible(identifier) {
 			continue
 		}
 		symbols := definers[identifier.name]
@@ -880,7 +880,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 	wanted := map[string]struct{}{}
 	for _, identifier := range compiler.identifiers {
-		if definitionEligible(identifier) {
+		if compiler.definitionSlotEligible(identifier) {
 			wanted[identifier.name] = struct{}{}
 		}
 	}
@@ -932,6 +932,38 @@ func definitionEligible(identifier taskIdentifier) bool {
 		}
 	}
 	return false
+}
+
+// definitionSlotEligible is definitionEligible narrowed for the definition
+// slot (TCP-V0-961, V1-3710): an unquoted all-capitals token (`CEM`, `PR`)
+// passes definitionEligible's inner-capital rule without being camelCase, so
+// it names a definition only while it is rare as written, below the
+// answerability cut of one source in sixteen (never below two). A common
+// acronym is prose vocabulary: `type CEM` in one package must not outrank the
+// files a task about CEMs is about. Quoting the token in backticks keeps it.
+func (compiler *taskContextCompiler) definitionSlotEligible(identifier taskIdentifier) bool {
+	if !definitionEligible(identifier) {
+		return false
+	}
+	if identifier.weight >= 3 || !allCapitalAcronym(identifier.name) {
+		return true
+	}
+	table := compiler.index.vocabulary()
+	low, high, ok := table.Words.find(identifier.name)
+	return !ok || high-low < max(len(table.Paths)/specificTermFraction, 2)
+}
+
+// allCapitalAcronym reports a token of upper-case letters only, at least two.
+func allCapitalAcronym(name string) bool {
+	if len(name) < 2 {
+		return false
+	}
+	for position := 0; position < len(name); position++ {
+		if name[position] < 'A' || name[position] > 'Z' {
+			return false
+		}
+	}
+	return true
 }
 
 // importerRows: the subject's reverse importers from the index's import graph,
