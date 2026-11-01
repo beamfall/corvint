@@ -4212,5 +4212,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-lane-flow-v0.md",
+    "title": "Corvint Tasks lane flow V0",
+    "reqPrefix": "TLF-V0",
+    "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576)",
+    "delivery": "experimental",
+    "claim": "Lanes record a typed progress phase on live tickets without a claim; read-only checks screen lane heads, requirement IDs and effects proposals.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
