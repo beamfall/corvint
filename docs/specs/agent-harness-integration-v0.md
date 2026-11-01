@@ -808,6 +808,15 @@ separate exact extension tuple remains governed by AHI-024.
   the env variable stays the documented route. Evidence:
   `TestAHI807StopDoneListPluginOptionAndPrecedence` (`cmd/corvint`). Rollback: drop the
   `userConfig` member and `doneListOptedIn`'s option branch.
+- `AHI-808`: (experimental under the standing lane auto-accept (2026-11-01); V1-3543)
+  `corvint adapter --help` MUST list the accepted events per host: every `claude-code` EVENT,
+  that `codex` takes no EVENT and the `hook_event_name` values it maps, and the `pi` events. An
+  `unsupported-hook-event` degradation from a wrong host, a wrong or missing `claude-code` EVENT,
+  or a `codex` EVENT argument MUST keep its frame line unchanged (so the `SOL-V0-010` reason is the
+  same) and add one line naming what that host accepts, or the accepted host forms. Non-goals: a
+  new refusal code; Codex's `{}` for an unmapped `hook_event_name` (`AHI-044`) is unchanged.
+  Evidence: `TestAHI808AdapterEventsAreDiscoverable` (`cmd/corvint`). Rollback: return the bare
+  degradation and the previous help text.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2798,6 +2807,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadAlwaysDefers` |
 | `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadAlwaysDefers` (ExitPlanMode cases) |
 | `AHI-807` (experimental under the standing lane auto-accept (2026-11-01); V1-2514) | `cmd/corvint/host_adapter_done_list.go` (`doneListOptedIn`); `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json` (`userConfig.stop_done_list`) | `TestAHI807StopDoneListPluginOptionAndPrecedence` |
+| `AHI-808` (experimental under the standing lane auto-accept (2026-11-01); V1-3543) | `cmd/corvint/host_adapter.go` (`unsupportedHookEvent`, `claudeCodeAdapterEvents`, `codexHookEvents`); `cmd/corvint/help.go` (`adapterHelp`) | `TestAHI808AdapterEventsAreDiscoverable` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
