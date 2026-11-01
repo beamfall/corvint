@@ -83,14 +83,24 @@ func TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups(t *testing.T) {
 	}
 	var declared struct {
 		MCPServers map[string]struct {
-			Command string   `json:"command"`
-			Args    []string `json:"args"`
+			Command string            `json:"command"`
+			Args    []string          `json:"args"`
+			Env     map[string]string `json:"env"`
 		} `json:"mcpServers"`
 	}
 	if err := json.Unmarshal(raw, &declared); err != nil {
 		t.Fatal(err)
 	}
 	server := declared.MCPServers["corvint"]
+	// MCPV0-951: the declared plugin version is the manifest's.
+	manifestRaw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct{ Version string }
+	if err := json.Unmarshal(manifestRaw, &manifest); err != nil || server.Env["CORVINT_PLUGIN_VERSION"] != "claude-code/"+manifest.Version {
+		t.Fatalf("CORVINT_PLUGIN_VERSION=%q, manifest version %q (%v)", server.Env["CORVINT_PLUGIN_VERSION"], manifest.Version, err)
+	}
 	want := []string{"mcp", "--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-validity,docs"}
 	if len(declared.MCPServers) != 1 || server.Command != "corvint" || !slices.Equal(server.Args, want) {
 		t.Fatalf("declared %+v, want one corvint server with args %q", declared.MCPServers, want)

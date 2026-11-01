@@ -668,7 +668,8 @@ func TestAHI820ClaudePluginArgsServeTestValidityAndDocs(t *testing.T) {
 	}
 	var declared struct {
 		MCPServers map[string]struct {
-			Args []string `json:"args"`
+			Args []string          `json:"args"`
+			Env  map[string]string `json:"env"`
 		} `json:"mcpServers"`
 	}
 	if err := json.Unmarshal(raw, &declared); err != nil {
@@ -711,5 +712,9 @@ func TestAHI820ClaudePluginArgsServeTestValidityAndDocs(t *testing.T) {
 		if !slices.Contains(names, name) {
 			t.Fatalf("tools/list %q lacks %s: %s", names, name, stdout.String())
 		}
+	}
+	// MCPV0-951: the declared expected tools are exactly what these args list.
+	if expected := strings.Split(declared.MCPServers["corvint"].Env[pluginToolsVariable], ","); !slices.Equal(expected, names) {
+		t.Fatalf("%s=%q, tools/list %q", pluginToolsVariable, expected, names)
 	}
 }

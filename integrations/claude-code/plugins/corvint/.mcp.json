@@ -2,7 +2,11 @@
   "mcpServers": {
     "corvint": {
       "command": "corvint",
-      "args": ["mcp", "--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-validity,docs"]
+      "args": ["mcp", "--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-validity,docs"],
+      "env": {
+        "CORVINT_PLUGIN_VERSION": "claude-code/0.3.8",
+        "CORVINT_PLUGIN_TOOLS": "corvint.docs_consume,corvint.docs_draft,corvint.help,corvint.impact,corvint.query,corvint.status,corvint.test_validity"
+      }
     }
   }
 }

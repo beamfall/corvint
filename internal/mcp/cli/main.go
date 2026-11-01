@@ -80,10 +80,12 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 // Serve runs one stdio MCP server until stdin closes or SIGINT/SIGTERM arrives. Both entry
 // points share it, so the corvint-mcp binary and `corvint mcp` (AHI-373) serve the same wire byte
 // for byte. It applies no profile bracket: `corvint` already holds one for the whole process.
-func Serve(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+// version is the calling binary's build identity, which serverInfo.version and
+// --version carry (MCPV0-951); empty keeps serverVersion.
+func Serve(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	ctx, cancel := signal.NotifyContext(ctx, terminationSignals()...)
 	defer cancel()
-	return run(ctx, arguments, stdin, stdout, stderr)
+	return runVersioned(ctx, cmp.Or(version, serverVersion), arguments, stdin, stdout, stderr)
 }
 
 // ServeProfiled is Serve under the corvint-mcp binary's own profile bracket.
@@ -102,6 +104,10 @@ func runProfiled(ctx context.Context, arguments []string, stdin io.Reader, stdou
 }
 
 func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	return runVersioned(ctx, serverVersion, arguments, stdin, stdout, stderr)
+}
+
+func runVersioned(ctx context.Context, version string, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	if len(arguments) == 1 && (arguments[0] == "--help" || arguments[0] == "-h") { // MCPV0-113
 		_, _ = fmt.Fprintln(stdout, usage)
 		return 0
@@ -125,7 +131,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		return 2
 	}
 	if versionOnly {
-		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
+		_, _ = fmt.Fprintln(stdout, serverName+" "+version)
 		return 0
 	}
 	single, unavailable := len(roots) == 1 && roots[0].alias == "", ""
@@ -147,7 +153,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
-	handler := &toolHandler{reasonClass: reasonClass}
+	handler := &toolHandler{reasonClass: reasonClass, version: version, plugin: declaredPlugin(os.LookupEnv)}
 	bindings := map[*bridge.Registry]string{}
 	if single && unavailable == "" {
 		registry, registryErr := profileRegistries[profile](roots[0].root)
@@ -195,7 +201,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
-		Name:            serverName, Version: serverVersion,
+		Name:            serverName, Version: version,
 		Description:  "Local read-only Corvint context and repository evidence server.",
 		Capabilities: map[string]any{"tools": map[string]any{"listChanged": false}},
 		Handler:      handler,
@@ -323,6 +329,10 @@ type toolHandler struct {
 	// profile's tool surface while the server serves no repository (MCPV0-950).
 	unavailable string
 	unbound     *bridge.Profile
+	// version is serverInfo.version and plugin the launching plugin's
+	// declaration, nil when none is declared (MCPV0-951).
+	version string
+	plugin  *pluginDeclaration
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -336,26 +346,8 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 				return nil, protocol.InvalidParams("Invalid params")
 			}
 		}
-		var tools []bridge.ToolDescriptor
-		if handler.repositories != nil {
-			tools = handler.multiRootTools()
-		} else if handler.unbound != nil {
-			tools = append(handler.unbound.Tools(), handler.groupDescriptors("")...)
-		} else {
-			tools = append(handler.registry.Tools(), handler.groupDescriptors("")...)
-		}
-		if handler.follow != nil {
-			tools = followRefTools(tools)
-		}
-		if len(handler.follows) != 0 {
-			tools = followRefRootsTools(tools, slices.Sorted(maps.Keys(handler.follows)))
-		}
-		if handler.corpus != nil { // MMR-V0-014: workspace-level, so never alias-routed or follow-marked.
-			tools = append(tools, handler.corpus.Tools()...)
-		}
-		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
 		return map[string]any{
-			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
+			"cacheScope": "private", "tools": handler.listTools(), "ttlMs": 300_000,
 		}, nil
 	case "tools/call":
 		return handler.call(ctx, request.Params)
@@ -364,7 +356,38 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 	}
 }
 
+// listTools is the tools/list surface, sorted by name.
+func (handler *toolHandler) listTools() []bridge.ToolDescriptor {
+	var tools []bridge.ToolDescriptor
+	if handler.repositories != nil {
+		tools = handler.multiRootTools()
+	} else if handler.unbound != nil {
+		tools = append(handler.unbound.Tools(), handler.groupDescriptors("")...)
+	} else {
+		tools = append(handler.registry.Tools(), handler.groupDescriptors("")...)
+	}
+	if handler.follow != nil {
+		tools = followRefTools(tools)
+	}
+	if len(handler.follows) != 0 {
+		tools = followRefRootsTools(tools, slices.Sorted(maps.Keys(handler.follows)))
+	}
+	if handler.corpus != nil { // MMR-V0-014: workspace-level, so never alias-routed or follow-marked.
+		tools = append(tools, handler.corpus.Tools()...)
+	}
+	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+	return tools
+}
+
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {
+	response, failure := handler.dispatch(ctx, params)
+	if name, _ := params["name"].(string); name == bridge.ToolStatus && response != nil {
+		handler.notePluginCompatibility(response)
+	}
+	return response, failure
+}
+
+func (handler *toolHandler) dispatch(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {
 	if !onlyKeys(params, "_meta", "name", "arguments") {
 		return nil, protocol.InvalidParams("Invalid params")
 	}
