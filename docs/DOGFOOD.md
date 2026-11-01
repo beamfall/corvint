@@ -619,6 +619,15 @@ fixes, preservation manifests and qualification limits are per exact engine and 
 outcome follows. Not reproduced in this lane: whether current main still refuses the cases above
 (the `NOTE sealed-cem-merged` text predates them); a lane that meets the refusal retains the log.
 
+#### Resealing after a seal
+
+Commits a lane makes after its own seal commit are bound by a second, incremental seal whose
+`BASE` is the previous seal head, the last seal commit on `HEAD`'s first-parent path, not the
+merge base with `origin/main` and not the lane's original base. The range then holds only the
+new commits, so the plan stays inside the 256-row bound a whole-branch rebind can exceed, and
+`corvint dogfood batch-check` and the pre-push seal check verify each chained seal against its own
+base and bind commit. List only the specs that govern the new commits in `DOGFOOD_INTENTS_FILE`.
+
 #### Stacking on a sealed predecessor
 
 Binding from the shared `BASE_SHA` counts every merged sealed change's hunks, and the specs they

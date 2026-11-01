@@ -434,8 +434,18 @@ The charter or the lane's first step fixes every dogfood input before work start
   allowed main merge);
 - `CITATIONS`: the citation plan file (distinct spans, anchored on BASE lines the diff does not edit;
   a `drafted proposal` row citing the hunk's own file is confirmed or replaced, `DCW-V0-962`);
-- `INTENTS`: the governing spec paths; `VERIFY`: one shell-free command per line;
+- `INTENTS`: the governing spec paths, each a spec Markdown file with one `## Requirements`
+  heading, or the one line `#no-intent-declared`; a `docs/build-log/*.md` entry or
+  `docs/decisions/*.md` file is an intent only of a record change, one that touches nothing but
+  those records and CEM sidecars (`DCW-V0-058`, `DCW-V0-817`); `VERIFY`: one shell-free command per
+  line;
 - `OUTCOME`: `passed`, `failed` or `blocked`.
+
+A reseal, which binds commits a lane made after its own earlier seal, takes the previous seal
+head (the last seal commit on `HEAD`'s first-parent path) as `BASE`, not the merge base: the range
+then holds only the new commits, so the plan stays inside the 256-row bound, and
+`dogfood batch-check` verifies each chained seal against its own base (docs/DOGFOOD.md section 4,
+"Resealing after a seal").
 
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
