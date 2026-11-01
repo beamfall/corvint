@@ -183,8 +183,13 @@ func (l *finishLane) run() int {
 		// A refused prepare stops with its map in place for the next pass to
 		// remove; the pre-flight leaves no map either way.
 		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
-		l.removePreflight()
-		l.recordPreflight(l.prepare())
+		// A pre-flight over inputs a passing one already prepared reuses it
+		// (ICL-V0-010): the closeout's own pre-flight and dogfood-finish's
+		// then prepare once.
+		if !l.reusePreflightCheck() {
+			l.removePreflight()
+			l.recordPreflight(l.prepare())
+		}
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}
