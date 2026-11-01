@@ -4,9 +4,6 @@
     "conformance/use-cases-v0": {
       "script/repin-use-case-receipts.sh": "named inside the expected recovery hint; the test reads no file"
     },
-    "internal/analyzercap": {
-      "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
-    },
     "internal/cemcandidate": {
       "artifacts/runner-plan-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
       "artifacts/runner-receipt-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
