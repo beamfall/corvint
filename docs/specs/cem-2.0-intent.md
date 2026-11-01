@@ -133,7 +133,8 @@ separate profile), signed ledger heads, and delta maps beyond the prototype's re
   producer emits a derived-mode map only for a base the repository's retention policy keeps (F3).
 - `CEM2-V0-010`: A consumer MUST enforce declared bounds no lower than cem/1.0's (hunks, evidence,
   path bytes, map bytes, patch bytes) and refuse an over-bound header or body with a typed refusal
-  before it reads Git objects. Tree-entry limits in a consumer MUST NOT be lower than what the
+  before it reads Git objects. The prototype bounds a header at 16384 bytes, checked before parsing,
+  and at 64 entries in each of `parents` and `critical`. Tree-entry limits in a consumer MUST NOT be lower than what the
   repository's committed maps need (F1).
 - `CEM2-V0-011`: Neither header nor body carries a numeric confidence, score or probability.
   Uncertainty is a disposition, a reason or an abstention (invariant 2).
@@ -154,10 +155,16 @@ separate profile), signed ledger heads, and delta maps beyond the prototype's re
 - `CEM2-V0-018`: `parents` names parent header digests for a delta map. The prototype refuses a
   non-empty `parents` as unsupported; delta saves about a quarter of bytes (format audit) and is a
   deferral.
-- `CEM2-V0-019`: Derived mode makes the forged-evidence-id, span-hash-mismatch, moved-hunk-range
-  and forged-hunk-id vectors unrepresentable, and pinned mode refuses them. A recomputed span hash
-  after a range edit and swapped evidence indices remain different, admissible claims; whether
-  they are semantic tampers stays a V1-3771 decision.
+- `CEM2-V0-019`: Neither mode carries hunk ids, hunk ranges or evidence ids, and derived mode
+  carries no span hash, so the forged-evidence-id, moved-hunk-range and forged-hunk-id vectors (and,
+  in derived mode, span-hash-mismatch) are unrepresentable in 2.0 bytes. Plain encoding reads no
+  Git, so it cannot see a forged hunk id or moved range in a 1.0 input and projection rebuilds it.
+  The checked encoder, which projects against Git, therefore MUST refuse a 1.0 input whose hunk
+  ids, paths or ranges differ from the rebuilt ones (`cem2-hunk-identity-mismatch`) and any other
+  projection difference (`cem2-projection-mismatch`), in both modes; pinned mode also refuses a
+  stale or forged blob id or span hash (`cem2-pinned-mismatch`), and a forged evidence id never
+  encodes. A recomputed span hash after a range edit and swapped evidence indices remain different,
+  admissible claims; whether they are semantic tampers stays a V1-3771 decision.
 - `CEM2-V0-020`: The prototype encoder abstains with UNSUPPORTED on any map it cannot encode
   losslessly: non-empty criterion, receipt, link or artifact arrays, coverage or discrimination
   witnesses, an explicit `role` of `change`, a spec other than cem/1.0 or another `excludedPath`,
@@ -200,6 +207,9 @@ abstention, never to ACCEPT.
 | Header or body not canonical, unknown member, wrong type | refused, `cem2-malformed` |
 | Base path or span absent at base | refused, `cem2-evidence-unresolved` |
 | Body over a cem/1.0 bound (bytes, hunks, evidence, path bytes) | refused before any Git read, `cem2-bound-exceeded` |
+| Header over 16384 bytes, or over 64 `parents` or `critical` entries | refused before any Git read, `cem2-bound-exceeded` |
+| 1.0 input whose hunk id, path or range differs from the patch (checked encoder) | refused, `cem2-hunk-identity-mismatch` |
+| 1.0 input that does not project back byte-identically (checked encoder) | refused, `cem2-projection-mismatch` |
 | Base or target objects absent | abstain, never ACCEPT |
 | 1.0 map the encoder cannot represent | encoder UNSUPPORTED, no 2.0 bytes |
 
@@ -241,8 +251,8 @@ requirement index. Nothing else imports or reads them, and no committed map chan
 | CEM2-V0-003, -004, -008 | `internal/cem2proto/format.go` | `TestCEM2V0003HeaderIsClosed`, fixture round-trips |
 | CEM2-V0-005, -006 | `internal/cem2proto/project.go`, `gitsource.go` | `TestCEM2V0005FixtureRoundTrip`, `TestCEM2V0005CorpusRoundTrip`, `TestCEM2V0006HunkReorderPermutesClaims` |
 | CEM2-V0-007, -017, -018 | `internal/cem2proto/project.go` | `TestCEM2V0007BodySha256Mismatch`, `TestCEM2V0007PatchSha256Mismatch`, `TestCEM2V0007HunkCountMismatch`, `TestCEM2V0007IndexOutOfRange`, `TestCEM2V0007CodeOutOfRange`, `TestCEM2V0007MalformedBody`, `TestCEM2V0007UnknownCriticalIsUnsupported`, `TestCEM2V0007ParentsAreUnsupported`, `TestCEM2V0007PinnedMismatch`, `TestCEM2V0007EvidenceUnresolved` |
-| CEM2-V0-010 | `internal/cem2proto/format.go` | `TestCEM2V0010BoundsRefusedBeforeGit` |
-| CEM2-V0-019 | `internal/cem2proto/format.go` | `TestCEM2V0019DerivedVectorsAreUnrepresentable`, `TestCEM2V0019AdmissibleClaimEdits` |
+| CEM2-V0-010 | `internal/cem2proto/format.go` | `TestCEM2V0010BoundsRefusedBeforeGit`, `TestCEM2V0010HeaderBoundsRefusedBeforeGit` |
+| CEM2-V0-019 | `internal/cem2proto/format.go`, `encode.go` | `TestCEM2V0019DerivedVectorsAreUnrepresentable`, `TestCEM2V0019CheckedEncodeRefusesForgedInput`, `TestCEM2V0019AdmissibleClaimEdits` |
 | CEM2-V0-020 | `internal/cem2proto/encode.go` | `TestCEM2V0020EncoderAbstains` |
 | CEM2-V0-021, -022 | `internal/cem2proto/*_test.go` | `TestCEM2V0022CorpusMeasurements`, build log |
 | CEM2-V0-002, -009, -011 to -015 | intent only | owner decision pending |

@@ -1061,7 +1061,7 @@ CEM2-V0-015	docs/specs/cem-2.0-intent.md	The agent and trust additions (A1-A5, T
 CEM2-V0-016	docs/specs/cem-2.0-intent.md	The wire is codified last. No `cem/2.0` label, schema, conformance vector set or	unrecorded	-
 CEM2-V0-017	docs/specs/cem-2.0-intent.md	Extensions follow the cem/1.1 rule of V1-3759: a consumer that does not implemen	unrecorded	-
 CEM2-V0-018	docs/specs/cem-2.0-intent.md	`parents` names parent header digests for a delta map. The prototype refuses a	unrecorded	-
-CEM2-V0-019	docs/specs/cem-2.0-intent.md	Derived mode makes the forged-evidence-id, span-hash-mismatch, moved-hunk-range	unrecorded	-
+CEM2-V0-019	docs/specs/cem-2.0-intent.md	Neither mode carries hunk ids, hunk ranges or evidence ids, and derived mode	unrecorded	-
 CEM2-V0-020	docs/specs/cem-2.0-intent.md	The prototype encoder abstains with UNSUPPORTED on any map it cannot encode	unrecorded	-
 CEM2-V0-021	docs/specs/cem-2.0-intent.md	The prototype's tests cover fixture round-trips, a committed-corpus round-trip	unrecorded	-
 CEM2-V0-022	docs/specs/cem-2.0-intent.md	The V1-3760 measurements (raw and compressed sizes, header size, round-trip	unrecorded	-
