@@ -291,6 +291,19 @@ cannot silently go missing or outlive its command.
   MUST state that new functionality ships with its help and catalog entry and that the
   capabilities check enforces it. `CAP-V0-051` to `CAP-V0-059` are reserved for this slice and
   unassigned.
+- `CAP-V0-970`: (experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)
+  The help parser (`clitree.Synopses`) MUST NOT read an example as a synopsis: a line of an
+  `Example:` or `Examples:` section (the header line, or the indented block under it up to the
+  first blank or unindented line) is skipped, and the labelled forms (an inline `usage:` line or
+  the indented block under a bare `Usage:`) come before the other synopsis lines, so a node's first
+  usage line is the one its help labels wherever an indented example sits, before or after Usage.
+  Synopsis groups outside a Usage block (a titled group of indented forms) stay synopses. Failure
+  mode: an example written outside an Example section and outside the Usage block is still read
+  as a form, after the labelled ones. Evidence: `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample`
+  (`internal/clitree`) and the regenerated `internal/capcatalog/trees/corvint.json`, where example
+  lines leave the `flows appmap`, `flows appmap build`, `mcp`, `repro` and `repro record` usage
+  (and `repro record` loses the `--path` flag its example contributed). Rollback: restore the
+  previous `Synopses` and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -471,4 +484,5 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
+| CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
