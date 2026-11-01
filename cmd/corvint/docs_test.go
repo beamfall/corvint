@@ -195,6 +195,16 @@ func TestDocsCLIRefusalsAndHelp(t *testing.T) {
 	if code != 2 || !strings.Contains(err.String(), "unsupported-documentation-source") {
 		t.Fatalf("generated owner admitted: %d %s", code, err.String())
 	}
+	// SDD-V0-632: --page 1 is the default; a page past the count or a non-decimal page is refused.
+	if code, paged, stderr := runDocsFixture(t, root, "draft", "", "--page", "1"); code != 0 || paged != draft {
+		t.Fatalf("--page 1 changed the draft: %d %s", code, stderr)
+	}
+	for _, page := range []string{"2", "0", "01", "x"} {
+		code, out, stderr := runDocsFixture(t, root, "draft", "", "--page", page)
+		if code != 2 || out != "" || !strings.Contains(stderr, "page") {
+			t.Fatalf("--page %s admitted: %d %s", page, code, stderr)
+		}
+	}
 	for _, args := range [][]string{{"docs", "--help"}, {"help", "docs"}} {
 		out.Reset()
 		err.Reset()

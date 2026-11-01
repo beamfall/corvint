@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -17,6 +18,7 @@ import (
 type docsOptions struct {
 	root, mode, source, directory, task, request, inspectPython string
 	trusted, dryRun, ownerStdin                                 bool
+	page                                                        int
 }
 
 func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
@@ -57,7 +59,7 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 			options.ownerStdin = options.ownerStdin || flag == "--owner-stdin"
 			continue
 		}
-		if flag != "--source" && flag != "--package" && flag != "--task" {
+		if flag != "--source" && flag != "--package" && flag != "--task" && flag != "--page" {
 			return options, true, argumentError("unrecognized docs argument: " + flag)
 		}
 		if seen[flag] {
@@ -77,6 +79,12 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 			options.directory = value
 		case "--task":
 			options.task = value
+		case "--page":
+			page, err := strconv.Atoi(value)
+			if err != nil || page < 1 || page > 9999 || strconv.Itoa(page) != value {
+				return options, true, argumentError("docs --page requires a decimal page number from 1 to 9999")
+			}
+			options.page = page
 		}
 	}
 	if options.source == "" || options.directory == "" {
@@ -162,13 +170,13 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 		return nil, err
 	}
 	if options.dryRun {
-		draft, err := doccompiler.DraftDryRun(index, options.source, owner, options.directory)
+		draft, err := doccompiler.DraftDryRunWith(index, options.source, owner, options.directory, doccompiler.DraftOptions{Page: options.page})
 		if err != nil {
 			return nil, err
 		}
 		return draft.Markdown, nil
 	}
-	draft, err := doccompiler.DraftSources(index, options.source, options.directory)
+	draft, err := doccompiler.DraftSourcesWith(index, options.source, options.directory, doccompiler.DraftOptions{Page: options.page})
 	if err != nil {
 		return nil, err
 	}
@@ -205,9 +213,9 @@ const docsHelp = `Experimental source documentation orientation
 Usage:
   corvint [--root PATH] docs nav --trusted-project --request FILE
   corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
-  corvint [--root PATH] docs draft --source PATH --package DIRECTORY
-  corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY
-  corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
+  corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N]
+  corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N]
+  corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] --task TEXT < draft.md
   corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)
   corvint [--root PATH] docs maintain --page PATH ...  (corvint help docs maintain)
   corvint [--root PATH] docs flows generate|check|finalize ...  (corvint help docs flows)
@@ -233,6 +241,11 @@ Prerequisites:
   native index extracts declarations from (Go, Python, TypeScript/JavaScript, Rust,
   C#, Swift, Kotlin, Ruby), with tracked non-test exported-name declarations;
   other languages are refused by name. Dirty worktree edits are not source evidence.
+
+Paging (SDD-V0-632): declarations and importers each show at most 64 entries per page.
+  A larger package prints "Page: N of P" and a TRUNCATED limitation naming the shown
+  range; entries on other pages are UNKNOWN there. --page N (default 1) selects a page;
+  an out-of-range page is refused. Consume a page with the same --page.
 
 Dry run (SDD-V0-019): --dry-run previews a first draft before the owner is committed.
   It reads the owner from the working-tree file at --source, or from stdin with

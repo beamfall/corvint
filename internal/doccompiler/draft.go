@@ -45,6 +45,8 @@ type SourceDraft struct {
 	DryRun bool
 	// OwnerRelation is NAMES_PACKAGE or OWNER_UNRELATED (SDD-V0-630).
 	OwnerRelation string
+	// Page of Pages (SDD-V0-632); Pages is 1 when every list fits one page.
+	Page, Pages int
 }
 
 // Owner relations (SDD-V0-630).
@@ -82,9 +84,23 @@ func ownerRelation(excerpt, directory string) string {
 // draftDryRunProfile names the dry-run page; IsDryRunDraft reads this exact line.
 const draftDryRunProfile = "corvint-source-documentation-draft-dry-run/0"
 
+// DraftOptions selects a draft page (SDD-V0-632). The zero value is page 1.
+type DraftOptions struct {
+	// Page is the 1-based page of declarations and importers; 0 means 1.
+	Page int
+}
+
+// draftPageSize bounds each of the declaration and importer lists per page.
+const draftPageSize = 64
+
 // DraftSources compiles orientation only. It never creates an HDC plan, grants
 // authority, or interprets source prose as proof of implementation behavior.
 func DraftSources(index *contextindex.Index, sourcePath, directory string) (SourceDraft, error) {
+	return DraftSourcesWith(index, sourcePath, directory, DraftOptions{})
+}
+
+// DraftSourcesWith is DraftSources with explicit options.
+func DraftSourcesWith(index *contextindex.Index, sourcePath, directory string, options DraftOptions) (SourceDraft, error) {
 	if err := draftDirectory(directory); err != nil {
 		return SourceDraft{}, err
 	}
@@ -96,7 +112,7 @@ func DraftSources(index *contextindex.Index, sourcePath, directory string) (Sour
 	if err != nil {
 		return SourceDraft{}, err
 	}
-	return compileDraft(index, owner, sourcePath, directory, false)
+	return compileDraft(index, owner, sourcePath, directory, false, options)
 }
 
 // DraftDryRun previews a draft whose owner Markdown is untracked or inline
@@ -104,6 +120,11 @@ func DraftSources(index *contextindex.Index, sourcePath, directory string) (Sour
 // admitted index. The owner entry carries no Git blob, the page is marked
 // NOT_ADMISSIBLE, and ConsumeDraft and maintenance never accept it.
 func DraftDryRun(index *contextindex.Index, sourcePath string, owner []byte, directory string) (SourceDraft, error) {
+	return DraftDryRunWith(index, sourcePath, owner, directory, DraftOptions{})
+}
+
+// DraftDryRunWith is DraftDryRun with explicit options.
+func DraftDryRunWith(index *contextindex.Index, sourcePath string, owner []byte, directory string, options DraftOptions) (SourceDraft, error) {
 	if err := draftDirectory(directory); err != nil {
 		return SourceDraft{}, err
 	}
@@ -117,7 +138,7 @@ func DraftDryRun(index *contextindex.Index, sourcePath string, owner []byte, dir
 	if err != nil {
 		return SourceDraft{}, err
 	}
-	return compileDraft(index, entry, sourcePath, directory, true)
+	return compileDraft(index, entry, sourcePath, directory, true, options)
 }
 
 // ReadDryRunOwner reads the working-tree bytes of one repository-relative
@@ -153,7 +174,7 @@ func draftDirectory(directory string) error {
 	return nil
 }
 
-func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, directory string, dryRun bool) (SourceDraft, error) {
+func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, directory string, dryRun bool, options DraftOptions) (SourceDraft, error) {
 	draft := SourceDraft{Commit: index.CommitRevision, Tree: index.Revision, Entries: []DraftEntry{owner}, DryRun: dryRun, Limitations: []string{
 		"GENERATED orientation; original owner prose retains its authority; indexed syntax does not validate behavior.",
 		"Build applicability, runtime callers, behavioral validation and completeness outside admitted tracked sources are UNKNOWN.",
@@ -175,9 +196,6 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	if err != nil {
 		return SourceDraft{}, err
 	}
-	if declarations, err = boundedEntries(declarations); err != nil {
-		return SourceDraft{}, err
-	}
 	draft.Limitations = append(draft.Limitations, spanLimitations...)
 	if len(declarations) == 0 {
 		return SourceDraft{}, failure("unsupported-documentation-source", "package has no supported tracked non-test exported-name declarations")
@@ -186,6 +204,17 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	if err != nil {
 		return SourceDraft{}, err
 	}
+	// SDD-V0-632: each list pages independently; an entry off this page is UNKNOWN here.
+	page := max(options.Page, 1)
+	draft.Pages = max(pageCount(len(declarations)), pageCount(len(importers)), 1)
+	if options.Page < 0 || page > draft.Pages {
+		return SourceDraft{}, failure("documentation-limit-exceeded", "page %d is outside the draft's pages 1..%d (%d declarations, %d importers, %d entries per list per page)", options.Page, draft.Pages, len(declarations), len(importers), draftPageSize)
+	}
+	draft.Page = page
+	var truncated []string
+	declarations, truncated = pageEntries("declarations", declarations, page, draft.Pages, truncated)
+	importers, truncated = pageEntries("importers", importers, page, draft.Pages, truncated)
+	draft.Limitations = append(draft.Limitations, truncated...)
 	draft.Entries = append(draft.Entries, declarations...)
 	draft.Entries = append(draft.Entries, importers...)
 	draft.Markdown = renderDraft(draft, sourcePath, directory)
@@ -758,7 +787,7 @@ func importerEntries(index *contextindex.Index, directory string) ([]DraftEntry,
 		}
 		entries = append(entries, entry)
 	}
-	return boundedEntries(entries)
+	return entries, nil
 }
 
 // Re-open the exact import syntax only to recover its location; membership came
@@ -778,12 +807,23 @@ func importLine(source contextindex.Source, target string) (int, error) {
 	return 0, failure("unsupported-documentation-source", "indexed import anchor unavailable")
 }
 
-func boundedEntries(entries []DraftEntry) ([]DraftEntry, error) {
-	if len(entries) > 64 {
-		return nil, failure("documentation-limit-exceeded", "declarations or importers exceed the limit of 64 entries: observed %d entries", len(entries))
-	}
+func pageCount(entries int) int { return (entries + draftPageSize - 1) / draftPageSize }
+
+// pageEntries returns one page of an ID-sorted list and, when entries fall
+// outside that page, appends its TRUNCATED limitation.
+func pageEntries(name string, entries []DraftEntry, page, pages int, truncated []string) ([]DraftEntry, []string) {
 	sort.Slice(entries, func(a, b int) bool { return entries[a].ID < entries[b].ID })
-	return entries, nil
+	first := min((page-1)*draftPageSize, len(entries))
+	last := min(first+draftPageSize, len(entries))
+	shown := entries[first:last]
+	if len(shown) == len(entries) {
+		return shown, truncated
+	}
+	span := "0"
+	if len(shown) != 0 {
+		span = fmt.Sprintf("%d–%d", first+1, last)
+	}
+	return shown, append(truncated, fmt.Sprintf("TRUNCATED: %s %s of %d on page %d of %d; the other %d entries are UNKNOWN on this page.", name, span, len(entries), page, pages, len(entries)-len(shown)))
 }
 
 func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
@@ -793,7 +833,11 @@ func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
 	} else {
 		fmt.Fprintf(&output, "<!-- Code generated by Corvint source documentation draft. DO NOT EDIT. -->\n# Corvint capability orientation: %s\n\nProfile: corvint-source-documentation-draft/0\n", draftMetadata(directory))
 	}
-	fmt.Fprintf(&output, "Policy: %s\nDerivation: GENERATED\nBehavior: UNKNOWN\nCommit: %s\nTree: %s\nOwner source: %s\nPackage: %s\nOwner relation: %s\n\n", draftMetadata(draftPolicy), draftMetadata(draft.Commit), draftMetadata(draft.Tree), draftMetadata(sourcePath), draftMetadata(directory), draft.OwnerRelation)
+	fmt.Fprintf(&output, "Policy: %s\nDerivation: GENERATED\nBehavior: UNKNOWN\nCommit: %s\nTree: %s\nOwner source: %s\nPackage: %s\nOwner relation: %s\n", draftMetadata(draftPolicy), draftMetadata(draft.Commit), draftMetadata(draft.Tree), draftMetadata(sourcePath), draftMetadata(directory), draft.OwnerRelation)
+	if draft.Pages > 1 {
+		fmt.Fprintf(&output, "Page: %d of %d\n", draft.Page, draft.Pages)
+	}
+	output.WriteString("\n")
 	for _, limitation := range draft.Limitations {
 		fmt.Fprintf(&output, "- %s\n", limitation)
 	}

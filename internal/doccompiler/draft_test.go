@@ -221,10 +221,87 @@ func TestSourceDraftUnsupportedCoverageAndLimits(t *testing.T) {
 		for n := range 65 {
 			index.Symbols = append(index.Symbols, contextindex.Symbol{Path: "compiler/api.go", Name: fmt.Sprintf("Plan%d", n), Kind: "func", Line: 2})
 		}
-		if _, err := DraftSources(index, "docs/owner.md", "compiler"); err == nil {
-			t.Fatal("truncated declaration limit")
+		if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 3}); err == nil || !strings.Contains(err.Error(), "page 3 is outside the draft's pages 1..2") {
+			t.Fatalf("out-of-range page admitted: %v", err)
 		}
 	})
+}
+
+func countKind(entries []DraftEntry, kind string) int {
+	count := 0
+	for _, entry := range entries {
+		if entry.Kind == kind {
+			count++
+		}
+	}
+	return count
+}
+
+// SDD-V0-632: 110 declarations draft over two pages; nothing off a page is invented.
+func TestSDDV0632PagesOverSixtyFourEntries(t *testing.T) {
+	index := draftFixture()
+	index.Symbols = nil
+	for n := range 110 {
+		index.Symbols = append(index.Symbols, contextindex.Symbol{Path: "compiler/api.go", Name: fmt.Sprintf("Plan%03d", n), Kind: "func", Line: 2})
+	}
+	seen := map[string]bool{}
+	for page, want := range map[int]int{1: 64, 2: 46} {
+		draft, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: page})
+		if err != nil {
+			t.Fatalf("page %d: %v", page, err)
+		}
+		if got := countKind(draft.Entries, "declaration"); got != want || draft.Page != page || draft.Pages != 2 {
+			t.Fatalf("page %d: %d declarations page %d of %d", page, got, draft.Page, draft.Pages)
+		}
+		for _, entry := range draft.Entries {
+			if entry.Kind == "declaration" {
+				if seen[entry.ID] {
+					t.Fatalf("declaration %s on two pages", entry.ID)
+				}
+				seen[entry.ID] = true
+			}
+		}
+		first := (page-1)*64 + 1
+		line := fmt.Sprintf("TRUNCATED: declarations %d–%d of 110 on page %d of 2; the other %d entries are UNKNOWN on this page.", first, first+want-1, page, 110-want)
+		if !slices.Contains(draft.Limitations, line) || !strings.Contains(string(draft.Markdown), fmt.Sprintf("Page: %d of 2\n", page)) {
+			t.Fatalf("page %d missing TRUNCATED/page header: %q", page, draft.Limitations)
+		}
+	}
+	if len(seen) != 110 {
+		t.Fatalf("pages covered %d of 110 declarations", len(seen))
+	}
+	if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 0}); err != nil {
+		t.Fatalf("page 0 is page 1: %v", err)
+	}
+	if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: -1}); err == nil {
+		t.Fatal("negative page admitted")
+	}
+	small, err := DraftSources(draftFixture(), "docs/owner.md", "compiler")
+	if err != nil || small.Pages != 1 || strings.Contains(string(small.Markdown), "Page: ") {
+		t.Fatalf("single-page draft printed a page header: %v", err)
+	}
+}
+
+// SDD-V0-632: importers page independently of declarations.
+func TestSDDV0632ImportersCountSeparately(t *testing.T) {
+	index := draftFixture()
+	for n := range 70 {
+		path := fmt.Sprintf("caller%02d/main.go", n)
+		index.Sources[path] = contextindex.Source{Path: path, BlobHash: strings.Repeat("a", 40), Data: []byte("package main\nimport \"example.test/m/compiler\"\n"), Mode: "100644"}
+		index.Imports[path] = map[string]struct{}{"example.test/m/compiler": {}}
+	}
+	draft, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countKind(draft.Entries, "import") != 7 || countKind(draft.Entries, "declaration") != 0 || draft.Pages != 2 {
+		t.Fatalf("page 2: %d importers %d declarations of %d pages", countKind(draft.Entries, "import"), countKind(draft.Entries, "declaration"), draft.Pages)
+	}
+	for _, line := range []string{"TRUNCATED: importers 65–71 of 71 on page 2 of 2; the other 64 entries are UNKNOWN on this page.", "TRUNCATED: declarations 0 of 1 on page 2 of 2; the other 1 entries are UNKNOWN on this page."} {
+		if !slices.Contains(draft.Limitations, line) {
+			t.Fatalf("missing %q in %q", line, draft.Limitations)
+		}
+	}
 }
 
 func TestSourceDraftPureConsumptionDoesNotAssertFreshGitValidation(t *testing.T) {
