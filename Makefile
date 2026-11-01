@@ -17,6 +17,9 @@ GO_TEST_TIMEOUT ?= 30m
 # without -count=1: the ledger tier (GL-V0-004) adds it itself where a package's reads lack bounds.
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
+# DOC_GATE_GO_TEST runs a doc gate's go test through script/heavy.sh, so doc-gates queues on the
+# host test semaphore (and may offload) like every other Go test (ASD-V0-924, V1-3442).
+DOC_GATE_GO_TEST = script/heavy.sh $(GO_TEST_COMMAND)
 
 
 .PHONY: build
@@ -39,7 +42,74 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test binary-blobs-check legal-file-pins-check mkfifo-build-tags-check
+# One step per line (V1-3470, STR-V0-920): the first five run first in this order; the rest
+# stay sorted, so lanes adding different steps insert at different lines and merge cleanly.
+GATE_STEPS = \
+  host-adapter-test \
+  go-version \
+  go-test \
+  go-vet \
+  cross-vet \
+  agent-preflight-test \
+  ai-coauthor-trailers-test \
+  analyzer-schema-check \
+  analyzer-schema-test \
+  batch-precheck-test \
+  binary-blobs-check \
+  ci-least-privilege-check \
+  ci-least-privilege-test \
+  codex-review-test \
+  companion-release-gate-test \
+  decision-numbers-check \
+  decision-numbers-test \
+  diagnostic-coverage-check \
+  documentation-paths-check \
+  documentation-paths-test \
+  dogfood-bin-reuse-test \
+  dogfood-cache-test \
+  dogfood-change-test \
+  eol-policy-check \
+  eol-policy-test \
+  error-code-ownership-check \
+  error-code-ownership-test \
+  gate-receipt-test \
+  go-archive-gate \
+  go-archive-gate-test \
+  go-cache-trim-test \
+  go-format-check \
+  go-format-test \
+  goos-filenames-check \
+  goos-filenames-test \
+  hlq-local-test \
+  host-package-versions-check \
+  host-package-versions-test \
+  instruction-conflicts-test \
+  interop-gate \
+  legal-file-pins-check \
+  license-headers-check \
+  license-headers-test \
+  line-citations-check \
+  line-citations-test \
+  mkfifo-build-tags-check \
+  no-python-runtime-dependency-test \
+  pre-push-dogfood-seal-test \
+  pre-push-windows-vet-test \
+  qualify-tasks-basic-test \
+  release-checklist-test \
+  repin-test \
+  requirement-definitions-check \
+  requirement-definitions-test \
+  rg-fallback-test \
+  runtime-environment-test \
+  scratch-sweep-test \
+  spec-requirements-check \
+  spec-requirements-test \
+  test-commands-check \
+  test-read-scopes-check \
+  traceability-tests-check \
+  traceability-tests-test \
+  unbounded-readers-check \
+  # end of GATE_STEPS: add a step above, in sorted order, ending its line with a backslash
 .PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
@@ -240,7 +310,12 @@ SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
 SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
 
 .PHONY: spec-requirements
+# SRG-V0-922 (V1-3437): mid-merge, an unmerged generated file (or one staged with its conflict
+# markers) is refused with one line naming spec-requirements-resolve, before the generator reads it.
 spec-requirements:
+	@u=$$(git diff --name-only --diff-filter=U -- $(addprefix docs/specs/,$(SPEC_GENERATED)); \
+	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- $(addprefix docs/specs/,$(SPEC_GENERATED)) 2>/dev/null); \
+	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
 	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
 
@@ -266,8 +341,8 @@ spec-requirements-check:
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
 	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 	@script/spec-requirements-worktree-check.sh
-	$(GO_TEST_COMMAND) ./internal/specindex
-	$(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
+	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
+	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -498,6 +573,13 @@ host-package-versions-test:
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
 # stale one (ASD-V0-105, V1-3174).
+# line-citations-selects names the pinned line citations into files changed since BASE, so a lane
+# knows its change needs make line-citations-check (DCG-V0-921, V1-3323).
+.PHONY: line-citations-selects
+line-citations-selects:
+	@test -n "$(BASE)" || { echo "usage: make line-citations-selects BASE=<rev>" >&2; exit 2; }
+	@script/check-line-citations.sh --selects '$(BASE)'
+
 .PHONY: documentation-paths
 documentation-paths:
 	@script/gen-documentation-paths.sh
@@ -869,16 +951,19 @@ dogfood-inputs-check:
 # internal/liveverify/affected package (DCW-V0-812).
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
-	$(GO_TEST_COMMAND) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+	$(DOC_GATE_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
-# shell-test-registration-check runs the STR-V0-004 shell-test list check alone, so a GATE_STEPS
-# shell step missing from shell-test fails in doc-gates, not only in go test (DCW-V0-813).
+# shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
+# executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
+# committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
 .PHONY: shell-test-registration-check
 shell-test-registration-check:
-	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
+	$(DOC_GATE_GO_TEST) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
+# ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
+# first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
@@ -1018,7 +1103,44 @@ test-shard: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test requirement-definitions-test traceability-tests-test decision-numbers-test analyzer-schema-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test
+shell-test: \
+  agent-preflight-test \
+  ai-coauthor-trailers-test \
+  analyzer-schema-test \
+  batch-precheck-test \
+  ci-least-privilege-test \
+  codex-review-test \
+  companion-release-gate-test \
+  decision-numbers-test \
+  documentation-paths-test \
+  dogfood-bin-reuse-test \
+  dogfood-cache-test \
+  dogfood-change-test \
+  eol-policy-test \
+  error-code-ownership-test \
+  gate-receipt-test \
+  go-archive-gate-test \
+  go-cache-trim-test \
+  go-format-test \
+  goos-filenames-test \
+  hlq-local-test \
+  host-package-versions-test \
+  instruction-conflicts-test \
+  license-headers-test \
+  line-citations-test \
+  no-python-runtime-dependency-test \
+  pre-push-dogfood-seal-test \
+  pre-push-windows-vet-test \
+  qualify-tasks-basic-test \
+  release-checklist-test \
+  repin-test \
+  requirement-definitions-test \
+  rg-fallback-test \
+  runtime-environment-test \
+  scratch-sweep-test \
+  spec-requirements-test \
+  traceability-tests-test \
+  # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no

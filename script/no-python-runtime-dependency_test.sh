@@ -39,6 +39,10 @@ scan() {
 # prerequisite.
 reaches_external() {
   awk -v p="${external_conformance##*/}" -v t=spec-toolchain-conformance '
+    # make logical lines: GATE_STEPS and prerequisite lists continue one entry per line (STR-V0-920).
+    { joined = joined $0 }
+    /\\$/ { sub(/\\$/, " ", joined); next }
+    { $0 = joined; joined = "" }
     /^GATE_STEPS *=/ { for (i = 3; i <= NF; i++) if ($i == t) print "GATE_STEPS lists " t; next }
     /^[^\t#][^:=]*:/ {
       target = substr($0, 1, index($0, ":") - 1); n = split(substr($0, index($0, ":") + 1), deps, /[ \t|]+/)
@@ -130,7 +134,9 @@ if [ -n "$(reaches_external < "$fixture")" ]; then
   exit 1
 fi
 for makefile in 'GATE_STEPS = go-test spec-toolchain-conformance' 'go-test: build spec-toolchain-conformance' \
-  "$(printf 'go-test:\n\t@%s' "$external_conformance")"; do
+  "$(printf 'go-test:\n\t@%s' "$external_conformance")" \
+  "$(printf 'GATE_STEPS = \\\n  go-test \\\n  spec-toolchain-conformance \\\n  # end')" \
+  "$(printf 'shell-test: \\\n  build \\\n  spec-toolchain-conformance \\\n  # end')"; do
   printf '%s\n' "$makefile" > "$fixture"
   if [ -z "$(reaches_external < "$fixture")" ]; then
     echo "self-test: a gate path reaching the external-conformance script was not detected: $makefile" >&2

@@ -7,6 +7,13 @@
 # ledger reuse of ASD-V0-042 (V1-2985), the drift and catalog selection of ASD-V0-050 and
 # ASD-V0-051 (V1-3134, V1-3136), the one rerun of a failed step (ASD-V0-046, V1-3122) and the
 # sealed CEM name check (ASD-V0-109, V1-3267).
+# ASD-V0-923 (V1-3341): only bash outside POSIX mode runs this file. Under `sh` (dash, or bash in
+# POSIX mode as macOS sh is) a `VAR=x func` assignment persists after the call and case 3 failed
+# falsely, so this POSIX-parseable guard refuses first.
+if [ -z "${BASH_VERSION-}" ] || case :${SHELLOPTS-}: in *:posix:*) true ;; *) false ;; esac; then
+  printf 'batch-precheck_test: REFUSE not-bash: run it as script/batch-precheck_test.sh or with bash, not sh\n' >&2
+  exit 2
+fi
 set -uo pipefail
 export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
@@ -16,6 +23,13 @@ regen=$script/batch-regen.sh
 # `/`), so every path the precheck and its steps derive from it matches the resolved scratch path.
 while [[ ${TMPDIR-} == ?*/ ]]; do TMPDIR=${TMPDIR%/}; done
 [[ -z ${TMPDIR-} ]] || export TMPDIR
+# ASD-V0-923: the guard above refuses dash and bash in POSIX mode.
+for sh_mode in sh 'bash --posix'; do
+  command -v "${sh_mode%% *}" > /dev/null 2>&1 || continue
+  out=$($sh_mode "$script/batch-precheck_test.sh" 2>&1)
+  rc=$?
+  [[ $rc == 2 && $out == *'REFUSE not-bash'* ]] || { printf 'batch-precheck_test: FAIL %s did not refuse (exit %s): %s\n' "$sh_mode" "$rc" "$out" >&2; exit 1; }
+done
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
   { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
 # batch-precheck resolves the step TMPDIR with `cd && pwd`; macOS TMPDIR ends in `/`, so the
@@ -86,10 +100,16 @@ pi_version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$pi/integrations/pi/packa
 [[ -n $pi_version ]] || fail "Pi package version not found"
 pi_tuple() { sed "s/\"tuple\": {\"adapterVersion\": \"[^\"]*\"/\"tuple\": {\"adapterVersion\": \"$1\"/" "$script/../docs/specs/pi-workflow-v0.md" > "$pi/docs/specs/pi-workflow-v0.md"; }
 pi_tuple "$pi_version"
+# The Pi capability test needs node; CI has it. A lane host without it (Unraid) skips this case by
+# name instead of failing the whole suite.
+if ! command -v node > /dev/null 2>&1; then
+  printf 'batch-precheck_test: SKIP case 1b: node is not on PATH, so the Pi tuple test is NOT_RUN\n'
+else
 node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
 pi_tuple "0.0.0-stale"
 node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 && fail "a stale Pi spec tuple passed"
 grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple did not fail PWV-V0-011: $(tail -40 "$tmp/out")"
+fi
 
 # 2. A fixture repository, workflow and packages.
 repo=$tmp/repo
@@ -508,6 +528,15 @@ STUB_FAIL=1 lrun && fail "a failure was reused"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "failure rerun: $(cat "$tmp/out")"
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
+# ASD-V0-922 (V1-3342): the full batch-regen run regenerates the documentation-paths declaration
+# after the spec index and repins changed line-citation spans against the batch base.
+want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
+[[ $want_steps == 'spec-requirements documentation-paths capability-catalog analyzer-schema goldens host-package-versions line-citations use-case-receipts ' ]] ||
+  fail "batch-regen --list steps: $want_steps"
+"$regen" --list | grep -qx $'documentation-paths\tmake -s documentation-paths' && "$regen" --list | grep -qx $'line-citations\tchanged_citations' &&
+  grep -q '^changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }$' "$regen" ||
+  fail "batch-regen does not regenerate documentation-paths or repin changed citations against the base"
+
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
 rg() { BATCH_REGEN_ROOT=$repo BATCH_REGEN_STEPS=$1 "$regen" > "$tmp/out" 2>&1; }
@@ -863,7 +892,8 @@ grep -Eq '^batch-precheck: FAIL make test-commands-check \([0-9]+s\) host-resour
 grep -q 'make test-commands-check .* introduced' "$tmp/out" && fail "host-resource failure called introduced: $(cat "$tmp/out")"
 grep -Eq '^batch-precheck: FLAKY make capabilities-check: attempt 1 failed rc=1 \([0-9]+s\), host-resource: write /x/sort1: No space left on device; attempt 2 passed' "$tmp/out" ||
   fail "flaky host-resource pass not named: $(cat "$tmp/out")"
-frun --base "$fbase"
+# A floor of 1 KiB, so the case does not depend on the host's free space (/ had 3.8 GB on Unraid).
+BATCH_PRECHECK_MIN_TMP_KIB=1 frun --base "$fbase"
 grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor: $(cat "$tmp/out")"
 
 # 10. ASD-V0-055 (V1-3205, V1-3206): step scratch stays off a RAM-backed TMPDIR. BATCH_PRECHECK_TMPDIR
@@ -991,7 +1021,11 @@ grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound vari
 trepo=$tmp/trepo
 git init -q "$trepo" && git -C "$trepo" commit -q --allow-empty -m base || fail "trailer fixture"
 tbase=$(git -C "$trepo" rev-parse HEAD)
-(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) > "$tmp/out" || fail "trailer --list: $(cat "$tmp/out")"
+# V1-3492: the listing derives its doc-gates rows from the fixture's own workflow, so the fixture
+# carries one (without it awk printed `can't open file .github/workflows/ci.yml` on a pass).
+mkdir -p "$trepo/.github/workflows" && cp "$repo/.github/workflows/ci.yml" "$trepo/.github/workflows/ci.yml" || fail "trailer fixture workflow"
+(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) > "$tmp/out" 2> "$tmp/list.err" || fail "trailer --list: $(cat "$tmp/out")"
+[[ ! -s $tmp/list.err ]] || fail "the trailer fixture listing wrote to stderr: $(cat "$tmp/list.err")"
 [[ $(grep -c '^ai-coauthor-trailers (' "$tmp/out") == 1 ]] || fail "not one ai-coauthor-trailers step: $(cat "$tmp/out")"
 grep -qx 'ai-trailers' "$tmp/out" && fail "the retired ai-trailers step is still listed"
 ai_line=$(printf 'Co-Authored-By: Claude Opus 5.5 <noreply@%s>' anthropic.com)

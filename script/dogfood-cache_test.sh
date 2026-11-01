@@ -5,10 +5,18 @@
 # Bash 3.2 does not apply errexit to [[ ]] in loops; assertions need explicit exits.
 set -euo pipefail
 source_root=$(cd "$(dirname "$0")/.." && pwd)
+# DCW-V0-811: a host without rg asserts through the grep -P stand-in; only a host with neither refuses.
+# shellcheck source=script/test-rg-fallback.sh
+source "$source_root/script/test-rg-fallback.sh"
+if ! test_rg_fallback; then
+  printf 'dogfood-cache_test: REFUSE unsupported-environment-missing-rg (and grep has no -P for the stand-in)\n' >&2
+  exit 1
+fi
 root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-cache-test.XXXXXX")
 cleanup() {
   find "$root" -type f -exec /bin/rm -f {} +
   find "$root" -depth -type d -exec rmdir {} +
+  [[ -z $rg_fallback_dir ]] || /bin/rm -rf "$rg_fallback_dir"
 }
 trap cleanup EXIT
 trap 'exit 130' INT

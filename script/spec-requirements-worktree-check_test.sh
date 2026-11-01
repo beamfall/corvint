@@ -4,7 +4,7 @@ set -eu
 # Covers SRG-V0-800 (V1-3379): spec-requirements-check fails when an unstaged spec edit would
 # change REQUIREMENTS.tsv, INDEX.json or README.md, names the edit and the fix, and leaves the real
 # index untouched; a staged-and-regenerated edit, a prose-only unstaged edit and a private
-# GIT_INDEX_FILE all pass.
+# GIT_INDEX_FILE all pass. SRG-V0-923 (V1-3362): a regenerated generated file left unstaged fails.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 project=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-worktree-test.XXXXXX")
@@ -47,10 +47,20 @@ case $err in *"docs/specs/{REQUIREMENTS.tsv} are stale against the working-tree 
 test "$(g ls-files -s)" = "$before" || fail "the worktree check changed the real index"
 GIT_INDEX_FILE="$(g rev-parse --absolute-git-dir)/index" check || fail "a private GIT_INDEX_FILE was not skipped"
 
-# Staging and regenerating is the fix.
+# Staging and regenerating is the fix, once the regenerated files are staged too. SRG-V0-923
+# (V1-3362): regenerated but unstaged, they are what CI would not see, so the check fails.
+sed 's/^- Claim: One does the first thing\.$/- Claim: One does the amended thing./' "$project/docs/specs/one.md" > "$project/one.md" &&
+  mv "$project/one.md" "$project/docs/specs/one.md"
 g add docs/specs/one.md
 regenerate
+g diff --quiet -- docs/specs/INDEX.json && fail "fixture: the regeneration did not change INDEX.json"
+if err=$(check 2>&1); then fail "an unstaged regenerated INDEX.json passed the worktree check"; fi
+case $err in *'generated spec index file(s) differ between the working tree and the index'*'docs/specs/INDEX.json'*'fix: git add them'*'(SRG-V0-923)'*) ;;
+  *) fail "the unstaged-generated refusal did not name INDEX.json and the fix: $err" ;; esac
+g add docs/specs
 check || fail "a staged and regenerated edit failed the worktree check"
+spec 'The amended first clause.'
+g add docs/specs/one.md && regenerate && g add docs/specs
 
 # A prose-only unstaged edit changes no generated file, so it passes.
 spec 'The amended first clause.' 'Unindexed prose.

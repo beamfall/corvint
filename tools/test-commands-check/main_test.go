@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -120,7 +121,7 @@ func TestSTRV0006MakefileTextRules(t *testing.T) {
 		"computed include":        {"", "include $(wildcard *.mk)\n", "include $(wildcard names a file make computes"},
 		"missing include":         {"", "include no-such.mk\n", "include no-such.mk: "},
 		"GATE_STEPS twice":        {"", "GATE_STEPS += extra\n", "GATE_STEPS is assigned 2 times"},
-		"GATE_STEPS expanded":     {"GATE_STEPS = host-adapter-test", "GATE_STEPS = $(EXTRA) host-adapter-test", "is expanded by make; the none-language check reads only a literal step list"},
+		"GATE_STEPS expanded":     {"GATE_STEPS = \\\n  host-adapter-test", "GATE_STEPS = \\\n  $(EXTRA) host-adapter-test", "is expanded by make; the none-language check reads only a literal step list"},
 	}
 	for name, mutation := range refusals {
 		problems, _ := checkMakefile(root, mutate(t, filepath.Join(root, "Makefile"), mutation[0], mutation[1]))
@@ -240,7 +241,15 @@ func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lines := strings.Split(string(text), "\n")
+	// Logical lines, as make reads them: GATE_STEPS and the shell-test
+	// prerequisites are one entry per backslash-continued line (STR-V0-920).
+	var lines []string
+	for _, line := range logicalLines("Makefile", text) {
+		if !strings.HasPrefix(line.text, "\t") {
+			line.text, _, _ = strings.Cut(line.text, "#")
+		}
+		lines = append(lines, line.text)
+	}
 	rules := map[string][]int{}
 	var gateSteps []string
 	for index, line := range lines {
@@ -385,4 +394,191 @@ func TestInstructionConflictsRecipeExpansion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// nonExecutableScriptTests lists the script/*_test.sh files the Git index at
+// root records without the executable bit (mode other than 100755).
+func nonExecutableScriptTests(t *testing.T, root string) []string {
+	t.Helper()
+	cmd := exec.Command("git", "ls-files", "-s", "--", "script/*_test.sh")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git ls-files in %s: %v", root, err)
+	}
+	var bad []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		mode, rest, ok := strings.Cut(line, " ")
+		_, path, _ := strings.Cut(rest, "\t")
+		if ok && mode != "100755" {
+			bad = append(bad, path+" ("+mode+")")
+		}
+	}
+	return bad
+}
+
+// ASD-V0-921 (V1-3243): every script/*_test.sh is committed executable, so
+// a selected shell test runs directly; a 100644 one in a fixture index is
+// named. make shell-test-registration-check runs this in doc-gates.
+func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
+	root := requireMake(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	// pendingChmod lists the script tests still committed 100644 only because cem/1.0 cannot bind a
+	// mode change (metadata-only and old/new mode patches are refused), so a lane cannot carry the
+	// chmod; the integrator makes it outside a bound change and removes the entry. An entry that is
+	// already executable fails, so the list only shrinks.
+	pendingChmod := map[string]bool{
+		"script/release-env-compat_test.sh (100644)":  true,
+		"script/runtime-environment_test.sh (100644)": true,
+	}
+	var bad []string
+	for _, path := range nonExecutableScriptTests(t, root) {
+		if !pendingChmod[path] {
+			bad = append(bad, path)
+		}
+		delete(pendingChmod, path)
+	}
+	if len(bad) != 0 {
+		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
+	}
+	if len(pendingChmod) != 0 {
+		t.Fatalf("pendingChmod entries are executable now: %q; remove them", slices.Sorted(maps.Keys(pendingChmod)))
+	}
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "script"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, mode := range map[string]os.FileMode{"ok_test.sh": 0o755, "plain_test.sh": 0o644} {
+		if err := os.WriteFile(filepath.Join(dir, "script", name), []byte("#!/bin/sh\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "script"}, {"update-index", "--chmod=-x", "script/plain_test.sh"}, {"update-index", "--chmod=+x", "script/ok_test.sh"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	if got := nonExecutableScriptTests(t, dir); !slices.Equal(got, []string{"script/plain_test.sh (100644)"}) {
+		t.Errorf("fixture index: %q, want [script/plain_test.sh (100644)]", got)
+	}
+}
+
+// listEntries returns the one-per-line entries of the backslash-continued
+// list that starts at the line equal to head, with their line indexes.
+func listEntries(t *testing.T, lines []string, head string) ([]string, []int) {
+	t.Helper()
+	start := slices.Index(lines, head)
+	if start < 0 {
+		t.Fatalf("no %q line", head)
+	}
+	var names []string
+	var at []int
+	for i := start + 1; i < len(lines); i++ {
+		entry, ok := strings.CutSuffix(lines[i], " \\")
+		if !ok {
+			break
+		}
+		names = append(names, strings.TrimSpace(entry))
+		at = append(at, i)
+	}
+	return names, at
+}
+
+// STR-V0-920 (V1-3470): GATE_STEPS and the shell-test prerequisites are one
+// entry per line, sorted after GATE_STEPS's fixed head, so two lanes that
+// each add a different gate shell step (a GATE_STEPS line and a shell-test
+// line) merge with no conflict, and the merged Makefile lists both.
+func TestGateStepsTwoLaneMergeIsClean_STR_V0_920(t *testing.T) {
+	root := requireMake(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	text, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(text), "\n")
+	const gateHead, shellHead, fixed = "GATE_STEPS = \\", "shell-test: \\", 5
+	for _, list := range []struct {
+		head string
+		skip int
+	}{{gateHead, fixed}, {shellHead, 0}} {
+		names, _ := listEntries(t, lines, list.head)
+		if len(names) <= list.skip || !slices.IsSorted(names[list.skip:]) {
+			t.Fatalf("%q entries after the first %d are not sorted: %q", list.head, list.skip, names)
+		}
+	}
+	dir := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-c", "user.name=t", "-c", "user.email=t@example.invalid", "-c", "init.defaultBranch=main"}, args...)...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return string(out)
+	}
+	write := func(lines []string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// lane inserts step into both lists at its sorted place.
+	lane := func(step string) []string {
+		out := slices.Clone(lines)
+		for _, list := range []struct {
+			head string
+			skip int
+		}{{gateHead, fixed}, {shellHead, 0}} {
+			names, at := listEntries(t, out, list.head)
+			i := list.skip + sortedIndex(names[list.skip:], step)
+			pos := at[len(at)-1] + 1
+			if i < len(at) {
+				pos = at[i]
+			}
+			out = slices.Insert(out, pos, "  "+step+" \\")
+		}
+		return out
+	}
+	git("init", "-q")
+	write(lines)
+	git("add", "Makefile")
+	git("commit", "-qm", "base")
+	git("checkout", "-qb", "a")
+	write(lane("aaa-lane-a-test"))
+	git("commit", "-qam", "lane a")
+	git("checkout", "-q", "main")
+	git("checkout", "-qb", "b")
+	write(lane("rg-lane-b-test"))
+	git("commit", "-qam", "lane b")
+	git("merge", "-q", "--no-edit", "a")
+	merged, err := os.ReadFile(filepath.Join(dir, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, steps := scanMakefile(dir, "Makefile")
+	if steps == nil {
+		t.Fatalf("merged Makefile: no literal GATE_STEPS: %q", s.problems)
+	}
+	mergedLines := strings.Split(string(merged), "\n")
+	shell, _ := listEntries(t, mergedLines, shellHead)
+	for _, step := range []string{"aaa-lane-a-test", "rg-lane-b-test"} {
+		if !slices.Contains(steps, step) || !slices.Contains(shell, step) {
+			t.Errorf("merged Makefile lacks %s: GATE_STEPS %q, shell-test %q", step, steps, shell)
+		}
+	}
+}
+
+// sortedIndex returns the index at which name keeps sorted names sorted.
+func sortedIndex(names []string, name string) int {
+	i, _ := slices.BinarySearch(names, name)
+	return i
 }

@@ -318,6 +318,42 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   number and fail the origin/main collision check. Evidence for the default: `script/repin_test.sh`
   (`make repin-test`; fails when the target passes `$(BASE)`). Rollback: delete `script/repin.sh`,
   its test and the targets.
+- `DCG-V0-920`: (experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408,
+  V1-3413; refines DCG-V0-045) `script/check-line-citations.sh --repin --changed [--base REV]` MUST
+  also rewrite each pinned span whose content changed when the diff from REV (default HEAD) to the
+  index maps it to new lines, to the mapped span and its current anchor (the token DCG-V0-045 only
+  suggests), and MUST print one `DOC:LINE  OLD changed since REV; --changed re-anchored it as NEW
+  (read those lines ...)` line for each, so the reader still reads what the new anchor asserts;
+  `--changed` without `--repin` is refused. `--hash PATH:A-B` already prints a range's anchor. The
+  changed-content refusal MUST name `script/check-line-citations.sh --hash PATH:SPAN` for the cited
+  span and the `--repin --changed --base <rev>` rewrite. `make batch-regen` uses `--repin --changed
+  --base` the batch base (`ASD-V0-922`). A span with an endpoint (or, for a single line or comma
+  list, any listed line) inside a hunk that the diff deletes with no replacement lines (a zero-length
+  new side) MUST NOT be mapped, suggested or rewritten: the cited content is gone, so the citation
+  stays a changed-content failure for a reader (review fix, 2026-10-31; before it, a deleted line
+  mapped to the next surviving line). Non-goals: rewriting a changed span the diff does not map
+  (it stays a failure); `--mechanical` stays moves-only.
+- `DCG-V0-921`: (experimental under the standing lane auto-accept (2026-10-31); V1-3323)
+  `script/check-line-citations.sh --selects REV` (`make line-citations-selects BASE=REV`) MUST list
+  every pinned citation, in the scanned document set, whose cited file differs between REV and the
+  index, with one `selects line-citations-check: N pinned citation(s) cite a file changed since REV;
+  run make line-citations-check` line, or print `no pinned citation cites a file changed since REV`;
+  it exits 0 either way and writes nothing. A lane runs it in its focused set
+  (`docs/LANE-ORCHESTRATION.md`), so a script edit that shifts a cited line selects the
+  line-citation check before doc-gates. Design: `corvint affected` selects test units, not doc
+  gates, and its selector belongs to another lane; this check reads only the index and REV. A
+  pinned citation MUST be selected before its target is resolved, so a citation into a file deleted
+  since REV (or otherwise unreadable in the index) is still listed (review fix, 2026-10-31).
+  Non-goals: selecting from unpinned citations, which are frozen by DCG-V0-041.
+- `DCG-V0-922`: (experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413)
+  Scope decisions, recorded so they are not re-asked: (a) `path:N` references in code comments (Go,
+  shell, any source file) are out of this gate's scope: it scans only the DCG-V0-001 document set,
+  so a stale `foo.mjs:51` in a `_test.go` comment is not reported; a code comment that must stay
+  exact cites a symbol instead. (b) An unpinned citation in a legacy document is checked only for
+  range and blank/bracket-only lines and frozen by its inventory row (DCG-V0-041); whether it points
+  at the line it meant is not mechanically decidable without an anchor, so no heuristic mismatch
+  detection is added, and the fix for a doubted one is to read it and pin it with `--hash`.
+  Non-goals: scanning source comments; a semantic check of unpinned citations.
 
 - `DCG-V0-810`: (experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)
   When the base's diff proves no move for a pinned span, `--repin` MUST try the diff from the newest
@@ -426,33 +462,36 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
+| DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
+| DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
+| DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
 
 ## Traceability
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:394-397@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:421-424@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:691-708@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:714-731@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
-| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:394-397@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:421-424@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:691-708@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:714-731@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
-| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
+| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:294-312@5e2147f9` and `:349@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:308-326@5e2147f9` and `:365@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
 | DCG-V0-042 | the `scanned_doc` pattern in `script/check-line-citations.sh`; the pinned citations in `docs/AUTOMATION.md` and `docs/GLOSSARY.md` | full-index run |
 | DCG-V0-041 | the inventory loader after the legacy allowlist, the inventory branch in `check` and the unused-row failure loop, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
