@@ -220,7 +220,7 @@ type git struct {
 func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, gitTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, gitstatus.Executable(), append([]string{"--no-replace-objects", "-c", "core.hooksPath=" + os.DevNull, "-C", g.root}, args...)...)
+	cmd := exec.CommandContext(ctx, gitstatus.Executable(), append([]string{"--no-replace-objects", "-c", "core.hooksPath=" + os.DevNull, "-c", "advice.graftFileDeprecated=false", "-C", g.root}, args...)...)
 	for _, v := range os.Environ() {
 		if !strings.HasPrefix(v, "GIT_") {
 			cmd.Env = append(cmd.Env, v)
@@ -231,7 +231,8 @@ func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, err
 	// rev-list read answer from the commits' real parents, as the private dry
 	// merge repository already does, since Git honours info/grafts even with
 	// replace objects disabled; refuseShallowMergeBase covers the shallow
-	// boundary (EEP-V0-771).
+	// boundary (EEP-V0-771). advice.graftFileDeprecated=false keeps Git's
+	// deprecation advice for that setting off stderr (V1-3588).
 	cmd.Env = append(cmd.Env, "GIT_GRAFT_FILE="+os.DevNull, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
 	cmd.Env = append(cmd.Env, extra...)
 	if stdin != nil {

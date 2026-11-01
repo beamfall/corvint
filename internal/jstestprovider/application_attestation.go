@@ -367,7 +367,8 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 }
 
 func gitObservation(ctx context.Context, dir string, args ...string) ([]byte, string) {
-	argv := resolveArgv(append([]string{"git", "-C", dir}, args...))
+	// GIT_GRAFT_FILE names the null device; keep Git's graft advice off stderr (V1-3588).
+	argv := resolveArgv(append([]string{"git", "-c", "advice.graftFileDeprecated=false", "-C", dir}, args...))
 	obs := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gitObservationEnvironment(), Timeout: 5 * time.Second, OutputLimit: applicationAttestationLimit})
 	if !obs.Started || !obs.WaitCompleted || !obs.ExitObserved || obs.ExitStatus != 0 || obs.OutputOverflow || !obs.OwnedProcessGroupCleanup {
 		return nil, "git-unavailable"
