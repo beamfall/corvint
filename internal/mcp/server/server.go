@@ -354,7 +354,7 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 	}
 	if inbound.Method == "server/discover" && !onlyParams(inbound.Params, "_meta") {
 		connection.respond(active, func() error {
-			return connection.writeRPCErrorContext(requestCtx, inbound.ID, protocol.InvalidParams("Invalid params"))
+			return connection.writeRPCErrorContext(requestCtx, inbound.ID, protocol.InvalidParamsAt("Invalid params", "unknown-param", "params"))
 		})
 		return
 	}
@@ -398,12 +398,20 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 func legacyInitializeRefusal(params map[string]any) *protocol.RPCError {
 	flag := "--protocol-version " + protocol.LegacyVersion
 	data := map[string]any{"supported": []string{protocol.Version}, "flag": flag}
-	if requested, ok := params["protocolVersion"].(string); ok && requested != "" && len(requested) <= protocol.MaxProtocolVersionBytes {
+	requested, ok := params["protocolVersion"].(string)
+	if ok && requested != "" && len(requested) <= protocol.MaxProtocolVersionBytes {
 		data["requested"] = requested
+	}
+	if requested == protocol.Version { // MCPV0-954: the client already speaks this version, just not with initialize.
+		return &protocol.RPCError{
+			Code:    protocol.CodeInvalidParams,
+			Message: "Invalid params: " + protocol.Version + " has no initialize handshake; send server/discover, with the protocol version and client capabilities in each request's _meta",
+			Data:    map[string]any{"requested": requested, "supported": []string{protocol.Version}, "method": "server/discover"},
+		}
 	}
 	return &protocol.RPCError{
 		Code:    protocol.CodeInvalidParams,
-		Message: "Unsupported protocol version: this server speaks " + protocol.Version + "; restart it with " + flag + " for a " + protocol.LegacyVersion + " client",
+		Message: "Unsupported protocol version: this server speaks " + protocol.Version + " (server/discover, no initialize); restart it with " + flag + " for a " + protocol.LegacyVersion + " client",
 		Data:    data,
 	}
 }
@@ -504,7 +512,12 @@ func sanitize(rpcErr *protocol.RPCError) *protocol.RPCError {
 	case protocol.CodeMethodNotFound:
 		return &protocol.RPCError{Code: rpcErr.Code, Message: "Method not found"}
 	case protocol.CodeInvalidParams:
-		return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params"}
+		// Only the closed MCPV0-952 data passes; any other handler data is dropped.
+		data, _ := rpcErr.Data.(protocol.InvalidParamsData)
+		if data.Reason == "" || len(data.Field) > protocol.MaxInvalidParamsField {
+			return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params"}
+		}
+		return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params", Data: data}
 	default:
 		return &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}
 	}

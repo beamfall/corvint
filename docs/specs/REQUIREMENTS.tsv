@@ -959,6 +959,7 @@ CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
 CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
+CAP-V0-950	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3701; extends `CAP-V0-015`	standing	V1-3701
 CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines	standing	2026-10-30; V1-3153
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-931	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
@@ -5100,6 +5101,11 @@ MCPV0-105	docs/specs/mcp-server-2026-07-28-v0.md	(owner request, 2026-10-23) The
 MCPV0-110	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-032`)	owner	2026-10-24; V1-1003
 MCPV0-111	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; extends `MCPV0-024` with	owner	2026-10-24; V1-1003
 MCPV0-113	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-2516; clarifies `MCPV0-001	standing	V1-2516
+MCPV0-950	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3700; amends `MCPV0-001`,	standing	V1-3700
+MCPV0-951	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3702; amends `MCPV0-001`	standing	V1-3702
+MCPV0-952	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3703) Every `-32602	standing	V1-3703
+MCPV0-953	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3701; amends `MCPV0-100`,	standing	V1-3701
+MCPV0-954	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3704; amends `MCPV0-820` a	standing	V1-3704
 MCPV0-114	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)	standing	V1-3030
 MCPV0-115	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3497; amends `MCPV0-001` a	standing	V1-3497
 MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
@@ -6601,6 +6607,11 @@ TCB-V0-041	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's 
 TCB-V0-042	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test	standing	2026-10-11; V1-1377
 TCB-V0-043	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
 TCB-V0-044	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
+TMR-V0-950	docs/specs/tasks-mcp-read-profile-v0.md	(amends `MMR-V0-012`) `--tool-profile` MUST admit the group token `tasks`, alone	unrecorded	-
+TMR-V0-951	docs/specs/tasks-mcp-read-profile-v0.md	The group MUST list exactly `corvint.tasks.queue_status`,	unrecorded	-
+TMR-V0-952	docs/specs/tasks-mcp-read-profile-v0.md	Each call MUST run `corvint-tasks` from `PATH` with its verb (`queue status`,	unrecorded	-
+TMR-V0-953	docs/specs/tasks-mcp-read-profile-v0.md	A schema-invalid argument MUST be `-32602` with `MCPV0-952` data (`reason`,	unrecorded	-
+TMR-V0-954	docs/specs/tasks-mcp-read-profile-v0.md	The `corvint-mcp` usage MUST name the `tasks` group, and `docs/CAPABILITIES.md`	unrecorded	-
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	butterfly-effect MUST return exact direct static references/dependencies,	unrecorded	-
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse	unrecorded	-
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	selective-test guidance MUST name mandatory repository gates first and a smaller	unrecorded	-

@@ -123,7 +123,7 @@ func TestCAPV0019CommittedCatalogMatchesTheBinary(t *testing.T) {
 
 func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(rootHelp, " | corvint help --json|guide\n") || len(rootHelp) > rootHelpMaxBytes {
+	if !strings.Contains(rootHelp, " | corvint help --json [COMMAND]|--tree|guide\n") || len(rootHelp) > rootHelpMaxBytes { // CAP-V0-950 adds the slice and the tree
 		t.Fatalf("root help lacks the catalog topics or exceeds %d bytes (%d)", rootHelpMaxBytes, len(rootHelp))
 	}
 	err := unknownHelpTopic([]string{"nope"})
@@ -143,7 +143,7 @@ const catalogDriftHint = "; the embedded catalog is stale: run `make capability-
 // server's wire test holds its answer equal to bridge.HelpToolResult's.
 func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
 	t.Parallel()
-	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
 		answer, callErr := bridge.HelpToolResult(context.Background(), []byte(arguments))
 		if callErr != nil {
 			t.Fatal(callErr)
@@ -168,7 +168,7 @@ func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
 	if bridgeErr != nil {
 		t.Fatal(bridgeErr)
 	}
-	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
 		result, callErr := registry.Call(context.Background(), bridge.ToolHelp, []byte(arguments))
 		if callErr != nil {
 			t.Fatal(callErr)
@@ -185,5 +185,26 @@ func TestMCPV0100DriftFailureNamesTheRecovery(t *testing.T) {
 	t.Parallel()
 	if !strings.Contains(catalogDriftHint, "make capability-catalog") {
 		t.Fatalf("drift hint %q names no recovery command", catalogDriftHint)
+	}
+}
+
+// CAP-V0-950: `corvint help --json COMMAND` prints that command's catalog
+// entry under 5 KB, every command slices, an unknown name is refused naming
+// every command, and corvint-tasks and corvint-test accept the --tree spelling
+// of their command trees.
+func TestCAPV0950HelpJSONCommandSlice(t *testing.T) {
+	t.Parallel()
+	catalog := runCatalogHelp(t, "help", "--json")
+	for _, command := range topLevelCommands {
+		slice := runCatalogHelp(t, "help", "--json", command)
+		want, _, ok := capcatalog.Slice([]byte(catalog), command)
+		if !ok || slice != string(want) || len(slice) >= 5*1024 {
+			t.Fatalf("help --json %s: %d bytes, equal to the catalog slice %v", command, len(slice), slice == string(want))
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"help", "--json", "nope"}, strings.NewReader(""), &stdout, &stderr); code != 2 ||
+		!strings.Contains(stdout.String()+stderr.String(), "unknown command for help --json: 'nope' (choose from 'init',") {
+		t.Fatalf("unknown slice exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
 }

@@ -59,3 +59,20 @@ func TestAHI373MCPProfiledHelper(t *testing.T) {
 	ctx := context.Background()
 	os.Exit(runProfiledContext(ctx, ctx, []string{"mcp", "--root", root, "--protocol-version", "2025-11-25"}, os.Stdin, os.Stdout, os.Stderr, lookup))
 }
+
+// MCPV0-951: `corvint mcp --version` and serverInfo.version carry this
+// binary's --version line without its name, so plugin/binary skew is visible.
+func TestMCPV0951MCPVerbReportsTheBuildVersion(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"mcp", "--version"}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("mcp --version: exit %d stderr %q", code, &stderr)
+	}
+	var line bytes.Buffer
+	if code := runContext(context.Background(), []string{"--version"}, strings.NewReader(""), &line, &stderr); code != 0 {
+		t.Fatalf("--version: exit %d stderr %q", code, &stderr)
+	}
+	want := "corvint-mcp " + strings.TrimPrefix(line.String(), "Corvint ")
+	if stdout.String() != want || !strings.Contains(want, "commit ") || mcpServerVersion()+"\n" != strings.TrimPrefix(want, "corvint-mcp ") {
+		t.Fatalf("mcp --version %q, want %q", stdout.String(), want)
+	}
+}

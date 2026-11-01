@@ -56,10 +56,31 @@ const (
 )
 
 type ToolDescriptor struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema map[string]any  `json:"inputSchema"`
-	Annotations ToolAnnotations `json:"annotations"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	InputSchema  map[string]any  `json:"inputSchema"`
+	OutputSchema map[string]any  `json:"outputSchema,omitempty"`
+	Annotations  ToolAnnotations `json:"annotations"`
+}
+
+// WithOutputSchemas declares an outputSchema on every listed tool whose
+// result carries structuredContent (MCPV0-953), so a client may read the
+// structured object instead of parsing the text block that repeats it. Every
+// such object is a read-only result or tool-error object; the schema states
+// only what all of them share. A flows tool returns its result in the
+// envelope alone (AFU-V1-035) and declares none.
+func WithOutputSchemas(tools []ToolDescriptor) []ToolDescriptor {
+	for index := range tools {
+		if !EnvelopeOnly(tools[index].Name) {
+			tools[index].OutputSchema = map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"tool": map[string]any{"type": "string"}, "mutates": map[string]any{"const": false},
+				},
+			}
+		}
+	}
+	return tools
 }
 
 type ToolAnnotations struct {
@@ -332,6 +353,16 @@ func NewTaskReviewLSP(root string) (*Registry, *Error) {
 	return registry, nil
 }
 
+// Profile names one registry profile's tool surface without a root.
+type Profile struct{ TaskReview, LSP, Flows, ImportGraph bool }
+
+// Tools lists what the profile's registry advertises, for a server that
+// starts with no usable root (MCPV0-950): it lists the tools it would serve and
+// refuses every repository call.
+func (profile Profile) Tools() []ToolDescriptor {
+	return (&Registry{taskReview: profile.TaskReview || profile.LSP, lsp: profile.LSP, flows: profile.Flows, importGraph: profile.ImportGraph}).Tools()
+}
+
 func (registry *Registry) advertises(name string) bool {
 	if name == ToolGraphImports {
 		return registry.importGraph
@@ -377,7 +408,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 	relativePath := func() map[string]any {
 		return map[string]any{
 			"type": "string", "minLength": 1, "maxLength": wire.MaxPathBytes / utf8.UTFMax,
-			"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\)(?!(?:.*/)?[.][Gg][Ii][Tt](?:/|$))[^\x00-\x1f\x7f]+$`,
+			"pattern": PathRule{Excluded: `\x00-\x1f\x7f`, GitSegment: "fold", TrailingSlash: true}.Pattern(), // MCPV0-954
 		}
 	}
 	return append([]ToolDescriptor{
@@ -399,7 +430,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 				"task": map[string]any{"type": "string", "minLength": 1, "maxLength": maxContextTaskBytes / utf8.UTFMax, "pattern": `[^\s\x85]`},
 				"subject": map[string]any{
 					"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-					"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+$`,
+					"pattern": SubjectPathRule.Pattern(),
 				},
 				"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
 				"summaryBytes": map[string]any{"type": "integer", "minimum": contextsummary.MinBytes, "maximum": contextsummary.MaxBytes},
@@ -416,7 +447,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 					"type": "array", "minItems": 1, "maxItems": maxImpactPaths, "uniqueItems": true,
 					"items": map[string]any{
 						"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-						"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`,
+						"pattern": impactPathRule.Pattern(),
 					},
 				},
 				"limit":       map[string]any{"type": "integer", "minimum": 1, "maximum": maxImpactLimit, "default": 10},
@@ -1025,6 +1056,14 @@ func validRelativePath(value string, maxRunes int) bool {
 // validRoot applies the MCPV0-001 root bounds, shared with multi-root and appmap roots.
 func validRoot(root string) bool { return rootalias.ValidRoot(root) }
 
+// nestedObjectSchema is objectSchema below a schema's root, which repeats no
+// $schema (MCPV0-954).
+func nestedObjectSchema(properties map[string]any, required []any) map[string]any {
+	schema := objectSchema(properties, required)
+	delete(schema, "$schema")
+	return schema
+}
+
 func objectSchema(properties map[string]any, required []any) map[string]any {
 	return map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1211,7 +1250,7 @@ func failure(code string) *Error { return &Error{Code: code} }
 
 func snapshotSchema() map[string]any {
 	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
-	return objectSchema(map[string]any{
+	return nestedObjectSchema(map[string]any{
 		"schema":         map[string]any{"const": plansnapshot.Schema},
 		"commitRevision": oid, "treeRevision": oid, "baseRevision": oid,
 		"changedPaths":       map[string]any{"type": "array", "maxItems": 4096, "uniqueItems": true, "items": map[string]any{"type": "string", "minLength": 1}},

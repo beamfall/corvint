@@ -646,3 +646,29 @@ func TestMMRV0017UndeclaredCorpusToolNeverBindsFollowedRef(t *testing.T) {
 		t.Fatalf("exit=%d stderr=%q", exit, session.stderr.String())
 	}
 }
+
+// MCPV0-950 with MMR-V0-014: a subdirectory root binds its toplevel before the
+// corpus artifact does, so an absolute artifact under the toplevel and a
+// relative one under the declared subdirectory both open.
+func TestMCPV0950CorpusArtifactUnderASubdirectoryRoot(t *testing.T) {
+	app, _ := groupsFixture(t)
+	subdirectory := filepath.Join(app, "cache")
+	writeCorpusArtifact(t, app, filepath.Join("cache", "nested.json"))
+	for name, artifact := range map[string]string{
+		"absolute under the toplevel":     filepath.Join(app, "corpus.json"),
+		"relative under the subdirectory": "nested.json",
+	} {
+		session := startPipeSession(t, []string{"--root", subdirectory, "--tool-profile", "corpus", "--corpus-artifact", artifact})
+		if response := session.send(toolCall(1, "corvint.docs_search", map[string]any{"query": "Original"})); resultOf(t, response)["isError"] != false {
+			t.Fatalf("%s: %#v", name, response)
+		}
+		if exit := session.close(); exit != 0 || session.stderr.Len() != 0 {
+			t.Fatalf("%s: exit=%d stderr=%q", name, exit, session.stderr.String())
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", subdirectory, "--tool-profile", "corpus", "--corpus-artifact", "/elsewhere/corpus.json"}, bytes.NewReader(nil), &stdout, &stderr); exit != 2 ||
+		stderr.String() != "corvint-mcp: invalid arguments: --corpus-artifact: absolute path is not below --root\n" {
+		t.Fatalf("outside artifact exit=%d stderr=%q", exit, stderr.String())
+	}
+}

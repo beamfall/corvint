@@ -32,8 +32,8 @@ func TestMCPV0102HelpToolAnswersOnTheWire(t *testing.T) {
 				`{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n"
 		}
 		input += `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{` + strings.TrimSuffix(meta, ",") + `}}` + "\n" +
-			`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{` + meta + `"name":"corvint.help","arguments":{}}}` + "\n" +
-			`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{` + meta + `"name":"corvint.help","arguments":{"topic":"guide"}}}` + "\n" +
+			`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{` + meta + `"name":"corvint.help","arguments":{"topic":"catalog"}}}` + "\n" +
+			`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{` + meta + `"name":"corvint.help","arguments":{}}}` + "\n" +
 			`{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{` + meta + `"name":"corvint.help","arguments":{"topic":"COMMAND"}}}` + "\n"
 		var stdout, stderr bytes.Buffer
 		if exit := run(context.Background(), append([]string{"--root", root, "--artifact", "corpus.json"}, "--protocol-version", version), strings.NewReader(input), &stdout, &stderr); exit != 0 {
@@ -49,7 +49,7 @@ func TestMCPV0102HelpToolAnswersOnTheWire(t *testing.T) {
 			responses[id] = response
 		}
 		listed, _ := responses[1]["result"].(map[string]any)
-		wantDescriptor := marshalHelp(t, bridge.HelpDescriptor())
+		wantDescriptor := marshalHelp(t, bridge.WithOutputSchemas([]bridge.ToolDescriptor{bridge.HelpDescriptor()})[0]) // MCPV0-953
 		found := false
 		for _, tool := range listed["tools"].([]any) {
 			if tool.(map[string]any)["name"] == bridge.ToolHelp {
@@ -60,8 +60,8 @@ func TestMCPV0102HelpToolAnswersOnTheWire(t *testing.T) {
 			t.Fatalf("%s: tools/list lacks the shared corvint.help descriptor", version)
 		}
 		for id, call := range map[float64]struct{ arguments, text string }{
-			2: {`{}`, string(capcatalog.Snapshot())},
-			3: {`{"topic":"guide"}`, capcatalog.Guide()},
+			2: {`{"topic":"catalog"}`, string(capcatalog.Snapshot())},
+			3: {`{}`, capcatalog.Guide()}, // MCPV0-953: the guide is the default
 		} {
 			want, err := bridge.HelpToolResult(context.Background(), []byte(call.arguments))
 			if err != nil {

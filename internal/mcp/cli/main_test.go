@@ -38,10 +38,11 @@ func TestParseArgumentsIsClosed(t *testing.T) {
 		{"missing", nil, nil, false, false},
 		{"unknown", []string{"--listen", "127.0.0.1:0"}, nil, false, false},
 		{"extra", []string{"--root", root, "--version"}, nil, false, false},
-		{"MMR-V0-001 one aliased root", []string{"--root", "core=" + root}, []rootDeclaration{{"core", root}}, false, true},
-		{"MMR-V0-001 two aliased roots", []string{"--root", "core=" + root, "--root", "docs=" + root}, []rootDeclaration{{"core", root}, {"docs", root}}, false, true},
+		{"MMR-V0-001 one aliased root", []string{"--root", "core=" + root}, []rootDeclaration{{alias: "core", root: root}}, false, true},
+		{"MMR-V0-001 two aliased roots", []string{"--root", "core=" + root, "--root", "docs=" + root}, []rootDeclaration{{alias: "core", root: root}, {alias: "docs", root: root}}, false, true},
 		{"MMR-V0-001 plain root mixed with aliased", []string{"--root", root, "--root", "docs=" + root}, nil, false, false},
 		{"MMR-V0-001 two plain roots", []string{"--root", root, "--root", root}, nil, false, false},
+		{"MCPV0-950 empty plain root", []string{"--root", ""}, []rootDeclaration{{}}, false, true},
 		{"MMR-V0-001 empty aliased root", []string{"--root", "core="}, nil, false, false},
 		{"MMR-V0-002 duplicate alias", []string{"--root", "core=" + root, "--root", "core=" + root + "/x"}, nil, false, false},
 		{"MMR-V0-002 more roots than the cap", tooMany, nil, false, false},
@@ -667,7 +668,8 @@ func TestAHI820ClaudePluginArgsServeTestValidityAndDocs(t *testing.T) {
 	}
 	var declared struct {
 		MCPServers map[string]struct {
-			Args []string `json:"args"`
+			Args []string          `json:"args"`
+			Env  map[string]string `json:"env"`
 		} `json:"mcpServers"`
 	}
 	if err := json.Unmarshal(raw, &declared); err != nil {
@@ -710,5 +712,9 @@ func TestAHI820ClaudePluginArgsServeTestValidityAndDocs(t *testing.T) {
 		if !slices.Contains(names, name) {
 			t.Fatalf("tools/list %q lacks %s: %s", names, name, stdout.String())
 		}
+	}
+	// MCPV0-951: the declared expected tools are exactly what these args list.
+	if expected := strings.Split(declared.MCPServers["corvint"].Env[pluginToolsVariable], ","); !slices.Equal(expected, names) {
+		t.Fatalf("%s=%q, tools/list %q", pluginToolsVariable, expected, names)
 	}
 }

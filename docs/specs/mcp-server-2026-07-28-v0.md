@@ -632,14 +632,14 @@ Each row cites the first emitting site and states only the condition checked the
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `invalid-registry` | `internal/mcp/bridge/bridge.go:449@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
-| `unsupported-tool` | `internal/mcp/bridge/bridge.go:458@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolHelp`, `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, the `ToolFlows*` tools under `flows`, or `ToolGraphImports` under `import-graph` (`NGI-V0-305`, `MCPV0-026`) |
-| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:787@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
-| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:787@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
-| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:809@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
-| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:788@b2fd0644` | the map fails CEM strict decoding or field validation |
-| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1187@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
-| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:795@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
+| `invalid-registry` | `internal/mcp/bridge/bridge.go:480@b6e5e0f0` | `Registry.Call` is reached on a nil registry, or on one with an empty root, a nil root or Git identity, or a nil build, build-query, probe, context, or CEM report operation; checked before cancellation and argument validation |
+| `unsupported-tool` | `internal/mcp/bridge/bridge.go:489@6e5d7ee2` | the tool name is not advertised by the selected profile: `ToolHelp`, `ToolQuery`, `ToolImpact`, or `ToolStatus`, plus `ToolContext` and `ToolCEMReport` under `task-review`, the `ToolFlows*` tools under `flows`, or `ToolGraphImports` under `import-graph` (`NGI-V0-305`, `MCPV0-026`) |
+| `cem-map-unavailable` | `internal/mcp/bridge/bridge.go:818@f5156052` | the CEM read reports the map missing, unreadable, or reached through a symlink |
+| `cem-map-unsupported` | `internal/mcp/bridge/bridge.go:818@f5156052` | an invalid-arguments refusal that is not a `cem/1.0` stable refusal; since `CEM-V1-210` no retired 0.x map reaches it (a 0.x map is `cem-map-invalid`), so the report preview has no observed route to it |
+| `cem-map-stable-refused` | `internal/mcp/bridge/bridge.go:840@5462a4a2` | a `cem/1.0` map was refused before its stable verifier ran (`MCPV0-037`) |
+| `cem-map-invalid` | `internal/mcp/bridge/bridge.go:819@b2fd0644` | the map fails CEM strict decoding or field validation |
+| `repository-probe-timeout` | `internal/mcp/bridge/bridge.go:1226@8c7cfeb6` | the failure carries gokernel's `repository-probe-timeout` code: the repository probe, a CEM Git read or the context index's Git read outlasted its own bound while the request context was live (`MCPV0-038`, decision 0533) |
+| `corpus-capacity-exceeded` | `internal/mcp/bridge/bridge.go:826@c8f9bb58` | a CEM Git read exhausted its operation budget or output bound (`MCPV0-025`, V1-1992) |
 | `flows-refused` | `internal/mcp/bridge/flows.go:267@0ffc3b6a` | a flows tool's intent load or verb returned an error other than cancellation (`AFU-V1-034`) |
 
 ### Explicit Go LSP descendant (V1-0476)
@@ -766,7 +766,8 @@ Each row cites the first emitting site and states only the condition checked the
   and decision 0103) Every `corvint-mcp` profile (default, `task-review`, `task-review-lsp` and
   `flows`, under either protocol version) MUST advertise one more read-only tool, `corvint.help`,
   under the `MCPV0-007` descriptor rules. Its closed arguments are `{}` or `{"topic": "catalog" |
-  "guide"}`; omission means `catalog`. Any other member, a `null`, non-string or other topic value,
+  "guide"}`; omission means `catalog` (amended by `MCPV0-953`: omission means `guide`, and
+  `command` names one catalog entry). Any other member, a `null`, non-string or other topic value,
   or non-object arguments are `invalid-arguments`. The result is the closed bridge object with
   `state: "READY"`, `epistemicClass: "OBSERVED"`, `authorityClass: "CORVINT_BINARY"`, a null
   `repository`, and the receipt `{schema: "corvint-mcp-help/0", topic, command, byteCount, sha256,
@@ -873,7 +874,102 @@ Each row cites the first emitting site and states only the condition checked the
   `corvint-mcp: repository unavailable: --root must be an absolute path`, exit 2; it is never
   resolved against the launch directory. Non-goals: resolving relative roots; `--help` for the
   docs, corpus or test-validity servers. Failure mode: `--help` beside any other argument stays
-  `invalid arguments`.
+  `invalid arguments`. Amended by `MCPV0-950`: a non-absolute plain single root (including an
+  empty or unexpanded `${CLAUDE_PROJECT_DIR}` value) now starts the server unavailable with the
+  same reason text instead of exiting 2; an aliased one still exits 2.
+- `MCPV0-950`: (experimental under the standing lane auto-accept; V1-3700; amends `MCPV0-001`,
+  `MCPV0-113` and `AHI-820`) At startup each declared `--root` MUST be resolved to the Git
+  worktree toplevel it lies in: the root itself when it holds the `.git` marker, else its nearest
+  physical ancestor that does (`git rev-parse --show-toplevel` without the environment), and that
+  toplevel is then bound under every `MCPV0-001` check, before any root-relative argument: a
+  `--corpus-artifact` binds that toplevel, an absolute path must lie below it, and a relative
+  path names a file below the declared root. When a root cannot be resolved, stderr MUST
+  name one fixed reason (`--root must be an absolute path`, `--root must be a clean path of at
+  most 4,096 bytes without control characters`, `--root does not exist`, `--root is not a
+  directory`, `--root is inside a .git directory, not a worktree`, `--root is not inside a Git
+  worktree`, or a refused toplevel `.git` marker) after `corvint-mcp: repository unavailable: `,
+  never the path or a system error. A single plain root that neither follows a ref nor binds a
+  corpus artifact then starts UNAVAILABLE instead of exiting: `initialize`, `server/discover` and
+  `tools/list` answer as for a usable root with the same tool list (profile and groups), and
+  `corvint.help` still answers from the binary (`MCPV0-100`), but every other listed tool's
+  `tools/call` MUST return an `isError` result with code `invalid-root` (the group tools under
+  their own tool-error profiles), so no repository evidence is ever returned; an unlisted tool
+  stays invalid params. Aliased roots, `--follow-ref` and `--corpus-artifact` still exit 2 with the
+  named reason. The release install lifecycle (`script/check-install-lifecycle.sh`, step
+  `mcp-unavailable-root`) runs the handshake against a non-repository root. Non-goals: resolving
+  relative roots; a root that becomes usable later (restart the server); partial multi-root
+  service. Falsifier: a subdirectory root that exits, an unusable root that exits 2 or answers a
+  repository call without `isError`, or a reason line that carries the path. Rollback: restore the
+  exit-2 branch in `run` and drop `rootbind.Resolve` and `internal/mcp/cli/unavailable.go`.
+- `MCPV0-951`: (experimental under the standing lane auto-accept; V1-3702; amends `MCPV0-001`
+  and `AHI-820`) `corvint mcp` MUST report the core binary's own build identity as
+  `serverInfo.version` and in `corvint mcp --version`: its `corvint --version` line without the
+  leading `Corvint ` (`1.0.0-rc.3 (build N, commit SHA)`, `PUB-V0-053`). The standalone
+  `corvint-mcp` and every in-process caller keep `0.1.0-experimental`, so the profile goldens and
+  companion smoke are unchanged. A launcher MAY declare its plugin with `CORVINT_PLUGIN_VERSION`
+  (`HOST/VERSION`) and `CORVINT_PLUGIN_TOOLS` (a comma list of 1 to 64 `corvint.*` tool names), read
+  once at startup; the Claude Code plugin's `.mcp.json` declares both, with the version equal to
+  its `plugin.json` and the tools equal to what its args list. With a declaration, every
+  `corvint.status` result (success or `isError`) MUST carry `_meta` member
+  `io.corvint/pluginCompatibility` (profile `corvint-plugin-compatibility/0`: `plugin`, `server`,
+  `expectedTools`, sorted `missingTools`, `compatible` true exactly when every expected tool is
+  listed) and one added text block naming the result; a declaration outside the bounds is
+  `compatible:false`, `reason:"malformed-declaration"`, and is never partly used. The status
+  receipt and `structuredContent` never change, and without a declaration the result bytes are
+  unchanged. Non-goals: version ranges, refusing to serve a skewed plugin, a CLI flag (an older
+  binary would refuse it and close the connection). Falsifier: a stamped `corvint mcp` that reports
+  `0.1.0-experimental`, a missing expected tool reported compatible, or an undeclared launch whose
+  status bytes change. Rollback: pass the empty version from `cmd/corvint/mcp.go`, drop
+  `internal/mcp/cli/plugin.go` and the `.mcp.json` `env`.
+- `MCPV0-952`: (experimental under the standing lane auto-accept; V1-3703) Every `-32602
+  Invalid params` that `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` or
+  `corvint-corpus-mcp` answers MUST carry `data` with a closed `reason` and the offending `field`
+  (a dotted path such as `arguments.paths[1]` or `_meta.io.modelcontextprotocol/protocolVersion`),
+  plus `allowed` (enum, const, tool or param names) or `rule` (expected type, `minimum N`-style
+  bound, or the pattern) when the listed schema states them. Reasons: `unknown-param`,
+  `missing-param`, `invalid-param`, `invalid-meta-key`, `invalid-cursor`, `missing-tool-name`,
+  `unknown-tool`, `unknown-argument`, `missing-argument`, `invalid-type`, `invalid-enum`,
+  `invalid-const`, `pattern-mismatch`, `out-of-range`, `duplicate-item`, and `invalid-argument`
+  (a rule the advertised schema does not state, field `arguments`). A tools/call diagnosis reads
+  only the request and the tools/list schemas after the existing decision, so it never changes
+  which calls are refused, and the unified and dedicated servers answer the same data
+  (`MMR-V0-013`). The message stays `Invalid params`; the server forwards only this closed data
+  from a handler, and every refusal, protocol-level ones included, drops the data when its field is
+  longer than 1,024 bytes, so an oversized key is still answered `-32602` and the session keeps
+  serving. Non-goals: data on other error codes,
+  diagnosing every runtime-only rule. Falsifier: a -32602 without `data.reason` and `data.field`,
+  or a diagnosis that differs between the unified and a dedicated server. Rollback: drop
+  `toolgroup.WithInvalidParamsData` and `InvalidParamsAt`, restoring bare errors.
+- `MCPV0-953`: (experimental under the standing lane auto-accept; V1-3701; amends `MCPV0-100`,
+  `MCPV0-007` and `MCPV0-101..103`) `corvint.help`'s closed arguments become `{}`, `{"topic":
+  "guide" | "catalog"}`, or `{"command": NAME}` with an optional `"topic": "command"`, where NAME is
+  in the descriptor's enum of catalogued commands. Omission now means `guide`; `command` returns the
+  bytes of `corvint help --json NAME` (`CAP-V0-950`, under 5 KB) with receipt `command` `corvint help
+  --json NAME`; `catalog` stays the full catalog and must be asked for. A `null` member, a `command`
+  beside `guide` or `catalog`, or `topic: "command"` without one is `invalid-arguments`. The default
+  and a command answer each stay under 32 KB on the wire. Every tool these four servers list whose
+  result carries `structuredContent` MUST declare `outputSchema` `{"type":"object","properties":
+  {"tool":{"type":"string"},"mutates":{"const":false}}}`, which every bridge, group, corpus and
+  tool-error object meets, so a client may read structuredContent instead of the text block that
+  repeats it; the flows tools (`AFU-V1-035`) declare none. Non-goals: paging the full catalog,
+  per-tool output schemas, dropping the text block (hosts that read only text still need it).
+  Falsifier: a default help answer of 32 KB or more, a slice that differs from the CLI's, or a
+  structuredContent tool without `outputSchema`. Rollback: restore the catalog default, drop the
+  command topic and `bridge.WithOutputSchemas`, and repin the goldens.
+- `MCPV0-954`: (experimental under the standing lane auto-accept; V1-3704; amends `MCPV0-820` and
+  `MCPV0-007`) Under `NameLegacyFlag`, an `initialize` whose `protocolVersion` is the version the
+  server speaks (`2026-07-28`) MUST be answered `-32602` with a message saying that version has no
+  initialize handshake and to send `server/discover` with `_meta` on each request, and `data`
+  `{requested, supported, method: "server/discover"}` without the restart flag; every other
+  `initialize` keeps the `DCP-V1-652` answer, whose message now adds `(server/discover, no
+  initialize)` after the version. Every advertised input schema MUST carry `$schema` only at its
+  root, and every path `pattern` MUST be lookaround-free so ECMA and RE2 validators agree: each is
+  generated by `bridge.PathRule` as segments joined by single slashes, accepting exactly what the
+  lookahead pattern it replaced accepted (ECMA's `.` now spelled as excluding LF and CR). Non-goals:
+  a `format` keyword, other keywords RE2 validators lack. Falsifier: a 2026-07-28 initialize told to
+  restart with `--protocol-version 2025-11-25`, a nested `$schema`, a pattern Go's `regexp` cannot
+  compile, or a path the old and new rules disagree on. Rollback: restore the literal patterns and
+  `objectSchema` in `snapshotSchema`, and drop the modern branch of `legacyInitializeRefusal`.
 - `MCPV0-114`: (experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)
   Under `--follow-ref`, `tools/list` MUST advertise every tool a call binds to the ref with
   `readOnlyHint` false and its description followed by one fixed sentence stating that each call
@@ -1064,6 +1160,11 @@ cleanup remain outside that receipt.
 | `MCPV0-110` | `internal/mcp/bridge` (`impactInput.BudgetBytes`, `optionalBytes`, `callImpact`) | `internal/mcp/bridge/budget_args_test.go`'s `TestMCPV0110ImpactBudgetBytesIsCLIPathImpactBudget` (budgeted receipt equals `EvalImpactSyntax`'s bytes, omitted budget equals `ImpactSyntax`'s, six invalid values refused); repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
 | `MCPV0-111` | `internal/contextsummary` (`Summarize`, `SafePath`), `internal/mcp/bridge` (`contextInput.SummaryBytes`, `summarizedContext`), `cmd/corvint` (`summarizeContextPacket`) | `TestMCPV0111ContextSummaryBytesIsCLISummary` (summary equals `Summarize` over the canonical receipt plus LF, digest and MCP continuation, binding kept, five invalid values refused, `SUMMARY_SHAPE` reason); CLI bytes unchanged under the existing `cmd/corvint` context-summary tests |
 | `MCPV0-113` | `internal/mcp/cli` (`run`, `usage`) | `usage_test.go`'s `TestMCPV0113HelpAndRelativeRoot`; `roots_test.go` relative aliased root |
+| `MCPV0-950` | `internal/mcp/rootbind` (`Resolve`), `internal/mcp/bridge` (`Profile.Tools`), `internal/mcp/cli` (`run`, `startUnavailable`, `answerUnavailable`), `script/check-install-lifecycle.sh` | `internal/mcp/cli/unavailable_test.go`'s `TestMCPV0950SubdirectoryRootBindsToplevel`, `TestMCPV0950UnusableRootServesListAndRefusesCalls` (eight unusable roots: same `tools/list`, every tool `invalid-root` but help, unknown tool `-32602`, exact reason line), `TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired`, `TestMCPV0950ProfileToolsMatchRegistries`, `TestMCPV0950CorpusArtifactUnderASubdirectoryRoot`; `script/check-install-lifecycle_test.sh` step `mcp-unavailable-root` |
+| `MCPV0-951` | `cmd/corvint` (`mcpServerVersion`), `internal/mcp/cli` (`Serve`, `runVersioned`, `declaredPlugin`, `notePluginCompatibility`), `integrations/claude-code/plugins/corvint/.mcp.json` | `internal/mcp/cli/plugin_test.go`'s `TestMCPV0951ServerInfoCarriesTheBuildVersion`, `TestMCPV0951DeclaredPluginIsBounded`, `TestMCPV0951StatusReportsPluginCompatibility`; `cmd/corvint/mcp_test.go`'s `TestMCPV0951MCPVerbReportsTheBuildVersion`; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups` and `TestAHI820ClaudePluginArgsServeTestValidityAndDocs` (declared version and tools); `AHI-198` in `integrations/host-adapters.test.mjs` |
+| `MCPV0-952` | `internal/mcp/protocol` (`InvalidParamsData`, `InvalidParamsAt`), `internal/mcp/server` (`sanitize`), `internal/mcp/toolgroup` (`ListParamsRefusal`, `WithInvalidParamsData`, `diagnose`), the `tools/list` and `tools/call` handlers of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/cli/invalid_params_test.go`'s `TestMCPV0952InvalidParamsCarryReasonAndField` (unknown tool, bad enum, pattern violation and ten more) and `TestMCPV0952LegacyInitializeInvalidParamsCarryField`; `internal/mcp/server/legacy_test.go`'s `TestMCPV0952OversizedProtocolFieldIsNotEchoed`; `TestMMRV0013ParityWithDedicatedServers` (same data from both servers) |
+| `MCPV0-953` | `internal/mcp/bridge` (`callHelp`, `helpTopicText`, `helpCommandNames`, `validHelpReceipt`, `helpDescriptor`, `WithOutputSchemas`), the `tools/list` surfaces of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (guide default, command slices, refusals, command-topic tamper); `internal/mcp/cli/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (default and slice under 32 KB on the wire) and `TestMCPV0953ToolsDeclareOutputSchema`; `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` and `TestMCPV0105CompanionHelpMatchesTheCLI` (slice equals `corvint help --json impact`); the three `MCPV0-101..103` wire tests; repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
+| `MCPV0-954` | `internal/mcp/server` (`legacyInitializeRefusal`), `internal/mcp/bridge` (`PathRule.Pattern`, `SubjectPathRule`, `impactPathRule`, `nestedObjectSchema`, `snapshotSchema`, the flows path schema), `internal/mcp/docsbridge` and `internal/mcp/testvaliditybridge` path schemas | `internal/mcp/server/server_test.go`'s `TestMCPV0954InitializeRefusalDistinguishesTheClient`; `internal/mcp/bridge/patterns_test.go`'s `TestMCPV0954PathPatternsAreRE2AndEquivalent` (every string of up to five characters over a 14-character adversarial alphabet, plus `.go` and `.tsx` suffixes, against the replaced rules) and `TestMCPV0954SchemasHaveOneRootSchemaKeywordAndRE2Patterns`; repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl`; `conformance/mcp-2026-07-28` and `conformance/mcp-test-validity-v0` pass unchanged |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
 | `MCPV0-115` | `internal/mcp/cli` (`missingRootFallback`, `run`) | `missing_root_test.go`'s `TestMCPV0115MissingRootServesLaunchWorktree` (subdirectory and linked-worktree launches: served revision, first block and `structuredContent` equal to a direct `--root`, notice code, no path), `TestMCPV0115MissingRootOutsideWorktreeRefuses` (exact refusal; unobservable launch directory) and `TestMCPV0115FallbackIsNarrow` (five unchanged refusals); both built entry points observed end to end in `docs/build-log/2026-10-31-mcp-missing-root-fallback.md`; a real Claude desktop spare-claimed session `NOT_OBSERVED` |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |

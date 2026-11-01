@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/mcp/tasksread"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
 	"github.com/Beamfall/corvint/internal/rootalias"
@@ -32,7 +34,7 @@ const (
 
 // toolGroups are the per-root and workspace-level groups a --tool-profile list
 // may add beside at most one code profile (MMR-V0-012).
-var toolGroups = []string{toolProfileTestValidity, toolProfileDocs, toolProfileCorpus}
+var toolGroups = []string{toolProfileTestValidity, toolProfileDocs, toolProfileTasks, toolProfileCorpus}
 
 // splitToolProfile reads one --tool-profile value: a single code profile, as
 // MCPV0-026 has always admitted, or a comma list of at most one code profile
@@ -108,12 +110,18 @@ func bindCorpusArtifact(roots []rootDeclaration, groups []string, value string) 
 		}
 		root, path = roots[index].root, aliasedPath
 	}
+	relative := !filepath.IsAbs(path)
 	path, pathReason := toolgroup.RootRelativePath(root, path)
 	if pathReason != "" {
 		return "", "", "--corpus-artifact: " + pathReason
 	}
 	if rule := doccorpus.LocalInputPathRule(path); rule != "" {
 		return "", "", "--corpus-artifact: local input paths must be canonical and relative to --root (" + rule + ")"
+	}
+	// A relative path names a file below the declared root, which may lie below
+	// the toplevel the root resolved to (MCPV0-950).
+	if below := roots[slices.IndexFunc(roots, func(declared rootDeclaration) bool { return declared.root == root })].below; relative && below != "" {
+		path = below + "/" + path
 	}
 	return root, path, ""
 }
@@ -181,6 +189,8 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 					return "repository unavailable"
 				}
 				group = toolgroup.Docs{Registry: registry}
+			case toolProfileTasks:
+				group = toolgroup.Tasks{Group: tasksread.New(root)} // TMR-V0-950
 			default:
 				continue
 			}

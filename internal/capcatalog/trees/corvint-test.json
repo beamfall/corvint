@@ -527,12 +527,13 @@
         "help"
       ],
       "command": "corvint-test help",
-      "summary": "Print this binary's usage, or with --json its command tree",
+      "summary": "Print this binary's usage, or with --json or --tree its command tree",
       "usage": [
-        "corvint-test help [--json]"
+        "corvint-test help [--json | --tree]"
       ],
       "flags": [
-        "--json"
+        "--json",
+        "--tree"
       ],
       "required": [],
       "example": "corvint-test help",

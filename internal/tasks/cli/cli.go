@@ -135,7 +135,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, res)
 	}
 	args := env.Args
-	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
+	// --tree is the command-tree spelling corvint itself uses (CAP-V0-950).
+	if len(args) == 2 && args[0] == "help" && (args[1] == "--json" || args[1] == "--tree") {
 		_, _ = env.Stdout.Write(CommandTreeJSON())
 		return 0
 	}
@@ -606,7 +607,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
-		"corvint-tasks help --json   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
+		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}

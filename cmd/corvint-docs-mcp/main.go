@@ -114,24 +114,26 @@ type toolHandler struct{ registry *docsbridge.Registry }
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
 	case "tools/list":
-		if !onlyKeys(request.Params, "_meta", "cursor") {
-			return nil, protocol.InvalidParams("Invalid params")
+		if refusal := toolgroup.ListParamsRefusal(request.Params); refusal != nil { // MCPV0-952
+			return nil, refusal
 		}
-		if cursor, present := request.Params["cursor"]; present {
-			if value, valid := cursor.(string); !valid || value != "" {
-				return nil, protocol.InvalidParams("Invalid params")
-			}
-		}
-		tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-101
-		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+		tools := handler.listedTools() // MCPV0-101
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
 		}, nil
 	case "tools/call":
-		return handler.call(ctx, request.Params)
+		result, rpcErr := handler.call(ctx, request.Params)
+		return result, toolgroup.WithInvalidParamsData(handler.listedTools, request.Params, rpcErr) // MCPV0-952
 	default:
 		return nil, protocol.MethodNotFound()
 	}
+}
+
+// listedTools is the tools/list surface, sorted by name.
+func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
+	tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-101
+	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+	return bridge.WithOutputSchemas(tools) // MCPV0-953
 }
 
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {

@@ -86,6 +86,11 @@ func TestCAPV0045TreeSnapshotIsCurrent(t *testing.T) {
 	if !bytes.Equal(got.Bytes(), want) {
 		t.Fatal("internal/capcatalog/trees/corvint-test.json is stale; run `make capability-catalog`")
 	}
+	// CAP-V0-950: `help --tree`, corvint's spelling, prints the same tree.
+	var tree bytes.Buffer
+	if handled, err := helpRequest([]string{"help", "--tree"}, &tree); !handled || err != nil || !bytes.Equal(tree.Bytes(), got.Bytes()) {
+		t.Fatalf("help --tree: handled=%t err=%v", handled, err)
+	}
 }
 
 func runBinary(t *testing.T, bin string, args ...string) (string, string, int) {

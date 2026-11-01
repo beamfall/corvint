@@ -38,27 +38,27 @@ func DecodeLegacyInitialize(params map[string]any) (RequestMeta, *RPCError) {
 		switch key {
 		case "protocolVersion", "capabilities", "clientInfo", "_meta":
 		default:
-			return RequestMeta{}, InvalidParams("Invalid params")
+			return RequestMeta{}, InvalidParamsAt("Invalid params", "unknown-param", key)
 		}
 	}
 	version, ok := params["protocolVersion"].(string)
 	if !ok || version == "" || len(version) > MaxProtocolVersionBytes {
-		return RequestMeta{}, InvalidParams("Invalid protocol version")
+		return RequestMeta{}, InvalidParamsAt("Invalid protocol version", "invalid-param", "protocolVersion")
 	}
 	capabilities, ok := params["capabilities"].(map[string]any)
 	if !ok || !clientCapabilitiesValid(capabilities) {
-		return RequestMeta{}, InvalidParams("Invalid client capabilities")
+		return RequestMeta{}, InvalidParamsAt("Invalid client capabilities", "invalid-param", "capabilities")
 	}
 	if roots, ok := capabilities["roots"].(map[string]any); ok {
 		if changed, present := roots["listChanged"]; present {
 			if _, ok := changed.(bool); !ok {
-				return RequestMeta{}, InvalidParams("Invalid roots capability")
+				return RequestMeta{}, InvalidParamsAt("Invalid roots capability", "invalid-type", "capabilities.roots.listChanged")
 			}
 		}
 	}
 	info, ok := params["clientInfo"].(map[string]any)
 	if !ok || !implementationValid(info) {
-		return RequestMeta{}, InvalidParams("Invalid client information")
+		return RequestMeta{}, InvalidParamsAt("Invalid client information", "invalid-param", "clientInfo")
 	}
 	meta, rpcErr := DecodeLegacyRequestMeta(params)
 	meta.ClientCapabilities = capabilities
@@ -76,16 +76,16 @@ func DecodeLegacyRequestMeta(params map[string]any) (RequestMeta, *RPCError) {
 	}
 	object, ok := value.(map[string]any)
 	if !ok {
-		return RequestMeta{}, InvalidParams("Invalid request metadata")
+		return RequestMeta{}, InvalidParamsAt("Invalid request metadata", "invalid-type", "_meta")
 	}
 	for key := range object {
 		if !metaKeyPattern.MatchString(key) || strings.HasPrefix(key, "io.modelcontextprotocol/") {
-			return RequestMeta{}, InvalidParams("Invalid request metadata")
+			return RequestMeta{}, InvalidParamsAt("Invalid request metadata", "invalid-meta-key", "_meta")
 		}
 	}
 	if token, present := object["progressToken"]; present {
 		if !validOpaqueID(token) {
-			return RequestMeta{}, InvalidParams("Invalid progress token")
+			return RequestMeta{}, InvalidParamsAt("Invalid progress token", "invalid-param", "_meta.progressToken")
 		}
 		meta.ProgressToken = token
 	}

@@ -30,7 +30,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
-  (`cmd/corvint/help.go:399@f1b66bd9`). Fetching the commits a step needs is the runner's job.
+  (`cmd/corvint/help.go:409@f1b66bd9`). Fetching the commits a step needs is the runner's job.
 
 ## Mutation classes (AGENTS.md invariant 4)
 
@@ -49,7 +49,7 @@ The self-observation append happens only when that ledger path is gitignored by 
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
-storage failure never alters the response (`cmd/corvint/help.go:405-406@3c9a8d56`).
+storage failure never alters the response (`cmd/corvint/help.go:415-416@3c9a8d56`).
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
@@ -66,9 +66,9 @@ prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
 which is what a CI job, git hook or team automation asks. Other verbs that help also describes as
-read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:401-402@a54374e4`, and the
+read-only (`init`, `adopt`, `query`, `docs`, `harness`, `lrf` at `cmd/corvint/help.go:411-412@a54374e4`, and the
 experimental `batch`, `depsource`, `necessity`, `surprise`, `answerability`, `kernel` and `reads`
-in the command-maturity list at `cmd/corvint/help.go:375-384@80dd8f06`) are not classified here. They need a per-session task, packet or
+in the command-maturity list at `cmd/corvint/help.go:385-394@80dd8f06`) are not classified here. They need a per-session task, packet or
 request as input, or they are experimental without a stability promise. This page makes no claim
 about their safety as a triggered step.
 

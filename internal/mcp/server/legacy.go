@@ -25,7 +25,7 @@ func (connection *connection) handleLegacyRequest(ctx context.Context, active *a
 		switch inbound.Method {
 		case "ping":
 			if len(inbound.Params) != 0 {
-				rpcErr = protocol.InvalidParams("Invalid params")
+				rpcErr = protocol.InvalidParamsAt("Invalid params", "unknown-param", "params")
 			}
 		case "tools/list", "tools/call":
 			if !ready {

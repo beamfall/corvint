@@ -964,7 +964,10 @@ separate exact extension tuple remains governed by AHI-024.
   `TestAHI820ClaudePluginArgsServeTestValidityAndDocs` (`internal/mcp/cli`, those args served,
   outside `cmd/corvint` because a started server pins Git for its process); live `claude mcp list` receipt in
   `docs/build-log/2026-10-31-linux-w2-bugs.md`. Rollback: drop the `--tool-profile` pair under a new
-  plugin version.
+  plugin version. Amended by `MCPV0-950`: when `${CLAUDE_PROJECT_DIR}` is a repository
+  subdirectory the server binds its toplevel, and when it is empty, unexpanded or not inside a
+  worktree the server still connects, lists its tools and answers each repository call
+  `invalid-root`, naming the reason on stderr, instead of closing the connection.
 - `AHI-373`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendment to
   `AHI-198` and `AHI-207`. The core `corvint` binary MUST serve the read-only stdio MCP server as
   `corvint mcp ARGS`, passing every argument after the verb unchanged to the same server code as the

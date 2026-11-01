@@ -89,3 +89,27 @@ func capabilityCatalogJSON() string {
 	}
 	return string(encoded)
 }
+
+// catalogCommandHelpPrefix marks `corvint help --json COMMAND`, the one-command
+// slice of the catalog (CAP-V0-950).
+const catalogCommandHelpPrefix = "catalog-command:"
+
+// catalogCommandJSON is `corvint help --json COMMAND`: the command's entry of
+// `corvint help --json`, at most capcatalog.MaxCommandSliceBytes.
+func catalogCommandJSON(command string) string {
+	encoded, _, ok := capcatalog.Slice([]byte(capabilityCatalogJSON()), command)
+	if !ok {
+		panic("capability catalog slice: " + command)
+	}
+	return string(encoded)
+}
+
+// unknownCatalogCommand refuses `corvint help --json NAME` for a NAME that is
+// no top-level command, naming every command.
+func unknownCatalogCommand(name string) error {
+	quoted := make([]string, 0, len(topLevelCommands))
+	for _, command := range topLevelCommands {
+		quoted = append(quoted, pythonRepr(command))
+	}
+	return argumentError("unknown command for help --json: " + pythonRepr(name) + " (choose from " + strings.Join(quoted, ", ") + ")")
+}

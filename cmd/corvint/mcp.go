@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"runtime/debug"
 	"slices"
 	"strings"
 
@@ -43,7 +44,15 @@ func runMCP(ctx context.Context, arguments []string, stdin io.Reader, stdout, st
 		emitError(stderr, argumentError("argument --require-clean: corvint mcp serves read-only tools and takes no --require-clean"))
 		return 2
 	}
-	return cli.Serve(ctx, arguments, stdin, stdout, stderr)
+	return cli.Serve(ctx, mcpServerVersion(), arguments, stdin, stdout, stderr)
+}
+
+// mcpServerVersion is this binary's --version line without its name, the
+// serverInfo.version `corvint mcp` reports (MCPV0-951), so a plugin and the
+// binary it launched can be told apart: `1.0.0-rc.3 (build N, commit SHA)`.
+func mcpServerVersion() string {
+	info, _ := debug.ReadBuildInfo()
+	return strings.TrimPrefix(versionText(versionIdentityFrom(version, build, sourceCommit, info)), "Corvint ")
 }
 
 // mcpAfterGlobalRoot reports `corvint --root PATH mcp ...`, which the server cannot read:
