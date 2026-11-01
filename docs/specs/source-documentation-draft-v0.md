@@ -364,7 +364,7 @@ file, reads each cited file's index blob, and reports per citation `out-of-range
 SHA-256 of the cited right-trimmed lines joined by LF, the same rule as `script/check-line-citations.sh`);
 a token whose path has a `/` and whose first segment is a tracked directory but is not itself
 tracked is `missing-file`. Output is one line per failure and a summary; exit 0 when clean, 1 on any
-failure, 2 on argument or repository errors. It reads only and writes nothing. It does not replace
+failure, 2 with `citations-check-failed` on argument or repository errors. It reads only and writes nothing. It does not replace
 the repository's own `make line-citations-check`, whose extra Corvint scope rules remain script
 policy. Evidence: `TestSDDV0633OwnerSectionDraftsWithoutAgentDigest`,
 `TestSDDV0633CitationsCheckForeignRepository`. Rollback: remove the flag and the `citations`
