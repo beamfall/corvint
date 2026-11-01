@@ -31,3 +31,13 @@ func (Language) FixtureClosedFrontiers() []string {
 func (Language) ResolutionInput(relative string) bool {
 	return observedName(path.Base(relative))
 }
+
+// CrossLanguageFrontiers names the reasons that stand for a runtime edge from
+// another plugin's code into a TypeScript unit (AFP-V0-818): an end-to-end
+// runner drives a server or binary the repository may build in another
+// language, an edge no plugin models, so the plan keeps such an entry even
+// when the change reaches TypeScript only through terminal selections, unless
+// a declared runtime edge (AFP-V0-819) models the site.
+func (Language) CrossLanguageFrontiers() []string {
+	return []string{FrontierE2ERuntimeDependency}
+}

@@ -553,6 +553,15 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 		}
 	}
+	// A plugin left out only by the terminal rule still names the entries
+	// that stand for a runtime edge from another plugin's code into its units,
+	// which no traversal can see, unless a declared runtime edge models the
+	// entry's site (AFP-V0-818, AFP-V0-819).
+	for name := range terminal {
+		for _, entry := range graph.crossLanguageEntries(name) {
+			reasons[entry] = true
+		}
+	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})

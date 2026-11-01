@@ -27,8 +27,11 @@ type compiler struct {
 	// derivation bounds the declarations one compile derives, derived counts the declarations
 	// it attempted to derive and outputBytes is the encoded size of a compile the output byte
 	// bound refused (DCS-V1-484, DCS-V1-568, DCS-V1-569).
-	derivation        derivationPlan
-	derived           int
+	derivation derivationPlan
+	derived    int
+	// verifyOnly pins each revision without compiling its index, for a pin whose index
+	// serves only to verify the pinned inputs (DCX-V1-813).
+	verifyOnly        bool
 	outputBytes       int64
 	providerRecords   map[string]ProviderRecord
 	restrictedIDs     map[string]bool
@@ -503,7 +506,8 @@ func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementa
 	// Re-read immutable input identities after compilation; mutable object stores
 	// must not let a changing input be reported as a successful pinned build. A refusal
 	// here hands its retry nothing pinned.
-	c.pinned = nil
+	// It verifies identities only, so it pins each revision without compiling its index (DCX-V1-813).
+	c.pinned, c.verifyOnly = nil, true
 	if err := c.pin(ctx); err != nil {
 		return nil, c.result(), err
 	}
@@ -826,7 +830,11 @@ func (c *compiler) pin(ctx context.Context) (err error) {
 		if id != want {
 			return fail("repository identity mismatch")
 		}
-		index, err := contextindex.BuildRevisionContext(ctx, dir, rev)
+		build := contextindex.BuildRevisionContext
+		if c.verifyOnly {
+			build = contextindex.BuildRevisionPin
+		}
+		index, err := build(ctx, dir, rev)
 		if err != nil {
 			return err
 		}

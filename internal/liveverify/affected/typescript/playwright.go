@@ -169,8 +169,9 @@ type observedTypeScript struct {
 	result affected.Result
 }
 
-func (observedTypeScript) Name() string              { return "typescript" }
-func (observedTypeScript) Owns(relative string) bool { return New().Owns(relative) }
+func (observedTypeScript) Name() string                     { return "typescript" }
+func (observedTypeScript) Owns(relative string) bool        { return New().Owns(relative) }
+func (observedTypeScript) CrossLanguageFrontiers() []string { return New().CrossLanguageFrontiers() }
 func (language observedTypeScript) Units(context.Context, string) (affected.Result, error) {
 	return language.result, nil
 }

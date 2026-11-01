@@ -348,3 +348,34 @@ func TestGoTestDependencyAndFlagValues_V1_3210(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-817 (V1-3326): a read-scope key naming a dependent nested module
+// (AFP-V0-582) or a directory with no package unit is refused naming why no
+// confined shard can enforce it; a root-module package key is accepted.
+func TestUnsupportedReadScopeKeysNameTheirReason_V1_3326(t *testing.T) {
+	for name, c := range map[string]struct {
+		scopes string
+		code   int
+		want   string
+	}{
+		"root package":     {`{"internal/other":[]}`, 0, "test-read-scopes-check: ok"},
+		"dependent module": {`{"internal/other":[],"tools/dep":[]}`, 2, `.corvint/test-read-scopes.json declares "tools/dep", the dependent nested module unit go:example.test/dep (AFP-V0-582), which has no files of its own and which the root module's go list ./... never lists, so no confined CI shard runs it under the AFP-V0-023 wrapper; remove the key`},
+		"no package":       {`{"docs/notes":[],"internal/other":[]}`, 2, `.corvint/test-read-scopes.json declares "docs/notes", which holds no Go package unit of the root module, so no test process exists to confine; remove the key`},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/other/o.go":            "package other\n",
+			"internal/other/o_test.go":       "package other\n",
+			"tools/dep/go.mod":               "module example.test/dep\n\ngo 1.27\n\nrequire example.test/m v0.0.0\n",
+			"tools/dep/main.go":              "package main\n\nimport _ \"example.test/m/internal/other\"\n\nfunc main() {}\n",
+			"docs/notes/readme.md":           "notes\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":` + c.scopes + `}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+	}
+}

@@ -250,6 +250,9 @@ AFP-V0-602	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-603	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3067;	standing	2026-10-11; V1-3067
 AFP-V0-620	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2973)	standing	2026-10-11; V1-2973
 AFP-V0-615	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)	standing	2026-10-11; V1-2952
+AFP-V0-817	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3326)	standing	2026-10-11; V1-3326
+AFP-V0-818	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906;	standing	2026-10-11; V1-2906
+AFP-V0-819	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906)	standing	2026-10-11; V1-2906
 AFP-V0-640	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;	standing	2026-10-11; V1-2647
 AFP-V0-641	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2979;	standing	2026-10-11; V1-2979
 AFP-V0-650	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2980)	standing	2026-10-11; V1-2980
@@ -3286,6 +3289,7 @@ DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
 DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
 DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
+DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -3355,6 +3359,7 @@ DCX-V1-531	docs/specs/documentation-corpus-extraction-delta-v1.md	`corvint docs 
 DCX-V1-532	docs/specs/documentation-corpus-extraction-delta-v1.md	Amending `DCX-V1-495`, `build --artifact` reuses the artifact's records instead	unrecorded	-
 DCX-V1-533	docs/specs/documentation-corpus-extraction-delta-v1.md	Any other artifact is rebuilt in full, to the same bytes. This covers another or	unrecorded	-
 DCX-V1-534	docs/specs/documentation-corpus-extraction-delta-v1.md	The rebuild is measured on a synthetic inventory of 9,500 files (38,010	unrecorded	-
+DCX-V1-813	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental under the standing lane auto-accept; V1-2565) A pin that	standing	V1-2565
 DCX-V1-470	docs/specs/documentation-corpus-extraction-delta-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCX-V1-471	docs/specs/documentation-corpus-extraction-delta-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCX-V1-472	docs/specs/documentation-corpus-extraction-delta-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-
@@ -3371,6 +3376,9 @@ DCX-V1-506	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, exp
 DCX-V1-520	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) A glob in an	unrecorded	-
 DCX-V1-521	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk descends	unrecorded	-
 DCX-V1-522	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps	unrecorded	-
+DCX-V1-810	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2560) Legacy discovery of a directory resolves its	unrecorded	-
+DCX-V1-811	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2560) The discovered test files keep the per-tree	unrecorded	-
+DCX-V1-812	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2561) The matched-file bound is operator-declared by	unrecorded	-
 DCI-V1-001	docs/specs/documentation-corpus-inventory-v1.md	`docs corpus estate --input ESTATE.json` reads one closed	unrecorded	-
 DCI-V1-002	docs/specs/documentation-corpus-inventory-v1.md	Each corpus is admitted by the verified read (`DCR-V1-410`) at its own root, so	unrecorded	-
 DCI-V1-003	docs/specs/documentation-corpus-inventory-v1.md	Every reference a corpus leaves as an `outside-corpus-reference` gap is one	unrecorded	-
@@ -3423,6 +3431,7 @@ DCS-V1-565	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1
 DCS-V1-566	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1-543`, a question-shaped query also names, in tier `named`, a	unrecorded	-
 DCS-V1-567	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1-543` and `DCS-V1-548`, a multi-word name reaches tier `named`	unrecorded	-
 DCS-V1-568	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1-484`, derivation stops at the corpus record bound in the first	unrecorded	-
+DCS-V1-814	docs/specs/documentation-corpus-search-ranking-v1.md	(proposed, experimental under the standing lane auto-accept; V1-2748, GitHub	standing	V1-2748
 DCS-V1-569	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1-484`, a compile the output byte bound refused is retried once	unrecorded	-
 DCS-V1-570	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCP-V1-313` and `DCS-V1-402`, a native declaration claim (one from a	unrecorded	-
 DCS-V1-571	docs/specs/documentation-corpus-search-ranking-v1.md	Amending `DCS-V1-482` and `DCP-V1-003`, the methods of every class body in an	unrecorded	-
@@ -6918,6 +6927,7 @@ TJAA-V0-140	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimenta
 TJAA-V0-141	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance) A closure that cannot be computed MUST be unknown, never	unrecorded	-
 TJAA-V0-142	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance) The whole-suite plan MUST be unchanged: the graph phase is	unrecorded	-
 TJAA-V0-147	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-28); V1-2914; GitHub	standing	2026-10-28; V1-2914
+TJAA-V0-810	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2611; amendin	standing	2026-10-31; V1-2611
 TJAA-V0-127	docs/specs/typescript-javascript-affected-adapter-v0.md	(standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static	standing	2026-10-27; V1-2584
 TJAA-V0-960	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); V1-2533; amendin	standing	2026-10-11; V1-2533
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
