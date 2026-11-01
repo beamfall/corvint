@@ -102,6 +102,11 @@ func TestSelectionBaselineChangeSetIsValid_V12892(t *testing.T) {
 		if c.Kind == "failed-ci" && len(c.Failures) == 0 {
 			t.Errorf("%s: a failed-ci change records no failure", c.ID)
 		}
+		// TSP-V0-710: every change of the fixed set records the replay its floor was measured on.
+		if r := c.Recorded; r == nil || (r.CIScope != "NARROW" && r.CIScope != "FULL" && r.CIScope != "NOTHING") ||
+			(r.Verdict != "run" && r.Verdict != "FALLBACK" && r.Verdict != "NOTHING") {
+			t.Errorf("%s: recorded = %+v, want a CI scope and a selector verdict", c.ID, c.Recorded)
+		}
 	}
 	if merged < 19 || set.Floor.Misses != 0 {
 		t.Fatalf("merged = %d floor = %+v", merged, set.Floor)
@@ -112,5 +117,37 @@ func TestSelectionBaselineChangeSetIsValid_V12892(t *testing.T) {
 	}
 	if _, err := readChanges(bad); err == nil {
 		t.Fatal("an unknown member is refused")
+	}
+}
+
+// TSP-V0-710 (V1-3501): a replay names each change whose CI scope or verdict moved from its
+// record, with the selector's reason, ahead of the floor verdict, and counts the changes that
+// carry no record; an unmoved change prints nothing and the floor check is unchanged.
+func TestSelectionBaselineNamesMovedVerdicts_V13501(t *testing.T) {
+	changes := []change{
+		{ID: "pr-13", Recorded: &recorded{CIScope: "NARROW", Verdict: "run"}},
+		{ID: "pr-14", Recorded: &recorded{CIScope: "NARROW", Verdict: "run"}},
+		{ID: "pr-15", Recorded: &recorded{CIScope: "FULL", Verdict: "FALLBACK"}},
+		{ID: "pr-16"},
+	}
+	results := []Result{
+		{ID: "pr-13", Kind: "merged", Verdict: "run", CIScope: "NARROW"},
+		{ID: "pr-14", Kind: "merged", Verdict: "FALLBACK", VerdictReason: "Go frontier is unknown at module level: go:gated-root-locators-changed", CIScope: "FULL"},
+		{ID: "pr-15", Kind: "merged", Verdict: "run", CIScope: "NARROW"},
+		{ID: "pr-16", Kind: "merged", Verdict: "run", CIScope: "NARROW"},
+	}
+	want := []string{
+		"selection-baseline: MOVED pr-14 ci NARROW -> FULL (verdict run -> FALLBACK: Go frontier is unknown at module level: go:gated-root-locators-changed)",
+		"selection-baseline: MOVED pr-15 ci FULL -> NARROW (verdict FALLBACK -> run)",
+		"selection-baseline: UNRECORDED 1 change(s) carry no recorded verdict",
+	}
+	if got := Moved(changes, results); strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("moved lines:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if got := Moved(changes[:1], results[:1]); len(got) != 0 {
+		t.Fatalf("an unmoved recorded change printed %v", got)
+	}
+	if got := Failures(Summarize(results), floor{NarrowMerged: 3}); len(got) != 0 {
+		t.Fatalf("a move alone failed the floor: %v", got)
 	}
 }
