@@ -50,7 +50,7 @@ func (compiler *taskContextCompiler) attachSpans(packet map[string]any, rows []c
 	ranker := newSpanRanker(compiler, rows)
 	spans, omitted := ranker.rank(contextSpanLineBudget)
 	packet["spans"] = ranker.packet(spans, omitted, contextSpanLineBudget)
-	packet["coverage"].(map[string]any)["sufficiency"] = compiler.sufficiency(spans, ranker.lines).packet()
+	packet["coverage"].(map[string]any)["sufficiency"] = compiler.sufficiency(rows, spans, ranker.lines).packet()
 }
 
 type spanName struct {

@@ -29,12 +29,18 @@ type sufficiencyVerdict struct {
 	anchors         []anchorVerdict
 }
 
-// sufficiency checks every anchor against the selected spans; lines reads a
-// span's source the way the ranker did.
-func (compiler *taskContextCompiler) sufficiency(spans []contextSpan, lines func(string) ([]string, bool)) sufficiencyVerdict {
+// sufficiency checks every anchor against the selected spans and the packet's
+// reserved instruction rows; lines reads a span's source the way the ranker did.
+func (compiler *taskContextCompiler) sufficiency(rows []contextRow, spans []contextSpan, lines func(string) ([]string, bool)) sufficiencyVerdict {
+	reserved := map[string]string{}
+	for _, row := range rows {
+		if _, seen := reserved[row.path]; !seen && instructionReservation(row.kind) {
+			reserved[row.path] = row.kind
+		}
+	}
 	anchors := make([]anchorVerdict, 0)
 	for _, anchor := range compiler.mentionedPaths() {
-		anchors = append(anchors, compiler.pathAnchor(anchor, spans))
+		anchors = append(anchors, compiler.pathAnchor(anchor, spans, reserved))
 	}
 	for _, term := range compiler.answerability.terms {
 		anchors = append(anchors, nameAnchor(term, spans, lines))
@@ -42,11 +48,18 @@ func (compiler *taskContextCompiler) sufficiency(spans []contextSpan, lines func
 	return sufficiencyVerdict{verdict: setVerdict(anchors), reason: setReason(anchors), anchors: anchors}
 }
 
-func (compiler *taskContextCompiler) pathAnchor(anchor string, spans []contextSpan) anchorVerdict {
+// pathAnchor: a span reading the path carries it; so does an instruction
+// reservation, which hands over the whole pinned document but takes no core
+// span (TCP-V0-975).
+func (compiler *taskContextCompiler) pathAnchor(anchor string, spans []contextSpan, reserved map[string]string) anchorVerdict {
 	for _, span := range spans {
 		if span.path == anchor {
 			return anchorVerdict{anchor, "path", sufficiencySatisfied, "span " + spanLabel(span)}
 		}
+	}
+	if relation, ok := reserved[anchor]; ok {
+		return anchorVerdict{anchor, "path", sufficiencySatisfied,
+			"carried whole as the reserved " + relation + " row; instruction reservations take no core span (TCP-V0-025)"}
 	}
 	if _, pinned := compiler.index.Sources[anchor]; pinned {
 		return anchorVerdict{anchor, "path", sufficiencyInsufficient, "the path is indexed but no selected span reads it"}
