@@ -77,8 +77,9 @@ closure, and it never edits the packet it read.
   `imports PACKAGE_PATH`. A `_test.go` file belongs to no importable package and is never a
   resolution target.
 - **RDS-V0-962:** (Amendment 2026-11-01, V1-3708; narrows RDS-V0-002.) A seed token MUST be
-  identifier-shaped: quoted in backticks, or holding an underscore, or holding both an upper-case
-  and a lower-case letter. An all-lower-case word (`signal`, `where`) and an all-upper-case acronym
+  identifier-shaped: quoted in backticks, or holding an underscore anywhere (a leading or trailing
+  one included: `_refresh`, `__init__`), or holding both an upper-case and a lower-case letter.
+  An all-lower-case word (`signal`, `where`) and an all-upper-case acronym
   (`CEM`) never vote structurally unless quoted, even when they spell a declared name, so pure
   prose leaves channel S empty and reports `structural_vote: absent`.
 - **RDS-V0-963:** (Amendment 2026-11-01, V1-3708; refines RDS-V0-005.) Channel S MUST rank a
