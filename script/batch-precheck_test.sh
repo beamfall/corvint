@@ -500,12 +500,18 @@ grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-# ASD-V0-892 (V1-3572): the fixture's one print-only row (ai-trailers, skipped: no origin/main)
-# never goes through the ledger, so it reruns as a PASS and every other step reuses.
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | ai-trailers$' "$tmp/out" ||
-  fail "print-only row went through the ledger: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+# The fixture lists no print-only row (the retired ai-trailers step was its only one), so only the
+# repin row runs and every listed step reuses.
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 1 ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $nsteps of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
+grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
+# ASD-V0-892 (V1-3572): a print-only row (here the drift step skipped before the bind) never goes
+# through the ledger, so it reruns as a PASS while every other step reuses.
+BATCH_PRECHECK_SKIP_DRIFT=1 lrun || fail "skip-drift reuse run failed: $(cat "$tmp/out")"
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" ||
+  fail "print-only row went through the ledger: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "print-only reuse count: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
