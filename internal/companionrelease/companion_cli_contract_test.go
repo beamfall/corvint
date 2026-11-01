@@ -1,4 +1,4 @@
-package companioncli
+package companionrelease
 
 import (
 	"bytes"
@@ -10,21 +10,23 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/companioncli"
 )
 
-// companions are the binaries a release ships beside corvint and corvint-tasks
+// contractCompanions are the binaries a release ships beside corvint and corvint-tasks
 // (CAP-V0-700).
-var companions = []string{
+var contractCompanions = []string{
 	"corvint-console", "corvint-corpus-mcp", "corvint-dashboard-snapshot", "corvint-docs-mcp",
 	"corvint-mcp", "corvint-test-validity-mcp", "corvint-update", "corvint-web-flows",
 }
 
-func buildCompanions(t *testing.T) string {
+func buildContractCompanions(t *testing.T) string {
 	t.Helper()
 	bin := t.TempDir()
 	root := filepath.Join("..", "..")
 	arguments := []string{"build", "-trimpath", "-o", bin + string(filepath.Separator)}
-	for _, name := range companions {
+	for _, name := range contractCompanions {
 		arguments = append(arguments, "./cmd/"+name)
 	}
 	build := exec.Command("go", arguments...)
@@ -35,7 +37,7 @@ func buildCompanions(t *testing.T) string {
 	return bin
 }
 
-func runCompanion(t *testing.T, binary, dir string, arguments ...string) (int, string, string) {
+func runContractCompanion(t *testing.T, binary, dir string, arguments ...string) (int, string, string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -61,13 +63,13 @@ func runCompanion(t *testing.T, binary, dir string, arguments ...string) (int, s
 // `BINARY VERSION` line and --version --json with corvint-companion-version/0,
 // each exit 0 on stdout, from a directory that is not a repository.
 func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
-	bin := buildCompanions(t)
+	bin := buildContractCompanions(t)
 	outside := t.TempDir()
-	for _, name := range companions {
+	for _, name := range contractCompanions {
 		binary := filepath.Join(bin, name)
 		var usage string
 		for _, form := range [][]string{{"--help"}, {"-h"}, {"help"}} {
-			code, stdout, stderr := runCompanion(t, binary, outside, form...)
+			code, stdout, stderr := runContractCompanion(t, binary, outside, form...)
 			if code != 0 || stderr != "" || !strings.HasPrefix(stdout, "usage: "+name) || !strings.Contains(stdout, "Example: "+name) {
 				t.Fatalf("%s %q: exit %d stdout %q stderr %q", name, form, code, stdout, stderr)
 			}
@@ -76,22 +78,22 @@ func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
 			}
 			usage = stdout
 		}
-		code, stdout, _ := runCompanion(t, binary, outside, "help", "--json")
+		code, stdout, _ := runContractCompanion(t, binary, outside, "help", "--json")
 		var help struct {
 			Profile, Binary, Version string
 			Usage                    []string
 		}
-		if code != 0 || json.Unmarshal([]byte(stdout), &help) != nil || help.Profile != HelpProfile || help.Binary != name ||
-			help.Version != ExperimentalVersion || strings.Join(help.Usage, "\n")+"\n" != usage {
+		if code != 0 || json.Unmarshal([]byte(stdout), &help) != nil || help.Profile != companioncli.HelpProfile || help.Binary != name ||
+			help.Version != companioncli.ExperimentalVersion || strings.Join(help.Usage, "\n")+"\n" != usage {
 			t.Fatalf("%s help --json: exit %d %q", name, code, stdout)
 		}
-		if code, stdout, _ := runCompanion(t, binary, outside, "--version"); code != 0 || stdout != name+" "+ExperimentalVersion+"\n" {
+		if code, stdout, _ := runContractCompanion(t, binary, outside, "--version"); code != 0 || stdout != name+" "+companioncli.ExperimentalVersion+"\n" {
 			t.Fatalf("%s --version: exit %d %q", name, code, stdout)
 		}
-		code, stdout, _ = runCompanion(t, binary, outside, "--version", "--json")
+		code, stdout, _ = runContractCompanion(t, binary, outside, "--version", "--json")
 		var version struct{ Profile, Binary, Version, Commit, CommitState string }
-		if code != 0 || json.Unmarshal([]byte(stdout), &version) != nil || version.Profile != VersionProfile || version.Binary != name ||
-			version.Version != ExperimentalVersion || version.Commit == "" || version.CommitState == "" {
+		if code != 0 || json.Unmarshal([]byte(stdout), &version) != nil || version.Profile != companioncli.VersionProfile || version.Binary != name ||
+			version.Version != companioncli.ExperimentalVersion || version.Commit == "" || version.CommitState == "" {
 			t.Fatalf("%s --version --json: exit %d %q", name, code, stdout)
 		}
 	}
@@ -102,17 +104,17 @@ func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
 // usage and exit 2; its usage names every action, --allow-network and
 // --component (V1-3499).
 func TestCAPV0701CompanionsRefuseStrayArgumentsFirst(t *testing.T) {
-	bin := buildCompanions(t)
+	bin := buildContractCompanions(t)
 	outside := t.TempDir()
-	code, stdout, stderr := runCompanion(t, filepath.Join(bin, "corvint-console"), outside, "-addr", "127.0.0.1:0", "help", "--json", "extra")
+	code, stdout, stderr := runContractCompanion(t, filepath.Join(bin, "corvint-console"), outside, "-addr", "127.0.0.1:0", "help", "--json", "extra")
 	if code != 2 || stdout != "" || !strings.Contains(stderr, `unexpected argument "help"`) || strings.Contains(stderr, "Git repository") {
 		t.Fatalf("console stray positional: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
-	code, stdout, stderr = runCompanion(t, filepath.Join(bin, "corvint-update"), outside, "bogus")
+	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "bogus")
 	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "usage: corvint-update") {
 		t.Fatalf("update unknown action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
-	_, usage, _ := runCompanion(t, filepath.Join(bin, "corvint-update"), outside, "--help")
+	_, usage, _ := runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "--help")
 	for _, word := range []string{"check", "apply", "rollback", "--allow-network", "--component core|tasks"} {
 		if !strings.Contains(usage, word) {
 			t.Fatalf("corvint-update usage lacks %q", word)
