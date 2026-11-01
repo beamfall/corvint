@@ -22,7 +22,7 @@
       "required": [
         "VALUE"
       ],
-      "example": "corvint-postmerge-workflow encode-id VALUE",
+      "example": "corvint-postmerge-workflow encode-id claude/lane-a",
       "help": "corvint-postmerge-workflow encode-id --help"
     },
     {

@@ -17,7 +17,7 @@ var commandSummaries = map[string]string{
 	"encode-id": "Print VALUE, such as a branch name, encoded as a workflow identifier (PMR-V0-960)",
 }
 
-var commandExamples = map[string]string{}
+var commandExamples = map[string]string{"encode-id": "corvint-postmerge-workflow encode-id claude/lane-a"}
 
 // companionHelp is corvint-postmerge-workflow's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
