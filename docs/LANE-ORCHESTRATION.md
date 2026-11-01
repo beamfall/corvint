@@ -628,11 +628,22 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   (`/tmp/corvint-go-build-cache`), which `script/heavy.sh` also gives a local run unless the caller
   set `GOCACHE`; on an offload host it is the remote env file's `CORVINT_GOCACHE`
   (`~/.cache/corvint-go-build-cache` on the reference box), which the remote half exports as
-  `GOCACHE`. After each batch merge, and whenever free disk falls below about 20%, run
+  `GOCACHE`. When the lane host's `/tmp` is a tmpfs (WSL: 16 GiB of RAM) and the caller set none of
+  `GOCACHE`, `CORVINT_GOCACHE` and `TMPDIR`, `script/heavy.sh` instead gives a local run the home-disk
+  cache `${XDG_CACHE_HOME:-~/.cache}/corvint-go-build-cache`, the same path the remote half uses, and
+  `TMPDIR=${XDG_CACHE_HOME:-~/.cache}/corvint-tmp`, and names both on one stderr line (ASD-V0-061,
+  V1-3824). A host that is both a lane host and an offload host then keeps one cache. Below
+  `HEAVY_MIN_FREE_GB` (3) GiB free in `TMPDIR` or the Go cache a local run warns; below
+  `HEAVY_REFUSE_FREE_GB` (1, `0` disables) it is refused, `heavy.sh: REFUSED low-disk (exit 2)`, before
+  the command starts, since a `go test` that fills a tmpfs fails as an unrelated `no space left on
+  device`. Both messages end with one cleanup hint naming the commands below (ASD-V0-062). Outside
+  `heavy.sh`, a lane on such a host sets `TMPDIR=$HOME/.cache/corvint-tmp` itself (`mkdir -p` it first).
+  After each batch merge, and whenever free disk falls below about 20%, run
   `make go-cache-trim` (dry run), review the `WOULD-TRIM` and `WOULD-REMOVE` lines, then
   `make go-cache-trim APPLY=1`. It trims each Go cache to 20 GiB, oldest entries first and never
   one used in the last 12 hours, and removes `go-build*` work directories older than 24 hours that
-  no running process names. A trimmed entry is only a later cache miss. When the free share of
+  no running process names, under `$TMPDIR`, `/tmp` and `~/.cache/corvint-tmp` (ASD-V0-063). A
+  trimmed entry is only a later cache miss. When the free share of
   `/tmp` stays under 20% after the trim it prints `WARN low-disk free-pct=N min-free-pct=20`: the
   caches are not what fills the disk, so look at checkouts and scratch next.
 - Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
@@ -654,7 +665,9 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
 
 ### Lane build-log entry shape
 
-One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>-<slug>.md`, with these sections in order:
+One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>.md`: the `BUILD_LOG` that
+`script/lane-dispatch.sh inputs` writes into `lane.env`, so the brief and the charter quote one name
+(V1-3816; older entries carry a `-<slug>` suffix). It has these sections in order:
 problem, decisions, evidence, `NOT_RUN`, rollback, and **Outcome** (V1-2234). Outcome states the
 final disposition per ticket (delivered, already delivered with evidence, skipped with reason), the
 dogfood result and every `NOT_PRODUCED` reason. Fill it before the final commit; text in earlier
@@ -975,6 +988,35 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
   (`gh issue view N --repo beamfall/corvint --json title,body`, run on the Mac) (V1-3252). The route
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
+
+Dispatch kit (ASD-V0-065 to ASD-V0-067; V1-3816, V1-3817, V1-3061, V1-3262). The orchestrator stages
+those inputs with one command on the host that owns the Tasks journal, and the brief and the charter
+both quote what it writes:
+
+```sh
+script/lane-dispatch.sh inputs --lane <lane> --base origin/main --date YYYY-MM-DD \
+  --out <dir> [--host <ssh-host>] <ID>...
+script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
+```
+
+- `inputs` resolves `--base` once to a full commit and writes `lane.env` (`LANE`, `BASE`, `DATE`,
+  `BUILD_LOG=docs/build-log/DATE-LANE.md`, `TICKET_DIR`, `TICKETS`), `brief-header.md` (the lines
+  the brief and the charter paste), and per ticket `ticket-bodies-<lane>/<ID>.json` (`ticket show`)
+  plus `<ID>.txt`: title, status, labels, body, numbered acceptance criteria, dependencies and the
+  operator note under its advisory label, readable without `jq`. A refused or non-`OK` ticket read
+  refuses the dispatch (exit 2), so a lane never starts without its ticket bodies. `--host` copies
+  the directory to `HOST:~/lane-inputs/`.
+- `check` refuses (exit 2, one `MISMATCH base|build-log FILE:LINE` per finding) a brief or charter
+  that names a different `BASE` commit on a line mentioning `BASE`, or a different build-log path for
+  the dispatch date. The charter template therefore says "the BASE and build log in lane.env" or
+  pastes `brief-header.md`; it never computes either itself.
+- The lane creates its worktree with `script/lane-setup.sh --base <BASE from lane.env>`, never from
+  the host checkout's current `HEAD`, and runs
+  `script/lane-dispatch.sh base-check --base <BASE> --fresh` before its first commit. The check
+  refuses a worktree whose `HEAD` is not `BASE`, a `BASE` that is not an ancestor of `HEAD`, and any
+  commit after `BASE` that no `origin` ref holds but another local branch does
+  (the worktree started on another lane's unpushed head, V1-3061). Each refusal names the
+  `lane-setup.sh --base` command that recreates the worktree.
 
 Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
 format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
