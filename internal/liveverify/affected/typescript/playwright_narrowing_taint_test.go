@@ -52,3 +52,21 @@ func TestMultiBindingExportKeysEachName_TJAA_V0_761(t *testing.T) {
 		t.Fatalf("single binding: %+v", single)
 	}
 }
+
+// TJAA-V0-761 (Codex review): a typed export whose annotation holds a generic comma binds one
+// name, so changing its initializer modifies that name, never a fictitious type argument.
+func TestTypedExportGenericCommaKeysTheBinding_TJAA_V0_761(t *testing.T) {
+	for _, row := range []struct{ before, after, want string }{
+		{"export const table: Record<string, number> = { x: 1 }\n", "export const table: Record<string, number> = { x: 2 }\n", "table"},
+		{"export const pair: Map<string, Array<number>> = new Map(), other = 1\n", "export const pair: Map<string, Array<number>> = new Map(), other = 2\n", "other"},
+		{"export const f = <T, U>(t: T, u: U) => [t, u], g = 1\n", "export const f = <T, U>(t: T, u: U) => [u, t], g = 1\n", "f"},
+		// Unbalanced angle brackets may be a comparison: the statement is keyed whole, by its
+		// first name, rather than split at a guessed boundary.
+		{"export const a = x < y, b = 2\n", "export const a = x < y, b = 3\n", "a"},
+	} {
+		change := ChangedSymbols("m.ts", []byte(row.before), true, []byte(row.after), true)
+		if change.State != PlaywrightSymbolsResolved || !slices.Equal(change.Modified, []string{row.want}) || len(change.Added) != 0 || len(change.Removed) != 0 {
+			t.Errorf("%q: %+v, want %s modified", row.before, change, row.want)
+		}
+	}
+}

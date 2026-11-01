@@ -271,8 +271,11 @@ func exportNames(text string) []string {
 
 // variableBindings returns each plain name an exported `const`, `let` or
 // `var` statement binds, with its declarator text, splitting at commas
-// outside brackets, strings and templates (TJAA-V0-761). A destructuring
-// declarator, or any other statement, binds nothing here.
+// outside brackets, generic angle brackets, strings and templates
+// (TJAA-V0-761). A `<` opens a generic and a `>` that does not end `=>` closes
+// one; angle brackets that do not balance by the statement's end may be a
+// comparison, so the statement binds nothing here and is keyed whole, as is a
+// destructuring declarator or any other statement.
 func variableBindings(text string) map[string]string {
 	if identifierAt(text, 0) != "export" {
 		return nil
@@ -290,7 +293,7 @@ func variableBindings(text string) map[string]string {
 		return nil
 	}
 	bound := map[string]string{}
-	depth, quote, start := 0, byte(0), 0
+	depth, angles, quote, start := 0, 0, byte(0), 0
 	for index := 0; index <= len(rest); index++ {
 		if index < len(rest) {
 			character := rest[index]
@@ -311,7 +314,13 @@ func variableBindings(text string) map[string]string {
 			case character == ')' || character == ']' || character == '}':
 				depth--
 				continue
-			case character != ',' || depth != 0:
+			case character == '<':
+				angles++
+				continue
+			case character == '>' && (index == 0 || rest[index-1] != '='):
+				angles--
+				continue
+			case character != ',' || depth != 0 || angles != 0:
 				continue
 			}
 		}
@@ -320,6 +329,9 @@ func variableBindings(text string) map[string]string {
 			bound[name] = word + " " + declarator
 		}
 		start = index + 1
+	}
+	if angles != 0 {
+		return nil
 	}
 	return bound
 }
