@@ -1750,6 +1750,13 @@ Requirements:
 The command is read-only and local-only. It emits one canonical JSON receipt on
 stdout. Unsupported profiles emit one structured error on stderr and exit 2.
 
+Receipt fields:
+  revision and freshness.revision are the Git tree id of the captured
+  content (HEAD^{tree} for a clean worktree), not a commit id, so they never
+  equal learning.history_tip, the commit Git history was read from; the two
+  differing is not staleness (GPK-V0-960). Bind evidence by comparing revision
+  with a commit's tree (git rev-parse COMMIT^{tree}), then each blob.
+
 Recovery for unsupported-query-trace-state:
   Keep the trace store and original task unchanged. Read the repository's
   governing instructions and its declared evidence routes. For separate file
