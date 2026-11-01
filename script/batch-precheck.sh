@@ -548,7 +548,7 @@ prebind_carry() {
     [[ $module == \"*\" || $module == \`*\` ]] && module=${module:1:${#module}-2}
     [[ -n $module && $module != *[\"\`\\[:space:]]* ]] || { no_carry 'go.mod names no module that can be matched'; return 0; }
     while IFS= read -r p; do [[ -n $p ]] && args+=(--path "$p"); done <<< "$paths"
-    plan=$("$planner" affected "${args[@]}" --format json 2> "$dir/carry-planner.err" < /dev/null) ||
+    plan=$("$planner" affected ${args[@]+"${args[@]}"} --format json 2> "$dir/carry-planner.err" < /dev/null) ||
       { no_carry "$planner affected --path exited $? ($(head -c 200 "$dir/carry-planner.err" | tr '\n' ' '))"; return 0; }
     jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
       { no_carry 'the plan of the evidence paths is not a runnable affected-plan/1'; return 0; }
