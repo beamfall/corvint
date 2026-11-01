@@ -1670,7 +1670,7 @@ Usage:
   corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]
   corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL
     --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR
-    [--claim SELECTOR...] [OPTIONS]
+    [--claim SELECTOR...] [--accumulate] [OPTIONS]
   corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL
     --reason REASON [--output MAP]
   corvint [--root PATH] ocm status --map MAP [OPTIONS]
@@ -1691,6 +1691,10 @@ Options:
                       replaced map's links, marks and assessments are
                       discarded, not carried over; copy the map aside first
                       to keep that review.
+  --accumulate        link only: union the obligation's earlier hunks and
+                      claims with the new ones. Without it a link that
+                      would drop claims on another test path is refused
+                      with link-would-drop-claims.
 
 report writes by default to .git/corvint/ocm-review.md, private Git metadata
 that never dirties the worktree. An explicit --output must be a normalized,

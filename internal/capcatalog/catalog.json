@@ -822,6 +822,7 @@
         ]
       },
       "flags": [
+        "--accumulate",
         "--cem",
         "--claim",
         "--expected-base",
