@@ -10,6 +10,13 @@
 //	tasks-scale run --store DIR [--fds] [--cpuprofile F] [--memprofile F] [--out F] -- ARGS...
 //	tasks-scale matrix --store DIR [--reps N] [--writes] [--profiles DIR] [--outputs DIR]
 //	tasks-scale contend --store DIR [--writers W] [--readers R] [--seconds S] [--work DIR] [-- READ ARGS...]
+//	tasks-scale relocate --store COPY [--from OLD]
+//
+// A generated store pins its primary worktree in head.json, so a copy made
+// with `cp -a STORE COPY` refuses every write until it is relocated
+// (V1-3752): `relocate` runs `corvint-tasks relocate` in COPY from the root
+// gen recorded in the copied manifest (or --from OLD), after which probes
+// may write to the copy and leave the original untouched.
 //
 // `contend` reproduces reads under an active writer pool (V1-1060): W child
 // processes create tickets back to back while R goroutines each re-run the
@@ -20,7 +27,9 @@
 // store.
 //
 // `run` executes one command in-process and prints one JSON line of
-// metrics. `matrix` re-executes this binary once per measurement, so every
+// metrics, with the result envelope's outcome and codes (V1-3753): only an
+// exit-0 OK outcome is a timing sample, and `matrix` fails on any other
+// rather than timing a refusal. `matrix` re-executes this binary once per measurement, so every
 // sample starts from a cold process exactly as the CLI does.
 package main
 
@@ -75,6 +84,8 @@ func main() {
 		err = contend(os.Args[2:])
 	case "churn":
 		err = churn(os.Args[2:])
+	case "relocate":
+		err = relocate(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown subcommand %q", os.Args[1])
 	}
@@ -101,6 +112,9 @@ type manifest struct {
 	Claim    []string `json:"claim"`
 	Complete []string `json:"complete"`
 	Next     int      `json:"next"`
+	// Root is the primary worktree gen built the store in; a copy is
+	// relocated from it.
+	Root string `json:"root,omitempty"`
 }
 
 func manifestPath(store string) string { return filepath.Join(store, ".scale-manifest.json") }
@@ -249,7 +263,7 @@ func gen(args []string) error {
 		return err
 	}
 	receipts := 1
-	m := manifest{Tickets: *n, Label: "optimizations", Show: local(*n / 2)}
+	m := manifest{Tickets: *n, Label: "optimizations", Show: local(*n / 2), Root: store}
 	reserved := map[int]bool{}
 	for k := 0; k < reservedWrites; k++ {
 		c, d := *n-2*reservedWrites+k+1, *n-reservedWrites+k+1
@@ -347,6 +361,36 @@ type metrics struct {
 	PeakFDs    int      `json:"peakFds,omitempty"`
 	OutBytes   int      `json:"outBytes"`
 	OutSha256  string   `json:"outSha256"`
+	// Outcome and Codes are the result envelope's; Outcome is UNDECODABLE
+	// when stdout is not one. Sample is true only for an exit-0 OK outcome,
+	// the only run whose timing measures the command (V1-3753).
+	Outcome string   `json:"outcome"`
+	Codes   []string `json:"codes"`
+	Sample  bool     `json:"sample"`
+}
+
+// envelopeOutcome reads the outcome and codes of a result envelope.
+func envelopeOutcome(out []byte) (string, []string) {
+	var env struct {
+		Outcome string   `json:"outcome"`
+		Codes   []string `json:"codes"`
+	}
+	if json.Unmarshal(out, &env) != nil || env.Outcome == "" {
+		return "UNDECODABLE", []string{}
+	}
+	if env.Codes == nil {
+		env.Codes = []string{}
+	}
+	return env.Outcome, env.Codes
+}
+
+// timingSample refuses a run that is not a timing sample, naming its exit,
+// outcome and codes, so a refused or failed command never enters a median.
+func timingSample(m metrics) error {
+	if m.Sample {
+		return nil
+	}
+	return fmt.Errorf("%v: exit %d outcome %s codes %v: not a timing sample", m.Args, m.Exit, m.Outcome, m.Codes)
 }
 
 func runOne(args []string) error {
@@ -378,22 +422,10 @@ func runOne(args []string) error {
 			return err
 		}
 	}
-	var out bytes.Buffer
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	ru0 := rusage()
-	t0 := time.Now()
-	code := cli.Run(cli.Env{Cwd: *store, Args: cmd, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: io.Discard})
-	wall := time.Since(t0)
-	ru1 := rusage()
-	runtime.ReadMemStats(&after)
+	m, out := measure(*store, cmd)
 	if *cpu != "" {
 		pprof.StopCPUProfile()
 	}
-	m := metrics{Args: cmd, Exit: code, WallMs: ms(wall), UserMs: ms(ru1[0] - ru0[0]), SysMs: ms(ru1[1] - ru0[1]),
-		Mallocs: after.Mallocs - before.Mallocs, AllocBytes: after.TotalAlloc - before.TotalAlloc, OutBytes: out.Len()}
-	sum := sha256.Sum256(out.Bytes())
-	m.OutSha256 = hex.EncodeToString(sum[:])
 	if stop != nil {
 		m.PeakFDs = stop()
 	}
@@ -408,13 +440,33 @@ func runOne(args []string) error {
 		f.Close()
 	}
 	if *outFile != "" {
-		if err := os.WriteFile(*outFile, out.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
 			return err
 		}
 	}
 	b, _ := json.Marshal(m)
 	fmt.Println(string(b))
 	return nil
+}
+
+// measure runs one command in-process and returns its metrics and stdout.
+func measure(store string, cmd []string) (metrics, []byte) {
+	var out bytes.Buffer
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	ru0 := rusage()
+	t0 := time.Now()
+	code := cli.Run(cli.Env{Cwd: store, Args: cmd, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: io.Discard})
+	wall := time.Since(t0)
+	ru1 := rusage()
+	runtime.ReadMemStats(&after)
+	m := metrics{Args: cmd, Exit: code, WallMs: ms(wall), UserMs: ms(ru1[0] - ru0[0]), SysMs: ms(ru1[1] - ru0[1]),
+		Mallocs: after.Mallocs - before.Mallocs, AllocBytes: after.TotalAlloc - before.TotalAlloc, OutBytes: out.Len()}
+	sum := sha256.Sum256(out.Bytes())
+	m.OutSha256 = hex.EncodeToString(sum[:])
+	m.Outcome, m.Codes = envelopeOutcome(out.Bytes())
+	m.Sample = code == 0 && m.Outcome == "OK"
+	return m, out.Bytes()
 }
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
@@ -513,8 +565,8 @@ func matrix(args []string) error {
 			if err != nil {
 				return err
 			}
-			if x.Exit != 0 {
-				return fmt.Errorf("%v: exit %d", s.args, x.Exit)
+			if err := timingSample(x); err != nil {
+				return err
 			}
 			samples = append(samples, x)
 		}
@@ -582,9 +634,9 @@ func matrix(args []string) error {
 			if err != nil {
 				return err
 			}
-			if s.Exit != 0 {
+			if err := timingSample(s); err != nil {
 				b, _ := os.ReadFile(out)
-				return fmt.Errorf("%v: exit %d: %s", a, s.Exit, b)
+				return fmt.Errorf("%v: %s", err, b)
 			}
 			if r == 0 {
 				peak = s.PeakFDs
@@ -653,6 +705,58 @@ func row(name string, s []metrics, peak int) {
 	sort.Slice(s, func(i, j int) bool { return s[i].WallMs < s[j].WallMs })
 	x := s[len(s)/2]
 	fmt.Printf("| %s | %.1f | %.1f | %.1f | %d | %.1f | %d | %d |\n", name, x.WallMs, x.UserMs, x.SysMs, x.Mallocs, float64(x.AllocBytes)/(1<<20), peak, x.OutBytes)
+}
+
+// ---------------------------------------------------------------- relocate
+
+// relocate re-pins a copied store to the directory it now lives in, so
+// writes to the copy are admitted (V1-3752). OLD is the root the copied
+// manifest records unless --from names it.
+func relocate(args []string) error {
+	fs := flag.NewFlagSet("relocate", flag.ExitOnError)
+	store := fs.String("store", "", "the copied store root")
+	from := fs.String("from", "", "the primary worktree the copy was made from (default: the manifest root)")
+	_ = fs.Parse(args)
+	if *store == "" || fs.NArg() != 0 {
+		return errors.New("relocate needs --store COPY and no other arguments")
+	}
+	old := *from
+	if old == "" {
+		raw, err := os.ReadFile(manifestPath(*store))
+		if err != nil {
+			return err
+		}
+		var m manifest
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return err
+		}
+		if m.Root == "" {
+			return errors.New("the manifest records no root; pass --from OLD, the primary worktree the refusal names")
+		}
+		old = m.Root
+	}
+	sum := sha256.Sum256([]byte(old))
+	env, err := call(*store, "relocate", "--from", old, "--request-id", "scale-relocate-"+hex.EncodeToString(sum[:8]))
+	if err != nil {
+		return err
+	}
+	// The copy's manifest now names the copy, so a copy of it relocates
+	// from here.
+	if raw, err := os.ReadFile(manifestPath(*store)); err == nil {
+		var m manifest
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return err
+		}
+		if m.Root, err = filepath.EvalSymlinks(*store); err != nil {
+			return err
+		}
+		if err := writeJSONFile(manifestPath(*store), m); err != nil {
+			return err
+		}
+	}
+	b, _ := json.Marshal(item(env))
+	fmt.Println(string(b))
+	return nil
 }
 
 // ---------------------------------------------------------------- contend
