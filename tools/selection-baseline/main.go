@@ -28,6 +28,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -298,7 +299,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	if cache == nil {
 		fmt.Fprintf(os.Stderr, "selection-baseline: result cache off (%s); every change replays\n", off)
 	} else if reused := len(set.Changes) - len(pending); reused > 0 {
-		fmt.Fprintf(os.Stderr, "selection-baseline: REUSE %d of %d change results recorded for byte-identical planner, selector, tool, change, costs, go, git and environment in %s (SELECTION_BASELINE_CACHE=off replays every change)\n", reused, len(set.Changes), cache.dir)
+		fmt.Fprintf(os.Stderr, "selection-baseline: REUSE %d of %d change results recorded for byte-identical planner, selector, tool, change, costs, go, git and environment, key %s, in %s (SELECTION_BASELINE_CACHE=off replays every change)\n", reused, len(set.Changes), hex.EncodeToString(cache.stamp), cache.dir)
 	}
 	if len(pending) > 0 {
 		tmp, err := os.MkdirTemp("", "selection-baseline-")

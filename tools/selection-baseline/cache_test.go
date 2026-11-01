@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -116,6 +117,10 @@ func TestResultCacheEqualsReplay_ASDV0778(t *testing.T) {
 	}
 	if got := invocations(t, count); !reflect.DeepEqual(got, []string{"--version"}) {
 		t.Fatalf("warm run replayed: %q", got)
+	}
+	cache, off := openCache(ctx, root, corvint, selector)
+	if cache == nil || len(hex.EncodeToString(cache.stamp)) != 64 {
+		t.Fatalf("no cache key: %s", off)
 	}
 	if replayJSON(t, warm) != replayJSON(t, cold) || !reflect.DeepEqual(warm, cold) {
 		t.Fatalf("cached results differ from the replay:\n%s\n%s", replayJSON(t, warm), replayJSON(t, cold))
