@@ -44,6 +44,13 @@ set -eu
 # `path:N` in a code comment (Go, shell or any other source file), since only the document set
 # above is scanned, and whether an unpinned legacy citation still names the line it meant.
 #
+# Minimal fixture layout (DCG-V0-746, V1-3388), all read from the Git index, so stage each file:
+# this script at script/check-line-citations.sh, the scanned documents and the files they cite,
+# and both script/line-citation-legacy-documents.txt and script/line-citation-unpinned-inventory.txt.
+# Each list may hold only `#` comments: then no document is legacy and no unpinned citation is
+# allowed. docs/specs/REQUIREMENTS.tsv is optional; without it a bare continuation after a
+# requirement ID resolves to no spec.
+#
 # Every path this gate reads is resolved against the Git index, never the working
 # filesystem: the scanned document set and the tracked set come from `git ls-files`, and
 # each file's bytes from `:<path>` through `git cat-file --batch`. `make gate` must measure what a fresh
@@ -771,7 +778,8 @@ if (@ARGV && !defined $repin && !$verbose && !defined $selects_base) {
 }
 
 my $legacy_rows = lines_of('script/line-citation-legacy-documents.txt')
-    or die "script/line-citation-legacy-documents.txt: not readable from the Git index\n";
+    or die "script/line-citation-legacy-documents.txt: not readable from the Git index; track it, even holding only "
+        . "`#` comments (the minimal fixture layout is the comment at the top of this script, DCG-V0-746)\n";
 for my $path (@$legacy_rows) {
     next if $path eq '' || $path =~ /^#/;
     die "script/line-citation-legacy-documents.txt: invalid scanned-document path: $path\n"
@@ -784,7 +792,8 @@ for my $path (@$legacy_rows) {
 # as `<document>\t<path>:<span>`. Rows are only ever deleted: a new or edited unpinned citation
 # has no row and fails, so a legacy table cannot drift silently onto a different non-blank line.
 my $inventory_rows = lines_of('script/line-citation-unpinned-inventory.txt')
-    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index\n";
+    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index; track it, even holding only "
+        . "`#` comments (the minimal fixture layout is the comment at the top of this script, DCG-V0-746)\n";
 for my $row (@$inventory_rows) {
     next if $row eq '' || $row =~ /^#/;
     my ($doc, $citation) = $row =~ /^([^\t]+)\t([^\t]+:\d[\d,-]*)$/

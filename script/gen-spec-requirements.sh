@@ -17,6 +17,15 @@ set -eu
 # (SRG-V0-018). SRG-V0-954: `--write` (`make spec-requirements`) writes the three into docs/specs/
 # after refusing any unstaged or untracked spec, and `--check` (`make spec-requirements-check`)
 # byte-compares them with docs/specs/, naming each stale file.
+#
+# Minimal fixture layout (SRG-V0-743, V1-3388), all read from the Git index, so stage each file:
+# this script at script/gen-spec-requirements.sh and the tracked docs/specs/*.md specs, which is
+# enough for the default TSV and --lines modes. --index starts from docs/specs/INDEX.json when it is
+# tracked and from an empty list otherwise, and a spec new to it needs a `# Title` line and an
+# Agent digest `- Claim:`. --readme, --all, --write and --check also need docs/specs/README.md with
+# a `| Scope | Contract | Intent | Delivery |` table whose rows link each spec.
+# docs/specs/INTENT-STATUS-FROZEN.tsv and script/requirement-definitions-outside-section.txt are
+# optional: absent means no frozen header IDs and no baselined outside definitions.
 
 usage() {
   printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check]\n' "$0" >&2
@@ -737,7 +746,9 @@ sub index_text {
 # every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
 # internal/specindex reads.
 sub readme_text {
-    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
+    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index; --readme, --all, "
+        . "--write and --check need it with its spec table (the minimal fixture layout is the comment at the "
+        . "top of script/gen-spec-requirements.sh, SRG-V0-743)\n";
     my @rows = split /^/, $blobs->{'docs/specs/README.md'};
     my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
     defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";

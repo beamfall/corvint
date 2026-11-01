@@ -823,4 +823,22 @@ mkdir "$big_dir"
 test -z "$(ls -A "$big_dir")" || fail "a refused over-limit spec wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/big.md
 
+# 51. SRG-V0-743 (V1-3388): a fixture with specs but no docs/specs/README.md prints the TSV and is
+# refused in --readme naming the layout comment.
+lay_root="$test_root/layout"
+mkdir -p "$lay_root/script" "$lay_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$lay_root/script/"
+git -C "$lay_root" init -q -b main
+# shellcheck disable=SC2016
+printf '# Lay\n\nIntent status: proposed\nDelivery status: planned\n\n- `LAY-V0-001`: (proposed) Clause.\n' \
+  > "$lay_root/docs/specs/lay.md"
+git -C "$lay_root" add -- docs/specs/lay.md
+(cd "$lay_root" && script/gen-spec-requirements.sh) > /dev/null || fail "the TSV mode needed more than the specs"
+lay_err=$( (cd "$lay_root" && script/gen-spec-requirements.sh --readme) 2>&1 > /dev/null) &&
+  fail "--readme accepted a fixture without docs/specs/README.md"
+case $lay_err in
+  *'docs/specs/README.md is not in the Git index'*'minimal fixture layout is the comment at the top of script/gen-spec-requirements.sh, SRG-V0-743'*) ;;
+  *) fail "the missing README refusal does not name the layout: $lay_err" ;;
+esac
+
 printf 'ok\n'

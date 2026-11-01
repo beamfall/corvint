@@ -1147,6 +1147,19 @@ esac
   fail "the excluded nested path was staged: $output"
 mg reset -q --hard main
 
+# 52. DCG-V0-746 (V1-3388): a fixture without the legacy list is refused naming it and the
+#     comment-only remedy.
+git -C "$test_root" rm -q --cached -- script/line-citation-legacy-documents.txt
+rc=0
+output=$(run) || rc=$?
+[ "$rc" != 0 ] || fail "a fixture without the legacy list passed"
+# shellcheck disable=SC2016
+case $output in
+*'script/line-citation-legacy-documents.txt: not readable from the Git index; track it, even holding only `#` comments'*'DCG-V0-746'*) ;;
+*) fail "the missing legacy list was not named with its remedy: $output" ;;
+esac
+stage script/line-citation-legacy-documents.txt
+
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
 blob=$(printf 'x\ny\n' | git -C "$test_root" hash-object -w --stdin)
