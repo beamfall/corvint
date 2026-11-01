@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 package gateselect
 
-import "strings"
+import (
+	"path"
+	"path/filepath"
+	"strings"
+)
 
 // AllowedUnknown is the one allowlist of plan.unknown entries a narrowed run
 // may carry (AFP-V0-982): the deciding driver's unknownNarrowing (CIN-V0-860)
@@ -20,4 +24,33 @@ func AllowedUnknown(reason, detail string) bool {
 		return true
 	}
 	return false
+}
+
+// UnobservedModule returns the module directory of a well-formed AFP-V0-650
+// unobserved-module frontier, "go:unobserved-module:<directory>:<path>": a
+// clean, local, slash-separated directory that is the only split whose path
+// lies below it. The driver admits such an entry beside AllowedUnknown, and
+// `corvint test` does outside the ci profile, where the module's own suite
+// runs it (STR-V0-064); both read it here (AFP-V0-982).
+func UnobservedModule(reason, detail string) (string, bool) {
+	rest, ok := strings.CutPrefix(detail, "go:unobserved-module:")
+	if reason != "LANGUAGE_FRONTIER" || !ok {
+		return "", false
+	}
+	found, count := "", 0
+	for index := strings.IndexByte(rest, ':'); index >= 0; {
+		directory, dirty := rest[:index], rest[index+1:]
+		if strings.HasPrefix(dirty, directory+"/") {
+			found, count = directory, count+1
+		}
+		next := strings.IndexByte(rest[index+1:], ':')
+		if next < 0 {
+			break
+		}
+		index += next + 1
+	}
+	if count != 1 || found == "." || !filepath.IsLocal(found) || path.Clean(found) != found || strings.ContainsRune(found, '\\') {
+		return "", false
+	}
+	return found, true
 }

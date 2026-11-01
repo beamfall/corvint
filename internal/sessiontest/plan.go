@@ -4,8 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"path"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -98,26 +96,7 @@ const moduleReason = "a nested Go module the root does not build: its packages a
 // whose path lies below it; anything else is not admitted, so the entry
 // stays outside the allowlist and the run is FULL.
 func moduleDirectory(entry Unknown) (string, bool) {
-	rest, ok := strings.CutPrefix(entry.Detail, "go:unobserved-module:")
-	if entry.Reason != "LANGUAGE_FRONTIER" || !ok {
-		return "", false
-	}
-	found, count := "", 0
-	for index := strings.IndexByte(rest, ':'); index >= 0; {
-		directory, dirty := rest[:index], rest[index+1:]
-		if strings.HasPrefix(dirty, directory+"/") {
-			found, count = directory, count+1
-		}
-		next := strings.IndexByte(rest[index+1:], ':')
-		if next < 0 {
-			break
-		}
-		index += next + 1
-	}
-	if count != 1 || found == "." || !filepath.IsLocal(found) || path.Clean(found) != found || strings.ContainsRune(found, '\\') {
-		return "", false
-	}
-	return found, true
+	return gateselect.UnobservedModule(entry.Reason, entry.Detail)
 }
 
 // ModuleCovered reports whether every dirty path is named by a well-formed

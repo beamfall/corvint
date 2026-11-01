@@ -15,8 +15,11 @@ import (
 // plan.unknown entries. Each entry here is one unknown of a plan over a dirty
 // source of an existing package: the driver's verdict must be a run exactly
 // when the shadow's allowlist admits the entry, so a case added to either side
-// alone fails here. The table holds every reason the planner emits and every Go
-// frontier detail it reports, beside non-Go frontiers.
+// alone fails here. The one named exception is a well-formed unobserved-module
+// frontier, which both sides read through gateselect.UnobservedModule: the
+// driver admits it, and the shadow runs the module's own suite outside the ci
+// profile. The table holds every reason the planner emits and every Go frontier
+// detail it reports, beside non-Go frontiers.
 func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 	root := t.TempDir()
 	for name, body := range map[string]string{
@@ -58,7 +61,14 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 		}{e.reason, e.detail})
 		lines := gateselect.Select(plan, "example.test/m", root)
 		driver := strings.HasPrefix(lines[len(lines)-1], "run ")
-		if shadow := allowedUnknown(Unknown{Reason: e.reason, Detail: e.detail}); driver != shadow {
+		shadow := allowedUnknown(Unknown{Reason: e.reason, Detail: e.detail})
+		if _, module := moduleDirectory(Unknown{Reason: e.reason, Detail: e.detail}); module {
+			if !driver || shadow {
+				t.Errorf("%s %q: an unobserved-module frontier: driver narrows=%v, shadow allowlist=%v, want true and false", e.reason, e.detail, driver, shadow)
+			}
+			continue
+		}
+		if driver != shadow {
 			t.Errorf("%s %q: driver narrows=%v (%s), shadow admits=%v", e.reason, e.detail, driver, lines[len(lines)-1], shadow)
 		}
 	}
