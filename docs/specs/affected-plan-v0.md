@@ -5413,6 +5413,32 @@ admit a selection that under-selects without detection.
   sharing could remove. Falsifier: a token-stream difference beyond comments on the repository,
   or a comment-split qualifier. Rollback: delete the two tests.
 
+### Unbounded readers of declared CEM paths (AFP-V0-772; V1-3571)
+
+- **AFP-V0-772:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571)
+  Amending AFP-V0-602: a runtime-readers entry MAY carry the optional member
+  `"noUnboundedReaders": true`, the project's statement that no unbounded reader (AFP-V0-012 rule
+  (d)) reads the entry's paths. A dirty path such an entry holds SHALL then select no unbounded
+  reader and follow no root locator's dependents; the path's literal, glob, embed and
+  declared-read-scope readers, and the test-less reader traversal, are unchanged, and any other
+  dirty path still selects every unbounded reader. The member is part of the entry, and so of the
+  graph digest, only when present. This repository SHALL declare both CEM paths that way: the
+  shared bind path `.corvint/change.cem.json`, newly declared, because a seal commit deletes it
+  and an undeclared deletion made every path-open frontier bear; and `.corvint/changes/`, after
+  measuring that none of the 37 unbounded readers a sealed CEM selected reads sealed CEMs other
+  than through a literal. It also declares the TSP-V0-005 callers of `script/proof-tour.sh`.
+  Measured on this lane's own seal (`f36fa9f14..25daa0b3d`, a rename of the bind path into
+  `.corvint/changes/`): `corvint affected` went from 63 selected units and 86 unknowns to 29 units
+  (23 literal readers, one declared read scope, five dependents of test-less literal readers) and
+  one unknown. Post-seal `script/batch-precheck.sh` with `CORVINT_GATE_LEDGER=off` went from
+  103 s wall and 470 s summed (every drift test and the catalog check ran) to 36 s and 55 s (no
+  drift test, catalog check skipped), at host load 35 to 68. Residual: the remaining unknown is
+  `shell:foreign-invocation-unmodelled` from `script/check-install-lifecycle.sh`, which a
+  `.github` workflow runs and the shell plugin's universe cannot declare, and from
+  `script/dogfood-bind-coverage.sh`, whose name a shell file builds (TSP-V0-960); it keeps
+  `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
+  remove the member, `unboundedDirty` and the repository entries.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5780,6 +5806,7 @@ traceability table.
 | AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
 | AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
 | AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
+| AFP-V0-772 | `RuntimeReader.NoUnboundedReaders`, `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go`, used by `reach` in `select.go`; `.corvint/runtime-readers.json`; `.corvint/shell-foreign-callers.json` | `TestNoUnboundedReadersEntryDropsOnlyUnboundedReaders_AFPV0772` (seal-shaped change selects the literal reader and no unbounded reader; an entry without the statement, and another dirty path, still select it); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
