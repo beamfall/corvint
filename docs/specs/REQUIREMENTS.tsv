@@ -1616,6 +1616,7 @@ CCE-V0-176	docs/specs/change-compiled-e2e-v0.md	The verb ships with `--help` (us
 CCE-V0-236	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) A changed file is never a silent drop. `excluded` lists,	unrecorded	-
 CCE-V0-237	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `exclusion` records the effective directory rule:	unrecorded	-
 CCE-V0-238	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `--map FILE` reads a `cem/1.0` map (at most 4 MiB, throu	unrecorded	-
+CCE-V0-684	docs/specs/change-compiled-e2e-v0.md	(standing lane auto-accept, 2026-11-01; V1-2882) The test side of	standing	2026-11-01; V1-2882
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-

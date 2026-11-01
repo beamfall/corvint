@@ -131,15 +131,18 @@ type Document struct {
 
 // TestRevision pins the test side. Revision is empty when the tests directory
 // is not a Git worktree. ChangesDigest is the SHA-256 of the tracked changes
-// against HEAD (empty when clean or not a worktree), so a tests directory
-// that is dirty at both ends but changed in between is not unchanged;
-// Unchanged compares all three at start and end.
+// against HEAD and of every untracked, non-ignored file (empty when there
+// are none or not a worktree), so a tests directory that is dirty at both
+// ends but changed in between is not unchanged; Unchanged compares all three
+// at start and end. A tests directory that is not a Git worktree is never
+// unchanged: NotEstablished then names why (CCE-V0-684).
 type TestRevision struct {
-	Dir           string `json:"dir"`
-	Revision      string `json:"revision"`
-	Clean         bool   `json:"clean"`
-	ChangesDigest string `json:"changesDigest"`
-	Unchanged     bool   `json:"unchanged"`
+	Dir            string `json:"dir"`
+	Revision       string `json:"revision"`
+	Clean          bool   `json:"clean"`
+	ChangesDigest  string `json:"changesDigest"`
+	Unchanged      bool   `json:"unchanged"`
+	NotEstablished string `json:"notEstablished,omitempty"`
 }
 
 // Bounds are the effective limits of the run.
@@ -470,13 +473,17 @@ func finish(ctx context.Context, doc *Document, opts Options, baseline map[strin
 	}
 	doc.AppDirRestored = doc.AppDirRestored && checkAppDir(ctx, opts.AppDir, doc.AppRevision) == nil
 	end := testRevision(ctx, opts.TestsDir)
-	doc.Tests.Unchanged = end.Revision == doc.Tests.Revision && end.Clean == doc.Tests.Clean &&
-		end.ChangesDigest == doc.Tests.ChangesDigest && end.ChangesDigest != digestUnavailable
+	doc.Tests.Unchanged = doc.Tests.NotEstablished == "" && end.NotEstablished == "" && end.Revision == doc.Tests.Revision &&
+		end.Clean == doc.Tests.Clean && end.ChangesDigest == doc.Tests.ChangesDigest && end.ChangesDigest != digestUnavailable
 	if !doc.Tests.Unchanged {
+		reason := "test-revision-drift"
+		if doc.Tests.NotEstablished != "" {
+			reason = "test-revision-not-established"
+		}
 		for i := range doc.Mutants {
 			for j := range doc.Mutants[i].Results {
 				if doc.Mutants[i].Results[j].Result != NotRun {
-					doc.Mutants[i].Results[j] = MutantOutcome{Test: doc.Mutants[i].Results[j].Test, Result: NotRun, Reason: "test-revision-drift"}
+					doc.Mutants[i].Results[j] = MutantOutcome{Test: doc.Mutants[i].Results[j].Test, Result: NotRun, Reason: reason}
 				}
 			}
 		}
@@ -898,20 +905,94 @@ func checkAppDir(ctx context.Context, dir, head string) error {
 const digestUnavailable = "unavailable"
 
 func testRevision(ctx context.Context, dir string) TestRevision {
-	t := TestRevision{Dir: dir, Unchanged: true}
-	if revision, err := revParse(ctx, dir, "HEAD"); err == nil {
-		t.Revision = revision
-		status, err := git(ctx, dir, "status", "--porcelain", "--untracked-files=no")
-		t.Clean = err == nil && len(bytes.TrimSpace(status)) == 0
-		if !t.Clean {
-			t.ChangesDigest = digestUnavailable
-			if diff, err := git(ctx, dir, "diff", "--binary", "--no-color", "--no-ext-diff", "--no-textconv", "HEAD", "--"); err == nil {
-				sum := sha256.Sum256(diff)
-				t.ChangesDigest = hex.EncodeToString(sum[:])
-			}
-		}
+	t := TestRevision{Dir: dir}
+	revision, err := revParse(ctx, dir, "HEAD")
+	if err != nil {
+		t.NotEstablished = "not-a-git-worktree"
+		return t
 	}
+	t.Revision, t.Unchanged = revision, true
+	status, err := git(ctx, dir, "status", "--porcelain", "--untracked-files=no")
+	t.Clean = err == nil && len(bytes.TrimSpace(status)) == 0
+	untracked, uerr := untrackedDigest(ctx, dir)
+	if t.Clean && uerr == nil && untracked == nil {
+		return t
+	}
+	t.ChangesDigest = digestUnavailable
+	if uerr != nil {
+		return t
+	}
+	sum := sha256.New()
+	if !t.Clean {
+		diff, err := git(ctx, dir, "diff", "--binary", "--no-color", "--no-ext-diff", "--no-textconv", "HEAD", "--")
+		if err != nil {
+			return t
+		}
+		sum.Write(diff)
+	}
+	sum.Write(untracked)
+	t.ChangesDigest = hex.EncodeToString(sum.Sum(nil))
 	return t
+}
+
+// Bounds on the untracked files a test revision hashes (CCE-V0-684).
+const (
+	maxUntrackedFiles = 10000
+	maxUntrackedBytes = 256 << 20
+)
+
+// untrackedDigest lists every untracked, non-ignored file of the worktree
+// holding dir as "path NUL sha256 NUL", or nil when there is none. A symbolic
+// link hashes its target text and is not followed. A file it cannot read, or
+// more files or bytes than the bounds, is an error, so the digest reads
+// unavailable.
+func untrackedDigest(ctx context.Context, dir string) ([]byte, error) {
+	top, err := git(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return nil, err
+	}
+	root := strings.TrimSpace(string(top))
+	out, err := git(ctx, root, "-c", "core.quotePath=false", "ls-files", "-z", "--others", "--exclude-standard")
+	if err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return nil, nil
+	}
+	names := strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00")
+	if len(names) > maxUntrackedFiles {
+		return nil, fmt.Errorf("more than %d untracked files", maxUntrackedFiles)
+	}
+	var list bytes.Buffer
+	var total int64
+	for _, name := range names {
+		path := filepath.Join(root, filepath.FromSlash(name))
+		info, err := os.Lstat(path)
+		if err != nil {
+			return nil, err
+		}
+		var body []byte
+		switch {
+		case info.Mode()&os.ModeSymlink != 0:
+			target, err := os.Readlink(path)
+			if err != nil {
+				return nil, err
+			}
+			body = []byte("link:" + target)
+		case info.Mode().IsRegular():
+			if total += info.Size(); total > maxUntrackedBytes {
+				return nil, fmt.Errorf("untracked files exceed %d bytes", maxUntrackedBytes)
+			}
+			if body, err = os.ReadFile(path); err != nil {
+				return nil, err
+			}
+		default:
+			body = []byte("mode:" + info.Mode().String())
+		}
+		h := sha256.Sum256(body)
+		list.WriteString(name + "\x00" + hex.EncodeToString(h[:]) + "\x00")
+	}
+	return list.Bytes(), nil
 }
 
 // changedHunks lists the head-side hunks of application files (CCE-V0-170)
