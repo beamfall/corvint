@@ -1,12 +1,9 @@
 package affected_test
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -18,11 +15,11 @@ import (
 
 // TestRepositoryShellForeignCallersComplete_TSP_V0_005 verifies this
 // repository's .corvint/shell-foreign-callers.json against the tree, so the
-// declaration is checked rather than trusted. Every file in the source
-// universe that names a declared script's file name (a path literal, the bare
-// file name, a Make recipe) must be listed as a caller or a mention, and every
-// listed file must still name it, whatever its suffix: only prose and data (.md, .json, .tsv) are
-// exempt. The shell plugin must then accept the declaration and drop the
+// declaration is checked rather than trusted. Every caller-candidate file
+// that names a declared script's file name (a path literal, the bare file
+// name, a Make recipe, a comment) or builds a name it may be must be listed as
+// a caller or a mention, and every listed file must still name it, by the
+// plugin's own rule (shell.ForeignCallerFindings). The shell plugin must then accept the declaration and drop the
 // foreign-invocation frontier from the script.
 func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	root := repositoryRoot(t)
@@ -43,52 +40,16 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 		t.Fatalf("no script is declared: %s", body)
 	}
 
-	source := affected.DiskSourceContext(context.Background(), root)
-	files, err := source.Files(func(string) bool { return true })
+	// The plugin's own rule decides completeness (TSP-V0-920, V1-3899): only
+	// caller-candidate files count, by the script's file name or by a name a
+	// shell file builds, and each disagreement is named by file and line, so a
+	// comment naming a script is reported where it is (V1-3913).
+	findings, err := shell.ForeignCallerFindings(affected.DiskSourceContext(context.Background(), root))
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("%s: %v", affected.ShellForeignCallersPath, err)
 	}
-	// The declaration covers tracked files: an ignored build product in the
-	// checkout, such as the ./corvint binary `go build ./cmd/corvint` writes,
-	// embeds every script name and is no caller (V1-1819).
-	listing, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
-	if err != nil {
-		t.Fatal(err)
-	}
-	tracked := map[string]bool{}
-	for _, name := range strings.Split(string(listing), "\x00") {
-		tracked[name] = true
-	}
-	files = slices.DeleteFunc(files, func(name string) bool { return !tracked[name] })
-	exempt := func(name string) bool {
-		return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".tsv")
-	}
-	for script, entry := range declared.Scripts {
-		var naming []string
-		for _, name := range files {
-			if name == script || exempt(name) {
-				continue
-			}
-			text, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(name)))
-			if err != nil {
-				t.Fatalf("%s: %v", name, err)
-			}
-			if bytes.Contains(text, []byte(path.Base(script))) {
-				naming = append(naming, name)
-			}
-		}
-		slices.Sort(naming)
-		listed := append(slices.Clone(entry.Callers), entry.Mentions...)
-		for _, name := range naming {
-			if !slices.Contains(listed, name) {
-				t.Errorf("%s names %s but is not a declared caller or mention in %s", name, script, affected.ShellForeignCallersPath)
-			}
-		}
-		for _, name := range listed {
-			if !slices.Contains(naming, name) {
-				t.Errorf("declared caller %s of %s no longer names it", name, script)
-			}
-		}
+	for _, finding := range findings {
+		t.Error(finding)
 	}
 
 	result, err := shell.New().UnitsSource(affected.DiskSourceContext(context.Background(), root))
