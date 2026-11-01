@@ -398,12 +398,20 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 func legacyInitializeRefusal(params map[string]any) *protocol.RPCError {
 	flag := "--protocol-version " + protocol.LegacyVersion
 	data := map[string]any{"supported": []string{protocol.Version}, "flag": flag}
-	if requested, ok := params["protocolVersion"].(string); ok && requested != "" && len(requested) <= protocol.MaxProtocolVersionBytes {
+	requested, ok := params["protocolVersion"].(string)
+	if ok && requested != "" && len(requested) <= protocol.MaxProtocolVersionBytes {
 		data["requested"] = requested
+	}
+	if requested == protocol.Version { // MCPV0-954: the client already speaks this version, just not with initialize.
+		return &protocol.RPCError{
+			Code:    protocol.CodeInvalidParams,
+			Message: "Invalid params: " + protocol.Version + " has no initialize handshake; send server/discover, with the protocol version and client capabilities in each request's _meta",
+			Data:    map[string]any{"requested": requested, "supported": []string{protocol.Version}, "method": "server/discover"},
+		}
 	}
 	return &protocol.RPCError{
 		Code:    protocol.CodeInvalidParams,
-		Message: "Unsupported protocol version: this server speaks " + protocol.Version + "; restart it with " + flag + " for a " + protocol.LegacyVersion + " client",
+		Message: "Unsupported protocol version: this server speaks " + protocol.Version + " (server/discover, no initialize); restart it with " + flag + " for a " + protocol.LegacyVersion + " client",
 		Data:    data,
 	}
 }

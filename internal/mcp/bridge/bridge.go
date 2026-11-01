@@ -408,7 +408,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 	relativePath := func() map[string]any {
 		return map[string]any{
 			"type": "string", "minLength": 1, "maxLength": wire.MaxPathBytes / utf8.UTFMax,
-			"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\)(?!(?:.*/)?[.][Gg][Ii][Tt](?:/|$))[^\x00-\x1f\x7f]+$`,
+			"pattern": PathRule{Excluded: `\x00-\x1f\x7f`, GitSegment: "fold", TrailingSlash: true}.Pattern(), // MCPV0-954
 		}
 	}
 	return append([]ToolDescriptor{
@@ -430,7 +430,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 				"task": map[string]any{"type": "string", "minLength": 1, "maxLength": maxContextTaskBytes / utf8.UTFMax, "pattern": `[^\s\x85]`},
 				"subject": map[string]any{
 					"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-					"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+$`,
+					"pattern": SubjectPathRule.Pattern(),
 				},
 				"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": maxContextLimit, "default": defaultContextLimit},
 				"summaryBytes": map[string]any{"type": "integer", "minimum": contextsummary.MinBytes, "maximum": contextsummary.MaxBytes},
@@ -447,7 +447,7 @@ func (registry *Registry) allTools() []ToolDescriptor {
 					"type": "array", "minItems": 1, "maxItems": maxImpactPaths, "uniqueItems": true,
 					"items": map[string]any{
 						"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-						"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+[.](?:go|rb|js|jsx|mjs|cjs|ts|tsx)$`,
+						"pattern": impactPathRule.Pattern(),
 					},
 				},
 				"limit":       map[string]any{"type": "integer", "minimum": 1, "maximum": maxImpactLimit, "default": 10},
@@ -1056,6 +1056,14 @@ func validRelativePath(value string, maxRunes int) bool {
 // validRoot applies the MCPV0-001 root bounds, shared with multi-root and appmap roots.
 func validRoot(root string) bool { return rootalias.ValidRoot(root) }
 
+// nestedObjectSchema is objectSchema below a schema's root, which repeats no
+// $schema (MCPV0-954).
+func nestedObjectSchema(properties map[string]any, required []any) map[string]any {
+	schema := objectSchema(properties, required)
+	delete(schema, "$schema")
+	return schema
+}
+
 func objectSchema(properties map[string]any, required []any) map[string]any {
 	return map[string]any{
 		"$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -1242,7 +1250,7 @@ func failure(code string) *Error { return &Error{Code: code} }
 
 func snapshotSchema() map[string]any {
 	oid := map[string]any{"type": "string", "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"}
-	return objectSchema(map[string]any{
+	return nestedObjectSchema(map[string]any{
 		"schema":         map[string]any{"const": plansnapshot.Schema},
 		"commitRevision": oid, "treeRevision": oid, "baseRevision": oid,
 		"changedPaths":       map[string]any{"type": "array", "maxItems": 4096, "uniqueItems": true, "items": map[string]any{"type": "string", "minLength": 1}},

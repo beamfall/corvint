@@ -769,3 +769,29 @@ func TestDCPV1652LegacyInitializeNamesVersionAndFlag(t *testing.T) {
 	assertErrorCode(t, exchange(t, server, `{"jsonrpc":"2.0","id":2,"method":"ping"}`), protocol.CodeMethodNotFound)
 	assertErrorCode(t, exchange(t, newTestServer(t, handler), initialize), protocol.CodeMethodNotFound)
 }
+
+// MCPV0-954: a 2026-07-28 client that sends initialize is told that version
+// uses server/discover, not to restart for 2025-11-25, while a legacy client
+// keeps the restart flag.
+func TestMCPV0954InitializeRefusalDistinguishesTheClient(t *testing.T) {
+	handler := HandlerFunc(func(context.Context, protocol.Request, Notifier) (map[string]any, *protocol.RPCError) {
+		return nil, protocol.MethodNotFound()
+	})
+	server, err := New(Config{Name: "corvint", Version: "test", Handler: handler, Capabilities: map[string]any{"tools": map[string]any{}}, NameLegacyFlag: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	modern := exchange(t, server, `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"`+protocol.Version+`","capabilities":{},"clientInfo":{"name":"modern","version":"0"}}}`)
+	assertErrorCode(t, modern, protocol.CodeInvalidParams)
+	body := modern["error"].(map[string]any)
+	message := body["message"].(string)
+	data := body["data"].(map[string]any)
+	if !strings.Contains(message, "has no initialize handshake; send server/discover") || strings.Contains(message, "--protocol-version") || strings.Contains(message, "this server speaks") ||
+		data["method"] != "server/discover" || data["requested"] != protocol.Version || data["flag"] != nil {
+		t.Fatalf("modern refusal %q data=%+v", message, data)
+	}
+	legacy := exchange(t, server, `{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"legacy","version":"0"}}}`)
+	if message := legacy["error"].(map[string]any)["message"].(string); !strings.Contains(message, "restart it with --protocol-version 2025-11-25") || !strings.Contains(message, "server/discover, no initialize") {
+		t.Fatalf("legacy refusal %q", message)
+	}
+}

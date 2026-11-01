@@ -87,7 +87,7 @@ func (registry *Registry) Tools() []bridge.ToolDescriptor {
 	}
 	pathSchema := map[string]any{
 		"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-		"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+$`,
+		"pattern": bridge.SubjectPathRule.Pattern(), // MCPV0-954
 	}
 	return []bridge.ToolDescriptor{
 		{
