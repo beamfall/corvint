@@ -222,6 +222,16 @@ to the five hypotheses above and no `corvint` command.
   `cb_file_precision` alone. Re-running the scorer on the retained V1-2716 rows needs those rows,
   which are held off this host, so that reproduction is recorded `NOT_RUN` until it is run where
   they are.
+- `CEP-V0-961`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3453)
+  Bench data location. `tools/retrieval-bench` MUST name where its bench data lives: `--data-root
+  DIR`, defaulting to `$CORVINT_RETRIEVAL_BENCH_DATA`, is the directory of extracted releases laid
+  out as the release archive extracts, `DIR/benchmark/<release>/<task>.jsonl` for samples and
+  `DIR/corpus/<release>/OWNER__NAME/COMMIT.chunks.jsonl` for the corpus; a relative `--samples` or
+  `--corpus` resolves under it, and an absolute one is used as given. A data root that is not an
+  existing directory MUST be refused before any run with a message naming `--data-root` and the
+  environment variable. `retrieval-bench --help` MUST print the required inputs, the data root and
+  its layout, and an example. The owner's held-out copy stays outside the repository; its host path
+  is an operator setting, never committed.
 - `CEP-V0-003`: Pinned offline runs. Every external run MUST be local and offline: rows and
   repository snapshots come only from explicit local `--samples` and `--snapshot`/`--corpus` inputs,
   and the report carries the sha256 of the samples file as `samples_sha256`. A run whose subset or
@@ -320,6 +330,7 @@ to the five hypotheses above and no `corvint` command.
 | CEP-V0-001 | `decodeSample`, `contextBenchSample`, `contextBenchPath` in `tools/retrieval-bench/contextbench.go`; `readSamples`, `queryText` | `TestContextBenchRowsMapToSamplesAndBadRowsAreRefused` |
 | CEP-V0-002 | `contextBenchMetrics`, `mergeLines`, `fileLineCount`; `judge` | `TestContextBenchFixtureScoresFileAndLineCoverage` |
 | CEP-V0-960 | `contextBenchMetrics`, `contextBenchLengthMatched` | `TestContextBenchAbstentionAndLengthMatchedPrecision`, `TestContextBenchFixtureScoresFileAndLineCoverage` |
+| CEP-V0-961 | `resolveDataRoot`, `usageText`, `dataRootEnv` | `TestDataRootResolvesAndRefuses` |
 | CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run retained as an aggregate receipt (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v0415-contextbench-swebench-pro.md`, V1-0415) |
 | CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
 | CEP-V0-005 | `controlMetrics`, `packetAbstained`, `controlSummary`; `scoreArm`, `summarizeArm` | `TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure`; `TestAlreadyFixedControlStaysOutOfRealTaskAggregates` |
