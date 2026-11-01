@@ -6111,6 +6111,7 @@ STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	`make spec-toolchain-conform
 STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	`script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001`	unrecorded	-
 STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 STA-V0-014	docs/specs/spec-toolchain-adapters-v0.md	A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding th	unrecorded	-
+STA-V0-965	docs/specs/spec-toolchain-adapters-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3657) `script/	standing	2026-11-01; V1-3657
 SNR-V0-001	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST refuse a concurrent invocation. It MUST take an exclusive lock via	unrecorded	-
 SNR-V0-002	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST support a test-only lock-hold mode selected by the	unrecorded	-
 SNR-V0-003	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST discover the toolchain root as `GOTOOLCHAIN=local go env GOROOT` a	unrecorded	-
