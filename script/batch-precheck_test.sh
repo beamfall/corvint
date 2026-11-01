@@ -571,6 +571,23 @@ grep -q '^batch-precheck: | PASS | *[0-9]*s | test-script-refs$' "$tmp/out" || f
 git -C "$repo" rm -q -r script && git -C "$repo" commit -q -m 'drop caller' || fail "caller cleanup"
 /bin/rm -f "$receipt"
 
+# 4d. ASD-V0-642 (V1-3764): the dr-numbers step fails when two merged lanes both defined one DR-
+# number, naming the number and both lines, and passes once the later entry is renumbered. A tree
+# without a register passes (every earlier case).
+mkdir -p "$repo/conformance"
+printf '# Register\n\n### DR-0046 \xe2\x80\x94 a\n\n### DR-0047 \xe2\x80\x94 lane one\n\n### DR-0047 \xe2\x80\x94 lane two\n' > "$repo/conformance/divergence-register.md"
+git -C "$repo" add conformance && git -C "$repo" commit -q -m register || fail "register commit"
+run && fail "a duplicate DR number passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | dr-numbers$' "$tmp/out" || fail "dr-numbers row: $(cat "$tmp/out")"
+grep -qF 'check-dr-numbers: FAIL DR-0047 is defined 2 times (conformance/divergence-register.md:5, conformance/divergence-register.md:7)' "$tmp/out" ||
+  fail "duplicate DR number not named: $(cat "$tmp/out")"
+sed -i.bak '7s/DR-0047/DR-0048/' "$repo/conformance/divergence-register.md" && /bin/rm -f "$repo/conformance/divergence-register.md.bak"
+git -C "$repo" commit -q -am renumber || fail "renumber commit"
+run || fail "distinct DR numbers failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | dr-numbers$' "$tmp/out" || fail "dr-numbers pass row: $(cat "$tmp/out")"
+git -C "$repo" rm -q -r conformance && git -C "$repo" commit -q -m 'drop register' || fail "register cleanup"
+/bin/rm -f "$receipt"
+
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
 rg() { BATCH_REGEN_ROOT=$repo BATCH_REGEN_STEPS=$1 "$regen" > "$tmp/out" 2>&1; }

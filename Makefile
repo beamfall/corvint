@@ -1065,6 +1065,11 @@ lane-scripts-test:
 test-script-refs-check:
 	@script/check-test-script-refs.sh
 
+# ASD-V0-642 (V1-3764): no DR- number is defined twice in the divergence register.
+.PHONY: dr-numbers-check
+dr-numbers-check:
+	@script/check-dr-numbers.sh
+
 # ASD-V0-645 (V1-3768, V1-3770): screen lane ticket files before dispatch, e.g.
 # make lane-dispatch-check BASE=$(git rev-parse origin/main) LANES="a=tickets-a.json b=tickets-b.json" WAIVE=V1-1
 .PHONY: lane-dispatch-check

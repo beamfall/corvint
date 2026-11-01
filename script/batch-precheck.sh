@@ -605,6 +605,7 @@ steps() {
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
+  printf 'dr-numbers\t%q\n' "${0%/*}/check-dr-numbers.sh" # ASD-V0-642, V1-3764
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
   # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as

@@ -450,6 +450,12 @@ the lane to run `make requirement-id-collisions` after staging a spec that adds 
 final commit, and the orchestrator runs it in the batch checkout before integrating each lane
 (`ASD-V0-950`, `ASD-V0-951`).
 
+A charter that lets a lane add divergence-register entries hands it a DR-number block the same way,
+because each lane would otherwise take the next free `DR-` number from its own base. The batch
+precheck's `dr-numbers` step (`make dr-numbers-check`, `script/check-dr-numbers.sh`, `ASD-V0-642`)
+fails when the merged `conformance/divergence-register.md` defines one `DR-` heading number twice,
+naming every defining line; renumber the later entry before the batch push.
+
 Before any lane starts, the orchestrator screens the batch's ticket files with
 `make lane-dispatch-check BASE=<sha> LANES="lane-a=tickets-a.json lane-b=tickets-b.json"`
 (`script/lane-dispatch-check.sh`, `ASD-V0-645`). Each file is one lane's JSON ticket array. The
