@@ -325,6 +325,10 @@ with UNKNOWN effects coverage. `ticket delivery-screen --lane-refs` also scans u
 and worktree heads (DELIVERED_ON_LANE, IN_FLIGHT by progress). The repository check
 `go run ./tools/requirement-id-collisions [--base REF]` reports requirement IDs that two lane heads,
 or a lane head and the base, define differently (exit 1), without writing.
+`ticket split ID --criteria N[,M...] --expected-revision R --request-id Q` moves the named criteria of
+an OPEN or DRAFT ticket to a new child that supersedes it, as a resumable sequence of existing
+receipts (`Q/create`, `Q/child`, `Q/evidence/I`, `Q/refine`, parent last, guarded by the child's state); `--dry-run` prints the plan and
+writes nothing.
 
 The basic external-agent lifecycle (create, plan preview, claim, renew, release, submit, gate run,
 complete, readback and receipt audit on one store) has a named profile,

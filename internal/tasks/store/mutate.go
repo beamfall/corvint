@@ -25,6 +25,10 @@ import (
 // that makes the result durable. It never authenticates, never edits the
 // envelope. Entry guards refuse unsupported states before the model or recovery runs.
 func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp) (out *Report, outErr error) {
+	return mutate(ctx, repo, actor, envelope, now, nil)
+}
+
+func mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, envelope []byte, now wire.Timestamp, guard *TicketGuard) (out *Report, outErr error) {
 	defer func() { out, outErr = intentFix(repo, out, outErr) }()
 	report := &Report{}
 	if repo == nil {
@@ -94,6 +98,9 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		return guardFailure(report, env.RequestID, err)
 	}
 	report.Redone = redone
+	if err = guard.check(repo, headState, env.RequestID); err != nil {
+		return guardFailure(report, env.RequestID, err)
+	}
 	return mutateLocked(ctx, repo, session, headState, request, env, now, report, &watch, &refresh)
 }
 
