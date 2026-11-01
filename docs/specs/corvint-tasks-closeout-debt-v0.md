@@ -511,6 +511,22 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-680`: (experimental under the standing lane auto-accept (2026-11-01); V1-3716; refines
+  TCD-V0-190) the `receipt audit` item also adds `completionsByDay`, the VERIFIED and MANUAL
+  completions of COMPLETED tickets grouped by the UTC date of `completion.recordedAt`, as
+  `{day, verified, manual}` rows newest first, at most 31 rows and only days with a completion; and
+  `completionHealth` `{windowDays, windowEnd, verified, manual, state}` over the 7 days ending on the
+  newest completion day. `state` is `NO_COMPLETIONS` (and `windowEnd` null) with none, `NO_VERIFIED`
+  when the window holds manual completions and no verified one, and `OK` otherwise. `NO_VERIFIED`
+  adds one warning naming the counts, the window end and the gated-close route. The window is
+  anchored on the store, never on the clock, so one snapshot always reads the same. Neither member
+  nor the warning changes the outcome, `completions` or any other member. Design: on 2026-11-01 an
+  audit found 356 manual and 0 verified completions since the 10-30 barrier, which no read had
+  flagged. Non-goals: ticket age (it needs a recorded `statusChangedAt`) and receipt operation
+  names, both of which need a revision of a closed persisted profile and wait on the owner.
+  Failure modes: a completion whose `recordedAt` carries no date is not counted by day. Evidence:
+  `TestTCDV0680_ReceiptAuditReportsCompletionHealth`, `TestTCDV0680_CompletionHealthWindow`.
+  Rollback: drop `receipt_health.go` and its two lines in `receiptAudit`.
 - `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
   (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
   is not yet a commit on the protected intent branch, the result adds a warning. The warning names
@@ -806,6 +822,7 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-680 | V1-3716 | `internal/tasks/cli` (`completionDays`, `completionHealth`, `receiptAudit`) | `TestTCDV0680_ReceiptAuditReportsCompletionHealth` (no completion: `NO_COMPLETIONS`, no warning; one `complete-manual`: `NO_VERIFIED` with the warning, one day row, `completions` unchanged); `TestTCDV0680_CompletionHealthWindow` (a verified close 8 days back is outside the window, the seventh day back is inside, the 31-row cap) | none |
 | TCD-V0-806 | V1-3548 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `Report.GateReusePending`), `internal/tasks/cli` (`gate run` warning) | `TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass` (a joint gate fails the lower stacked attempt alone and the report names the upper attempt's PASS, tree and branch as pending; after a fast-forward integration the rerun reuses it without executing, `complete` records kind `VERIFIED` whose evidence names the descendant result in `reusedFrom`, and the receipt audit passes); `TestTCDV0151_DescendantPassCoversAMergedSeal` and `TestTCDV0152_DescendantReuseRefusals` unchanged | none |
 | TCD-V0-807 | V1-3541 | `internal/tasks/cli` (`requiredGatesWarning`, `createTemplateFields`) | `TestTCDV0807_CreateWithoutGatesNamesThePolicyGates` (a required and an optional policy gate: an empty-gates create warns naming both; a create naming the optional gate, a replay and a policy without gates warn nothing) | none |
 | TCD-V0-870 | V1-3496 | `internal/tasks/cli` (`closeoutIndex.prReferences`, `batchHits`) | `TestTCDV0870_DirectPRDeliversItsOwnTickets` (a direct PR's title parenthetical, `- **ID**:` lines and `Delivers` line deliver; a `Follow-up` prose line and a vetoed line only mention) | none |
