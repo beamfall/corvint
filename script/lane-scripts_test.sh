@@ -7,7 +7,8 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py
-# (ASD-V0-834, ASD-V0-836), dogfood-change-runs.sh (ASD-V0-955). No Go build runs.
+# (ASD-V0-834, ASD-V0-836), dogfood-change-runs.sh (ASD-V0-955),
+# lane-dispatch-check.sh (ASD-V0-645). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1931,6 +1932,52 @@ out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
 [[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
 out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
 [[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
+ok
+
+# ASD-V0-645 (V1-3768, V1-3770): lane-dispatch-check screens a batch's ticket files before lanes
+# start: an empty ticket fails unless waived, two lanes touching one file (or a directory key that
+# holds it) and one ticket in two lanes always fail, an absent path fails only under --base, and a
+# malformed file or usage error exits 2.
+ldc=$tmp/ldc
+mkdir -p "$ldc/repo/pkg" && printf 'x\n' > "$ldc/repo/pkg/a.go" && printf 'y\n' > "$ldc/repo/README.md"
+git -C "$ldc/repo" init -q && git -C "$ldc/repo" add -A &&
+  git -C "$ldc/repo" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "lane-dispatch-check fixture repo"
+tk() { printf '{"ticketId":"%s","record":{"effects":{"touchPaths":[%s]}}}' "$1" "$2"; }
+printf '[%s]\n' "$(tk T:V1-1 '"pkg/a.go"')" > "$ldc/a.json"
+printf '[%s]\n' "$(tk T:V1-2 '"README.md"')" > "$ldc/b.json"
+printf '[%s]\n' "$(tk T:V1-3 '')" > "$ldc/empty.json"
+printf '[%s]\n' "$(tk T:V1-4 '"pkg/"')" > "$ldc/dir.json"
+printf '[%s]\n' "$(tk T:V1-1 '"docs/x.md"')" > "$ldc/dup.json"
+printf '[%s]\n' "$(tk T:V1-5 '"new/file.go"')" > "$ldc/new.json"
+printf '{"ticketId":1}\n' > "$ldc/bad.json"
+ldcrun() { (cd "$ldc/repo" && "$script/lane-dispatch-check.sh" "$@" 2>&1); }
+out=$(ldcrun --base HEAD a="$ldc/a.json" b="$ldc/b.json")
+[[ $? == 0 && $out == 'lane-dispatch-check: PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check pass: $out"
+out=$(ldcrun a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 1 && $out == *'EMPTY lane=e ticket=T:V1-3: no touchPaths'*'--waive V1-3'* && $out == *'FAIL 1 finding(s) in 2 lanes, 2 tickets' ]] ||
+  fail "lane-dispatch-check empty: $out"
+out=$(ldcrun --waive V1-3 a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 0 && $out == *'PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check empty waived: $out"
+out=$(ldcrun a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *'OVERLAP lanes a (T:V1-1 pkg/a.go) and d (T:V1-4 pkg/)'* ]] || fail "lane-dispatch-check overlap: $out"
+out=$(ldcrun --waive V1-4 a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *OVERLAP* ]] || fail "lane-dispatch-check overlap is never waived: $out"
+out=$(ldcrun a="$ldc/a.json" x="$ldc/dup.json")
+[[ $? == 1 && $out == *'DUPLICATE ticket=V1-1 is in lanes a,x'* && $out != *OVERLAP* ]] || fail "lane-dispatch-check duplicate: $out"
+out=$(ldcrun n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent without --base: $out"
+out=$(ldcrun --base HEAD n="$ldc/new.json")
+[[ $? == 1 && $out == *'ABSENT lane=n ticket=T:V1-5 path=new/file.go is not at the lane base'* ]] || fail "lane-dispatch-check absent: $out"
+out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
+out=$(ldcrun a="$ldc/bad.json")
+[[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
+out=$(ldcrun a="$ldc/a.json" a="$ldc/b.json")
+[[ $? == 2 && $out == *'lane a is named twice'* ]] || fail "lane-dispatch-check duplicate lane: $out"
+out=$(ldcrun --base nope a="$ldc/a.json")
+[[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
+out=$(ldcrun)
+[[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

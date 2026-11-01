@@ -450,6 +450,16 @@ the lane to run `make requirement-id-collisions` after staging a spec that adds 
 final commit, and the orchestrator runs it in the batch checkout before integrating each lane
 (`ASD-V0-950`, `ASD-V0-951`).
 
+Before any lane starts, the orchestrator screens the batch's ticket files with
+`make lane-dispatch-check BASE=<sha> LANES="lane-a=tickets-a.json lane-b=tickets-b.json"`
+(`script/lane-dispatch-check.sh`, `ASD-V0-645`). Each file is one lane's JSON ticket array. The
+check fails (exit 1) on `EMPTY`, a ticket without `record.effects.touchPaths`; `DUPLICATE`, one
+ticket in two lanes; `OVERLAP`, two lanes whose tickets name the same path or a directory key (ending
+in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at the lane base. `WAIVE=V1-N`
+(space separated) waives `EMPTY` and `ABSENT` for a ticket that creates its paths; an overlap is
+never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
+not a commit exits 2.
+
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
 build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
