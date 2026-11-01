@@ -64,6 +64,11 @@ driving Corvint from scripts.
   rules. Every value that does not resolve to one commit SHALL be refused with
   `invalid-arguments` carrying the same hint, `git rev-parse --verify 'VALUE^{commit}'`; an
   ambiguous prefix keeps `ambiguous-affected-base` (AFP-V0-232).
+- **ACX-V0-855:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-3045) When two Python files share one dotted name, as `pkg.py` and `pkg/__init__.py` do,
+  the Python plugin SHALL keep both files in the one unit `python:pkg`, with the imports of both,
+  so an edit to either has that owner and selects its importers. Neither file SHALL be dropped
+  from the graph and become an unowned dirty path.
 
 ## Non-goals
 
@@ -87,6 +92,7 @@ still runs it.
 | ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go` | `TestACXV0851WorktreePathPlan` |
 | ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
 | ACX-V0-854 | `setAffectedBase` in `cmd/corvint/affected.go`, `resolveAffectedAbbrevBase` and `affectedBaseHint` in `cmd/corvint/affected_abbrev_base.go` | `TestACXV0854RevisionBase`; `TestAFPV0230AbbreviatedBaseAndTrailingRoot` |
+| ACX-V0-855 | `UnitsSource` in `internal/liveverify/affected/python/python.go` | `TestModuleAndPackageInitShareOneOwner_ACX_V0_855` |
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
 
 ## Rollback
