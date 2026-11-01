@@ -481,6 +481,17 @@ func TestUCV0630SpanAndSymbolSubjects(t *testing.T) {
 		f.bind("implementation", r)
 		f.check("subject:0:invalid-subject-pin")
 	})
+	// Admission is by key presence, so a JSON-null selector is a refused pin, not a whole-file one.
+	for _, key := range []string{"lines", "symbol"} {
+		t.Run("refuse "+key+"=null", func(t *testing.T) {
+			f := newFixture(t)
+			r := f.receipt("implementation")
+			f.write("evidence/demo.go", []byte(src))
+			r["subjects"] = []any{map[string]any{"path": "evidence/demo.go", "sha256": digest([]byte(src)), key: nil}}
+			f.bind("implementation", r)
+			f.check("subject:0:invalid-subject-pin")
+		})
+	}
 	t.Run("symbol on a non-Go path", func(t *testing.T) {
 		f := newFixture(t)
 		r := f.receipt("implementation")

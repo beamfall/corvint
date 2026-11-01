@@ -349,9 +349,12 @@ func (v *validator) receipt(id, class string, reference any, label string, verif
 			sl := fmt.Sprintf("%s:subject:%d", label, i)
 			fields := []string{"path", "sha256"}
 			if m, _ := subject.(map[string]any); m != nil {
-				_, hasLines := m["lines"]
-				_, hasSymbol := m["symbol"]
-				if hasLines && hasSymbol {
+				lines, hasLines := m["lines"]
+				symbol, hasSymbol := m["symbol"]
+				_, linesText := lines.(string)
+				_, symbolText := symbol.(string)
+				// A present selector must be a string: JSON null would otherwise pin the whole file.
+				if hasLines && hasSymbol || hasLines && !linesText || hasSymbol && !symbolText {
 					v.fail(sl, "invalid-subject-pin")
 					continue
 				}
