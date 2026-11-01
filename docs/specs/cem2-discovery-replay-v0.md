@@ -13,7 +13,7 @@ rule); `AGENTS.md` invariants 2, 4 and 8; the existing machinery this replay reu
 
 ## Agent digest
 - Claim: A pre-registered replay of 40 later-fixed agent changes decides if typed per-unit labels beat coverage-diff at flagging the unit the fix touched.
-- Status: proposed/experimental; **pre-registration only, not run**. X and Y are `OWNER-BLOCKER`.
+- Status: proposed/experimental; **pre-registration only, not run**. The owner set X = 0.15 and Y = 0.60 on 2026-11-01.
 - Exists: `benchmarks/cem2-discovery-replay-v0/` — `PROTOCOL.md`, `select.py`, `selection-manifest.json` (+ `.sha256`, `5a51e33a...29cda`), `thresholds.json`, `harness.py` (`check`, `plan`, `run`, `score`, `selftest`).
 - Blocked on: the owner setting X and Y; an external-repository clone (beamfall/core selection is NOT_PRODUCED); a host with capacity for about 53 h worst-case wall-clock.
 - Read next: `benchmarks/cem2-discovery-replay-v0/PROTOCOL.md` sections 2, 4 and 6; Requirements below.

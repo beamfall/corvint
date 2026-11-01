@@ -1,6 +1,6 @@
 # CEM 2.0 discovery replay: pre-registered protocol (V1-2600)
 
-Status: **pre-registered, not run.** Thresholds X and Y are **OWNER-BLOCKER** (section 6).
+Status: **pre-registered, not run.** Thresholds X = 0.15 and Y = 0.60 were set by the owner on 2026-11-01 (section 6).
 Contract: [`docs/specs/cem2-discovery-replay-v0.md`](../../docs/specs/cem2-discovery-replay-v0.md)
 (`VRP-V0-001..099`). Partition: **held-out** under the first-observation rule of
 [`benchmarks/README.md`](../README.md#partitions-and-first-observation-rule). No replay output
@@ -163,8 +163,8 @@ cost against dogfood) are reported and never change the verdict.
 
 | Threshold | Value | Status |
 |---|---|---|
-| **X** — minimum escaped-defect capture gain of typed over baseline (`delta`, fraction of paired changes) | `OWNER-BLOCKER` | proposed default 0.15 |
-| **Y** — maximum typed false-alarm rate (`FA_typed`) | `OWNER-BLOCKER` | proposed default 0.60 |
+| **X** — minimum escaped-defect capture gain of typed over baseline (`delta`, fraction of paired changes) | **0.15** | set by the owner 2026-11-01 (the proposed default) |
+| **Y** — maximum typed false-alarm rate (`FA_typed`) | **0.60** | set by the owner 2026-11-01 (the proposed default) |
 
 The owner sets both in [`thresholds.json`](thresholds.json) and in this table in one commit before
 any `run`; `harness.py run` and `score` exit 3 while either is not a number, and refuse when this
@@ -181,7 +181,7 @@ than random while tolerating the known `weak-test` inflation from the missing eq
 
 ```sh
 H=benchmarks/cem2-discovery-replay-v0
-python3 -I $H/harness.py check                               # digest + OWNER-BLOCKER status
+python3 -I $H/harness.py check                               # digest + threshold status
 python3 -I $H/harness.py selftest                            # synthetic fold/rule checks only
 python3 -I $H/harness.py plan --repo "$PWD" --work "$HOME/vrp/work" --out "$HOME/vrp/out" --corvint "$(command -v corvint)"
 # after the owner commits numeric X and Y:
