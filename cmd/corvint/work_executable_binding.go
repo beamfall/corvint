@@ -142,7 +142,8 @@ func workOpenBoundExecutable(path string, protectedRoots []string) (*workExecuta
 		}
 		if index+1 < len(object.bindings) {
 			if !binding.info.IsDir() || workUnsafeParent(binding.info.Mode()) {
-				return fail("path has an unsafe parent component")
+				// WQO-V0-910: name the parent and mode, so a umask-0002 host can see why.
+				return fail("path has an unsafe parent component: " + binding.path + " has mode " + binding.info.Mode().String() + " (group- or world-writable without the sticky bit)")
 			}
 		}
 	}
