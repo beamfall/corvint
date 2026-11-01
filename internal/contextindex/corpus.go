@@ -8,7 +8,7 @@ import (
 // BuildRevisionContext uses the native immutable evidence reader at an explicit
 // commit. It creates no snapshot and does not change HEAD or the working tree.
 func BuildRevisionContext(ctx context.Context, root, revision string) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	identity, err := revisionIdentity(ctx, root, revision)
 	if err != nil {

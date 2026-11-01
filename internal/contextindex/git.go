@@ -313,6 +313,25 @@ func gitRaw(ctx context.Context, root string, outputLimit, expected int, stdin [
 	return stdout.Bytes(), nil
 }
 
+// writerBoundsKey marks the background refresh writer's context.
+type writerBoundsKey struct{}
+
+// WithWriterBounds marks ctx as the background refresh writer's, whose own CPU
+// work budget and wall bound replace the shared Git deadline (IDX-SNAP-V0-912).
+// It is set in-process by the writer only; no flag or environment reaches it.
+func WithWriterBounds(ctx context.Context) context.Context {
+	return context.WithValue(ctx, writerBoundsKey{}, true)
+}
+
+// withGitDeadline is the shared DCW-V0-075 deadline, or only the parent's
+// bounds for a context marked by WithWriterBounds.
+func withGitDeadline(ctx context.Context) (context.Context, context.CancelFunc) {
+	if marked, _ := ctx.Value(writerBoundsKey{}).(bool); marked {
+		return context.WithCancel(ctx)
+	}
+	return context.WithTimeout(ctx, gitDeadline)
+}
+
 func contextError(ctx context.Context) error {
 	return contextFailure(ctx.Err())
 }

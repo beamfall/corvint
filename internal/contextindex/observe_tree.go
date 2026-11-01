@@ -35,7 +35,7 @@ var observeTreeStep = func(attempt int) {}
 // tree; otherwise the observation is repeated, at most three times, as a
 // context build retries (DCR-V1-411).
 func ObserveTree(ctx context.Context, root string) (*TreeObservation, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
 		opening, err := readIdentity(ctx, root)

@@ -41,7 +41,7 @@ func rangeBoundRefusalBeforeLoad(ctx context.Context, root, base string, limit i
 	if limit < 1 || limit > maxLimit {
 		return nil
 	}
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	identity, err := readIdentity(ctx, root)
 	if err != nil || identity.historyCut || !validObjectID(base, identity.objectFormat) {

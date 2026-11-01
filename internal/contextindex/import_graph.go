@@ -44,7 +44,7 @@ func ImportGraphKinds(value string) (map[string]bool, error) {
 // checkout cannot change or block the graph (NGI-V0-304). It writes no index
 // snapshot.
 func BuildImportGraph(ctx context.Context, root, revision string) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	raw, err := git(ctx, root, maxIdentityBytes, nil, "rev-parse", "--show-object-format")
 	if err != nil {

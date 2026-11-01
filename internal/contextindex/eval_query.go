@@ -1254,7 +1254,7 @@ func evalPruneAuxiliarySymbols(candidates []evalSymbolCandidate, queryText strin
 }
 
 func evalLearnedCandidates(ctx context.Context, index *Index, opening *historyProbe, task string, maximum, minimumOverlap int, snapshot *QueryTraceSnapshot, bracket *queryBracket, pending func() (QueryTraceSnapshot, error)) ([]map[string]any, map[string]any, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	// The opening observation was issued by EvalQuery, before the ranking that
 	// reads no repository; its status read and identity read are independent

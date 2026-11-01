@@ -1175,6 +1175,10 @@ lasted. One 36-loop rerun finished in 35 s, so the outcome depends on scheduling
 itself at nice 15 the writer finished in 27 s. A writer at nice 0 still took 88 s under 36 loops.
 `IDX-SNAP-V0-515` makes the repeated expiry visible; recovering under such load needs either a
 lower-priority load (V1-2440) or an owner amendment to the `IDX-SNAP-V0-033` bounds.
+Measured, V1-3310 (2026-10-31, linux/amd64, 36 nice-0 loops pinned with the writer to 12 of 32
+CPUs, host load 42): under `IDX-SNAP-V0-912` the one writer published after 336.8 s with its lock
+record cleared, the hook during it reported `already running`, and the next hooks were no longer
+stale (they met the expected `dogfood-event-deadline` time bound of LCP-V0-008 under that load).
 
 - A rebuilt binary: the engine digest changes, every existing snapshot misses, `index` must be
   rerun. Development builds pay a build per binary.

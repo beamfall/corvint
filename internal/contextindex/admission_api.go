@@ -50,7 +50,7 @@ func WebConfigShaped(data []byte) bool {
 // reading only the tree listing: no blob is read. There is no aggregate byte bound
 // (IDX-SNAP-V0-910).
 func CheckRevisionAdmission(ctx context.Context, root, revision string) error {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	identity, err := revisionIdentity(ctx, root, revision)
 	if err != nil {

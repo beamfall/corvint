@@ -340,7 +340,7 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 // snapshot whose unchanged sources and per-source facts the attempt reuses
 // (snapshot_reuse.go, IDX-SNAP-V0-037). A nil reuse is the full build.
 func buildStableReusing(ctx context.Context, root string, opening *repositoryObservation, compile func(*Index), reuse *snapshotReuse) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
 		before, entries, skipped, err := openingObservationWithTree(ctx, root, attempt, opening)
@@ -427,7 +427,7 @@ func observeRepository(ctx context.Context, root string) repositoryObservation {
 // authority-start query profile. Impact continues to use Build so its complete
 // source index remains unchanged.
 func BuildQuery(ctx context.Context, root, text string) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	queryText := pythonLower(TrimPythonSpace(text))
 	queryTerms := terms(queryText)
@@ -1483,7 +1483,7 @@ type Observation struct {
 // projectprofile.Detect over the source set, which is a pure function of the
 // tree, so an equal Revision already implies an equal ProfileID.
 func Observe(ctx context.Context, root string) (Observation, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	observed := observeRepository(ctx, root)
 	if observed.identityErr != nil {

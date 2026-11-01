@@ -57,7 +57,15 @@ func TestSnapshotRefreshWorkerHelper(t *testing.T) {
 			os.Exit(2)
 		}
 	}
-	os.Exit(runSnapshotRefreshWorker([]string{"--root", root, "index", "--if-stale"}, bound))
+	budget := snapshotRefreshCPUBudget
+	if value := os.Getenv("V1128_REFRESH_CPU"); value != "" {
+		var err error
+		budget, err = time.ParseDuration(value)
+		if err != nil {
+			os.Exit(2)
+		}
+	}
+	os.Exit(runSnapshotRefreshWorker([]string{"--root", root, "index", "--if-stale"}, bound, budget))
 }
 
 func refreshTestContext(t *testing.T, root string, extra ...string) (context.Context, *[]*exec.Cmd) {
@@ -497,7 +505,7 @@ func TestSnapshotRefreshPreviousOutcome(t *testing.T) {
 		"not json":  "",
 		`{"pid":7}`: "",
 		`{"pid":7,"started":"2026-10-30T19:36:04.5Z"}`:                                                  "started at 2026-10-30T19:36:04Z, did not finish successfully: it stopped before recording an outcome",
-		`{"pid":7,"started":"2026-10-30T19:36:04Z","ended":"2026-10-30T19:37:00Z","outcome":"expired"}`: "it reached its 55-second work limit; heavy machine load can cause this",
+		`{"pid":7,"started":"2026-10-30T19:36:04Z","ended":"2026-10-30T19:37:00Z","outcome":"expired"}`: "it reached its work limit (55 CPU-seconds, or 50 seconds before its 10-minute hard limit",
 		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"failed"}`:                                 "did not finish successfully: it failed.",
 		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"<injected>"}`:                             "it stopped before recording an outcome",
 	}
@@ -531,7 +539,7 @@ func TestSnapshotRefreshNoticeNamesPreviousOutcome(t *testing.T) {
 	ctx, commands := refreshTestContext(t, root)
 	output := refreshEvent(ctx, root, "claude")
 	text := fmt.Sprint(output)
-	if adapterDegradationReason(output) != claudeSnapshotStaleReason || !strings.Contains(text, "Background index refresh started. The previous background refresh, started at 2000-01-01T00:00:00Z, did not finish successfully: it reached its 55-second work limit") {
+	if adapterDegradationReason(output) != claudeSnapshotStaleReason || !strings.Contains(text, "Background index refresh started. The previous background refresh, started at 2000-01-01T00:00:00Z, did not finish successfully: it reached its work limit (55 CPU-seconds") {
 		t.Fatalf("notice: %v", output)
 	}
 	waitRefreshExit(t, (*commands)[0])
@@ -561,5 +569,36 @@ func TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit(t *testing.T) {
 	text, _ := output["systemMessage"].(string)
 	if text != frame+plain || !withinAdapterOutputLimit(output) {
 		t.Fatalf("over-limit notice kept the outcome or lost the argv: %d bytes", len(text))
+	}
+}
+
+// IDX-SNAP-V0-912: the work bound is CPU time. A spent budget cancels the
+// build with the budget cause (recorded as expired); an unspent one leaves the
+// work running however long it waits, and process CPU time is what is read.
+func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
+	spent, stop := snapshotRefreshCPUContext(context.Background(), 0, 5*time.Millisecond)
+	defer stop()
+	select {
+	case <-spent.Done():
+	case <-time.After(10 * time.Second):
+		t.Fatal("a spent CPU budget did not cancel the work")
+	}
+	if !errors.Is(context.Cause(spent), errSnapshotRefreshCPUBudget) || errors.Is(spent.Err(), context.DeadlineExceeded) {
+		t.Fatalf("cause = %v, err = %v", context.Cause(spent), spent.Err())
+	}
+	waiting, stopWaiting := snapshotRefreshCPUContext(context.Background(), time.Hour, 5*time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
+	if waiting.Err() != nil {
+		t.Fatalf("an idle wait spent the CPU budget: %v", context.Cause(waiting))
+	}
+	stopWaiting()
+	before := snapshotRefreshCPUTime()
+	for deadline := time.Now().Add(200 * time.Millisecond); time.Now().Before(deadline); {
+	}
+	if after := snapshotRefreshCPUTime(); after-before < 50*time.Millisecond {
+		t.Fatalf("CPU time %s -> %s across a 200 ms busy loop", before, after)
+	}
+	if snapshotRefreshWallBound != 10*time.Minute || snapshotRefreshCPUBudget != 55*time.Second {
+		t.Fatalf("bounds %s wall, %s CPU", snapshotRefreshWallBound, snapshotRefreshCPUBudget)
 	}
 }
