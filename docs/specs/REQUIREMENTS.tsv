@@ -7067,6 +7067,7 @@ TJAA-V0-114	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-115	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1880,	standing	2026-10-11; #1880
 TJAA-V0-121	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); GitHub #1884,	standing	2026-10-11; #1884
 TJAA-V0-122	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1885, V1-2786) A bare import specifier MUST NOT raise	unrecorded	-
+TJAA-V0-710	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2789)	standing	2026-10-11; V1-2789
 TJAA-V0-123	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1887, V1-2787) A top-level `metadata` member of the	unrecorded	-
 TJAA-V0-124	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1883, V1-2784) `PlaywrightDiscoveryFromWrappedLists`	unrecorded	-
 TJAA-V0-125	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1883, V1-2784) `corvint affected discovery` MUST accep	unrecorded	-
