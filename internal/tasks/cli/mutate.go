@@ -84,11 +84,15 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		return mutationHelp(cmd, operation)
 	}
 	if flags.template {
-		if operation != mutation.OpCreate {
-			return usage(cmd, "--template is available only for ticket create")
-		}
 		if flags.others != 0 {
 			return usage(cmd, "--template takes no other flag")
+		}
+		if operation != mutation.OpCreate {
+			if flags.skeleton {
+				return usage(cmd, "--skeleton is available only for ticket create --template")
+			}
+			// TCL-V0-611: every mutation has a read-only typed template.
+			return mutationTemplate(env, cmd, operation)
 		}
 		if flags.skeleton {
 			return createSkeleton(env, cmd)
@@ -162,7 +166,7 @@ func valuelessTemplateFlag(arg string) (string, bool) {
 // --skeleton: both are switches, and the ticket kind lives in the payload
 // (TCT-V0-990).
 func templateValueRefusal(name string) string {
-	return name + " takes no value; use ticket create --template for the canonical CREATE payload, or ticket create --template --skeleton for the bare payload, and set the ticket kind in the payload's kind field"
+	return name + " takes no value; use ticket VERB --template for a verb's typed example payload, ticket create --template for the canonical CREATE payload, or ticket create --template --skeleton for the bare payload, and set the ticket kind in the payload's kind field"
 }
 
 func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
@@ -313,6 +317,8 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o := wire.NewObject()
 	o.Set("operation", wire.String(operation))
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
+	// TCL-V0-610: each payload key's type beside its name.
+	o.Set("payloadKeyTypes", payloadKeyTypes(operation))
 	o.Set("replay", wire.String("Repeating a mutation with its recorded --request-id and the same payload replays it: the result is OK with replayed true, receipt is empty because no receipt is written, and originalReceipt names the receipt that committed the original (TCL-V0-991)."))
 	// TCL-V0-861: a single-target verb needs both flags (buildEnvelope), so
 	// its usage marks them required and the derived example runs.
@@ -345,6 +351,10 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
 		usageText += " [--not-duplicate-of TICKET|LOCAL ...]; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
+	}
+	if operation != mutation.OpCreate {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template"
+		o.Set("template", wire.String("corvint-tasks "+strings.Join(cmd, " ")+" --template prints a decodable example payload for this verb and each payload member's type, enum values and nullability (TCL-V0-611); replace its fill members and submit it with --payload-stdin. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpRefine {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"

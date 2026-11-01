@@ -278,6 +278,26 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   it MUST submit the earlier revision whose rebuilt envelope digest equals the recorded digest,
   so a retry of an applied hold replays its recorded result instead of refusing
   `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
+- `TCL-V0-610`: (experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1)
+  The help item of every `ticket` mutation verb MUST carry `payloadKeyTypes`, an object that maps
+  each of the operation's closed payload keys (and its optional keys) to a type string: the
+  CTW-V0-012 field type, `enum A|B|...` with the closed values the decoder enforces, and an
+  `or null` suffix for a nullable key. Help reads no store, so gate and pool values are open.
+- `TCL-V0-611`: (experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1,
+  V1-3714 AC2; supersedes the "no other verb takes it" clause of CTW-V0-012, formerly
+  CAL-V0-073) `corvint-tasks ticket VERB --template` for every mutation verb other than
+  `create` MUST return one read-only item with `operation`, `queueId`, a decodable example
+  `payload` (also as the exact canonical string `payloadCanonical`), `fill` naming the members
+  the caller decides, and `fields` documenting each of the verb's payload keys and dotted
+  members as CTW-V0-012 does. Prose placeholders read `REPLACE: why` and decode as is. The
+  verb's derived help example (TCL-V0-861), with `JSON` replaced by `payloadCanonical`, MUST run.
+  `--template` composes with no other flag, `--skeleton` stays CREATE-only, and nothing is read
+  from the journal, locked or written.
+- `TCL-V0-612`: (experimental under the standing lane auto-accept (2026-11-01); V1-3714 AC3)
+  When `ticket list` or `ticket search` `--fields` widens to the `ticket show` items
+  (TCL-V0-862) and those items still lack a requested key, the `MALFORMED` refusal MUST be
+  judged against the show items, so it names the key no show item carries rather than a
+  show-only key, such as `record`, that the narrow list items lack.
 
 ## Non-goals
 
@@ -354,6 +374,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
 - `internal/tasks/cli/review_fixes_test.go`:
   `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
+- `internal/tasks/cli/mutation_template_test.go`: `TestTCLV0610_HelpNamesPayloadKeyTypes`
+  (TCL-V0-610), `TestTCLV0611_EveryMutationTemplateRuns` (TCL-V0-611),
+  `TestTCLV0612_WideFieldsRefusalNamesTheMissingKey` (TCL-V0-612);
+  `internal/tasks/cli/create_template_test.go`: `TestCALV0073_TemplateRefusesOtherVerbsAndFlags`
+  (TCL-V0-611 flag and `--skeleton` refusals).
 
 ## Rollback
 
