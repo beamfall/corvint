@@ -13,6 +13,27 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
+// TestFixtureIgnoresInheritedGitRepository proves the fixture's git commands
+// cannot follow an inherited repository selection (as a git hook sets) into
+// another repository: every selector points at a decoy that must stay empty.
+func TestFixtureIgnoresInheritedGitRepository(t *testing.T) {
+	decoy := t.TempDir()
+	for _, name := range []string{"GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_COMMON_DIR", "GIT_NAMESPACE"} {
+		t.Setenv(name, filepath.Join(decoy, strings.ToLower(name)))
+	}
+	f := newFixture(t, nil)
+	entries, err := os.ReadDir(decoy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("the fixture wrote %d entries into the decoy repository", len(entries))
+	}
+	if got := git(t, f.root, "rev-parse", "--absolute-git-dir"); got != filepath.Join(f.root, ".git") {
+		t.Fatalf("fixture git dir = %s; want %s", got, filepath.Join(f.root, ".git"))
+	}
+}
+
 // fixture is a hermetic repository with one change and its cem/1.0 map.
 type fixture struct {
 	root, base, target string
@@ -37,7 +58,7 @@ var fixtureTarget = map[string]string{
 func git(t *testing.T, root string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
-	cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+	cmd.Env = append(fixtureEnviron(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
 		"GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid", "GIT_AUTHOR_DATE=2026-11-01T00:00:00Z",
 		"GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid", "GIT_COMMITTER_DATE=2026-11-01T00:00:00Z")
 	out, err := cmd.CombinedOutput()
@@ -45,6 +66,19 @@ func git(t *testing.T, root string, args ...string) string {
 		t.Fatalf("git %v: %v\n%s", args, err, out)
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// fixtureEnviron drops every inherited GIT_* variable, so a repository
+// selector such as GIT_DIR, GIT_WORK_TREE or GIT_INDEX_FILE cannot redirect
+// the fixture into the invoking repository.
+func fixtureEnviron() []string {
+	var env []string
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "GIT_") {
+			env = append(env, kv)
+		}
+	}
+	return env
 }
 
 func writeTree(t *testing.T, root string, files map[string]string) {
