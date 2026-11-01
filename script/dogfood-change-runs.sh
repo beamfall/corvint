@@ -12,7 +12,7 @@ if [[ -n $since && ! $since =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}:[0
   exit 2
 fi
 common=$(git rev-parse --path-format=absolute --git-common-dir) || exit 2
-log="$common/corvint/dogfood-change-runs.tsv"
+log="$common/corvint/dogfood-change-runs-all.tsv"
 [[ -r $log ]] || log_rows=/dev/null
 # A five-column row (ASD-V0-955) is one run; its lane is the branch, or the worktree when detached.
 # The ISO times compare as strings.

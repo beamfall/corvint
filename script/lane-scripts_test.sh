@@ -1593,7 +1593,7 @@ mkdir -p "$dcr/repo/script" && cp "$script/dogfood-change.sh" "$script/dogfood-b
   printf '0.0.0\n' > "$dcr/repo/VERSION" && git init -q -b main "$dcr/repo" && git -C "$dcr/repo" add . &&
   git -C "$dcr/repo" -c user.name=t -c user.email=t@example.invalid commit -qm dcr &&
   git -C "$dcr/repo" worktree add -q -b lane-a "$dcr/a" && git -C "$dcr/repo" worktree add -q -b lane-b "$dcr/b" || fail "dogfood-change-runs fixture"
-dcr_base=$(git -C "$dcr/repo" rev-parse HEAD) dcr_log=$(git -C "$dcr/repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs.tsv
+dcr_base=$(git -C "$dcr/repo" rev-parse HEAD) dcr_log=$(git -C "$dcr/repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs-all.tsv
 dcr_run() { (cd "$1" && CORVINT_BIN=/bin/false script/dogfood-change.sh "$dcr_base" > /dev/null 2>&1); }
 dcr_run "$dcr/a"; dcr_run "$dcr/b"; dcr_run "$dcr/b"; dcr_run "$dcr/b"
 [[ $(wc -l < "$(git -C "$dcr/b" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") == 3 ]] || fail "dogfood-change-runs per-worktree log (ASD-V0-907) changed"
@@ -1611,6 +1611,13 @@ out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
 [[ $out != *'run-count old '* && $out == *'lanes=3 '*'since=2001-01-01 '* ]] || fail "dogfood-change-runs SINCE: $out"
 out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2099-01-01T00:00:00Z 2>&1)
 [[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED max=0 total=0 since=2099-01-01T00:00:00Z '* ]] || fail "dogfood-change-runs empty window: $out"
+# A run in the primary checkout, whose git dir is the common dir, is counted once in the shared
+# ledger and keeps its own one-line per-worktree log (review: one file name would double it).
+dcr_run "$dcr/repo"
+[[ $(wc -l < "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") == 1 ]] ||
+  fail "dogfood-change-runs primary checkout per-worktree log: $(cat "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv")"
+out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
+[[ $out == *$'run-count main 1\n'* && $out == *'lanes=4 '*'total=6 '* ]] || fail "dogfood-change-runs primary checkout: $out"
 # No ledger yet reads NOT_OBSERVED with exit 0; a malformed SINCE exits 2 naming the input.
 git init -q "$dcr/none" || fail "dogfood-change-runs empty repository"
 out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
