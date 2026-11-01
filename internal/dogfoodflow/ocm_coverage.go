@@ -35,8 +35,13 @@ func (coverage *changeCoverage) unlinkedNote() string {
 	if len(ids) > maxNamedUnlinked {
 		named += fmt.Sprintf(" (+%d more)", len(ids)-maxNamedUnlinked)
 	}
-	return fmt.Sprintf("dogfood-check: NOTE untraced-requirements count=%d ids=%s", len(ids), named)
+	return fmt.Sprintf("dogfood-check: NOTE untraced-requirements count=%d ids=%s%s", len(ids), named, tracedForms)
 }
+
+// tracedForms is the note's tail naming every link form the traced test
+// accepts (OCM-V0-950), so an author whose link is missing knows which to add.
+const tracedForms = "; traced by: a linked obligation, an intent table row naming the ID or a range " +
+	"over it (X-V0-001..003), or a test-file line naming the ID or its test-name suffix (_XV0001, _X_V0_001)"
 
 // summaryFields prints the three members, or NOT_OBSERVED for each when the
 // coverage could not be read, never a guessed count (invariant 2). Each name
@@ -168,6 +173,56 @@ func namesRequirement(line, id string) bool {
 	}
 }
 
+// requirementRange is a `PREFIX-NNN..NNN` or `PREFIX-NNN..PREFIX-NNN` range
+// token in a table row (OCM-V0-950).
+var requirementRange = regexp.MustCompile(`([A-Z][A-Z0-9-]*-)([0-9]{3})\.\.(?:([A-Z][A-Z0-9-]*-))?([0-9]{3})`)
+
+// rangeNamesRequirement reports whether line holds a range token over id whose
+// first and last bytes adjoin no token byte, as namesRequirement requires.
+func rangeNamesRequirement(line, id string) bool {
+	prefix, number := id[:len(id)-3], id[len(id)-3:]
+	for _, at := range requirementRange.FindAllStringSubmatchIndex(line, -1) {
+		if at[0] > 0 && tokenByte(line[at[0]-1]) || at[1] < len(line) && tokenByte(line[at[1]]) {
+			continue
+		}
+		if line[at[2]:at[3]] != prefix || at[6] >= 0 && line[at[6]:at[7]] != prefix {
+			continue
+		}
+		if first, last := line[at[4]:at[5]], line[at[8]:at[9]]; first <= number && number <= last {
+			return true
+		}
+	}
+	return false
+}
+
+// suffixForms are the test-name spellings of id (OCM-V0-950): TCP-V0-991 as
+// TCPV0991 and TCP_V0_991, as in TestX_TCPV0991 or TestX_TCP_V0_991.
+func suffixForms(id string) []string {
+	return []string{strings.ReplaceAll(id, "-", ""), strings.ReplaceAll(id, "-", "_")}
+}
+
+// namesRequirementSuffix reports whether line holds a test-name form of id that
+// no upper-case letter or digit precedes and no digit follows, so a longer ID
+// such as TCPV09910 or XTCPV0991 never matches.
+func namesRequirementSuffix(line, id string) bool {
+	for _, form := range suffixForms(id) {
+		for from := 0; ; {
+			at := strings.Index(line[from:], form)
+			if at < 0 {
+				break
+			}
+			at += from
+			end := at + len(form)
+			before := at == 0 || !(line[at-1] >= 'A' && line[at-1] <= 'Z' || line[at-1] >= '0' && line[at-1] <= '9')
+			if before && (end == len(line) || line[end] < '0' || line[end] > '9') {
+				return true
+			}
+			from = at + 1
+		}
+	}
+	return false
+}
+
 func tokenByte(b byte) bool {
 	return b == '_' || b == '-' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
@@ -261,7 +316,7 @@ func (f *flow) changeCoverage(mapPath string, intents []string) *changeCoverage 
 				continue
 			}
 			for id := range referenced {
-				if namesRequirement(line, id) {
+				if namesRequirement(line, id) || rangeNamesRequirement(line, id) {
 					traced[id] = true
 				}
 			}
@@ -359,8 +414,8 @@ func (f *flow) linkedObligations(count int) (map[string]bool, bool) {
 const maxOCMMapBytes = 1 << 20
 
 // testsNaming marks each referenced ID that a line of a Go or shell test file
-// at the target names as an exact token. Repository grep settings cannot
-// prefix the matched lines.
+// at the target names as an exact token or a test-name suffix form
+// (OCM-V0-950). Repository grep settings cannot prefix the matched lines.
 func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 	ids := make([]string, 0, len(referenced))
 	for id := range referenced {
@@ -371,6 +426,9 @@ func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 		"grep", "-I", "-h", "--no-color", "-F"}
 	for _, id := range ids {
 		args = append(args, "-e", id)
+		for _, form := range suffixForms(id) {
+			args = append(args, "-e", form)
+		}
 	}
 	args = append(args, f.target, "--", "*_test.go", "*_test.sh")
 	output, status, bounded := f.boundedGit(args...)
@@ -379,7 +437,7 @@ func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 	}
 	for _, line := range textLines([]byte(output)) {
 		for _, id := range ids {
-			if namesRequirement(line, id) {
+			if namesRequirement(line, id) || namesRequirementSuffix(line, id) {
 				traced[id] = true
 			}
 		}

@@ -419,7 +419,7 @@ func TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces(t *testing.T) {
 // and prints nothing when every referenced requirement is linked or the
 // coverage could not be read.
 func TestOCMV0025CheckNamesUnlinkedRequirementIDs(t *testing.T) {
-	if got := (&changeCoverage{requirements: 3, linked: 1, unlinked: "FIX-V0-002,FIX-V0-003"}).unlinkedNote(); got != "dogfood-check: NOTE untraced-requirements count=2 ids=FIX-V0-002,FIX-V0-003" {
+	if got := (&changeCoverage{requirements: 3, linked: 1, unlinked: "FIX-V0-002,FIX-V0-003"}).unlinkedNote(); got != "dogfood-check: NOTE untraced-requirements count=2 ids=FIX-V0-002,FIX-V0-003"+tracedForms {
 		t.Fatalf("note %q", got)
 	}
 	for _, coverage := range []*changeCoverage{nil, {}, {requirements: 2, linked: 2}} {
@@ -432,8 +432,72 @@ func TestOCMV0025CheckNamesUnlinkedRequirementIDs(t *testing.T) {
 		ids = append(ids, fmt.Sprintf("FIX-V0-%03d", i))
 	}
 	got := (&changeCoverage{requirements: len(ids), unlinked: strings.Join(ids, ",")}).unlinkedNote()
-	if want := fmt.Sprintf("count=%d ids=%s (+2 more)", len(ids), strings.Join(ids[:maxNamedUnlinked], ",")); !strings.HasSuffix(got, want) {
+	if want := fmt.Sprintf("count=%d ids=%s (+2 more)", len(ids), strings.Join(ids[:maxNamedUnlinked], ",")) + tracedForms; !strings.HasSuffix(got, want) {
 		t.Fatalf("bounded note %q, want suffix %q", got, want)
+	}
+}
+
+// TestOCMV0950TracesTestNameSuffixesAndTableRanges reproduces V1-3455 on the
+// ctxpkt-w1 layout: requirements TCP-V0-990..993 whose traceability row names
+// the range and whose tests carry the _TCPV0991 suffix are traced, while a
+// longer ID, a range of another prefix and an ID outside the range are not,
+// and the note names the accepted link forms (OCM-V0-950).
+func TestOCMV0950TracesTestNameSuffixesAndTableRanges(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	write := func(path, data string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, path), []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(message string) string {
+		t.Helper()
+		testGit(t, root, "add", "-A", ".")
+		testGit(t, root, "commit", "-q", "-m", message)
+		return testGit(t, root, "rev-parse", "HEAD")
+	}
+	write("spec.md", "# Spec\n\n## Requirements\n\n- `TCP-V0-001`: base.\n")
+	write("code.go", "package a\n")
+	base := commit("base")
+	added := ""
+	for _, id := range []string{"TCP-V0-990", "TCP-V0-991", "TCP-V0-992", "TCP-V0-993", "TCP-V0-994", "TCP-V0-995", "TCP-V0-996"} {
+		added += "- `" + id + "`: (experimental) clause.\n"
+	}
+	write("spec.md", "# Spec\n\n## Requirements\n\n- `TCP-V0-001`: base.\n"+added+
+		"\n## Traceability\n\n| TCP-V0-990..992 (experimental) | `TestA_TCPV0990` |\n| ABC-V0-993..999, XTCP-V0-994..999 | none |\n")
+	write("a_test.go", "package a\n\nfunc TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993(t *testing.T) {}\n"+
+		"func TestGatedRootLocatorParity_TCP_V0_994(t *testing.T) {}\n// TCPV09950 and XTCPV0995 are longer tokens.\n")
+	target := commit("adds requirements")
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	write(".corvint/change.cem.json", `{"evidence":[],"hunks":[]}`)
+	write(".corvint/change.ocm.001.json", `{"obligations":[]}`)
+	run := &flow{ctx: context.Background(), root: root, stderr: io.Discard, base: base, target: target}
+	got := run.changeCoverage(filepath.Join(root, ".corvint/change.cem.json"), []string{"spec.md"})
+	want := &changeCoverage{requirements: 7, linked: 5, unlinked: "TCP-V0-995,TCP-V0-996"}
+	if got == nil || *got != *want {
+		t.Fatalf("coverage %+v, want %+v", got, want)
+	}
+	if note := got.unlinkedNote(); !strings.Contains(note, "ids=TCP-V0-995,TCP-V0-996; traced by:") ||
+		!strings.Contains(note, "range over it (X-V0-001..003)") || !strings.Contains(note, "test-name suffix (_XV0001, _X_V0_001)") {
+		t.Fatalf("note %q does not name the accepted link forms", note)
+	}
+	for _, tc := range []struct {
+		line, id string
+		want     bool
+	}{
+		{"| TCP-V0-990..993 |", "TCP-V0-993", true},
+		{"| TCP-V0-990..TCP-V0-993 |", "TCP-V0-991", true},
+		{"| TCP-V0-990..993 |", "TCP-V0-994", false},
+		{"| XTCP-V0-990..993 |", "TCP-V0-991", false},
+		{"| TCP-V0-990..ABC-V0-993 |", "TCP-V0-991", false},
+		{"| TCP-V0-990..9930 |", "TCP-V0-991", false},
+	} {
+		if got := rangeNamesRequirement(tc.line, tc.id); got != tc.want {
+			t.Errorf("rangeNamesRequirement(%q, %s) = %v, want %v", tc.line, tc.id, got, tc.want)
+		}
 	}
 }
 
