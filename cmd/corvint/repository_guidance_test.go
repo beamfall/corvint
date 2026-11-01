@@ -213,7 +213,7 @@ func TestRepositoryGuidanceRefBoundsAndDrift(t *testing.T) {
 func TestRepositoryGuidanceRefusalsDoNotObserve(t *testing.T) {
 	t.Run("RGV-V0-002 clean read-only refusal", func(t *testing.T) {
 		root, base := guidanceFixture(t)
-		guidanceWrite(t, root, "dirty.txt", "dirty")
+		guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
 		before := treeDigest(t, root)
 		for _, args := range [][]string{{"features"}, {"overview", "--unexpected"}, {"review", "--base", base}, {"review", "--base", "HEAD"}, {"review", "--base", base, "--max-refs", "33"}} {
 			var stdout, stderr bytes.Buffer
@@ -605,4 +605,39 @@ func affectedChecksOf(checks []affectedCompactCheck) []affectedCheck {
 		out = append(out, affectedCheck{Command: check.Command, Kind: check.Kind, Reason: check.Reason, Source: check.Source})
 	}
 	return out
+}
+
+// RGV-V0-955 (V1-3528): a worktree whose only dirt is one untracked agent
+// settings file degrades overview and features to a MIXED unknown, as affected
+// plans the same tree with that path dirty instead of refusing, while review and
+// a tracked change still refuse.
+func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
+	root, base := guidanceFixture(t)
+	guidanceWrite(t, root, ".claude/settings.local.json", "{}\n")
+	for _, command := range []string{"overview", "features"} {
+		out, _ := guidanceRead(t, root, command, "")
+		if out.Omissions["untracked"] != 1 || !strings.Contains(strings.Join(out.Unknown, "\n"), `MIXED worktree: untracked paths outside the pinned HEAD tree were not read; dirty worktree or status drift: 1 path(s): ?? ".claude/settings.local.json"`) {
+			t.Fatalf("%s did not degrade to MIXED: %+v %v", command, out.Omissions, out.Unknown)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--root", root, "affected", "--base", base}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("affected refused the same tree: %d %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"dirty":[".claude/settings.local.json"]`) {
+		t.Fatalf("affected did not plan the same untracked path as dirty: %s %s", stdout.String(), stderr.String())
+	}
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), ".claude/settings.local.json") {
+		t.Fatalf("review accepted untracked dirt: %v", err)
+	}
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "overview", MaxRefs: 32}, func() { guidanceWrite(t, root, "later.txt", "x") }); err == nil || !strings.Contains(err.Error(), "status drift") {
+		t.Fatalf("untracked drift accepted: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "later.txt")); err != nil {
+		t.Fatal(err)
+	}
+	guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "features", MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), `M "go.mod"`) {
+		t.Fatalf("tracked change accepted: %v", err)
+	}
 }

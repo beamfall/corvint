@@ -196,11 +196,20 @@ func runGuidance(ctx context.Context, in guidanceInvocation, stdout, stderr io.W
 func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck func()) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	snapshot, err := genesis.OpenGuidance(ctx, in.Root)
+	open := genesis.OpenGuidance
+	if in.Command != "review" {
+		open = genesis.OpenGuidanceTolerating
+	}
+	snapshot, err := open(ctx, in.Root)
 	if err != nil {
 		return nil, err
 	}
 	receipt := discoverGuidance(snapshot, in.Command)
+	if snapshot.Untracked > 0 {
+		// RGV-V0-955: untracked-only dirt degrades like affected's MIXED warning.
+		receipt.Omissions["untracked"] = snapshot.Untracked
+		receipt.Unknown = append(receipt.Unknown, "MIXED worktree: untracked paths outside the pinned HEAD tree were not read; "+snapshot.UntrackedDetail)
+	}
 	if in.Command == "overview" {
 		probe, reason, probeErr := contextindex.SnapshotFreshness(ctx, in.Root)
 		if probeErr != nil {
