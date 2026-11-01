@@ -324,6 +324,7 @@
       "internal/cem/verify/",
       "internal/cem/wire/",
       "internal/groupreap/",
+      "interop/cem01-go/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
