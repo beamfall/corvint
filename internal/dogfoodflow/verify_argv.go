@@ -12,12 +12,23 @@ import (
 // command bytes without space or comma.
 const runName = `[A-Za-z0-9_./:@=+-]+`
 
+// runClass is one bracket class of name characters, such as [45] or [0-9],
+// literal inside either quote (DCW-V0-991).
+const runClass = `\[[A-Za-z0-9_-]+\]`
+
+// runClassName is a test name whose characters may include bracket classes,
+// such as TestX88[45]_ (DCW-V0-991).
+const runClassName = `(?:[A-Za-z0-9_./:@=+-]|` + runClass + `)+`
+
 // runAlternation is the regex of one quoted -run word: names joined by |,
 // bare (TestA|TestB), as one anchored group (^(TestA|TestB)$), or with every
-// name anchored (^TestA$|^TestB$) (DCW-V0-384, DCW-V0-801).
-const runAlternation = `(?:` + runName + `(?:\|` + runName + `)+` +
-	`|\^\(` + runName + `(?:\|` + runName + `)+\)\$` +
-	`|\^` + runName + `\$(?:\|\^` + runName + `\$)+)`
+// name anchored (^TestA$|^TestB$) (DCW-V0-384, DCW-V0-801); since
+// DCW-V0-991 a name may hold bracket classes, and one name holding a class
+// stands alone (TestX88[45]_).
+const runAlternation = `(?:` + runClassName + `(?:\|` + runClassName + `)+` +
+	`|\^\(` + runClassName + `(?:\|` + runClassName + `)+\)\$` +
+	`|\^` + runClassName + `\$(?:\|\^` + runClassName + `\$)+` +
+	`|[A-Za-z0-9_./:@=+-]*` + runClass + runClassName + `?)`
 
 // runPrefix and runSuffix are the words around the -run word: the
 // recorder's v1 command bytes only.
@@ -176,4 +187,27 @@ func quotedRunSuggestions(options ChangeOptions) []string {
 		}
 	}
 	return suggestions
+}
+
+// quotedRunWord is a verify line's quoted -run word, single- or
+// double-quoted, attached or separate (DCW-V0-991).
+var quotedRunWord = regexp.MustCompile(` -run(?:=| )(?:'([^']*)'|"([^"]*)")`)
+
+// quotedRunRefusal names why the quoted -run word of a refused verify line is
+// not admitted: the first character outside test names, |, a ^(...)$ group,
+// ^...$ anchors and bracket classes of name characters, or the shape when
+// every character is admitted (DCW-V0-991). It is "" for a line with no
+// quoted -run word or one whose word is admitted.
+func quotedRunRefusal(line string) string {
+	match := quotedRunWord.FindStringSubmatch(line)
+	if match == nil || quotedRunAlternation.MatchString(strings.TrimSpace(line)) {
+		return ""
+	}
+	word := match[1] + match[2]
+	for index, r := range word {
+		if !strings.ContainsRune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./:@=+-|^$()[]", r) {
+			return fmt.Sprintf("the quoted -run word %q holds %q at byte %d, which the verify grammar does not admit (DCW-V0-991)", word, string(r), index)
+		}
+	}
+	return fmt.Sprintf("the quoted -run word %q is not a single name with a bracket class, an alternation of names, ^(A|B)$ or ^A$|^B$ (DCW-V0-991)", word)
 }

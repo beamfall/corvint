@@ -284,6 +284,11 @@ func (l *finishLane) requireVerifyInput() {
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
+	if _, text := refusedVerifyLineOf(l.options.Change); text != "" {
+		if why := quotedRunRefusal(text); why != "" {
+			l.say("  refused: %s\n", why)
+		}
+	}
 	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no globs or operators, and no quotes except around one -run alternation), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
 	if reason == "unsupported-verify-syntax" {
 		// DCW-V0-170, amended by DCW-V0-384 and DCW-V0-801: name the admitted
@@ -292,7 +297,7 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$', or one name with a bracket class, -run 'TestX88[45]_' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801, DCW-V0-991), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
 	l.exit(2)
 }
@@ -352,6 +357,20 @@ func refusedVerifyLine(data []byte) (int, string) {
 		}
 	}
 	return 0, ""
+}
+
+// refusedVerifyLineOf is refusedVerifyLine over the verify file, else the
+// DOGFOOD_VERIFY text.
+func refusedVerifyLineOf(options ChangeOptions) (int, string) {
+	text := []byte(options.Verify)
+	if options.VerifyFile != "" {
+		data, err := readPrefix(options.VerifyFile, maxVerifyFileBytes)
+		if err != nil {
+			return 0, ""
+		}
+		text = data
+	}
+	return refusedVerifyLine(text)
 }
 
 // line writes one step line to stdout.

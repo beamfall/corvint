@@ -26,7 +26,7 @@ func TestVerifyArgumentsDCWV0384AdmitsOneQuotedRunAlternation(t *testing.T) {
 	}
 	for _, line := range []string{
 		"go test ./a -run '^TestA$'",
-		"go test ./a -run 'Test[A-C]|TestD'",
+		"go test ./a -run 'Test.*|TestD'",
 		"go test ./a -run 'TestA'",
 		"go test ./a -run 'TestA|TestB' -run 'TestC|TestD'",
 		"go test ./a -run 'TestA|TestB'; rm -rf x",
@@ -144,5 +144,49 @@ func TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments(t *testing.T)
 	}
 	if got := quotedRunFix(""); got != "" {
 		t.Errorf("quotedRunFix(\"\") = %q", got)
+	}
+}
+
+// DCW-V0-991 (V1-3642): a quoted -run word may hold bracket classes of name
+// characters, alone or in an alternation, and is recorded as one argv word;
+// any other quoted -run word is refused with a reason naming its first
+// unadmitted character, or its shape when every character is admitted.
+func TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass(t *testing.T) {
+	for line, want := range map[string]string{
+		"go test -run 'TestX88[45]_' ./a":           `["go","test","-run","TestX88[45]_","./a"]`,
+		"go test -run=\"TestX[0-9]$x\" ./a":         "",
+		"go test -run '^(TestX88[45]_|TestY)$' ./a": `["go","test","-run","^(TestX88[45]_|TestY)$","./a"]`,
+		"go test ./a -run=\"Test[AB]c\"":            `["go","test","./a","-run=Test[AB]c"]`,
+		"go test -run '[45]_' ./a":                  `["go","test","-run","[45]_","./a"]`,
+		"go test -run 'TestA[45]|TestB[1]' -v ./a":  `["go","test","-run","TestA[45]|TestB[1]","-v","./a"]`,
+	} {
+		got := verifyArguments([]byte(line + "\n"))
+		if want == "" {
+			if got[0] != "--verify" || validateVerify(got) == nil {
+				t.Errorf("%q became %q, want refused", line, got)
+			}
+			continue
+		}
+		if len(got) != 2 || got[0] != "--verify-argv-json" || got[1] != want {
+			t.Errorf("%q became %q, want argv %s", line, got, want)
+			continue
+		}
+		if err := validateVerify(got); err != nil {
+			t.Errorf("%q refused: %v", line, err)
+		}
+	}
+	for line, want := range map[string]string{
+		"go test -run 'TestX[^4]' ./a":   `is not a single name with a bracket class`,
+		"go test -run 'TestX.*' ./a":     `holds "*" at byte 6`,
+		"go test -run 'Test[a b]' ./a":   `holds " " at byte 6`,
+		"go test -run '^TestA$' ./a":     `is not a single name with a bracket class`,
+		"go test -run 'TestX[]' ./a":     `is not a single name with a bracket class`,
+		"go test -run 'TestA|TestB' ./a": "",
+		"go test -run TestA ./a":         "",
+	} {
+		got := quotedRunRefusal(line)
+		if want == "" && got != "" || want != "" && (!strings.Contains(got, want) || !strings.Contains(got, "DCW-V0-991")) {
+			t.Errorf("quotedRunRefusal(%q) = %q, want %q", line, got, want)
+		}
 	}
 }
