@@ -82,7 +82,7 @@ func (Language) Units(ctx context.Context, root string) (affected.Result, error)
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(name string) bool {
+	files, err := root.Files(func(_, name string) bool {
 		lower := strings.ToLower(name)
 		return strings.HasSuffix(lower, ".cs") || strings.HasSuffix(lower, ".csproj") ||
 			strings.HasSuffix(lower, ".fsproj") || strings.HasSuffix(lower, ".vbproj") ||

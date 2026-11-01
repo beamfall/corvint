@@ -4248,5 +4248,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/affected-cli-consistency-v0.md",
+    "title": "Affected and CLI Consistency V0",
+    "reqPrefix": "ACX-V0",
+    "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)",
+    "delivery": "experimental",
+    "claim": "Affected source walks, worktree path plans, test-file readers, revspec bases and the CLI flag, error and Makefile surface follow one contract.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

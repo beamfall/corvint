@@ -160,7 +160,7 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 // every script that name may be (TSP-V0-960), so it must be listed too. An
 // unreadable candidate fails it.
 func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
-	candidates, err := root.Files(callerCandidate)
+	candidates, err := root.Files(affected.ByName(callerCandidate))
 	if err != nil {
 		return false
 	}

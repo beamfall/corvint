@@ -142,6 +142,7 @@ func noteShow(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items = []wire.Value{*item}
@@ -229,6 +230,7 @@ func noteHistory(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items, res.Page, res.Untrusted = []wire.Value{*item}, pg, true

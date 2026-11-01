@@ -541,6 +541,7 @@ func escalationShow(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, notFound)
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items, res.Untrusted = []wire.Value{*item}, true
@@ -614,6 +615,7 @@ func escalationHistory(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, notFound)
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items, res.Page, res.Untrusted = items, pg, true

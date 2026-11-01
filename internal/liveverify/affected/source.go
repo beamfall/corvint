@@ -76,11 +76,24 @@ func (s *Source) retain(err error) {
 	}
 }
 
-func (s *Source) Files(accept func(string) bool) ([]string, error) {
+// Files lists the walked source files that accept admits. accept receives
+// each file's repository-relative slash path and its base name, so a
+// directory-scoped rule (gradle/libs.versions.toml) can match as well as a
+// name-only one (V1-3583); ByName adapts a name-only predicate.
+func (s *Source) Files(accept func(relative, name string) bool) ([]string, error) {
 	files, _, err := s.FilesIncluding(accept)
 	return files, err
 }
-func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
+
+// ByName adapts a predicate over a file's base name to the accept callback of
+// Files and FilesIncluding.
+func ByName(accept func(name string) bool) func(relative, name string) bool {
+	return func(_, name string) bool { return accept(name) }
+}
+
+// FilesIncluding is Files with explicit language-owned exceptions to
+// SkippedDirectories; accept receives the relative path and the base name.
+func (s *Source) FilesIncluding(accept func(relative, name string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
 	if err := s.stopped(); err != nil {
 		return nil, false, err
 	}
@@ -89,7 +102,11 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 		return nil, false, ErrInvalidLanguage
 	}
 	if s.fsys == nil && s.ctx == nil {
-		return SourceFilesIncluding(s.root, accept, included...)
+		all, bounded, err := SourceFilesIncluding(s.root, acceptEveryName, included...)
+		if err != nil {
+			return nil, false, err
+		}
+		return slices.DeleteFunc(all, func(relative string) bool { return !accept(relative, path.Base(relative)) }), bounded, nil
 	}
 	key := strings.Join(included, "\x00")
 	s.mu.Lock()
@@ -118,7 +135,7 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 		if err := s.cancelled(); err != nil {
 			return nil, false, err
 		}
-		if accept(path.Base(relative)) {
+		if accept(relative, path.Base(relative)) {
 			files = append(files, relative)
 		}
 	}

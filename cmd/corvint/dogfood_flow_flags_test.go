@@ -25,7 +25,7 @@ func TestDCWV0808DogfoodOptionRefusalNamesTheFault(t *testing.T) {
 		"check option": {[]string{"dogfood", "seal", "--citations", "c", "B"}, "invalid-local-completion-option",
 			[]string{"dogfood seal does not take --citations; it takes "}},
 		"unsafe name": {[]string{"dogfood", "check", "--X\x1b[31m", "B"}, "invalid-local-completion-option",
-			[]string{"dogfood check does not take an option; it takes --base-verifier, --override-verifier, --tree-verifier"}},
+			[]string{"dogfood check does not take an option; it takes --base, --base-verifier, --override-verifier, --tree-verifier"}},
 	} {
 		code, stdout, stderr := runCLI(t, c.args...)
 		if code != 2 || stdout != "" || !strings.HasPrefix(stderr, `{"code":"`+c.code+`"`) {

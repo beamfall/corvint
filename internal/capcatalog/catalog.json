@@ -1407,7 +1407,8 @@
         "--repository-base",
         "--require-clean",
         "--selection-profile",
-        "--snapshot"
+        "--snapshot",
+        "--worktree"
       ],
       "schemaIds": [
         "affected-by-path/1",

@@ -144,7 +144,7 @@ var includedDirectories = []string{"build", "dist", "target"}
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
-	observed, includedDirectoryBounded, err := root.FilesIncluding(func(name string) bool {
+	observed, includedDirectoryBounded, err := root.FilesIncluding(func(_, name string) bool {
 		return strings.HasSuffix(name, ".go") || name == "go.mod"
 	}, includedDirectories...)
 	if err != nil {
@@ -263,7 +263,7 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 	if len(embedding) == 0 {
 		return nil
 	}
-	files, _, err := root.FilesIncluding(func(string) bool { return true }, includedDirectories...)
+	files, _, err := root.FilesIncluding(func(_, _ string) bool { return true }, includedDirectories...)
 	if err != nil {
 		return err
 	}

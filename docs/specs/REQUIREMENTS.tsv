@@ -17,6 +17,16 @@ ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check
 ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
 ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
 ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
+ACX-V0-850	docs/specs/affected-cli-consistency-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)	standing	2026-10-11; V1-3583
+ACX-V0-851	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP-V0-094, under the owner's standing lane	standing	-
+ACX-V0-852	docs/specs/affected-cli-consistency-v0.md	(experimental, narrowing AFP-V0-021, under the owner's standing lane	standing	-
+ACX-V0-853	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP-V0-496, under the owner's standing lane	standing	-
+ACX-V0-854	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP-V0-230, under the owner's standing lane	standing	-
+ACX-V0-855	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
+ACX-V0-856	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
+ACX-V0-857	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
+ACX-V0-858	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
+ACX-V0-859	docs/specs/affected-cli-consistency-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11;	standing	2026-10-11
 AFP-V0-181	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
 AFP-V0-182	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
 AFP-V0-183	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
@@ -2433,6 +2443,7 @@ TCL-V0-014	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-870	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A	standing	2026-10-11; V1-3552
 TCL-V0-990	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The	standing	2026-10-11; V1-3517
 TCL-V0-991	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A	standing	2026-10-11; V1-3766
+TCL-V0-859	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3736) An	standing	2026-10-11; V1-3736
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
 TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-
