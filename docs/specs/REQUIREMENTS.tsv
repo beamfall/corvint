@@ -4376,6 +4376,7 @@ GL-V0-009	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A resolved pack
 GL-V0-050	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package	standing	2026-10-11; V1-0634
 GL-V0-051	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-2985; amends	standing	2026-10-28; V1-2985
 GL-V0-720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends	standing	2026-11-01; V1-3846
+GL-V0-787	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run	standing	2026-11-01; V1-4188
 GVA-V0-001	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) `corvint tests lint`, `corvint	standing	2026-10-27; V1-2841
 GVA-V0-002	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) The verdict file (schema `corvi	standing	2026-10-27; V1-2841
 GVA-V0-003	docs/specs/gate-verdict-agreement-v0.md	(standing lane auto-accept, 2026-10-27; V1-2841) Each command MUST map its outco	standing	2026-10-27; V1-2841

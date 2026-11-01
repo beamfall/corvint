@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-787 experimental under the standing lane auto-accept (2026-11-01; V1-4188)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -175,6 +175,19 @@ therefore come from something keyed on content, not from Go's cache.
   Non-goals: choosing the packages; a Makefile scope variable. Failure mode: a scope that
   leaves out an affected package does not test it. The SCOPE line and the record show what ran. Rollback: remove
   `--packages` and `record.Scope`; `go-test` then runs `./...` only.
+- `GL-V0-787`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4188) One run
+  MUST read its working directory and environment only from the invocation it is given: `main`
+  passes the process's (`os.Getwd`, `os.Environ`), and a test passes its fixture's. Every Git and
+  `go` call, every executed step command (its directory, environment and PATH lookup), each
+  environment lookup (`CORVINT_GATE_LEDGER`, `CORVINT_GATE_LEDGER_DIR`, `XDG_CACHE_HOME`, `HOME`,
+  `GO_TEST_TIMEOUT`, `GOFLAGS`) and the private index's temporary directory (`TMPDIR`) come from
+  it, the last entry of a repeated key winning as in `exec.Cmd.Env`. A run from `main` therefore
+  behaves exactly as before, and two runs in one process share no cwd or env, so the tests run
+  in parallel. Off Unix, command lookup and the temporary and home directories stay the
+  process's: the ledger refuses its directory there and runs every step (GL-V0-005). Failure
+  mode: an invocation built without a PATH finds no command, and the run refuses as an unfound
+  command. Rollback: pass `processInvocation()` everywhere. Behaviour is then as before, and
+  the tests go back to `t.Setenv` and `t.Chdir`.
 
 ## Non-goals and simpler baseline
 
@@ -274,6 +287,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
 | GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
+| GL-V0-787 | `invocation`, `processInvocation`, `command`, `getenv` in `tools/gate-ledger/main.go`; `lookPath`, `tempDir`, `userHomeDir` in `tools/gate-ledger/invocation_unix.go` and `invocation_other.go` | Every test in `tools/gate-ledger/main_test.go` runs on a per-test invocation with `t.Parallel`, except `TestWorktreeDigestImportFailureRunsWithoutRecord`, which stays serial because it writes and execs a `git` wrapper. That test finds the wrapper through the invocation's PATH and its private index through the invocation's TMPDIR, and passes only if both are honoured. `TestRunStepRefusesWhatItCannotDigest` (`CORVINT_GATE_LEDGER=off` from the invocation); `TestRunStepRecordsFromLinkedWorktree` (the invocation's directory). `-race` is clean. Package 7.6-8.1 s → 2.3-2.5 s (build log `docs/build-log/2026-11-01-tsf-w33.md`) |
 
 ## Rollout, rollback, and drift
 
