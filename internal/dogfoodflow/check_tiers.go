@@ -1,6 +1,7 @@
 package dogfoodflow
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // maxTierWarnings bounds the per-hunk tier warnings one check prints; the rest
@@ -26,6 +28,13 @@ const tierBelowAnchoredUnavailable = "rule=CEM-V1-081 reason=\"no stable BASE li
 // carry no tier warning: each cites its own file, the ordinary citation of the
 // function it edits, which is evidence but earns no anchor (DCW-V0-388).
 const tierBelowAnchoredSamePath = "rule=CEM-V1-081 reason=\"each cites a BASE span of its own file, such as the function it edits: cited evidence, but CEM-V1-081 anchors only a span that names the hunk path or its basename of at least 6 bytes or defines a requirement ID the hunk adds, so a touched-anchored or all-anchored cem-verdict gate still refuses it; to anchor one, also cite such a span (corvint dogfood propose-citations BASE drafts one)\""
+
+// anchorSearchBudget bounds the citation-anchor search of unanchorableHunks,
+// and anchorSearchProgressHunks is the hunk count from which the check
+// announces it (DCW-V0-818). Tests lower the budget.
+var anchorSearchBudget = 60 * time.Second
+
+const anchorSearchProgressHunks = 16
 
 // Quiet classes of a below-anchored hunk: it draws a NOTE count, not a WARN.
 const (
@@ -259,15 +268,30 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool)
 	if !ok || baseRevision != c.base {
 		return nil
 	}
+	// The search runs after the SUMMARY line, so it is bounded and, for a
+	// large set, announced; past its budget no hunk is classed unanchorable
+	// and every below-anchored hunk keeps its warning (DCW-V0-818).
+	if len(below) >= anchorSearchProgressHunks {
+		c.say("dogfood-check: NOTE tier-anchor-search hunks=%d budget=%s (DCW-V0-818)\n", len(below), anchorSearchBudget)
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, anchorSearchBudget)
+	defer cancel()
+	overBudget := func() bool { return c.ctx.Err() == nil && ctx.Err() != nil }
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			if unwound, isStop := recovered.(stop); !isStop || unwound.code == -1 {
+			unwound, isStop := recovered.(stop)
+			if !isStop || (unwound.code == -1 && !overBudget()) {
 				panic(recovered)
 			}
 			unanchorable = nil
 		}
+		if overBudget() {
+			unanchorable = nil
+			c.say("dogfood-check: NOTE tier-anchor-search NOT_OBSERVED budget-exceeded hunks=%d; every below-anchored hunk keeps its warning (DCW-V0-818)\n", len(below))
+		}
 	}()
 	searched := c.flow
+	searched.ctx = ctx
 	searched.stderr = io.Discard
 	search := &proposal{flow: searched, blobs: map[string][]byte{}, lines: map[string][][]byte{}, basenames: true}
 	wanted := map[string]bool{}
@@ -286,6 +310,9 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool)
 	edited := editedRanges(hunks)
 	unanchorable = map[string]bool{}
 	for _, hunk := range owed {
+		if ctx.Err() != nil {
+			return nil
+		}
 		if row, _ := search.anchoredProposal(hunk, "", edited, map[string]bool{}); row == "" {
 			unanchorable[hunk.id] = true
 		}
