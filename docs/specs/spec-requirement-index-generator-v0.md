@@ -248,7 +248,7 @@ No requirement below diverges from the implementation.
 - `SRG-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a
   merge, `make spec-requirements-resolve` (`script/spec-requirements-resolve.sh`) MUST exit 1 and
   name the paths when any unmerged path is not `docs/specs/REQUIREMENTS.tsv`, `INDEX.json` or
-  `README.md`, or when no path is unmerged. Otherwise it MUST restart each unmerged generated file
+  `README.md` (with no path unmerged it regenerates, `SRG-V0-920`). Otherwise it MUST restart each unmerged generated file
   from the current branch's side, regenerate all three from the staged specs exactly as
   `make spec-requirements` does, and stage them, so the merged files equal a fresh generation. This
   is the one-command resolution for the SRG-V0-016 limits: two changes that append adjacent rows to
@@ -412,6 +412,30 @@ No requirement below diverges from the implementation.
   controls it MUST show that the same amendments written as header segments, and the same targets
   appended to one shared `.PHONY:` line, do conflict, and that the generator refuses the new header
   segment under SRG-V0-980. Rollback: drop the case.
+- `SRG-V0-920`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3448; amends
+  `SRG-V0-041`) With no unmerged path (only a spec conflicted and was resolved, the generated files
+  having merged cleanly, or no merge in progress), `make spec-requirements-resolve` MUST regenerate
+  the three generated files from the staged specs, stage them, print `no unmerged path; regenerating
+  anyway` and exit 0, instead of exiting 1. It still exits 1 naming any unmerged path it does not
+  derive.
+- `SRG-V0-921`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3338; extends
+  `SRG-V0-041`) The resolve MUST also take the use-case receipts and their ledger
+  (`conformance/use-cases-v0/ledger.json`, `conformance/use-cases-v0/receipts/**`) as derived: an
+  unmerged one restarts from the current side; then, after the spec regeneration, each ledger pin
+  whose receipt's current bytes are exactly those the other side's ledger (`MERGE_HEAD`) pins takes
+  that pin, `script/repin-use-case-receipts.sh` repins every receipt whose subject changed, and the
+  receipts and ledger are staged, so a batch merge of generated files is finished by `make
+  spec-requirements-resolve` alone. Design: a `.gitattributes` merge driver needs per-clone
+  configuration and would run per file mid-merge, before the specs it derives from are resolved;
+  resolving after the merge reads the resolved specs. Non-goals: other derived files (the capability
+  catalog, analyzer pins: `make batch-regen`). Failure modes: a pin that is not a unique string in
+  the ledger is refused; a receipt neither side pins as it now is stays a repin refusal for review.
+- `SRG-V0-922`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3437) `make
+  spec-requirements` MUST, before the generator runs, refuse with exit 2 and one line
+  `spec-requirements: generated file(s) unmerged or holding conflict markers: PATH... - run make
+  spec-requirements-resolve` when a generated file is unmerged or is staged holding a
+  conflict-marker line; the resolve restarts such a staged file from `HEAD`. Non-goals: resolving
+  within `make spec-requirements` itself.
 
 ## Non-goals and simpler baseline
 
@@ -529,6 +553,9 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
 | SRG-V0-982 | `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
+| SRG-V0-920 | `script/spec-requirements-conflict_test.sh`: a merge that conflicts only in a spec's prose resolves with exit 0 and the `no unmerged path` line; outside a merge a staged spec edit is regenerated and staged |
+| SRG-V0-921 | `script/spec-requirements-conflict_test.sh`: two lanes that each add a new spec and repin a different receipt conflict in INDEX.json and the ledger; the resolve alone finishes the merge, every generated file equals the regenerated one, both new requirements are rows and both receipts are current |
+| SRG-V0-922 | `script/spec-requirements-conflict_test.sh`: in that merge `make spec-requirements` refuses with one line naming INDEX.json and `make spec-requirements-resolve`, and again once INDEX.json is staged with its markers |
 
 ## Traceability
 
@@ -568,6 +595,9 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-981 | `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model; the SRG-V0-009 reader | `spec-requirements-test` |
 | SRG-V0-982 | the per-target `.PHONY:` lines in `Makefile`; the `.PHONY` check in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 | SRG-V0-983 | the replay case in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-920 | `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
+| SRG-V0-921 | `script/spec-requirements-resolve.sh` ledger reconcile and repin step | `spec-requirements-test` |
+| SRG-V0-922 | the `spec-requirements` target's unmerged check in `Makefile`; the staged-marker restart in `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
