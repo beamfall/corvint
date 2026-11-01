@@ -36,7 +36,7 @@ func TestDCWV0907CheckRunsTheVerifierPairConcurrently(t *testing.T) {
 	c := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", stderr: io.Discard}, options: CheckOptions{
 		BaseVerifier: fake(baseStarted, treeStarted, "base"), TreeVerifier: fake(treeStarted, baseStarted, "tree"), ConcurrentVerifiers: true,
 	}}
-	base, tree := c.verifyPair("cem", "status")
+	base, tree := c.verifyPair(true, "cem", "status")
 	if base.status != 0 || tree.status != 0 || string(base.stdout) != "base cem status" || string(tree.stdout) != "tree cem status" {
 		t.Fatalf("base=%d %q %q tree=%d %q %q", base.status, base.stdout, base.stderr, tree.status, tree.stdout, tree.stderr)
 	}
@@ -49,9 +49,36 @@ func TestDCWV0907CheckRunsTheVerifierPairConcurrently(t *testing.T) {
 		}}
 	}
 	c.options = CheckOptions{BaseVerifier: sequential("base"), TreeVerifier: sequential("tree")}
-	c.verifyPair("cem", "status")
+	c.verifyPair(true, "cem", "status")
 	if strings.Join(order, ",") != "base,tree" {
 		t.Fatalf("without ConcurrentVerifiers the pair ran %v, want base then tree", order)
+	}
+}
+
+// DCW-V0-907: query abstention verifiers stay sequential even with
+// ConcurrentVerifiers set. Each fake records whether the other was running
+// when it started; the real verifyQueryAbstention path must run base then tree.
+func TestDCWV0907QueryAbstentionVerifiersStaySequential(t *testing.T) {
+	order, running, overlap := []string{}, 0, false
+	fake := func(name string) Runner {
+		return Runner{Path: name, Run: func(_ context.Context, _ string, _ []string, _ io.Writer, stderr io.Writer) int {
+			running++
+			if running > 1 {
+				overlap = true
+			}
+			order = append(order, name)
+			time.Sleep(20 * time.Millisecond)
+			_, _ = io.WriteString(stderr, queryAbstentionEnvelope)
+			running--
+			return 2
+		}}
+	}
+	c := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", stderr: io.Discard}, options: CheckOptions{
+		BaseVerifier: fake("base"), TreeVerifier: fake("tree"), ConcurrentVerifiers: true,
+	}}
+	c.verifyQueryAbstention("task")
+	if overlap || strings.Join(order, ",") != "base,tree" {
+		t.Fatalf("query abstention verifiers ran %v overlap=%v, want base then tree", order, overlap)
 	}
 }
 

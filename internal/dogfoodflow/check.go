@@ -584,14 +584,15 @@ func runPlain(ctx context.Context, root string, runner Runner, args []string) ve
 	return verification{status, stdout.Bytes(), stderr.Bytes()}
 }
 
-// verifyPair runs args with the base and the tree verifier. With
-// ConcurrentVerifiers set and no aggregate enrollment the two run at once,
-// each into its own buffers, and one checkpoint follows both; the results are
-// compared exactly as when they run one after the other (DCW-V0-907). Only
-// cem status commands come here: impact takes the non-blocking contextindex
-// snapshot-refresh lock, so its pair stays sequential.
-func (c *check) verifyPair(args ...string) (verification, verification) {
-	if !c.options.ConcurrentVerifiers || c.aggregate != nil {
+// verifyPair runs args with the base and the tree verifier. For a cem status
+// pair (status set) with ConcurrentVerifiers set and no aggregate enrollment
+// the two run at once, each into its own buffers, and one checkpoint follows
+// both; the results are compared exactly as when they run one after the other
+// (DCW-V0-907). Every other pair, query abstention among them, stays
+// sequential, and impact never comes here: it takes the non-blocking
+// contextindex snapshot-refresh lock.
+func (c *check) verifyPair(status bool, args ...string) (verification, verification) {
+	if !status || !c.options.ConcurrentVerifiers || c.aggregate != nil {
 		return c.verify(c.options.BaseVerifier, args...), c.verify(c.options.TreeVerifier, args...)
 	}
 	var base verification
@@ -620,9 +621,10 @@ func agreeImpact(left, right verification) bool {
 }
 
 // verifyAll runs args with the base and tree verifiers and the optional
-// override, and reports the tree result and whether all of them agree.
-func (c *check) verifyAll(args ...string) (verification, bool) {
-	base, tree := c.verifyPair(args...)
+// override, and reports the tree result and whether all of them agree. Only a
+// cem status command (status set) may run its pair concurrently (DCW-V0-907).
+func (c *check) verifyAll(status bool, args ...string) (verification, bool) {
+	base, tree := c.verifyPair(status, args...)
 	if !agree(base, tree) {
 		return tree, false
 	}
@@ -722,7 +724,7 @@ func (c *check) verifyStatus(args ...string) (verification, bool) {
 
 func (c *check) verifyStatusOnce(args ...string) (verification, bool) {
 	if c.outputChange == "" {
-		return c.verifyAll(args...)
+		return c.verifyAll(true, args...)
 	}
 	base, tree, agreed := c.verifyDeclared(args...)
 	c.baseStatusSHA, c.baseRefusal, c.treeStatusSHA = sha256Hex(base.stdout), "", sha256Hex(tree.stdout)
@@ -736,7 +738,7 @@ func (c *check) verifyStatusOnce(args ...string) (verification, bool) {
 // base verifier still runs, the tree verifier fills both roles, and it must
 // agree with itself and with any override (DCW-V0-047).
 func (c *check) verifyDeclared(args ...string) (verification, verification, bool) {
-	base, tree := c.verifyPair(args...)
+	base, tree := c.verifyPair(true, args...)
 	if !agree(tree, c.verify(c.options.TreeVerifier, args...)) {
 		return base, tree, false
 	}
