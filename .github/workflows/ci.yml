@@ -1189,10 +1189,15 @@ jobs:
         if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
         timeout-minutes: 2
+        # The job checks the tested commit out into source/, where failed.jq lives.
+        working-directory: source
         run: |
           mkdir -p "$RUNNER_TEMP/main-failed"
+          # A failed classification leaves no file, so the upload below retains nothing rather
+          # than an empty document the main-miss job would read as no failed package.
           jq -R -s -c -f .github/forward-rows/failed.jq "$RUNNER_TEMP/shard-costs/shard-${{ strategy.job-index }}.json" \
-            > "$RUNNER_TEMP/main-failed/failed.json"
+            > "$RUNNER_TEMP/main-failed/failed.json.tmp" &&
+            mv "$RUNNER_TEMP/main-failed/failed.json.tmp" "$RUNNER_TEMP/main-failed/failed.json"
       - name: Retain a failed main shard's packages (AFP-V0-983)
         if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         continue-on-error: true
