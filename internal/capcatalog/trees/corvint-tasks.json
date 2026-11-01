@@ -2951,7 +2951,7 @@
         "corvint-tasks ticket blockers <ticketId|local>",
         "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N] [--prs FILE|-]",
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...] [--creates-paths]",
         "corvint-tasks ticket create --template [--skeleton]",
         "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]",
         "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]",
@@ -3010,6 +3010,7 @@
         "--contains",
         "--context",
         "--count",
+        "--creates-paths",
         "--criteria",
         "--cursor",
         "--declared",
@@ -3304,10 +3305,11 @@
       "command": "corvint-tasks ticket create",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...] [--creates-paths]",
         "corvint-tasks ticket create --template [--skeleton]"
       ],
       "flags": [
+        "--creates-paths",
         "--issued-at",
         "--not-duplicate-of",
         "--payload",

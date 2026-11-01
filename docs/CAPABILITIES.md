@@ -328,7 +328,9 @@ never a `corvint` subcommand, and it has its own developer release channel. Star
 
 Before filing, `corvint-tasks ticket similar --text|--payload-stdin` ranks open tickets with the
 context compiler's BM25 and names the matched terms; `ticket create` refuses a likely duplicate
-(`DUPLICATE_ID`) unless `--not-duplicate-of` names it; `ticket digest` prints a one-line friction
+(`DUPLICATE_ID`) unless `--not-duplicate-of` names it, and refuses touch paths absent from
+`origin/main` unless the body records `Source ref: BRANCH@SHA` or `--creates-paths` is given
+([TCL-V0-743](specs/corvint-tasks-cli-v0.md)); `ticket digest` prints a one-line friction
 digest that `ticket similar --digest FILE` matches without a store; `ticket recur` records a
 recurrence on the existing ticket. `queue snapshot` exports a verified intent snapshot that
 `CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every

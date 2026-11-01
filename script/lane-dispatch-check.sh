@@ -14,7 +14,9 @@
 #   OVERLAP    two lanes touch the same path, or a directory key (ending in /) holds the other path;
 #              never waived: serialize the tickets or give them to one lane
 #   ABSENT     with --base, a touch path is not at REV (a file by git cat-file -e, a directory key by
-#              git ls-tree); --waive a ticket that creates its paths
+#              git ls-tree); --waive a ticket that creates its paths. A ticket whose body records
+#              a "Source ref: BRANCH@SHA" line (TCL-V0-743, V1-3696) names that ref, so the ticket
+#              is ordered after the branch lands instead of searched for
 # --waive takes a full ticket ID or its last segment (V1-3768) and waives EMPTY and ABSENT for that
 # ticket only. Exit 0 with a PASS line, 1 on any finding, 2 on a usage error, an unreadable file,
 # malformed JSON, an empty ticketId or one holding a control character, a base that is not a commit
@@ -40,7 +42,8 @@ if [[ -n $base ]]; then
   sha=$(git rev-parse --verify -q "$base^{commit}") || refuse "base $base is not a commit; use a commit SHA or a ref that names one"
 fi
 rows=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || refuse 'mktemp failed'
-trap '/bin/rm -f "$rows"' EXIT
+refs=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || { /bin/rm -f "$rows"; refuse 'mktemp failed'; }
+trap '/bin/rm -f "$rows" "$refs"' EXIT
 for ((i = 0; i < ${#lanes[@]}; i++)); do
   lane=${lanes[i]} file=${files[i]}
   [[ $lane =~ ^[A-Za-z0-9._-]+$ ]] || refuse "lane name '$lane' is not valid; use letters, digits, dot, dash or underscore"
@@ -57,7 +60,12 @@ for ((i = 0; i < ${#lanes[@]}; i++)); do
   # One row per ticket and path: lane, ticket, path ("" for a ticket with none).
   jq -r --arg lane "$lane" '.[] | .ticketId as $t | ((.record.effects.touchPaths // []) | if length == 0 then [""] else . end)[]
       | [$lane, $t, .] | join("\t")' "$file" >> "$rows" || refuse "lane $lane: cannot read the tickets of $file; run jq on it to see the error"
+  # The recorded source ref of each ticket whose body has one (TCL-V0-743): ticket, BRANCH@SHA.
+  jq -r '.[] | .ticketId as $t | (.record.body // "") | strings
+      | capture("(?im)^source ref:[ \t]*(?<r>[^\\s@]+@[0-9a-f]{40})[ \t]*$")? | [$t, .r] | join("\t")' "$file" >> "$refs" ||
+    refuse "lane $lane: cannot read the ticket bodies of $file; run jq on it to see the error"
 done
+source_ref() { awk -F '\t' -v t="$1" '$1 == t { print $2; exit }' "$refs"; }
 waived() { local w; for w in ${waive[@]+"${waive[@]}"}; do [[ $w == "${1##*:}" ]] && return 0; done; return 1; }
 findings=0
 finding() { printf '%s: %s\n' "$me" "$*"; findings=$((findings + 1)); }
@@ -71,7 +79,12 @@ while IFS=$'\t' read -r lane t p; do
     else
       git cat-file -e "$sha:$p" 2> /dev/null && continue
     fi
-    finding "ABSENT lane=$lane ticket=$t path=$p is not at the lane base $sha; fix the path, rebase the lane, or pass --waive ${t##*:} for a ticket that creates it"
+    ref=$(source_ref "$t")
+    if [[ -n $ref ]]; then
+      finding "ABSENT lane=$lane ticket=$t path=$p is not at the lane base $sha; the ticket records source ref $ref: dispatch it after that branch lands on the base"
+    else
+      finding "ABSENT lane=$lane ticket=$t path=$p is not at the lane base $sha; fix the path, rebase the lane, or pass --waive ${t##*:} for a ticket that creates it"
+    fi
   fi
 done < "$rows"
 # DUPLICATE: one ticket (by its last segment) in two lanes.

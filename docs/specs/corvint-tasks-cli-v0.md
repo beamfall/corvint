@@ -338,6 +338,23 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   and tree digest. `script/agent-preflight.sh` MUST print a `tasks-store` row from this verb
   against `CORVINT_TASKS_AUTHORITY` or the newest staged `queue-snapshot.json`, and never fail on
   it. Non-goals: syncing or repairing the host store, which stays the orchestrator's export.
+- `TCL-V0-743`: (experimental under the standing lane auto-accept (2026-11-01); V1-3696, V1-3622)
+  A `ticket create` whose request ID is not yet recorded and whose payload declares
+  `effects.touchPaths` MUST check each path at `origin/HEAD`, else `origin/main`, in this clone
+  without fetching (a directory key ending in `/` is present when anything lies under it). When
+  any path is absent there, the create MUST be refused `MALFORMED` with nothing written, naming
+  the base, its commit and each absent path, unless `--creates-paths` declares that the ticket
+  creates them or the body records where the code lives with a line `Source ref: BRANCH@SHA`
+  (SHA a full 40-hex commit). A recorded commit present in this clone MUST hold every absent path
+  or the create is refused naming those still absent; one not in this clone is accepted with a
+  `NOT_OBSERVED` warning. An accepted create whose paths are absent from the base carries a
+  warning naming the source ref. A clone with neither ref, or a git observation that fails,
+  MUST NOT refuse: it warns that subject presence is `NOT_OBSERVED`. `--creates-paths` MUST NOT
+  enter the payload or the request digest and is refused by every other verb. The body line is the
+  record: `script/lane-dispatch-check.sh` names it on an `ABSENT` finding (ASD-V0-645), and the
+  dispatch-time dependency decision is to order such a ticket after its branch lands rather than
+  dispatch it against a base that lacks the code. Non-goals: symbol-level presence (tickets declare
+  paths, not symbols) and a typed source-ref record field.
 
 ## Non-goals
 
@@ -434,6 +451,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0742_QueueParityNamesMissingAndStaleTickets`; `script/agent-preflight_test.sh` case 6
   (`tasks-store` row); the wsl-lanes live snapshot read in `docs/build-log/2026-11-01-tcl-w31.md`
   (TCL-V0-742).
+- `internal/tasks/cli/create_source_ref_test.go`:
+  `TestTCLV0743_CreateRecordsSourceRefForAbsentPaths`; `make lane-scripts-test` group `ASD-V0-645`
+  (an `ABSENT` finding naming a recorded source ref) (TCL-V0-743).
 
 ## Rollback
 

@@ -2004,8 +2004,8 @@ ok
 
 # ASD-V0-645 (V1-3768, V1-3770): lane-dispatch-check screens a batch's ticket files before lanes
 # start: an empty ticket fails unless waived, two lanes touching one file (or a directory key that
-# holds it) and one ticket in two lanes always fail, an absent path fails only under --base, and a
-# malformed file or usage error exits 2.
+# holds it) and one ticket in two lanes always fail, an absent path fails only under --base (naming
+# a recorded source ref, TCL-V0-743), and a malformed file or usage error exits 2.
 ldc=$tmp/ldc
 mkdir -p "$ldc/repo/pkg" && printf 'x\n' > "$ldc/repo/pkg/a.go" && printf 'y\n' > "$ldc/repo/README.md"
 git -C "$ldc/repo" init -q && git -C "$ldc/repo" add -A &&
@@ -2038,6 +2038,12 @@ out=$(ldcrun --base HEAD n="$ldc/new.json")
 [[ $? == 1 && $out == *'ABSENT lane=n ticket=T:V1-5 path=new/file.go is not at the lane base'* ]] || fail "lane-dispatch-check absent: $out"
 out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
 [[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
+# TCL-V0-743 (V1-3696): an absent path whose ticket body records a source ref names that ref.
+src=$(printf 'ab%.0s' {1..20})
+printf '[{"ticketId":"T:V1-7","record":{"body":"lane code\\nSource ref: lane-x@%s","effects":{"touchPaths":["new/file.go"]}}}]\n' "$src" > "$ldc/src.json"
+out=$(ldcrun --base HEAD s="$ldc/src.json")
+[[ $? == 1 && $out == *"ABSENT lane=s ticket=T:V1-7 path=new/file.go is not at the lane base"*"records source ref lane-x@$src: dispatch it after that branch lands"* ]] ||
+  fail "lane-dispatch-check absent with a source ref: $out"
 out=$(ldcrun a="$ldc/bad.json")
 [[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
 # A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
