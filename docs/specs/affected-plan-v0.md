@@ -5521,6 +5521,31 @@ admit a selection that under-selects without detection.
   `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
   remove the exclusions declaration, `applyUnboundedExclusions`, `unboundedDirty` and the repository entries.
 
+### Closed declarations stay readable by the pinned planners (AFP-V0-710; V1-3600)
+
+Intent (lane affected-w3 finding, 2026-10-31; V1-3600): a new member in an existing closed
+`.corvint` declaration makes a planner pinned to an older commit (the CI driver and shadow pins)
+refuse the file and fall back from narrowing, and nothing warned when the member was added.
+
+- **AFP-V0-710:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)
+  `tools/declaration-compat-check`, run by `make declaration-compat-check` (one of
+  `DOC_GATE_TARGETS`), SHALL read the distinct `CORVINT_PR_TOOL_SOURCE` and
+  `CORVINT_TEST_SHADOW_SOURCE` pins from `.github/workflows/ci.yml` and, for every planner
+  declaration of its closed-shape table (each `.corvint/*.json` the planner or selector decodes
+  with unknown members refused, and the object positions inside it whose member set is closed),
+  compare the members at each closed position in the working tree with those the same file holds
+  at each pin. A member present now and absent at a pin SHALL fail the check with one line naming
+  the file, the position, the member and the pin, and the compatible alternatives: a new
+  declaration file, which an older planner never reads, or a new `profile` value, which an older
+  planner refuses as a whole declaration. A file absent at the pin, a changed `profile`, a member
+  removed, and new entries of known shape SHALL pass. A `.corvint/*.json` that is neither in the
+  table nor listed as no planner input SHALL fail the check, so a new declaration is classified
+  when it is added. A pin absent from the clone SHALL fail the check and name the fetch. Non-goals:
+  running a pinned binary; checking value types. Failure modes: a closed position missing from
+  the table is not compared; a pin that predates a planner's support for a whole file is not
+  modelled beyond "absent at the pin". Rollback: remove the target from `DOC_GATE_TARGETS` and
+  delete the tool.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
