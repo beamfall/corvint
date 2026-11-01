@@ -6281,6 +6281,8 @@ TCB-V0-023	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's 
 TCB-V0-045	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1761) When the	standing	2026-10-11; V1-1761
 TCB-V0-046	docs/specs/tasks-criterion-binding-v0.md	(proposed; V1-1761) `script/install-cem-verifiers.sh [--bin-dir DIR] [--keep N]`	unrecorded	-
 TCB-V0-047	docs/specs/tasks-criterion-binding-v0.md	(accepted, decision 0548, reaffirmed 2026-10-24	owner	decision 0548; 2026-10-24
+TCB-V0-870	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1840) The clos	standing	2026-10-11; V1-1840
+TCB-V0-871	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1840)	standing	2026-10-11; V1-1840
 TCB-V0-030	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) The	standing	2026-10-11; V1-1358
 TCB-V0-031	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1358) On any	standing	2026-10-11; V1-1358
 TCB-V0-035	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1359) A ticket	standing	2026-10-11; V1-1359
@@ -6293,8 +6295,6 @@ TCB-V0-041	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's 
 TCB-V0-042	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) A test	standing	2026-10-11; V1-1377
 TCB-V0-043	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The	standing	2026-10-11; V1-1377
 TCB-V0-044	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1377) The host	standing	2026-10-11; V1-1377
-TCB-V0-870	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1840) The clos	standing	2026-10-11; V1-1840
-TCB-V0-871	docs/specs/tasks-criterion-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1840)	standing	2026-10-11; V1-1840
 BRAIN-DOG-001	docs/specs/technical-brain-dogfood.md	butterfly-effect MUST return exact direct static references/dependencies,	unrecorded	-
 BRAIN-DOG-002	docs/specs/technical-brain-dogfood.md	E2E discovery MUST map requirements and journeys to exact scenario/test witnesse	unrecorded	-
 BRAIN-DOG-003	docs/specs/technical-brain-dogfood.md	selective-test guidance MUST name mandatory repository gates first and a smaller	unrecorded	-

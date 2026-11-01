@@ -189,6 +189,27 @@ for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   `postMergeSequence` and its three uses in `internal/tasks/transaction/lease_gate.go` and
   `internal/tasks/transaction/lease_gate_post_merge_test.go`.
 
+- `TCB-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840) The closeout
+  route for a merged delivery whose sealed map is cited-only MUST gate the delivered code paths,
+  not a closeout note. The closeout lane does four things:
+  - It rebinds the delivery range: the delivery's base, and as the candidate a new seal commit on
+    top of the merged delivery.
+  - It commits a passed runner plan and receipt whose plan pins the delivered code files.
+  - It links those hunks to that receipt in a runner-bound map. The map is assembled with the plain
+    producer's runner pairs (`CEM-V1-280..287`).
+  - It seals the map.
+
+  Over the unchanged code touchPaths, that map GRANTs `touched-anchored` with each delivered hunk
+  still `cited` and satisfied on `runner-input`, while the cited-only map refuses
+  `tier-below-anchored`. An addendum whose diff no touchPath governs is not a route. It refuses
+  `no-governed-hunk`, as `TCB-V0-011` already pins.
+- `TCB-V0-871`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840)
+  `corvint cem gate-verdict` with the gate's own base, candidate, predicate and touchPaths is the
+  read-only preflight. It MUST be run before `gate run cem-verdict`. It MUST report
+  `no-governed-hunk` or `tier-below-anchored` by name, and it MUST leave the repository unchanged
+  (`TCB-V0-014`). It never opens or charges a Tasks attempt. `docs/DOGFOOD.md` names both the
+  route and the preflight.
+
 ## Acceptance and rollback
 
 Prove canonical capture, tamper/command/policy/snapshot negatives, verify with a missing repository,
@@ -572,26 +593,7 @@ refuses `tier-below-anchored`. The workaround, an anchored addendum under `docs/
 four tickets ended `RETRY_EXHAUSTED`. This section names the route and the preflight. It changes no
 gate rule: the route is the runner-bound anchor of `CEM-V1-606` to `CEM-V1-608`.
 
-- `TCB-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840) The closeout
-  route for a merged delivery whose sealed map is cited-only MUST gate the delivered code paths,
-  not a closeout note. The closeout lane does four things:
-  - It rebinds the delivery range: the delivery's base, and as the candidate a new seal commit on
-    top of the merged delivery.
-  - It commits a passed runner plan and receipt whose plan pins the delivered code files.
-  - It links those hunks to that receipt in a runner-bound map. The map is assembled with the plain
-    producer's runner pairs (`CEM-V1-280..287`).
-  - It seals the map.
-
-  Over the unchanged code touchPaths, that map GRANTs `touched-anchored` with each delivered hunk
-  still `cited` and satisfied on `runner-input`, while the cited-only map refuses
-  `tier-below-anchored`. An addendum whose diff no touchPath governs is not a route. It refuses
-  `no-governed-hunk`, as `TCB-V0-011` already pins.
-- `TCB-V0-871`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840)
-  `corvint cem gate-verdict` with the gate's own base, candidate, predicate and touchPaths is the
-  read-only preflight. It MUST be run before `gate run cem-verdict`. It MUST report
-  `no-governed-hunk` or `tier-below-anchored` by name, and it MUST leave the repository unchanged
-  (`TCB-V0-014`). It never opens or charges a Tasks attempt. `docs/DOGFOOD.md` names both the
-  route and the preflight.
+`TCB-V0-870` and `TCB-V0-871` are defined in the Requirements section above.
 
 Non-goals: no tier is raised and no path is exempted. The touched-anchored predicate is unchanged,
 and so is `verdictPaths`. Tasks gets no preflight verb, and no store write refunds a spent attempt.
