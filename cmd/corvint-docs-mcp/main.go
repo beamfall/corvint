@@ -133,7 +133,7 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
 	tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-101
 	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
-	return tools
+	return bridge.WithOutputSchemas(tools) // MCPV0-953
 }
 
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {

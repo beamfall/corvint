@@ -41,10 +41,14 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 	if !advertised {
 		t.Fatalf("%s profile does not advertise %s", profile, ToolHelp)
 	}
+	// MCPV0-953: the guide by default and one command's slice when named.
+	querySlice, _, _ := capcatalog.Slice(capcatalog.Snapshot(), "query")
 	for arguments, want := range map[string]string{
-		`{}`:                  string(capcatalog.Snapshot()),
-		`{"topic":"catalog"}`: string(capcatalog.Snapshot()),
-		`{"topic":"guide"}`:   capcatalog.Guide(),
+		`{}`:                                    capcatalog.Guide(),
+		`{"topic":"catalog"}`:                   string(capcatalog.Snapshot()),
+		`{"topic":"guide"}`:                     capcatalog.Guide(),
+		`{"command":"query"}`:                   string(querySlice),
+		`{"topic":"command","command":"query"}`: string(querySlice),
 	} {
 		// The repository is an empty .git directory: any repository read would fail.
 		result, callErr := registry.Call(context.Background(), ToolHelp, []byte(arguments))
@@ -65,12 +69,13 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 			t.Fatalf("%s %s is not deterministic", profile, arguments)
 		}
 	}
-	for _, arguments := range []string{`{"topic":"COMMAND"}`, `{"topic":null}`, `{"topic":1}`, `{"extra":true}`, `null`, `[]`} {
+	for _, arguments := range []string{`{"topic":"COMMAND"}`, `{"topic":null}`, `{"topic":1}`, `{"extra":true}`, `null`, `[]`,
+		`{"topic":"command"}`, `{"command":"nope"}`, `{"command":null}`, `{"topic":"guide","command":"query"}`, `{"topic":"catalog","command":"query"}`} {
 		if _, callErr := registry.Call(context.Background(), ToolHelp, []byte(arguments)); callErr == nil || callErr.Code != "invalid-arguments" {
 			t.Fatalf("%s %s error = %#v", profile, arguments, callErr)
 		}
 	}
-	ready, _ := registry.Call(context.Background(), ToolHelp, []byte(`{}`))
+	ready, _ := registry.Call(context.Background(), ToolHelp, []byte(`{"topic":"catalog"}`))
 	borrowed := ready
 	borrowed.Tool = ToolStatus
 	if !validResult(ready) || validResult(borrowed) {
@@ -91,6 +96,9 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 		"byteCount not an integer":      func(receipt map[string]any) { receipt["byteCount"] = float64(len(catalogText)) },
 		"extra member":                  func(receipt map[string]any) { receipt["note"] = "x" },
 		"schema missing":                func(receipt map[string]any) { delete(receipt, "schema") },
+		"command topic with catalog text": func(receipt map[string]any) {
+			receipt["topic"], receipt["command"] = "command", "corvint help --json query"
+		},
 	} {
 		tampered := ready
 		tampered.Receipt = map[string]any{}

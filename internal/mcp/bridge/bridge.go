@@ -56,10 +56,31 @@ const (
 )
 
 type ToolDescriptor struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema map[string]any  `json:"inputSchema"`
-	Annotations ToolAnnotations `json:"annotations"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	InputSchema  map[string]any  `json:"inputSchema"`
+	OutputSchema map[string]any  `json:"outputSchema,omitempty"`
+	Annotations  ToolAnnotations `json:"annotations"`
+}
+
+// WithOutputSchemas declares an outputSchema on every listed tool whose
+// result carries structuredContent (MCPV0-953), so a client may read the
+// structured object instead of parsing the text block that repeats it. Every
+// such object is a read-only result or tool-error object; the schema states
+// only what all of them share. A flows tool returns its result in the
+// envelope alone (AFU-V1-035) and declares none.
+func WithOutputSchemas(tools []ToolDescriptor) []ToolDescriptor {
+	for index := range tools {
+		if !EnvelopeOnly(tools[index].Name) {
+			tools[index].OutputSchema = map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"tool": map[string]any{"type": "string"}, "mutates": map[string]any{"const": false},
+				},
+			}
+		}
+	}
+	return tools
 }
 
 type ToolAnnotations struct {

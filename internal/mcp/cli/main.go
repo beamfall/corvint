@@ -371,7 +371,7 @@ func (handler *toolHandler) listTools() []bridge.ToolDescriptor {
 		tools = append(tools, handler.corpus.Tools()...)
 	}
 	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
-	return tools
+	return bridge.WithOutputSchemas(tools)
 }
 
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {

@@ -5,6 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json/v2"
+	"maps"
+	"slices"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/capcatalog"
@@ -19,6 +22,10 @@ const (
 	helpSchema       = "corvint-mcp-help/0"
 	helpTopicCatalog = "catalog"
 	helpTopicGuide   = "guide"
+	// helpTopicCommand is one command's catalog entry, `corvint help --json
+	// COMMAND` (MCPV0-953, CAP-V0-950).
+	helpTopicCommand  = "command"
+	helpCommandPrefix = "corvint help --json "
 )
 
 // callHelp answers corvint.help (MCPV0-100): the receipt's text is the exact
@@ -26,18 +33,26 @@ const (
 // equal to it) or of `corvint help guide`, with its byte count and SHA-256.
 func callHelp(ctx context.Context, arguments []byte) (Result, *Error) {
 	input := struct {
-		Topic *string `json:"topic"`
+		Topic   *string `json:"topic"`
+		Command *string `json:"command"`
 	}{}
 	var members map[string]any
-	if err := decodeClosed(arguments, &input); err != nil || json.Unmarshal(arguments, &members) != nil ||
-		(input.Topic == nil && members["topic"] == nil && len(members) != 0) {
-		return Result{}, failure("invalid-arguments")
+	if err := decodeClosed(arguments, &input); err != nil || json.Unmarshal(arguments, &members) != nil || slices.Contains(slices.Collect(maps.Values(members)), nil) {
+		return Result{}, failure("invalid-arguments") // a null topic or command is refused, never defaulted
 	}
-	topic := helpTopicCatalog
+	// MCPV0-953: the guide by default, one command's entry when command is
+	// named; the full catalog only when asked for.
+	topic, name := helpTopicGuide, ""
+	if input.Command != nil {
+		topic, name = helpTopicCommand, *input.Command
+	}
 	if input.Topic != nil {
 		topic = *input.Topic
 	}
-	command, text, known := helpTopicText(topic)
+	if (topic == helpTopicCommand) != (input.Command != nil) {
+		return Result{}, failure("invalid-arguments")
+	}
+	command, text, known := helpTopicText(topic, name)
 	if !known {
 		return Result{}, failure("invalid-arguments")
 	}
@@ -83,15 +98,30 @@ func HelpToolResult(ctx context.Context, arguments []byte) (map[string]any, *Err
 	}, nil
 }
 
-// helpTopicText is the CLI form and embedded text of one corvint.help topic.
-func helpTopicText(topic string) (command, text string, known bool) {
+// helpTopicText is the CLI form and embedded text of one corvint.help topic;
+// name is the command of the command topic and empty otherwise.
+func helpTopicText(topic, name string) (command, text string, known bool) {
 	switch topic {
 	case helpTopicCatalog:
-		return "corvint help --json", string(capcatalog.Snapshot()), true
+		return "corvint help --json", string(capcatalog.Snapshot()), name == ""
 	case helpTopicGuide:
-		return "corvint help guide", capcatalog.Guide(), true
+		return "corvint help guide", capcatalog.Guide(), name == ""
+	case helpTopicCommand:
+		slice, _, ok := capcatalog.Slice(capcatalog.Snapshot(), name)
+		return helpCommandPrefix + name, string(slice), ok
 	}
 	return "", "", false
+}
+
+// helpCommandNames lists every command of the embedded catalog, the
+// command argument's enum.
+func helpCommandNames() []any {
+	_, names, _ := capcatalog.Slice(capcatalog.Snapshot(), "")
+	enum := make([]any, len(names))
+	for index, name := range names {
+		enum[index] = name
+	}
+	return enum
 }
 
 // helpResult binds text into the READY result. Cancellation is checked before
@@ -133,7 +163,12 @@ func validHelpReceipt(receipt map[string]any) bool {
 		return false
 	}
 	topic, _ := receipt["topic"].(string)
-	command, embedded, known := helpTopicText(topic)
+	name := ""
+	if topic == helpTopicCommand {
+		claimed, _ := receipt["command"].(string)
+		name = strings.TrimPrefix(claimed, helpCommandPrefix)
+	}
+	command, embedded, known := helpTopicText(topic, name)
 	text, textOK := receipt["text"].(string)
 	byteCount, countOK := receipt["byteCount"].(int)
 	digest := sha256.Sum256([]byte(embedded))
@@ -146,10 +181,11 @@ func validHelpReceipt(receipt map[string]any) bool {
 func helpDescriptor() ToolDescriptor {
 	return ToolDescriptor{
 		Name:        ToolHelp,
-		Description: "Return the Corvint command catalog (corvint-capability-catalog/0) exactly as `corvint help --json` prints it, or with topic guide the task-indexed agent guide exactly as `corvint help guide` prints it. Reads only the binary, never the repository.",
+		Description: "Return the task-indexed agent guide exactly as `corvint help guide` prints it (the default), one command's catalog entry exactly as `corvint help --json COMMAND` prints it (command NAME, under 5 KB), or with topic catalog the full command catalog (corvint-capability-catalog/0, about 180 KB) exactly as `corvint help --json` prints it. Reads only the binary, never the repository.",
 		Annotations: readAnnotations(),
 		InputSchema: objectSchema(map[string]any{
-			"topic": map[string]any{"type": "string", "enum": []any{helpTopicCatalog, helpTopicGuide}, "default": helpTopicCatalog},
+			"topic":   map[string]any{"type": "string", "enum": []any{helpTopicGuide, helpTopicCommand, helpTopicCatalog}, "default": helpTopicGuide},
+			"command": map[string]any{"type": "string", "enum": helpCommandNames()},
 		}, []any{}),
 	}
 }

@@ -201,7 +201,7 @@ func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
 		tools = append(tools, handler.legacyCases.descriptor())
 	}
 	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
-	return tools
+	return bridge.WithOutputSchemas(tools) // MCPV0-953
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {

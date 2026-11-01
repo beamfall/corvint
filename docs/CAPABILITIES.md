@@ -12,9 +12,10 @@ when a listed refusal code no longer appears in the source.
 
 The binary carries two more views of the same surface. `corvint help --json` prints a
 machine-readable command catalog (`corvint-capability-catalog/0`) derived from the command
-registry: fields the registry cannot answer are `null` and named under `unknowns`. `corvint help
-guide` prints a task-indexed guide with runnable examples and the non-capabilities each tracked
-by an issue (CAP-V0-015 to CAP-V0-021).
+registry: fields the registry cannot answer are `null` and named under `unknowns`; `corvint help
+--json COMMAND` prints one command's entry, under 5 KB (`corvint-capability-command/0`,
+CAP-V0-950). `corvint help guide` prints a task-indexed guide with runnable examples and the
+non-capabilities each tracked by an issue (CAP-V0-015 to CAP-V0-021).
 
 For a dated, counted snapshot of this page by maturity, with the first promotion batch and its
 unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promotion-inventory.md)
@@ -25,7 +26,7 @@ unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promot
 Every subcommand at every depth, with its flags, required inputs and an example, is in one
 `corvint-command-tree/0` document per binary, derived from the help that binary prints
 (CAP-V0-040 to CAP-V0-048): `corvint help --tree`, `corvint-tasks help --json` and `corvint-test
-help --json`, committed as `internal/capcatalog/trees/BINARY.json` and linked from the
+help --json` (both also answer `help --tree`, CAP-V0-950), committed as `internal/capcatalog/trees/BINARY.json` and linked from the
 `commandTrees` member of `corvint help --json`. Any node answers `--help` and `-h` with its own help
 and exits 0. `tools/capabilities-check` fails when a binary dispatches a subcommand or option its
 tree lacks, when a node has no usage, example or help, and when a new `cmd/` binary has neither a
@@ -249,7 +250,7 @@ needs `--legacy-cases`.
 | `corvint.graph.imports` | `corvint-mcp --tool-profile import-graph` | Pinned whole-tree import JSONL pages; required full `revision`, optional `kinds` and `offset`; concatenate `jsonl` following `nextOffset` until `done` | experimental | Named graph revision/kind refusals; invalid arguments/offset; per-record `OUTPUT_BUDGET_EXCEEDED`; no runtime closure | [Non-Go impact](specs/non-go-impact-v0.md) |
 | `corvint.impact` | `corvint-mcp` (all profiles) | Same receipt as `corvint impact`, path requests for Go, Ruby, JS and TS | experimental | Other suffixes and range requests | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.status` | `corvint-mcp` (all profiles) | Repository status receipt | experimental | Unavailable repository state | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
-| `corvint.help` | `corvint-mcp` (all profiles), `corvint-docs-mcp`, `corvint-corpus-mcp`, `corvint-test-validity-mcp` | Same bytes as `corvint help --json` or `corvint help guide` | experimental | Arguments other than `topic` `catalog` or `guide` | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
+| `corvint.help` | `corvint-mcp` (all profiles), `corvint-docs-mcp`, `corvint-corpus-mcp`, `corvint-test-validity-mcp` | Same bytes as `corvint help guide` (default), `corvint help --json COMMAND` (`command`) or `corvint help --json` (`topic` `catalog`) | experimental | Arguments other than `topic` `guide`, `command` or `catalog` and a catalogued `command` | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.context` | `corvint-mcp` task-review, task-review-lsp | Same packet as `corvint context` | experimental | Same codes as the CLI | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.cem.report` | `corvint-mcp` task-review, task-review-lsp | Read a CEM report | experimental | Maps the verifier does not accept | [CEM-V1](specs/cem-stable-v1.md) |
 | `corvint.flows.coverage` | `corvint-mcp` flows | Flow variation coverage | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |

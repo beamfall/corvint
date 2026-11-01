@@ -13,7 +13,7 @@ import (
 // commandHelpText is every corvint-test synopsis, one node per line. The command tree, every
 // node's --help and `corvint-test help --json` derive from it, and the capabilities check fails
 // when a dispatched subcommand or flag is missing from it (CAP-V0-040 to CAP-V0-047).
-const commandHelpText = `corvint-test help [--json]
+const commandHelpText = `corvint-test help [--json | --tree]
 corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]
 corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]
 corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--out FILE]
@@ -45,7 +45,7 @@ corvint-test accept accept --plan FILE --approve-plan DIGEST --new PATH... --rep
 
 // commandSummaries are the one-line summaries of the groups and their commands.
 var commandSummaries = map[string]string{
-	"help":                    "Print this binary's usage, or with --json its command tree",
+	"help":                    "Print this binary's usage, or with --json or --tree its command tree",
 	"e2e":                     "Compile and prove change-scoped E2E scenarios from admitted, revision-pinned blocks (CCE-V0)",
 	"e2e catalog":             "Write the admitted block catalog of the application map at one revision",
 	"e2e harvest":             "Harvest candidate blocks from the application map at one revision",
@@ -103,13 +103,14 @@ func commandTree() clitree.Tree {
 
 func isHelpFlag(arg string) bool { return arg == "--help" || arg == "-h" || arg == "-help" }
 
-// helpRequest answers `help`, `help --json`, `help PATH...`, and any invocation whose leading
+// helpRequest answers `help`, `help --json` (or `help --tree`), `help PATH...`, and any invocation whose leading
 // words name a node and whose arguments carry --help or -h, before any group parses them, so each
 // node prints its own help and exits 0 (CAP-V0-042). It reports false for every other invocation,
 // and for a lone --help and the e2e group, whose help run prints (CCE-V0-118).
 func helpRequest(args []string, stdout io.Writer) (bool, error) {
 	tree := commandTree()
-	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
+	// --tree is the command-tree spelling corvint itself uses (CAP-V0-950).
+	if len(args) == 2 && args[0] == "help" && (args[1] == "--json" || args[1] == "--tree") {
 		encoded, err := clitree.Encode(tree)
 		if err != nil {
 			return true, err

@@ -25,9 +25,12 @@ func TestMCPV0100HelpToolAnswersOnEveryProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	meta := `"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}`
-	input := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{}}}` + "\n" +
-		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{"topic":"guide"}}}` + "\n"
-	want := map[float64]string{1: string(capcatalog.Snapshot()), 2: capcatalog.Guide()}
+	input := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{"topic":"catalog"}}}` + "\n" +
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{}}}` + "\n" +
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{` + meta + `,"name":"corvint.help","arguments":{"command":"impact"}}}` + "\n"
+	impact, _, _ := capcatalog.Slice(capcatalog.Snapshot(), "impact")
+	// MCPV0-953: the default is the guide; a command names one catalog entry.
+	want := map[float64]string{1: string(capcatalog.Snapshot()), 2: capcatalog.Guide(), 3: string(impact)}
 	for profile := range profileRegistries {
 		arguments := []string{"--root", root}
 		if profile != "" {
@@ -38,10 +41,13 @@ func TestMCPV0100HelpToolAnswersOnEveryProfile(t *testing.T) {
 			t.Fatalf("%q exit=%d stderr=%q", arguments, exit, stderr.String())
 		}
 		lines := strings.Split(strings.TrimSuffix(stdout.String(), "\n"), "\n")
-		if len(lines) != 2 {
+		if len(lines) != 3 {
 			t.Fatalf("%q responses=%d", arguments, len(lines))
 		}
 		for _, line := range lines {
+			if !strings.Contains(line, `"id":1,`) && len(line) >= 32*1024 { // MCPV0-953: the default and a slice stay under 32 KB on the wire.
+				t.Fatalf("%q: %d-byte response", arguments, len(line))
+			}
 			var response struct {
 				ID     float64 `json:"id"`
 				Result struct {
@@ -105,7 +111,7 @@ func TestMCPV0100HelpToolSkipsFollowRefBinding(t *testing.T) {
 	answer := func(state string) {
 		t.Helper()
 		result, failure := handler.Handle(context.Background(), protocol.Request{Method: "tools/call", Params: map[string]any{
-			"_meta": map[string]any{}, "name": "corvint.help", "arguments": map[string]any{},
+			"_meta": map[string]any{}, "name": "corvint.help", "arguments": map[string]any{"topic": "catalog"},
 		}}, nil)
 		if failure != nil {
 			t.Fatalf("%s: protocol failure %#v", state, failure)
@@ -125,4 +131,36 @@ func TestMCPV0100HelpToolSkipsFollowRefBinding(t *testing.T) {
 	answer("moved")
 	gitTest(t, main, "update-ref", "-d", "refs/heads/follow")
 	answer("deleted")
+}
+
+// MCPV0-953: every listed tool whose result carries structuredContent declares
+// an outputSchema, and the results conform to it; the flows tools, whose
+// results travel in the envelope alone, declare none.
+func TestMCPV0953ToolsDeclareOutputSchema(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	gitInit(t, root)
+	for _, profile := range []string{"", "flows", "test-validity,docs"} {
+		arguments := []string{"--root", root}
+		if profile != "" {
+			arguments = append(arguments, "--tool-profile", profile)
+		}
+		_, responses, _ := legacySession(t, arguments,
+			map[string]any{"method": "tools/list", "params": map[string]any{}},
+			map[string]any{"method": "tools/call", "params": map[string]any{"name": "corvint.help", "arguments": map[string]any{}}},
+			map[string]any{"method": "tools/call", "params": map[string]any{"name": "corvint.status", "arguments": map[string]any{}}})
+		for _, raw := range unavailableListed(t, responses[1]) {
+			tool := raw.(map[string]any)
+			name := tool["name"].(string)
+			if _, declared := tool["outputSchema"]; declared == strings.HasPrefix(name, "corvint.flows.") {
+				t.Fatalf("%q %s outputSchema declared=%v", profile, name, declared)
+			}
+		}
+		for _, id := range []float64{2, 3} {
+			result, _ := responses[id]["result"].(map[string]any)
+			structured, _ := result["structuredContent"].(map[string]any)
+			if _, isString := structured["tool"].(string); !isString || structured["mutates"] != false {
+				t.Fatalf("%q id %v structuredContent=%#v", profile, id, structured)
+			}
+		}
+	}
 }
