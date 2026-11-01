@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -258,6 +258,28 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   pinned and a `clipped:` line says why; at most 64 tests are named per unit, the rest counted.
   `--pins` SHALL be refused without `--dry-run` or with `--summary`. The report is advice: the
   plan, the manifest and the selection are unchanged, and the full selection remains the gate.
+- **TSP-V0-945:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3798)
+  A change to a Makefile recipe alone SHALL select every shell test that runs `make`, as an
+  `UNBOUNDED_READER` (`shell:runs-toolchain`) of the dirty Makefile, or report the plan UNKNOWN with
+  the reason; it SHALL NOT plan no test. The reported empty plan did not reproduce at
+  6d4713fb8b5d: a recipe-only edit of the `batch-precheck` target selected 62 units, among them
+  `shell:script/batch-precheck_test.sh` and `shell:script/lane-scripts_test.sh`.
+- **TSP-V0-946:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3616)
+  A gitignored file SHALL NOT enter the plan's dirty set or selection, in dirty mode or against a
+  base, so a stray build product beside the sources neither selects nor widens a plan.
+- **TSP-V0-947:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3587,
+  V1-3763, V1-3788, V1-3616 b-e) The planner SHALL keep selecting a unit whose read set is unbounded
+  (`UNBOUNDED_READER`: a `..` or `--show-toplevel` literal, `os.Getwd`, a shell test running a
+  toolchain) for any dirty path, until that unit declares a read scope, because each such unit may
+  read the changed file and dropping it could drop a test that pins the behavior. Measured at
+  6d4713fb8b5d (WSL): one spec edit selects 71 `corvint affected` units (42 unbounded readers, 20
+  path-literal readers, 7 dependency paths, 2 declared scopes) and 48 `corvint test` units, with a
+  3,033-byte `--dry-run --summary` and a 15,343-byte JSON plan; a REQUIREMENTS.tsv edit selects 75
+  units with 1 unknown; a Makefile recipe edit 62 units (39 unbounded readers) with 69 unknowns, all
+  `LANGUAGE_FRONTIER` entries raised by the unowned Makefile; a `script/lane-guard.sh` edit 58 units
+  with 18 unknowns. Narrowing proceeds per unit through declared read scopes (ASD read-scope
+  declarations), each with a test that the declared reader stays selected for a path it reads;
+  focused runs use `--dry-run --summary` and `--pins` (TSP-V0-944) meanwhile.
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -437,6 +459,10 @@ non-test helper, reflection or a computed string is not named; it is still selec
 which stays the gate. A large diff of shared strings names many tests, which only weakens the
 advice.
 
+(18) TSP-V0-947: spec-only, REQUIREMENTS.tsv and Makefile edits keep paying for every unbounded
+reader until those units declare read scopes; the floor trades run time for never dropping a
+pinning test.
+
 ## Open questions
 
 These need an owner decision because no existing project-owned model bounds them; each frontier
@@ -483,6 +509,9 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-942 | `FrontierBearer`, `frontierBearerList` and the bearer records in `frontierUnknowns` in `internal/liveverify/affected/select.go`; the compact copy in `cmd/corvint/affected_compact.go`; the `bears` lines in `cmd/corvint/affected_text.go` | `TestFrontierBearersNameTheSource_TSP_V0_942` in `internal/liveverify/affected/frontier_bearers_test.go` (clean plan has none; bearers and frontier entries match both ways; reached, participating, unowned and omitted sources; the 16-unit cap); `TestAffectedTextNamesFrontierBearers_TSP_V0_942` in `cmd/corvint/affected_bearers_test.go` |
 | TSP-V0-943 | `foreignCallersComplete` and `foreignCallerWorkers` in `internal/liveverify/affected/shell/callers.go` | `TestForeignCallersScanVerdict_TSP_V0_943` in `internal/liveverify/affected/shell/callers_scan_test.go` (disk and FS sources agree: complete, an unlisted late candidate, an unreadable listed candidate; run under `-race`); `TestForeignCallerDeclaration_TSP_V0_005` unchanged |
 | TSP-V0-944 | `testChangedTokens`, `testPins` and `testPinsReport` in `cmd/corvint/test_pins.go`; the `--pins` flag in `cmd/corvint/test.go`; the focused-run note in `docs/LANE-ORCHESTRATION.md` | `TestTSPV0944DryRunPinsNamesPinnedTests` in `cmd/corvint/test_pins_tspv0944_unix_test.go` (a direct reference, a helper reference and a cross-package literal are pinned; unrelated tests are not; both refusals) |
+| TSP-V0-945 | the shell plugin's `shell:runs-toolchain` unbounded-reader witness in `internal/liveverify/affected/shell` | `TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945` in `cmd/corvint/affected_makefile_recipe_unix_test.go` |
+| TSP-V0-946 | the gitignore-aware source walk and dirty set in `internal/liveverify/affected` | `TestAffectedIgnoresGitignoredBuildProducts_TSP_V0_946` in `cmd/corvint/affected_makefile_recipe_unix_test.go` (dirty and `--base` modes; fails when the ignore rule is removed) |
+| TSP-V0-947 | the `UNBOUNDED_READER` witness in `internal/liveverify/affected/select.go` | measured counts in the requirement and `docs/build-log/2026-11-01-aff-w16.md`; `TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945` pins one unbounded reader |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
@@ -517,6 +546,8 @@ TSP-V0-943: restore the serial loop in `foreignCallersComplete`; the verdict is 
 the scan time returns. No stored state depends on it.
 TSP-V0-944: drop `--pins` and `cmd/corvint/test_pins.go`; the plan never depended on it. No
 stored state depends on it.
+TSP-V0-945, TSP-V0-946 and TSP-V0-947 record existing behavior with tests; dropping them removes
+only the tests and the record.
 TSP-V0-941: drop the `testSourceCodeLines` comparison in `testSourceSlice`; moved functions are
 then unseeded again (the V1-3507 miss returns). No stored state depends on it.
 TSP-V0-940: drop the `applyGatedLocators`
