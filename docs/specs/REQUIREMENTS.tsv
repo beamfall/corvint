@@ -3967,6 +3967,7 @@ DCR-V1-557	docs/specs/documentation-corpus-verified-reads-v1.md	The claim-audit 
 DCR-V1-558	docs/specs/documentation-corpus-verified-reads-v1.md	The recorded-identity check of `DCR-V1-410` does not validate the manifest again	unrecorded	-
 DCR-V1-559	docs/specs/documentation-corpus-verified-reads-v1.md	A streamed decode whose boundary scan has more than one segment pre-scans each	unrecorded	-
 DCR-V1-975	docs/specs/documentation-corpus-verified-reads-v1.md	The pinned-revision verification resolves every pinned revision of one checkout	unrecorded	-
+DCR-V1-985	docs/specs/documentation-corpus-verified-reads-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2745)	standing	2026-10-11; V1-2745
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-

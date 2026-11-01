@@ -389,11 +389,24 @@ func (r *Repository) lookupTreeEntry(ctx context.Context, revision, path string)
 	for i := range parents {
 		requests = append(requests, revision+":"+strings.Join(parents[:i+1], "/"))
 	}
-	stream, err := r.streamCommitBatch(ctx, []string{revision + "^{commit}"}, requests)
+	prefixes := []string{revision + "^{commit}"}
+	if r.objects != nil && wire.IsGitOid(revision) {
+		return r.sessionTreeEntry(ctx, revision, components, prefixes, requests)
+	}
+	stream, err := r.streamCommitBatch(ctx, prefixes, requests)
 	if err != nil {
 		return TreeEntry{}, false, err
 	}
-	records, err := exactBatchRecords(stream.tail, len(requests))
+	return walkTreeRecords(ctx, stream, components)
+}
+
+// walkTreeRecords resolves the path's components against the streamed
+// batch: the verified commit pins the root tree, each directory record is
+// self-hashed and linked from its verified parent, and the leaf comes from
+// the last verified body.
+func walkTreeRecords(ctx context.Context, stream *commitStream, components []string) (TreeEntry, bool, error) {
+	parents := components[:len(components)-1]
+	records, err := exactBatchRecords(stream.tail, len(components))
 	if err != nil {
 		return TreeEntry{}, false, err
 	}
