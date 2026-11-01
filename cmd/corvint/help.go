@@ -864,7 +864,7 @@ Usage:
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
-  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
+  corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
