@@ -61,7 +61,7 @@ func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[strin
 		return runClaudePreToolRead(ctx, payload)
 	}
 	if event != "stop-done-list" {
-		return degradedAdapterOutput("unsupported-hook-event")
+		return unsupportedHookEvent("claude-code")
 	}
 	root, err := claudeAdapterRoot(ctx)
 	if err != nil {

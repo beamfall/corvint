@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +38,7 @@ const (
 
 func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, stdout io.Writer) int {
 	if len(arguments) == 0 {
-		return emitAdapterOutput(stdout, degradedAdapterOutput("unsupported-hook-event"))
+		return emitAdapterOutput(stdout, unsupportedHookEvent(""))
 	}
 	if arguments[0] == "pi-tool" {
 		return runPiTool(ctx, arguments[1:], stdin, stdout)
@@ -161,18 +163,18 @@ func hostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader)
 		// Like claude-code, an unexpected trailing argument degrades instead
 		// of being ignored (DIRTY-CACHE-016).
 		if len(arguments) != 1 {
-			return degradedAdapterOutput("unsupported-hook-event")
+			return unsupportedHookEvent("codex")
 		}
 		return runCodexAdapter(ctx, payload)
 	case "claude-code":
 		if len(arguments) != 2 {
-			return degradedAdapterOutput("unsupported-hook-event")
+			return unsupportedHookEvent("claude-code")
 		}
 		return runClaudeAdapter(ctx, arguments[1], payload)
 	case "claude-source-handoff":
 		return runClaudeSourceHandoff(ctx, arguments[1:], payload)
 	default:
-		return degradedAdapterOutput("unsupported-hook-event")
+		return unsupportedHookEvent("")
 	}
 }
 
@@ -293,8 +295,7 @@ func decodeAdapterValue(decoder *json.Decoder, depth int) (any, error) {
 
 func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput map[string]any) {
 	eventName, _ := payload["hook_event_name"].(string)
-	events := map[string]string{"SessionStart": "session-start", "UserPromptSubmit": "user-prompt", "Stop": "stop", "SessionEnd": "session-end"}
-	event, ok := events[eventName]
+	event, ok := codexHookEvents[eventName]
 	if !ok {
 		// An event this adapter does not handle stays non-blocking `{}` (AHI-044), but is
 		// recorded once its absolute cwd lies inside a repository (SOL-V0-010, V1-0746).
@@ -1336,6 +1337,33 @@ func claudeEventName(event string) string {
 	}
 	return "UserPromptSubmit"
 }
+
+// claudeCodeAdapterEvents are the EVENT values `corvint adapter claude-code` accepts, and
+// codexHookEvents the hook_event_name values `corvint adapter codex` (which takes no EVENT
+// argument) maps to its lifecycle events (V1-3543).
+var (
+	claudeCodeAdapterEvents = []string{"session-start", "user-prompt", "subagent-start", "pre-tool", "file-change", "post-tool", "stop", "stop-done-list", "session-end", "pre-compact", "post-compact"}
+	codexHookEvents         = map[string]string{"SessionStart": "session-start", "UserPromptSubmit": "user-prompt", "Stop": "stop", "SessionEnd": "session-end"}
+)
+
+// unsupportedHookEvent is the unsupported-hook-event degradation with one trailing line that
+// names what the host accepts, or the hosts when host is "" (V1-3543). The frame line, and so
+// the SOL-V0-010 reason, is unchanged.
+func unsupportedHookEvent(host string) map[string]any {
+	var accepted string
+	switch host {
+	case "claude-code":
+		accepted = "corvint adapter claude-code EVENT accepts: " + strings.Join(claudeCodeAdapterEvents, ", ")
+	case "codex":
+		accepted = "corvint adapter codex takes no EVENT; it reads hook_event_name: " + strings.Join(slices.Sorted(maps.Keys(codexHookEvents)), ", ")
+	default:
+		accepted = "corvint adapter accepts: codex, claude-code EVENT, claude-source-handoff, source-view, done-list, pi EVENT, pi-tool; see corvint adapter --help"
+	}
+	output := degradedAdapterOutput("unsupported-hook-event")
+	output["systemMessage"] = output["systemMessage"].(string) + "\n" + accepted
+	return output
+}
+
 func degradedAdapterOutput(reason string) map[string]any {
 	return map[string]any{"systemMessage": "Corvint FALLBACK degraded: " + reason + "; coding continues"}
 }
