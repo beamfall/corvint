@@ -481,6 +481,7 @@ pk() { PICK_SSH=$off/bin/ssh-pick hv "$@"; }
 : > "$off/pick.log"
 out=$(HEAVY_REMOTE_HOSTS='busy down quiet' HEAVY_REMOTE_HOST=ignored pk go test -run X ./... 2> "$off/err")
 [[ $out == where=remote* && $(tr '\n' ' ' < "$off/pick.log") == 'busy down quiet quiet ' ]] &&
+  grep -qx 'heavy.sh: host=busy,down,quiet why=offloadable command, HEAVY_REMOTE_HOSTS from environment, ordered by the load probe' "$off/err" &&
   grep -qx 'heavy.sh: remote hosts by load per CPU: busy:40.00/12,down:down,quiet:1.00/12; trying quiet first' "$off/err" &&
   grep -qE '^[0-9TZ:-]+ pick hosts=busy:40\.00/12,down:down,quiet:1\.00/12 chose=quiet probe=[0-9]+\.[0-9]s pwd=.*/lc/sub cmd=go test -run X \./\.\.\. script=' "$tmp/selection.log" &&
   grep -qE '^[0-9TZ:-]+ offload host=quiet ' "$tmp/selection.log" ||
