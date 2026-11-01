@@ -18,7 +18,8 @@
 # miss and rebuilds it.
 #
 # Work directories: each `go-build*` directory directly under every --temp-root (default
-# $TMPDIR and /tmp) last modified more than --work-age-hours (default 24) ago, unless a running
+# $TMPDIR, /tmp and ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp, the TMPDIR script/heavy.sh gives a
+# local run on a tmpfs /tmp, ASD-V0-063) last modified more than --work-age-hours (default 24) ago, unless a running
 # process names it in its arguments (KEEP in-use) or the process list cannot be read (KEEP
 # ps-unavailable).
 #
@@ -66,7 +67,7 @@ if ((${#caches[@]} == 0)); then
     /tmp/corvint-go-build-cache "/tmp/corvint-work-queue-gocache-$(id -u)")
 fi
 if ((${#temp_roots[@]} == 0)); then
-  temp_roots=("${TMPDIR:-/tmp}" /tmp)
+  temp_roots=("${TMPDIR:-/tmp}" /tmp "${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp")
 fi
 
 free_kib() { df -Pk "$1" 2> /dev/null | awk 'NR == 2 { print $4 }'; }

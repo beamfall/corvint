@@ -55,7 +55,18 @@
 #   HEAVY_MIN_FREE_GB    whole GiB a scratch or Go-cache file system must have free, default 3, 0
 #                        off (ASD-V0-937): a remote below it is unavailable (exit 97, so the next host
 #                        or the fallback runs it) and is ordered last by the probe; a local run below
-#                        it warns and logs `lowdisk-local` but still runs.
+#                        it warns and logs `lowdisk-local` but still runs. Every low-disk line is
+#                        followed by one `heavy.sh: to free space: ...` hint (ASD-V0-062).
+#   HEAVY_REFUSE_FREE_GB whole GiB below which a local run is refused instead (ASD-V0-062, V1-3824):
+#                        default 1, 0 off. It prints `heavy.sh: REFUSED low-disk (exit 2)`, logs
+#                        `lowdisk-refused`, and runs nothing, so a full /tmp the agent harness shares
+#                        keeps its last space for command output.
+#   HEAVY_TMP_FSTYPE     the file-system type of /tmp, read on Linux with `stat -f -c %T /tmp` when
+#                        unset. When it is `tmpfs` (a RAM-backed /tmp, 16 GiB on WSL), a local run
+#                        whose caller set neither GOCACHE nor CORVINT_GOCACHE uses
+#                        ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache, the remote half's
+#                        default, and one whose caller set no TMPDIR uses .../corvint-tmp, naming both
+#                        on one stderr line (ASD-V0-061, V1-3824, V1-2904). `disk` keeps the /tmp paths.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -1305,24 +1316,69 @@ free_gb() {
   df -Pk "${d:-/}" 2> /dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ { printf "%d", $4 / 1048576 }'
 }
 
-# disk_floor: HEAVY_MIN_FREE_GB, validated, into heavy_min_free (ASD-V0-937).
+# disk_floor: HEAVY_MIN_FREE_GB and HEAVY_REFUSE_FREE_GB, validated, into heavy_min_free and
+# heavy_refuse_free (ASD-V0-937, ASD-V0-062).
 disk_floor() {
   heavy_min_free=${HEAVY_MIN_FREE_GB:-3}
   [[ $heavy_min_free =~ ^[0-9]{1,6}$ ]] || refuse "invalid-min-free HEAVY_MIN_FREE_GB=$heavy_min_free (want whole GiB, 0 disables)"
   heavy_min_free=$((10#$heavy_min_free))
+  heavy_refuse_free=${HEAVY_REFUSE_FREE_GB:-1}
+  [[ $heavy_refuse_free =~ ^[0-9]{1,6}$ ]] || refuse "invalid-refuse-free HEAVY_REFUSE_FREE_GB=$heavy_refuse_free (want whole GiB, 0 disables)"
+  heavy_refuse_free=$((10#$heavy_refuse_free))
 }
 
-# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the floor; the run
-# still goes ahead (ASD-V0-937).
+# tmp_fstype: the file-system type of /tmp, HEAVY_TMP_FSTYPE when set; empty off Linux or when stat
+# cannot say (macOS `stat -f` means something else).
+tmp_fstype() {
+  if [[ -n ${HEAVY_TMP_FSTYPE-} ]]; then
+    printf '%s' "$HEAVY_TMP_FSTYPE"
+  elif [[ $(uname -s 2> /dev/null) == Linux ]]; then
+    stat -f -c %T /tmp 2> /dev/null
+  fi
+}
+
+# tmpfs_defaults: ASD-V0-061 (V1-3824, V1-2904). On a tmpfs /tmp, a local run's Go cache and
+# temporary files default to the home disk, where the remote half keeps them, so a host that is
+# both a lane host and an offload host has one Go cache and RAM is not filled by builds.
+tmpfs_defaults() {
+  [[ $(tmp_fstype) == tmpfs ]] || return 0
+  local base=${XDG_CACHE_HOME:-$HOME/.cache} moved=''
+  if [[ -z ${GOCACHE-} && -z ${CORVINT_GOCACHE-} ]]; then
+    CORVINT_GOCACHE=$base/corvint-go-build-cache
+    export CORVINT_GOCACHE
+    moved="GOCACHE=$CORVINT_GOCACHE"
+  fi
+  if [[ -z ${TMPDIR-} ]] && mkdir -p "$base/corvint-tmp" 2> /dev/null; then
+    TMPDIR=$base/corvint-tmp
+    export TMPDIR
+    moved="${moved:+$moved }TMPDIR=$TMPDIR"
+  fi
+  [[ -z $moved ]] || printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
+  return 0
+}
+
+# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the warning floor (the
+# run still goes ahead, ASD-V0-937) or below the refusal floor (status 1, ASD-V0-062), each followed
+# by one cleanup hint.
 local_disk() {
-  local p g
-  ((heavy_min_free > 0)) || return 0
+  local p g low='' refused=''
   for p in "${TMPDIR:-/tmp}" "$GOCACHE"; do
     g=$(free_gb "$p")
-    [[ $g =~ ^[0-9]+$ ]] && ((g < heavy_min_free)) || continue
-    printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
-    selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
+    [[ $g =~ ^[0-9]+$ ]] || continue
+    if ((heavy_refuse_free > 0 && g < heavy_refuse_free)); then
+      printf 'heavy.sh: low disk here: %s free=%sG refuse-floor=%sG\n' "$p" "$g" "$heavy_refuse_free" >&2
+      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-refused path=$p free=${g}G floor=${heavy_refuse_free}G pwd=$PWD"
+      refused=1
+    elif ((heavy_min_free > 0 && g < heavy_min_free)); then
+      printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
+      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
+    else
+      continue
+    fi
+    low=1
   done
+  [[ -z $low ]] || printf 'heavy.sh: to free space: make go-cache-trim (dry run, then APPLY=1) and make scratch-sweep (docs/LANE-ORCHESTRATION.md section 6); on a tmpfs /tmp point TMPDIR and CORVINT_GOCACHE at %s\n' "${XDG_CACHE_HOME:-$HOME/.cache}" >&2
+  [[ -z $refused ]]
 }
 
 # unwrap_perl STRING: the words of a simple shell command, NUL-terminated; exit 3 for anything a
@@ -1611,10 +1667,16 @@ main() {
   [[ -n $heavy_admit_only ]] || local_identity "$@"
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default /tmp/corvint-go-build-cache), so a
-  # plain go test and a make target do not fill two caches.
+  # plain go test and a make target do not fill two caches. ASD-V0-061: on a tmpfs /tmp both move
+  # to the home disk first.
+  tmpfs_defaults
   : "${GOCACHE:=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}}"
   export GOCACHE
-  local_disk
+  if ! local_disk; then
+    printf 'heavy.sh: REFUSED low-disk (exit 2)\n' # stdout marker (V1-3213)
+    heavy_cause=refused-low-disk
+    return 2
+  fi
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" HEAVY_RUN_LOAD=$heavy_load_wait \

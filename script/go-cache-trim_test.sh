@@ -109,4 +109,11 @@ expect "WOULD-TRIM cache $real_small entries=1 bytes=1048576 kept-bytes=2097152"
 PATH="$tmp/fakebin:$PATH" "$tool" --cache "$small" --temp-root "$tmp/none" --max-gib 1 > "$tmp/fs-explicit" 2>&1
 expect "KEEP within-bound cache $real_small bytes=3145728" "$tmp/fs-explicit"
 
+# 8. ASD-V0-063 (V1-2904, V1-3824): without --temp-root the work-directory roots include
+# ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp, where script/heavy.sh puts a tmpfs host's TMPDIR.
+mkdir -p "$tmp/xdg/corvint-tmp/go-build555-$$" && touch -t "$older" "$tmp/xdg/corvint-tmp/go-build555-$$"
+XDG_CACHE_HOME="$tmp/xdg" "$tool" --cache "$tmp/none" > "$tmp/xdg-root" 2>&1
+expect "WOULD-REMOVE workdir $(cd "$tmp/xdg/corvint-tmp" && pwd -P)/go-build555-$$" "$tmp/xdg-root"
+[[ -d "$tmp/xdg/corvint-tmp/go-build555-$$" ]] || fail "dry run removed the corvint-tmp work dir"
+
 echo "go-cache-trim_test: ok"
