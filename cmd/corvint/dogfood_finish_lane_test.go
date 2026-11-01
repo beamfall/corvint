@@ -90,7 +90,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	}
 	// ASD-V0-907 and DCW-V0-908: a sealed run names its dogfood-change count
 	// and the exact report still to be reviewed.
-	if !strings.Contains(stderr, "\ndogfood-finish-lane: RUNS dogfood-change=") || !strings.Contains(stderr, "\ndogfood-finish-lane: REVIEW report="+root+"/.corvint/dogfood-report.json sha256=") {
+	if !strings.Contains(stderr, "\ndogfood-finish-lane: RUNS dogfood-change=") || !strings.Contains(stderr, "\ndogfood-finish-lane: REVIEW report="+filepath.Join(root, ".corvint", "dogfood-report.json")+" sha256=") {
 		t.Fatalf("finish-lane printed no RUNS or REVIEW line: %s", stderr)
 	}
 	bind := cemGit(t, root, "rev-parse", "HEAD^")

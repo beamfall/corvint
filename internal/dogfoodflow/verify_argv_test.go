@@ -193,7 +193,9 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 // with the absolute home directory; nothing is expanded silently.
 func TestDCWV0905TildeVerifyLineNamesTheAbsolutePath(t *testing.T) {
 	home := t.TempDir()
+	// os.UserHomeDir reads USERPROFILE on Windows and HOME elsewhere.
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
 	verify := filepath.Join(t.TempDir(), "verify.txt")
 	if err := os.WriteFile(verify, []byte("go vet ./a\n~/lanes/run.sh go test -count=1 -run TestA ./a\n"), 0o600); err != nil {
 		t.Fatal(err)
