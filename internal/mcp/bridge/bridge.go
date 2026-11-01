@@ -332,6 +332,16 @@ func NewTaskReviewLSP(root string) (*Registry, *Error) {
 	return registry, nil
 }
 
+// Profile names one registry profile's tool surface without a root.
+type Profile struct{ TaskReview, LSP, Flows, ImportGraph bool }
+
+// Tools lists what the profile's registry advertises, for a server that
+// starts with no usable root (MCPV0-950): it lists the tools it would serve and
+// refuses every repository call.
+func (profile Profile) Tools() []ToolDescriptor {
+	return (&Registry{taskReview: profile.TaskReview || profile.LSP, lsp: profile.LSP, flows: profile.Flows, importGraph: profile.ImportGraph}).Tools()
+}
+
 func (registry *Registry) advertises(name string) bool {
 	if name == ToolGraphImports {
 		return registry.importGraph

@@ -34,7 +34,7 @@ digest() {
 # 1. Binary path with a genuine upgrade: every step passes and the upgrade is not same-bytes.
 output=$(CORVINT_LIFECYCLE_BINARY="$test_root/corvint-1" CORVINT_LIFECYCLE_UPGRADE_BINARY="$test_root/corvint-2" \
   CORVINT_LIFECYCLE_REPORT="$test_root/report.txt" "$script") || fail "binary lifecycle failed: $output"
-for step in install-a first-index upgrade-b rollback-a uninstall backup-restore corrupt-truncate corrupt-overwrite; do
+for step in install-a first-index upgrade-b mcp-unavailable-root rollback-a uninstall backup-restore corrupt-truncate corrupt-overwrite; do
   case $output in
     *"step $step: ok"*) ;;
     *) fail "step $step did not pass: $output" ;;

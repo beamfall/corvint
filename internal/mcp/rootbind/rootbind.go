@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
 // Binding is the observed Git identity of a resolved root.
@@ -63,4 +64,56 @@ func (binding *Binding) Same(root string) bool {
 		}
 	}
 	return true
+}
+
+// The root failure reasons Resolve names on stderr (MCPV0-950). Each is fixed
+// text: it never repeats the declared path or a Git or system error.
+const (
+	ReasonNotAbsolute  = "--root must be an absolute path"
+	ReasonUnclean      = "--root must be a clean path of at most 4,096 bytes without control characters"
+	ReasonMissing      = "--root does not exist"
+	ReasonNotDirectory = "--root is not a directory"
+	ReasonInGitDir     = "--root is inside a .git directory, not a worktree"
+	ReasonNoWorktree   = "--root is not inside a Git worktree"
+	ReasonMarker       = "the worktree's .git marker is a symlink, or a gitfile whose linked-worktree directories are missing"
+)
+
+// Resolve maps a declared absolute root to the Git worktree toplevel it lies
+// in (MCPV0-950): the root itself when it holds the .git marker, else its
+// nearest physical ancestor that does, as `git rev-parse --show-toplevel`
+// would answer without consulting the environment. A root inside a .git
+// directory, outside any worktree, or whose toplevel marker Bind refuses
+// returns one of the Reason constants instead. A root that is already a
+// toplevel is returned in its declared spelling.
+func Resolve(root string) (toplevel, reason string) {
+	if !filepath.IsAbs(root) {
+		return "", ReasonNotAbsolute
+	}
+	if !rootalias.ValidRoot(root) {
+		return "", ReasonUnclean
+	}
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", ReasonMissing
+	}
+	if info, err := os.Stat(resolved); err != nil || !info.IsDir() {
+		return "", ReasonNotDirectory
+	}
+	for directory := resolved; ; directory = filepath.Dir(directory) {
+		if filepath.Base(directory) == ".git" {
+			return "", ReasonInGitDir
+		}
+		if _, err := os.Lstat(filepath.Join(directory, ".git")); err == nil {
+			if _, ok := Bind(directory); !ok {
+				return "", ReasonMarker
+			}
+			if directory == resolved {
+				return root, ""
+			}
+			return directory, ""
+		}
+		if filepath.Dir(directory) == directory {
+			return "", ReasonNoWorktree
+		}
+	}
 }

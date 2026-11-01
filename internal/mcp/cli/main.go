@@ -9,7 +9,6 @@ import (
 	"maps"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"github.com/Beamfall/corvint/internal/mcp/server"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
 	"github.com/Beamfall/corvint/internal/procprofile"
@@ -128,11 +128,17 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		_, _ = fmt.Fprintln(stdout, serverName+" "+serverVersion)
 		return 0
 	}
-	for _, declared := range roots {
-		if !filepath.IsAbs(declared.root) { // MCPV0-113: name the requirement, still fail closed.
-			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable: --root must be an absolute path")
+	single, unavailable := len(roots) == 1 && roots[0].alias == "", ""
+	for index, declared := range roots {
+		// MCPV0-950: a root inside a worktree binds its toplevel, and an unusable
+		// root's reason is named. Only a plain root that neither follows a ref nor
+		// binds a corpus artifact starts unavailable instead of exiting.
+		toplevel, reason := rootbind.Resolve(declared.root)
+		if reason != "" && (!single || len(followRefs) != 0 || corpusRoot != "") {
+			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable: "+reason)
 			return 2
 		}
+		roots[index].root, unavailable = cmp.Or(toplevel, declared.root), reason
 	}
 	git, err := gitstatus.Pin()
 	if err != nil {
@@ -143,7 +149,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	gitrun.PinBinary(git)
 	handler := &toolHandler{reasonClass: reasonClass}
 	bindings := map[*bridge.Registry]string{}
-	if len(roots) == 1 && roots[0].alias == "" {
+	if single && unavailable == "" {
 		registry, registryErr := profileRegistries[profile](roots[0].root)
 		if registryErr != nil {
 			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
@@ -160,7 +166,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 				return 2
 			}
 		}
-	} else {
+	} else if !single {
 		var refusal string
 		handler.repositories, handler.aliases, refusal = openRepositories(roots, profileRegistries[profile])
 		if refusal != "" {
@@ -177,7 +183,9 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 			return 2
 		}
 	}
-	if refusal := handler.openGroups(groups, corpusRoot, corpusPath, stderr); refusal != "" {
+	if unavailable != "" {
+		handler.startUnavailable(profile, groups, unavailable, stderr)
+	} else if refusal := handler.openGroups(groups, corpusRoot, corpusPath, stderr); refusal != "" {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
 		return 2
 	}
@@ -272,7 +280,8 @@ func parseArguments(arguments []string) (roots []rootDeclaration, versionOnly bo
 	}
 	aliases := make(map[string]bool, len(arguments)/2)
 	for index := 0; index < len(arguments); index += 2 {
-		if arguments[index] != "--root" || arguments[index+1] == "" {
+		// An empty plain root reaches MCPV0-950 as not absolute.
+		if arguments[index] != "--root" || (arguments[index+1] == "" && len(arguments) != 2) {
 			return nil, false, false
 		}
 		alias, root, aliased := rootalias.Split(arguments[index+1])
@@ -310,6 +319,10 @@ type toolHandler struct {
 	// the corpus group is selected (MMR-V0-014, MMR-V0-017).
 	corpus      *toolgroup.CorpusArtifact
 	corpusTools map[string]bool
+	// unavailable is the single root's failure reason and unbound its
+	// profile's tool surface while the server serves no repository (MCPV0-950).
+	unavailable string
+	unbound     *bridge.Profile
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
@@ -326,6 +339,8 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 		var tools []bridge.ToolDescriptor
 		if handler.repositories != nil {
 			tools = handler.multiRootTools()
+		} else if handler.unbound != nil {
+			tools = append(handler.unbound.Tools(), handler.groupDescriptors("")...)
 		} else {
 			tools = append(handler.registry.Tools(), handler.groupDescriptors("")...)
 		}
@@ -399,6 +414,9 @@ func (handler *toolHandler) followFor(arguments map[string]any) (*followRef, *br
 func (handler *toolHandler) answer(ctx context.Context, name string, arguments map[string]any) (map[string]any, *protocol.RPCError) {
 	if index, grouped := handler.groupTools[name]; grouped {
 		return handler.answerGroup(ctx, index, name, arguments)
+	}
+	if handler.unbound != nil {
+		return handler.answerUnavailable(ctx, name, arguments)
 	}
 	registry := handler.registry
 	if handler.repositories != nil {

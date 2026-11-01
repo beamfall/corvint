@@ -42,6 +42,7 @@ func TestParseArgumentsIsClosed(t *testing.T) {
 		{"MMR-V0-001 two aliased roots", []string{"--root", "core=" + root, "--root", "docs=" + root}, []rootDeclaration{{"core", root}, {"docs", root}}, false, true},
 		{"MMR-V0-001 plain root mixed with aliased", []string{"--root", root, "--root", "docs=" + root}, nil, false, false},
 		{"MMR-V0-001 two plain roots", []string{"--root", root, "--root", root}, nil, false, false},
+		{"MCPV0-950 empty plain root", []string{"--root", ""}, []rootDeclaration{{}}, false, true},
 		{"MMR-V0-001 empty aliased root", []string{"--root", "core="}, nil, false, false},
 		{"MMR-V0-002 duplicate alias", []string{"--root", "core=" + root, "--root", "core=" + root + "/x"}, nil, false, false},
 		{"MMR-V0-002 more roots than the cap", tooMany, nil, false, false},
