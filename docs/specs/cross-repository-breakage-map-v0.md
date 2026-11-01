@@ -172,6 +172,7 @@ bindings remain unverified. Provider text is untrusted external declaration. A f
 blob does not validate its author's relationship claim. No source inference creates
 flow intent, accepted documentation or a passing test. Existing optional console,
 flow providers and documentation corpus contracts retain their own authority.
+- `BKM-V0-955`: (standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go syntax mapping for the selected API, the unknown MUST name the exact ancestor go.mod path(s) and why each failed: tracked at the pinned commit but not a declared manifest source (with the `breakage manifest --source REPO:PATH` remedy), declared with a blob that differs from the pinned tree, or none tracked at any probed ancestor path (each listed). The withholding rule itself is unchanged: a module boundary is admitted only through declared, pinned go.mod sources. Non-goal: auto-declaring go.mod. Rollback: restore the fixed reason text.
 
 ## Acceptance and rollback
 
@@ -217,6 +218,9 @@ unresolved, off-span and out-of-source refusals, and `/2` refusal of a symbol.
 `TestBreakageDeclaredSpanUnavailable` adds the `BKM-V0-092` unavailable case and
 `TestBreakageEndpointSpanChange` covers `BKM-V0-099`, the narrowed provider unknown and the
 `/2` span refusal through `Decode` (`BKM-V0-093`).
+`TestBreakageModuleBoundaryNamesMissingGoMod` covers `BKM-V0-955` across two repositories:
+an undeclared tracked SDK-root go.mod, a stale declared blob, and no tracked go.mod each name
+the path, and declaring the go.mod yields the caller edge.
 
 Non-goals of `BKM-V0-009` to `BKM-V0-012`: no parser for languages other than Go and the
 JS/TS declaration shapes above, no JSX/TSX, no dotted or member symbol resolution (a dotted
