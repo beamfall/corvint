@@ -474,8 +474,12 @@ func testingType(expression ast.Expr, alias string) bool {
 const fixtureMarker = "//corvint:fixture-path"
 
 // fixtureMarked maps, per test file, each AFP-V0-021 token that only marked
-// literals of that file hold; a token any unmarked literal also holds is
-// never exempt, so a marker cannot hide a real read the same file makes.
+// or assertion literals of that file hold; a token any other literal also
+// holds is never exempt, so neither a marker nor an assertion can hide a real
+// read the same file makes. An assertion literal is expected text, which names
+// no read (ASD-V0-613): an argument of a testing report method such as
+// t.Errorf, the second or later argument of a strings or bytes search such as
+// strings.Contains, or an operand of == or !=.
 func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
 	marked := make([]map[string]bool, len(files))
 	scan := tempRootScan{tokens: map[string][]string{}}
@@ -493,7 +497,8 @@ func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
 				}
 			}
 		}
-		if len(lines) == 0 {
+		asserted := assertionLiterals(file)
+		if len(lines) == 0 && len(asserted) == 0 {
 			continue
 		}
 		blocked := map[string]bool{}
@@ -506,7 +511,7 @@ func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
 			if values, err = scan.literalTokens(literal.Value); err != nil {
 				return false
 			}
-			fixture := lines[fileSet.Position(literal.Pos()).Line] || lines[fileSet.Position(literal.End()).Line]
+			fixture := asserted[literal] || lines[fileSet.Position(literal.Pos()).Line] || lines[fileSet.Position(literal.End()).Line]
 			for _, value := range values {
 				if fixture {
 					marked[index][value] = true
@@ -524,4 +529,58 @@ func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
 		}
 	}
 	return marked, nil
+}
+
+// reportMethods are the testing methods whose arguments are messages.
+var reportMethods = map[string]bool{"Error": true, "Errorf": true, "Fatal": true, "Fatalf": true, "Log": true, "Logf": true, "Skip": true, "Skipf": true}
+
+// searchFunctions are the strings and bytes functions whose second and later
+// arguments are the text searched for.
+var searchFunctions = map[string]bool{"Contains": true, "ContainsAny": true, "HasPrefix": true, "HasSuffix": true, "Index": true, "LastIndex": true, "Count": true, "EqualFold": true}
+
+// assertionLiterals returns the string literals of file that are expected
+// text (ASD-V0-613). A literal nested inside such an argument, as in
+// t.Errorf("%s", "x"+y), counts too.
+func assertionLiterals(file *ast.File) map[*ast.BasicLit]bool {
+	asserted := map[*ast.BasicLit]bool{}
+	mark := func(expression ast.Expr) {
+		ast.Inspect(expression, func(node ast.Node) bool {
+			if call, ok := node.(*ast.CallExpr); ok {
+				// A call inside the argument, such as os.ReadFile, may read;
+				// a conversion such as []byte("x") does not.
+				_, conversion := call.Fun.(*ast.ArrayType)
+				return conversion || isIdent(call.Fun, "string")
+			}
+			if literal, ok := node.(*ast.BasicLit); ok && literal.Kind == token.STRING {
+				asserted[literal] = true
+			}
+			return true
+		})
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.BinaryExpr:
+			if node.Op == token.EQL || node.Op == token.NEQ {
+				mark(node.X)
+				mark(node.Y)
+			}
+		case *ast.CallExpr:
+			selector, ok := node.Fun.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if reportMethods[selector.Sel.Name] {
+				for _, argument := range node.Args {
+					mark(argument)
+				}
+			}
+			if pkg, ok := selector.X.(*ast.Ident); ok && (pkg.Name == "strings" || pkg.Name == "bytes") && searchFunctions[selector.Sel.Name] {
+				for _, argument := range node.Args[min(1, len(node.Args)):] {
+					mark(argument)
+				}
+			}
+		}
+		return true
+	})
+	return asserted
 }

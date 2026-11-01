@@ -139,6 +139,11 @@ type finding struct {
 	// stat names, as file:line, a test's existence check of a repository
 	// path it read from data (AFP-V0-981); path is then empty.
 	stat string
+	// refusal is why a go command a test file runs cannot be modelled, such
+	// as a target that names no repository directory; path is then empty. It
+	// is a finding, not an abort, so one run reports every package
+	// (ASD-V0-612).
+	refusal string
 }
 
 // rootLocator names the first test-file literal of a package that locates the
@@ -180,6 +185,95 @@ func rootLocator(files []string, bodies [][]byte, tokens [][]string) string {
 		}
 	}
 	return ""
+}
+
+// rootClimb names, as file:line and the form, the first test-file function of
+// the package in directory that finds the repository root without a literal
+// rootLocator sees (ASD-V0-610): a loop that climbs with filepath.Dir or
+// path.Dir until a "go.mod" exists, or a runtime.Caller file path that nested
+// Dir calls climb from the package directory to the root. Either makes the
+// package's tokens root-relative, as a parent-only literal does.
+func rootClimb(files []string, bodies [][]byte, directory string) string {
+	depth := len(strings.Split(directory, "/")) + 1
+	for index, name := range files {
+		fileSet := token.NewFileSet()
+		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution)
+		if err != nil {
+			continue
+		}
+		caller := false
+		ast.Inspect(file, func(node ast.Node) bool {
+			if call, ok := node.(*ast.CallExpr); ok && selectorCall(call, "runtime", "Caller") {
+				caller = true
+			}
+			return !caller
+		})
+		found := ""
+		ast.Inspect(file, func(node ast.Node) bool {
+			if found != "" {
+				return false
+			}
+			switch node := node.(type) {
+			case *ast.ForStmt:
+				if climbsTo(node.Body) {
+					found = fmt.Sprintf("%s:%d walks up with Dir until go.mod exists", name, fileSet.Position(node.Pos()).Line)
+				}
+			case *ast.CallExpr:
+				if caller && dirNesting(node) == depth {
+					found = fmt.Sprintf("%s:%d climbs %d directories from a runtime.Caller path", name, fileSet.Position(node.Pos()).Line, depth-1)
+					return false
+				}
+			}
+			return found == ""
+		})
+		if found != "" {
+			return found
+		}
+	}
+	return ""
+}
+
+// selectorCall reports a call of pkg.name, such as filepath.Dir.
+func selectorCall(call *ast.CallExpr, pkg, name string) bool {
+	selector, ok := call.Fun.(*ast.SelectorExpr)
+	return ok && selector.Sel.Name == name && isIdent(selector.X, pkg)
+}
+
+// dirCall reports a filepath.Dir or path.Dir call.
+func dirCall(node ast.Node) bool {
+	call, ok := node.(*ast.CallExpr)
+	return ok && len(call.Args) == 1 && (selectorCall(call, "filepath", "Dir") || selectorCall(call, "path", "Dir"))
+}
+
+// dirNesting counts the Dir calls nested directly in one another from call.
+func dirNesting(call *ast.CallExpr) int {
+	count := 0
+	for dirCall(call) {
+		count++
+		inner, ok := call.Args[0].(*ast.CallExpr)
+		if !ok {
+			break
+		}
+		call = inner
+	}
+	return count
+}
+
+// climbsTo reports a loop body that both calls Dir and names "go.mod".
+func climbsTo(body *ast.BlockStmt) bool {
+	dir, module := false, false
+	ast.Inspect(body, func(node ast.Node) bool {
+		if dirCall(node) {
+			dir = true
+		}
+		if value, ok := node.(ast.Expr); ok {
+			if text, ok := stringLiteral(value); ok && text == "go.mod" {
+				module = true
+			}
+		}
+		return !(dir && module)
+	})
+	return dir && module
 }
 
 // tracked lists the paths Git tracks under root, except changeEvidencePath,
@@ -474,12 +568,17 @@ var goValueFlags = []string{
 // flag in goValueFlags, such as "-o" or "-tags", is never one. A command with
 // no positional argument, only flags, builds the package itself; a positional argument the file does not spell as a target,
 // such as a variable or a file name, is a target the check cannot see. The
-// targets of a verb in goTestVerbs are returned apart, as tests.
+// targets of a verb in goTestVerbs are returned apart, as tests. A
+// concatenation of one literal and the value of an enclosing range over a
+// string-literal slice, such as "../../cmd/"+pkg in
+// `for _, pkg := range []string{"corvint", "corvint-x"}`, stands for exactly
+// the packages it can name (ASD-V0-611).
 func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
 	_, file, err := parseFile(name, body)
 	if err != nil {
 		return nil, nil, err
 	}
+	ranges := literalRanges(file)
 	ast.Inspect(file, func(node ast.Node) bool {
 		var arguments []ast.Expr
 		switch node := node.(type) {
@@ -513,7 +612,9 @@ func goBuildTargets(name string, body []byte) (builds, tests []string, err error
 				text, literal := stringLiteral(argument)
 				if !value && !(literal && strings.HasPrefix(text, "-")) {
 					positional = true
-					if target, ok := buildTarget(argument); ok {
+					if expanded, ok := rangeTargets(argument, ranges); ok {
+						*targets = append(*targets, expanded...)
+					} else if target, ok := buildTarget(argument); ok {
 						*targets = append(*targets, target)
 					}
 				}
@@ -620,6 +721,94 @@ func buildTarget(argument ast.Expr) (string, bool) {
 	return directory + "/...", true
 }
 
+// literalRange is a `for _, name := range []string{...}` statement whose
+// slice holds only string literals.
+type literalRange struct {
+	name       string
+	start, end token.Pos
+	values     []string
+}
+
+// literalRanges lists every range statement of file over a slice of string
+// literals that binds its value to a name.
+func literalRanges(file *ast.File) []literalRange {
+	var ranges []literalRange
+	ast.Inspect(file, func(node ast.Node) bool {
+		statement, ok := node.(*ast.RangeStmt)
+		if !ok {
+			return true
+		}
+		value, ok := statement.Value.(*ast.Ident)
+		if !ok || value.Name == "_" {
+			return true
+		}
+		literal, ok := statement.X.(*ast.CompositeLit)
+		if !ok || len(literal.Elts) == 0 {
+			return true
+		}
+		if slice, ok := literal.Type.(*ast.ArrayType); !ok || !isIdent(slice.Elt, "string") {
+			return true
+		}
+		var values []string
+		for _, element := range literal.Elts {
+			text, ok := stringLiteral(element)
+			if !ok {
+				return true
+			}
+			values = append(values, text)
+		}
+		ranges = append(ranges, literalRange{name: value.Name, start: statement.Body.Pos(), end: statement.Body.End(), values: values})
+		return true
+	})
+	return ranges
+}
+
+func isIdent(expression ast.Expr, name string) bool {
+	ident, ok := expression.(*ast.Ident)
+	return ok && ident.Name == name
+}
+
+// rangeTargets returns the package patterns a "literal"+name concatenation
+// spells when name is the value of the innermost enclosing literalRange: one
+// target per range value, each a relative pattern buildTarget would accept
+// as a literal (ASD-V0-611). Any other argument returns false, and the
+// buildTarget over-approximation stands.
+func rangeTargets(argument ast.Expr, ranges []literalRange) ([]string, bool) {
+	binary, ok := argument.(*ast.BinaryExpr)
+	if !ok || binary.Op != token.ADD {
+		return nil, false
+	}
+	prefix, ok := stringLiteral(binary.X)
+	if !ok {
+		return nil, false
+	}
+	name, ok := binary.Y.(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	var enclosing *literalRange
+	for index := range ranges {
+		candidate := &ranges[index]
+		if candidate.start <= argument.Pos() && argument.End() <= candidate.end {
+			if enclosing == nil || candidate.start >= enclosing.start {
+				enclosing = candidate
+			}
+		}
+	}
+	if enclosing == nil || enclosing.name != name.Name {
+		return nil, false
+	}
+	var targets []string
+	for _, value := range enclosing.values {
+		target, ok := buildTarget(&ast.BasicLit{Kind: token.STRING, Value: strconv.Quote(prefix + value)})
+		if !ok {
+			return nil, false
+		}
+		targets = append(targets, target)
+	}
+	return targets, true
+}
+
 // stringLiteral returns the value of a string literal expression.
 func stringLiteral(expression ast.Expr) (string, bool) {
 	literal, ok := expression.(*ast.BasicLit)
@@ -639,8 +828,9 @@ var listedDependencies = map[string][]byte{}
 // Those directories are what a confined `go list` must read. A target resolves
 // against the package directory, where `go test` runs, or, when no directory
 // is there, against the root, where a test that sets the command's Dir to the
-// root runs it; a target that is neither is an error, not a silent pass. With
-// test, the imports of the targets' test files are loaded too.
+// root runs it; a target that is neither is an error, not a silent pass, which
+// check reports as a finding of that package (ASD-V0-612). With test, the
+// imports of the targets' test files are loaded too.
 func dependencyDirectories(root, directory string, targets []string, test bool) ([]string, error) {
 	var resolved []string
 	for _, target := range targets {
@@ -655,7 +845,7 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 			}
 		}
 		if found == "" || found == ".." || strings.HasPrefix(found, "../") {
-			return nil, fmt.Errorf("%s: a test runs a go command on %s, which names no repository directory", directory, target)
+			return nil, fmt.Errorf("runs a go command on %s, which names no repository directory; spell the target as a literal package path, or range over a []string of literal names (ASD-V0-611)", target)
 		}
 		if below {
 			found += "/..."
@@ -676,7 +866,7 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 		command.Stderr = &stderr
 		var err error
 		if out, err = command.Output(); err != nil {
-			return nil, fmt.Errorf("%s: go list -deps %s: %w: %s", directory, strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
+			return nil, fmt.Errorf("go list -deps %s: %w: %s", strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
 		}
 		listedDependencies[key] = out
 	}
@@ -821,7 +1011,7 @@ func check(root string) ([]finding, []string, error) {
 			if len(targets) > 0 {
 				dependencies, err := dependencyDirectories(root, directory, targets, false)
 				if err != nil {
-					return nil, nil, err
+					findings = append(findings, finding{pkg: directory, file: file, refusal: err.Error()})
 				}
 				for _, dependency := range dependencies {
 					if !dependencyCovered(directory, dependency, unit.ReadScope) {
@@ -843,7 +1033,8 @@ func check(root string) ([]finding, []string, error) {
 				}
 				dependencies, err := dependencyDirectories(root, directory, group.targets, group.test)
 				if err != nil {
-					return nil, nil, err
+					findings = append(findings, finding{pkg: directory, file: file, refusal: err.Error()})
+					continue
 				}
 				for _, dependency := range dependencies {
 					if dependencyCovered(directory, dependency, unit.ReadScope) {
@@ -863,6 +1054,8 @@ func check(root string) ([]finding, []string, error) {
 		rootedBy := ""
 		if fromRoot {
 			rootedBy = rootLocator(unit.Tests, bodies, tokens)
+		} else if climb := rootClimb(unit.Tests, bodies, directory); climb != "" {
+			fromRoot, rootedBy = true, climb
 		}
 		exempt, err := tempRootOnly(unit.Tests, bodies)
 		if err != nil {
@@ -992,6 +1185,10 @@ func run(root string, stdout, stderr io.Writer) int {
 		if found.sandbox != "" {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s is declared in %s, but %s records that its tests launch a nested sandbox (%s), which the confined CI shard refuses; remove its entry and add it to units of %s with a reason (AFP-V0-615)\n",
 				found.pkg, affected.ReadScopesPath, sandboxesPath, found.sandbox, unboundedPath)
+			continue
+		}
+		if found.refusal != "" {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s %s\n", found.pkg, found.file, found.refusal)
 			continue
 		}
 		if found.stat != "" {

@@ -990,6 +990,11 @@ One lane runs this flow, in order; each step names the command and the section t
    (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
    a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
    line means that package runs whole.
+   A change to a `cmd/corvint` verb also runs the verb's use-case and help tests,
+   which a batch otherwise finds failing only after the lane sealed (V1-4138, ASD-V0-616):
+   `script/heavy.sh go test -count=1 -run '^(TestUseCase|Test[A-Za-z0-9]*Help|TestVERB[A-Za-z0-9]*CLI)' ./cmd/corvint`
+   with `VERB` spelled as the verb's test prefix (for example `TestChanges`), plus
+   `make capability-catalog-check`.
 4. Doc gates before the final commit: `make doc-gates`, `make line-citations-check`, `gofmt -l`.
    Repins are mechanical: `make repin` (line citations and the analyzer-schema pin) and
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
@@ -997,6 +1002,11 @@ One lane runs this flow, in order; each step names the command and the section t
    ticket's files, run `make line-citations-check`, and when it names a moved citation run
    `make repin BASE=<lane-base>` and commit the staged repins with that ticket. A later
    catch-up repin commit leaves every earlier commit red for anyone who checks it out or bisects.
+   The same holds for a new check (V1-4098, ASD-V0-616): commit the fixes a new rule needs before
+   or with the rule, never after, so `make bash32-check` and the other doc gates pass at every
+   commit. `make spec-requirements-check` also runs the internal/lrfrepo spec enumeration pins
+   (V1-3841, ASD-V0-615), and `make test-read-scopes-check` reports every unresolved go target
+   and undeclared read in one run (ASD-V0-612), so a lane sees these before batch-precheck does.
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.

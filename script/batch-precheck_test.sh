@@ -1200,6 +1200,11 @@ printf '#!/bin/sh\necho boom >&2\nexit 3\n' > "$dgs/make"
 "$script/doc-gates-summary.sh" "$dgs/make" alpha.check 2> "$dgs/err"
 [[ $? == 3 && $(tail -n 1 "$dgs/err") == 'doc-gates-summary: FAIL exit 3 naming no doc gate; read the output above' ]] || fail "unnamed failure: $(cat "$dgs/err")"
 "$script/doc-gates-summary.sh" true alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "a passing run printed a summary: $(cat "$dgs/out")"
+# V1-4137, V1-3734: a `## help` comment on the doc-gates target line still expands.
+printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates: ## Run the doc gates\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "help-comment expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
+  fail "the doc-gates target with a ## help comment was not expanded: $(cat "$tmp/out")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
