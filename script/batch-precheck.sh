@@ -12,6 +12,8 @@
 #                                                   does not already show
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
+#   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
+#                                                   (ASD-V0-892 rows, ASD-V0-641)
 #   script/batch-precheck.sh --verify-receipt [REV] refuse unless a passing receipt names REV
 #                                                   (default HEAD); run it before `git push` of a
 #                                                   claude/batch-* branch
@@ -602,6 +604,7 @@ steps() {
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
+  printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
   # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
@@ -665,10 +668,13 @@ tree_clean() { local out; out=$(git status --porcelain 2> /dev/null) && [[ -z $o
 case ${1:-} in
   --sync-check) sync_check; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
+  # ASD-V0-641 (V1-3745): the rows run_one runs directly, by the same test, so a fixture derives its
+  # PASS and reuse counts instead of naming a print-only step.
+  --list-print-only) need_gocache; steps | while IFS=$'\t' read -r name cmd; do [[ $cmd != 'printf "%s\n" '* ]] || printf '%s\n' "$name"; done; exit 0 ;;
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--verify-receipt [REV]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.

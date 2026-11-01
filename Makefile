@@ -1060,6 +1060,11 @@ dogfood-change-runs:
 lane-scripts-test:
 	@script/lane-scripts_test.sh
 
+# ASD-V0-641 (V1-3745): every script a shell test or a Makefile recipe names exists.
+.PHONY: test-script-refs-check
+test-script-refs-check:
+	@script/check-test-script-refs.sh
+
 # ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
 # shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.
 .PHONY: agent-preflight-test

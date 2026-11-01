@@ -495,6 +495,14 @@ git -C "$repo" checkout -q -- derived.txt
 # from the worktree and CORVINT_GATE_LEDGER=off reuse nothing; a failure is never reused.
 (cd "$script/.." && GOTOOLCHAIN=local go build -o "$tmp/gate-ledger" ./tools/gate-ledger) > "$tmp/out" 2>&1 || fail "gate-ledger build: $(cat "$tmp/out")"
 lrun() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/ledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger run; }
+# ASD-V0-641 (V1-3745): the print-only rows come from --list-print-only, so no count below names a
+# step; under BATCH_PRECHECK_SKIP_DRIFT=1 the skipped drift row is one of them.
+run --list-print-only || fail "--list-print-only: $(cat "$tmp/out")"
+nprint=$(grep -c . "$tmp/out")
+BATCH_PRECHECK_SKIP_DRIFT=1 run --list-print-only || fail "skip-drift --list-print-only: $(cat "$tmp/out")"
+nprint_skip=$(grep -c . "$tmp/out")
+grep -qxF 'batch-drift (skipped before the bind)' "$tmp/out" && ((nprint_skip == nprint + 1)) ||
+  fail "--list-print-only missed the skipped drift row ($nprint, $nprint_skip): $(cat "$tmp/out")"
 lrun || fail "first ledger run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: ledger reuse on ($tmp/gate-ledger)$" "$tmp/out" || fail "ledger not on: $(cat "$tmp/out")"
 grep -q 'REUSE' "$tmp/out" && fail "a first run reused: $(cat "$tmp/out")"
@@ -504,18 +512,17 @@ grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-# The fixture lists no print-only row (the retired ai-trailers step was its only one), so only the
-# repin row runs and every listed step reuses.
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 1 ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $nsteps of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+# Only the repin row and the print-only rows run; every other listed step reuses.
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - nprint)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 # ASD-V0-892 (V1-3572): a print-only row (here the drift step skipped before the bind) never goes
 # through the ledger, so it reruns as a PASS while every other step reuses.
 BATCH_PRECHECK_SKIP_DRIFT=1 lrun || fail "skip-drift reuse run failed: $(cat "$tmp/out")"
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" ||
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint_skip)) ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" ||
   fail "print-only row went through the ledger: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "print-only reuse count: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - nprint_skip)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "print-only reuse count: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -546,6 +553,21 @@ want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
 "$regen" --list | grep -qx $'documentation-paths\tmake -s documentation-paths' && "$regen" --list | grep -qx $'line-citations\tchanged_citations' &&
   grep -q '^changed_citations() { script/check-line-citations.sh --repin --changed --base "${BATCH_REGEN_BASE:-origin/main}"; }$' "$regen" ||
   fail "batch-regen does not regenerate documentation-paths or repin changed citations against the base"
+
+# 4c. ASD-V0-641 (V1-3745): the test-script-refs step fails when a shell test names a script that is
+# not in the tree, naming the file, line and path, and passes once the script exists.
+mkdir -p "$repo/script"
+printf '#!/bin/sh\nscript=$(cd "$(dirname "$0")" && pwd)\n"$script/gone.sh" --check\n' > "$repo/script/caller_test.sh"
+git -C "$repo" add script/caller_test.sh && git -C "$repo" commit -q -m caller || fail "caller commit"
+run && fail "a test naming a missing script passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | test-script-refs$' "$tmp/out" || fail "test-script-refs row: $(cat "$tmp/out")"
+grep -qF 'check-test-script-refs: FAIL script/caller_test.sh:3 names $script/gone.sh, but script/gone.sh does not exist' "$tmp/out" || fail "missing script not named: $(cat "$tmp/out")"
+printf '#!/bin/sh\n' > "$repo/script/gone.sh"
+git -C "$repo" add script/gone.sh && git -C "$repo" commit -q -m gone || fail "gone commit"
+run || fail "an existing script failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | test-script-refs$' "$tmp/out" || fail "test-script-refs pass row: $(cat "$tmp/out")"
+git -C "$repo" rm -q -r script && git -C "$repo" commit -q -m 'drop caller' || fail "caller cleanup"
+/bin/rm -f "$receipt"
 
 # 5. batch-regen on stub steps: one commit of the regenerated files, nothing on a second run, a
 # refusal on tracked changes, and no commit when a step fails.
