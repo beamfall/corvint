@@ -3970,6 +3970,14 @@ QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain th
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-
 QAT-V0-004	docs/specs/dogfood-query-abstention-v0.md	The checker MUST reconstruct only `query --task ORIGINAL_TASK --limit 1` using i	unrecorded	-
 QAT-V0-005	docs/specs/dogfood-query-abstention-v0.md	This exception MUST NOT bypass clean-target validation, CEM/OCM policy, selected	unrecorded	-
+DOGFOOD-BIND-001	docs/specs/dogfood-retroactive-binding-v0.md	the script refuses with exit 2 and `dogfood-bind-range: REFUSE REASON`, before	unrecorded	-
+DOGFOOD-BIND-002	docs/specs/dogfood-retroactive-binding-v0.md	preparation and citation run in a private, never-checked-out Git worktree at	unrecorded	-
+DOGFOOD-BIND-003	docs/specs/dogfood-retroactive-binding-v0.md	the citation plan has the coordinator's row format and limits and is written	unrecorded	-
+DOGFOOD-BIND-004	docs/specs/dogfood-retroactive-binding-v0.md	the binding commit has TARGET as its only parent, TARGET's tree with only	unrecorded	-
+DOGFOOD-BIND-005	docs/specs/dogfood-retroactive-binding-v0.md	a retroactive binding never claims pre-change context or a local outcome. A	unrecorded	-
+DOGFOOD-BIND-006	docs/specs/dogfood-retroactive-binding-v0.md	merging the binding with the `ours` strategy changes no tracked content, so	unrecorded	-
+DOGFOOD-BIND-007	docs/specs/dogfood-retroactive-binding-v0.md	a hunk whose intent no stable base content records (for example an intent	unrecorded	-
+DOGFOOD-BIND-008	docs/specs/dogfood-retroactive-binding-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1487) after	standing	2026-10-11; V1-1487
 DNAS-V0-001	docs/specs/dotnet-affected-selection-v0.md	`Name` MUST be `dotnet`; `Owns` MUST accept `.cs` case-insensitively and MUST NO	unrecorded	-
 DNAS-V0-002	docs/specs/dotnet-affected-selection-v0.md	Framework discovery MUST require both project evidence and matching source	unrecorded	-
 DNAS-V0-003	docs/specs/dotnet-affected-selection-v0.md	One statically addressable test unit MUST own one `.cs` file and have identity	unrecorded	-

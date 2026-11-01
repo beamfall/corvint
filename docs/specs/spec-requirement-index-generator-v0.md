@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:404@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:413@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -710,7 +710,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-953 | `script/gen-spec-requirements_test.sh` case 15: a note on the continuation line, including one whose acceptance word follows a nested parenthetical, is refused naming `path:line`, the ID and the repair, while a nested aside naming no acceptance passes; the committed corpus regenerates unchanged |
 | SRG-V0-954 | `script/gen-spec-requirements_test.sh` case 16: `--check` passes on fresh outputs and names a stale file; `--write` refuses an unstaged and an untracked spec naming both and the `git add --` command, writing nothing, and writes once they are staged |
 | SRG-V0-760 | `script/gen-spec-requirements_test.sh` case 60: `- `KPT-V0-001` (KEEP):` with no definition is refused in every mode naming `kept.md:3` and the rule; a restated defined id and a fenced line are not named |
-| SRG-V0-761 | `script/gen-spec-requirements_test.sh` case 61: a row starting with the INDEX.json claim gains the new Claim and keeps its tail, a tail with `e.g.` survives, and a hand-written first sentence is refused naming `README.md:3`; fails on the pre-change generator, which rewrote it |
+| SRG-V0-761 | `script/gen-spec-requirements_test.sh` case 61: a row starting with the INDEX.json claim gains the new Claim and keeps its tail, a tail with `e.g.` survives, and a hand-written first sentence is refused naming its README line; fails on the pre-change generator, which rewrote it |
 | SRG-V0-762 | `script/gen-spec-requirements_test.sh` cases 7 and 61: a bare-link Contract cell gains `SA-V0-001..003`, a `;` cell keeps its tail, an appended row carries its range, and the result is a fixed point; the regenerated `docs/specs/README.md` gains a range on 196 rows; case 7 fails on the pre-change generator |
 | SRG-V0-763 | `script/gen-spec-requirements_test.sh` the SRG-V0-040 long-claim checks and case 15: the long-Claim refusal names `two.md:8` and `multi.md:7` |
 | SRG-V0-764 | `script/requirement-next-id_test.sh`, run by `spec-requirements-test`: the next ID follows the highest definition, not the last line, two out-of-order definitions are named by line, an unused prefix starts at 001, and a bad prefix exits 2 |

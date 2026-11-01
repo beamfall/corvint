@@ -4260,5 +4260,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/dogfood-retroactive-binding-v0.md",
+    "title": "Dogfood retroactive binding V0",
+    "reqPrefix": "DOGFOOD-BIND",
+    "intent": "accepted; moved unchanged from the docs/DOGFOOD.md retroactive-binding contract (2026-11-01)",
+    "delivery": "implemented",
+    "claim": "A landed commit range is bound to one cited CEM after the fact by a retroactive binding commit, never by rewriting history.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
