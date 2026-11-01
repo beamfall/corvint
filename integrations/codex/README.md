@@ -5,7 +5,10 @@ not use this directory: the installable plugin is published from a committed rev
 marketplace, `~/.local/share/corvint/codex-marketplace/corvint-full-candidate`, whose `PUBLISH.json`
 records the source revision, the stamped plugin version and the three transforms applied to this
 tree (version stamp; `hooks/hooks.json` replaced by the `prepare-qualified-hooks` rendering for the
-installed root release; `scripts/` omitted because the adapter lives in the root release). Add that
+installed root release; `scripts/` omitted because the adapter lives in the root release).
+`script/publish-codex-plugin.sh publish REVISION QUALIFIED_HOOKS OUTPUT` performs that publish from a
+committed revision, keeps the manifest's version, and refuses a package whose `plugin.json`
+references a missing `skills`, `mcpServers` (`.mcp.json`) or `hooks` file (AHI-951). Add that
 marketplace with `codex plugin marketplace add ~/.local/share/corvint/codex-marketplace/corvint-full-candidate`,
 install with `codex plugin add corvint@corvint-full-candidate`, then review and trust its lifecycle hooks
 with `/hooks`. After a republish, rerun `codex plugin add corvint@corvint-full-candidate`; `codex plugin
