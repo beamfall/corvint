@@ -3680,7 +3680,9 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - Refresh.
     1. Read the invalidation token.
     2. Audit from receipt 1 without the lock (amended by the proposed `CAL-V0-265`: a prefix walk
-       to the captured head when the journal moves).
+       to the captured head when the journal moves; and by `PSR-V0-891` in
+       `corvint-tasks-pool-safe-reuse-v0.md`: an incremental audit from the bound checkpoint, with
+       the complete audit as its backstop).
     3. Under the lock, read the token again. If either read failed, or the token changed, another
        refresh refused after this audit began: publish nothing (stage `refresh.superseded`).
     4. Otherwise retain the derived writer checkpoint, bound to the receipt head it audited, unless

@@ -477,6 +477,26 @@ of only heartbeat or renew receipts against the audited head, or (b) carry progr
 calls without an unverified on-disk base. Route (b) is taken; (a) is declined by PSR-V0-110. See
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-17-v1-1617-acquire-bounded-calls.md`.
 
+- `PSR-V0-891`: (proposed; V1-0916; experimental under the standing lane auto-accept and the
+  owner's 2026-11-01 allowance of an incremental refresh) Amends CAL-V0-117 step 2 and extends
+  `CAL-V0-265`. On an unsegmented store whose writer checkpoint is bound (CAL-V0-117 Binding), the
+  scheduled refresh SHOULD first audit incrementally: resume the complete audit's per-receipt
+  validators from that checkpoint, walk and validate only the receipts after it, compare every latest
+  afterimage with its projection as a writer audit does, and retain the checkpoint a complete refresh
+  at that head would retain, on a new base with `FullSeq` at the audited head. That checkpoint MUST
+  be byte-identical, base and delta, to the complete refresh's at the same head. Any decline of the
+  incremental audit (no bound checkpoint, a moved journal, a pending receipt, staging, an intent
+  error or any refusal) MUST fall back to the complete refresh of CAL-V0-117 and `CAL-V0-265`, so
+  every refusal and every invalidation is still the complete audit's own. The complete refresh MUST
+  still run as the backstop whenever the head has crossed a multiple of `WriterFullBound` (4,096)
+  since the bound checkpoint's `FullSeq`, so a stretch of history goes at most about 4,096 receipts
+  without a complete audit from receipt 1. An incremental refresh retains no read checkpoint, runs in
+  the scheduled caller exactly as the complete refresh does (no off-caller process, product
+  invariant 7), and leaves steps 1, 3, 4 and 5, the invalidation token and the scheduling rule
+  (PSR-V0-169) unchanged. Failure mode: it re-reads no receipt, request afterimage or count before
+  `FullSeq`, so a prefix tamper or a forged checkpoint that the complete refresh would refute is
+  carried forward until the next backstop refresh or complete-route write refutes it; every writer
+  audit already shares that window.
 - `PSR-V0-110`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1617) No tail is
   accepted on its receipt kind, verb or request record. A tail, including one made only of heartbeat
   or renew receipts, MUST reach a commit only through the PSR-V0-052 resume:
