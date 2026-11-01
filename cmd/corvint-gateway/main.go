@@ -179,5 +179,33 @@ func report(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, " (%.1f%% smaller)", 100*(1-float64(t.ForwardedBytes)/float64(t.RequestBytes)))
 	}
 	fmt.Fprintf(stdout, "; %d results folded\n", t.Folds)
+	if t.ToolsRequestBytes > 0 {
+		fmt.Fprintf(stdout, "tool definitions %d bytes, %.1f%% of the requests that carried them\n", t.ToolsBytes, 100*float64(t.ToolsBytes)/float64(t.ToolsRequestBytes))
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
+		return 1
+	}
+	breaks, err := modelgateway.CacheBreaks(file)
+	if err != nil {
+		fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
+		return 1
+	}
+	created := int64(0)
+	for _, b := range breaks {
+		created += b.Created
+	}
+	fmt.Fprintf(stdout, "cache breaks %d (%d cache-creation tokens on those requests)\n", len(breaks), created)
+	for i, b := range breaks {
+		if i == maxListedBreaks {
+			fmt.Fprintf(stdout, "  ... %d more\n", len(breaks)-i)
+			break
+		}
+		fmt.Fprintf(stdout, "  %s %s session %s: read %d of %d cached, wrote %d, %s after the previous start; %s\n",
+			b.At, b.Model, b.SessionKey, b.Read, b.Expected, b.Created, b.Gap.Round(time.Second), b.Cause)
+	}
 	return 0
 }
+
+// maxListedBreaks bounds the per-break lines report prints.
+const maxListedBreaks = 20

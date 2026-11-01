@@ -41,6 +41,10 @@ type Usage struct {
 	Folds               int    `json:"folds"`
 	DurationMs          int64  `json:"durationMs"`
 	SessionKey          string `json:"sessionKey,omitempty"`
+	SystemBytes         int    `json:"systemBytes,omitempty"`
+	SystemKey           string `json:"systemKey,omitempty"`
+	ToolsBytes          int    `json:"toolsBytes,omitempty"`
+	ToolsKey            string `json:"toolsKey,omitempty"`
 	Error               string `json:"error,omitempty"`
 }
 
@@ -135,7 +139,7 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if p.Folder != nil {
 			forward, usage.Folds = p.Folder.FoldRequest(body)
 		}
-		usage.Stream, usage.SessionKey = requestFacts(body)
+		requestFacts(body, &usage)
 	}
 	usage.ForwardedBytes = len(forward)
 
@@ -279,24 +283,34 @@ func (p *Proxy) record(messages bool, usage *Usage, start time.Time) {
 	}
 }
 
-// requestFacts reads stream and a hashed metadata.user_id; the hash keeps a
-// session grouping key without storing the identifier itself.
-func requestFacts(body []byte) (bool, string) {
+// requestFacts copies stream, a hashed metadata.user_id, and the size and a
+// hashed key of the system prompt and tool list into u (LMG-V0-004,
+// LMG-V0-011). Each hash keeps a grouping or comparison key without storing
+// the identifier or text itself.
+func requestFacts(body []byte, u *Usage) {
 	var request struct {
 		Stream   bool `json:"stream"`
 		Metadata struct {
 			UserID string `json:"user_id"`
 		} `json:"metadata"`
+		System json.RawMessage `json:"system"`
+		Tools  json.RawMessage `json:"tools"`
 	}
 	if json.Unmarshal(body, &request) != nil {
-		return false, ""
+		return
 	}
-	key := ""
-	if request.Metadata.UserID != "" {
-		sum := sha256.Sum256([]byte(request.Metadata.UserID))
-		key = hex.EncodeToString(sum[:8])
+	u.Stream, u.SessionKey = request.Stream, shortKey([]byte(request.Metadata.UserID))
+	u.SystemBytes, u.SystemKey = len(request.System), shortKey(request.System)
+	u.ToolsBytes, u.ToolsKey = len(request.Tools), shortKey(request.Tools)
+}
+
+// shortKey is the first 8 bytes of SHA-256 in hex, or "" for empty input.
+func shortKey(data []byte) string {
+	if len(data) == 0 {
+		return ""
 	}
-	return request.Stream, key
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:8])
 }
 
 // maxMeterLine bounds what the meter buffers for one SSE line or JSON body.
@@ -441,6 +455,9 @@ type Totals struct {
 	Requests, Errors                        int
 	Input, CacheRead, CacheCreation, Output int64
 	RequestBytes, ForwardedBytes, Folds     int64
+	// ToolsBytes sums tool-definition bytes over the requests that carried a
+	// tool list, whose received bytes sum to ToolsRequestBytes (LMG-V0-011).
+	ToolsBytes, ToolsRequestBytes int64
 }
 
 // Summarise reads ledger lines; a malformed line is skipped and counted as an error.
@@ -472,6 +489,10 @@ func Summarise(r io.Reader) (Totals, error) {
 		t.RequestBytes += int64(u.RequestBytes)
 		t.ForwardedBytes += int64(u.ForwardedBytes)
 		t.Folds += int64(u.Folds)
+		if u.ToolsBytes > 0 {
+			t.ToolsBytes += int64(u.ToolsBytes)
+			t.ToolsRequestBytes += int64(u.RequestBytes)
+		}
 	}
 	return t, scanner.Err()
 }
