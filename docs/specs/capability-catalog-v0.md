@@ -374,7 +374,11 @@ cannot silently go missing or outlive its command.
   `llms.txt` and the `docs/CAPABILITIES.md` Command trees section, and leave `CLI-RATCHET.tsv`,
   whose `ratchetCeiling` falls from 50 to 40. Each tree's dispatch source is the binary's own
   `cmd/` directory, so `tools/capabilities-check` fails on a word or option the binary matches that
-  its tree lacks (CAP-V0-047).
+  its tree lacks (CAP-V0-047). A synopsis may lead with required options before the subcommand
+  word, each an unbracketed `--option VALUE` pair (`corvint-pulse --root ROOT serve --stdio`): the
+  builder skips them when it finds the node path, as it skips a bracketed preamble, and lists them
+  in the node's `required` and `flags`. A synopsis names only the options its subcommand accepts,
+  never prose that reads as options.
 - `CAP-V0-973`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
   `clitree.Help.Serve` MUST answer exactly the invocations `clitree.Answer` answers (CAP-V0-931),
   before the binary's own dispatch, with exit 0, or exit 2 and one stderr line for `help` with an
