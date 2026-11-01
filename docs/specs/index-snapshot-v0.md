@@ -815,7 +815,8 @@ snapshots refreshed automatically without a manual warmup.
   supersedes only the 55-second work and 60-second hard wall bounds of `IDX-SNAP-V0-033`) The
   writer's work bound is CPU time, not wall time: it cancels its build once the worker and its
   reaped Git children have used 55 CPU-seconds (user plus system, read with `getrusage` once a
-  second), and records `expired` as before. Its hard wall bound is 10 minutes: the work context
+  second), records `expired` and retires its process group, because
+  compiling the index does not observe cancellation (the same retirement the hard wall uses). Its hard wall bound is 10 minutes: the work context
   also ends 50 seconds before it, and the group is killed at it. Rationale: the bound protects the
   host from a runaway writer, which CPU time measures, while a nice +10 writer under sustained
   normal-priority load is starved, not runaway. With 36 nice-0 busy loops on 12 CPUs it receives
@@ -838,6 +839,7 @@ snapshots refreshed automatically without a manual warmup.
   bound, or a second writer started while one runs. Rollback: restore the wall bounds
   (`snapshotRefreshWallBound = time.Minute`, the work deadline at 55 s) and drop the CPU ticker.
   Traceability: `TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912`,
+  `TestSnapshotRefreshCPUBudgetRetiresWorkThatIgnoresCancel_IDXSNAPV0912`,
   `TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912`,
   `TestSnapshotRefreshPreviousOutcome`; loaded qualification in
   `docs/build-log/2026-10-31-indexcli-w5.md`.
