@@ -141,6 +141,29 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `corvint-tasks` CLI requirement that would extend `CAL-V0` MUST take the next `TCL-V0` number in
   this spec; requirements already numbered elsewhere (for example `CAP-V0-060`) stay where they
   are and are cross-referenced.
+- `TCL-V0-860`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714) A
+  `ticket` mutation verb given a positional argument or an unknown flag MUST refuse `MALFORMED`
+  with that code in the top-level `codes`; a positional argument's refusal names
+  `--target TICKET` and `--expected-revision N|current`. `--expected-revision current` on a
+  single-target mutation other than CREATE reads the target's revision from the intent store
+  and submits it, so the store's revision check still refuses `STALE_TICKET` when the ticket
+  changes between that read and the write; with several `--target` values it is refused as a
+  number is.
+- `TCL-V0-861`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714) The
+  usage of every single-target mutation other than CREATE and HOLD MUST mark `--target` and
+  `--expected-revision` as required, so the derived help example names both and, with its
+  placeholders filled, runs.
+- `TCL-V0-862`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `ticket list` and `ticket search` `--fields` MUST accept every key a `ticket show` item
+  carries, `record.` keys included: when a requested key is not in the list item, each page
+  item is the `ticket show` item of that ticket, projected to the requested keys. Without such a
+  key the items stay the CAL-V0-173 list items (no `record` member).
+- `TCL-V0-863`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `ticket search --query` MUST refuse `MALFORMED` naming `--text T` as the text filter.
+- `TCL-V0-864`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `roadmap --status S[,S...]` MUST keep only rows whose status is listed, with the `ticket list`
+  status grammar (a closed status set, each named once), applied from the ticket summary so a
+  closed ticket is never decoded; paging, facets and counts apply to the kept rows.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -195,6 +218,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
   (TCL-V0-003).
 - `tools/capabilities-check` and the command-tree snapshot (TCL-V0-013).
+- `internal/tasks/cli/cli_papercuts_test.go`: `TestTCLV0860_PositionalAndCurrentRevision`,
+  `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
+  `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
