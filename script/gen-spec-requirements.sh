@@ -314,11 +314,13 @@ sub digest_values {
 
 my @reads = ((sort @specs), grep { $tracked{$_} } 'docs/specs/INTENT-STATUS-FROZEN.tsv',
     'script/requirement-definitions-outside-section.txt');
+# SRG-V0-761 (V1-4001): README mode reads INDEX.json too, for the claim the row was projected from.
 push @reads, 'docs/specs/INDEX.json'
-    if ($mode eq 'index' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
+    if ($mode eq 'index' || $mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
 push @reads, 'docs/specs/README.md'
     if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
 my $blobs = index_blobs(@reads);
+my @noted_definitions;
 
 my (%best, %header, %definitions, %section, @outside_section, @continuation_notes);
 for my $file (sort @specs) {
@@ -337,6 +339,7 @@ for my $file (sort @specs) {
         successor => digest_values($blob)->{Successor},
         digest => scalar($blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/m),
         intent_line => field_line($blob, 'Intent status:'), status_line => field_line($blob, 'Status', 1),
+        claim_line => field_line($blob, 'Claim', 1),
     };
     # SRG-V0-891 (V1-3295): the ## Requirements section's line range, tracked as
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
@@ -346,6 +349,7 @@ for my $file (sort @specs) {
     my $line_number = 0;
     my $previous_blank = 1;
     my $rollback = 0;
+    my @noted;
     my ($fence, $continues, $item_open, $pending) = ('', 0, 0, undef);
     for my $line (split /^/, $blob) {
         ++$line_number;
@@ -401,6 +405,11 @@ for my $file (sort @specs) {
             $item_open = 0;
         }
 
+        # SRG-V0-760 (V1-4000): a bulleted line whose note sits between the id and its colon, as in
+        # `- `ID` (KEEP): text`, ranks no 0; it is refused below when the id has no definition.
+        push @noted, [$1, $line_number, $in_section]
+            if $fence eq '' && $run eq '' && !$rollback
+            && $line =~ /^\s*[-*]\s+(?:\*\*)?`?([A-Z][A-Z0-9-]*-[0-9]{3})`?(?:\*\*)?\s+\([^)\n]*\)(?:\*\*)?\s*:/;
         while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
             my $id = $1;
             my $quoted = quotemeta($id);
@@ -449,6 +458,7 @@ for my $file (sort @specs) {
             };
         }
     }
+    push @noted_definitions, map { [$file, @$_] } grep { !$sections || $_->[2] } @noted;
     $section{$file}[1] ||= $line_number if $in_section;
     if ($sections == 1) {
         push @outside_section, [$file, @$_] for @outside;
@@ -492,7 +502,11 @@ sub refuse {
 for my $file (sort @specs) {
     next unless defined(my $claim = $header{$file}{claim});
     utf8::decode($claim);
-    refuse('', "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160")
+    # SRG-V0-763 (V1-3306): the refusal names the Claim line and the template that states the limit.
+    refuse("shorten each Claim to one sentence of at most 160 characters and move detail into the "
+        . "spec body; docs/SPEC-DRIVEN-DEVELOPMENT.md \"Required capability-spec shape\" states the "
+        . "limit (SRG-V0-040, SRG-V0-763)",
+        "$file:$header{$file}{claim_line}: the Agent digest Claim is " . length($claim) . " characters; the limit is 160")
         if length($claim) > 160;
 }
 # status_ids returns the requirement IDs a status names: each SRG-V0-003 token and each `..NNN` or
@@ -599,6 +613,13 @@ sub status_ids {
         . "`- `ID`: (accepted YYYY-MM-DD; V1-NNNN) The requirement ...` (SRG-V0-953); " . $note_repair,
         @continuation_notes);
 }
+# SRG-V0-760 (V1-4000): inside ## Requirements (or anywhere in a spec without one), outside fences and
+# rollback sections, a `- `ID` (note):` line whose id has no definition is refused naming the line,
+# so the id is never silently missing from REQUIREMENTS.tsv (RDG-V0-022 names it at doc-gates).
+refuse("a note between the id and its colon is no definition: write `- `ID`: (note) text`, then "
+    . "rerun make spec-requirements; see docs/SPEC-DRIVEN-DEVELOPMENT.md \"Accepted forms\" (SRG-V0-760)",
+    map { "$_->[0]:$_->[2]: $_->[1]: the note sits before the colon, so this line defines nothing" }
+    grep { !$definitions{$_->[1]} } @noted_definitions);
 if ($mode ne 'tsv' && $mode ne 'lines') {
     # SRG-V0-012: INDEX.json and the README.md spec table are projections. A spec header owns its
     # intent and delivery status and its Agent digest owns the claim; INDEX.json owns every other
@@ -712,6 +733,23 @@ sub index_text {
     return $out;
 }
 
+# index_entries: the staged INDEX.json entries by path, or none when it is not tracked.
+sub index_entries {
+    return {} unless $tracked{'docs/specs/INDEX.json'};
+    my $entries = eval { JSON::PP->new->utf8->decode($blobs->{'docs/specs/INDEX.json'}) };
+    ref $entries eq 'ARRAY' or die "docs/specs/INDEX.json: not a JSON array\n";
+    return { map { ref $_ eq 'HASH' && defined $_->{path} ? ($_->{path} => $_) : () } @$entries };
+}
+
+# spec_range FILE PREFIX: the span of the PREFIX ids FILE defines, or '' when it defines none.
+sub spec_range {
+    my ($file, $prefix) = @_;
+    my @numbers = sort map { substr $_, length $prefix }
+        grep { $best{$_}{file} eq $file && /\A\Q$prefix\E[0-9]{3}\z/ } keys %best;
+    return '' unless @numbers;
+    return $prefix . $numbers[0] . ($numbers[-1] ne $numbers[0] ? "..$numbers[-1]" : '');
+}
+
 # README mode: rewrite the Intent and Delivery cells and the leading claim of the description in
 # every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
 # internal/specindex reads.
@@ -723,6 +761,15 @@ sub readme_text {
     my $end = $table;
     ++$end while $end + 1 <= $#rows && $rows[$end + 1] =~ /\A\|/;
     my %rowed;
+    my $indexed = index_entries();
+    # SRG-V0-762 (V1-2310): the prefix a range-less row gains, INDEX.json's reqPrefix first.
+    my $row_prefix = sub {
+        my ($file) = @_;
+        my $prefix = $indexed->{$file} && defined $indexed->{$file}{reqPrefix} ? $indexed->{$file}{reqPrefix} : '';
+        $prefix = default_prefix($file) if $prefix eq '';
+        utf8::decode($prefix);
+        return $prefix eq '' ? '' : "$prefix-";
+    };
     my $cell = sub {
         my ($column, $value) = @_;
         $column =~ /\A(\s*)(.*?)(\s*)\z/s;
@@ -748,13 +795,33 @@ sub readme_text {
             @numbers or die "$path: its README row shows a $prefix range but the spec defines no $prefix id\n";
             my $range = $prefix . $numbers[0] . ($numbers[-1] ne $numbers[0] ? "..$numbers[-1]" : '');
             substr($columns[2], length $lead, $+[0] - length $lead) = $range;
+        } elsif ($columns[2] =~ /\A(\s*\[[^\]]*\]\([^)]+\))(?=\s*(?:;|\z))/s) {
+            # SRG-V0-762 (V1-2310): a Contract cell that is the bare link (alone or before a `;`)
+            # gains the range of the ids the spec defines, which SRG-V0-043 then keeps current.
+            my $prefix = $row_prefix->($path);
+            my $range = $prefix eq '' ? '' : spec_range($path, $prefix);
+            substr($columns[2], length $1, 0) = " $range" if $range ne '';
         }
         $columns[3] = $cell->($columns[3], $spec->{intent});
         $columns[4] = $cell->($columns[4], $spec->{delivery});
         if (defined $spec->{claim}) {
+            # SRG-V0-761 (V1-4001): only the projected claim is replaced: the current Claim, or the
+            # claim INDEX.json recorded when the row was last projected. A row whose first sentence
+            # is neither was edited by hand and is refused rather than rewritten; a spec with no
+            # INDEX.json entry keeps the first-sentence rule.
             my $description = trim($columns[5]);
-            $description =~ s/\A.*?[.?!](?=\s|\z)//s
-                or die "$path: its README row description does not start with a one-sentence claim\n";
+            my $old = $indexed->{$path} ? $indexed->{$path}{claim} : undef;
+            if ($description =~ s/\A\Q$spec->{claim}\E(?=\s|\z)//) {
+            } elsif (defined $old && $old ne '' && $description =~ s/\A\Q$old\E(?=\s|\z)//) {
+            } elsif (!$indexed->{$path}) {
+                $description =~ s/\A.*?[.?!](?=\s|\z)//s
+                    or die "$path: its README row description does not start with a one-sentence claim\n";
+            } else {
+                die "docs/specs/README.md:" . ($i + 1) . ": the $path row's description starts with neither "
+                    . "the spec's Agent digest Claim nor the claim INDEX.json recorded, so it was edited by "
+                    . "hand; restore the claim as its first sentence and put the change in the spec's "
+                    . "`- Claim:` line, then rerun make spec-requirements (SRG-V0-761)\n";
+            }
             $columns[5] = $cell->($columns[5], $spec->{claim} . $description);
         }
         $row = join('|', @columns) . $newline;
@@ -764,8 +831,10 @@ sub readme_text {
     my @added;
     for my $file (grep { !$rowed{$_} } sort @specs) {
         my $name = $file =~ s{\Adocs/specs/}{}r;
-        my $row = sprintf("| %s | [`%s`](%s) | %s | %s | %s |\n",
-            new_spec_title($file), $name, $name, @{$header{$file}}{qw(intent delivery claim)});
+        my $prefix = $row_prefix->($file);
+        my $range = $prefix eq '' ? '' : spec_range($file, $prefix);
+        my $row = sprintf("| %s | [`%s`](%s)%s | %s | %s | %s |\n",
+            new_spec_title($file), $name, $name, $range eq '' ? '' : " $range", @{$header{$file}}{qw(intent delivery claim)});
         utf8::encode($row);
         push @added, $row;
     }
