@@ -1066,6 +1066,27 @@ index it builds is byte-identical (V1-2289).
   change without moving the output digest. Falsifier: an edit that changes the golden pack bytes
   and passes both the test and `check` at REF's number. Rollback: delete the output pin and test;
   the script then behaves as `IDX-SNAP-V0-060`/`061` (no output pin, every input edit bumps).
+- `IDX-SNAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3574);
+  amends `IDX-SNAP-V0-017`, `IDX-SNAP-V0-060`, `IDX-SNAP-V0-061` and `IDX-SNAP-V0-107`. The audited
+  input digest is no longer pinned in source: `TestAnalyzerSchemaInputs` keeps the audited input
+  set (it fails when a listed directory has no input) and the `auditedSchema` pin equal to
+  `analyzerSchemaID`, and logs the input digest only. `auditedOutputSHA256` of
+  `TestAnalyzerSchemaOutput` is the one content pin, so two branches that each edit an audited
+  input (for example `internal/contextindex/receipt.go`) without changing the golden pack rewrite
+  no pin line and cannot conflict on one. `TestAnalyzerSchemaOutputDetectsAnalyzerMutation` proves
+  the remaining pin still fails when the analyzer's facts change: a mutated index of the same
+  corpus encodes to another digest. `analyzer-schema.sh bump` runs the output test and, only when
+  the output digest differs from the pin or the number collides, sets the number as
+  `IDX-SNAP-V0-060`/`107` say and repins the output digest; `check` refuses a branch whose output
+  pin differs from REF's while its number is not above REF's (`NOT_RUN` without REF, as before).
+  It also prints, on stderr and without failing, `analyzer inputs changed since <merge base>`
+  naming the changed audited paths, so the need to run `TestAnalyzerSchemaOutput` is visible at
+  the start of a change. Residual: the golden corpus bounds the claim, as in `IDX-SNAP-V0-107`.
+  Rollback: restore the `auditedSHA256` pin and the input-digest comparison in the script.
+  Batch 1101a (2026-11-01): `IDX-SNAP-V0-890`..`892` delivered the same V1-3574 change first, and
+  where the two differ they govern: the output pins also include `auditedShardSHA256`, and the
+  changed-input note is the `IDX-SNAP-V0-890` stdout `NOTE` from `script/analyzer-inputs.sh`.
+  This requirement keeps `TestAnalyzerSchemaOutputDetectsAnalyzerMutation`.
 Failure modes: the golden corpus misses a fact class (residual, see the build log); the blob-shard
 path (`IDX-SNAP-V0-016`, off by default) is not in the golden pack. V1-2232 (a re-index still
 writes the whole file, 182,598,749 bytes after a one-file commit) is not addressed here:
@@ -1375,3 +1396,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-113 (standing auto-accept, V1-3015) | `newExtentSource`, `extent` in `internal/contextindex/symbol_extent.go`; `internal/contextindex/symbolwindows.go`; `internal/tasks/store/know_how_symbols.go` | `TestSymbolExtentsMatchTheJoinedReference`, `TestSymbolExtentsRetainOneDeclarationCopyPerSource`, `TestBuildSymbolWindowsSharesIdenticalWindows`, `TestKnowHowSymbolTableDigestsSharedDeclarationsOnce` |
 | IDX-SNAP-V0-114 (standing auto-accept, V1-3016) | `joinLinesCapped`, `encodeLinesCapped` in `internal/contextindex/symbolwindows.go` | `TestJoinLinesCappedMatchesTruncatedJoin`, `TestSymbolContextTextAllocatesWithinTheCap` |
 | IDX-SNAP-V0-115 (standing lane auto-accept, V1-3133) | `noteSnapshotMissBuild` in `cmd/corvint/index_snapshot.go`; `impactSnapshotMissNotice` in `internal/dogfoodflow/flow.go` | `TestSnapshotMissNoticeNamesTheBuild`, `TestIDXSNAPV0115TreeNoticeKeepsTypedAbstention` |
+| IDX-SNAP-V0-955 (standing auto-accept, V1-3574) | `TestAnalyzerSchemaInputs` (no input pin), `script/analyzer-schema.sh` (`pins`, `check`, `bump`), `script/analyzer-inputs.sh` (IDX-SNAP-V0-890..892 govern) | `TestAnalyzerSchemaOutputDetectsAnalyzerMutation`, `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` (two output-neutral `receipt.go` edits merge without conflict; changed inputs noted at check) |

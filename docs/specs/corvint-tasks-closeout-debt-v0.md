@@ -569,6 +569,9 @@ closeout step is missing.
   of every proposing-eligible PR that delivers the ticket (empty when none does), so the row names
   each citing PR. A PR all of whose delivered tickets an earlier PR already proposes adds no
   proposal. Rollback: revert; a ticket is again listed under every PR that delivers it.
+- `TCD-V0-955`: (standing lane auto-accept, 2026-11-01; V1-3607) `ticket delivery-screen` accepts
+  a bare `--json` flag as a no-op, because its output is always JSON: the output and exit code
+  are byte-identical with and without it. `--json=VALUE` stays `MALFORMED`.
 
 ## Failure modes
 
@@ -783,6 +786,7 @@ closeout step is missing.
 | TCD-V0-872 | V1-3496 | `script/tasks-reconcile.sh`, `Makefile` (`tasks-reconcile`) | `TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus` (stub `gh`: report retained, exit 1 with debt, proposal command printed; failed export exit 2) | live reconcile of origin/main 6c967b21c: build log 2026-10-31-tasks-cli-w2 |
 | TCD-V0-873 | V1-3496 | `internal/tasks/cli` | `TestTCDV0871_CloseoutDebtProposesBatchClose` (proposed `batch-close --manual` completes the ticket, rerun has no candidate for it) | none |
 | TCD-V0-874 | V1-3551 | `internal/tasks/cli` | `TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce` (one ticket delivered by two merged PRs: one proposal lists it, its row's `prs` names both) | none |
+| TCD-V0-955 | V1-3607 | `internal/tasks/cli` (`deliveryScreenCommand`, usage) | `TestTCDV0955_DeliveryScreenAcceptsJSONAsNoOp` (identical stdout and exit with and without `--json`; `--json=x` refused `MALFORMED`) | none |
 
 ## Rollout and rollback
 

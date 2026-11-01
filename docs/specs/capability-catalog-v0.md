@@ -402,6 +402,12 @@ cannot silently go missing or outlive its command.
   Rollback: restore the ten ratchet rows and the ceiling of 50, and delete the ten snapshots, their
   `commandTreeRefs`, `llms.txt`, Makefile and Command trees entries, the ten `help.go` files,
   `clitree.Help` and `internal/clitree/clitreetest`.
+- `CAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines
+  `CAP-V0-040`) `clitree.Synopses` MUST NOT read an indented line under an example header (an
+  unindented line ending in `:` that contains `example`, such as `Example:`, `Examples:` or
+  `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
+  unindented line. So an example command never becomes a node's usage, flag or derived example.
+  Rollback: drop the example-block skip and regenerate the command trees.
 
 ## Boundaries and failure modes
 
@@ -559,3 +565,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
+| CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |

@@ -318,7 +318,7 @@ var commandUsage = map[string]string{
 	"ticket show":              "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]   (output is always JSON, so --json is a no-op; ticket fields such as body and acceptanceCriteria live under record.: items[0].record.acceptanceCriteria, --fields record.body,record.acceptanceCriteria; the revision is items[0].revision; an unpadded token such as QB-1 resolves the one ticket QB-0001; an unknown key is refused naming the valid keys)",
 	"ticket blockers":          "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":     "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--prs FILE|-]",
-	"ticket delivery-screen":   "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs]",
+	"ticket delivery-screen":   "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]",
 	"ticket batch-delivered":   "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
 	"ticket effects-proposals": "corvint-tasks ticket effects-proposals",
 	"ticket batch-close":       "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",

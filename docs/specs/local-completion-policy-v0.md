@@ -656,6 +656,14 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   single-stream envelope. Failure modes: a signal that lands before or after the final check is
   outside this requirement. Rollback: return the zero evaluation again; stderr carries the same
   refusal and no stored state depends on the stdout envelope.
+- `LCP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt or
+  session context packet that does not cite its governing instruction file MUST say why in the
+  `governance` entry of `coverage.unavailable_selectors`: `reason` `downgraded-authority` with
+  `warnings`, the row's `TCP-V0-055`..`057` screen codes in screen order (so a governing file the
+  working tree modifies names `self-modified-authority`), or `reason` `unread` when no governing
+  candidate could be read. The hook projection carries the entry unchanged. A symlinked governing
+  file keeps its `TCP-V0-272`/`TCP-V0-274` `reason` (batch 1101a, 2026-11-01). Rollback: drop the two
+  members.
 
 ## Non-goals and simpler baseline
 
@@ -868,6 +876,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-042 | `TestLocalCompletionSealedCloseoutRepin` (each control asserts `SealedDriftError` artifact, reason and pinned/current digests; the CLI `dogfood finish` envelope carries the code and detail); `TestLocalCompletionRealEvidenceWorkflow` existing drift controls keep `sealed-evidence-drift` |
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
+| LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
 
 ## Rollout, rollback and remaining gates
 

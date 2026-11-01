@@ -955,6 +955,7 @@ CAP-V0-932	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1241,6 +1242,7 @@ CEM-V1-933	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-934	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) Amends `CEM-V1-986`	standing	V1-3443
 CEM-V1-935	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The portable consum	standing	V1-3443
 CEM-V1-936	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The stable packet i	standing	V1-3443
+CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -2450,6 +2452,7 @@ TCD-V0-871	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the 
 TCD-V0-872	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496) `make tasks-reconcil	standing	V1-3496
 TCD-V0-873	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496) A merged PR whose bo	standing	V1-3496
 TCD-V0-874	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3551; amends	standing	2026-10-11; V1-3551
+TCD-V0-955	docs/specs/corvint-tasks-closeout-debt-v0.md	(standing lane auto-accept, 2026-11-01; V1-3607) `ticket delivery-screen` accept	standing	2026-11-01; V1-3607
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
@@ -3067,6 +3070,7 @@ BKM-V0-092	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 BKM-V0-093	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) A manifest provider record of s	standing	2026-10-28; V1-2915
 BKM-V0-094	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) `breakage manifest` MUST accept	standing	2026-10-28; V1-2915
 BKM-V0-099	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) With `--base`, the report MUST	standing	2026-10-28; V1-2915
+BKM-V0-955	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go	standing	2026-11-01; V1-3529
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -4566,6 +4570,7 @@ IDX-SNAP-V0-114	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-115	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept; V1-3133; amends	standing	V1-3133
 IDX-SNAP-V0-106	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two	standing	2026-10-11; V1-2290
 IDX-SNAP-V0-107	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2289);	standing	2026-10-11; V1-2289
+IDX-SNAP-V0-955	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3574);	standing	2026-11-01; V1-3574
 IDX-SNAP-V0-890	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3574;	standing	2026-10-31; V1-3574
 IDX-SNAP-V0-891	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2976,	standing	2026-10-31; V1-2976
 IDX-SNAP-V0-892	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2356) The	standing	2026-10-31; V1-2356
@@ -4852,6 +4857,7 @@ LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The su
 LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
+LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
@@ -5845,6 +5851,8 @@ RGV-V0-013	docs/specs/repository-guidance-v0.md	Review MUST NOT plan affected ad
 RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the	unrecorded	-
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
 RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
+RGV-V0-955	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3528) When ever	standing	2026-11-01; V1-3528
+RGV-V0-956	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3532) A guidanc	standing	2026-11-01; V1-3532
 RPB-V0-001	docs/specs/reproduction-bundle-v0.md	A bundle MUST be one JSON object with exactly the members `profile`	unrecorded	-
 RPB-V0-002	docs/specs/reproduction-bundle-v0.md	Bounds: a bundle of at most 4 MiB; 1 to 64 arguments of at most 4096 bytes and n	unrecorded	-
 RPB-V0-003	docs/specs/reproduction-bundle-v0.md	Inputs are pinned, never assumed. `record` MUST refuse with	unrecorded	-

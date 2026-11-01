@@ -213,7 +213,7 @@ func TestRepositoryGuidanceRefBoundsAndDrift(t *testing.T) {
 func TestRepositoryGuidanceRefusalsDoNotObserve(t *testing.T) {
 	t.Run("RGV-V0-002 clean read-only refusal", func(t *testing.T) {
 		root, base := guidanceFixture(t)
-		guidanceWrite(t, root, "dirty.txt", "dirty")
+		guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
 		before := treeDigest(t, root)
 		for _, args := range [][]string{{"features"}, {"overview", "--unexpected"}, {"review", "--base", base}, {"review", "--base", "HEAD"}, {"review", "--base", base, "--max-refs", "33"}} {
 			var stdout, stderr bytes.Buffer
@@ -605,4 +605,86 @@ func affectedChecksOf(checks []affectedCompactCheck) []affectedCheck {
 		out = append(out, affectedCheck{Command: check.Command, Kind: check.Kind, Reason: check.Reason, Source: check.Source})
 	}
 	return out
+}
+
+// RGV-V0-955 (V1-3528): a worktree whose only dirt is one untracked agent
+// settings file degrades overview and features to a MIXED unknown, as affected
+// plans the same tree with that path dirty instead of refusing, while review and
+// a tracked change still refuse.
+func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
+	root, base := guidanceFixture(t)
+	guidanceWrite(t, root, ".claude/settings.local.json", "{}\n")
+	for _, command := range []string{"overview", "features"} {
+		out, _ := guidanceRead(t, root, command, "")
+		if out.Omissions["untracked"] != 1 || !strings.Contains(strings.Join(out.Unknown, "\n"), `MIXED worktree: untracked paths outside the pinned HEAD tree were not read; dirty worktree or status drift: 1 path(s): ?? ".claude/settings.local.json"`) {
+			t.Fatalf("%s did not degrade to MIXED: %+v %v", command, out.Omissions, out.Unknown)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run([]string{"--root", root, "affected", "--base", base}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("affected refused the same tree: %d %s", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"dirty":[".claude/settings.local.json"]`) {
+		t.Fatalf("affected did not plan the same untracked path as dirty: %s %s", stdout.String(), stderr.String())
+	}
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "review", Base: base, MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), ".claude/settings.local.json") {
+		t.Fatalf("review accepted untracked dirt: %v", err)
+	}
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "overview", MaxRefs: 32}, func() { guidanceWrite(t, root, "later.txt", "x") }); err == nil || !strings.Contains(err.Error(), "status drift") {
+		t.Fatalf("untracked drift accepted: %v", err)
+	}
+	if err := os.Remove(filepath.Join(root, "later.txt")); err != nil {
+		t.Fatal(err)
+	}
+	guidanceWrite(t, root, "go.mod", "module example.test/dirty\n")
+	if _, err := compileGuidance(context.Background(), guidanceInvocation{Root: root, Command: "features", MaxRefs: 32}, nil); err == nil || !strings.Contains(err.Error(), `M "go.mod"`) {
+		t.Fatalf("tracked change accepted: %v", err)
+	}
+}
+
+// RGV-V0-956 (V1-3532): a features label that is a canonical feature ID carries
+// featureId and an inert featureCall, and that call is answered by `corvint feature`.
+func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
+	root := t.TempDir()
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "test@example.test"}, {"config", "user.name", "Test"}} {
+		guidanceGit(t, root, args...)
+	}
+	guidanceWrite(t, root, "go.mod", "module example.test/demo\n\ngo 1.27.0\n")
+	guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {}\n")
+	guidanceWrite(t, root, "testing/features.yaml", "features:\n  - id: greeting\n    title: Greeting\n")
+	guidanceWrite(t, root, "testing/scenarios.yaml", "scenarios:\n")
+	// A mixed-language repository: feature refuses more than the ledger record here.
+	guidanceWrite(t, root, "web/greeting.ts", "export function greet(): string { return 'hi'; }\n")
+	guidanceWrite(t, root, "tools/greet.py", "def greet():\n    return 'hi'\n")
+	guidanceGit(t, root, "add", ".")
+	guidanceGit(t, root, "commit", "-qm", "base")
+	out, _ := guidanceRead(t, root, "features", "")
+	var call []string
+	for _, f := range out.Features {
+		switch f.Label {
+		case "greeting":
+			if f.FeatureID != "greeting" || !reflect.DeepEqual(f.FeatureCall, []string{"corvint", "feature", "greeting", "--limit", "1"}) {
+				t.Fatalf("canonical label lacks its feature call: %+v", f)
+			}
+			call = f.FeatureCall
+		case "cmd/demo":
+			if f.FeatureID != "" || f.FeatureCall != nil {
+				t.Fatalf("path label carries a feature ID: %+v", f)
+			}
+		}
+	}
+	if call == nil {
+		t.Fatalf("greeting feature missing: %+v", out.Features)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(append([]string{"--root", root}, call[1:]...), strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("%v exit %d: %s", call, code, stderr.String())
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &detail); err != nil {
+		t.Fatalf("feature output: %v %s", err, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), `"READY"`) || !strings.Contains(stdout.String(), "feature:greeting") {
+		t.Fatalf("feature did not resolve the listed ID: %s", stdout.String())
+	}
 }

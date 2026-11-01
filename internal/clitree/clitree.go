@@ -150,13 +150,23 @@ func (b *Builder) AddForm(form, summary string) {
 
 // Synopses returns each synopsis line of text that starts with the binary
 // (after an optional "usage:" or "Usage:" label), joined with its indented
-// continuation lines.
+// continuation lines. An indented line under an example header ("Example:",
+// "Examples:", "For example:") is an example, not a synopsis, wherever it
+// stands relative to the Usage block (V1-3286); the block ends at the next
+// unindented line.
 func Synopses(binary, text string) []string {
 	var forms []string
-	open := false
+	open, example := false, false
 	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		lowered := strings.ToLower(trimmed)
+		if trimmed != "" && line == trimmed {
+			example = strings.HasSuffix(lowered, ":") && strings.Contains(lowered, "example")
+		}
+		if example {
+			open = false
+			continue
+		}
 		if rest, ok := strings.CutPrefix(lowered, "usage:"); ok {
 			trimmed = strings.TrimSpace(trimmed[len(trimmed)-len(rest):])
 			if trimmed == "" {

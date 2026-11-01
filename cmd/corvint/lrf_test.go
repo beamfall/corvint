@@ -216,3 +216,32 @@ func hasResultKind(results [][]string, kind string) bool {
 	}
 	return false
 }
+
+// CEM-V1-955 (V1-3531): an lrf --cem map outside the repository root is refused
+// with the rule, the resolved path, the root and the stable reader that accepts it.
+func TestLRFOutsideRootRefusalNamesRulePathAndRoot(t *testing.T) {
+	t.Parallel()
+	fixture := newLRFFixture(t)
+	outside := filepath.Join(t.TempDir(), "map.cem.json")
+	if err := os.WriteFile(outside, fixture.cemRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.EvalSymlinks(fixture.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runCLI(t, "--root", fixture.root, "lrf", "--cem", outside)
+	// Decode the envelope first: JSON escapes backslashes and quotes in the paths.
+	var envelope struct {
+		Code  string `json:"code"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(stderr), &envelope); err != nil {
+		t.Fatalf("stderr is not one error envelope: %v %q", err, stderr)
+	}
+	if code != 2 || stdout != "" || envelope.Code != "invalid-arguments" ||
+		!strings.Contains(envelope.Error, "must remain inside repository root") || !strings.Contains(envelope.Error, outside) ||
+		!strings.Contains(envelope.Error, root) || !strings.Contains(envelope.Error, "corvint cem verify --map") {
+		t.Fatalf("exit=%d stdout=%q envelope=%+v", code, stdout, envelope)
+	}
+}

@@ -1296,7 +1296,6 @@
       "summary": "Experimental source documentation orientation",
       "usage": [
         "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
-        "corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --task Preview < /tmp/corvint-source-draft.md",
         "corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)",
         "corvint [--root PATH] docs corpus OPERATION [OPTIONS]",
         "corvint docs corpus OPERATION --help",
@@ -1321,7 +1320,6 @@
         "corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]",
         "corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REQUEST.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]",
-        "corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json git add evidence/receipt.json && git commit -m \"retain playwright receipt\"",
         "corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH",
         "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
@@ -1359,12 +1357,10 @@
         "corvint [--root PATH] docs corpus validate --artifact CORPUS.json [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
-        "corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
         "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
-        "corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain > /tmp/corvint-source-draft.md",
         "corvint [--root PATH] docs flows check ... (corvint help docs flows)",
         "corvint [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]",
         "corvint [--root PATH] docs flows finalize ... (corvint help docs flows)",
@@ -1453,8 +1449,7 @@
         "--uncovered",
         "--verify-rederive",
         "--watch",
-        "--workspace",
-        "-m"
+        "--workspace"
       ],
       "required": [],
       "example": "corvint docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
@@ -1468,8 +1463,7 @@
       "command": "corvint docs consume",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
-        "corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --task Preview < /tmp/corvint-source-draft.md"
+        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md"
       ],
       "flags": [
         "--package",
@@ -1477,7 +1471,12 @@
         "--source",
         "--task"
       ],
-      "required": [],
+      "required": [
+        "--source PATH",
+        "--package DIRECTORY",
+        "--task TEXT",
+        "draft.md"
+      ],
       "example": "corvint docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
       "help": "corvint docs consume --help"
     },
@@ -1950,7 +1949,6 @@
       "summary": "Experimental documentation corpus: produce Playwright test discovery from a listing and migration",
       "usage": [
         "corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]",
-        "corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json git add evidence/receipt.json && git commit -m \"retain playwright receipt\"",
         "corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
       ],
       "flags": [
@@ -1961,10 +1959,13 @@
         "--receipt",
         "--repo",
         "--root",
-        "--workspace",
-        "-m"
+        "--workspace"
       ],
-      "required": [],
+      "required": [
+        "--migration MIGRATION.json",
+        "--config PATH",
+        "--playwright-list LIST.json"
+      ],
       "example": "corvint docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json",
       "help": "corvint docs corpus discover-playwright --help"
     },
@@ -2767,7 +2768,6 @@
       "summary": "Experimental documentation corpus: import qualified Playwright witnesses from a committed receipt and report",
       "usage": [
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
-        "corvint docs corpus witness-playwright --input evidence/request.json --receipt-input receipt --report evidence/report.json",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
       ],
       "flags": [
@@ -2779,7 +2779,11 @@
         "--root",
         "--workspace"
       ],
-      "required": [],
+      "required": [
+        "--input REQUEST.json",
+        "--receipt-input ID",
+        "--report REPORT.json"
+      ],
       "example": "corvint docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
       "help": "corvint docs corpus witness-playwright --help"
     },
@@ -2793,8 +2797,7 @@
       "usage": [
         "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
         "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
-        "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
-        "corvint docs draft --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain > /tmp/corvint-source-draft.md"
+        "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain"
       ],
       "flags": [
         "--dry-run",
@@ -3496,7 +3499,7 @@
         "features"
       ],
       "command": "corvint features",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] features"
       ],
@@ -3540,7 +3543,6 @@
         "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
         "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
-        "corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json",
         "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]",
@@ -3697,8 +3699,7 @@
       "summary": "Compile the committed manifest into an application map at one revision (experimental, AMAP-V0)",
       "usage": [
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
-        "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
-        "corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json"
+        "corvint flows appmap build --help prints the manifest's minimum members, what each step commits"
       ],
       "flags": [
         "--from",
@@ -5023,8 +5024,7 @@
         "corvint mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]",
         "corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]",
         "corvint mcp --root ABSOLUTE_ROOT --follow-ref REF",
-        "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]",
-        "corvint mcp --root /absolute/repo --protocol-version 2025-11-25"
+        "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]"
       ],
       "flags": [
         "--corpus-artifact",
@@ -5394,7 +5394,7 @@
         "overview"
       ],
       "command": "corvint overview",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] overview"
       ],
@@ -5581,7 +5581,6 @@
       "summary": "Record a corvint invocation as a reproduction bundle, or replay one (RPB-V0, experimental)",
       "usage": [
         "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ...",
-        "corvint repro record --output impact.repro.json --expect-exit 0 -- impact --path README.md",
         "corvint [--root PATH] repro run BUNDLE"
       ],
       "flags": [
@@ -5592,7 +5591,6 @@
         "--expect-stdout-not-contains",
         "--input",
         "--output",
-        "--path",
         "--root"
       ],
       "required": [],
@@ -5607,8 +5605,7 @@
       "command": "corvint repro record",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ...",
-        "corvint repro record --output impact.repro.json --expect-exit 0 -- impact --path README.md"
+        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ..."
       ],
       "flags": [
         "--expect-exit",
@@ -5618,10 +5615,12 @@
         "--expect-stdout-not-contains",
         "--input",
         "--output",
-        "--path",
         "--root"
       ],
-      "required": [],
+      "required": [
+        "--output FILE",
+        "-- ARGUMENT"
+      ],
       "example": "corvint repro record --output FILE -- ARGUMENT",
       "help": "corvint repro record --help"
     },
@@ -5649,7 +5648,7 @@
         "review"
       ],
       "command": "corvint review",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]"
       ],

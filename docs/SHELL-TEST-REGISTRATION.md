@@ -26,6 +26,8 @@ note is the one place that lists them; the checks point here when one is missing
    marked `shell:runs-toolchain` and has only the second route: `.corvint/test-read-scopes.json` is
    keyed by Go package and cannot bound a shell unit, so add the file to `units` with a `reasons`
    entry naming the toolchain read. The refusal names that route for such a unit (V1-3320).
+   What an entry allows, and how to check a declared scope locally before confined CI does, is in
+   [TEST-READ-SCOPES.md](TEST-READ-SCOPES.md).
 
 ## Pinning a Makefile recipe expansion
 

@@ -855,6 +855,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   modification and deletion beside one textual hunk) MUST yield one ACCEPT with one patch digest
   from the native reader and from both portable stable routes, and a REJECT once the digest is
   altered. The `old mode`/`new mode` divergence of `CEM-V1-932` is unchanged.
+- `CEM-V1-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint lrf --cem`, `--ocm` and `--patch` read only inside the repository root; an absolute path outside it MUST refuse `invalid-arguments` with a message that states the rule, the resolved absolute path and the root, and names `corvint cem verify --map` as the stable reader that accepts a map outside the repository (`CEM-V1-315`). Unlike `cem status`/`verify`, `lrf` keeps the inside-root rule: it is the frozen `lrf/0` admission. Test: `TestLRFOutsideRootRefusalNamesRulePathAndRoot`. Rollback: restore the fixed message.
 
 ## Non-goals and failure modes
 

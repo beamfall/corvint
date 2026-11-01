@@ -128,12 +128,22 @@ func (compiler *localPromptCompiler) addGovernance() {
 		}
 		return
 	}
+	// LCP-V0-955: the selector names why governance is not cited; a symlinked governing file keeps
+	// the TCP-V0-274 reason below.
+	if ok && row.link == "" {
+		selector := localSelector("governance", row.path)
+		selector["reason"], selector["warnings"] = DowngradedAuthority, downgradeCodes(row)
+		compiler.unavailable = append(compiler.unavailable, selector)
+		return
+	}
 	for _, candidate := range compiler.context.candidates[governingRelation] {
 		selector := localSelector("governance", candidate)
 		if reason := compiler.context.linkRefusals[candidate]; reason != "" {
 			selector["reason"] = reason
 		} else if ok && row.link != "" {
 			selector["reason"] = row.downgrade // TCP-V0-274
+		} else {
+			selector["reason"] = "unread"
 		}
 		compiler.unavailable = append(compiler.unavailable, selector)
 		break // TaskContext never substitutes a lower-precedence unread authority.

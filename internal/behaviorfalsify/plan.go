@@ -450,7 +450,7 @@ func gitBlob(root, revision, path string) ([]byte, error) {
 func gitBytes(root string, args ...string) ([]byte, error) {
 	return gitrun.Run(context.Background(), gitrun.NewBudget(1, 10*time.Second), gitrun.Options{
 		Dir: root, Env: isolatedGitEnvironment(root), StdoutLimit: maxDocumentBytes,
-	}, args...)
+	}, append([]string{"-c", "advice.graftFileDeprecated=false"}, args...)...) // V1-3588: no graft advice under GIT_GRAFT_FILE
 }
 
 func isolatedGitEnvironment(root string) []string {

@@ -2125,7 +2125,8 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only).
+const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only;
+features and overview degrade to a MIXED unknown when the only dirt is untracked).
 
 Usage:
   corvint [--root PATH] features
@@ -2133,7 +2134,9 @@ Usage:
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
 
 Features are bounded heuristic candidates with immutable blob/line evidence, not
-accepted feature IDs. Overview includes inert suggested argv. Review composes
+accepted feature IDs. A label that is a canonical feature ID also carries featureId
+and featureCall, the inert argv of corvint feature for it with --limit 1, which answers READY only
+for a declared feature record. Overview includes inert suggested argv. Review composes
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.

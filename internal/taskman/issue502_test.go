@@ -13,7 +13,9 @@ import (
 // issue502Record is the Tasks codec's own encoding of a record carrying every
 // shared optional key (internal/tasks/ticket TestIssue502_RecordEscalationsKey).
 // The file is a byte-identical copy of that package's fixture, because the CI
-// test sandbox refuses reads outside the package directory.
+// test sandbox refuses reads outside the package directory. Regenerate both
+// with `go test ./internal/tasks/ticket -run '^TestIssue502_RecordEscalationsKey$'
+// -regenerate-issue502` (V1-3608); never edit either by hand.
 func issue502Record(t *testing.T) wire.Value {
 	t.Helper()
 	raw, e := os.ReadFile("testdata/issue502-optional-keys-record.json")

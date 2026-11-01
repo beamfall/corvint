@@ -871,7 +871,10 @@ oversized documents are refused before stdout/retention. A receipt carrying qual
 without the exact profile discriminator is refused by the legacy reader.
 
 Run the explicit fixture with `CORVINT_PLAYWRIGHT_MODULES` naming an already-installed `node_modules`
-directory and `go test -count=1 -timeout 5m ./internal/jstestprovider -run TestQualifiedPlaywrightLive -v`.
+directory and `go test -count=1 -timeout 5m ./internal/jstestprovider/externallive -run TestQualifiedPlaywrightLive -v`.
+The live tests (`TestQualifiedPlaywright*Live*`, `TestPWPV0035SensitiveProfileLive`,
+`TestPWPV0010KeepReportersLive`) live in `internal/jstestprovider/externallive` since V1-3589; the
+qualification commands recorded above ran them from the parent package before the split.
 No browser or npm package is downloaded by the provider or ordinary Go gate. The live matrix includes
 real pass/assertion/timeout/browser-infrastructure cases, setup dependency hashing, global use,
 project inheritance, retry/flaky state, repeat-each identity, two workers, inherited webServer

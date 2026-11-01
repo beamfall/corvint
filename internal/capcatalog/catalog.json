@@ -2722,6 +2722,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2736,7 +2737,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2770,6 +2771,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2784,7 +2786,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2822,6 +2824,7 @@
       },
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2836,7 +2839,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
