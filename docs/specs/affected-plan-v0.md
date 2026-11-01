@@ -5341,6 +5341,41 @@ commit, so a defect in either list is shared, and nothing failed when they drift
   `script/gate-affected.sh` falls back on the narrowed `go:` frontiers. Rollback: restore the two
   local switches and delete `AllowedUnknown` and its test.
 
+### Main FULL failures linked back to narrowed pull requests (AFP-V0-983; V1-3750)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3750): a narrowed pull request merges
+and a later full run on `main` fails, but nothing records which narrowed pull request skipped the
+failing package, so selection misses are never counted.
+
+- **AFP-V0-983:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3750;
+  effective only after the owner's `ci-control-plane` review of the `.github` change)
+  (1) A `go-product-shard` of a `push` run on `refs/heads/main` that fails SHALL retain
+  `failed.jq`'s classification of its go test -json capture as the artifact
+  `ci-failed-push-<shard>` (`failed.json`); a failure to write it never changes the shard.
+  (2) The `ci-control-plane` `main-miss` job SHALL run `.github/forward-rows/mainmiss.sh` from the
+  default branch for every completed `push` run of `main` whose conclusion is `failure`, with gh and
+  jq only, executing no tested code. It reads the failed packages of that run, takes the newest
+  earlier successful `push` run of `ci.yml` on `main` as the last green full run, lists the commits
+  between them (at most 100) and the merged pull requests of each (at most 20), and reads the
+  `ci-narrowing-*` records of each pull request's newest `pull_request` run of its merged head.
+  (3) `mainmiss.jq` SHALL name a miss for each such pull request whose records include a
+  `NARROWED` shard and whose `NARROWED` records' `skipped` packages hold a failed package of the
+  main run, as `{pr, head, runId, packages}`; a pull request without records, or whose records are
+  all `FULL`, is no miss. The job SHALL retain the result, `corvint-main-miss/0`, as
+  `ci-forward-MAINMISS-r<run>-<sha>-e<epoch>-n<misses>-pr<N>[_<N>...]` (pull request numbers
+  ascending, at most 10 named) when it names at least one miss, and SHALL say in its summary why it
+  wrote none otherwise. (4) `bar.jq` SHALL count the epoch's MAINMISS names (one per run; a re-run
+  replaces) and report the misses and the pull requests they name, in its markdown and as
+  `mainMiss` in its JSON form; the count is advisory and feeds neither the AFP-V0-029 status nor
+  the AFP-V0-030 kill switch, which stay the owner's. Non-goals: attributing a failure to the one
+  pull request that caused it; test-level (rather than package-level) misses; the merge-queue case
+  AFP-V0-099 already classifies. Failure modes: a failure caused by a later direct push or a flake
+  is still counted against every narrowed pull request that skipped the package (over-counting);
+  an expired or unreadable artifact, more than 100 commits or 20 pull requests writes no row and
+  says so; a pull request merged without a `pull_request` run is not seen. Rollback: remove the
+  `main-miss` job, the `ci-failed-push` step, `mainmiss.sh`, `mainmiss.jq` and the MAINMISS
+  lines of `bar.jq`.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
