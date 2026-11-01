@@ -5439,7 +5439,10 @@ admit a selection that under-selects without detection.
   repository path outside its own subtree and its declared entries SHALL fail in the driver's
   `go.json`, while the same read passes when the path is declared and an undeclared package still
   runs unconfined; in a shadow row that failure outside the selection is a selected-set miss.
-  Without Landlock ABI 2 the test skips with the typed reason `AFP-V0-767: landlock ABI N`.
+  Without Landlock ABI 2 the test skips with the typed reason `AFP-V0-767: landlock ABI N`; a test
+  binary that CI's wrapper already confines skips with `AFP-V0-767: nested confinement` (amended
+  2026-11-01), since it cannot list the ancestors a nested wrapper's rules need, so the confined
+  observation comes from an unconfined Landlock host such as the heavy.sh remote.
 - **AFP-V0-768:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
   `--mode freeze` SHALL refuse to write a corpus, and `--mode shadow` SHALL refuse before creating
   its checkout, when any frozen target it covers (every one of the 200 for freeze, the requested
@@ -5883,7 +5886,7 @@ traceability table.
 | AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `INSTRUCTIONS` in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
 | AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
 | AFP-V0-766 | `options.confine`, `identity.Confine`, `identity.ConfinedEnv`, `goTestArgs`, `runEnv` and the wrapper checks of `toolIdentity` and `execute` in `tools/corvint-pr-tests/main.go` | `TestConfinedDriverRunsFailUndeclaredReads` (identity, argv and environment of a confined run; drift and a missing wrapper refused); `TestSelectedFailureAndFallback` (unconfined identity unchanged) |
-| AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 |
+| AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 or when already confined |
 | AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
 | AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
 | AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
