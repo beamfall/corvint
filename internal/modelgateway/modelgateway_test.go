@@ -637,3 +637,61 @@ func TestLMGV0012CacheBreaks(t *testing.T) {
 		}
 	}
 }
+
+// nativeSessionKey is cmd/corvint's claudeSessionHash("native-session-é"), the
+// key TestClaudeNativeDogfoodLifecycle enrols under.
+const nativeSessionKey = "81c2630f9c914634e81e95e307785d68ed4a291236f537bd4ef9574bc99ff531"
+
+func TestLMGV0013ClaudeSessionKey(t *testing.T) {
+	gateway, ledger, _ := newGateway(t, nil, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"model":"m","usage":{"input_tokens":1}}`)
+	})
+	userID := `{"device_id":"DEVICE-SECRET","account_uuid":"ACCOUNT-SECRET","session_id":"native-session-é"}`
+	encoded, _ := json.Marshal(userID)
+	for _, metadata := range []string{
+		`{"user_id":` + string(encoded) + `}`,
+		`{"user_id":"user_abc_account_def_session_native-session-é"}`,
+		`{"user_id":"{\"session_id\":\"\"}"}`,
+	} {
+		response, err := http.Post(gateway.URL+"/v1/messages", "application/json", strings.NewReader(`{"model":"m","metadata":`+metadata+`}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+	}
+	lines := ledgerLines(t, gateway, ledger)
+	if raw := ledger.String(); strings.Contains(raw, "SECRET") || strings.Contains(raw, "native-session") {
+		t.Fatalf("ledger stored an identifier: %s", raw)
+	}
+	if lines[0].ClaudeSessionKey != nativeSessionKey || lines[0].SessionKey == "" {
+		t.Fatalf("claude line %+v", lines[0])
+	}
+	if lines[1].ClaudeSessionKey != "" || lines[2].ClaudeSessionKey != "" {
+		t.Fatalf("non-Claude user_id keyed: %+v %+v", lines[1], lines[2])
+	}
+}
+
+func TestLMGV0014FilterSession(t *testing.T) {
+	other := strings.Repeat("0", 64)
+	ledger := `{"profile":"corvint-gateway-usage/0","status":200,"claudeSessionKey":"` + nativeSessionKey + `","inputTokens":10,"outputTokens":5}
+{"profile":"corvint-gateway-usage/0","status":200,"claudeSessionKey":"` + other + `","inputTokens":99}
+garbage
+{"profile":"corvint-gateway-usage/0","status":200,"inputTokens":7}
+{"profile":"corvint-gateway-usage/0","status":200,"claudeSessionKey":"` + nativeSessionKey + `","cacheReadInputTokens":40}
+`
+	lines, err := FilterSession(strings.NewReader(ledger), nativeSessionKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	totals, err := Summarise(bytes.NewReader(lines))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := (Totals{Requests: 2, Input: 10, CacheRead: 40, Output: 5}); totals != want {
+		t.Fatalf("totals %+v, want %+v", totals, want)
+	}
+	if none, err := FilterSession(strings.NewReader(ledger), strings.Repeat("f", 64)); err != nil || len(none) != 0 {
+		t.Fatalf("unknown key kept %q, %v", none, err)
+	}
+}

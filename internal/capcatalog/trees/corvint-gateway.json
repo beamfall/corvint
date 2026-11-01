@@ -16,9 +16,10 @@
       "command": "corvint-gateway report",
       "summary": "Summarise the gateway's usage ledger without writing anything",
       "usage": [
-        "corvint-gateway report [--state DIR]"
+        "corvint-gateway report [--state DIR] [--session KEY]"
       ],
       "flags": [
+        "--session",
         "--state"
       ],
       "required": [],

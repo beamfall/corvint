@@ -5074,6 +5074,8 @@ LMG-V0-009	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2
 LMG-V0-010	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4035) `report` SHALL read the	unrecorded	-
 LMG-V0-011	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4033, V1-4035) Each ledger line	unrecorded	-
 LMG-V0-012	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4035) `report` SHALL list	unrecorded	-
+LMG-V0-013	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4055) When a request's	unrecorded	-
+LMG-V0-014	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4055) `report --session KEY` SHALL	unrecorded	-
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-

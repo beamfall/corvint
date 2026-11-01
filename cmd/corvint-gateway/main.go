@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -18,6 +19,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"syscall"
 	"time"
@@ -29,7 +31,7 @@ import (
 
 // usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-gateway serve [--addr HOST:PORT] [--upstream URL] [--state DIR] [--fold-threshold BYTES] [--no-fold]
-corvint-gateway report [--state DIR]
+corvint-gateway report [--state DIR] [--session KEY]
 `
 
 var commandSummaries = map[string]string{
@@ -151,11 +153,18 @@ func report(args []string, stdout, stderr io.Writer) int {
 	flags := flag.NewFlagSet("report", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 	state := flags.String("state", defaultState(), "directory holding usage.jsonl")
+	session := flags.String("session", "", "report only this Claude Code session key (the dogfood --session-key)")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
 	if flags.NArg() > 0 {
 		fmt.Fprintf(stderr, "corvint-gateway report: unexpected argument %q\n", flags.Arg(0))
+		return 2
+	}
+	sessionSet := false
+	flags.Visit(func(f *flag.Flag) { sessionSet = sessionSet || f.Name == "session" })
+	if sessionSet && !sessionKeyPattern.MatchString(*session) {
+		fmt.Fprintf(stderr, "corvint-gateway report: --session must be 64 lowercase hex characters\n")
 		return 2
 	}
 	file, err := os.Open(filepath.Join(*state, "usage.jsonl"))
@@ -164,7 +173,21 @@ func report(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	defer file.Close()
-	t, err := modelgateway.Summarise(file)
+	var ledger io.ReadSeeker = file
+	if sessionSet {
+		lines, err := modelgateway.FilterSession(file, *session)
+		if err != nil {
+			fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
+			return 1
+		}
+		if len(lines) == 0 {
+			fmt.Fprintf(stdout, "session %s: no ledger lines; its billed tokens are NOT_OBSERVED\n", *session)
+			return 0
+		}
+		fmt.Fprintf(stdout, "session %s\n", *session)
+		ledger = bytes.NewReader(lines)
+	}
+	t, err := modelgateway.Summarise(ledger)
 	if err != nil {
 		fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
 		return 1
@@ -182,11 +205,11 @@ func report(args []string, stdout, stderr io.Writer) int {
 	if t.ToolsRequestBytes > 0 {
 		fmt.Fprintf(stdout, "tool definitions %d bytes, %.1f%% of the requests that carried them\n", t.ToolsBytes, 100*float64(t.ToolsBytes)/float64(t.ToolsRequestBytes))
 	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if _, err := ledger.Seek(0, io.SeekStart); err != nil {
 		fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
 		return 1
 	}
-	breaks, err := modelgateway.CacheBreaks(file)
+	breaks, err := modelgateway.CacheBreaks(ledger)
 	if err != nil {
 		fmt.Fprintf(stderr, "corvint-gateway: %v\n", err)
 		return 1
@@ -206,6 +229,9 @@ func report(args []string, stdout, stderr io.Writer) int {
 	}
 	return 0
 }
+
+// sessionKeyPattern is the form of a Corvint session key.
+var sessionKeyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 // maxListedBreaks bounds the per-break lines report prints.
 const maxListedBreaks = 20
