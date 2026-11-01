@@ -573,7 +573,11 @@ transcript text). The first before/after measurement (2026-10-14..17 against 202
 - Semaphore (V1-1628): the same test with 5 concurrent lanes, target within 1.5x of quiet; the
   `heavy.sh: slot ... after Ss` lines give the queueing share.
 - Dogfood runs (V1-1629): per lane, count `dogfood-change` and `dogfood-finish` invocations in the
-  lane transcript; target median at most 2.
+  lane transcript; target median at most 2. On each lane host, before `lane-clean.sh` removes the
+  worktrees, also run `make dogfood-change-runs SINCE=<batch start, UTC>` (ASD-V0-955): it reads the
+  repository-wide ledger every `dogfood-change.sh` run appends to, which survives
+  `git worktree remove`, and prints one `run-count BRANCH N` line per lane plus the median. Retain
+  its output in the batch build-log entry; a host whose ledger has no row reads `NOT_OBSERVED`.
 - Polling and timeouts (V1-1630): sum tool time spent in sleep/poll commands and count tool calls
   that hit the 600 s limit across lane transcripts; targets under 1 h and under 10.
 - Idle lanes (V1-1631): `script/lane-idle-check.sh --gaps` over the batch's lane transcripts.

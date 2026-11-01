@@ -30,6 +30,14 @@ mkdir -p "$evidence" || exit 2
 runs="$evidence/dogfood-change-runs.tsv"
 { printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$base_arg" "$(git -C "$repo" rev-parse -q --verify 'HEAD^{commit}')" >> "$runs" &&
   tail -n 1000 "$runs" > "$runs.tmp" && /bin/mv -f "$runs.tmp" "$runs"; } 2> /dev/null || true
+# ASD-V0-955 (V1-1629): the same run in the repository-wide ledger, which git worktree remove keeps;
+# script/dogfood-change-runs.sh reports it per lane. The trim runs only past 10000 lines.
+{ common_runs="$(git -C "$repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs.tsv" &&
+  mkdir -p "${common_runs%/*}" &&
+  printf '%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$base_arg" "$(git -C "$repo" rev-parse -q --verify 'HEAD^{commit}')" \
+    "$(git -C "$repo" symbolic-ref -q --short HEAD || echo DETACHED)" "$repo" >> "$common_runs" &&
+  { (( $(wc -l < "$common_runs") <= 10000 )) ||
+    { tail -n 10000 "$common_runs" > "$common_runs.$$" && /bin/mv -f "$common_runs.$$" "$common_runs"; }; }; } 2> /dev/null || true
 expected_version=$(cat "$repo/VERSION")
 if [[ -z $expected_version ]]; then
   printf 'dogfood-change: REFUSE project-version-unavailable\n' >&2

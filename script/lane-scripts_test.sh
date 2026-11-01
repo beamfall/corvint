@@ -7,7 +7,7 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py
-# (ASD-V0-834, ASD-V0-836). No Go build runs.
+# (ASD-V0-834, ASD-V0-836), dogfood-change-runs.sh (ASD-V0-955). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -813,7 +813,8 @@ axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
 axbase=$(axgit rev-parse HEAD)
 printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
 axgit commit -qam 'input edit'
-: > "$ax/plan.tsv"
+# One row: an empty plan is refused as CITATIONS:empty before the analyzer check (ASD-V0-903).
+printf 'internal/contextindex/receipt.go\tplaceholder\n' > "$ax/plan.tsv"
 axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
 out=$(axfinish 1)
 [[ $? == 2 && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
@@ -1582,6 +1583,40 @@ for v in CITATIONS INTENTS VERIFY OUTCOME; do
 done
 grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed' "$repo/docs/DOGFOOD.md" ||
   fail "DOGFOOD.md lost the dogfood-inputs-check invocation with the make variable names"
+ok
+
+# ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
+# ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN
+# names a binary whose --version fails, so each run refuses after the appends and before any build.
+dcr=$tmp/dcr
+mkdir -p "$dcr/repo/script" && cp "$script/dogfood-change.sh" "$script/dogfood-build-corvint.sh" "$script/dogfood-change-runs.sh" "$dcr/repo/script/" &&
+  printf '0.0.0\n' > "$dcr/repo/VERSION" && git init -q -b main "$dcr/repo" && git -C "$dcr/repo" add . &&
+  git -C "$dcr/repo" -c user.name=t -c user.email=t@example.invalid commit -qm dcr &&
+  git -C "$dcr/repo" worktree add -q -b lane-a "$dcr/a" && git -C "$dcr/repo" worktree add -q -b lane-b "$dcr/b" || fail "dogfood-change-runs fixture"
+dcr_base=$(git -C "$dcr/repo" rev-parse HEAD) dcr_log=$(git -C "$dcr/repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs.tsv
+dcr_run() { (cd "$1" && CORVINT_BIN=/bin/false script/dogfood-change.sh "$dcr_base" > /dev/null 2>&1); }
+dcr_run "$dcr/a"; dcr_run "$dcr/b"; dcr_run "$dcr/b"; dcr_run "$dcr/b"
+[[ $(wc -l < "$(git -C "$dcr/b" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") == 3 ]] || fail "dogfood-change-runs per-worktree log (ASD-V0-907) changed"
+git -C "$dcr/repo" worktree remove "$dcr/a" || fail "dogfood-change-runs worktree remove"
+out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2>&1)
+[[ $? == 0 && $out == $'run-count lane-a 1\nrun-count lane-b 3\n'"dogfood-change-runs: lanes=2 median=2 max=3 total=4 since=ALL log=$dcr_log" ]] ||
+  fail "dogfood-change-runs after worktree remove: $out"
+[[ $(cut -f2,4,5 "$dcr_log" | head -1) == "$dcr_base"$'\tlane-a\t'"$dcr/a" ]] || fail "dogfood-change-runs row columns: $(head -1 "$dcr_log")"
+# A detached run counts under its worktree; SINCE leaves out older rows; one lane is its own median.
+git -C "$dcr/b" checkout -q --detach && dcr_run "$dcr/b"
+out=$(cd "$dcr/b" && script/dogfood-change-runs.sh 2>&1)
+[[ $out == *"run-count $dcr/b 1"$'\n'*'lanes=3 median=1 max=3 total=5 '* ]] || fail "dogfood-change-runs detached lane: $out"
+printf '2000-01-01T00:00:00Z\tx\tx\told\t/old\n' >> "$dcr_log"
+out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
+[[ $out != *'run-count old '* && $out == *'lanes=3 '*'since=2001-01-01 '* ]] || fail "dogfood-change-runs SINCE: $out"
+out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2099-01-01T00:00:00Z 2>&1)
+[[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED max=0 total=0 since=2099-01-01T00:00:00Z '* ]] || fail "dogfood-change-runs empty window: $out"
+# No ledger yet reads NOT_OBSERVED with exit 0; a malformed SINCE exits 2 naming the input.
+git init -q "$dcr/none" || fail "dogfood-change-runs empty repository"
+out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
+[[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
+out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
+[[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

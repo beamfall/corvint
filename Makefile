@@ -936,6 +936,12 @@ requirement-ids-free:
 	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
 
+# ASD-V0-955 (V1-1629): per-lane dogfood-change run counts from the repository-wide ledger, for the
+# batch measurement; run on each lane host before lane-clean.sh, for example SINCE=2026-11-01.
+.PHONY: dogfood-change-runs
+dogfood-change-runs:
+	@script/dogfood-change-runs.sh $(if $(SINCE),"$(SINCE)")
+
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 .PHONY: lane-scripts-test
 lane-scripts-test:
