@@ -520,6 +520,12 @@ Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= ori
   then `chmod +x` that file. Git runs it from the pushing checkout's top level, so each lane uses
   its own copy. It runs `make windows-vet` when the pushed commits change a `.go`, `go.mod` or
   `go.sum` file and refuses the push when it fails.
+- Windows main before vet (ASD-V0-974, V1-3782): a new untagged file (for example `help.go`) in a
+  package whose `main.go` carries `//go:build darwin || linux` builds on Windows with no `main`, and
+  `make windows-vet` reports it only as `function main is undeclared in the main package`. Give
+  the new file the same `//go:build` line, or add a windows main. `make windows-main-check` finds
+  it in seconds; run it when you add a file to a build-tagged main package. It is not a step of
+  `make windows-vet`, whose recipe the `AFP-V0-054` parity test pins to the CI vet commands.
 - Sealed evidence before push (DCW-V0-348, V1-2805, V1-1773): the batch-head checkout installs
   `script/pre-push-dogfood-seal.sh` the same way. It runs `script/dogfood-batch-check.sh` against
   the pushed branch's merge base with `origin/main` and refuses `dogfood-seal-missing` while any

@@ -478,6 +478,14 @@ cannot silently go missing or outlive its command.
   registry's `HiddenCommands` verbs MUST appear in the catalog and in the capabilities inventory as
   experimental with their gloss, though root help does not list them. Rollback: drop the family
   split and the hidden-verb merge and regenerate the catalog.
+- `CAP-V0-979`: (experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines
+  CAP-V0-041 and CAP-V0-043) The CAP-V0-041 scan MUST NOT report a key of an event table (a table
+  whose identifier contains `event`, case-insensitively, such as `claudeContextEvents`) as a
+  dispatched word, whether an argument indexes the table or is compared with that key
+  (`arguments[1] == "session-start"`); such a value needs no `commandTreeInternal` entry. A word an
+  argument is compared with that no event table holds is still dispatch. Residual risk: a real
+  subcommand spelled like an event key in the same package is not checked. Rollback: drop
+  `eventTable` and the event-key filter; event values again need internal entries.
 
 ## Boundaries and failure modes
 
@@ -643,3 +651,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
+| CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |

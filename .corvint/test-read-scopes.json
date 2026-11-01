@@ -463,7 +463,8 @@
     "internal/skillexport": [],
     "internal/specindex": [
       ".corvint/test-read-scopes.json",
-      "docs/specs/"
+      "docs/specs/",
+      "script/gen-spec-requirements.sh"
     ],
     "internal/stepnegation": [],
     "internal/taskman": [

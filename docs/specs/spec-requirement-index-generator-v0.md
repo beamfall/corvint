@@ -574,6 +574,13 @@ No requirement below diverges from the implementation.
   text; a lettered sub-requirement such as `VAF-009A` (three or more digits and one uppercase
   letter), which stays unindexed under its parent row as before. Failure mode: before this,
   `CIN-V0-01` or `CIN-V0-1010a` written as a definition produced no row and no error. Rollback: drop the refusal block.
+- `SRG-V0-979`: (experimental under the standing lane auto-accept (2026-11-01); V1-3797; refines
+  SRG-V0-012) The INDEX.json projection MUST take `supersededBy` from a superseded digest's
+  `- Successor:` line, as its first backticked `*.md` path, a bare file name naming a sibling in
+  `docs/specs/`, and MUST leave the INDEX value unchanged for a digest without one. Superseding a
+  spec (its Delivery status `superseded` and a digest of Successor and Why) then regenerates to an
+  index that `internal/specindex` accepts with no hand edit of INDEX.json. Rollback: drop the
+  projection; `supersededBy` is again hand-written.
 
 ## Non-goals and simpler baseline
 
@@ -695,6 +702,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
+| SRG-V0-979 | `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex` in `internal/specindex/superseded_test.go`: a live spec superseded in a fixture repository regenerates through `--index` and `--readme` to an index `checkIndex` accepts, and `supersededBy` names the Successor |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
@@ -800,6 +808,10 @@ spec-requirements`.
 SRG-V0-890 rolls back by restoring the refusal text in `script/gen-spec-requirements.sh` and case 13; SRG-V0-891 by removing the outside-section block, the baseline read and case 14.
 
 SRG-V0-968 rolls back by removing the claimless-digest refusal and case 16.
+
+SRG-V0-979 rolls back by removing the `successor_path` projection and
+`TestSRGV0979SupersededSpecRegeneratesToACheckedIndex`; every committed `supersededBy` already
+equals its projection, so no generated file moves.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.

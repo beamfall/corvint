@@ -146,7 +146,7 @@ func RestoreArchive(ctx context.Context, repo *intent.Repository, path string) (
 
 func restoreAbsent(repo *intent.Repository) error {
 	if _, err := os.Lstat(repo.StateDir); err == nil {
-		return wire.Errorf(wire.CodeUnsupported, repo.StateDir, "the state dir exists; `archive restore` restores only into an absent state dir")
+		return wire.Errorf(wire.CodeUnsupported, repo.StateDir, "the state dir exists; `archive restore` restores only into an absent state dir, and a restore interrupted after its rename already published the whole store (TRL-V0-960)")
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "cannot stat: %v", err)
 	}

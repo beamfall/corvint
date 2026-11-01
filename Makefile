@@ -756,6 +756,16 @@ goos-filenames-check:
 goos-filenames-test:
 	@script/check-goos-filenames_test.sh
 
+# windows-main-check fails, in seconds and before `make windows-vet`, when a package main builds
+# for GOOS=windows but no file selected there declares func main, as an untagged help.go beside
+# a `//go:build darwin || linux` main.go does (ASD-V0-974, V1-3782). It lists packages only.
+.PHONY: windows-main-check windows-main-test
+windows-main-check:
+	@script/check-windows-main.sh . && script/check-windows-main.sh interop/cem01-go
+
+windows-main-test:
+	@script/check-windows-main_test.sh
+
 # go-cache-trim bounds the Go build caches and removes stale go-build* work directories; it is a
 # dry run unless APPLY=1 (ASD-V0-021, V1-0360). Extra options go in GO_CACHE_TRIM_ARGS.
 .PHONY: go-cache-trim

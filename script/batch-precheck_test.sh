@@ -293,6 +293,8 @@ esac
 rm -f $tmp/running/\$2
 exit 0
 EOF
+# The stub node makes the host-adapter-node-test step run on a host without node (ASD-V0-973).
+printf '#!/bin/sh\nexit 0\n' > "$bin/node"
 cat > "$bin/gofmt" <<EOF
 #!/bin/sh
 echo "gofmt \$*" >> $tmp/calls
@@ -373,6 +375,24 @@ grep -qx "steps $rows" "$receipt" && grep -qx "passed $rows" "$receipt" || fail 
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
+# 4a. ASD-V0-973 (V1-3801, V1-3241): with node absent, host-adapter-node-test does not run; its row
+# is NOT_AVAILABLE naming the tool, it is neither passed nor failed, and the receipt records it as
+# a not-run line the guard accepts and prints. A receipt claiming more steps than it accounts for
+# is refused.
+/bin/rm -f "$receipt"
+: > "$tmp/calls"
+BATCH_PRECHECK_NODE=corvint-absent-node-probe run || fail "absent-node run failed: $(cat "$tmp/out")"
+grep -q 'host-adapter-node-test' "$tmp/calls" && fail "absent-node run still ran the node step: $(cat "$tmp/calls")"
+grep -q '^batch-precheck: | NOT_AVAILABLE | *[0-9]*s | make host-adapter-node-test: corvint-absent-node-probe is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it$' "$tmp/out" ||
+  fail "absent-node row: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((rows - 1)) passed, 0 failed, 1 not run in " "$tmp/out" || fail "absent-node summary: $(cat "$tmp/out")"
+grep -qx "steps $rows" "$receipt" && grep -qx "passed $((rows - 1))" "$receipt" &&
+  grep -qx 'not-run host-adapter-node-test corvint-absent-node-probe is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it' "$receipt" ||
+  fail "absent-node receipt: $(cat "$receipt" 2> /dev/null)"
+(cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused a not-run receipt: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt records NOT_RUN host-adapter-node-test corvint-absent-node-probe is not on PATH' "$tmp/out" || fail "guard did not print the not-run step: $(cat "$tmp/out")"
+sed -i.bak '/^not-run /d' "$receipt" && /bin/rm -f "$receipt.bak"
+(cd "$repo" && "$pre" --verify-receipt) > /dev/null 2>&1 && fail "guard accepted a receipt whose steps exceed passed and not-run"
 # ASD-V0-837 (V1-3550): the pre-bind run of dogfood-closeout leaves out the batch-drift go test and
 # writes no receipt, so the receipt and each drift step come from the one run on the sealed head.
 /bin/rm -f "$receipt"

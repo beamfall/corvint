@@ -80,14 +80,7 @@ func TestCALV0078_ResultRetryablePresence(t *testing.T) {
 }
 
 func TestCALV0078_EnvelopeRetryableMember(t *testing.T) {
-	enc := func(r Result) string {
-		t.Helper()
-		b, err := r.Encode()
-		if err != nil {
-			t.Fatal(err)
-		}
-		return string(b)
-	}
+	enc := func(r Result) string { return encodedResult(t, r) }
 	lock := enc(Result{Command: []string{"lease", "renew"}, Outcome: OutcomeError, Codes: []string{CodeLockTimeout}})
 	if !strings.Contains(lock, `"profile":"taskman-command-result/0","retryable":true,"snapshot":null`) {
 		t.Fatalf("LOCK_TIMEOUT envelope lacks retryable:true: %s", lock)

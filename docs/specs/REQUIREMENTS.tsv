@@ -1015,6 +1015,7 @@ CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
 CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
+CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -2127,6 +2128,8 @@ ASD-V0-643	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-644	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3740) The node	standing	2026-11-01; V1-3740
 ASD-V0-645	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3768, V1-3770)	standing	2026-11-01; V1-3768; V1-3770
 ASD-V0-646	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3754) Benchmar	standing	2026-11-01; V1-3754
+ASD-V0-973	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3801, V1-3241;	standing	2026-11-01; V1-3801; V1-3241
+ASD-V0-974	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3782) `script/	standing	2026-11-01; V1-3782
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -3241,6 +3244,7 @@ TRL-V0-005	docs/specs/corvint-tasks-store-relocation-v0.md	The store, the dispat
 TRL-V0-006	docs/specs/corvint-tasks-store-relocation-v0.md	A copied store is bound to a new clone by the same explicit relocation. A copy i	unrecorded	-
 TRL-V0-870	docs/specs/corvint-tasks-store-relocation-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3554) `corvint	standing	2026-10-11; V1-3554
 TRL-V0-871	docs/specs/corvint-tasks-store-relocation-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3554) A comple	standing	2026-10-11; V1-3554
+TRL-V0-960	docs/specs/corvint-tasks-store-relocation-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3590; refines	standing	2026-11-01; V1-3590
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-
@@ -6672,6 +6676,7 @@ SRG-V0-967	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-968	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 SRG-V0-790	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793; refines	standing	2026-11-01; V1-3793
 SRG-V0-791	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every	standing	2026-11-01; V1-3793
+SRG-V0-979	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3797; refines	standing	2026-11-01; V1-3797
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
