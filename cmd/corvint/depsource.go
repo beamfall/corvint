@@ -106,9 +106,9 @@ func runDepsource(ctx context.Context, arguments []string, stdout, stderr io.Wri
 	return 0
 }
 
-const depsourceHelp = `
-Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON:
+const depsourceHelp = `Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON.
 
+Usage:
   corvint [--root PATH] depsource MODULE [--file PATH] [--limit N]
 
 Reads the committed go.mod and go.sum, recomputes the module cache entry's

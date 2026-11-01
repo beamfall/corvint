@@ -283,9 +283,9 @@ func writeLeaseOutput(stdout, stderr io.Writer, payload map[string]any) int {
 	return 0
 }
 
-const leaseHelp = `
-Scope lease (experimental, SCL-V0 proposed), JSON:
+const leaseHelp = `Scope lease (experimental, SCL-V0 proposed), JSON.
 
+Usage:
   corvint [--root PATH] lease acquire --holder NAME --ttl DURATION [--path GLOB]...
     [--ticket ID] [--note TEXT]
   corvint [--root PATH] lease renew --holder NAME --id ID --ttl DURATION
