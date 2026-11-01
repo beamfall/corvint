@@ -6,6 +6,9 @@
 set -uo pipefail
 export LC_ALL=C
 
+# DCW-V0-942 (V1-3625): the wrapper times its setup and both verifier builds from here; bash
+# before 5 has no EPOCHREALTIME, and then no build timings are written.
+dogfood_check_started=${EPOCHREALTIME-}
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
@@ -88,11 +91,13 @@ go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-g
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"
 mkdir -p "$evidence" || exit 2
+dogfood_check_setup_end=${EPOCHREALTIME-}
 if ! dogfood_build_tree_corvint "$tree_bin"; then
   printf 'dogfood-check: REFUSE current-tree-corvint-build-failed\n' >&2
   dogfood_build_fix dogfood-check tree
   exit 2
 fi
+dogfood_check_tree_end=${EPOCHREALTIME-} dogfood_check_tree_outcome=$dogfood_bin_outcome
 base_status=0
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
 if ((base_status == 2)); then
@@ -102,6 +107,19 @@ elif ((base_status != 0)); then
   printf 'dogfood-check: REFUSE base-corvint-build-failed\n' >&2
   dogfood_build_fix dogfood-check base
   exit 2
+fi
+# The build rows go to a file bound to this process ID, which the exec below keeps, so the check
+# prepends them to its own phase rows and never counts a stale file (DCW-V0-942).
+timings="$evidence/dogfood-check.build.tsv"
+if [[ -n $dogfood_check_started ]] &&
+  awk -v pid="$$" -v s="$dogfood_check_started" -v a="$dogfood_check_setup_end" -v b="$dogfood_check_tree_end" \
+    -v c="${EPOCHREALTIME-}" -v t="$dogfood_check_tree_outcome" -v o="$dogfood_bin_outcome" 'BEGIN {
+      printf "corvint-dogfood-check-build/0\npid %s\nstarted %s\n", pid, s
+      printf "setup\t-\t%.3f\nbuild-tree\t%s\t%.3f\nbuild-base\t%s\t%.3f\n", a - s, t, b - a, o, c - b
+    }' > "$timings.tmp" 2> /dev/null && /bin/mv -f "$timings.tmp" "$timings"; then
+  :
+else
+  /bin/rm -f "$timings.tmp" "$timings"
 fi
 cd "$repo" || exit 2
 exec "$tree_bin" dogfood check --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"} "$base_arg"

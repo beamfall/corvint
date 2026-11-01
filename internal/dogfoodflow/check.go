@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
@@ -88,6 +89,8 @@ type check struct {
 	// baseRefusal the base verifier's refusal code when it refused the read
 	// instead, its digest then empty; all are empty without a declaration.
 	outputChange, baseStatusSHA, treeStatusSHA, baseRefusal string
+	// clock times the run's phases (DCW-V0-942).
+	clock *phaseClock
 }
 
 type verification struct {
@@ -99,6 +102,7 @@ type verification struct {
 func Check(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (int, error) {
 	run := newCheck(ctx, "dogfood-check", options, stdout, stderr)
 	defer run.releaseOperation()
+	defer func() { _, _, _ = run.writeTimings() }()
 	code, err := boundary(ctx, run.run, func() {})
 	if publishErr := run.finishAggregateCapture(code, err); publishErr != nil {
 		return 2, publishErr
@@ -112,6 +116,7 @@ func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (
 	options.ReusePass = true
 	run := newCheck(ctx, "dogfood-check", options, stdout, stderr)
 	defer run.releaseOperation()
+	defer func() { _, _, _ = run.writeTimings() }()
 	return boundary(ctx, func() int {
 		// The check's own exits, including its no-change PASS, return here as the
 		// former `dogfood-check.sh || exit` did.
@@ -132,10 +137,11 @@ func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (
 }
 
 func newCheck(ctx context.Context, prefix string, options CheckOptions, stdout, stderr io.Writer) *check {
-	return &check{flow: flow{ctx: ctx, prefix: prefix, root: options.Root, stderr: stderr}, options: options, stdout: stdout, cemPath: ".corvint/change.cem.json"}
+	return &check{flow: flow{ctx: ctx, prefix: prefix, root: options.Root, stderr: stderr}, options: options, stdout: stdout, cemPath: ".corvint/change.cem.json", clock: newPhaseClock(time.Now())}
 }
 
 func (c *check) seal() int {
+	c.clock.to("seal")
 	bind := c.gitValue("rev-parse", "HEAD^{commit}")
 	if !c.gitSucceeds("cat-file", "-e", bind+":.corvint/change.cem.json") {
 		c.refuse("nothing-to-seal")
@@ -220,10 +226,13 @@ func (c *check) run() int {
 		c.target, c.cemPath = binding.EvidenceTarget, binding.MapPath
 	}
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
+	c.evidence = c.gitDir + "/corvint"
+	c.adoptBuildTimings()
+	c.clock.to("lock-wait")
 	c.acquireOperation()
+	c.clock.to("precheck")
 	c.enableAggregateCapture()
 	c.report = c.root + "/.corvint/dogfood-report.json"
-	c.evidence = c.gitDir + "/corvint"
 	c.resolveAnchor()
 	if c.isSealCommit(c.target) {
 		c.say("dogfood-check: REFUSE sealed-head\n")
@@ -281,9 +290,11 @@ func (c *check) run() int {
 	c.resolveVerifiers()
 	// A pass bound to this BASE, HEAD and every input stands; anything else
 	// reruns the verifiers (DCW-V0-347).
+	c.clock.to("reuse")
 	if !c.sealed && c.reusePass() {
 		return 0
 	}
+	c.clock.to("binding")
 	passed := func() {}
 	if !c.sealed {
 		passed = c.capturePass()
@@ -358,6 +369,7 @@ var (
 // checkReport requires a complete report bound to this BASE, HEAD, anchor and
 // local outcome, and returns its bytes.
 func (c *check) checkReport() []byte {
+	defer c.clock.enter("report", "-")()
 	if !isRegular(c.report) {
 		lines := []string{"  fix: run corvint dogfood change " + c.base + " on this HEAD until it reports complete"}
 		// A reviewer's clone of a bind commit never has the author's private report (DCW-V0-017).
@@ -435,6 +447,7 @@ func (c *check) checkReport() []byte {
 // self-consistent receipt for other paths cannot pass (DCW-V0-375). A legacy
 // trace receipt keeps the digest binding alone.
 func (c *check) verifyAggregateOutcome(evidence string) {
+	defer c.clock.enter("outcome-replay", "-")()
 	raw := readFile(evidence)
 	if allCaptures(recordState, raw) != "aggregate-recorded" {
 		return
@@ -544,6 +557,7 @@ func (c *check) resolveVerifiers() {
 }
 
 func (c *check) verify(runner Runner, args ...string) verification {
+	defer c.clock.enter(c.verifierPhase(runner), commandLabel(args))()
 	if c.aggregate != nil {
 		before, err := fileSHA256(runner.Path)
 		if err != nil {

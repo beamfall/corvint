@@ -7,6 +7,13 @@
 # so its bytes depend on those inputs alone. Any failure while computing, reading or storing a key
 # falls back to the plain build: a reuse is never required for the wrapper to succeed.
 # ASD-V0-070 (V1-3233): with no HOME the reuse cache is off; the plain build still runs.
+# DCW-V0-943 (V1-3627): the cache is per user and host, outside every repository, so worktrees on one
+# BASE share the base verifier. It keeps the CORVINT_DOGFOOD_BIN_CACHE_MAX (default 16) most
+# recently stored or reused entries; concurrent wrappers need no lock, since every store renames
+# private temporary files into place and every reuse verifies the bytes it copied.
+# dogfood_bin_outcome names how the last dogfood_build_*_corvint call got its binary: reuse or
+# build (DCW-V0-942).
+dogfood_bin_outcome=
 dogfood_bin_cache=${CORVINT_DOGFOOD_BIN_CACHE:-${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}}
 dogfood_bin_cache=${dogfood_bin_cache:+${CORVINT_DOGFOOD_BIN_CACHE:-$dogfood_bin_cache/corvint-dogfood-bin}}
 
@@ -100,11 +107,12 @@ dogfood_corvint_key() {
 dogfood_corvint_reuse() {
   local out=$1 key=$2 entry="$dogfood_bin_cache/$2" expected temporary
   [[ -n $dogfood_bin_cache && -n $key && -f $entry/corvint && -f $entry/corvint.oid ]] || return 1
-  expected=$(cat "$entry/corvint.oid") || return 1
+  expected=$(cat "$entry/corvint.oid" 2> /dev/null) || return 1
   temporary=$(mktemp "$out.XXXXXX") || return 1
   if /bin/cp -f "$entry/corvint" "$temporary" && chmod 755 "$temporary" &&
     [[ -n $expected && $(git -C "$repo" hash-object "$temporary") == "$expected" ]] &&
     /bin/mv -f "$temporary" "$out"; then
+    touch -- "$entry" 2> /dev/null || :
     return 0
   fi
   /bin/rm -f "$temporary"
@@ -121,9 +129,26 @@ dogfood_corvint_store() {
   if /bin/cp -f "$out" "$binary" && chmod 755 "$binary" &&
     git -C "$repo" hash-object "$binary" > "$record" &&
     /bin/mv -f "$binary" "$entry/corvint" && /bin/mv -f "$record" "$entry/corvint.oid"; then
+    touch -- "$entry" 2> /dev/null || :
+    dogfood_corvint_prune
     return 0
   fi
   /bin/rm -f "$binary" "$record"
+  return 0
+}
+
+# dogfood_corvint_prune removes every keyed entry past the CORVINT_DOGFOOD_BIN_CACHE_MAX most
+# recent (DCW-V0-943). An entry another wrapper is copying or storing may go; that wrapper's
+# verification or rename then fails and it builds instead. A failure only skips the prune.
+dogfood_corvint_prune() {
+  local max=${CORVINT_DOGFOOD_BIN_CACHE_MAX:-16} name n=0
+  [[ -n $dogfood_bin_cache && $max =~ ^[0-9]+$ ]] && ((max > 0)) || return 0
+  while IFS= read -r name; do
+    [[ $name =~ ^[0-9a-f]{40,64}$ ]] || continue
+    n=$((n + 1))
+    ((n > max)) || continue
+    /bin/rm -rf -- "${dogfood_bin_cache:?}/$name" 2> /dev/null || :
+  done < <(ls -t -- "$dogfood_bin_cache" 2> /dev/null)
   return 0
 }
 
@@ -134,7 +159,9 @@ dogfood_corvint_store() {
 dogfood_build_tree_corvint() {
   local out=$1 key
   key=$(dogfood_corvint_key HEAD "$repo") || key=
+  dogfood_bin_outcome=reuse
   dogfood_corvint_reuse "$out" "$key" && return 0
+  dogfood_bin_outcome=build
   dogfood_build "$repo" "$out" || return 1
   [[ -n $key && $(dogfood_corvint_key HEAD "$repo") == "$key" ]] || return 0
   dogfood_corvint_store "$out" "$key"
@@ -146,7 +173,9 @@ dogfood_build_tree_corvint() {
 dogfood_build_base_corvint() {
   local out=$1 base=$2 key status=0
   key=$(dogfood_corvint_key "$base") || key=
+  dogfood_bin_outcome=reuse
   dogfood_corvint_reuse "$out" "$key" && return 0
+  dogfood_bin_outcome=build
   dogfood_base_tree=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-base.XXXXXX") || return 2
   trap 'rm -rf "$dogfood_base_tree"' EXIT
   if ! git -C "$repo" archive --format=tar "$base" | tar -xf - -C "$dogfood_base_tree"; then

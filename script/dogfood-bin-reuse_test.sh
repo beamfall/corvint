@@ -26,6 +26,7 @@ base=$(git -C "$repo" rev-parse HEAD)
 cat > "$root/bin/corvint" <<'EOF'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$TEST_FLOW_LOG"
+printf '%s\n' "$$" > "$TEST_PID_LOG"
 EOF
 # The stub's build output is the build's inputs, so a stale reuse would be visible in its bytes.
 cat > "$root/bin/go" <<'EOF'
@@ -60,7 +61,7 @@ case $1 in
 esac
 EOF
 chmod +x "$root/bin/"* "$repo/script/"*.sh
-export TEST_FAKE_CORVINT="$root/bin/corvint" TEST_BUILD_LOG="$root/build.log" TEST_FLOW_LOG="$root/flow.log"
+export TEST_FAKE_CORVINT="$root/bin/corvint" TEST_BUILD_LOG="$root/build.log" TEST_FLOW_LOG="$root/flow.log" TEST_PID_LOG="$root/pid.log"
 export PATH="$root/bin:$PATH" CORVINT_DOGFOOD_BIN_CACHE="$root/bin-cache"
 unset CORVINT_BIN TEST_GOVERSION TEST_LIST_FAIL TEST_GOWORK TEST_CC GOFLAGS
 cd "$repo"
@@ -89,6 +90,31 @@ rg -q '^# test-version$' "$tree_bin" || exit 1
 # The base verifier is keyed by the base commit's root tree; the tree verifier is already recorded.
 expect_builds check 1 'first check'
 expect_builds check 0 'unchanged check'
+
+# DCW-V0-942 (V1-3625): the check wrapper writes its setup and build rows, with reuse or build, bound
+# to the process ID the exec'd check runs as.
+# expect_build_rows GITDIR TREE BASE checks the wrapper's build file under GITDIR.
+expect_build_rows() {
+  local file="$1/corvint/dogfood-check.build.tsv"
+  [[ -f $file ]] || { printf 'no build timings at %s\n' "$file" >&2; exit 1; }
+  awk -v pid="$(cat "$TEST_PID_LOG")" -v tree="$2" -v base="$3" -F '\t' '
+    NR == 1 { ok = $0 == "corvint-dogfood-check-build/0" }
+    NR == 2 { ok = ok && $0 == "pid " pid }
+    NR == 3 { ok = ok && $0 ~ /^started [0-9]+\.[0-9]+$/ }
+    NR == 4 { ok = ok && $1 == "setup" && $2 == "-" && $3 ~ /^[0-9]+\.[0-9]{3}$/ }
+    NR == 5 { ok = ok && $1 == "build-tree" && $2 == tree && $3 ~ /^[0-9]+\.[0-9]{3}$/ }
+    NR == 6 { ok = ok && $1 == "build-base" && $2 == base && $3 ~ /^[0-9]+\.[0-9]{3}$/ }
+    END { exit !(ok && NR == 6) }' "$file" || { printf 'bad build timings (want %s/%s):\n' "$2" "$3" >&2; cat "$file" >&2; exit 1; }
+}
+expect_build_rows .git reuse reuse
+/bin/rm -rf "$CORVINT_DOGFOOD_BIN_CACHE"
+expect_builds check 2 'cold check'
+expect_build_rows .git build build
+# DCW-V0-943 (V1-3627): a second worktree on the same BASE reuses the base verifier the first built.
+git worktree add -q --detach "$root/second" HEAD
+(cd "$root/second" && expect_builds check 0 'second worktree') || exit 1
+expect_build_rows "$repo/.git/worktrees/second" reuse reuse
+git worktree remove --force "$root/second"
 # Untracked and ignored files outside the build inputs do not matter.
 printf 'edited\n' > docs/notes.md
 mkdir -p out && printf 'x\n' > out/ignored
@@ -152,4 +178,36 @@ git rm -q go.mod
 git -c user.name=test -c user.email=test@example.invalid commit -qm no-module
 expect_builds change 1 'no go.mod'
 expect_builds change 1 'no go.mod again'
+
+# DCW-V0-943: two concurrent writers over eight keys, with a bound of two, leave only verified
+# entries; a later store brings the cache back within the bound.
+cache="$root/bounded"
+store_loop() {
+  (
+    set +e
+    repo=$repo go_cache=$root/go-cache CORVINT_DOGFOOD_BIN_CACHE=$cache CORVINT_DOGFOOD_BIN_CACHE_MAX=2
+    source "$source_root/script/dogfood-build-corvint.sh"
+    for ((i = 0; i < 16; i++)); do
+      key=$(printf '%040d' $(((i + $1) % 8)))
+      printf 'binary %s %s\n' "$key" "$1" > "$root/out.$1"
+      dogfood_corvint_store "$root/out.$1" "$key"
+      dogfood_corvint_reuse "$root/reused.$1" "$key" || :
+    done
+  )
+}
+store_loop 0 &
+writer_a=$!
+store_loop 1 &
+writer_b=$!
+wait "$writer_a" && wait "$writer_b" || { printf 'a concurrent writer failed\n' >&2; exit 1; }
+for entry in "$cache"/*; do
+  [[ -f $entry/corvint && -f $entry/corvint.oid ]] || continue
+  [[ $(git hash-object "$entry/corvint") == "$(cat "$entry/corvint.oid")" ]] ||
+    { printf 'unverified entry after concurrent writers: %s\n' "$entry" >&2; exit 1; }
+done
+entries=$(find "$cache" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+((entries <= 4)) || { printf 'the bound of 2 left %s entries with two writers\n' "$entries" >&2; exit 1; }
+store_loop 2
+entries=$(find "$cache" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+((entries <= 2)) || { printf 'the bound of 2 left %s entries after a serial store\n' "$entries" >&2; exit 1; }
 printf 'DCW-V0-074 dogfood build reuse: PASS\n'

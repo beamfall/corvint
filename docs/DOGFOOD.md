@@ -472,7 +472,15 @@ with a `--refresh` fix, `DCW-V0-441`), and an over-bound intent set
 (`DCW-V0-379`); a verify refusal names the offending line (`input: --verify FILE line N`). Stderr carries one
 `TIMING <step> seconds=S commands=N` line per step and a `TIMING total` line naming
 `<git-dir>/corvint/dogfood-finish-lane.timings.tsv`, the per-command times. An interrupted run
-prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`).
+prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`). Every check
+and seal, the check-seal step included, also writes `<git-dir>/corvint/dogfood-check.timings.tsv`:
+one `phase`, `detail`, `seconds` row per contiguous phase (lock wait, report, outcome replay, each
+verifier command, binding, seal), so the rows sum to its wall time; under `make dogfood-check` the
+first rows are the wrapper's setup and its tree and base verifier builds, each marked `reuse` or
+`build` (`DCW-V0-942`). The verifier builds come from a per-user, per-host cache outside the
+repository (`CORVINT_DOGFOOD_BIN_CACHE`), so a second worktree on the same BASE and toolchain
+reuses the base verifier; it keeps the `CORVINT_DOGFOOD_BIN_CACHE_MAX` (default 16) most recent
+entries (`DCW-V0-943`).
 
 Before the costly base verifier build, `make dogfood-finish` runs `corvint dogfood inputs-check`
 with the same inputs: the input checks and prepare pass alone, which bind and commit nothing and
@@ -489,7 +497,12 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
 
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
-first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). CI and the
+first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). Its
+sealed-head `batch-precheck` runs with `BATCH_PRECHECK_SINCE_RECEIPT=1`: it selects against the
+head the first run's passing receipt names, so a step the bind and seal commits cannot reach does
+not run twice, and a receipt that already names the clean HEAD runs nothing (`DCW-V0-944`,
+`ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
+(`ASD-V0-944`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
 use-case conformance command. The precheck also retains its other drift checks. Its drift tests
 run through `script/heavy.sh` (`BATCH_PRECHECK_HEAVY`); set `BATCH_PRECHECK_GO_WRAPPER` to one

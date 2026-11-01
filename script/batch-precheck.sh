@@ -120,6 +120,10 @@ EXTRA_TARGETS=(capability-catalog-check capabilities-check host-adapter-node-tes
 # AGENTS.md) and top-level docs (CAPABILITIES.md, E2E-ADOPTION.md); its snapshots and ratchet sit
 # in Go package directories (ASD-V0-051).
 CATALOG_INPUTS=(@go @root 'docs/*.md')
+# What selection-baseline-check reads beyond the Go source of the packages its recipe builds: the
+# recipe itself, the CI shard costs and the fixed change set; it replays fixed historical commits,
+# so nothing else changes its result (ASD-V0-944, V1-3550).
+SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
 planner=${BATCH_PRECHECK_PLANNER-corvint}
 # Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
 # (ASD-V0-047, V1-3142).
@@ -336,9 +340,10 @@ sync_check() {
 
 # Selection state (ASD-V0-050, ASD-V0-051): sel_on=1 once select_plan narrowed the run; otherwise
 # sel_why says why everything runs. drift_on[i] is 1 for each DRIFT_TESTS entry that runs and
-# cat_skip, when set, is why capability-catalog-check is skipped.
+# cat_skip, when set, is why capability-catalog-check is skipped, and sb_skip why
+# selection-baseline-check is (ASD-V0-944).
 sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why=''
-drift_on=() cat_skip=''
+drift_on=() cat_skip='' sb_skip=''
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
@@ -445,6 +450,19 @@ select_report() {
     cat_skip="no catalog input changed since $sel_sha: $why"
     printf 'batch-precheck: capability-catalog-check skipped: %s\n' "$cat_skip"
   fi
+  # ASD-V0-944: every package the selection-baseline-check recipe names, on any recipe line.
+  pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
+    grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
+  if ! grep -q '^selection-baseline-check:' Makefile 2> /dev/null; then
+    :
+  elif [[ -z $pkgs ]]; then
+    printf 'batch-precheck: selection-baseline-check runs (the Makefile recipe names no package)\n'
+  elif wanted "$pkgs" "${SELECTION_BASELINE_INPUTS[@]}"; then
+    printf 'batch-precheck: selection-baseline-check runs (a selection-baseline input changed since %s)\n' "$sel_sha"
+  else
+    sb_skip="no selection-baseline input changed since $sel_sha: $why"
+    printf 'batch-precheck: selection-baseline-check skipped: %s\n' "$sb_skip"
+  fi
 }
 
 # drift_step NAME REGEX PACKAGE...: one go test step; a package that runs no test fails it, since
@@ -515,7 +533,12 @@ steps() {
   expanded=$(doc_gate_expansion)
   while IFS=$'\t' read -r kind value; do
     case $kind in
-      make) printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value" ;;
+      make)
+        if [[ $value == selection-baseline-check && -n $sb_skip ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
+        else
+          printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
+        fi ;;
       gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
@@ -711,6 +734,29 @@ cleanup() {
 }
 
 
+# ASD-V0-943 (V1-3550): with BATCH_PRECHECK_SINCE_RECEIPT=1 (the sealed-head run of make
+# dogfood-closeout), a passing receipt for a clean HEAD ends the run, and one for a strict ancestor
+# R becomes the base: R passed every step, so only the steps R..HEAD can reach run. Read before the
+# receipt is removed below; any other state runs with the base given.
+since_receipt() {
+  local named head
+  named=$(awk '$1 == "head" { print $2 }' "$(receipt_path)" 2> /dev/null) || named=
+  head=$(git rev-parse HEAD)
+  if [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
+    printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
+  elif [[ $named == "$head" ]] && tree_clean; then
+    printf 'batch-precheck: SKIP receipt already names HEAD %s and the checkout is clean; no step reruns (ASD-V0-943)\n' "$head"
+    exit 0
+  elif [[ $named == "$head" ]]; then
+    printf 'batch-precheck: since-receipt not used: the receipt names HEAD but the checkout is not clean\n'
+  elif git merge-base --is-ancestor "$named" HEAD 2> /dev/null; then
+    base=$named
+    printf 'batch-precheck: since-receipt base %s: its receipt passed every step, so only the steps %s..HEAD can reach run (ASD-V0-943)\n' "$named" "$(git rev-parse --short "$named")"
+  else
+    printf 'batch-precheck: since-receipt not used: the receipt names %s, which HEAD does not contain\n' "$named"
+  fi
+}
+[[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
 /bin/rm -f "$receipt"
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp

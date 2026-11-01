@@ -1096,4 +1096,62 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
   fail "the unix-tagged and untagged Mkfifo files were not both named: $(cat "$tmp/out")"
 [[ $(grep -c FAIL "$tmp/out") == 2 ]] || fail "an allowed Mkfifo file was refused: $(cat "$tmp/out")"
 
+# 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
+# first run's receipt, and selection-baseline-check is skipped when none of its inputs changed.
+grep -A4 '^dogfood-closeout:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
+  fail "dogfood-closeout's second batch-precheck does not select since the receipt"
+rrepo=$tmp/rrepo
+git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
+git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"
+printf 'capability-catalog-check:\n\t$(GO_TEST_COMMAND) -run x ./golden\nselection-baseline-check:\n\t@d=x && \\\n\tgo build ./other ./golden\n' > "$rrepo/Makefile"
+sed -i.bak 's/make -s spec-requirements-check/make -s spec-requirements-check selection-baseline-check/' "$rrepo/.github/workflows/ci.yml" && /bin/rm -f "$rrepo/.github/workflows/ci.yml.bak"
+git -C "$rrepo" commit -qam 'selection-baseline recipe' || fail "since-receipt fixture commit"
+rbase=$(git -C "$rrepo" rev-parse HEAD)
+rrun() { (unset GOFLAGS; cd "$rrepo" && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$sdrift "$pre" "$@") > "$tmp/out" 2>&1; }
+# A doc-only change skips selection-baseline-check; a Go change in a recipe package runs it.
+mkdir -p "$rrepo/notes" && printf 'n\n' > "$rrepo/notes/a.txt"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm notes
+work=$(git -C "$rrepo" rev-parse HEAD)
+pbase=$rbase plan "$frontier" golden
+: > "$tmp/scalls"
+rrun --base "$rbase" || fail "doc-only run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: selection-baseline-check skipped: no selection-baseline input changed since $rbase" "$tmp/out" || fail "selection-baseline not skipped: $(cat "$tmp/out")"
+grep -q 'selection-baseline-check' "$tmp/scalls" && fail "a skipped selection-baseline-check ran: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: receipt for $work written" "$tmp/out" || fail "doc-only run wrote no receipt: $(cat "$tmp/out")"
+printf 'package golden\n' > "$rrepo/golden/extra.go"
+: > "$tmp/scalls"
+rrun --base "$rbase" || fail "Go change run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: selection-baseline-check runs (a selection-baseline input changed' "$tmp/out" || fail "selection-baseline skipped on a Go change: $(cat "$tmp/out")"
+grep -q '^make -s selection-baseline-check$' "$tmp/scalls" || fail "selection-baseline-check did not run: $(cat "$tmp/scalls")"
+/bin/rm -f "$rrepo/golden/extra.go"
+# Restore the receipt for the work head, then commit only change evidence on top, as bind and seal do.
+rrun --base "$rbase" || fail "work head rerun failed: $(cat "$tmp/out")"
+mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$work.cem.json"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal change evidence'
+sealed=$(git -C "$rrepo" rev-parse HEAD)
+pbase=$work plan "$frontier"
+: > "$tmp/scalls"
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "since-receipt run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: since-receipt base $work: " "$tmp/out" || fail "since-receipt base not used: $(cat "$tmp/out")"
+grep -qx "planner affected --base $work" "$tmp/scalls" || fail "planner not asked since the receipt: $(cat "$tmp/scalls")"
+row_is PASS 'batch-drift (0 of 3 tests)'
+grep -q '^batch-precheck: capability-catalog-check skipped' "$tmp/out" && grep -q '^batch-precheck: selection-baseline-check skipped' "$tmp/out" ||
+  fail "catalog or selection-baseline reran after a seal: $(cat "$tmp/out")"
+grep -qE '^make -s (capability-catalog|selection-baseline)-check$' "$tmp/scalls" && fail "a skipped step ran: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: receipt for $sealed written" "$tmp/out" || fail "sealed head got no receipt: $(cat "$tmp/out")"
+# A receipt for the clean HEAD runs nothing; a dirty checkout, or no receipt, runs with the given base.
+: > "$tmp/scalls"
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "receipt-at-HEAD run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: SKIP receipt already names HEAD $sealed and the checkout is clean" "$tmp/out" || fail "receipt at HEAD reran: $(cat "$tmp/out")"
+[[ ! -s $tmp/scalls ]] || fail "receipt at HEAD ran steps: $(cat "$tmp/scalls")"
+[[ $(awk '$1 == "head" { print $2 }' "$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)") == "$sealed" ]] || fail "the receipt for HEAD was not kept"
+printf 'dirty\n' >> "$rrepo/notes/a.txt"
+pbase=$rbase plan "$frontier" golden
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "dirty since-receipt run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: since-receipt not used: the receipt names HEAD but the checkout is not clean' "$tmp/out" || fail "dirty checkout used the receipt: $(cat "$tmp/out")"
+git -C "$rrepo" checkout -q -- notes/a.txt
+BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
+grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
+
 printf 'batch-precheck_test: PASS\n'
