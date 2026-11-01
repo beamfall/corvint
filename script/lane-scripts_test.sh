@@ -17,6 +17,9 @@ export LC_ALL=C
 # (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
 # point them at the caller's repository and its remote instead of the fixtures.
 unset $(git rev-parse --local-env-vars)
+# V1-3843: a caller's Go cache settings must not reach the fixtures either; heavy.sh would otherwise
+# forward them to the fake offload host and group 7 would compare against the caller's paths.
+unset GOCACHE CORVINT_GOCACHE GOTMPDIR
 
 script=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1
