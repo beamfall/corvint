@@ -111,6 +111,11 @@ func newServiceHome(t *testing.T) *serviceHome {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// V1-3686: t.TempDir makes its directory 0777 &^ umask, so a 0002 umask (WSL, Unraid) leaves
+	// it group-writable and observeFile refuses every file under it.
+	if err := os.Chmod(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	s := &serviceHome{home: home, work: filepath.Join(home, "project"), exe: filepath.Join(home, "bin", "corvint-tasks"), config: filepath.Join(home, "config", "dispatch.json"), profile: filepath.Join(home, "config", "service.json")}
 	for _, d := range []string{s.work, filepath.Dir(s.exe), filepath.Dir(s.config)} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
