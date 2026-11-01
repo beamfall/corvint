@@ -712,7 +712,8 @@ Both activations are read-only and local-only.
 
 Experimental (ADS-V0): adopt --setup takes no other option and reports the
 repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
-ignored paths), each with its evidence and a suggested fix. It writes nothing.
+ignored paths, declared test commands), each with its evidence and a suggested
+fix. It writes nothing.
 `
 
 const recordHelp = `Record one explicit local task outcome.

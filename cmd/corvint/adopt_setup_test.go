@@ -21,9 +21,10 @@ func setupFixture(t *testing.T) string {
 	t.Helper()
 	root := impactCLIRepository(t)
 	files := map[string]string{
-		"AGENTS.md":             "# Agents\n\nRun `corvint context` before editing.\n",
-		".claude/settings.json": "{\"enabledPlugins\": {\"corvint@corvint\": true}}\n",
-		".gitignore":            strings.Join(setupIgnoredPaths, "\n") + "\n",
+		"AGENTS.md":                           "# Agents\n\nRun `corvint context` before editing.\n",
+		".claude/settings.json":               "{\"enabledPlugins\": {\"corvint@corvint\": true}}\n",
+		".gitignore":                          strings.Join(setupIgnoredPaths, "\n") + "\n",
+		".github/cishards/test-commands.json": `{"profile":"corvint-test-commands/0","go":{"env":{"GOTOOLCHAIN":"local"},"flags":["-count=1"]},"languages":{"shell":["make","shell-test"],"typescript":{"none":"no suite"}}}` + "\n",
 	}
 	for name, content := range files {
 		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0o755); err != nil {
@@ -108,7 +109,7 @@ func runSetup(t *testing.T, root string) map[string]map[string]any {
 			}
 		}
 	}
-	if len(checks) != 4 || gaps != payload.Setup.GapCount || (gaps == 0) != (payload.Setup.State == "READY") {
+	if len(checks) != 5 || gaps != payload.Setup.GapCount || (gaps == 0) != (payload.Setup.State == "READY") {
 		t.Fatalf("report: %s", stdout.String())
 	}
 	return checks
@@ -163,6 +164,12 @@ func TestAdoptSetupReportsEachGapClass(t *testing.T) {
 			// ledger; the opt-in unplanned-read ledger relies on the repository's rules.
 			os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".context-corvint/\n"), 0o644)
 		}, ".corvint/unplanned-reads.jsonl: not ignored .corvint/unplanned-reads.enabled: not ignored"},
+		{"test-commands", func(t *testing.T, root string) {
+			os.Remove(filepath.Join(root, ".github", "cishards", "test-commands.json"))
+		}, ".github/cishards/test-commands.json: absent"},
+		{"test-commands", func(t *testing.T, root string) {
+			os.WriteFile(filepath.Join(root, ".github", "cishards", "test-commands.json"), []byte(`{"profile":"other/0","go":{}}`), 0o644)
+		}, `profile is "other/0"`},
 	} {
 		t.Run(tc.class+"/"+tc.witness, func(t *testing.T) {
 			root := setupFixture(t)
@@ -205,5 +212,30 @@ func TestAdoptSetupUnobservedChecksCarryAFix(t *testing.T) {
 	t.Setenv("PATH", t.TempDir())
 	if check := setupIgnoreCheck(context.Background(), root); check.Status != "unobserved" || check.Fix == "" || !strings.Contains(fmt.Sprint(check.Evidence), "git: not found") {
 		t.Fatalf("no git: %+v", check)
+	}
+}
+
+// ADS-V0-800..802: the hook fix names resources an adopter can resolve, the ignore check names the
+// shared index store instead of asking to ignore .corvint/index/, and a readable declaration
+// reports its commands and the declared languages corvint impact abstains on.
+func TestADS800SetupFixesResolveInAdopterRepositories(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	root := setupFixture(t)
+	os.WriteFile(filepath.Join(root, ".claude", "settings.json"), []byte("{}\n"), 0o644)
+	checks := runSetup(t, root)
+	fix := fmt.Sprint(checks["hooks"]["fix"])
+	if strings.Contains(fix, "see integrations/") || !strings.Contains(fix, "https://github.com/beamfall/corvint/tree/main/integrations/claude-code") {
+		t.Fatalf("hooks fix names a Corvint-repo path: %q", fix)
+	}
+	ignore := fmt.Sprint(checks["ignored-paths"]["evidence"])
+	if checks["ignored-paths"]["status"] != "ok" || strings.Contains(ignore, ".corvint/index/") || !strings.Contains(ignore, "index store: ") || !strings.Contains(ignore, filepath.Join("corvint", "index")+" is under the Git common directory") {
+		t.Fatalf("ignored-paths does not match the real index location: %v", checks["ignored-paths"])
+	}
+	tests := fmt.Sprint(checks["test-commands"]["evidence"])
+	for _, want := range []string{"go: GOTOOLCHAIN=local go test -count=1", "shell: make shell-test", "typescript: none (no suite)", "no corvint impact rule (impact abstains on their files): shell"} {
+		if !strings.Contains(tests, want) {
+			t.Fatalf("test-commands evidence lacks %q: %s", want, tests)
+		}
 	}
 }
