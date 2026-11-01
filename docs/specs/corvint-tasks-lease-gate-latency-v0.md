@@ -5,7 +5,7 @@ Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
+Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186, V1-1058, V1-2186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
 amend the write rounds of the [agent lease contract](corvint-tasks-agent-leases-v0.md), whose
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 They change no lease semantics, stored state, wire format or receipt.
@@ -234,6 +234,38 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   run the harness MUST run the complete audit and record it in the report's `audit` field, failing
   unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
   checks; it sets no latency target and no production path reads the knob.
+- `LGL-V0-802`: (proposed; V1-3186) The canonical encoder MUST copy each run of string bytes that
+  is neither `"`, `\\` nor a control below 0x20 to the output in one append, and the strict
+  parser MUST take a string that holds no such byte before its closing quote as those bytes in one
+  copy, checking hostile code points only when a byte of the run is 0x80 or above; the parser's
+  canonical re-encode MUST start from a buffer of the body's length. The encoded bytes, the parsed
+  values and every refusal (code, reason and byte position) MUST be exactly those of the
+  byte-at-a-time forms, for valid and invalid UTF-8. No audit, digest or canonical-form check is
+  skipped: the complete `receipt audit` still reads, parses, re-encodes and hashes every receipt
+  and post. Target: the complete audit's median wall time at 13,000 and 40,000 synthetic receipts
+  at least 15 % below the base binary's in interleaved fresh-process runs on one host, with
+  byte-identical output.
+- `LGL-V0-803`: (proposed; V1-1058) `queue status` and `doctor` MUST report, beside
+  `journalAudit`, `journalAuditCheckpoint`: `USED` when the shared journal audit resumed from the
+  retained read checkpoint; `ABSENT`, `UNREADABLE` or `MALFORMED` when it ran complete because no
+  readable, decodable checkpoint existed; `NOT_APPLIED` when one was read but did not bind the
+  store as it is; `NOT_OBSERVED` when the command needed no journal audit. The field is derived
+  from what the read already read and MUST NOT write anything (invariant 4). A command in which a
+  writer failed to create, write or rename a derived checkpoint or writer-checkpoint file (the
+  read checkpoint, the writer checkpoint, its base or its invalidation token) MUST carry the
+  warning `CHECKPOINT_RETENTION_FAILED: derived file NAME was not retained; ...` once per file,
+  and its outcome, codes, items and the store MUST be exactly what they would have been had the
+  retention succeeded (CAL-V0-060). A deliberate skip (a busy lock at deferred retention, a
+  changed invalidation token, a checkpoint below the minimum) is not a failure and is not reported.
+- `LGL-V0-804`: (proposed; V1-2186) The V1-1701 walk-cost harness `TestV11701_WalkCost` MUST
+  report, per run and as medians, the wall time split into process CPU (user plus system), the Go
+  runtime's mutator and GC CPU, the run-queue delay and the I/O wait, and the command, the test
+  binary's SHA-256, the CPU count and the host load before and after the runs. I/O wait MUST be
+  measured apart from CPU, not inferred from a CPU profile: a sampler reads each thread's state from
+  `/proc/self/task` every `CORVINT_TASKS_WALK_COST_IO_SAMPLE_MS` (default 2; 0 disables) and counts
+  threads in uninterruptible sleep; where that is unavailable the field is `NOT_OBSERVED`, never 0.
+  The A/B procedure that compares two binaries over one fixture is documented in
+  `docs/BENCHMARK-HOST.md`.
 
 ## Non-goals
 
@@ -309,7 +341,42 @@ later step of the same receipt sees; every step only reads them, which
 one receipt is the whole boundary: a cached audit result across invocations would need its own
 input binding and is not part of this contract.
 
+With LGL-V0-802 a fast path that accepted a string the general path refuses, or wrote a byte the
+per-byte encoder escapes, would change canonical bytes and therefore every digest. The skipped
+bytes are exactly those the general loop appends unchanged: a valid multi-byte sequence never holds
+a byte below 0x80, and invalid UTF-8 is copied raw by both forms, which
+`TestLGLV0802_EncodeStringMatchesPerByte` checks over 20,000 random strings.
+
+With LGL-V0-803 a field that claimed `USED` for a complete audit would hide the cost it exists to
+show; it is read from the audit's own `Mode`. The retention warning is collected per process and
+taken by the command's result encoder, so an in-process caller running commands concurrently may
+see another command's warning; a command-line process runs one command. The warning text names
+the file, not the error, so it carries no path outside the store's siblings.
+
 ## Acceptance evidence
+
+For `LGL-V0-802`, `TestLGLV0802_EncodeStringMatchesPerByte` and
+`TestLGLV0802_ParseStringFastPathMatchesGeneral` (`internal/tasks/wire/string_fastpath_test.go`)
+compare the run-copying forms with the byte-at-a-time encoder kept in the test, over random strings
+of escapes, controls, multi-byte and invalid UTF-8, and pin refusal texts and positions; the wire,
+journal, snapshot and ticket packages pass unchanged. Interleaved fresh-process runs (five per
+binary per size, Unraid Linux x86_64, 12 CPUs, load 0.5 to 2.8) gave `receipt audit` medians base
+to new of 0.66 to 0.54 s at 3,000 synthetic receipts, 2.44 to 1.86 s at 13,000 and 7.35 to 5.47 s
+at 40,000, byte-identical, and the walk-cost harness at 40,000 4.19-4.44 to 3.49-3.75 s; the
+build-log entry `docs/build-log/2026-11-01-tkp-u33.md` has every run.
+
+For `LGL-V0-803`, `TestLGLV0803_ReadsNameWhyTheAuditWasComplete`
+(`internal/tasks/cli/retention_report_test.go`) drives `queue status` and `doctor` through `USED`,
+`MALFORMED`, `NOT_APPLIED` and `ABSENT` and shows the state tree and the checkpoint bytes unchanged
+by each read; `TestLGLV0803_WriterReportsAFailedRetention` blocks the read checkpoint with a
+non-empty directory, shows a note write commits exactly one receipt and warns
+`CHECKPOINT_RETENTION_FAILED` for `taskman.checkpoint.json`, and that the next write, once the
+path is clear, retains the checkpoint and warns nothing.
+
+For `LGL-V0-804`, `TestLGLV0804_WalkSplitParsesStateAndKeepsUnobserved` pins the thread-state parse
+and that an unobserved run keeps the median `NOT_OBSERVED`; the 40,000-receipt A/B in the
+2026-11-01 tkp-u33 build log reports, per run, about 14-15 s CPU, 1.0 s system time and 0 ms
+sampled I/O wait over a 3.5 s wall walk: the walk is CPU-bound on a warm page cache.
 
 `TestLGLV0800_AttemptMemoMatchesFreshDecode` (`internal/tasks/transaction/ticket_posts_test.go`,
 V1-3186) shows the memo returns what a fresh read and decode return for a valid attempt, a
@@ -477,4 +544,8 @@ directories before the next is published; nothing it writes differs in format, a
 binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
 `TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
 decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes the mutator
-workers and the post-run audit; with the knob unset the harness runs as before.
+workers and the post-run audit; with the knob unset the harness runs as before. Reverting
+LGL-V0-802 restores the byte-at-a-time encoder and parser loops; the bytes they produce are the
+same, so stores and digests are unchanged. Reverting LGL-V0-803 drops the
+`journalAuditCheckpoint` field and the retention warning; nothing is stored. Reverting LGL-V0-804
+removes the split from the walk-cost report; the runs and medians stay.
