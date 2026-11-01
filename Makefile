@@ -39,7 +39,74 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test binary-blobs-check legal-file-pins-check mkfifo-build-tags-check
+# One step per line (V1-3470, STR-V0-920): the first five run first in this order; the rest
+# stay sorted, so lanes adding different steps insert at different lines and merge cleanly.
+GATE_STEPS = \
+  host-adapter-test \
+  go-version \
+  go-test \
+  go-vet \
+  cross-vet \
+  agent-preflight-test \
+  ai-coauthor-trailers-test \
+  analyzer-schema-check \
+  analyzer-schema-test \
+  batch-precheck-test \
+  binary-blobs-check \
+  ci-least-privilege-check \
+  ci-least-privilege-test \
+  codex-review-test \
+  companion-release-gate-test \
+  decision-numbers-check \
+  decision-numbers-test \
+  diagnostic-coverage-check \
+  documentation-paths-check \
+  documentation-paths-test \
+  dogfood-bin-reuse-test \
+  dogfood-cache-test \
+  dogfood-change-test \
+  eol-policy-check \
+  eol-policy-test \
+  error-code-ownership-check \
+  error-code-ownership-test \
+  gate-receipt-test \
+  go-archive-gate \
+  go-archive-gate-test \
+  go-cache-trim-test \
+  go-format-check \
+  go-format-test \
+  goos-filenames-check \
+  goos-filenames-test \
+  hlq-local-test \
+  host-package-versions-check \
+  host-package-versions-test \
+  instruction-conflicts-test \
+  interop-gate \
+  legal-file-pins-check \
+  license-headers-check \
+  license-headers-test \
+  line-citations-check \
+  line-citations-test \
+  mkfifo-build-tags-check \
+  no-python-runtime-dependency-test \
+  pre-push-dogfood-seal-test \
+  pre-push-windows-vet-test \
+  qualify-tasks-basic-test \
+  release-checklist-test \
+  repin-test \
+  requirement-definitions-check \
+  requirement-definitions-test \
+  rg-fallback-test \
+  runtime-environment-test \
+  scratch-sweep-test \
+  spec-requirements-check \
+  spec-requirements-test \
+  test-commands-check \
+  test-read-scopes-check \
+  traceability-tests-check \
+  traceability-tests-test \
+  unbounded-readers-check \
+  # end of GATE_STEPS: add a step above, in sorted order, ending its line with a backslash
 .PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
@@ -998,7 +1065,44 @@ test-shard: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test requirement-definitions-test traceability-tests-test decision-numbers-test analyzer-schema-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test
+shell-test: \
+  agent-preflight-test \
+  ai-coauthor-trailers-test \
+  analyzer-schema-test \
+  batch-precheck-test \
+  ci-least-privilege-test \
+  codex-review-test \
+  companion-release-gate-test \
+  decision-numbers-test \
+  documentation-paths-test \
+  dogfood-bin-reuse-test \
+  dogfood-cache-test \
+  dogfood-change-test \
+  eol-policy-test \
+  error-code-ownership-test \
+  gate-receipt-test \
+  go-archive-gate-test \
+  go-cache-trim-test \
+  go-format-test \
+  goos-filenames-test \
+  hlq-local-test \
+  host-package-versions-test \
+  instruction-conflicts-test \
+  license-headers-test \
+  line-citations-test \
+  no-python-runtime-dependency-test \
+  pre-push-dogfood-seal-test \
+  pre-push-windows-vet-test \
+  qualify-tasks-basic-test \
+  release-checklist-test \
+  repin-test \
+  requirement-definitions-test \
+  rg-fallback-test \
+  runtime-environment-test \
+  scratch-sweep-test \
+  spec-requirements-test \
+  traceability-tests-test \
+  # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no
