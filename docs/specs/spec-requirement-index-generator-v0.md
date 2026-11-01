@@ -95,6 +95,8 @@ No requirement below diverges from the implementation.
   digits, bounded by word boundaries (`script/gen-spec-requirements.sh:404@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
+  Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
+  four or more digits is indexed only under a prefix that has a three-digit ID.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
   ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
   optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
@@ -550,6 +552,28 @@ No requirement below diverges from the implementation.
   sentence of every live spec's README row is projected from its digest and checked by
   `spec-requirements-check`; only superseded rows keep a hand-written retirement note. Rollback:
   drop the refusal; a claimless live spec's README description is again hand-written.
+- `SRG-V0-790`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3793; refines
+  SRG-V0-003) The SRG-V0-003 token MUST accept three or more digits after the prefix, and an ID
+  of four or more digits MUST be indexed only when its prefix (the ID without its digits) also
+  has a three-digit ID on a rank 0 line, so ticket IDs (`V1-0789`) and record IDs (`DR-0046`) in
+  table rows and prose stay text. Every generated ordering keyed by ID (`--lines`, ties of the
+  TSV order, the README range) MUST compare the prefix as text and the digits as a number, so
+  `CIN-V0-999` precedes `CIN-V0-1010`, and MUST break a tie of equal numbers written in different
+  widths (`CIN-V0-001`, `CIN-V0-0001`) by comparing the full text, so no ordering follows hash
+  order. Non-goals: a prefix that has only four-digit IDs; a
+  registry of prefixes. Failure mode: before this, `- **CIN-V0-1010:** x` produced no row and no
+  error, so a requirement past 999 silently left REQUIREMENTS.tsv and every check that reads it.
+  Rollback: restore `[0-9]{3}` and the text sorts.
+- `SRG-V0-791`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every
+  generator mode MUST refuse, before printing or writing anything, a definition-shaped line (a
+  definition boundary, not a wrapped continuation, whose bold `**ID:**`, `**ID.**` or backticked
+  `` `ID`: `` names an uppercase prefix ending in `-` followed by a digit) whose ID is not that
+  prefix followed by three or more digits only, when the prefix is one SRG-V0-790 knows, naming
+  `SPEC:LINE`, the ID and the repair. The prefix of a malformed ID is the longest known prefix it
+  begins with before a digit, so a hyphenated tail (`CIN-V0-1010-bad`) is refused too. Non-goals: prose mentions; unknown prefixes, which stay
+  text; a lettered sub-requirement such as `VAF-009A` (three or more digits and one uppercase
+  letter), which stays unindexed under its parent row as before. Failure mode: before this,
+  `CIN-V0-01` or `CIN-V0-1010a` written as a definition produced no row and no error. Rollback: drop the refusal block.
 
 ## Non-goals and simpler baseline
 
@@ -688,6 +712,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-921 | `script/spec-requirements-conflict_test.sh`: two lanes that each add a new spec and repin a different receipt conflict in INDEX.json and the ledger; the resolve alone finishes the merge, every generated file equals the regenerated one, both new requirements are rows and both receipts are current |
 | SRG-V0-922 | `script/spec-requirements-conflict_test.sh`: in that merge `make spec-requirements` refuses with one line naming INDEX.json and `make spec-requirements-resolve`, and again once INDEX.json is staged with its markers |
 | SRG-V0-923 | `script/spec-requirements-worktree-check_test.sh`: a staged spec edit whose regenerated INDEX.json is left unstaged fails naming INDEX.json and the fix; staging it passes |
+| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 16: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; `--readme` over `CIN-V0-001`, `CIN-V0-0001`, `CIN-V0-999` and `CIN-V0-1010` writes the range `CIN-V0-0001..1010` in ten of ten runs; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
+| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 16: `- **CIN-V0-01:** x`, `- **CIN-V0-1010a:** x` and `- **CIN-V0-1010-bad:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
 
 ## Traceability
 
@@ -737,6 +763,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-921 | `script/spec-requirements-resolve.sh` ledger reconcile and repin step | `spec-requirements-test` |
 | SRG-V0-922 | the `spec-requirements` target's unmerged check in `Makefile`; the staged-marker restart in `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
 | SRG-V0-923 | the generated-file index comparison in `script/spec-requirements-worktree-check.sh` | `spec-requirements-test` |
+| SRG-V0-790 | the token, `requirement_id` and `id_order` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-791 | the malformed-definition refusal in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
@@ -782,6 +810,9 @@ SRG-V0-980..983 roll back as one revert of their commits: the frozen file and re
 SRG-V0-950..954 roll back as one revert of their commits: the messages return to the first
 refusal per run, the indented-paragraph and continuation-note rules go, and the recipes return to
 `--all`; no generated file moves, since the committed corpus regenerates unchanged under them.
+
+SRG-V0-790 and SRG-V0-791 roll back as one revert of their commit; no generated file moves, since
+the committed corpus had no four-digit requirement ID when they landed.
 
 Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
 `decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,
