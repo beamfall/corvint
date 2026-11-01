@@ -365,6 +365,60 @@ func TestASDV0942EveryScriptTestHasAMakeTarget(t *testing.T) {
 	}
 }
 
+// nonExecutableScriptTests lists the script/*_test.sh files the Git index at
+// root records without the executable bit (mode other than 100755).
+func nonExecutableScriptTests(t *testing.T, root string) []string {
+	t.Helper()
+	cmd := exec.Command("git", "ls-files", "-s", "--", "script/*_test.sh")
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("git ls-files in %s: %v", root, err)
+	}
+	var bad []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		mode, rest, ok := strings.Cut(line, " ")
+		_, path, _ := strings.Cut(rest, "\t")
+		if ok && mode != "100755" {
+			bad = append(bad, path+" ("+mode+")")
+		}
+	}
+	return bad
+}
+
+// ASD-V0-921 (V1-3243): every script/*_test.sh is committed executable, so
+// a selected shell test runs directly; a 100644 one in a fixture index is
+// named. make shell-test-registration-check runs this in doc-gates.
+func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
+	root := requireMake(t)
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not on PATH")
+	}
+	if bad := nonExecutableScriptTests(t, root); len(bad) != 0 {
+		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
+	}
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "script"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, mode := range map[string]os.FileMode{"ok_test.sh": 0o755, "plain_test.sh": 0o644} {
+		if err := os.WriteFile(filepath.Join(dir, "script", name), []byte("#!/bin/sh\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "script"}, {"update-index", "--chmod=-x", "script/plain_test.sh"}, {"update-index", "--chmod=+x", "script/ok_test.sh"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	if got := nonExecutableScriptTests(t, dir); !slices.Equal(got, []string{"script/plain_test.sh (100644)"}) {
+		t.Errorf("fixture index: %q, want [script/plain_test.sh (100644)]", got)
+	}
+}
+
 // listEntries returns the one-per-line entries of the backslash-continued
 // list that starts at the line equal to head, with their line indexes.
 func listEntries(t *testing.T, lines []string, head string) ([]string, []int) {

@@ -928,11 +928,12 @@ dogfood-inputs-check:
 shell-foreign-callers-check:
 	$(GO_TEST_COMMAND) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
-# shell-test-registration-check runs the STR-V0-004 shell-test list check alone, so a GATE_STEPS
-# shell step missing from shell-test fails in doc-gates, not only in go test (DCW-V0-813).
+# shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
+# executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
+# committed without its executable bit, fails in doc-gates, not only in go test (DCW-V0-813).
 .PHONY: shell-test-registration-check
 shell-test-registration-check:
-	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
+	$(GO_TEST_COMMAND) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
@@ -1015,7 +1016,7 @@ dogfood-change-test:
 
 .PHONY: runtime-environment-test
 runtime-environment-test:
-	@bash script/runtime-environment_test.sh
+	@script/runtime-environment_test.sh
 
 # Outside the gate: vscode-check-install-test runs npm ci, which needs the npm registry on an empty
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
@@ -1027,7 +1028,7 @@ public-release-check-test:
 
 .PHONY: release-env-compat-test
 release-env-compat-test:
-	@bash script/release-env-compat_test.sh
+	@script/release-env-compat_test.sh
 
 .PHONY: seed-planning-store-test
 seed-planning-store-test:
