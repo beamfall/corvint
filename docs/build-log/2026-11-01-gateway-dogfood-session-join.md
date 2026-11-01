@@ -31,9 +31,18 @@ never read the ledger (invariant 4).
   `f914cbaa…be4402`, which equals the hash recomputed by hand, and both ledger lines (HTTP 200,
   `claude-opus-5-5`) carry that `claudeSessionKey`. `report --session` on that key printed 2 requests:
   1,204 uncached input, 37,153 cache-creation and 152 output tokens. An unknown key printed
-  `NOT_OBSERVED`. The print-mode session was not enrolled (`dogfood status` reports
-  `enrollment-inactive`), so this proves that the key the adapter issues matches the key in the ledger,
-  not a full dogfood change run through the gateway.
+  `NOT_OBSERVED`. The print-mode session was not enrolled, so that proved only the key match.
+- Enrolled dogfood run through the gateway: a second print-mode session (`--session-id
+  3c5e7a9b-…`) in a fresh linked worktree at `31f3134ba` took `c65aa8c2…691070` from its own
+  session-start hook context, ran `corvint dogfood begin` with a plan for this spec and two checks,
+  added the V1-4055 live-qualification paragraph to the spec, committed it (`ca1f68fbc`, carried here)
+  and ran `dogfood verify` for `make spec-requirements-check` and `go vet` on both packages; both
+  qualified with exit 0. `dogfood status` reports the enrollment active. `report --session` on that key
+  printed 13 requests: 1,852 uncached input, 466,687 cache-read, 32,964 cache-creation and 3,556
+  output tokens, a 93.1% cache-read share, and no cache breaks. The enrollment was then cancelled
+  rather than sealed, because its one commit is carried in this change and sealed here.
+- That worktree's first session got no session key: its hook degraded with
+  `dogfood-event-index-snapshot-stale`, and the next session received the key. Filed as V1-4182.
 - Independent review (Codex, one round) returned one finding: an explicit empty `--session=` skipped
   validation and reported every session. `report` now validates any supplied `--session`, and the
   test covers the empty and uppercase forms.
