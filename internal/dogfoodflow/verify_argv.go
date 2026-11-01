@@ -34,10 +34,12 @@ const runAlternation = `(?:` + runClassName + `(?:\|` + runClassName + `)+` +
 
 // runQuotedWord is runAlternation plus the single forms only a quoted word
 // admits: one plain name (-run 'TestA', -run '.'), one anchored name
-// (-run '^TestA$') and the match-everything -run '.*' (DCW-V0-904). Only an
-// unquoted alternation gets a quoted-form suggestion; the generic hint names
-// these forms.
-const runQuotedWord = `(?:` + runAlternation + `|` + runName + `|\^` + runName + `\$|\.\*)`
+// (-run '^TestA$') and the match-everything -run '.*' (DCW-V0-904). Since
+// DCW-V0-814 a name or a ^(...) group may be anchored at one end only
+// (-run '^TestA', -run 'TestA$', -run '^(TestA|TestB)'), as go test accepts.
+// Only an unquoted alternation gets a quoted-form suggestion; the generic
+// hint names these forms.
+const runQuotedWord = `(?:` + runAlternation + `|\^?` + runName + `\$?|\^\(` + runClassName + `(?:\|` + runClassName + `)+\)|\.\*)`
 
 // runPrefix and runSuffix are the words around the -run word: the
 // recorder's v1 command bytes only.
@@ -53,8 +55,8 @@ const (
 // inside either quote every one of those bytes is literal to a POSIX shell,
 // and the word is recorded as one argv argument no shell parses. The words
 // around it hold only the recorder's v1 command bytes. DCW-V0-904 also admits
-// one plain or anchored name and .*; no other quote, class or nested group is
-// admitted.
+// one plain or anchored name and .*, and DCW-V0-814 a name or ^(...) group
+// anchored at one end; no other quote, class or nested group is admitted.
 var quotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(?:'(` + runQuotedWord + `)'|"(` + runQuotedWord + `)")` + runSuffix + `$`)
 
 // unquotedRunAlternation is the same line with the -run word unquoted, which
@@ -219,7 +221,7 @@ func quotedRunRefusal(line string) string {
 			return fmt.Sprintf("the quoted -run word %q holds %q at byte %d, which the verify grammar does not admit (DCW-V0-991)", word, string(r), index)
 		}
 	}
-	return fmt.Sprintf("the quoted -run word %q is none of the admitted forms: a name (with bracket classes), ^A$, .*, an alternation of names, ^(A|B)$ or ^A$|^B$ (DCW-V0-991)", word)
+	return fmt.Sprintf("the quoted -run word %q is none of the admitted forms: a name (with bracket classes), ^A$, ^A, A$, .*, an alternation of names, ^(A|B)$, ^(A|B) or ^A$|^B$ (DCW-V0-991, DCW-V0-814)", word)
 }
 
 // ValidateVerifyLine reports whether one verify-file line is a command the

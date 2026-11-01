@@ -317,7 +317,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	for _, tc := range []struct {
 		name, verifyFile, verify, reason string
 	}{
-		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^Test.*' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "env-quoted", verify: "go test -run \"Test.*\" ./internal/a", reason: "unsupported-verify-syntax"},
 		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test.*)$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "unquoted-run-alternation", verifyFile: write("unquoted.txt", []byte("go test -count=1 ./internal/b\ngo test -count=1 -run TestA|TestB ./internal/a\n")), reason: "unsupported-verify-syntax"},
