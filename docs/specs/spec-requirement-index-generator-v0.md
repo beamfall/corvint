@@ -437,7 +437,9 @@ No requirement below diverges from the implementation.
   has a three-digit ID on a rank 0 line, so ticket IDs (`V1-0789`) and record IDs (`DR-0046`) in
   table rows and prose stay text. Every generated ordering keyed by ID (`--lines`, ties of the
   TSV order, the README range) MUST compare the prefix as text and the digits as a number, so
-  `CIN-V0-999` precedes `CIN-V0-1010`. Non-goals: a prefix that has only four-digit IDs; a
+  `CIN-V0-999` precedes `CIN-V0-1010`, and MUST break a tie of equal numbers written in different
+  widths (`CIN-V0-001`, `CIN-V0-0001`) by comparing the full text, so no ordering follows hash
+  order. Non-goals: a prefix that has only four-digit IDs; a
   registry of prefixes. Failure mode: before this, `- **CIN-V0-1010:** x` produced no row and no
   error, so a requirement past 999 silently left REQUIREMENTS.tsv and every check that reads it.
   Rollback: restore `[0-9]{3}` and the text sorts.
@@ -446,7 +448,8 @@ No requirement below diverges from the implementation.
   definition boundary, not a wrapped continuation, whose bold `**ID:**`, `**ID.**` or backticked
   `` `ID`: `` names an uppercase prefix ending in `-` followed by a digit) whose ID is not that
   prefix followed by three or more digits only, when the prefix is one SRG-V0-790 knows, naming
-  `SPEC:LINE`, the ID and the repair. Non-goals: prose mentions; unknown prefixes, which stay
+  `SPEC:LINE`, the ID and the repair. The prefix of a malformed ID is the longest known prefix it
+  begins with before a digit, so a hyphenated tail (`CIN-V0-1010-bad`) is refused too. Non-goals: prose mentions; unknown prefixes, which stay
   text; a lettered sub-requirement such as `VAF-009A` (three or more digits and one uppercase
   letter), which stays unindexed under its parent row as before. Failure mode: before this,
   `CIN-V0-01` or `CIN-V0-1010a` written as a definition produced no row and no error. Rollback: drop the refusal block.
@@ -569,8 +572,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
 | SRG-V0-890 | `script/gen-spec-requirements_test.sh` case 13: the Intent status refusal names line 3 of the fixture spec `frozen.md`, the frozen file and the Requirements section `(lines 10..13)`; the digest refusal names its line 8. |
 | SRG-V0-891 | `script/gen-spec-requirements_test.sh` case 14: a definition after the section is refused in the TSV and `--all` modes naming line 13 of the fixture spec `placed.md`, `PLC-V0-002` and the section `(lines 3..6)`; the inside and fenced definitions are not named; a baselined one and a spec without the section pass. |
-| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
-| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-01:** x` and `- **CIN-V0-1010a:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
+| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; `--readme` over `CIN-V0-001`, `CIN-V0-0001`, `CIN-V0-999` and `CIN-V0-1010` writes the range `CIN-V0-0001..1010` in ten of ten runs; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
+| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-01:** x`, `- **CIN-V0-1010a:** x` and `- **CIN-V0-1010-bad:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
 
 ## Traceability
 
