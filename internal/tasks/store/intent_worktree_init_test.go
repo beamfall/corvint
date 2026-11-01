@@ -22,6 +22,7 @@ import (
 // once the worktree holds the same files, init succeeds and its records land
 // only there.
 func TestCTWV0780_InitFromFeatureBranchWithLinkedIntentWorktree(t *testing.T) {
+	fixture.SkipUnsupportedPlatform(t)
 	t.Parallel()
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git unavailable")
