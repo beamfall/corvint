@@ -223,7 +223,7 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 | `corvint-postmerge-connect` | internal | Post-merge connector plan, intake and write | `corvint-postmerge-connect plan --experimental --root REPO ...` | Connector records | internal | `experimental-and-absolute-root-required` | [PMC-V0](specs/postmerge-connectors-v0.md) |
 | `corvint-postmerge-host-launcher` | internal | Launch the paired post-merge CI host | (invoked by the CI host) | Host records | internal | `invalid paired host invocation` | [PCH-V0](specs/postmerge-ci-host-v0.md) |
 | `corvint-postmerge-metrics` | internal | Post-merge metrics under a policy | `corvint-postmerge-metrics report --policy FILE --records FILE --from FROM --until UNTIL` | Metrics JSON | internal | `invalid-input` | [PMM-V0](specs/postmerge-metrics-v0.md) |
-| `corvint-postmerge-workflow` | internal | Replay a post-merge workflow as a dry run | `corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO` | Replay record | internal | Missing fixture or policy | [PMR-V0](specs/postmerge-replay-v0.md) |
+| `corvint-postmerge-workflow` | internal | Replay a post-merge workflow as a dry run | `corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO`; `encode-id VALUE` encodes a branch name as a workflow ID | Replay record | internal | Missing fixture or policy | [PMR-V0](specs/postmerge-replay-v0.md) |
 <!-- /capability-gate:binaries -->
 
 ## MCP tools
