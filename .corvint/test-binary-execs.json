@@ -4,13 +4,5 @@
     "conformance/host-lifecycle-v1": [
       "cmd/corvint"
     ]
-  },
-  "consumers": {
-    "tools/web-flows/test/e2e.mjs": [
-      "cmd/corvint-web-flows"
-    ],
-    "tools/web-flows/test/navigation-e2e.mjs": [
-      "cmd/corvint-web-flows"
-    ]
   }
 }

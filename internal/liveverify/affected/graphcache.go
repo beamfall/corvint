@@ -448,7 +448,7 @@ func completeStamps(entry cacheEntry) string {
 	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
 		return incomplete
 	}
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, UnboundedReaderExclusionsPath} {
 		if _, ok := stamps[observedPath{relative: declaration}]; !ok {
 			return incomplete
 		}

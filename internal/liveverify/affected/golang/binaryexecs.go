@@ -42,9 +42,60 @@ const (
 type binaryExecsFile struct {
 	Profile  string              `json:"profile"`
 	Packages map[string][]string `json:"packages"`
-	// Consumers maps a repository file that no Go package holds, such as a
-	// Node script, to the commands whose built binary it runs (AFP-V0-762).
-	Consumers map[string][]string `json:"consumers,omitempty"`
+}
+
+// BinaryConsumersProfile is the closed profile name of affected.BinaryConsumersPath.
+const BinaryConsumersProfile = "corvint-test-binary-consumers/0"
+
+// binaryConsumersFile maps a repository file that no Go package holds, such as
+// a Node script, to the commands whose built binary it runs (AFP-V0-762). It is
+// a file of its own, so a planner that predates it ignores it rather than
+// refusing affected.BinaryExecsPath.
+type binaryConsumersFile struct {
+	Profile   string              `json:"profile"`
+	Consumers map[string][]string `json:"consumers"`
+}
+
+// readBinaryConsumers returns the declared consumers: nil with no
+// declaration, an error for one that is unreadable, oversized or invalid in
+// any member, under the packages entry grammar.
+func readBinaryConsumers(root *affected.Source) (map[string][]string, error) {
+	body, err := root.ReadBounded(affected.BinaryConsumersPath, maxBinaryExecBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var declared binaryConsumersFile
+	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
+		return nil, err
+	}
+	if declared.Profile != BinaryConsumersProfile || len(declared.Consumers) == 0 || len(declared.Consumers) > maxBinaryExecPackages {
+		return nil, fmt.Errorf("%s: profile must be %s with 1 to %d consumers", affected.BinaryConsumersPath, BinaryConsumersProfile, maxBinaryExecPackages)
+	}
+	if err := validExecEntries(declared.Consumers); err != nil {
+		return nil, err
+	}
+	return declared.Consumers, nil
+}
+
+// validExecEntries checks each key and its 1 to 256 strictly ascending
+// command directories.
+func validExecEntries(member map[string][]string) error {
+	for key, entries := range member {
+		if !affected.ValidRelativePath(key) || len(entries) == 0 || len(entries) > maxBinaryExecEntries {
+			return fmt.Errorf("%q", key)
+		}
+		previous := ""
+		for _, entry := range entries {
+			if !affected.ValidRelativePath(entry) || entry <= previous || entry == key {
+				return fmt.Errorf("%q entry %q", key, entry)
+			}
+			previous = entry
+		}
+	}
+	return nil
 }
 
 // applyBinaryExecs sets each unit's command edges, given each unit's
@@ -56,17 +107,23 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 	for index := range units {
 		edges[index] = literalExecs(root, units[index], directories[index], owners[directories[index]], commands)
 	}
-	declared, consumers, err := readBinaryExecs(root)
+	declared, err := readBinaryExecs(root)
 	var declaredEdges map[int][]string
-	var callers map[string][]string
 	if err == nil {
 		declaredEdges, err = matchBinaryExecs(declared, directories, commands)
 	}
-	if err == nil {
-		callers, err = matchBinaryConsumers(consumers, commands)
-	}
 	if err != nil {
 		frontier[FrontierBinaryExecsInvalid] = true
+	}
+	// A consumer declaration defect drops only its own entries (AFP-V0-762).
+	consumers, consumersErr := readBinaryConsumers(root)
+	var callers map[string][]string
+	if consumersErr == nil {
+		callers, consumersErr = matchBinaryConsumers(consumers, commands)
+	}
+	if consumersErr != nil {
+		frontier[FrontierBinaryExecsInvalid] = true
+		callers = nil
 	}
 	for index := range units {
 		for _, id := range declaredEdges[index] {
@@ -437,36 +494,25 @@ func commandDirectory(value, directory, moduleDir string) (string, bool) {
 // readBinaryExecs returns the declared command directories by package
 // directory: nil with no declaration, an error for one that is unreadable,
 // oversized, not a regular file, or invalid in any member.
-func readBinaryExecs(root *affected.Source) (map[string][]string, map[string][]string, error) {
+func readBinaryExecs(root *affected.Source) (map[string][]string, error) {
 	body, err := root.ReadBounded(affected.BinaryExecsPath, maxBinaryExecBytes)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil, nil
+		return nil, nil
 	}
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	var declared binaryExecsFile
 	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	if declared.Profile != BinaryExecsProfile || declared.Packages == nil || len(declared.Packages)+len(declared.Consumers) > maxBinaryExecPackages {
-		return nil, nil, fmt.Errorf("%s: profile must be %s with at most %d packages and consumers", affected.BinaryExecsPath, BinaryExecsProfile, maxBinaryExecPackages)
+	if declared.Profile != BinaryExecsProfile || declared.Packages == nil || len(declared.Packages) > maxBinaryExecPackages {
+		return nil, fmt.Errorf("%s: profile must be %s with at most %d packages", affected.BinaryExecsPath, BinaryExecsProfile, maxBinaryExecPackages)
 	}
-	for _, member := range []map[string][]string{declared.Packages, declared.Consumers} {
-		for directory, entries := range member {
-			if !affected.ValidRelativePath(directory) || len(entries) == 0 || len(entries) > maxBinaryExecEntries {
-				return nil, nil, fmt.Errorf("%s: package or consumer %q", affected.BinaryExecsPath, directory)
-			}
-			previous := ""
-			for _, entry := range entries {
-				if !affected.ValidRelativePath(entry) || entry <= previous || entry == directory {
-					return nil, nil, fmt.Errorf("%s: package or consumer %q entry %q", affected.BinaryExecsPath, directory, entry)
-				}
-				previous = entry
-			}
-		}
+	if err := validExecEntries(declared.Packages); err != nil {
+		return nil, fmt.Errorf("%s: package %w", affected.BinaryExecsPath, err)
 	}
-	return declared.Packages, declared.Consumers, nil
+	return declared.Packages, nil
 }
 
 // matchBinaryExecs returns the declared command units by unit index. Every

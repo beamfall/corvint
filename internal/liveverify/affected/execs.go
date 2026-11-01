@@ -10,6 +10,10 @@ import (
 // the package names the command's directory (AFP-V0-037).
 const BinaryExecsPath = ".corvint/test-binary-execs.json"
 
+// BinaryConsumersPath is the repository's declaration of the files, other than
+// Go packages, that run a command's built binary (AFP-V0-762).
+const BinaryConsumersPath = ".corvint/test-binary-consumers.json"
+
 // WitnessBinaryExec names a unit that runs the built binary of a command
 // whose build a dirty path reaches (AFP-V0-037).
 const WitnessBinaryExec = "BINARY_EXEC"
@@ -92,7 +96,7 @@ func (graph *Graph) unselectedConsumers(reached map[string]Witness, selected []S
 		unknown = append(unknown, Unknown{
 			Reason: UnknownUnselectedBinaryConsumer,
 			Detail: file,
-			Hint:   "declared in " + BinaryExecsPath + " as running the built binary of " + commands[file] + ", whose build this change reaches; no selected unit runs it as a test, so run it by its own driver",
+			Hint:   "declared in " + BinaryConsumersPath + " as running the built binary of " + commands[file] + ", whose build this change reaches; no selected unit runs it as a test, so run it by its own driver",
 		})
 	}
 	return unknown

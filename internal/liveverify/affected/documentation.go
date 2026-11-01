@@ -157,7 +157,7 @@ func (graph *Graph) documentationPaths(unknown []Unknown) ([]NonSource, []Unknow
 func (graph *Graph) declarationPath(unknown []Unknown) ([]NonSource, []Unknown) {
 	var paths []string
 	kept := unknown
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, UnboundedReaderExclusionsPath} {
 		index := slices.IndexFunc(kept, func(entry Unknown) bool {
 			return entry.Reason == UnknownUnownedDirtyPath && entry.Detail == declaration
 		})

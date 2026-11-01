@@ -17,7 +17,7 @@ func TestRepositoryDeclaresWebFlowsConsumers_AFPV0762(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, consumers, err := readBinaryExecs(affected.DiskSource(root))
+	consumers, err := readBinaryConsumers(affected.DiskSource(root))
 	if err != nil {
 		t.Fatal(err)
 	}

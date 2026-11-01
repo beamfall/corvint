@@ -25,8 +25,11 @@ func consumerUnknowns(plan affected.Plan) []affected.Unknown {
 // an explicit unknown when the change reaches the command's build, and not
 // for a test-only change of the command or a change elsewhere.
 func TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762(t *testing.T) {
-	root := binaryExecRepository(t, `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]},"consumers":{"web/test/e2e.mjs":["cmd/tool"]}}`)
-	writeFiles(t, root, map[string]string{"web/test/e2e.mjs": "// runs the built tool binary\n"})
+	root := binaryExecRepository(t, `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]}}`)
+	writeFiles(t, root, map[string]string{
+		"web/test/e2e.mjs":           "// runs the built tool binary\n",
+		affected.BinaryConsumersPath: `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/test/e2e.mjs":["cmd/tool"]}}`,
+	})
 	result, err := golang.New().Units(context.Background(), root)
 	if err != nil {
 		t.Fatal(err)
@@ -55,17 +58,22 @@ func TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762(t *testing.T) {
 	}
 }
 
-// AFP-V0-762: a consumer entry that holds no command, or a malformed consumer,
-// is a defect of the whole declaration.
+// AFP-V0-762: a consumer declaration that names no command, or is malformed,
+// declares no consumer and raises the declaration frontier, while the packages
+// declaration keeps its own edges.
 func TestInvalidBinaryConsumerDeclaresNothing_AFPV0762(t *testing.T) {
 	for name, declaration := range map[string]string{
-		"not a command":    `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]},"consumers":{"web/e2e.mjs":["lib"]}}`,
-		"empty entries":    `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]},"consumers":{"web/e2e.mjs":[]}}`,
-		"escaping file":    `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]},"consumers":{"../e2e.mjs":["cmd/tool"]}}`,
-		"unsorted entries": `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]},"consumers":{"web/e2e.mjs":["lib","cmd/tool"]}}`,
+		"not a command":    `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/e2e.mjs":["lib"]}}`,
+		"empty entries":    `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/e2e.mjs":[]}}`,
+		"escaping file":    `{"profile":"corvint-test-binary-consumers/0","consumers":{"../e2e.mjs":["cmd/tool"]}}`,
+		"unsorted entries": `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/e2e.mjs":["lib","cmd/tool"]}}`,
+		"wrong profile":    `{"profile":"corvint-test-binary-execs/0","consumers":{"web/e2e.mjs":["cmd/tool"]}}`,
+		"unknown member":   `{"profile":"corvint-test-binary-consumers/0","consumers":{"web/e2e.mjs":["cmd/tool"]},"x":1}`,
 	} {
 		t.Run(name, func(t *testing.T) {
-			result, err := golang.New().Units(context.Background(), binaryExecRepository(t, declaration))
+			root := binaryExecRepository(t, `{"profile":"corvint-test-binary-execs/0","packages":{"runner":["cmd/tool"]}}`)
+			writeFiles(t, root, map[string]string{affected.BinaryConsumersPath: declaration})
+			result, err := golang.New().Units(context.Background(), root)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -75,6 +83,9 @@ func TestInvalidBinaryConsumerDeclaresNothing_AFPV0762(t *testing.T) {
 			for _, unit := range result.Units {
 				if unit.ExecConsumers != nil {
 					t.Errorf("%s keeps declared consumers %v", unit.ID, unit.ExecConsumers)
+				}
+				if unit.ID == binaryExecModule+"runner" && unit.Execs == nil {
+					t.Errorf("the packages declaration lost its edge")
 				}
 			}
 		})
