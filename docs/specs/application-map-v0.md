@@ -2171,6 +2171,17 @@ but does not read it; only non-Go syntax impact does.
   `--map`, a stray argument or a bad budget refuses with exit 2 and no stdout. It measures the
   declared static scope only: reached means a test is statically attributed to the screen, not
   that a run visited it. An MCP view of the report is a follow-up, not this slice.
+- `AMAP-V0-813`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1077) A package
+  the injection-chain checks (AMAP-V0-025, AMAP-V0-203) exempt as external MUST NOT match a key of
+  a bundler `alias` object in a tracked JavaScript or TypeScript bundler config (a `*.config.*`
+  file, or one named for webpack, vite, rollup, rspack or rsbuild): the specifier equal to the
+  key, or starting with the key and `/`, may name repository code, so it may hold the table (a
+  webpack `$` exact-match suffix is read as a prefix too). An `alias` the reader cannot list as a
+  plain object with literal keys (an array, a variable, an assignment, a spread or computed key) or
+  a config it cannot lex makes every package a possible holder. Failure mode (V1-1077): a relay
+  importing `tables/x` that `resolve.alias` maps onto repository code read as external, so the
+  injected name resolved with false certainty. Non-goal: resolving the alias target; the name
+  stays UNKNOWN. Rollback: drop `readBundlerAliases` from `internal/appmap/stateconst.go`.
 
 ## Wire contract
 
@@ -2495,6 +2506,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-810 | `TestAMAPV0810ModuleCoverage` (a two-router fixture with partial coverage reads the expected per-module totals, reached counts by basis and unreached lists; the report is deterministic and reconciles); `TestFlowsAppmapCoverageCLI` |
 | AMAP-V0-811 | `TestAMAPV0810ModuleCoverage` (unknown and abstract screens are never counted as reached or unreached; an undeclared `router_globs` file is an `UNKNOWN` module with null counts) |
 | AMAP-V0-812 | `TestFlowsAppmapCoverageCLI` (exit 0 with the schema; a missing map, a stray argument and a bad budget exit 2 with no stdout) |
+| AMAP-V0-813 | `TestAMAPV0813BundlerAliasIsNotExternal` (object, exact, array, computed and assigned aliases leave the injected name UNKNOWN; an unrelated alias or none keeps the external exemption) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
