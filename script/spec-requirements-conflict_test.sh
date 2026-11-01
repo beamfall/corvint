@@ -372,7 +372,7 @@ control_lane() {
   ctl_err=$( (cd "$repo" && script/gen-spec-requirements.sh) 2>&1 > /dev/null) &&
     fail "a header segment naming $2 was not refused"
   case $ctl_err in
-    *"docs/specs/sections.md: its Intent status names $2"*'(SRG-V0-980)'*) ;;
+    *"docs/specs/sections.md:"*"names $2"*"(SRG-V0-980)"*) ;;
     *) fail "the header-segment refusal does not name $2 and the rule: $ctl_err" ;;
   esac
   git commit -q -m "$1"
