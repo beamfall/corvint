@@ -424,6 +424,7 @@
       "conformance/interactive-alpha/fixture/",
       "internal/jstestprovider/testdata/"
     ],
+    "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
     "internal/liveverify/affected/python": [],
@@ -630,6 +631,7 @@
       "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/worksource": [],
+    "protocol/integrations": [],
     "script/spec-coverage-audit": [],
     "tools/beamfall-shadow": [
       "go.mod"
@@ -658,6 +660,9 @@
       "go.mod",
       "protocol/cem-1.0/structural-corpus/",
       "protocol/cem-1.0/structural-tuples/"
+    ],
+    "tools/ci-forward-row": [
+      ".github/"
     ],
     "tools/compat-trial": [
       "go.mod",
