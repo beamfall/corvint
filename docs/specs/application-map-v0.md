@@ -2127,20 +2127,21 @@ but does not read it; only non-Go syntax impact does.
   refuses with `appmap-invalid-manifest`. Failure mode (V1-3526): a suite with no page-object
   directory had to invent one, and the invented directory produced spurious `page-object-unbound`
   unknowns.
-- `AMAP-V0-781`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynamic `import(...)` or `require(...)` lexically inside the argument list of a
-  `.evaluate(`, `.evaluateHandle(` or `.addInitScript(` member call of a test file is a
-  browser-context reference: it runs in the page and is resolved by the dev server, not by Node
+- `AMAP-V0-781`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynamic `import(...)` or `require(...)` lexically inside the first argument (the callback or
+  script the page runs) of a `.evaluate(`, `.evaluateHandle(` or `.addInitScript(` member call of a
+  test file is a browser-context reference; a later argument is evaluated by Node and keeps the
+  AMAP-V0-005 rules: it runs in the page and is resolved by the dev server, not by Node
   against the test file. When every occurrence of a specifier in the file is browser-context, its
   `imports` entry reads status `browser-context`, it is never an `unresolved-import` or
   `import-outside-tests`, and it neither makes the file's join `UNKNOWN` nor counts as a test
-  import-graph edge. A computed browser-context specifier is the unknown kind `browser-reference`
+  import-graph edge, even when its resolved target lies inside `tests.root`. A computed browser-context specifier is the unknown kind `browser-reference`
   reason `browser-computed-specifier`, not an `unresolved-import`. A specifier that also appears
   as a Node-context import keeps the AMAP-V0-005 rules. Status: experimental under the standing
   lane auto-accept (V1-3527).
 - `AMAP-V0-782`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3527) The optional manifest member `tests.web_root` names the repository-relative
   directory a browser-context root-relative specifier (`/src/x.ts`) resolves against, the dev
-  server root (for Vite, its `root`, by default the directory holding `vite.config.*`). It must be
-  a directory in the tests repository at the evaluated revision, or the manifest refuses with
+  server root (for Vite, its `root`, by default the directory holding `vite.config.*`); `.` is the
+  repository root. It must be a directory in the tests repository at the evaluated revision, or the manifest refuses with
   `appmap-invalid-manifest`. A root-relative browser-context specifier whose `web_root` join (with
   the path's own suffix, else the first of `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs` and then
   `/index` with those suffixes) names a tracked source sets `resolved` to that path. Otherwise it
@@ -2467,7 +2468,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-213 | `TestAMAPV0213CallSites` (each recognised $http, axios and fetch spelling with its verb and URL, bindings ignored, and every unread call or reference with its reason); `TestAMAPV0212EndpointJoin` (absolute, non-literal and unmatched calls in the fixture) |
 | AMAP-V0-214 | `TestAMAPV0214Reaches` (verb, parameter, substitution, splat, HEAD and `.format` matching); `TestAMAPV0212EndpointJoin` (endpoints placed on the screens their calls reach through a router anchor and the Angular DI reference hop; an unreferenced file is a placement unknown) |
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
-| AMAP-V0-781 | `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
+| AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
