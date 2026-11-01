@@ -3626,6 +3626,7 @@
         "--files",
         "--go-parallel",
         "--manifest",
+        "--pins",
         "--placement",
         "--profile",
         "--receipt",
