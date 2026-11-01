@@ -119,7 +119,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	for _, relative := range files {
 		known[relative] = true
 	}
-	frontier, built := map[string]bool{}, map[string]computedNames{}
+	frontier, built, toolchainOnly := map[string]bool{}, map[string]computedNames{}, map[string]bool{}
 	units := make([]affected.Unit, 0, len(files))
 	for _, relative := range files {
 		unit := affected.Unit{ID: "shell:" + relative}
@@ -136,7 +136,8 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units = append(units, foreignFrontier(unit, len(foreign) > 0))
 			continue
 		}
-		unit, names := observe(relative, string(body), known)
+		unit, names, dynamic := observe(relative, string(body), known)
+		toolchainOnly[relative] = !dynamic
 		if !names.empty() {
 			built[relative] = names
 		}
@@ -144,6 +145,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	applyForeignCallers(root, units, built, frontier)
+	applyShellReadScopes(root, units, toolchainOnly, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -178,8 +180,9 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 }
 
 // observe builds one readable file's unit and returns the script names it
-// builds without a resolvable literal (TSP-V0-960).
-func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames) {
+// builds without a resolvable literal (TSP-V0-960) and whether a source it
+// runs is dynamic, which a toolchain test's UnboundedReads does not show.
+func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames, bool) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
 	values := variableValues(parsed.commands)
@@ -261,7 +264,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
 	}
-	return unit, names
+	return unit, names, dynamic
 }
 
 // recursiveReaders are the commands that read below a directory they are
