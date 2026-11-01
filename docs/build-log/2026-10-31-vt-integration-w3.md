@@ -161,6 +161,74 @@ The two runs agree within noise.
     audit. The lane did not choose between them, and no requirement ID from the 780-799 block
     was used.
 
+## V1-2592 and V1-2539, continued: orchestrator decisions of 2026-10-31
+
+The orchestrator chose option (a) for V1-2592 and the claim staging-sync skip for V1-2539.
+
+V1-2592 (JSG-V0-780, amending JSG-V0-004):
+- A complete walk of a segmented store snapshots its latest entries, note references, chain
+  position and primary worktree right after it steps receipt S (`sealedCapture`, map clones).
+- `Result.SealedWriterCheckpoint` derives the base-free checkpoint at S from that snapshot. It then
+  rebases the head checkpoint on it with the seal's own `rebase`, so a complete-route write leaves
+  the shape a validated writer seal leaves: `FullSeq` S and a base at S.
+- It is used where the complete route retains a checkpoint: the lease prepare and mutate.
+  `ResumeBase` and the retire-prefix path keep `WriterCheckpoint`.
+- It declines to the plain checkpoint in these cases: a rebase that fails; a head 1,024 or more
+  past S; and a primary worktree at S that differs from the head's. The last case was found by the
+  independent review: a RELOCATE after S would otherwise put the head's primary into the base
+  header, and every later seal would refuse the RELOCATE and invalidate the checkpoint, so the
+  store would never seal again. That guard has no dedicated test (no RELOCATE fixture on a
+  segmented store exists); it is a code-review fix.
+- Tests that pinned the old shape:
+  - The JSG-V0-009/010 seal-validation fixtures need a checkpoint inside the seal range, which
+    the complete route no longer produces. They mark their store with the test seam
+    `plainCheckpointStores` (state directory → plain derivation, empty in use), as do the
+    JSG-V0-011 moving-resume fixtures that start from a plain seed.
+  - `TestJSGV0020_HarnessRunsBothModes` now expects every widen and reap to resume with no
+    complete audit.
+- Regression test: `TestJSGV0780_CompleteRouteWriteThenWidenReapResume` (mutate or claim on the
+  complete route, then widen and reap each resume). Without the change it fails with `FullSeq`
+  2048 against the sealed sequence 1536.
+- The load harness now records each call's resumes and declines, and the warm-up checkpoint's
+  `fullSeq` against `sealedThrough`.
+
+V1-2539 (LGL-V0-780):
+- CLAIM and CLAIM_NEXT skip staging-directory syncs exactly as heartbeat and renew do
+  (`skipsStagingSync`).
+- Safety basis: staging is never read as state. The writer route declines on any staging entry,
+  and the complete route clears orphans under the lock. The commit point and every file and
+  destination sync are unchanged, and a redo keeps every sync. `TestLGLV0780_ClaimStagingResidueIsAnOrphan`
+  is the crash injection. The independent review found no defect in this change.
+- Authority caveat: decision 0549 F2 was amended by the owner for heartbeat and renew only. The
+  extension to claims is the orchestrator's 2026-10-31 decision, and owner confirmation is still
+  pending.
+
+Measurements (`TestCALV0263_LeaseGateLoad`, 40k receipts, 880 tickets, 15 writers, 120 s):
+
+| Run | Qualification | claim wall p50/p99 | claim gate-wait p50/p99 | widen wall p50/p99 | reap wall p50/p99 | widen / reap resumed |
+| --- | --- | --- | --- | --- | --- | --- |
+| before, head `9a4c78d53` (`head-1.json`) | QUALIFIED, load 9.54 | 1007 / 1632 ms | 801 / 1440 ms | 10345 / 10828 ms (n=16) | 10509 / 11005 ms (n=8) | not recorded; every widen and reap declined the sealed resume |
+| after, head `0c205a3c6` (`after-1.json`) | UNQUALIFIED, 1-min load 64-77 | 4098 / 5757 ms | 3462 / 5177 ms | 1196 / 3910 ms (n=36) | 1233 / 6272 ms (n=18) | 36 / 36, 18 / 18, 0 declines |
+
+- The after run is UNQUALIFIED: other lanes held the 32-CPU host at 1-minute load 50-120 for the
+  rest of the session.
+- A second after run (`after-2.json`) could not start within the 600 s command limit: heavy.sh
+  waited for load 57 and the timeout ended it.
+- So a QUALIFIED after run and a same-load paired before run are both NOT_RUN, for an external
+  reason: host load.
+- What the after run does show, independent of load:
+  - Every widen and reap resumed from the sealed base after the warm-up's complete-route claim
+    (`warmupCheckpoint` fullSeq 39424 = sealedThrough 39424).
+  - The pre-gate snapshot read is gone: widen outside-gate p99 is 864 ms against 10.7 s.
+  - Widen and reap wall p50 fell from about 10.3 s to about 1.2 s, even at 7-8 times the
+    qualifying load.
+- Not shown: whether p99 meets the 2 s target and whether claim gate-wait meets LGL-V0-003's
+  500 ms. Every under-load figure (claim, heartbeat, release) is inflated by CPU contention, so
+  neither target can be judged from this run.
+- Remaining cost per widen or reap is the gated hold. Its p50 is about 620 ms under load, against
+  about 125 ms before (it now includes the resumed walk of the at most 1,023 active receipts and
+  the base re-hash).
+
 ## Verification
 
 - Focused and whole-package tests, listed per ticket above. They ran through `~/lanes/heavy.sh`
@@ -213,3 +281,11 @@ The two runs agree within noise.
    because there is no journal, and the tickets are not in the committed `.taskman`. Their text
    was found only in a test corpus snapshot. Repro: `corvint-tasks ticket show V1-2539` in
    `~/projects/corvint`.
+10. A shared host has no way to wait for a qualifying load window inside the lane rules. Commands
+    are capped at 600 s, sleep and until-polling loops are forbidden, and heavy.sh's own load wait
+    is 120 s. With other lanes holding the load at 50-120, a QUALIFIED lease-gate run cannot be
+    scheduled at all. Repro: run `TestCALV0263_LeaseGateLoad` through heavy.sh while 1-minute load
+    is above 40.
+11. `internal/tasks/store` takes more than 600 s whole under load. It had to be split into six `-run`
+    shards from `go test -list`, and one test, `TestCALV0089_ProgramWallExpiryEndsContinuation`,
+    takes 184 s alone. Repro: run the package whole through heavy.sh at load above 30.
