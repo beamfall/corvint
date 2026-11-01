@@ -22,7 +22,7 @@
     },
     {
       "path": "cmd/corvint/ocm.go",
-      "sha256": "ff3708a6e018e963f7295753adfa7e4c265b6fa79ab22260735a47098618e070"
+      "sha256": "b30f7d4ef3f78e0b1f5995fc2be00d5bc22802a4ff4faef26ad6c8a1394238bf"
     },
     {
       "path": "cmd/corvint/frontier.go",
