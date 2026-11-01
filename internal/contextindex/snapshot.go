@@ -542,10 +542,10 @@ func writeSnapshotGitIgnore(directory string) error {
 func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error) {
 	digest := sha256.New()
 	encoder := gob.NewEncoder(io.MultiWriter(file, digest))
-	if err := encoder.Encode(snapshotHeader{Format: snapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
+	if err := encoder.Encode(snapshotHeader{Format: gobSnapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
-	if err := encoder.Encode(snapshotWireOf(index)); err != nil {
+	if err := encodeSnapshotBody(encoder, snapshotWireOf(index)); err != nil {
 		return 0, err
 	}
 	if _, err := file.Write(digest.Sum(nil)); err != nil {
@@ -924,8 +924,8 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 }
 
 func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	wire := &snapshotWire{}
-	if err := decodeSnapshotValue(file, identity, engineID, wire); err != nil {
+	wire, err := decodeSnapshotWire(file, identity, engineID, snapshotBodyFull)
+	if err != nil {
 		return nil, err
 	}
 	index, err := wire.index()
@@ -942,19 +942,19 @@ func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string)
 }
 
 func decodeEventSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	portable := &eventSnapshot{}
-	if err := decodeSnapshotValue(file, identity, engineID, portable); err != nil {
+	wire, err := decodeSnapshotWire(file, identity, engineID, snapshotBodyEvents)
+	if err != nil {
 		return nil, err
 	}
-	return portable.index()
+	return wire.eventSnapshot().index()
 }
 
 func decodeCompactEventSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	portable := &compactEventSnapshot{}
-	if err := decodeSnapshotValue(file, identity, engineID, portable); err != nil {
+	wire, err := decodeSnapshotWire(file, identity, engineID, snapshotBodySpine)
+	if err != nil {
 		return nil, err
 	}
-	return &Index{ProfileID: portable.ProfileID}, nil
+	return &Index{ProfileID: wire.ProfileID}, nil
 }
 
 // LoadEventSnapshotObserved is LoadEventSnapshot for a caller whose own
@@ -1038,7 +1038,20 @@ func LoadSnapshotObserved(root string, observation Observation) (*Index, bool, e
 // blob does not contain (IDX-SNAP-V0-003, decision 0398). Every loader and
 // ProbeSnapshot reads the whole message anyway, so the check adds a hash of
 // bytes already read, not another read of the file.
-func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, value any) error {
+// decodeSnapshotWire decodes the gob snapshot's body up to depth.
+func decodeSnapshotWire(file *os.File, identity repositoryIdentity, engineID string, depth snapshotBodyDepth) (*snapshotWire, error) {
+	var wire *snapshotWire
+	err := decodeSnapshotValue(file, identity, engineID, func(decoder *gob.Decoder) (err error) {
+		wire, err = decodeSnapshotBody(decoder, depth)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return wire, nil
+}
+
+func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, decode func(*gob.Decoder) error) error {
 	info, err := file.Stat()
 	if err != nil {
 		return err
@@ -1048,21 +1061,21 @@ func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID st
 		return errors.New("snapshot shorter than its digest")
 	}
 	if mapping := mapReadOnly(file, info.Size()); mapping != nil {
-		return decodeMappedSnapshotValue(mapping, identity, engineID, value)
+		return decodeMappedSnapshotValue(mapping, identity, engineID, decode)
 	}
-	return decodeStreamedSnapshotValue(file, payloadBytes, identity, engineID, value)
+	return decodeStreamedSnapshotValue(file, payloadBytes, identity, engineID, decode)
 }
 
 // decodeStreamedSnapshotValue is decodeSnapshotValue through read(2), for a
 // host or file that cannot be mapped.
-func decodeStreamedSnapshotValue(file *os.File, payloadBytes int64, identity repositoryIdentity, engineID string, value any) error {
+func decodeStreamedSnapshotValue(file *os.File, payloadBytes int64, identity repositoryIdentity, engineID string, decode func(*gob.Decoder) error) error {
 	digest := sha256.New()
 	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
 	decoder := gob.NewDecoder(payload)
 	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 		return err
 	}
-	if err := decoder.Decode(value); err != nil {
+	if err := decode(decoder); err != nil {
 		return err
 	}
 	if _, err := io.Copy(io.Discard, payload); err != nil {
@@ -1083,7 +1096,7 @@ func decodeSnapshotHeader(decoder *gob.Decoder, identity repositoryIdentity, eng
 	if err := decoder.Decode(&header); err != nil {
 		return err
 	}
-	expected := snapshotHeader{Format: snapshotFormat, ObjectFormat: identity.objectFormat, Tree: identity.treeRevision, Engine: engineID}
+	expected := snapshotHeader{Format: gobSnapshotFormat, ObjectFormat: identity.objectFormat, Tree: identity.treeRevision, Engine: engineID}
 	if header != expected {
 		return errors.New("snapshot header mismatch")
 	}

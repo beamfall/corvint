@@ -1062,7 +1062,7 @@ edit to an audited analyzer input forced a schema bump, invalidating every pack,
 index it builds is byte-identical (V1-2289).
 - `IDX-SNAP-V0-106`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two
   writes of the same committed tree by one binary MUST produce byte-identical snapshot files, for
-  the default gob snapshot (format `corvint-index-snapshot/2`), the sectioned encoding and the
+  the default gob snapshot (format `corvint-index-snapshot/2`, `/3` since `IDX-SNAP-V0-806`), the sectioned encoding and the
   experimental pack, whether the write was cold or reused prior facts (`IDX-SNAP-V0-037`). Every
   map the encodings carried is written as key-sorted pairs (`snapshot_wire.go`), nested maps inside
   record fields included, and the gob type ids are fixed at package init so they do not depend on
@@ -1178,6 +1178,72 @@ refused and rebumped, a base without the shard pin needs no bump, the default co
 a stub `script/heavy.sh`; `TestAnalyzerSchemaOutput` and
 `TestAnalyzerSchemaOutputCoversMarkersAndShards` in `internal/contextindex`; the dogfood steps in
 `docs/build-log/2026-10-31-frictionfix-w4.md`.
+
+### Experimental (2026-11-01, standing lane auto-accept; owner direction 2026-11-01 "fix those slow spots"): chunked gob snapshot body
+Human intent: every snapshot reader (the hooks, `context`, `impact`, `query`) loaded the gob snapshot
+as one gob message of about 177 MB. `encoding/gob` reads a message over 10 MiB in 10 MiB pieces
+appended to a growing slice (`internal/saferio.ReadData`), so each load regrew and copied that
+buffer many times. In the hook and `context` CPU profiles that was 27 to 39% of the CPU. The
+compact and event loads still read the whole message to take a few fields from it. Only a format
+change removes this (IDX-SNAP-V0-105 failure modes); this is that change, for the gob snapshot
+only.
+- `IDX-SNAP-V0-806`: (experimental under the standing lane auto-accept, 2026-11-01) The default gob
+  snapshot MUST be written as format `corvint-index-snapshot/3`. After the header it carries the
+  same `snapshotWire` as a sequence of gob messages, each bounded well under gob's 10 MiB
+  single-allocation threshold:
+  - a spine with every small field, the source keys and the symbol and field counts;
+  - the source values in chunks of at most 4 MiB of bodies (a single larger body is its own
+    chunk);
+  - the symbols, then the fields, in chunks of at most 8,192;
+  - when a term table is present, a vocabulary spine (its `Paths` and the length of each of its
+    five binary blobs, `-1` for one gob would omit);
+  - each blob in chunks of at most 4 MiB, which the reader copies into one buffer of the exact
+    length.
+
+  The decode of a `/3` file MUST equal, value for value (`reflect.DeepEqual`), the `/2`
+  single-message decode of the same index. Every query output is therefore byte-identical. A
+  compact event load MUST stop after the spine and an event load after the fields; the trailer
+  digest still covers every byte, so a changed body is the IDX-SNAP-V0-003 miss for every reader.
+  Counts that disagree with their chunks are the miss. The writes stay byte-deterministic
+  (IDX-SNAP-V0-106), and the new gob types are warmed after the pack's, so pack bytes and the
+  analyzer pins do not move. A `/2` file is the header-mismatch miss and is rebuilt; the store is
+  executable-keyed, so no released binary reads the other's files. The sectioned and pack encodings
+  keep `corvint-index-snapshot/2`. The `index` receipt's `profile` stays
+  `corvint-index-snapshot/1` (CCF-V1); only its `bytes` value changes.
+
+  Format gate on this repository: base `35475f860` against this change, both built from source
+  on one WSL2 host in one session, load 9.5 to 11, interleaved runs.
+
+  | Measure | Base | This change |
+  |---|---|---|
+  | Snapshot size | 176,891,513 bytes | 176,891,889 bytes (+376) |
+  | Three cold `index` runs | 2.76-2.89 s, max RSS 1,274-1,373 MB | 2.05-2.19 s, 1,135-1,266 MB |
+  | Reuse `index` | 2.39 s, 880 MB | 1.83 s, 707 MB |
+  | 20 interleaved `context` loads | p50 1.22 s, p95 1.61 s, max RSS 889 MB | p50 0.97 s, p95 1.30 s, max RSS 492 MB |
+  | 10 `user-prompt` hooks | p50 1.23 s, p95 1.41 s, 892 MB | p50 0.68 s, p95 0.83 s, 495 MB |
+  | 10 `session-start` hooks | p50 1.17 s, 834 MB | p50 0.74 s, 493 MB |
+  | `impact` | 0.91 s, 723 MB | 0.47 s, 492 MB |
+
+  Cross-format identity: `context`, `impact`, `user-prompt` and `session-start` outputs are
+  byte-identical between the two binaries. The full repository index (9,594 sources, 78,722
+  symbols) decodes `DeepEqual` through both bodies. Three writes of one tree hash alike for each
+  binary.
+
+  Non-goals: the transport-neutral immutable encoding (`deployment-neutral-index-platform-v0.md`),
+  zero-copy source bodies, and the sectioned and pack formats.
+
+  Failure modes: a spine over 10 MiB (a much larger repository's keys, documents and imports)
+  still decodes correctly but regains the regrowth cost for that one message; gob still copies
+  each chunk out of the mapping.
+
+  Rollback: write `snapshotWireOf` as one message under format `/2` and restore the single
+  `Decode`. `/3` files then miss and rebuild.
+- `IDX-SNAP-V0-805`: (experimental under the standing lane auto-accept, 2026-11-01) The
+  hook-triggered refresh worker (`spawnSnapshotRefresh`, IDX-SNAP-V0-912) MUST NOT inherit the
+  `CORVINT_CPUPROFILE` or `CORVINT_MEMPROFILE` knobs, as it already drops `GOMAXPROCS` and the
+  internal markers. Before this, a profiled hook's file was overwritten by the detached index build
+  that the hook started, so a hook profile showed the background build instead of the hook.
+  Every other variable passes in order. Rollback: drop the knobs from `snapshotRefreshEnv`.
 
 ### Accepted (2026-10-31, V1-2881, owner direction 2026-10-27, standing auto-accept 2026-10-11): no aggregate admission wall
 
@@ -1417,6 +1483,8 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-001 | `textSuffixes`, `admittedEntries`, `WriteSnapshot`, `runIndex` | `TestTaskContextSearchesRstDocumentation`, `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte` |
 | IDX-SNAP-V0-002 | `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitReportsTheLiveCommitForTheSameTree`, `TestLoadSnapshotMissesWhenIdentityChangesDuringStatusRead` |
 | IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `decodeSnapshotValue`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
+| IDX-SNAP-V0-806 | `encodeSnapshotBody`, `decodeSnapshotBody`, `decodeSnapshotWire` (`snapshot_chunks.go`), `gobSnapshotFormat` | `TestSnapshotChunkedBodyEqualsSingleMessage_IDXSNAPV0806`, `TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`, `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestSnapshotBytesAreDeterministic` |
+| IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
 | IDX-SNAP-V0-005 | `runTaskContext` (no writer), `WriteSnapshot` (`.gitignore`), `snapshotDirectoryPresent` (readers) | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
 | IDX-SNAP-V0-006 | `runTaskContext`, status-only `DirtyPaths` builders and loader | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |

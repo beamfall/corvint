@@ -21,7 +21,7 @@ var errSnapshotFault = errors.New("snapshot mapping fault")
 // The mapping is released only after both sides return, and every decoded
 // value is a copy (gob copies a message out of its reader before decoding
 // it), so nothing returned aliases the mapping.
-func decodeMappedSnapshotValue(mapping []byte, identity repositoryIdentity, engineID string, value any) error {
+func decodeMappedSnapshotValue(mapping []byte, identity repositoryIdentity, engineID string, decode func(*gob.Decoder) error) error {
 	defer unmapReadOnly(mapping)
 	payload := mapping[:len(mapping)-sha256.Size]
 	digests := make(chan bool, 1)
@@ -39,7 +39,7 @@ func decodeMappedSnapshotValue(mapping []byte, identity repositoryIdentity, engi
 		if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 			return err
 		}
-		return decoder.Decode(value)
+		return decode(decoder)
 	})
 	// Join the hash before the deferred unmap, on every path.
 	matched := <-digests
