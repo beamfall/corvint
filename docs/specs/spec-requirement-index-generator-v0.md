@@ -607,7 +607,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-015 | the `tsv` and `lines` emission blocks in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `TestSRGV0015IndexOrderedByDefinitionPosition` |
 | SRG-V0-016 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 | SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
-| SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-018 | `index_blobs` and the `--all` mode, which `--write` and `--check` run, in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 | SRG-V0-041 | `script/spec-requirements-resolve.sh` and the `spec-requirements-resolve` target in the `Makefile` | `spec-requirements-test` |
 | SRG-V0-042 | `acceptance_near_miss` and the refusal block before the TSV exit in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |

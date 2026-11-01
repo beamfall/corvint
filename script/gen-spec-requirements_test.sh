@@ -3,7 +3,8 @@ set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
 # SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
-# SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12) and SRG-V0-980 (case 13).
+# SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12), SRG-V0-980/950 (case 13), SRG-V0-951
+# (case 14), SRG-V0-952/953 (case 15) and SRG-V0-954 (case 16).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -527,17 +528,18 @@ run > /dev/null || fail "a shortened header was refused"
 write_frozen "$long; FRZ-V0-002 accepted (2026-10-31)" "$long"
 frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the Intent status was accepted"
 for want in \
-  'docs/specs/frozen.md: its Intent status names FRZ-V0-002, which its frozen header text does not' \
-  "docs/specs/frozen.md: its Intent status is $((${#long} + 34)) characters; the limit is its frozen length, ${#long}" \
-  "record an acceptance or amendment in the requirement's own leading note" \
-  'acceptance and acceptedBy columns' '(SRG-V0-009, SRG-V0-981)' '(SRG-V0-980)'; do
+  'docs/specs/frozen.md:3: its Intent status names FRZ-V0-002, which its frozen header text does not' \
+  "docs/specs/frozen.md:3: its Intent status is $((${#long} + 34)) characters; the limit is its frozen length, ${#long}" \
+  "a new requirement ID or range never goes there: it belongs on each requirement's own definition line" \
+  "in the spec's acceptance and traceability rows, and in its build-log entry" \
+  'acceptance and acceptedBy columns' '(SRG-V0-009, SRG-V0-981, SRG-V0-950)' '(SRG-V0-980)'; do
   case $frz_err in *"$want"*) ;; *) fail "the frozen-header refusal lacks '$want': $frz_err" ;; esac
 done
 case $frz_err in *FRZ-V0-001*) fail "a frozen ID was refused: $frz_err" ;; esac
 write_frozen 'accepted' 'accepted; FRZ-V0-002 accepted'
 frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the digest Status was accepted"
 case $frz_err in
-  *'docs/specs/frozen.md: its Agent digest Status names FRZ-V0-002'*) ;;
+  *'docs/specs/frozen.md:8: its Agent digest Status names FRZ-V0-002'*) ;;
   *) fail "the digest refusal lacks the field and ID: $frz_err" ;;
 esac
 # A range or slash after a frozen ID names the IDs it reaches.
@@ -561,9 +563,138 @@ run > /dev/null || fail "a short ID-free header without a frozen row was refused
 write_frozen "accepted $(printf '%0170d' 0)"
 frz_err=$(run 2>&1 > /dev/null) && fail "a header over 160 characters without a frozen row was accepted"
 case $frz_err in
-  *'its Intent status is 179 characters; the limit is 160'*) ;;
+  *'docs/specs/frozen.md:3: its Intent status is 179 characters; the limit is 160'*) ;;
   *) fail "the unfrozen length refusal lacks the lengths: $frz_err" ;;
 esac
 git -C "$test_root" rm -q --cached -- docs/specs/frozen.md
+
+# 14. SRG-V0-951 (V1-3602): one run reports every refusal, not only the first: two malformed
+# acceptance notes, a duplicate definition and an over-long claim, in every mode, with each
+# category's repair once; --all writes nothing.
+long_claim=$(printf 'The claim %0160d.' 0)
+cat > "$test_root/docs/specs/multi.md" <<SPEC
+# Multi
+
+Intent status: proposed
+Delivery status: experimental
+
+## Agent digest
+- Claim: $long_claim
+- Status: proposed / experimental
+
+- \`MUL-V0-001\`: accepted, decision 0001. The first malformed note.
+- \`MUL-V0-002\`: approved by the owner. The second malformed note.
+- \`MUL-V0-003\`: defined once.
+- \`MUL-V0-003\`: and again.
+SPEC
+stage docs/specs/multi.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  multi_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' accepted the malformed spec"
+  for want in \
+    'docs/specs/multi.md:10: MUL-V0-001: the acceptance note is not parenthesized' \
+    'docs/specs/multi.md:11: MUL-V0-002: the acceptance note is not parenthesized' \
+    'MUL-V0-003: defined more than once: docs/specs/multi.md:12 docs/specs/multi.md:13' \
+    'docs/specs/multi.md: the Agent digest Claim is 171 characters; the limit is 160' \
+    '(SRG-V0-547)' '(SRG-V0-042)'; do
+    case $multi_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' did not report '$want' in one run: $multi_err" ;; esac
+  done
+  test "$(printf '%s\n' "$multi_err" | grep -c 'SRG-V0-042')" = 1 || fail "the note repair was printed more than once: $multi_err"
+done
+multi_dir="$test_root/multi-out"
+mkdir "$multi_dir"
+if (cd "$test_root" && script/gen-spec-requirements.sh --all "$multi_dir") > /dev/null 2>&1; then
+  fail "--all accepted the malformed spec"
+fi
+test -z "$(ls -A "$multi_dir")" || fail "a refused run wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/multi.md
+
+# 15. SRG-V0-952 (V1-3563): an indented note paragraph that opens with its item's backticked ID
+# continues the item and is no second definition; a real second definition is still refused.
+# SRG-V0-953 (V1-3553): an acceptance note that starts on the continuation line is refused naming
+# the line, the ID and the repair.
+cat > "$test_root/docs/specs/para.md" <<'SPEC'
+- `PAR-V0-001`: (accepted, decision 0001) The requirement.
+
+  `PAR-V0-001`: acceptance note: the fixture test covers it.
+
+  `PAR-V0-001`. A second note paragraph.
+- `PAR-V0-002`: (accepted, decision 0001) The next requirement.
+SPEC
+stage docs/specs/para.md
+para=$(run) || fail "an indented note paragraph opening with the ID was refused"
+printf '%s\n' "$para" | grep -q '^PAR-V0-001	docs/specs/para.md	(accepted, decision 0001) The requirement\.	owner	decision 0001$' ||
+  fail "the note paragraph displaced the definition: $(printf '%s\n' "$para" | grep '^PAR-V0-001')"
+printf '\n`PAR-V0-001`: an unindented second definition.\n' >> "$test_root/docs/specs/para.md"
+stage docs/specs/para.md
+para_err=$(run 2>&1 > /dev/null) && fail "an unindented second definition was accepted"
+case $para_err in
+  *'PAR-V0-001: defined more than once: docs/specs/para.md:1 docs/specs/para.md:8'*) ;;
+  *) fail "the unindented duplicate was not refused: $para_err" ;;
+esac
+cat > "$test_root/docs/specs/para.md" <<'SPEC'
+- `PAR-V0-001`: The requirement wraps, and its note
+  (accepted under the owner's standing auto-accept (2026-11-01); V1-3553) sits on line two.
+- `PAR-V0-002`: (accepted, decision 0001) A note on the id's line
+  (with a parenthetical continuation) passes.
+- `PAR-V0-003`: A plain wrap
+  (as an aside) passes.
+SPEC
+stage docs/specs/para.md
+for mode in '' --lines --index; do
+  # shellcheck disable=SC2086
+  para_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' accepted a note on the continuation line"
+  for want in \
+    'docs/specs/para.md:2: PAR-V0-001: the acceptance note starts on the continuation line' \
+    "move the note to the start of the text on the id's line" '(SRG-V0-953)'; do
+    case $para_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' continuation refusal lacks '$want': $para_err" ;; esac
+  done
+  case $para_err in *PAR-V0-00[23]*) fail "a note on the id's line or a plain aside was refused: $para_err" ;; esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/para.md
+
+# 16. SRG-V0-954 (V1-3617, V1-3510): --check compares a fresh generation with docs/specs and names
+# each stale file; --write refuses an unstaged or untracked spec, naming each and the git add
+# command, and writes nothing, then writes once they are staged.
+w16="$test_root/w16"
+mkdir -p "$w16/script" "$w16/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$w16/script/"
+git -C "$w16" init -q -b main
+spec16() {
+  # shellcheck disable=SC2016
+  printf '# %s\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Claim: The %s fixture.\n- Status: proposed / experimental\n\n- `%s`: %s\n' \
+    "$1" "$1" "$2" "$3" > "$w16/docs/specs/$1.md"
+}
+spec16 alpha ALPHA-V0-001 'the staged clause'
+printf '| Scope | Contract | Intent | Delivery | Description |\n|---|---|---|---|---|\n' > "$w16/docs/specs/README.md"
+git -C "$w16" add -- docs/specs
+(cd "$w16" && script/gen-spec-requirements.sh --write) || fail "--write could not seed the outputs"
+git -C "$w16" add -- docs/specs
+(cd "$w16" && script/gen-spec-requirements.sh --check) || fail "--check refused fresh outputs"
+printf 'stale\n' >> "$w16/docs/specs/REQUIREMENTS.tsv"
+check_err=$( (cd "$w16" && script/gen-spec-requirements.sh --check) 2>&1) && fail "--check accepted a stale index"
+case $check_err in
+  *'STALE docs/specs/REQUIREMENTS.tsv: stage the changed spec, then run make spec-requirements'*) ;;
+  *) fail "--check did not name the stale file: $check_err" ;;
+esac
+git -C "$w16" checkout -q -- docs/specs/REQUIREMENTS.tsv
+before=$(cat "$w16/docs/specs/REQUIREMENTS.tsv")
+spec16 alpha ALPHA-V0-001 'an unstaged edit'
+spec16 gamma GAMMA-V0-001 'an untracked spec'
+write_err=$( (cd "$w16" && script/gen-spec-requirements.sh --write) 2>&1) && fail "--write accepted unstaged specs"
+for want in 'REFUSE unstaged-spec docs/specs/alpha.md' 'REFUSE unstaged-spec docs/specs/gamma.md' \
+  'git add -- docs/specs/alpha.md docs/specs/gamma.md; then rerun make spec-requirements (SRG-V0-954)'; do
+  case $write_err in *"$want"*) ;; *) fail "the --write refusal lacks '$want': $write_err" ;; esac
+done
+test "$(cat "$w16/docs/specs/REQUIREMENTS.tsv")" = "$before" || fail "a refused --write changed REQUIREMENTS.tsv"
+git -C "$w16" add -- docs/specs/alpha.md docs/specs/gamma.md
+(cd "$w16" && script/gen-spec-requirements.sh --write) || fail "--write refused staged specs"
+grep -q '^GAMMA-V0-001	' "$w16/docs/specs/REQUIREMENTS.tsv" || fail "--write did not regenerate the index"
+(cd "$w16" && script/gen-spec-requirements.sh --check 2>&1 | grep -q STALE) &&
+  fail "--check named a file stale right after --write"
+usage_err=$( (cd "$w16" && script/gen-spec-requirements.sh --check extra) 2>&1) && fail "--check accepted an argument"
+case $usage_err in *'--check compares them with a fresh generation (make spec-requirements-check)'*) ;; *) fail "the usage text lacks --check: $usage_err" ;; esac
 
 printf 'ok\n'

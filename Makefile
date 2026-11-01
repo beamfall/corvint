@@ -234,15 +234,12 @@ cem-release-gate: go-version
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the
-# Git index, so stage the changed spec first. One generator pass writes all three (SRG-V0-018);
-# nothing is copied unless all three regenerate.
-SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
-SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
-
+# Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
+# (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
+# three regenerate.
 .PHONY: spec-requirements
 spec-requirements:
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
-	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
+	@script/gen-spec-requirements.sh --write
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
@@ -262,9 +259,7 @@ repin:
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
 .PHONY: spec-requirements-check
 spec-requirements-check:
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; stale=0; \
-	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
-	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
+	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	$(GO_TEST_COMMAND) ./internal/specindex
 	$(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
