@@ -751,6 +751,19 @@ separate exact extension tuple remains governed by AHI-024.
   still the nearest repository and receives the receipt. Evidence:
   `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` (`cmd/corvint`). Rollback: drop the
   `postToolOwningRepository` branch so the exclusion returns.
+- `AHI-804`: (experimental under the standing lane auto-accept (2026-11-01); V1-0401) The Claude
+  Code adapter MUST accept a `subagent-start` event whose input is the host's SubagentStart payload.
+  It compiles `agent_prompt` exactly as a `user-prompt` prompt (same anchors, `adapterOutputLimit`
+  budget, degradation codes and subagent rules: no workflow argv), and renders the packet as
+  `hookSpecificOutput.additionalContext` with `hookEventName` `SubagentStart`, or a named
+  degradation (`missing-prompt` when `agent_prompt` is absent). Its output never carries
+  `decision`, `reason`, `continue` or `stopReason`, so it cannot block a spawn. Non-goals: shipping
+  the registration in the plugin `hooks.json` and a `compatibility.json` surface record, both held
+  until a live host qualification and the `corvint surprise` trial show a benefit (V1-0401
+  criterion 3); a user may register the command in their own settings meanwhile. Failure modes:
+  the degradation ledger names the event `user-prompt`. Evidence:
+  `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking` (`cmd/corvint`). Rollback: drop the
+  `subagent-start` case so the event returns `unsupported-hook-event`.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2737,6 +2750,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-801` (experimental under the standing lane auto-accept (2026-11-01); V1-3556) | `cmd/corvint/host_adapter_deadline.go` (`withReducedPacket`) | `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket`, `TestAHI801UserPromptDeadlineEmitsReducedPacket` |
 | `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
 | `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` |
+| `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
