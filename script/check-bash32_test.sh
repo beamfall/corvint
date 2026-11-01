@@ -68,7 +68,7 @@ done <<< "$cases"
 
 # 4. A file without .sh whose first line names bash is scanned; a non-bash script is not.
 printf '#!/usr/bin/env bash\n%s\n' "map""file x" > "$repo/script/tool"
-printf '#!/usr/bin/env python3\n%s\n' "map""file = 1" > "$repo/script/tool.py"
+printf '#!/usr/bin/env py%s\n%s\n' "thon3" "map""file = 1" > "$repo/script/tool.py"
 if run_gate; then fail "bash shebang file not scanned"; fi
 expect "FAIL map""file script/tool:2:" "$tmp/out"
 absent 'tool.py' "$tmp/out"
