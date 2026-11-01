@@ -4666,6 +4666,11 @@
       "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
     },
     {
+      "binary": "corvint-gateway",
+      "command": "corvint-gateway help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-gateway.json"
+    },
+    {
       "binary": "corvint-go-test-provider",
       "command": "corvint-go-test-provider help --json",
       "snapshot": "internal/capcatalog/trees/corvint-go-test-provider.json"

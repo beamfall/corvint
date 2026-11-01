@@ -4284,5 +4284,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/local-model-gateway-v0.md",
+    "title": "Local Model Gateway V0",
+    "reqPrefix": "LMG-V0",
+    "intent": "experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the invariant-7 carve-out is pending owner decision (V1-4037)",
+    "delivery": "experimental",
+    "claim": "A loopback-only, operator-started proxy for the Messages API can record per-request token usage and fold oversized Bash output deterministically.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

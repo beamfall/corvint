@@ -29,7 +29,7 @@ Every subcommand at every depth, with its flags, required inputs and an example,
 `corvint-tasks help --json` and `corvint-test help --json` (both also answer `help --tree`,
 CAP-V0-950), `corvint-cem-candidate help --json`, `corvint-cem-experiments help --json`, and
 `help --json` of each companion with subcommands (`corvint-corpus-republish`,
-`corvint-dashboard-snapshot`, `corvint-go-test-provider`, `corvint-intake`,
+`corvint-dashboard-snapshot`, `corvint-gateway`, `corvint-go-test-provider`, `corvint-intake`,
 `corvint-js-test-provider`, `corvint-postmerge-connect`, `corvint-postmerge-metrics`,
 `corvint-postmerge-workflow`, `corvint-pulse` and `corvint-ruby-test-provider`), committed as `internal/capcatalog/trees/BINARY.json` and linked from the
 `commandTrees` member of `corvint help --json`. The companion binaries without a tree (`corvint-console`,
@@ -191,6 +191,7 @@ Every directory under `cmd/` that builds a program. Companions are separate exec
 | `corvint-intake` | agent-facing | Validate a closed-vocabulary change candidate | `corvint-intake validate --root PATH --base FULL_OID --head FULL_OID < candidate.json` | Validation JSON; never grants authority | experimental | Invalid candidates and unbound revisions | [CVI-V0](specs/closed-vocabulary-intake-v0.md) |
 | `corvint-pulse` | agent-facing | Snapshot lifecycle coordinator over stdio | `corvint-pulse --root ROOT serve --stdio` | JSON frames | experimental | `invalid-arguments`; leases and deltas are not delivered | [PSL-V0](specs/pulse-snapshot-lease-v0.md) |
 | `corvint-console` | user-facing | Loopback admin console: snapshot, tickets, specs, code | `corvint-console --repo /abs/repo --tasks PATH --snapshot PATH` | Local web UI at 127.0.0.1:7777 | experimental | Non-loopback addresses refused | [LAC-V0](specs/local-admin-console-v0.md) |
+| `corvint-gateway` | user-facing | Loopback Messages API proxy: per-request token ledger and deterministic Bash-output folding | `corvint-gateway serve`, then `ANTHROPIC_BASE_URL=http://127.0.0.1:8787` in the client | Usage ledger `corvint-gateway-usage/0`; `report` summary | experimental | Non-loopback addresses and non-https remote upstreams refused; savings unmeasured | [LMG-V0](specs/local-model-gateway-v0.md) |
 | `corvint-dashboard-snapshot` | user-facing | What Corvint data exists for a repository, and what is stale | `corvint-dashboard-snapshot snapshot --root /abs/repo` | Read-only snapshot JSON; `roadmap` subcommand | experimental | `DASHBOARD_INVALID_ARGUMENT`; unavailable denominators reported as unavailable | [LOD-V0](specs/local-observability-dashboard-v0.md) |
 | `corvint-update` | user-facing | Check, apply or roll back an official Core or Tasks update | `corvint-update check --component core` | JSON with freshness and qualification limits | experimental | No network without `--allow-network`; failed verification refuses | [UPD-V0](specs/operator-update-v0.md) |
 | `corvint-web-flows` | user-facing | Parse JS/TS web flows and optionally observe a trusted local app | `corvint-web-flows --help` | Flow documents | experimental | Execution needs explicit trust flags | [AFU-V0](specs/application-flow-understanding-v0.md), [NEX-V0](specs/application-flow-navigation-execution-v0.md) |

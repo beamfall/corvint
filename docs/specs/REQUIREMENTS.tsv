@@ -5062,6 +5062,16 @@ LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When t
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LCP-V0-800	docs/specs/local-completion-policy-v0.md	(proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no	unrecorded	-
+LMG-V0-001	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL ship as	unrecorded	-
+LMG-V0-002	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) `serve` SHALL bind a	unrecorded	-
+LMG-V0-003	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL forward	unrecorded	-
+LMG-V0-004	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) For each `POST` to a path	unrecorded	-
+LMG-V0-005	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4031) Folding SHALL be a pure	unrecorded	-
+LMG-V0-006	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4031) The gateway SHALL fold only	unrecorded	-
+LMG-V0-007	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4031) A fold SHALL first drop	unrecorded	-
+LMG-V0-008	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4031) Before forwarding a fold,	unrecorded	-
+LMG-V0-009	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) A request body that is not	unrecorded	-
+LMG-V0-010	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4035) `report` SHALL read the	unrecorded	-
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-

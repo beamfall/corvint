@@ -65,6 +65,9 @@
       "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
     ],
     "cmd/corvint-docs-mcp": [],
+    "cmd/corvint-gateway": [
+      "internal/capcatalog/trees/corvint-gateway.json"
+    ],
     "cmd/corvint-go-test-provider": [
       "cmd/",
       "conformance/go-live-test-v0/",
@@ -409,6 +412,7 @@
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
     ],
+    "internal/modelgateway": [],
     "internal/observations": [
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"

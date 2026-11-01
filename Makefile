@@ -582,6 +582,7 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-experiments help --json > internal/capcatalog/trees/corvint-cem-experiments.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-corpus-republish help --json > internal/capcatalog/trees/corvint-corpus-republish.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-dashboard-snapshot help --json > internal/capcatalog/trees/corvint-dashboard-snapshot.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-gateway help --json > internal/capcatalog/trees/corvint-gateway.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-go-test-provider help --json > internal/capcatalog/trees/corvint-go-test-provider.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-intake help --json > internal/capcatalog/trees/corvint-intake.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-js-test-provider help --json > internal/capcatalog/trees/corvint-js-test-provider.json
