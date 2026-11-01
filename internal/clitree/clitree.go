@@ -361,17 +361,20 @@ func (b *Builder) Tree(helpJSON, source string, sources, global []string, intern
 	return tree
 }
 
-// Flags lists every option token the forms name, without --help and -h.
+// Flags lists every option token the forms name, without --help and -h. Each `|` alternative of
+// a field is read, so `[--summary|--pins]` names both options (CAP-V0-975).
 func Flags(forms []string) []string {
 	found := []string{}
 	for _, form := range forms {
 		for _, field := range strings.Fields(form) {
-			field = strings.TrimLeft(field, "[(<{|")
-			flag := flagToken.FindString(field)
-			if flag == "" || flag == "--help" || flag == "-h" || !strings.HasPrefix(field, flag) {
-				continue
+			for _, part := range strings.Split(field, "|") {
+				part = strings.TrimLeft(part, "[(<{")
+				flag := flagToken.FindString(part)
+				if flag == "" || flag == "--help" || flag == "-h" || !strings.HasPrefix(part, flag) {
+					continue
+				}
+				found = append(found, flag)
 			}
-			found = append(found, flag)
 		}
 	}
 	slices.Sort(found)
