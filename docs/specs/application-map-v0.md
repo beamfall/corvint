@@ -2149,6 +2149,20 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
+- `AMAP-V0-960`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4077)
+  Map version rule: `application-map/0` readers decode strictly, and the map digest is computed
+  over the members the reader decodes, so a reader cannot tolerate a member it does not know
+  without either dropping it from the digest or accepting content it never checked. An additive
+  optional map member therefore keeps the schema `application-map/0` and requires an upgraded
+  reader, as AMAP-V0-215 states for `builder`; a change that alters an existing member's meaning
+  bumps the schema. `LoadMap`/`ParseMap` MUST refuse a map whose schema is `application-map/0` and
+  that carries a member it does not decode as `appmap-invalid-map`, with a message that names the
+  member, this binary's `appmap.BuilderVersion` and the map's `builder` (or that none is
+  recorded), and says to upgrade Corvint or rebuild the map with this binary; any other
+  undecodable map keeps the message `--map is not application-map/0 JSON`. Failure mode
+  (V1-4077): an older binary refused a newer map only as "not application-map/0 JSON", which reads
+  as a corrupt file. Non-goals: tolerating unknown members, or a raw-bytes digest that would let an
+  older reader skip them. Rollback: remove `newerMapMember`; the refusal code is unchanged.
 
 ## Wire contract
 
@@ -2208,7 +2222,7 @@ optional `note`, `count` and `tests` of `test`, `basis` and optional `route`, an
 | `appmap-invalid-manifest` | The manifest is absent, not closed, over its bound, or names an escaping path, unknown dialect, directory outside `tests.root`, or declared directory absent at the revision. |
 | `appmap-invalid-revision` | The build revision does not resolve to a commit, or a `refs`, `actions` or `branches` map revision is not a commit of `--root` or its manifest does not match the map's manifest anchor. |
 | `appmap-invalid-flows` | A flow intent under the manifest's `flows` directory does not decode. |
-| `appmap-invalid-map` | A map file is not a regular file, is over 64 MiB, is not closed, has trailing data, a wrong schema or a digest mismatch. |
+| `appmap-invalid-map` | A map file is not a regular file, is over 64 MiB, is not closed, has trailing data, a wrong schema, a member this binary does not decode (AMAP-V0-960), or a digest mismatch. |
 | `appmap-invalid-query` | `--budget` is out of range or combined with `--full`, a `find` query is not 2..128 bytes, or a `refs` `--source` list is empty, over 16, duplicated, escaping or not a directory at the map revision, or a `branches` `--cite` list is empty, over 16, duplicated, escaping, not Ruby, absent, out of range or outside every application root. |
 | `appmap-budget-too-small` | The budget cannot hold the projection head. |
 | `appmap-bound-exceeded` | An input bound of AMAP-V0-015 was exceeded. |
@@ -2470,6 +2484,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
+| AMAP-V0-960 | `TestAMAPV0960NewerMapMemberRefusalNamesMember` (a built map with an added top-level member refuses `appmap-invalid-map` naming the member, `BuilderVersion` and the upgrade step; another schema with an unknown member, and trailing data, keep the generic refusal) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
