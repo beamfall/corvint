@@ -492,7 +492,7 @@ type laneScan struct {
 // contained in refCommit, at most limit of its commits outside refCommit
 // (TLF-V0-887).
 func scanLaneHeads(root, refCommit string, limit int) ([]laneScan, error) {
-	heads, err := store.LaneHeads(root)
+	heads, err := store.LaneHeads(root, refCommit)
 	if err != nil {
 		return nil, err
 	}

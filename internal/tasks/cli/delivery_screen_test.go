@@ -313,7 +313,10 @@ func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	laneHead := strings.TrimSpace(string(out))
-	git(t, root, "checkout", "-q", main)
+	// An unrelated lineage (the pre-snapshot private history) is no lane.
+	git(t, root, "checkout", "-q", "--orphan", "old-lineage")
+	tcdCommit(t, root, "old lineage\n\nRefs "+onLane)
+	git(t, root, "checkout", "-q", "-f", main)
 
 	plain := tdsRun(t, root, "ticket", "delivery-screen", onLane, review, quiet)
 	if got := tdsVerdicts(t, plain); got[onLane] != "NOT_OBSERVED" || got[review] != "NOT_OBSERVED" {

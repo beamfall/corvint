@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -150,11 +151,21 @@ const MaxLaneHeads = 256
 // LaneHead is one local branch or detached worktree head (TLF-V0-887).
 type LaneHead struct{ Ref, Commit string }
 
-// LaneHeads lists the local branches and detached worktree heads of root,
-// each commit once, sorted by ref. More than MaxLaneHeads is refused
-// LIMIT_EXCEEDED rather than silently cut.
-func LaneHeads(root string) ([]LaneHead, error) {
-	out, err := gitOutput(root, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/")
+// LaneHeads lists the local branches and detached worktree heads of root
+// that base does not contain and that share a root commit with base, each
+// commit once, sorted by ref; an unrelated lineage is no lane of base. More
+// than MaxLaneHeads is refused LIMIT_EXCEEDED rather than silently cut.
+func LaneHeads(root, base string) ([]LaneHead, error) {
+	rootsOut, err := gitOutput(root, "rev-list", "--max-parents=0", "--end-of-options", base)
+	if err != nil {
+		return nil, err
+	}
+	roots := strings.Fields(string(rootsOut))
+	args := []string{"for-each-ref", "--format=%(objectname) %(refname)", "--no-merged=" + base}
+	for _, r := range roots {
+		args = append(args, "--contains="+r)
+	}
+	out, err := gitOutput(root, append(args, "refs/heads/")...)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +195,7 @@ func LaneHeads(root string) ([]LaneHead, error) {
 				detached = true
 			}
 		}
-		if detached && commit != "" && !seen[commit] {
+		if detached && commit != "" && !seen[commit] && !IsAncestor(root, commit, base) && slices.ContainsFunc(roots, func(r string) bool { return IsAncestor(root, r, commit) }) {
 			seen[commit] = true
 			heads = append(heads, LaneHead{Ref: "worktree:" + path, Commit: commit})
 		}

@@ -16,7 +16,7 @@ V1-3331 (the delivery screen misses tickets delivered on unmerged lane heads) an
 
 ## Agent digest
 - Claim: Lanes record a typed progress phase on live tickets without a claim; read-only checks screen lane heads, requirement IDs and effects proposals.
-- Status: experimental; the progress phase, collision check, lane-ref screen and effects proposals exist with focused tests; `ticket split` is proposed only.
+- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576); delivery experimental: the progress phase, collision check, lane-ref screen and effects proposals exist with focused tests; `ticket split` is proposed only.
 - Exists: operation `PROGRESS_SET` and the optional record member `progress`, the `ticket progress` verb, the `--phase` search filter, phase in show and roadmap rows, closeout-debt `progress-head` rows, `tools/requirement-id-collisions`, delivery-screen `--lane-refs`, and `ticket effects-proposals`.
 - Blocked on: the operator-applied batch set-effects of V1-3576 (lanes may not write the store); an atomic two-ticket split receipt (TLF-V0-884); durable qualification.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
@@ -64,11 +64,11 @@ done and number requirements that a peer branch already used.
   head reachable in the scanned ref as a candidate row with citation `progress-head` and the head as
   its commit, alongside the message-cited rows, so a marker whose branch head merged is reported even
   when no commit message names the ticket.
-- `TLF-V0-884` (proposed, not implemented): `corvint-tasks ticket split ID --criteria N,M` MUST
+- `TLF-V0-884`: (proposed, not implemented) `corvint-tasks ticket split ID --criteria N,M` MUST
   create one linked NATIVE ticket carrying the named acceptance criteria, the parent's attached
   evidence and a `supersedes` link to the parent, and remove those criteria from the parent, in one
   atomic receipt.
-- `TLF-V0-885` (proposed, not implemented): `ticket split --dry-run` MUST print the two resulting
+- `TLF-V0-885`: (proposed, not implemented) `ticket split --dry-run` MUST print the two resulting
   records and write nothing; after a split the parent MUST complete on its remaining criteria and
   receipt audit MUST stay CONSISTENT.
 - `TLF-V0-886`: `tools/requirement-id-collisions` MUST read every local branch and detached worktree
@@ -80,12 +80,13 @@ done and number requirements that a peer branch already used.
   not a collision. It MUST exit 1 on a collision, 0 when none, and 2 on a read failure or more than
   256 lane heads, MUST print the scanned heads, and MUST write nothing.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
-  detached worktree head not contained in the screened ref, at most `--limit` commits each outside
+  detached worktree head not contained in the screened ref that shares a root commit with it (an
+  unrelated lineage is no lane), at most `--limit` commits each outside
   it, and report a candidate ticket that such a commit delivers (a delivery line or ticket-scoped
   subject of `TCD-V0-167`) as `DELIVERED_ON_LANE` with `laneCommits` (ref, commit, subject), after
   `DELIVERED` and ahead of `TRUNCATED` and `CLEAR`, and a candidate whose effective progress phase is
   `DELIVERED_ON_BRANCH`, `IN_REVIEW`, `IN_MERGE_QUEUE` or `MERGED_AWAITING_CLOSEOUT` as `IN_FLIGHT`;
-  the item lists the scanned `laneHeads`, and more than 256 local heads is refused
+  the item lists the scanned `laneHeads`, and more than 256 such heads is refused
   `LIMIT_EXCEEDED`. Without the flag the screen MUST be unchanged.
 - `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is
   `UNKNOWN`, propose touch paths derived from repository paths named in the ticket's title, body
