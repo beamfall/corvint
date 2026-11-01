@@ -1,4 +1,4 @@
-# Declared CI flakes for script/pr-landing-watch.sh (ASD-V0-833, V1-1735): one extended regular
+# Declared CI flakes for the PR landing watcher, script/pr-landing-watch (ASD-V0-833, V1-1735): one extended regular
 # expression per line, matched against the whole failing Go test name. A run whose failing tests all
 # match is rerun at most 3 times per head commit; anything else escalates. Each line names where the
 # flake was observed; remove it when the flake is fixed.

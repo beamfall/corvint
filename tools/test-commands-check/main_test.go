@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -455,26 +454,8 @@ func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
 	if err != nil {
 		t.Skipf("repository Git index unreadable here (%v); doc-gates checks it", err)
 	}
-	// pendingChmod lists the script tests still committed 100644 only because cem/1.0 cannot bind a
-	// mode change (metadata-only and old/new mode patches are refused), so a lane cannot carry the
-	// chmod; the integrator makes it outside a bound change and removes the entry. An entry that is
-	// already executable fails, so the list only shrinks.
-	pendingChmod := map[string]bool{
-		"script/release-env-compat_test.sh (100644)":  true,
-		"script/runtime-environment_test.sh (100644)": true,
-	}
-	var bad []string
-	for _, path := range found {
-		if !pendingChmod[path] {
-			bad = append(bad, path)
-		}
-		delete(pendingChmod, path)
-	}
-	if len(bad) != 0 {
-		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
-	}
-	if len(pendingChmod) != 0 {
-		t.Fatalf("pendingChmod entries are executable now: %q; remove them", slices.Sorted(maps.Keys(pendingChmod)))
+	if len(found) != 0 {
+		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", found)
 	}
 }
 
