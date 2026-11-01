@@ -1024,6 +1024,31 @@ make dogfood-closeout BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE
 with `LANE_DIR=$(git rev-parse --absolute-git-dir)` (not `GIT_DIR`, which Git itself reads). A `dogfood-closeout` without `CITATIONS` names
 this recipe in its refusal, before any build.
 
+#### Close a merged cited-only delivery through `cem-verdict`
+
+Before every `gate run cem-verdict`, run the read-only preflight with the gate's own inputs. It
+charges no attempt and names `no-governed-hunk` or `tier-below-anchored` (`TCB-V0-871`):
+
+```console
+$ corvint cem gate-verdict --base BASE --candidate SEAL --predicate touched-anchored \
+    --touch-paths '["PATH",...]' --portable-consumer "$(command -v cem01-go)"
+```
+
+A merged delivery whose sealed map recomputes its code hunks as `cited` refuses
+`tier-below-anchored` over its code touchPaths. An anchored addendum under `docs/build-log/` is not
+a closeout, because no touchPath governs it, so it refuses `no-governed-hunk`. The supported route
+gates the delivered code itself (`TCB-V0-870`):
+
+1. Plan and run the delivered code's tests with `corvint-test-runner` so the plan pins those files.
+2. Commit the plan and receipt on top of the merged delivery.
+3. Assemble a runner-bound map over the delivery's base and that commit. Use
+   `corvint-cem-candidate assemble-stable` with runner pairs, and link each delivered hunk to the
+   passed receipt (`CEM-V1-280..287`).
+4. Seal the map.
+
+Then rerun the preflight. It should GRANT, with each code hunk `cited` and satisfied on
+`runner-input` (`CEM-V1-606`). Run the gate only after that.
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one

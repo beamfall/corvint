@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/store"
@@ -177,6 +178,29 @@ func (x *closeoutIndex) references(text string) map[string]string {
 			} else if out[id] == "" {
 				out[id] = refMentioned
 			}
+		}
+	}
+	return out
+}
+
+// prReferences maps each ticket one PR of a batch read names to delivered or
+// mentioned (TCD-V0-870): its body under references, plus every unvetoed
+// body line whose first word is the ticket's ID, plus its title read as a
+// commit subject under commitReferences. Delivered wins.
+func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
+	out := x.references(p.Body)
+	for _, line := range strings.Split(p.Body, "\n") {
+		lead := strings.TrimLeftFunc(line, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+		if lead == "" || deliveryVeto.MatchString(line) {
+			continue
+		}
+		for _, id := range x.lineTickets(closeoutWord.FindString(lead)) {
+			out[id] = refDelivered
+		}
+	}
+	for id, ref := range x.commitReferences(p.Title) {
+		if ref == refDelivered || out[id] == "" {
+			out[id] = ref
 		}
 	}
 	return out
@@ -613,6 +637,21 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	if repo, e := intent.Resolve(env.Cwd); e == nil {
 		root = repo.PrimaryWorktree
 	}
+	in.deriveLanes(root)
+	for _, r := range in.runs {
+		if r.Conclusion == "success" && (r.HeadSha == in.batch.mergeOid() || r.HeadSha == in.batch.HeadRefOid) && !slices.Contains(in.green, r.DatabaseID) {
+			in.green = append(in.green, r.DatabaseID)
+		}
+	}
+	slices.Sort(in.green)
+	return in, nil
+}
+
+// deriveLanes sets the lane PRs: the other exported PRs the batch title or
+// body names as #N whose heads root proves in the merge's ancestry; the rest
+// are excluded with their reason (TCD-V0-163, TCD-V0-179). An empty root
+// proves nothing.
+func (in *batchInput) deriveLanes(root string) {
 	seen := map[int64]bool{}
 	for _, m := range prNumberRef.FindAllStringSubmatch(in.batch.Title+"\n"+in.batch.Body, -1) {
 		n, _ := strconv.ParseInt(m[1], 10, 64)
@@ -632,24 +671,23 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	}
 	slices.Sort(in.lanes)
 	slices.SortFunc(in.excluded, func(a, b excludedLane) int { return int(a.number - b.number) })
-	for _, r := range in.runs {
-		if r.Conclusion == "success" && (r.HeadSha == in.batch.mergeOid() || r.HeadSha == in.batch.HeadRefOid) && !slices.Contains(in.green, r.DatabaseID) {
-			in.green = append(in.green, r.DatabaseID)
-		}
-	}
-	slices.Sort(in.green)
-	return in, nil
 }
 
 // batchHits indexes the store and returns the tickets the batch delivered
-// (a delivery line in a lane PR body or the batch body) and those it only
-// mentioned (TCD-V0-163..164). A delivered ticket is never also mentioned.
+// (a delivery line in a lane PR or the batch PR) and those it only
+// mentioned (TCD-V0-163..164, TCD-V0-870). A delivered ticket is never also
+// mentioned.
 func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 	index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
 	for _, id := range rc.store.Inventory.Sorted() {
 		rec, _ := rc.store.Inventory.Get(id)
 		index.add(rec)
 	}
+	return in.hits(index)
+}
+
+// hits is batchHits over an already-built index.
+func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHit) {
 	seen := map[string]bool{}
 	var weak []batchHit
 	for _, n := range append(slices.Clone(in.lanes), 0) {
@@ -657,7 +695,7 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 		if n != 0 {
 			p = in.byNumber[n]
 		}
-		refs := index.references(p.Body)
+		refs := index.prReferences(p)
 		ids := make([]string, 0, len(refs))
 		for id := range refs {
 			ids = append(ids, id)

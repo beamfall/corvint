@@ -11,6 +11,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -81,7 +82,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -114,7 +115,6 @@ var ReadVerbs = []string{
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"config", "plan record", "receipt show", "receipt replay",
-	"archive restore",
 }
 
 // Run executes one command and returns the process exit code: 0 iff the
@@ -131,6 +131,9 @@ func Run(env Env) int {
 	}
 	if env.Stdin == nil {
 		env.Stdin = strings.NewReader("")
+	}
+	if res := globalRoot(&env); res != nil {
+		return emit(env.Stdout, res)
 	}
 	args := env.Args
 	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
@@ -406,7 +409,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
 	case "archive":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE]"))
+			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE], restore FILE"))
 		}
 		switch args[1] {
 		case "export":
@@ -415,7 +418,7 @@ func Run(env Env) int {
 		case "verify":
 			return emit(env.Stdout, archiveVerify(env, args[2:]))
 		case "restore":
-			return emit(env.Stdout, notRun([]string{"archive", "restore"}))
+			return emit(env.Stdout, archiveRestore(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"archive"}, "unknown archive verb"))
 	}
@@ -460,6 +463,31 @@ func prose(s string) string {
 
 // emit encodes the envelope and returns the exit code. An envelope that
 // fails its own validation is replaced by a minimal ERROR envelope.
+// globalRoot applies a leading `--root DIR` (or `--root=DIR`): the command
+// runs as if started in DIR, relative to the working directory (CTS-V0-871).
+func globalRoot(env *Env) *wire.Result {
+	if len(env.Args) == 0 || (env.Args[0] != "--root" && !strings.HasPrefix(env.Args[0], "--root=")) {
+		return nil
+	}
+	dir, inline := strings.CutPrefix(env.Args[0], "--root=")
+	rest := env.Args[1:]
+	if !inline {
+		if len(rest) == 0 {
+			dir = ""
+		} else {
+			dir, rest = rest[0], rest[1:]
+		}
+	}
+	if dir == "" || strings.HasPrefix(dir, "--") {
+		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
+	}
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(env.Cwd, dir)
+	}
+	env.Cwd, env.Args = dir, rest
+	return nil
+}
+
 func emit(w io.Writer, res *wire.Result) int {
 	data, err := res.Encode()
 	if err != nil {
@@ -1201,7 +1229,7 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		f.text = &low
 	}
 	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text)")
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text); `ticket list` is the unfiltered read")
 	}
 	return f, nil
 }
@@ -1618,7 +1646,32 @@ func resolveTicketArg(rc *readCtx, arg string) (string, error) {
 	if id.QueueID() != rc.store.Queue.QueueID.Raw {
 		return "", wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is outside queue %s", id.Raw, rc.store.Queue.QueueID.Raw)
 	}
+	if c := paddedCandidates(rc, id); len(c) == 1 {
+		return c[0], nil
+	}
 	return id.Raw, nil
+}
+
+// paddedCandidates are the tickets an absent token with an unpadded numeric
+// suffix (QB-1) names once leading zeros are added (QB-0001); an exact token
+// has none (CTS-V0-873).
+func paddedCandidates(rc *readCtx, id wire.TicketID) []string {
+	if _, ok := rc.store.Inventory.Get(id.Raw); ok {
+		return nil
+	}
+	digits := id.Local[strings.LastIndexByte(id.Local, '-')+1:]
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		return nil
+	}
+	prefix := strings.TrimSuffix(id.Raw, digits)
+	var found []string
+	for zeros := 1; len(digits)+zeros <= 8; zeros++ {
+		c := prefix + strings.Repeat("0", zeros) + digits
+		if _, ok := rc.store.Inventory.Get(c); ok {
+			found = append(found, c)
+		}
+	}
+	return found
 }
 
 func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
@@ -1632,20 +1685,23 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "ticket %s takes exactly one ticket id or local token", verb))
 	}
 	var item *wire.Value
-	notFound := ""
+	notFound, candidates := "", ""
 	read := withStore
 	if includeRecord {
 		read = withInventoryStore
 	}
 	rc, err := read(env, func(rc *readCtx) error {
 		item = nil
-		notFound = ""
+		notFound, candidates = "", ""
 		id, err := resolveTicketArg(rc, args[0])
 		if err != nil {
 			return err
 		}
 		if _, ok := rc.store.Inventory.Get(id); !ok {
 			notFound = id
+			if c := paddedCandidates(rc, wire.TicketID{Raw: id, Local: id[strings.LastIndexByte(id, ':')+1:]}); len(c) > 1 {
+				candidates = "; it names " + strings.Join(c, " and ")
+			}
 			return nil
 		}
 		ctx, err := ticketContext(rc)
@@ -1730,7 +1786,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		} else if rc.journalAbsent {
 			res.Warnings = append(res.Warnings, journalAbsentNotFound(rc, notFound))
 		} else {
-			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue"+candidates)
 		}
 		return res
 	}
@@ -2073,6 +2129,37 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	o.Set("files", wire.String(string(wire.CountOf(int64(vr.Files)))))
 	o.Set("bytes", wire.String(string(wire.SizeOf(vr.Bytes))))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+// archiveRestore rebuilds an absent store from one verified archive
+// (TRL-V0-870, TRL-V0-871).
+func archiveRestore(env Env, args []string) *wire.Result {
+	cmd := []string{"archive", "restore"}
+	if len(args) != 1 || strings.HasPrefix(args[0], "-") {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "archive restore takes exactly one archive file argument"))
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	rep, err := store.RestoreArchive(writerContext(), repo, args[0])
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	m := rep.Verified.Manifest
+	o := wire.NewObject()
+	o.Set("queueId", wire.String(m.QueueID.Raw))
+	o.Set("exportedAtSeq", wire.String(string(m.ExportedAtSeq)))
+	o.Set("headGeneration", wire.String(string(m.HeadGeneration)))
+	o.Set("files", wire.String(string(wire.CountOf(int64(rep.Verified.Files)))))
+	o.Set("bytes", wire.String(string(wire.SizeOf(rep.Verified.Bytes))))
+	o.Set("stateFiles", wire.String(string(wire.CountOf(int64(rep.StateFiles)))))
+	o.Set("intentWritten", wire.String(string(wire.CountOf(int64(rep.IntentWritten)))))
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+	if rep.RecordedPrimary != "" {
+		res.Warnings = append(res.Warnings, "the archive was exported from primary worktree "+rep.RecordedPrimary+"; run `corvint-tasks relocate --from "+rep.RecordedPrimary+"` to bind the restored store to this path")
+	}
+	return res
 }
 
 // withoutKeys copies an object item without the named keys.

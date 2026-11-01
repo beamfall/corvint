@@ -323,7 +323,7 @@ func mutateResult(cmd []string, report *store.Report) *wire.Result {
 	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 	if report.Outcome.Outcome != mutation.OutcomeCompleted {
 		res.Outcome = wire.OutcomeRefused
-		res.Codes = report.Outcome.Codes
+		res.Codes = refusalCodes(report.Outcome)
 		if report.Detail != "" {
 			res.Warnings = append(res.Warnings, prose(report.Detail))
 		}

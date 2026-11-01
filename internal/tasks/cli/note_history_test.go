@@ -42,11 +42,17 @@ func noteWrite(t *testing.T, r *fixture.Repo, id string, prior int, op string) {
 	if text, ok := strings.CutPrefix(op, "SET:"); ok {
 		args = []string{"ticket", "note", "set", id, "--text", text}
 	}
-	args = append(args, "--request-id", "note-"+strconv.Itoa(prior+1), "--issued-at", "2026-10-05T12:00:00Z",
+	args = append(args, "--request-id", noteRequestID(id, prior+1), "--issued-at", "2026-10-05T12:00:00Z",
 		"--supersedes", strconv.Itoa(prior))
 	if x := atm(t, r.Root, nil, args...); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("note %s: %+v", op, x.res)
 	}
+}
+
+// noteRequestID is unique per ticket and note revision, so notes on several
+// tickets of one store never collide on REQUEST_ID_CONFLICT (V1-3555).
+func noteRequestID(id string, revision int) string {
+	return "note-" + id[strings.LastIndex(id, ":")+1:] + "-" + strconv.Itoa(revision)
 }
 
 func noteHistoryPage(t *testing.T, r *fixture.Repo, args ...string) (wire.Value, *wire.Result) {
@@ -97,7 +103,7 @@ func TestONV0008_NoteHistoryPagesAnchoredChain(t *testing.T) {
 	entries := field(all, "entries").Arr
 	if !field(entries[0], "current").Bool || field(entries[1], "current").Bool || field(entries[0], "text").Str != "fourth" ||
 		field(entries[2], "text").Kind != wire.KindNull || field(entries[4], "previous").Kind != wire.KindNull ||
-		field(entries[3], "requestId").Str != "note-2" || field(field(entries[3], "actor"), "role").Str != "OWNER" {
+		field(entries[3], "requestId").Str != noteRequestID(id, 2) || field(field(entries[3], "actor"), "role").Str != "OWNER" {
 		t.Fatalf("history entries: %s", wire.Encode(all))
 	}
 	for i := 0; i+1 < len(entries); i++ {
