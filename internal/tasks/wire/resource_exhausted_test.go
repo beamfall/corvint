@@ -49,9 +49,9 @@ func TestCALV0215_WithoutRetry(t *testing.T) {
 			if errors.Is(err, errno) && !errors.Is(marked, errno) {
 				t.Fatal("lost errno identity")
 			}
-			raw, e := (&Result{Command: []string{"run"}, Outcome: OutcomeError, Codes: []string{CodeOf(marked)}, NotRetryable: RetryForbidden(marked)}).Encode()
-			if e != nil || !strings.Contains(string(raw), `"retryable":false`) {
-				t.Fatalf("envelope: %s %v", raw, e)
+			raw := encodedResult(t, Result{Command: []string{"run"}, Outcome: OutcomeError, Codes: []string{CodeOf(marked)}, NotRetryable: RetryForbidden(marked)})
+			if !strings.Contains(raw, `"retryable":false`) {
+				t.Fatalf("envelope: %s", raw)
 			}
 		}
 	}
