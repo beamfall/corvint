@@ -2948,7 +2948,7 @@
         "corvint-tasks ticket reopen --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket restore --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket revoke-approval --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
         "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
@@ -2956,6 +2956,7 @@
         "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]"
       ],
       "flags": [
+        "--all",
         "--anchor",
         "--attempt",
         "--batch",
@@ -4274,9 +4275,10 @@
       "command": "corvint-tasks ticket search",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
+        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
       ],
       "flags": [
+        "--all",
         "--count",
         "--facets",
         "--fields",
@@ -4292,7 +4294,7 @@
         "--text"
       ],
       "required": [],
-      "example": "corvint-tasks ticket search",
+      "example": "corvint-tasks ticket search --all",
       "help": "corvint-tasks ticket search --help"
     },
     {

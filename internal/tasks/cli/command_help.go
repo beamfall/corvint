@@ -134,6 +134,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "ticket list" || name == "ticket search" || name == "roadmap" {
 		o.Set("facets", wire.String("--facets adds a top-level facets object counting every matched ticket regardless of --offset/--limit: total, byStatus, byPriority, byKind, byExecutionClass, byEligibility (every closed value, zeros included), byNextAction, byBlockerCode (non-terminal tickets, once per code), byMilestone and byLabel (at most 64 most frequent keys, with milestonesOmitted and labelsOmitted), and withoutMilestone. --count returns only that object, with no items and page null, and refuses --offset or --limit (CAL-V0-206, CAL-V0-207)."))
 	}
+	if name == "ticket search" {
+		o.Set("all", wire.String("--all is the explicit unfiltered listing: every ticket in search order, paged by --offset and --limit; it takes no filter flag, and a search with neither a filter nor --all is refused (CAL-V0-966)."))
+	}
 	if name == "release readiness" {
 		o.Set("membership", wire.String("The item adds memberCounts (member tickets by status and priority, plus absent member ids) and milestoneDrift: unfinishedNonMembers are DRAFT, OPEN or HELD tickets whose milestone equals the releaseId but are not members, and membersOutsideMilestone are members whose milestone differs; each lists an exact count and at most 100 ids. Membership is never changed. A release without a candidate is BLOCKED on candidate without observing the source tree (CAL-V0-208, CAL-V0-209)."))
 	}
@@ -302,7 +305,7 @@ var commandUsage = map[string]string{
 
 	"version":                 "corvint-tasks version (alias --version)",
 	"ticket list":             "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
-	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+	"ticket search":           "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",

@@ -1167,7 +1167,31 @@ func labelFlag(fl map[string]string, name string) (*string, error) {
 	return &l, nil
 }
 
-func parseSearchFilter(fl map[string]string) (searchFilter, error) {
+// searchAllFlag removes the valueless --all (CAL-V0-966) from args. A value
+// flag's value that happens to read --all is left for the flag parser.
+func searchAllFlag(args []string) (bool, []string, error) {
+	all := false
+	rest := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--all" {
+			if all {
+				return false, nil, wire.Errorf(wire.CodeMalformed, "--all", "--all given more than once")
+			}
+			all = true
+			continue
+		}
+		rest = append(rest, args[i])
+		if slices.Contains(searchValueFlags, args[i]) && i+1 < len(args) {
+			i++
+			rest = append(rest, args[i])
+		}
+	}
+	return all, rest, nil
+}
+
+// parseSearchFilter reads the filter flags; all is --all, the explicit
+// unfiltered listing, which no filter may accompany (CAL-V0-966).
+func parseSearchFilter(fl map[string]string, all bool) (searchFilter, error) {
 	var f searchFilter
 	var err error
 	if f.status, err = enumFlag(fl, "status", ticket.Statuses); err != nil {
@@ -1202,8 +1226,12 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		low := strings.ToLower(t)
 		f.text = &low
 	}
-	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text)")
+	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil
+	if all && filtered {
+		return f, wire.Errorf(wire.CodeMalformed, "--all", "--all lists every ticket and takes no filter flag")
+	}
+	if !all && !filtered {
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text), or --all to list every ticket in pages of --limit")
 	}
 	return f, nil
 }
@@ -1270,6 +1298,10 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
+	all, args, err := searchAllFlag(args)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
 	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text")
 	if err == nil {
 		err = fm.checkCount(fl)
@@ -1277,7 +1309,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	f, err := parseSearchFilter(fl)
+	f, err := parseSearchFilter(fl, all)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
