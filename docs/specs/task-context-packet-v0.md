@@ -1302,6 +1302,19 @@ as withheld. This amendment reserves what the routed spec cites.
   repository with matching traces context may abstain where query does not. Rollback: delete
   `queryFloorCoverage` and its call; `evalRank`/`relevanceFloor` are a behavior-neutral split of
   `evalQuery`.
+- `TCP-V0-961`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3710)
+  The definition slot MUST NOT admit an unquoted all-capitals token (two or more of `A`-`Z` and
+  nothing else) that at least `max(sources/16, 2)` indexed sources name as written, the
+  answerability cut of TCP-V0-016: such an acronym (`CEM`, `PR`) is prose vocabulary, and its one
+  declarer (`type CEM` in `internal/revieworder/order.go`) must not outrank the files the task is
+  about. A backticked acronym and a rarer one keep the slot; `definitionEligible`'s other callers
+  are unchanged. Falsifier: on the `CEM canonical binding` probe a definition row for the `CEM`
+  declarer above `internal/cem/wire/canonical.go`. Test:
+  `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. The ticket's other criterion, slot
+  evidence as an additive bonus on the lexical score measured on the frozen retrieval eval, is not
+  delivered: the frozen `tools/retrieval-bench` corpora are absent from the host that made this
+  change, and an unmeasured re-ranking would break TCP-V0-994's no-regression bound. Rollback:
+  call `definitionEligible` again in `symbolRows` and `eligibleDefiners`.
 
 ## Non-goals and authority
 
@@ -1799,4 +1812,5 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
 | TCP-V0-995 (experimental, standing lane auto-accept, V1-1269) | `relationRows`, `instructionReservation`, `spanRanker.coreSpans` | `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
+| TCP-V0-961 (experimental, standing lane auto-accept, V1-3710) | `definitionSlotEligible`, `allCapitalAcronym`, `symbolRows`, `eligibleDefiners` | `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot` |
 | TCP-V0-960 (experimental, standing lane auto-accept, V1-3709) | `queryFloorCoverage`, `QueryRelevanceAbstention`, `evalRank`, `evalRanked.relevanceFloor` | `TestTaskContextAgreesWithQueryAbstention`, `TestTaskContextIgnoresQueryEmptyUniverse` |
