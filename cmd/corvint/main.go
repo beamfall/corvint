@@ -254,6 +254,11 @@ func parseQueryArgumentsForPlatform(result options, arguments []string, platform
 		}
 		name, value, inline := strings.Cut(arguments[index], "=")
 		if name != "--task" && name != "--limit" && name != "--budget-bytes" {
+			if !strings.HasPrefix(arguments[index], "-") {
+				// CAP-V0-121 (V1-3802): positional task text names the --task form.
+				return result, argumentError("unrecognized arguments: " + arguments[index] +
+					"; pass the task text with --task, as in: corvint query --task " + strconv.Quote(arguments[index]))
+			}
 			return result, argumentError("unrecognized arguments: " + arguments[index])
 		}
 		if !inline {

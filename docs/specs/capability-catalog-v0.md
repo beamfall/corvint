@@ -464,6 +464,13 @@ cannot silently go missing or outlive its command.
   adding options; describing options of non-daily-path nodes. Evidence:
   `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint). Rollback: drop
   `dogfoodFlowOptionsText` from `nodeHelpText`.
+- `CAP-V0-121`: (experimental under the standing lane auto-accept (2026-11-01); V1-3802) When
+  `corvint query` is given a positional argument (one that does not start with `-`), its
+  `invalid-arguments` refusal MUST keep the `unrecognized arguments: ARG` prefix and add the
+  `--task` form, `corvint query --task "ARG"`; it still exits 2. Non-goals: accepting positional
+  task text (the `--task` contract stays the one input form). Evidence:
+  `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint). Rollback: drop the hint branch in
+  `parseQueryArgumentsForPlatform`.
 - `CAP-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   CAP-V0-961) A command row's `Subcommands` sentence MUST have a typed structure: every backticked
   span at parenthesis depth zero in it is exactly one subcommand name (`^[a-z][a-z0-9-]*$`); a
@@ -635,3 +642,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
 | CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |
