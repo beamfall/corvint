@@ -177,6 +177,11 @@ such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prin
 `HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
 each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
+Before choosing a focused `-run` pattern for a selected package, run
+`corvint test --base SHA --dry-run --pins`: it prints one `pins go:PKG -run '^(...)$'` line per
+selected package naming the tests whose bodies or helpers name a changed declaration or quote a
+changed string literal (TSP-V0-944, V1-3808). Run those first; they are advice, so the dry-run
+selection still decides what must pass before the lane finishes.
 
 #### Several offload hosts (ASD-V0-933, V1-3626, V1-3518)
 
