@@ -148,7 +148,7 @@ func (run portableRun) exec(t *testing.T, root string, extra []string, args ...s
 
 // TestPortableRunRetriesTextFileBusy holds the copied binary open for writing, as a concurrent
 // fork briefly can, so its first start fails with ETXTBSY on Linux; the runner must retry the
-// start and run it once the descriptor closes (ASD-V0-106, V1-3175).
+// start and run it once the descriptor closes (ASD-V0-106, V1-3175, ASD-V0-927).
 func TestPortableRunRetriesTextFileBusy(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("ETXTBSY on an open-for-write executable is Linux behavior")
@@ -163,9 +163,14 @@ func TestPortableRunRetriesTextFileBusy(t *testing.T) {
 		held.Close()
 		t.Skipf("this host does not report ETXTBSY for a held executable: %v", err)
 	}
+	// Hold past the adapter's whole retry schedule, as a slow fork on a loaded host can (ASD-V0-927, V1-3619).
+	hold := 300 * time.Millisecond
+	for _, delay := range workTextBusyRetries {
+		hold += delay
+	}
 	released := make(chan struct{})
 	go func() {
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(hold)
 		held.Close()
 		close(released)
 	}()
