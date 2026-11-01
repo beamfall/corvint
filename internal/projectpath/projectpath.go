@@ -81,9 +81,10 @@ func resolve(root, path string, linksLeft int) (string, bool) {
 			}
 			if len(suffix) > 0 {
 				// Windows reports a path below a regular file as ERROR_PATH_NOT_FOUND,
-				// which os.IsNotExist accepts, so the walk can stop at a file. Only a
-				// directory can be the existing ancestor of absent components.
-				if dir, err := os.Stat(resolved); err != nil || !dir.IsDir() {
+				// which os.IsNotExist accepts, so the walk can stop at a file. An
+				// existing ancestor of absent components must be a directory; a
+				// dangling link's absent target was already proven absent above.
+				if dir, err := os.Stat(resolved); err == nil && !dir.IsDir() || err != nil && !os.IsNotExist(err) {
 					return "", false
 				}
 			}
