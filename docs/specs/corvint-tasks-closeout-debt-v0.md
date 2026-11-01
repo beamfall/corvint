@@ -589,19 +589,23 @@ closeout step is missing.
   on any other line still wins over mentioned. Non-goal: no language parsing beyond these markers.
   Rollback: revert; the line-level veto and line-leading rule return.
 - `TCD-V0-731`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3713; amends
-  TCD-V0-163, TCD-V0-164 and TCD-V0-004) `batch-delivered` and `batch-close` also read the batch
-  merge commit's lane commits: the first-parent chain from the merge's second parent that is not
-  reachable from its first parent, at most 1000 commits, each under `commitReferences`
-  (`TCD-V0-167`, `TCD-V0-730`). A ticket a lane PR or the batch text delivers keeps that source; one
+  TCD-V0-163, TCD-V0-164, TCD-V0-004 and TCD-V0-871) `batch-delivered`, `batch-close` and the
+  `closeout-debt --prs` proposal for each merged PR (`TCD-V0-871`) also read the PR merge commit's
+  lane commits: every non-merge commit reachable from the merge's second parent and not from its
+  first parent (`git log --no-merges M^1..M^2`, so a batch that merges lane merges reads every
+  lane's commits), at most 1000 commits, each under `commitReferences` (`TCD-V0-167`,
+  `TCD-V0-730`). A ticket a lane PR or the batch text delivers keeps that source; one
   only a lane commit delivers is a `delivered` row with a null `lanePr` and `commit` set to that
   commit, and `batch-close` closes it with the reason `Delivered by lane commit C; merged in batch PR
   #N at M; CI green: URL`. Every `delivered` and `mentioned` row carries `commit` (null when PR text
   is the source). The item adds `laneCommits`, the number of lane commits read, or `NOT_OBSERVED`
   with a warning when the merge commit does not resolve locally or has one parent; a range over the
-  bound sets `laneCommitsTruncated` and warns. `ticket closeout-debt` no longer lists a merge
+  bound sets `laneCommitsTruncated` and warns (`closeout-debt` warns naming the PR). `ticket closeout-debt` no longer lists a merge
   commit's citation of a ticket that another scanned commit also cites, so a merged PR's constituent
-  rows are not repeated as merge-commit umbrella rows; a merge commit that is the only citer still
-  lists. Non-goal: no GitHub query for the PR's commits. Rollback: revert; the batch verbs read PR
+  rows are not repeated as merge-commit umbrella rows. A merge commit's citation is also dropped when
+  a merge commit it merged (one its second parent reaches and its first parent does not) cites the
+  same ticket, so a batch merge does not repeat its lane merge's row; separate merges that each cite
+  a ticket, and a merge commit that is the only citer, still list. Non-goal: no GitHub query for the PR's commits. Rollback: revert; the batch verbs read PR
   text only and closeout-debt lists merge commits again.
 
 ## Failure modes
@@ -817,8 +821,8 @@ closeout step is missing.
 | TCD-V0-872 | V1-3496 | `script/tasks-reconcile.sh`, `Makefile` (`tasks-reconcile`) | `TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus` (stub `gh`: report retained, exit 1 with debt, proposal command printed; failed export exit 2) | live reconcile of origin/main 6c967b21c: build log 2026-10-31-tasks-cli-w2 |
 | TCD-V0-873 | V1-3496 | `internal/tasks/cli` | `TestTCDV0871_CloseoutDebtProposesBatchClose` (proposed `batch-close --manual` completes the ticket, rerun has no candidate for it) | none |
 | TCD-V0-874 | V1-3551 | `internal/tasks/cli` | `TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce` (one ticket delivered by two merged PRs: one proposal lists it, its row's `prs` names both) | none |
-| TCD-V0-730 | V1-3713 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.idReferences`, `references`, `prReferences`, `commitReferences`) | `TestTCDV0730_ReferencesVetoPerID` (mid-line Delivers, ALREADY-DELIVERED and BLOCKED IDs on one line, ID-led line and title scope overridden by a per-ID body veto, commit line-leading rule kept); `TestTCDV0731_BatchDeliveredPR25And38Shapes` | none |
-| TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows`; `TestTCDV0731_ScanLaneCommitsReadsTheMergedFirstParentChain` | none |
+| TCD-V0-730 | V1-3713 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.idReferences`, `references`, `prReferences`, `commitReferences`) | `TestTCDV0730_ReferencesVetoPerID`, `TestTCDV0730_PRTitleMidLineDelivers` (mid-line Delivers, ALREADY-DELIVERED and BLOCKED IDs on one line, ID-led line and title scope overridden by a per-ID body veto, commit line-leading rule kept); `TestTCDV0731_BatchDeliveredPR25And38Shapes` | none |
+| TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeoutProposals`, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows` (a lane merge and the batch merge enclosing it as the only citers list once); `TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit` (batch-delivered and closeout-debt proposals over a batch of two lane merges); `TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit` | none |
 
 ## Rollout and rollback
 
