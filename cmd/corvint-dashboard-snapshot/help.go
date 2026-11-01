@@ -7,7 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// usageText is the synopsis text the command tree derives from (CAP-V0-970).
+// usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-dashboard-snapshot snapshot --root ROOT [--source ADAPTER=PATH]... [--conformance --generated-at TIME]
 corvint-dashboard-snapshot roadmap --root ROOT --tasks BINARY --store DIR --generated-at TIME [--receipts-dir DIR] [--docs-state FILE] [--requirements FILE] [--atm BINARY]
 corvint-dashboard-snapshot cem-stable --root ROOT --cem PATH --ocm PATH --expected-base OID --target OID --artifact-root DIR
@@ -19,7 +19,7 @@ var commandSummaries = map[string]string{
 	"cem-stable": "Compile the dashboard view of a cem/1.0 stable map and its OCM against an expected base and target",
 }
 
-// companionHelp is corvint-dashboard-snapshot's command tree and help (CAP-V0-971).
+// companionHelp is corvint-dashboard-snapshot's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{Tree: clitree.CompanionTree("corvint-dashboard-snapshot", usageText, commandSummaries, nil, nil, nil),
 		Title: "the local dashboard snapshot compiler"}

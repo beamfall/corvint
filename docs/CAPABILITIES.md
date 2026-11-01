@@ -24,7 +24,7 @@ unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promot
 
 Every subcommand at every depth, with its flags, required inputs and an example, is in one
 `corvint-command-tree/0` document per binary, derived from the help that binary prints
-(CAP-V0-040 to CAP-V0-048, CAP-V0-930, CAP-V0-970): `corvint help --tree`, `corvint-tasks help
+(CAP-V0-040 to CAP-V0-048, CAP-V0-930, CAP-V0-972): `corvint help --tree`, `corvint-tasks help
 --json`, `corvint-test help --json`, `corvint-cem-candidate help --json`, `corvint-cem-experiments
 help --json`, and `help --json` of each companion with subcommands (`corvint-corpus-republish`,
 `corvint-dashboard-snapshot`, `corvint-go-test-provider`, `corvint-intake`,

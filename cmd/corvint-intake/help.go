@@ -7,7 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// usageText is the synopsis text the command tree derives from (CAP-V0-970).
+// usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-intake validate --root PATH --base FULL_OID --head FULL_OID < candidate.json
 corvint-intake reader-check --root PATH --raw FILE --output FILE
 `
@@ -19,7 +19,7 @@ var commandSummaries = map[string]string{
 
 var commandExamples = map[string]string{}
 
-// companionHelp is corvint-intake's command tree and help (CAP-V0-971).
+// companionHelp is corvint-intake's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{Tree: clitree.CompanionTree("corvint-intake", usageText, commandSummaries, commandExamples, nil, nil),
 		Title: "the experimental local intake validator; output never grants authority; host confinement and reader extraction are NOT_OBSERVED"}

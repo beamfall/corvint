@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// CompanionTree is a companion binary's tree derived from its synopsis text (CAP-V0-970): every
+// CompanionTree is a companion binary's tree derived from its synopsis text (CAP-V0-972): every
 // synopsis line of usage, a summary per node path and an optional example per node path. Its
 // dispatch source is the binary's own cmd/ directory.
 func CompanionTree(binary, usage string, summaries, examples map[string]string, global []string, internal []Internal) Tree {
@@ -23,7 +23,7 @@ func CompanionTree(binary, usage string, summaries, examples map[string]string, 
 	return builder.Tree(binary+" help --json", "cmd/"+binary+" usageText", []string{"cmd/" + binary}, global, internal)
 }
 
-// Help serves a companion binary's help from its tree (CAP-V0-971).
+// Help serves a companion binary's help from its tree (CAP-V0-973).
 type Help struct {
 	Tree Tree
 	// Title opens the generated root help; it is unused when Intro is set.

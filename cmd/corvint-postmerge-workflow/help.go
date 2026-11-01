@@ -7,7 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// usageText is the synopsis text the command tree derives from (CAP-V0-970).
+// usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE [--root REPO]
 `
 
@@ -17,7 +17,7 @@ var commandSummaries = map[string]string{
 
 var commandExamples = map[string]string{}
 
-// companionHelp is corvint-postmerge-workflow's command tree and help (CAP-V0-971).
+// companionHelp is corvint-postmerge-workflow's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{Tree: clitree.CompanionTree("corvint-postmerge-workflow", usageText, commandSummaries, commandExamples, nil, nil),
 		Title: "the experimental local post-merge replay companion, not a live writer"}

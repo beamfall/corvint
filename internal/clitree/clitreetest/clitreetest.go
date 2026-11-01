@@ -1,5 +1,5 @@
 // Package clitreetest checks a companion binary's command tree and help in its own tests
-// (CAP-V0-972).
+// (CAP-V0-974).
 package clitreetest
 
 import (

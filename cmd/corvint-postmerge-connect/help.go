@@ -7,7 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// usageText is the synopsis text the command tree derives from (CAP-V0-970).
+// usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-postmerge-connect plan --experimental --root REPO --fixture FILE --policy FILE --input FILE [--mode dry-run]
 corvint-postmerge-connect read-intake --experimental --root REPO --fixture FILE --policy FILE --input FILE --output FILE --author-root DIR [--mode dry-run]
 corvint-postmerge-connect write --experimental --root REPO --fixture FILE --policy FILE --input FILE [--mode dry-run|recording|live] [--output FILE] [--author-root DIR]
@@ -21,7 +21,7 @@ var commandSummaries = map[string]string{
 
 var commandExamples = map[string]string{}
 
-// companionHelp is corvint-postmerge-connect's command tree and help (CAP-V0-971).
+// companionHelp is corvint-postmerge-connect's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{Tree: clitree.CompanionTree("corvint-postmerge-connect", usageText, commandSummaries, commandExamples, nil, nil),
 		Title: "the experimental post-merge tracker and forge connector (local fixtures only)"}

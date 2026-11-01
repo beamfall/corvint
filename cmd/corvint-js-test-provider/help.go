@@ -7,7 +7,7 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// usageText is the synopsis text the command tree derives from (CAP-V0-970). providerUsage stays
+// usageText is the synopsis text the command tree derives from (CAP-V0-972). providerUsage stays
 // the authored root help and each subcommand's flag set its authored detail.
 const usageText = `corvint-js-test-provider unit [--dir DIR] [--config FILE] [--package-json FILE] [--lockfile FILE] [--runner-version VERSION] [--timeout DURATION] [--test-file FILE]... [--env-key KEY]... [--retain]
     [--watch RELPATH... --foreground --experimental --trusted-local]
@@ -46,7 +46,7 @@ var helpSpellings = []clitree.Internal{
 	{Word: "-help", Reason: "single-dash alternative spelling of --help that the binary's own dispatch still answers"},
 }
 
-// companionHelp is corvint-js-test-provider's command tree and help (CAP-V0-971).
+// companionHelp is corvint-js-test-provider's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
 	return clitree.Help{
 		Tree:  clitree.CompanionTree("corvint-js-test-provider", usageText, commandSummaries, nil, nil, helpSpellings),

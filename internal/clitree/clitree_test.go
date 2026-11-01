@@ -410,9 +410,9 @@ func TestCAPV0931AnswerRoutesHelpOnly(t *testing.T) {
 	}
 }
 
-// TestCAPV0971HelpServe answers the tree's help invocations with the authored root and node
+// TestCAPV0973HelpServe answers the tree's help invocations with the authored root and node
 // detail, refuses an unknown help path with exit 2, and leaves every other invocation unanswered.
-func TestCAPV0971HelpServe(t *testing.T) {
+func TestCAPV0973HelpServe(t *testing.T) {
 	tree := CompanionTree("demo", "demo run --dir DIR [--retain]\n", map[string]string{"run": "Run once"}, nil, nil, nil)
 	help := Help{Tree: tree, Title: "a demo", RootForms: []string{"demo --serve"},
 		Detail: func(path []string, w io.Writer) { io.WriteString(w, "detail "+strings.Join(path, " ")+"\n") }}
