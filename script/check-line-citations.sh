@@ -799,12 +799,23 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     my $line_number = 0;
     my $fenced = 0;
     my $current;
+    my %table_row;
     for my $doc_line (@$doc_lines) {
         my $line = $doc_line;
         ++$line_number;
         if ($line =~ /^\s*```/) { $fenced = !$fenced; next; }
         next if $fenced;
         if ($line !~ /\S/) { undef $current; next; }
+        # DCG-V0-744 (V1-3746): a repeated table row doubles every repin and merge conflict on its
+        # pinned citations, so the second copy fails, naming the first.
+        if ($line =~ /^\|.*\|\s*$/ && $line =~ /`[^`]*:\d[\d,-]*\@[0-9a-f]{4,64}`/) {
+            if (defined(my $first = $table_row{$line})) {
+                push @failures, "$doc:$line_number  duplicate table row: it repeats $doc:$first byte for byte, "
+                    . "pinned citations included; delete one copy";
+            } else {
+                $table_row{$line} = $line_number;
+            }
+        }
         while ($line =~ /`[^`]*`/g) {
             check_malformed($doc, $line_number, $&);
         }
