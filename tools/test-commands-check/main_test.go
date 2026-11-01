@@ -356,3 +356,33 @@ func TestASDV0942EveryScriptTestHasAMakeTarget(t *testing.T) {
 		t.Errorf("a removed recipe: %q, want [script/agent-preflight_test.sh]", got)
 	}
 }
+
+// V1-2159: a recipe expansion is pinned from a Go test whose package declares Makefile in
+// .corvint/test-read-scopes.json, as this one does, not from a shell test: `make` in a
+// script/*_test.sh makes that unit an unbounded reader (shell:runs-toolchain). The
+// instruction-conflicts recipe gives the repository-layer verdict by default and one --host per
+// INSTRUCTION_HOST_FILES word otherwise (V1-1756).
+func TestInstructionConflictsRecipeExpansion(t *testing.T) {
+	root := requireMake(t)
+	for _, c := range []struct {
+		name string
+		args []string
+		want string
+	}{
+		{"repository layer", nil, "script/check-instruction-conflicts.sh --repository-only"},
+		{"host files", []string{"INSTRUCTION_HOST_FILES=a.json  b/CLAUDE.md"}, "script/check-instruction-conflicts.sh --host a.json --host b/CLAUDE.md"},
+		{"blank host files", []string{"INSTRUCTION_HOST_FILES= "}, "script/check-instruction-conflicts.sh --repository-only"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			command := exec.Command("make", append([]string{"-s", "-n", "-C", root, "--no-print-directory", "instruction-conflicts"}, c.args...)...)
+			command.Env = append(os.Environ(), "MAKEFLAGS=", "INSTRUCTION_HOST_FILES=")
+			out, err := command.Output()
+			if err != nil {
+				t.Fatalf("make -n instruction-conflicts: %v", err)
+			}
+			if got := strings.TrimSpace(string(out)); got != c.want {
+				t.Fatalf("recipe expands to %q, want %q", got, c.want)
+			}
+		})
+	}
+}

@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -462,33 +464,12 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // repository and returns its root.
 func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	// Every non-test source of the selector and its one in-module import, the
-	// stdlib-only internal/taskprojection leaf, rebased onto the fixture
-	// module. The directory is listed, not named file by file, so a new
-	// gateselect source cannot leave the fixture unbuildable; a new in-module
-	// import fails here by name.
-	sources, err := filepath.Glob(filepath.Join("..", "..", "internal", "gateselect", "*.go"))
-	if err != nil || len(sources) == 0 {
-		t.Fatalf("list internal/gateselect: %v", err)
+	sources, err := selectorFixtureSources(filepath.Join("..", "..", "internal"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	names := []string{"taskprojection/taskprojection.go"}
-	for _, source := range sources {
-		if !strings.HasSuffix(source, "_test.go") {
-			names = append(names, "gateselect/"+filepath.Base(source))
-		}
-	}
-	inModule := regexp.MustCompile(`"github.com/Beamfall/corvint/([^"]+)"`)
-	for _, name := range names {
-		data, err := os.ReadFile(filepath.Join("..", "..", "internal", filepath.FromSlash(name)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, imported := range inModule.FindAllStringSubmatch(string(data), -1) {
-			if imported[1] != "internal/gateselect" && imported[1] != "internal/taskprojection" {
-				t.Fatalf("internal/%s imports %s, which this fixture does not copy; add it to packageRepository", name, imported[1])
-			}
-		}
-		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
+	for name, body := range sources {
+		files[name] = body
 	}
 	wrapper, err := os.ReadFile(filepath.Join("..", "gate-affected-select", "main.go"))
 	if err != nil {
@@ -505,6 +486,76 @@ func packageRepository(t *testing.T, files map[string]string) string {
 	git(t, root, "add", "-A")
 	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "packages")
 	return root
+}
+
+// selectorFixtureSources returns every non-test source of internal/gateselect and its one
+// in-module import, the stdlib-only internal/taskprojection leaf, read under internal and rebased
+// onto the fixture module, keyed by fixture path. The directory is listed, not named file by file,
+// so a new gateselect source cannot leave the fixture unbuildable (V1-3476); a new in-module import
+// fails here by name.
+func selectorFixtureSources(internal string) (map[string]string, error) {
+	sources, err := filepath.Glob(filepath.Join(internal, "gateselect", "*.go"))
+	if err != nil || len(sources) == 0 {
+		return nil, fmt.Errorf("list internal/gateselect: %v", err)
+	}
+	names := []string{"taskprojection/taskprojection.go"}
+	for _, source := range sources {
+		if !strings.HasSuffix(source, "_test.go") {
+			names = append(names, "gateselect/"+filepath.Base(source))
+		}
+	}
+	inModule := regexp.MustCompile(`"github.com/Beamfall/corvint/([^"]+)"`)
+	files := map[string]string{}
+	for _, name := range names {
+		data, err := os.ReadFile(filepath.Join(internal, filepath.FromSlash(name)))
+		if err != nil {
+			return nil, err
+		}
+		for _, imported := range inModule.FindAllStringSubmatch(string(data), -1) {
+			if imported[1] != "internal/gateselect" && imported[1] != "internal/taskprojection" {
+				return nil, fmt.Errorf("internal/%s imports %s, which this fixture does not copy; add it to selectorFixtureSources", name, imported[1])
+			}
+		}
+		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
+	}
+	return files, nil
+}
+
+// TestSelectorFixtureCopiesANewGateselectSource pins V1-3476: a gateselect source added beside
+// the others (such as gated_locators.go) enters the fixture without editing this test, while
+// test files stay out and an unexpected in-module import is refused by name.
+func TestSelectorFixtureCopiesANewGateselectSource(t *testing.T) {
+	internal := t.TempDir()
+	for name, body := range map[string]string{
+		"taskprojection/taskprojection.go": "package taskprojection\n",
+		"gateselect/select.go":             "package gateselect\n\nimport _ \"github.com/Beamfall/corvint/internal/taskprojection\"\n",
+		"gateselect/gated_locators.go":     "package gateselect\n\nvar gatedLocatorsPath = \"x\"\n",
+		"gateselect/select_test.go":        "package gateselect\n",
+	} {
+		path := filepath.Join(internal, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files, err := selectorFixtureSources(internal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := files["internal/gateselect/gated_locators.go"]; !ok || len(files) != 3 {
+		t.Fatalf("fixture sources %v", slices.Sorted(maps.Keys(files)))
+	}
+	if !strings.Contains(files["internal/gateselect/select.go"], "example.com/fixture/internal/taskprojection") {
+		t.Fatalf("import not rebased: %q", files["internal/gateselect/select.go"])
+	}
+	if err := os.WriteFile(filepath.Join(internal, "gateselect", "extra.go"), []byte("package gateselect\n\nimport _ \"github.com/Beamfall/corvint/internal/other\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := selectorFixtureSources(internal); err == nil || !strings.Contains(err.Error(), "internal/other") {
+		t.Fatalf("unexpected import: err = %v", err)
+	}
 }
 
 // TestGoTestRunsUnresolvedAfterResolvedFailure replays GL-V0-004's promise

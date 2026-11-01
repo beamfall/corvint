@@ -19,6 +19,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 )
 
 const (
@@ -174,6 +175,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		for _, directory := range slices.Compact(slices.Clone(unrecorded)) {
 			for _, id := range ids[directory] {
 				fmt.Fprintf(stderr, "  %s\n", explain(graph, id))
+				if unit, ok := graph.Unit(id); ok && unit.UnboundedReads == shell.UnboundedRunsToolchain {
+					// V1-3320: a toolchain-running shell unit has one registration route.
+					fmt.Fprintf(stderr, "  %s runs a build or language toolchain (%s): add %q to units in %s with a reasons entry naming the toolchain read; %s is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).\n",
+						directory, shell.UnboundedRunsToolchain, directory, recordPath, affected.ReadScopesPath)
+				}
 			}
 		}
 	}

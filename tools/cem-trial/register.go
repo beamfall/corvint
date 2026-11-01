@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -222,10 +223,13 @@ func registrationMismatches(document *report, record *registrationRecord) []stri
 func registrationInvalid(document *report) []string {
 	record := document.Registration
 	if record == nil {
+		// A stray re_registered block on an unregistered report is still
+		// read, so it cannot pass unchecked (CRT-V0-016).
+		problems := reRegistrationInvalid(document)
 		if document.Partition == "heldout" {
-			return []string{"a heldout run carries no registration (CRT-V0-014)"}
+			problems = append([]string{"a heldout run carries no registration (CRT-V0-014)"}, problems...)
 		}
-		return nil
+		return problems
 	}
 	problems := registrationMismatches(document, record)
 	committed, err := time.Parse(time.RFC3339, record.CommittedAt)
@@ -283,14 +287,15 @@ func registeredPrior(run, prior *report, path string) error {
 		path, run.Model, run.Effort, prior.Model, prior.Effort)
 }
 
-// unstampedLanes counts lanes that did not error yet carry no readable start,
-// such as a lane reused from a report written before lanes recorded one: the
-// earliest start would then miss a lane that may have run first. An errored
-// lane already makes the run invalid (CRT-V0-010).
+// unstampedLanes counts completed lanes (an observed wall time, no error)
+// that carry no readable start, such as a lane reused from a report written
+// before lanes recorded one: the earliest start would then miss a lane that
+// may have run first. A never-started pending lane ran nothing, so it is not
+// counted; an errored lane already makes the run invalid (CRT-V0-010).
 func unstampedLanes(document *report) int {
 	count := 0
 	for _, item := range document.Lanes {
-		if _, err := time.Parse(time.RFC3339Nano, item.StartedAt); err != nil && item.Error == "" {
+		if _, err := time.Parse(time.RFC3339Nano, item.StartedAt); err != nil && item.Error == "" && observedNumber(item.WallMs) {
 			count++
 		}
 	}
@@ -330,7 +335,10 @@ type reRegistration struct {
 // registration it ran under (CRT-V0-016). A report under the same
 // registration, or a run with none, is unchanged.
 func reRegister(run, prior *report, path string) error {
-	if run.Registration == nil || prior.Registration == nil || prior.Registration.Commit == run.Registration.Commit {
+	// Two registration files committed together share a commit, so the same
+	// registration is the same commit and an identical document.
+	if run.Registration == nil || prior.Registration == nil ||
+		prior.Registration.Commit == run.Registration.Commit && reflect.DeepEqual(prior.Registration.Document, run.Registration.Document) {
 		return nil
 	}
 	if problems := reRegistrationProblems(run.Registration, prior.Registration); len(problems) != 0 {
@@ -346,8 +354,38 @@ func reRegister(run, prior *report, path string) error {
 	case committed.After(first):
 		return fmt.Errorf("%s: the earlier registration is newer than that run's first lane", path)
 	}
-	run.ReRegistered = &reRegistration{ManifestSHA256: prior.ManifestSHA256, Registration: *prior.Registration}
+	return adoptReRegistration(run, &reRegistration{ManifestSHA256: prior.ManifestSHA256, Registration: *prior.Registration}, path)
+}
+
+// adoptReRegistration records the earlier registration on the run, and
+// refuses a second, different one: a run reuses across one re-registration.
+// A --resume checkpoint's record is restored through it too (CRT-V0-016).
+func adoptReRegistration(run *report, carried *reRegistration, path string) error {
+	if run.ReRegistered != nil {
+		if run.ReRegistered.ManifestSHA256 != carried.ManifestSHA256 || run.ReRegistered.Registration.SHA256 != carried.Registration.SHA256 {
+			return fmt.Errorf("%s: carries a different earlier registration than this run already reuses under", path)
+		}
+		return nil
+	}
+	run.ReRegistered = carried
 	return nil
+}
+
+// resumeReRegistration restores a checkpoint's re_registered record, so lanes
+// the interrupted run reused across the re-registration keep the registration
+// they answer to (CRT-V0-016).
+func resumeReRegistration(run, checkpoint *report, path string) error {
+	if checkpoint.ReRegistered == nil {
+		return nil
+	}
+	if run.Registration == nil {
+		return fmt.Errorf("%s: the checkpoint reused lanes across a re-registration, so this run needs --registration", path)
+	}
+	if problems := reRegistrationProblems(run.Registration, &checkpoint.ReRegistered.Registration); len(problems) != 0 {
+		return fmt.Errorf("%s: %s", path, strings.Join(problems, "; "))
+	}
+	carried := *checkpoint.ReRegistered
+	return adoptReRegistration(run, &carried, path)
 }
 
 // reRegistrationProblems allows the two registrations to differ only in the
@@ -384,10 +422,10 @@ func reRegistrationInvalid(document *report) []string {
 		return append(problems, "the earlier registration commit time is unreadable")
 	}
 	for _, item := range document.Lanes {
-		if item.ReusedFrom == "" || item.ReusedFrom == document.ManifestSHA256 {
+		if ownLane(document, item) {
 			continue
 		}
-		if item.ReusedFrom != carried.ManifestSHA256 {
+		if item.ReusedFrom != carried.ManifestSHA256 || (item.ReusedRegistration != "" && item.ReusedRegistration != carried.Registration.SHA256) {
 			problems = append(problems, "lane "+laneKey(item)+" was reused from a report other than the re-registered one")
 			continue
 		}
@@ -405,9 +443,29 @@ func reRegistrationInvalid(document *report) []string {
 func firstFreshLaneStart(document *report) (time.Time, bool) {
 	fresh := &report{}
 	for _, item := range document.Lanes {
-		if item.ReusedFrom == "" || item.ReusedFrom == document.ManifestSHA256 {
+		if ownLane(document, item) {
 			fresh.Lanes = append(fresh.Lanes, item)
 		}
 	}
 	return firstLaneStart(fresh)
+}
+
+// ownLane reports whether a lane ran under this run's registration: run
+// fresh, or reused from a report of the same manifest under the same
+// registration (a --resume checkpoint). A lane reused across a scorer-only
+// re-registration keeps the earlier registration's digest in
+// reused_registration, so it is not the run's own even when the manifest is
+// unchanged (CRT-V0-016). A lane with no recorded registration falls back to
+// the manifest comparison, as reports written before the field did.
+func ownLane(document *report, item *lane) bool {
+	if item.ReusedFrom == "" {
+		return true
+	}
+	if item.ReusedFrom != document.ManifestSHA256 {
+		return false
+	}
+	if item.ReusedRegistration == "" || document.Registration == nil {
+		return true
+	}
+	return item.ReusedRegistration == document.Registration.SHA256
 }

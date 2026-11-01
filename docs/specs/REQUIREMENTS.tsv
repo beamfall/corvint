@@ -910,6 +910,9 @@ CAP-V0-006	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-007	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) The chec	standing	2026-10-11; V1-2020
 CAP-V0-008	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) When the	standing	2026-10-11; V1-2020
 CAP-V0-009	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2020) Each	standing	2026-10-11; V1-2020
+CAP-V0-960	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2422) The	standing	2026-10-11; V1-2422
+CAP-V0-961	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2422) For a	standing	2026-10-11; V1-2422
+CAP-V0-962	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2422) The	standing	2026-10-11; V1-2422
 CAP-V0-015	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint	standing	2026-10-11
 CAP-V0-016	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) A field	standing	2026-10-11
 CAP-V0-017	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GH-1588) `corvint	standing	2026-10-11
@@ -1642,6 +1645,7 @@ CIN-V0-007	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standin
 CIN-V0-008	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3329)	standing	2026-10-11; V1-3329
 CIN-V0-860	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3354;	standing	2026-10-11; V1-3354
 CIN-V0-861	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
+CIN-V0-960	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3330)	standing	2026-10-11; V1-3330
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
@@ -1696,6 +1700,8 @@ CWT-V0-016	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under t
 CWT-V0-017	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
+CEP-V0-960	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2761)	standing	2026-10-11; V1-2761
+CEP-V0-961	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3453)	standing	2026-10-11; V1-3453
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
 CEP-V0-004	docs/specs/context-evolution-program-v0.md	Already-fixed control. A `tools/cw-trial` task MAY carry `control:	unrecorded	-
 CEP-V0-005	docs/specs/context-evolution-program-v0.md	Control scoring. On an already-fixed control each arm record MUST carry	unrecorded	-
