@@ -110,6 +110,7 @@ func TestCALV0048_HeartbeatCLIReplayAndFence(t *testing.T) {
 }
 
 func TestCALV0049_ChargedReasonsAndCleanHandoffReadback(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-049 retry debt reason handoff", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		id := planTicket(t, root, "charged-read", "P1", `["src/"]`)

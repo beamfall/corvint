@@ -129,6 +129,7 @@ func TestTQDV0005_NoProgressHandoff(t *testing.T) {
 // ticket whose current status is COMPLETED, HELD or ARCHIVED is not reported,
 // while an OPEN ticket still is.
 func TestTQDV0013_NoProgressSkipsCompletedHeldArchived(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	ids := map[string]string{}
 	for i, name := range []string{"open", "completed", "held", "archived"} {
@@ -178,6 +179,7 @@ func TestTQDV0013_NoProgressSkipsCompletedHeldArchived(t *testing.T) {
 
 // TQD-V0-006: the reviewer returns the same candidate tree three times.
 func TestTQDV0006_RepeatRefusal(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "refused", "P1", `["src/"]`)
 	treeRaw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}").Output()
@@ -218,6 +220,7 @@ func TestTQDV0006_RepeatRefusal(t *testing.T) {
 
 // TQD-V0-007: a member whose cleanup fails three times is a slow recovery.
 func TestTQDV0007_SlowLaneRecovery(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	cleanup := wire.ObjectValue(wire.NewObject().Set("argv", wire.Strings([]string{"/usr/bin/false"})).Set("cwd", wire.String("REPOSITORY")).Set("env", wire.Array()).Set("timeoutSeconds", wire.String("3")))
 	root, _ := leaseCLIStoreWith(t, 0, time.Now().UTC().Add(-time.Minute), func(p *wire.Object) {
 		pool := wire.NewObject().Set("id", wire.String("lanes")).Set("members", wire.Strings([]string{"m1", "m2"}))

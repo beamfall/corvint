@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"go/ast"
 	"go/build/constraint"
 	"go/parser"
@@ -11,6 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/.github/cishards"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -148,6 +150,63 @@ type testSourceDecl struct {
 	write string
 }
 
+// testSourceParsed is one Go file of a sliced package as testSourceSlice
+// reads it: the file parsed into its own file set, and for a test file its
+// test functions. Callers only read it.
+type testSourceParsed struct {
+	name    string
+	source  []byte
+	fileSet *token.FileSet
+	file    *ast.File
+	tests   []string
+	// testsParse is false for a test file whose test functions cannot be
+	// read.
+	testsParse bool
+}
+
+// testSourceParsedLimit bounds testSourceParsedCache; a full cache is
+// emptied before the next entry is added.
+const testSourceParsedLimit = 4096
+
+// testSourceParsedCache holds each file testSourceSlice parsed, keyed by its
+// path and the SHA-256 of its bytes, so a process that slices the same
+// package again (a scan over many candidate changes) parses each unchanged
+// file once (V1-4109). A key names the exact bytes, so a hit returns what a
+// fresh parse would.
+var testSourceParsedCache = struct {
+	sync.Mutex
+	entries map[[sha256.Size]byte]testSourceParsed
+}{entries: make(map[[sha256.Size]byte]testSourceParsed)}
+
+// testSourceParse parses source as the file relative, reusing an earlier
+// parse of the same path and bytes; ok is false when it does not parse.
+func testSourceParse(relative string, source []byte) (testSourceParsed, bool) {
+	key := sha256.Sum256(append([]byte(relative+"\x00"), source...))
+	testSourceParsedCache.Lock()
+	parsed, hit := testSourceParsedCache.entries[key]
+	testSourceParsedCache.Unlock()
+	if hit {
+		return parsed, true
+	}
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, relative, source, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		return testSourceParsed{}, false
+	}
+	parsed = testSourceParsed{name: relative, source: source, fileSet: fileSet, file: file, testsParse: true}
+	if strings.HasSuffix(relative, "_test.go") {
+		declarations, err := golang.TestFileDeclarations(relative, source)
+		parsed.tests, parsed.testsParse = declarations.Tests, err == nil
+	}
+	testSourceParsedCache.Lock()
+	if len(testSourceParsedCache.entries) >= testSourceParsedLimit {
+		clear(testSourceParsedCache.entries)
+	}
+	testSourceParsedCache.entries[key] = parsed
+	testSourceParsedCache.Unlock()
+	return parsed, true
+}
+
 func testSourceSlice(root string, candidate testSourceCandidate, atBase map[string]testBaseBlob) sessiontest.GoSlice {
 	whole := func(detail string) sessiontest.GoSlice {
 		return sessiontest.GoSlice{Reason: candidate.fallback + " (" + detail + ")"}
@@ -157,14 +216,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 	if err != nil {
 		return whole(directory + " cannot be listed")
 	}
-	type parsedFile struct {
-		name   string
-		source []byte
-		file   *ast.File
-		tests  []string
-	}
-	var files []parsedFile
-	fileSet := token.NewFileSet()
+	var files []testSourceParsed
 	for _, entry := range entries {
 		name := entry.Name()
 		if entry.IsDir() {
@@ -183,25 +235,20 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		if err != nil {
 			return whole(relative + " cannot be read")
 		}
-		file, err := parser.ParseFile(fileSet, relative, source, parser.ParseComments|parser.SkipObjectResolution)
-		if err != nil {
+		parsed, ok := testSourceParse(relative, source)
+		if !ok {
 			return whole(relative + " does not parse")
 		}
-		if testSourceLinkname(file) {
+		if testSourceLinkname(parsed.file) {
 			return whole(relative + " names go:linkname")
 		}
-		for _, spec := range file.Imports {
+		for _, spec := range parsed.file.Imports {
 			if spec.Path.Value == `"C"` {
 				return whole(relative + " imports C")
 			}
 		}
-		parsed := parsedFile{name: relative, source: source, file: file}
-		if strings.HasSuffix(name, "_test.go") {
-			declarations, err := golang.TestFileDeclarations(relative, source)
-			if err != nil {
-				return whole(relative + " does not parse")
-			}
-			parsed.tests = declarations.Tests
+		if !parsed.testsParse {
+			return whole(relative + " does not parse")
 		}
 		files = append(files, parsed)
 	}
@@ -225,7 +272,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		case prior.reason != "":
 			return whole(own + " " + prior.reason)
 		}
-		index := slices.IndexFunc(files, func(file parsedFile) bool { return file.name == own })
+		index := slices.IndexFunc(files, func(file testSourceParsed) bool { return file.name == own })
 		if index < 0 {
 			return whole(own + " is removed")
 		}
@@ -234,12 +281,12 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		if err != nil {
 			return whole(own + " does not parse at base")
 		}
-		headRest, headFuncs := testSourcePlainFunctions(files[index].file, fileSet, files[index].source)
+		headRest, headFuncs := testSourcePlainFunctions(files[index].file, files[index].fileSet, files[index].source)
 		baseRest, baseFuncs := testSourcePlainFunctions(baseFile, baseSet, prior.content)
 		if headRest != baseRest {
 			// TSP-V0-864: a residue that differs only in comments, directives
 			// unchanged, or by whole new const and type declarations.
-			names, ok := testSourceAdditive(files[index].file, fileSet, files[index].source, baseFile, baseSet, prior.content)
+			names, ok := testSourceAdditive(files[index].file, files[index].fileSet, files[index].source, baseFile, baseSet, prior.content)
 			if !ok {
 				return whole(own + " changes more than plain functions")
 			}

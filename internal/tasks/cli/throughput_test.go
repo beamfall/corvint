@@ -42,6 +42,7 @@ func listIDs(t *testing.T, root string, extra ...string) ([]string, string) {
 // order; an unknown, empty, repeated or mis-cased status refuses MALFORMED
 // and the read never writes.
 func TestCALV0181_TicketListStatusFilter(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-181", func(t *testing.T) {
 		r := compactListRepo(t)
 		state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
