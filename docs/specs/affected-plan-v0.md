@@ -5538,9 +5538,11 @@ refuse the file and fall back from narrowing, and nothing warned when the member
   the file, the position, the member and the pin, and the compatible alternatives: a new
   declaration file, which an older planner never reads, or a new `profile` value, which an older
   planner refuses as a whole declaration. A file absent at the pin, a changed `profile`, a member
-  removed, and new entries of known shape SHALL pass. The dogfood report, the change-evidence
-  and change-outcome maps of a dogfood run (`change.cem.json`, `change.ocm.*.json`), and the
-  evidence-reach and work-queue files are no planner input. A `.corvint/*.json` that is neither in the
+  removed, and new entries of known shape SHALL pass. Only the `.corvint/*.json` files Git tracks
+  are compared, the files a pinned planner reads in CI; a dogfood run's ignored local outputs
+  (`change.ocm.*.json`, `change.ocm-status.json`, `dogfood-report.json`) are never candidates. The
+  change-evidence map `change.cem.json`, tracked between a bind and its seal, and the evidence-reach
+  and work-queue files are no planner input. A tracked `.corvint/*.json` that is neither in the
   table nor listed as no planner input SHALL fail the check, so a new declaration is classified
   when it is added. A pin absent from the clone SHALL fail the check and name the fetch. Non-goals:
   running a pinned binary; checking value types. Failure modes: a closed position missing from
