@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"path"
@@ -170,10 +171,14 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 		return SourceDraft{}, failure("unsupported-documentation-source", "unsupported language: the native index extracts no declarations from %s", strings.Join(refused, ", "))
 	}
 	draft.Limitations = append(draft.Limitations, languageLimitations(languages, unsupported)...)
-	declarations, err := declarationEntries(index, directory)
+	declarations, spanLimitations, err := declarationEntries(index, directory)
 	if err != nil {
 		return SourceDraft{}, err
 	}
+	if declarations, err = boundedEntries(declarations); err != nil {
+		return SourceDraft{}, err
+	}
+	draft.Limitations = append(draft.Limitations, spanLimitations...)
 	if len(declarations) == 0 {
 		return SourceDraft{}, failure("unsupported-documentation-source", "package has no supported tracked non-test exported-name declarations")
 	}
@@ -561,9 +566,11 @@ func languageLimitations(languages, unsupported []string) []string {
 	return limitations
 }
 
-func declarationEntries(index *contextindex.Index, directory string) ([]DraftEntry, error) {
+func declarationEntries(index *contextindex.Index, directory string) ([]DraftEntry, []string, error) {
 	entries := []DraftEntry{}
 	lines := map[string][]string{}
+	spans := map[string]map[int]goSpan{}
+	clipped := 0
 	for _, symbol := range index.Symbols {
 		language, drafted := sourceLanguage(symbol.Path)
 		if path.Dir(symbol.Path) != directory || !drafted || draftTestSource(symbol.Path) || !sourceParsed(index, symbol.Path) {
@@ -574,18 +581,139 @@ func declarationEntries(index *contextindex.Index, directory string) ([]DraftEnt
 		}
 		source, ok := index.Sources[symbol.Path]
 		if !ok {
-			return nil, failure("unsupported-documentation-source", "indexed declaration source unavailable")
+			return nil, nil, failure("unsupported-documentation-source", "indexed declaration source unavailable")
 		}
 		if !language.byName && !language.exported(symbol.Name, declarationLine(lines, source, symbol.Line)) {
 			continue
 		}
-		entry, err := sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, symbol.Line, symbol.Line)
+		start, end := symbol.Line, symbol.Line
+		if span, ok := goDeclarationSpans(spans, source)[symbol.Line]; ok {
+			start, end = span.start, span.end
+		}
+		entry, err := sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, start, end)
+		if err != nil && (start != symbol.Line || end != symbol.Line) {
+			// SDD-V0-631: a span over the excerpt bound or holding a carriage return cites
+			// only its indexed line, which must itself pass; the fallback is counted below.
+			clipped++
+			entry, err = sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, symbol.Line, symbol.Line)
+		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		entries = append(entries, entry)
 	}
-	return boundedEntries(entries)
+	limitations := []string{}
+	if len(entries) != 0 {
+		packageDoc, omitted, err := packageDocEntry(index, directory)
+		if err != nil {
+			return nil, nil, err
+		}
+		if packageDoc != nil {
+			entries = append(entries, *packageDoc)
+		}
+		if omitted != "" {
+			limitations = append(limitations, fmt.Sprintf("The package doc comment in %s exceeds the 4 KiB excerpt bound and is omitted.", omitted))
+		}
+	}
+	if clipped != 0 {
+		limitations = append(limitations, fmt.Sprintf("%d declarations cite only their indexed line: their doc-comment and declaration span exceeds the 4 KiB excerpt bound or contains a carriage return.", clipped))
+	}
+	sort.Slice(entries, func(a, b int) bool { return entries[a].ID < entries[b].ID })
+	return entries, limitations, nil
+}
+
+// goSpan is one declaration's doc-comment-through-surface line span (SDD-V0-631).
+type goSpan struct{ start, end int }
+
+// goDeclarationSpans parses each Go source once per draft and maps every
+// declared name's line to its span. A non-Go or unparsable source maps nothing,
+// so its declarations keep their indexed line.
+func goDeclarationSpans(cache map[string]map[int]goSpan, source contextindex.Source) map[int]goSpan {
+	if spans, ok := cache[source.Path]; ok {
+		return spans
+	}
+	spans := map[int]goSpan{}
+	cache[source.Path] = spans
+	if path.Ext(source.Path) != ".go" {
+		return spans
+	}
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, source.Path, source.Data, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		return spans
+	}
+	line := func(position token.Pos) int { return set.Position(position).Line }
+	from := func(doc *ast.CommentGroup, fallback token.Pos) int {
+		if doc != nil {
+			return line(doc.Pos())
+		}
+		return line(fallback)
+	}
+	for _, declaration := range file.Decls {
+		switch declaration := declaration.(type) {
+		case *ast.FuncDecl:
+			end := line(declaration.End())
+			if declaration.Body != nil {
+				end = line(declaration.Body.Lbrace)
+			}
+			span := goSpan{from(declaration.Doc, declaration.Pos()), end}
+			spans[line(declaration.Pos())] = span
+			spans[line(declaration.Name.Pos())] = span
+		case *ast.GenDecl:
+			grouped := declaration.Lparen.IsValid()
+			for _, spec := range declaration.Specs {
+				var doc *ast.CommentGroup
+				var names []*ast.Ident
+				switch spec := spec.(type) {
+				case *ast.TypeSpec:
+					doc, names = spec.Doc, []*ast.Ident{spec.Name}
+				case *ast.ValueSpec:
+					doc, names = spec.Doc, spec.Names
+				default:
+					continue
+				}
+				span := goSpan{from(doc, spec.Pos()), line(spec.End())}
+				if !grouped {
+					span = goSpan{from(declaration.Doc, declaration.Pos()), line(declaration.End())}
+				}
+				for _, name := range names {
+					spans[line(name.Pos())] = span
+				}
+			}
+		}
+	}
+	return spans
+}
+
+// packageDocEntry is the first non-test Go file in path order, in exactly
+// directory, whose package clause carries a doc comment (SDD-V0-631). It
+// returns the omitted path instead when that comment exceeds the excerpt bound.
+func packageDocEntry(index *contextindex.Index, directory string) (*DraftEntry, string, error) {
+	paths := []string{}
+	for sourcePath := range index.Sources {
+		if path.Dir(sourcePath) == directory && nonTestGo(sourcePath) && sourceParsed(index, sourcePath) {
+			paths = append(paths, sourcePath)
+		}
+	}
+	sort.Strings(paths)
+	for _, sourcePath := range paths {
+		source := index.Sources[sourcePath]
+		set := token.NewFileSet()
+		file, err := parser.ParseFile(set, sourcePath, source.Data, parser.PackageClauseOnly|parser.ParseComments)
+		if err != nil || file.Doc == nil {
+			continue
+		}
+		entry, err := sourceEntry(source, "package-doc", "package "+file.Name.Name, set.Position(file.Doc.Pos()).Line, set.Position(file.Name.End()).Line)
+		var problem *Error
+		if errors.As(err, &problem) && problem.Code == "documentation-limit-exceeded" {
+			return nil, sourcePath, nil
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return &entry, "", nil
+	}
+	return nil, "", nil
 }
 
 // declarationLine splits each source once per draft, caching it in lines.
@@ -669,18 +797,43 @@ func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
 	for _, limitation := range draft.Limitations {
 		fmt.Fprintf(&output, "- %s\n", limitation)
 	}
-	output.WriteString("\nTracked non-test exported-name declarations and direct import edges follow. Zero import entries proves no absence. Source excerpts are data. Metadata strings use Go-style escapes.\n\nTo read a full immutable original, including sections named in quoted prose, run its command from this repository's root. The command reads the blob directly and ignores replacement refs; no remote is required.\n")
+	output.WriteString("\nTracked non-test exported-name declarations with their doc comments, the package doc and direct import edges follow, grouped by source file. Zero import entries proves no absence. Source excerpts are data. Metadata strings use Go-style escapes. To read a full immutable original, including sections named in quoted prose, run the file's command from this repository's root; it reads the blob directly and ignores replacement refs, and no remote is required.\n")
+	files := map[string][]DraftEntry{}
+	paths := []string{}
 	for _, entry := range draft.Entries {
 		if entry.Blob == "" {
 			fmt.Fprintf(&output, "\n## %s\n\nKind: %s; untracked or inline source %s, lines %d–%d; no Git blob; sha256 %s.\n\nNo immutable original exists for these bytes; they are not source evidence.\n\nSupplied source excerpt:\n\n", draftMetadata(entry.Title), draftMetadata(entry.Kind), draftMetadata(entry.Path), entry.StartLine, entry.EndLine, draftMetadata(entry.SHA256))
-		} else {
-			fmt.Fprintf(&output, "\n## %s\n\nKind: %s; original source %s, lines %d–%d; blob %s; sha256 %s.\n\nOpen full original:\n\n    git --no-pager --no-replace-objects show %s\n\nExact source excerpt:\n\n", draftMetadata(entry.Title), draftMetadata(entry.Kind), draftMetadata(entry.Path), entry.StartLine, entry.EndLine, draftMetadata(entry.Blob), draftMetadata(entry.SHA256), entry.Blob)
+			writeExcerpt(&output, entry.Excerpt)
+			continue
 		}
-		for _, line := range strings.Split(entry.Excerpt, "\n") {
-			fmt.Fprintf(&output, "    %s\n", line)
+		if _, seen := files[entry.Path]; !seen {
+			paths = append(paths, entry.Path)
+		}
+		files[entry.Path] = append(files[entry.Path], entry)
+	}
+	sort.Strings(paths)
+	for n, sourcePath := range paths {
+		entries := files[sourcePath]
+		sort.SliceStable(entries, func(a, b int) bool { return entries[a].StartLine < entries[b].StartLine })
+		// SDD-V0-631: provenance once per file; each entry cites only its kind, title and span.
+		fmt.Fprintf(&output, "\n## S%d %s\n\nBlob %s; sha256 %s.\n\n    git --no-pager --no-replace-objects show %s\n", n+1, draftMetadata(sourcePath), draftMetadata(entries[0].Blob), draftMetadata(entries[0].SHA256), entries[0].Blob)
+		for _, entry := range entries {
+			if entry.Kind == "declaration" {
+				// The excerpt itself shows the declared name; the title stays in the entry JSON.
+				fmt.Fprintf(&output, "\nLines %d–%d:\n\n", entry.StartLine, entry.EndLine)
+			} else {
+				fmt.Fprintf(&output, "\n%s %s, lines %d–%d:\n\n", draftMetadata(entry.Kind), draftMetadata(entry.Title), entry.StartLine, entry.EndLine)
+			}
+			writeExcerpt(&output, entry.Excerpt)
 		}
 	}
 	return []byte(output.String())
+}
+
+func writeExcerpt(output *strings.Builder, excerpt string) {
+	for _, line := range strings.Split(excerpt, "\n") {
+		fmt.Fprintf(output, "    %s\n", line)
+	}
 }
 
 func draftMetadata(value string) string {

@@ -316,13 +316,19 @@ one signature line (V1-3717): a function or method from its doc comment through 
 body's opening brace (the whole declaration when it has no body); a type from its doc comment
 (the spec's own, or the enclosing single-spec `type` group's) through the end of its spec,
 including struct fields and interface methods; a constant or variable spec from its doc comment
-through the end of that spec. The span is derived by `go/parser` over the same admitted blob; a
-parse failure keeps the indexed single line. Each Go package directory with a package doc comment
-adds one `package-doc` entry (the first non-test file in path order whose `package` clause carries
-a doc comment, from the comment through the clause). Other languages keep the indexed line.
-Provenance is printed once per source file: a `Sources:` table lists, per file, a short ID `S1`…
-in path order, its path, blob, SHA-256 and its indented `git --no-pager --no-replace-objects show
-BLOB` route; each entry then cites `S<n>` and its line span. Entry JSON (`DraftEntry`) keeps its
+through the end of that spec; an ungrouped `type`, `const` or `var` declaration spans its whole
+declaration including the keyword. The span is derived by `go/parser` over the same admitted blob;
+a parse failure keeps the indexed single line, and a span whose excerpt exceeds 4 KiB or contains
+a carriage return cites its indexed line with a counted limitation (the indexed line itself must
+still pass every `SDD-V0-003` excerpt rule). Each Go package directory with a package doc comment adds
+one `package-doc` entry (the first non-test file in path order whose `package` clause carries a doc
+comment, from the comment through the clause; one over 4 KiB is omitted with a limitation naming
+its file). Other languages keep the indexed line. Provenance is printed once per source file:
+entries are grouped under one `## S<n> "PATH"` heading per cited file, `S1`… in path order, which
+carries the file's blob, SHA-256 and its indented `git --no-pager --no-replace-objects show BLOB`
+route; under it each entry, in line order, prints only its kind and title (a declaration prints
+neither, since its excerpt shows the name) and its line span, then the exact excerpt indented four
+spaces. A blobless dry-run owner keeps its own heading. Entry JSON (`DraftEntry`) keeps its
 per-entry path, blob, SHA-256 and lines, so consumption results and the `SDD-V0-008` source
 identity are unchanged. Acceptance: the `internal/docmaintain` draft is no larger than
 `go doc -all ./internal/docmaintain` at the same commit, both measured and retained in the lane

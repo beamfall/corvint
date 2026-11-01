@@ -57,9 +57,15 @@ func TestSourceDraftOwnerPhysicalLines(t *testing.T) {
 				if owner.StartLine != 1 || owner.EndLine != tc.end {
 					t.Fatalf("owner span = %d:%d, want 1:%d", owner.StartLine, owner.EndLine, tc.end)
 				}
-				citation := fmt.Sprintf("source `%q`, lines 1–%d;", source.Path, tc.end)
-				if !strings.Contains(string(draft.Markdown), citation) {
-					t.Fatalf("draft missing owner citation %q", citation)
+				citations := []string{fmt.Sprintf("source `%q`, lines 1–%d;", source.Path, tc.end)}
+				if !dryRun {
+					// SDD-V0-631: the owner cites its source-table ID; the table names the path once.
+					citations = []string{fmt.Sprintf("\n## S3 `%q`\n\nBlob ", source.Path), fmt.Sprintf("\n`\"owner\"` `\"Agent digest\"`, lines 1–%d:\n", tc.end)}
+				}
+				for _, citation := range citations {
+					if !strings.Contains(string(draft.Markdown), citation) {
+						t.Fatalf("draft missing owner citation %q:\n%s", citation, draft.Markdown)
+					}
 				}
 				wantExcerpt := sevenLines
 				if tc.end == 8 {
@@ -294,8 +300,18 @@ func assertDraftMarkdownStructure(t *testing.T, draft SourceDraft) {
 			t.Fatalf("raw HTML escaped metadata: %q", line)
 		}
 	}
-	if headings != len(draft.Entries)+1 {
-		t.Fatalf("metadata injected heading: got %d, want %d", headings, len(draft.Entries)+1)
+	// SDD-V0-631: one title heading, one heading per cited source file, and one per blobless entry.
+	want, files := 1, map[string]bool{}
+	for _, entry := range draft.Entries {
+		if entry.Blob == "" {
+			want++
+		} else if !files[entry.Path] {
+			files[entry.Path] = true
+			want++
+		}
+	}
+	if headings != want {
+		t.Fatalf("metadata injected heading: got %d, want %d", headings, want)
 	}
 }
 
@@ -606,5 +622,98 @@ func TestSDDV0630OwnerRelationLabelsUnrelatedOwner(t *testing.T) {
 				t.Fatalf("unrelated limitation present = %t for %s", labelled, tc.want)
 			}
 		})
+	}
+}
+
+// richFixture is one Go package with a package doc, a documented struct, an
+// interface, a grouped constant block and a function with a multi-line doc.
+func richFixture() *contextindex.Index {
+	index := draftFixture()
+	api := "// Package compiler plans offline builds.\npackage compiler\n\n// Plan builds a plan.\n// It never runs a build.\nfunc Plan() {\n\treturn\n}\n\n// Options configures Plan.\ntype Options struct {\n\t// Name is the target.\n\tName string\n\tlimit int\n}\n\n// Runner runs plans.\ntype Runner interface {\n\tRun() error\n}\n\nconst (\n\t// Fast is quick.\n\tFast = \"fast\"\n\tSlow = \"slow\"\n)\n"
+	extra := "package compiler\n\n// Extra is a second-file declaration.\nvar Extra = 1\n"
+	index.Sources["compiler/api.go"] = contextindex.Source{Path: "compiler/api.go", BlobHash: strings.Repeat("a", 40), Data: []byte(api), Mode: "100644"}
+	index.Sources["compiler/extra.go"] = contextindex.Source{Path: "compiler/extra.go", BlobHash: strings.Repeat("d", 40), Data: []byte(extra), Mode: "100644"}
+	index.Symbols = []contextindex.Symbol{
+		{Path: "compiler/api.go", Name: "Plan", Kind: "func", Line: 6},
+		{Path: "compiler/api.go", Name: "Options", Kind: "type", Line: 11},
+		{Path: "compiler/api.go", Name: "Runner", Kind: "type", Line: 18},
+		{Path: "compiler/api.go", Name: "Fast", Kind: "const", Line: 24},
+		{Path: "compiler/api.go", Name: "Slow", Kind: "const", Line: 25},
+		{Path: "compiler/extra.go", Name: "Extra", Kind: "var", Line: 4},
+	}
+	return index
+}
+
+// SDD-V0-631 (V1-3717): Go entries carry doc comments, struct fields,
+// interface methods and the package doc, each as an exact source span.
+func TestSDDV0631DeclarationsCarryDocCommentsAndFields(t *testing.T) {
+	draft, err := DraftSources(richFixture(), "docs/owner.md", "compiler")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		start, end int
+		excerpt    string
+	}{
+		"package compiler": {1, 2, "// Package compiler plans offline builds.\npackage compiler"},
+		"func Plan":        {4, 6, "// Plan builds a plan.\n// It never runs a build.\nfunc Plan() {"},
+		"type Options":     {10, 15, "// Options configures Plan.\ntype Options struct {\n\t// Name is the target.\n\tName string\n\tlimit int\n}"},
+		"type Runner":      {17, 20, "// Runner runs plans.\ntype Runner interface {\n\tRun() error\n}"},
+		"const Fast":       {23, 24, "\t// Fast is quick.\n\tFast = \"fast\""},
+		"const Slow":       {25, 25, "\tSlow = \"slow\""},
+		"var Extra":        {3, 4, "// Extra is a second-file declaration.\nvar Extra = 1"},
+	}
+	seen := 0
+	for _, entry := range draft.Entries {
+		expected, ok := want[entry.Title]
+		if !ok {
+			continue
+		}
+		seen++
+		if entry.StartLine != expected.start || entry.EndLine != expected.end || entry.Excerpt != expected.excerpt {
+			t.Errorf("%s = %d–%d %q, want %d–%d %q", entry.Title, entry.StartLine, entry.EndLine, entry.Excerpt, expected.start, expected.end, expected.excerpt)
+		}
+		if entry.Title == "package compiler" && entry.Kind != "package-doc" {
+			t.Errorf("package doc kind = %q", entry.Kind)
+		}
+	}
+	if seen != len(want) {
+		t.Fatalf("saw %d of %d expected entries: %+v", seen, len(want), draft.Entries)
+	}
+	assertDraftMarkdownStructure(t, draft)
+	result, err := ConsumeDraft(draft, draft.Markdown, "target name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows := result["results"].([]DraftEntry); len(rows) == 0 || rows[0].Title != "type Options" {
+		t.Fatalf("field doc comment not consumable: %+v", rows)
+	}
+}
+
+// SDD-V0-631 (V1-3717): blob, sha256 and the immutable route print once per
+// file, however many entries cite that file.
+func TestSDDV0631ProvenanceOncePerFile(t *testing.T) {
+	draft, err := DraftSources(richFixture(), "docs/owner.md", "compiler")
+	if err != nil {
+		t.Fatal(err)
+	}
+	markdown := string(draft.Markdown)
+	files := map[string]DraftEntry{}
+	for _, entry := range draft.Entries {
+		files[entry.Path] = entry
+	}
+	if len(files) != 4 {
+		t.Fatalf("fixture cites %d files, want 4", len(files))
+	}
+	if got := strings.Count(markdown, "git --no-pager --no-replace-objects show "); got != len(files) {
+		t.Fatalf("route printed %d times, want once per file (%d)", got, len(files))
+	}
+	for sourcePath, entry := range files {
+		if got := strings.Count(markdown, "sha256 `\""+entry.SHA256+"\"`"); got != 1 {
+			t.Errorf("%s sha256 printed %d times", sourcePath, got)
+		}
+		if got := strings.Count(markdown, "`"+fmt.Sprintf("%q", sourcePath)+"`\n\nBlob "); got != 1 {
+			t.Errorf("%s path printed %d times", sourcePath, got)
+		}
 	}
 }
