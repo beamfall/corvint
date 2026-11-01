@@ -34,7 +34,8 @@ echo, and belong in a separate opt-in profile under their own spec.
   or beside the other groups and at most one code profile. Selected, it adds five tools per
   declared root, routed by alias in multi-root mode like the other per-root groups
   (`MMR-V0-013`), and an unusable single root lists them and refuses each `invalid-root`
-  (`MCPV0-950`). The group links no Tasks package but `internal/tasks/wire`.
+  (`MCPV0-950`). The group links no Tasks package but `internal/tasks/wire`, and `internal/mcp/tasksread`
+  links no repository-reading package (`toolgroup.Tasks` adapts its descriptors).
 - `TMR-V0-951`: The group MUST list exactly `corvint.tasks.queue_status`,
   `corvint.tasks.receipt_audit`, `corvint.tasks.roadmap`, `corvint.tasks.ticket_search` and
   `corvint.tasks.ticket_show`, each with a closed JSON Schema 2020-12 `inputSchema`
@@ -91,8 +92,8 @@ Remove `internal/mcp/tasksread`, the `tasks` group token and its `openGroups` an
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| `TMR-V0-950` | `toolGroups`, `openGroups`, `startUnavailable` (`internal/mcp/cli`), `tasksread.New` | `TestTMRV0950TasksGroupRunsTheInstalledReadVerb`; `TestImportDirection` |
-| `TMR-V0-951` | `internal/mcp/tasksread` (`tools`, `tool.descriptor`, `pageProperties`) | `TestTMRV0951FiveReadOnlyDescriptors` |
+| `TMR-V0-950` | `toolGroups`, `openGroups`, `startUnavailable` (`internal/mcp/cli`), `toolgroup.Tasks`, `tasksread.New` | `TestTMRV0950TasksGroupRunsTheInstalledReadVerb`; `TestImportDirection` |
+| `TMR-V0-951` | `internal/mcp/tasksread` (`tools`, `tool.descriptor`, `pageProperties`, `Group.Descriptors`), `toolgroup.Tasks.Tools` (annotations) | `TestTMRV0951FiveReadOnlyDescriptors` |
 | `TMR-V0-952` | `internal/mcp/tasksread` (`Group.Call`, `Failure`, `runInstalled`) | `TestTMRV0952CallsRunTheReadVerb`, `TestTMRV0950TasksGroupRunsTheInstalledReadVerb` |
 | `TMR-V0-953` | `internal/mcp/tasksread` (`tool.argv`) | `TestTMRV0952CallsRunTheReadVerb` |
 | `TMR-V0-954` | `usage` (`internal/mcp/cli`), `docs/CAPABILITIES.md` | `tools/capabilities-check` |
