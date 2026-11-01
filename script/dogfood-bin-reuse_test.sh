@@ -118,7 +118,7 @@ expect_build_rows .git reuse reuse
 # drops its special meaning, as Bash 3.2 never had it) reuses both builds and writes no build file.
 /bin/rm -f .git/corvint/dogfood-check.build.*.tsv
 : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
-bash -c 'unset EPOCHREALTIME; . "$0" "$@"' script/dogfood-check.sh "$base" > "$root/output" 2>&1 ||
+bash -c 'unset EPOCHREALTIME; . script/dogfood-check.sh "$1"' script/dogfood-check.sh "$base" > "$root/output" 2>&1 ||
   { cat "$root/output" >&2; exit 1; }
 [[ ! -s $TEST_BUILD_LOG && -s $TEST_FLOW_LOG ]] || { printf 'no-EPOCHREALTIME check rebuilt or did not run\n' >&2; exit 1; }
 for leftover in .git/corvint/dogfood-check.build.*.tsv; do
