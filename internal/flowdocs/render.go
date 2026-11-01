@@ -39,7 +39,16 @@ func render(m Manifest) map[string][]byte {
 			case "flow-diagram":
 				b.WriteString("```mermaid\nsequenceDiagram\n    participant S as Static source\n    participant U as Unresolved runtime\n    Note over S,U: Lexical inventory only - no witnessed order\n")
 				fmt.Fprintf(&b, "    Note over S: Flow %s\n", strings.TrimPrefix(f.ID, "flowdocs:flow:"))
+				multi := false
 				for _, c := range f.Calls {
+					multi = multi || c.Anchor.Path != f.Calls[0].Anchor.Path
+				}
+				for _, c := range f.Calls {
+					// A multi-file flow names each call's path (AFU-V1-811).
+					if multi {
+						fmt.Fprintf(&b, "    Note over S,U: Source contains call %s in %s at line %d - order unresolved\n", mermaidName(c.Name), mermaidPath(c.Anchor.Path), c.Anchor.Start)
+						continue
+					}
 					fmt.Fprintf(&b, "    Note over S,U: Source contains call %s at line %d - order unresolved\n", mermaidName(c.Name), c.Anchor.Start)
 				}
 				b.WriteString("```\n")
@@ -97,4 +106,16 @@ func mermaidName(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// mermaidPath keeps a source path readable inside a Mermaid note: any byte outside
+// [A-Za-z0-9_./-] becomes '_' (AFU-V1-811).
+func mermaidPath(s string) string {
+	b := []byte(s)
+	for i, c := range b {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '.' || c == '/' || c == '-') {
+			b[i] = '_'
+		}
+	}
+	return string(b)
 }
