@@ -1402,8 +1402,8 @@ func expr(ts []bodyToken, lang bodyLanguage, work *int) string {
 	return ""
 }
 
-// switchSelector admits one complete expression, rather than the declaration
-// shapes that the enclosing statement grammar also permits.
+// switchSelector admits one complete expression, not the declaration shapes
+// the enclosing statement grammar also permits.
 func switchSelector(ts []bodyToken, lang bodyLanguage) bool {
 	if len(ts) == 0 || !selectorStart(ts[0], lang) || !selectorEnd(ts[len(ts)-1], lang) || expr(ts, lang, nil) != "" {
 		return false
@@ -1463,9 +1463,9 @@ func selectorCastClose(ts []bodyToken, close int) bool {
 	return false
 }
 
-// switchLabelColon: the colon closes a case or default label directly inside
-// a switch block — one literal or dot-qualified word after case, nothing
-// after default.
+// switchLabelColon: the colon closes a case or default label directly in a
+// switch block: one literal or dot-qualified word after case, none after
+// default.
 func switchLabelColon(ts []bodyToken, index int, lang bodyLanguage) bool {
 	start := 0
 	for j := index - 1; j >= 0; j-- {

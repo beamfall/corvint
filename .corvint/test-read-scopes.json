@@ -141,6 +141,7 @@
     "conformance/pulse-snapshot-v0": [
       "cmd/corvint-pulse/",
       "go.mod",
+      "internal/clitree/",
       "internal/pulse/"
     ],
     "conformance/release-artifact-v0/archive-verifier": [],

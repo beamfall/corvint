@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"maps"
 	"os"
 	"os/exec"
@@ -402,13 +403,12 @@ func TestInstructionConflictsRecipeExpansion(t *testing.T) {
 
 // nonExecutableScriptTests lists the script/*_test.sh files the Git index at
 // root records without the executable bit (mode other than 100755).
-func nonExecutableScriptTests(t *testing.T, root string) []string {
-	t.Helper()
+func nonExecutableScriptTests(root string) ([]string, error) {
 	cmd := exec.Command("git", "ls-files", "-s", "--", "script/*_test.sh")
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		t.Fatalf("git ls-files in %s: %v", root, err)
+		return nil, fmt.Errorf("git ls-files in %s: %w", root, err)
 	}
 	var bad []string
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -418,7 +418,7 @@ func nonExecutableScriptTests(t *testing.T, root string) []string {
 			bad = append(bad, path+" ("+mode+")")
 		}
 	}
-	return bad
+	return bad, nil
 }
 
 // ASD-V0-921 (V1-3243): every script/*_test.sh is committed executable, so
@@ -428,27 +428,6 @@ func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
 	root := requireMake(t)
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git is not on PATH")
-	}
-	// pendingChmod lists the script tests still committed 100644 only because cem/1.0 cannot bind a
-	// mode change (metadata-only and old/new mode patches are refused), so a lane cannot carry the
-	// chmod; the integrator makes it outside a bound change and removes the entry. An entry that is
-	// already executable fails, so the list only shrinks.
-	pendingChmod := map[string]bool{
-		"script/release-env-compat_test.sh (100644)":  true,
-		"script/runtime-environment_test.sh (100644)": true,
-	}
-	var bad []string
-	for _, path := range nonExecutableScriptTests(t, root) {
-		if !pendingChmod[path] {
-			bad = append(bad, path)
-		}
-		delete(pendingChmod, path)
-	}
-	if len(bad) != 0 {
-		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
-	}
-	if len(pendingChmod) != 0 {
-		t.Fatalf("pendingChmod entries are executable now: %q; remove them", slices.Sorted(maps.Keys(pendingChmod)))
 	}
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "script"), 0o755); err != nil {
@@ -467,8 +446,35 @@ func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
 			t.Fatalf("git %v: %v\n%s", args, err, out)
 		}
 	}
-	if got := nonExecutableScriptTests(t, dir); !slices.Equal(got, []string{"script/plain_test.sh (100644)"}) {
-		t.Errorf("fixture index: %q, want [script/plain_test.sh (100644)]", got)
+	if got, err := nonExecutableScriptTests(dir); err != nil || !slices.Equal(got, []string{"script/plain_test.sh (100644)"}) {
+		t.Errorf("fixture index: %q, %v, want [script/plain_test.sh (100644)]", got, err)
+	}
+	// A confined go-product shard cannot read the repository's .git (testconfine refuses it), so the
+	// repository index is checked unconfined by make shell-test-registration-check in doc-gates.
+	found, err := nonExecutableScriptTests(root)
+	if err != nil {
+		t.Skipf("repository Git index unreadable here (%v); doc-gates checks it", err)
+	}
+	// pendingChmod lists the script tests still committed 100644 only because cem/1.0 cannot bind a
+	// mode change (metadata-only and old/new mode patches are refused), so a lane cannot carry the
+	// chmod; the integrator makes it outside a bound change and removes the entry. An entry that is
+	// already executable fails, so the list only shrinks.
+	pendingChmod := map[string]bool{
+		"script/release-env-compat_test.sh (100644)":  true,
+		"script/runtime-environment_test.sh (100644)": true,
+	}
+	var bad []string
+	for _, path := range found {
+		if !pendingChmod[path] {
+			bad = append(bad, path)
+		}
+		delete(pendingChmod, path)
+	}
+	if len(bad) != 0 {
+		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
+	}
+	if len(pendingChmod) != 0 {
+		t.Fatalf("pendingChmod entries are executable now: %q; remove them", slices.Sorted(maps.Keys(pendingChmod)))
 	}
 }
 
