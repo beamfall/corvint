@@ -1635,6 +1635,11 @@ func emitError(stderr io.Writer, err error) {
 		return
 	}
 	if errors.As(err, &contextError) {
+		if class := contextindex.GitStartErrorClass(err); class != "" {
+			// DRC-V0-910: the start class is additive; the error bytes are unchanged.
+			_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"git_start_error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()), pythonJSONString(class))
+			return
+		}
 		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()))
 		return
 	}

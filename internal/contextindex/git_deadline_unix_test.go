@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"github.com/Beamfall/corvint/internal/execfile"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -72,4 +73,47 @@ func TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912(t *testing.T) {
 	}
 	cancelParent()
 	<-writer.Done()
+}
+
+// DRC-V0-910 (V1-2585): a Git that cannot start keeps the stable public
+// message and names its closed start class: ENOENT for a missing executable,
+// ETXTBSY for one still open for writing (the parallel-test race of
+// V1-2585), and nothing for an ordinary Git failure.
+func TestGitStartErrorClass_DRCV0910(t *testing.T) {
+	root := testRepository(t)
+	busy := filepath.Join(t.TempDir(), "git")
+	writer, err := os.OpenFile(busy, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	if _, err := writer.WriteString("#!/bin/sh\nexit 0\n"); err != nil {
+		t.Fatal(err)
+	}
+	failing := filepath.Join(t.TempDir(), "git")
+	if err := execfile.WriteFile(failing, []byte("#!/bin/sh\necho nope >&2\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct{ name, executable, class string }{
+		{"ENOENT", filepath.Join(t.TempDir(), "missing-git"), "ENOENT"},
+		{"ETXTBSY", busy, "ETXTBSY"},
+		{"exit", failing, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := withGitExecution(context.Background(), test.executable, os.Environ())
+			_, err := git(ctx, root, 1<<20, nil, "rev-parse", "HEAD")
+			if err == nil {
+				t.Fatal("Git started")
+			}
+			if got := GitStartErrorClass(err); got != test.class {
+				t.Fatalf("class = %q, want %q (err %v)", got, test.class, err)
+			}
+			if test.class != "" && err.Error() != "Git error: cannot start Git" {
+				t.Fatalf("public message changed: %q", err.Error())
+			}
+		})
+	}
+	if GitStartErrorClass(errors.New("unrelated")) != "" {
+		t.Fatal("a non-Git error has a start class")
+	}
 }

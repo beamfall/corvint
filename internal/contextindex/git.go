@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -73,6 +74,30 @@ func GitFailureDetails(err error) (GitFailure, bool) {
 	details.Arguments = append([]string(nil), details.Arguments...)
 	details.Stderr = append([]byte(nil), details.Stderr...)
 	return details, true
+}
+
+// GitStartErrorClass is the closed class of the error that kept Git from
+// starting, or "" when err is not a Git start failure (DRC-V0-910). It never
+// carries the errno text or a path, so a refusal can emit it as-is.
+func GitStartErrorClass(err error) string {
+	details, ok := GitFailureDetails(err)
+	if !ok || details.StartError == nil {
+		return ""
+	}
+	start := details.StartError
+	switch {
+	case errors.Is(start, syscall.ETXTBSY):
+		return "ETXTBSY"
+	case errors.Is(start, syscall.ENOENT), errors.Is(start, exec.ErrNotFound):
+		return "ENOENT"
+	case errors.Is(start, syscall.EACCES):
+		return "EACCES"
+	case errors.Is(start, syscall.EPERM):
+		return "EPERM"
+	case errors.Is(start, syscall.ENOEXEC):
+		return "ENOEXEC"
+	}
+	return "other"
 }
 
 // boundedBuffer caps how many bytes one Git subprocess may return.
