@@ -789,7 +789,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `cmd/corvint/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/2`; bumped from `/1` by the V1-3932 React route ranking), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/3`; bumped from `/1` by the V1-3932 React route ranking and to `/3` by the AMAP-V0-881 screen `dialect`), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2169,8 +2169,9 @@ but does not read it; only non-Go syntax impact does.
     their screens, `/dynamic/42` to `/dynamic/{id}`, `/kindred` to the splat), failing on base
     `e9a5d6c80`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a mixed-dialect or tied match stays
     ambiguous).
-  - Rollback: drop `screenIndex.ranked` and the ranking in `byURL`; map bytes change only in the
-    newly attributed specs.
+  - Rollback: drop `screenIndex.ranked` and the ranking in `urlMatches`; map bytes change only in the
+    newly attributed specs. Since AMAP-V0-881 the ranked set is read from each screen's `dialect`,
+    so every reader that rebuilds an index from a map ranks as the build did.
 - `AMAP-V0-601`: (experimental under the standing lane auto-accept (2026-11-01); V1-2770) `flows
   appmap coverage --map FILE [--budget N | --full]` MUST emit a read-only, deterministic
   `application-map-coverage/0` document computed from the map file alone. Screens are grouped by
@@ -2198,6 +2199,32 @@ but does not read it; only non-Go syntax impact does.
     output); `TestFlowsAppmapCoverageCLI_V12770` (the verb emits the schema and refuses without
     `--map`).
   - Rollback: delete `coverage_report.go`, the CLI verb and its tests.
+- `AMAP-V0-881`: (experimental under the standing lane auto-accept (2026-11-01); V1-3954; amending
+  `AMAP-V0-600` and `AMAP-V0-215`) Each map screen MUST carry `dialect`, the route dialect of the
+  router file that declared its state (`react-router/0`, `ui-router-states/0` or `rails-routes/0`).
+  The member is omitted when router files of more than one dialect declared states with the
+  screen's ID. Every screen index MUST derive its AMAP-V0-600 ranked set from that member alone,
+  and the ranking MUST apply wherever a literal URL is matched against screens: the build's goto
+  attribution, `flows appmap find`, `observe` visits, UI-record screens, and the refs and
+  site-knowledge readers that rebuild an index from a map. A URL therefore resolves to the same
+  screen, or to the same ambiguous candidate list, whether the builder or a reader looks it up.
+  The builder version is bumped to `appmap-builder/3`, so a `--from` MAP written before the member
+  rebuilds in full (`builder-version-differs`). A map written by an earlier builder still parses:
+  its screens carry no `dialect`, and its readers rank no candidate, keeping the reading they gave
+  before this change.
+  - Non-goals: a map-level dialect, since one map may combine router files of several dialects;
+    bumping `application-map/0`, since the member is optional and omitted when unknown.
+  - Failure modes: a reader built before this change refuses a map that carries `dialect`, since
+    `ParseMap` rejects unknown members; such a binary must be upgraded with the map. A
+    hand-edited `dialect` changes reader ranking but not the build's spec attributions.
+  - Falsifier: `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go` (the
+    VanillaTwisted-shaped fixture round-tripped through `Encode` and `ParseMap`: every screen reads
+    `react-router/0`, and the build's goto attribution, a rebuilt index, `findScreen`, `Observe` and
+    the UI-record resolver agree for `/new`, `/dynamic/new`, `/dynamic/42` and `/kindred`; the same
+    map with `dialect` stripped still parses and `findScreen("/new")` stays `ambiguous-template`,
+    the unranked reading every reader gave on base `f60c1b027`).
+  - Rollback: delete the `dialect` member and `markDialects`, restore the builder-only ranked set
+    and `appmap-builder/2`; maps written with the member must be rebuilt.
 
 ## Wire contract
 
@@ -2521,6 +2548,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
 | AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-601 | `TestAMAPV0601CoverageReport_V12770`, `TestFlowsAppmapCoverageCLI_V12770` in `coverage_report_v12770_test.go` and `cmd/corvint/flows_appmap_coverage_v12770_test.go` |
+| AMAP-V0-881 | `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a screen with its dialect cleared ranks nothing) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
