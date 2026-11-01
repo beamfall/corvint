@@ -194,6 +194,24 @@ $(GATE_STEPS):
 gate:
 	@echo record >> "$(ORDER_LOG)"
 MK
+# The gate steps' own prerequisites (host-adapter-node-test, which needs node, and the rest of
+# their closure) get an empty recipe too, so the probe runs no real recipe on any host
+# (scripts-w5 friction, 2026-11-01).
+make -pq -C "$source_root" -f "$source_root/Makefile" gate 2>/dev/null | awk '
+    /^# Files/ { files = 1 }
+    /^GATE_STEPS = / { for (i = 3; i <= NF; i++) step[$i] = 1 }
+    files && /^[A-Za-z0-9_.\/-]+:( |$)/ && $0 !~ /:=/ {
+        target = substr($1, 1, length($1) - 1); rest = substr($0, index($0, ":") + 1)
+        sub(/\|.*/, "", rest); deps[target] = rest
+    }
+    END {
+        for (s in step) queue[++n] = s
+        for (i = 1; i <= n; i++) {
+            m = split(deps[queue[i]], d, " ")
+            for (j = 1; j <= m; j++) if (!(d[j] in seen) && !(d[j] in step)) { seen[d[j]] = 1; queue[++n] = d[j] }
+        }
+        for (t in seen) print t ":\n\t@:"
+    }' >> "$test_root/order.mk"
 CORVINT_GATE_LEDGER=off make -s -C "$source_root" -f "$source_root/Makefile" -f "$test_root/order.mk" -j8 gate ORDER_LOG="$order_log" 2>/dev/null ||
     fail "ordering probe make failed"
 [ "$(sed -n 1p "$order_log")" = clear ] || fail "a gate step started before gate-receipt-clear finished"

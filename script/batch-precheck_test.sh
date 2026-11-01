@@ -96,10 +96,16 @@ pi_version=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' "$pi/integrations/pi/packa
 [[ -n $pi_version ]] || fail "Pi package version not found"
 pi_tuple() { sed "s/\"tuple\": {\"adapterVersion\": \"[^\"]*\"/\"tuple\": {\"adapterVersion\": \"$1\"/" "$script/../docs/specs/pi-workflow-v0.md" > "$pi/docs/specs/pi-workflow-v0.md"; }
 pi_tuple "$pi_version"
+# The Pi capability test needs node; CI has it. A lane host without it (Unraid) skips this case by
+# name instead of failing the whole suite.
+if ! command -v node > /dev/null 2>&1; then
+  printf 'batch-precheck_test: SKIP case 1b: node is not on PATH, so the Pi tuple test is NOT_RUN\n'
+else
 node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
 pi_tuple "0.0.0-stale"
 node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 && fail "a stale Pi spec tuple passed"
 grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple did not fail PWV-V0-011: $(tail -40 "$tmp/out")"
+fi
 
 # 2. A fixture repository, workflow and packages.
 repo=$tmp/repo
@@ -830,7 +836,8 @@ grep -Eq '^batch-precheck: FAIL make test-commands-check \([0-9]+s\) host-resour
 grep -q 'make test-commands-check .* introduced' "$tmp/out" && fail "host-resource failure called introduced: $(cat "$tmp/out")"
 grep -Eq '^batch-precheck: FLAKY make capabilities-check: attempt 1 failed rc=1 \([0-9]+s\), host-resource: write /x/sort1: No space left on device; attempt 2 passed' "$tmp/out" ||
   fail "flaky host-resource pass not named: $(cat "$tmp/out")"
-frun --base "$fbase"
+# A floor of 1 KiB, so the case does not depend on the host's free space (/ had 3.8 GB on Unraid).
+BATCH_PRECHECK_MIN_TMP_KIB=1 frun --base "$fbase"
 grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor: $(cat "$tmp/out")"
 
 # 10. ASD-V0-055 (V1-3205, V1-3206): step scratch stays off a RAM-backed TMPDIR. BATCH_PRECHECK_TMPDIR
