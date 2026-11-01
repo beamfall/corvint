@@ -2897,7 +2897,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   dogfood-finish` and `make dogfood-inputs-check`), on a HEAD that is neither a bind nor a seal
   commit, MUST refresh the citation plan when a row names a hunk ID the current BASE..HEAD patch
   lacks (HEAD moved since the plan was drafted), as `propose-citations BASE --refresh CITATIONS`
-  would, writing the result to `{evidence}/dogfood-finish.refreshed-plan.tsv`. When every row was
+  would, writing the result to `{evidence}/dogfood-finish.refreshed-plan.tsv`, or to
+  `{evidence}/dogfood-finish.refreshed-plan.alt.tsv` when CITATIONS is that file (the two alternate),
+  so a refresh never writes over its own input and a reviewed refreshed plan passed back after HEAD
+  moved again is kept. When every row was
   carried or re-keyed and no hunk had to be drafted afresh, the run MUST continue with that plan,
   printing `NOTE citations-refreshed plan=PATH carried=N rekeyed=M`. Otherwise it MUST stop before
   any step with `REFUSE citations-refresh-incomplete plan=PATH dropped=D drafted=K`, naming the
@@ -2906,7 +2909,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   caller's CITATIONS file; refreshing after the bind commit. Failure modes: a refresh that itself
   refuses is printed and stops the run. Evidence: `TestDCWV0947FinishRefreshesAMovedPlan` (a
   re-keyed plan continues on the refreshed file; a plan whose hunk needs a fresh draft stops;
-  a current plan is untouched). Rollback: drop the refresh; the stale row is refused at the bind as
+  a current plan is untouched; the previous refresh output passed back as CITATIONS after HEAD
+  moved again is refreshed into the other file and left byte-identical). Rollback: drop the refresh; the stale row is refused at the bind as
   before (`DCW-V0-441`).
 - `DCW-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines
   `DCW-V0-380` and `DCW-V0-800`) `make dogfood-closeout` MUST run its `dogfood-inputs-check` and
