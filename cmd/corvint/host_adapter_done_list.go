@@ -25,6 +25,7 @@ import (
 const (
 	doneListProfile    = "corvint-done-list/0"
 	doneListOptIn      = "CORVINT_STOP_DONE_LIST"
+	doneListPluginOpt  = "CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST"
 	doneListUnitLimit  = 8
 	doneListPathLimit  = 8
 	doneListGitLimit   = 1 << 20
@@ -72,10 +73,21 @@ func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[strin
 	return runClaudeStopDoneList(ctx, root, payload)
 }
 
+// doneListOptedIn reports the Stop done-list opt-in (AHI-807, V1-2514): a set
+// CORVINT_STOP_DONE_LIST decides alone (only "1" enables), otherwise the plugin's boolean
+// stop_done_list userConfig option, which the host exports as CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST.
+func doneListOptedIn(ctx context.Context) bool {
+	if value := adapterGetenv(ctx, doneListOptIn); value != "" {
+		return value == "1"
+	}
+	option := adapterGetenv(ctx, doneListPluginOpt)
+	return option == "true" || option == "1"
+}
+
 // runClaudeStopDoneList is the `claude-code stop-done-list` hook event. It stays silent unless the
 // user opted in, on a continued Stop, in a subagent, and on a clean tree (AHI-191, AHI-192).
 func runClaudeStopDoneList(ctx context.Context, root string, payload map[string]any) map[string]any {
-	if adapterGetenv(ctx, doneListOptIn) != "1" {
+	if !doneListOptedIn(ctx) {
 		return map[string]any{}
 	}
 	if active, _ := payload["stop_hook_active"].(bool); active || claudeSubagent(payload) {
