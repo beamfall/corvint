@@ -8,13 +8,13 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "252dfc9821c61e4663aa6df52080e316faa2fa9e",
+  "repositoryRevision": "5d78473cf639ef79305c1a84ae1262bf9f1fa731",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
     {
       "path": "cmd/corvint/main.go",
-      "sha256": "7751412a8192d885d4340f6b9b3e16910fb57d5f902284bed142161a97e0acc5"
+      "sha256": "20617b06e74618facdcc6e7dd400631f8cb9e0293d63d7e384e32c3fcd23eac7"
     },
     {
       "path": "cmd/corvint/cem_anchor.go",
