@@ -315,6 +315,8 @@ spec-requirements:
 	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
 	@script/gen-spec-requirements.sh --write
+	@test -d internal/lrfrepo || exit 0; out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
+	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).

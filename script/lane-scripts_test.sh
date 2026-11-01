@@ -1652,7 +1652,12 @@ rc=$?
 [[ $rc == 2 && $out == *'lane-setup: REFUSE shallow-repository'*'fetch --unshallow origin'* ]] || fail "shallow lane setup (rc $rc): $out"
 [[ ! -e $tmp/lane-a ]] || fail "a refused lane setup created its directory"
 git clone -q "file://$ls_src" "$tmp/lane-setup-full" 2> /dev/null || fail "lane-setup full clone"
+git -C "$tmp/lane-setup-full" config rerere.enabled true
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/a 2>&1) || fail "lane setup: $out"
+# ASD-V0-965 (V1-3651): the lane records no rerere resolution into the shared rr-cache; the shared
+# checkout keeps its own setting.
+[[ $(git -C "$tmp/lane-a" config --get rerere.enabled) == false && $(git -C "$tmp/lane-setup-full" config --get rerere.enabled) == true ]] ||
+  fail "lane rerere not disabled per worktree: lane=$(git -C "$tmp/lane-a" config --get rerere.enabled) shared=$(git -C "$tmp/lane-setup-full" config --get rerere.enabled)"
 [[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
   fail "lane worktree not on claude/a at origin/main: $out"
 printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"

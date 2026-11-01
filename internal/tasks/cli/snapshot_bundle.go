@@ -100,9 +100,7 @@ func queueSnapshot(env Env, args []string) int {
 		}
 		return 0
 	}
-	if !filepath.IsAbs(out) {
-		out = filepath.Join(env.Cwd, out)
-	}
+	out = commandPath(env.Cwd, out)
 	if err := os.WriteFile(out, raw, 0o600); err != nil {
 		return emit(env.Stdout, failure(cmd, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, out, "cannot write the snapshot: %v", err)))
 	}

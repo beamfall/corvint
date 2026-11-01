@@ -361,7 +361,8 @@
     ],
     "internal/lrfrepo": [
       "docs/specs/",
-      "interop/spec-toolchains/"
+      "interop/spec-toolchains/",
+      "script/spec-toolchain-conformance.sh"
     ],
     "internal/lspevidence": [],
     "internal/mcp/bridge": [

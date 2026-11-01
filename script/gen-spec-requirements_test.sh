@@ -733,4 +733,65 @@ grep -q '^GAMMA-V0-001	' "$w16/docs/specs/REQUIREMENTS.tsv" || fail "--write did
 usage_err=$( (cd "$w16" && script/gen-spec-requirements.sh --check extra) 2>&1) && fail "--check accepted an argument"
 case $usage_err in *'--check compares them with a fresh generation (make spec-requirements-check)'*) ;; *) fail "the usage text lacks --check: $usage_err" ;; esac
 
+# 18. SRG-V0-966 (V1-3660): an ID restated at the start of a line under a Rollback heading is no
+# definition: no duplicate refusal and no title from it; the next heading ends the section.
+# SRG-V0-965 and SRG-V0-967: the spec-requirements recipe runs the obligation-bound check and
+# prints a no-changes or updated line.
+cat > "$test_root/docs/specs/rbk.md" <<'SPEC'
+## Requirements
+
+- `RBK-V0-001`: the definition.
+
+### Rollback
+
+RBK-V0-001: revert the commit that added it.
+
+### Notes
+
+- `RBK-V0-002`: defined after the rollback section ends.
+SPEC
+stage docs/specs/rbk.md
+rbk=$(run) || fail "a rollback-section line was refused as a second definition"
+printf '%s\n' "$rbk" | grep -q '^RBK-V0-001	docs/specs/rbk.md	the definition\.' ||
+  fail "a rollback line displaced the definition: $(printf '%s\n' "$rbk" | grep '^RBK-V0-001')"
+printf '%s\n' "$rbk" | grep -q '^RBK-V0-002	docs/specs/rbk.md	defined after' ||
+  fail "the rollback section did not end at the next heading: $(printf '%s\n' "$rbk" | grep '^RBK-V0-002')"
+git -C "$test_root" rm -q --cached -- docs/specs/rbk.md
+# The no-changes or updated line is printed by the recipe's --write step (SRG-V0-967).
+recipe=$(sed -n '/^spec-requirements:/,/^$/p' "$(dirname "$0")/../Makefile"; cat "$(dirname "$0")/gen-spec-requirements.sh")
+for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSpecsStayWithinTheOCMObligationBound' 'SRG-V0-965'; do
+  case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
+done
+
+# 19. SRG-V0-968 (V1-3661): a spec whose Agent digest has no Claim is refused in every mode, naming
+# it, so no live spec's README summary is hand-maintained; a superseded digest (Successor and
+# Why) and a spec with no digest at all are unaffected.
+# shellcheck disable=SC2016
+printf '# Claimless\n\n## Agent digest\n- Status: proposed\n\n## Requirements\n\n- `CLM-V0-001`: a requirement.\n' > "$test_root/docs/specs/claimless.md"
+stage docs/specs/claimless.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  clm_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' accepted a digest without a Claim"
+  case $clm_err in
+    *'docs/specs/claimless.md: its ## Agent digest has no `- Claim:` line'*'(SRG-V0-968)'*) ;;
+    *) fail "mode '${mode:-tsv}' claimless refusal lacks the spec or rule: $clm_err" ;;
+  esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/claimless.md
+# shellcheck disable=SC2016
+printf '# Retired
+
+## Agent digest
+- Successor: `docs/specs/x.md` replaces it.
+- Why: retired.
+
+## Requirements
+
+- `CLM-V0-002`: a retired requirement.
+' > "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+run > /dev/null || fail "a superseded digest (Successor and Why) was refused for having no Claim"
+git -C "$test_root" rm -q --cached -- docs/specs/retired.md
+
 printf 'ok\n'

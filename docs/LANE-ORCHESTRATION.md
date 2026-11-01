@@ -591,6 +591,13 @@ every gap above the threshold with the time the watchdog would have flagged it.
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
   (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-v1-1627-lane-orchestration.md`).
+- Lanes share `rr-cache`, `MERGE_RR` and its lock through the common directory (ASD-V0-965,
+  V1-3651). `lane-setup.sh` sets `rerere.enabled=false` in each lane worktree's own config
+  (`extensions.worktreeConfig`), so no lane records or replays another lane's resolution. A git
+  command that may land commits (merge, commit, cherry-pick, rebase) can still fail on a transient
+  lock after its commits landed: record HEAD before it, compare after a failure, and retry only when
+  HEAD did not move. When HEAD moved, verify the landed commits (`git log --oneline BEFORE..HEAD`)
+  instead of repeating the command, which would land them twice.
 - Never run `git stash` in a lane. The stash is one ref (`refs/stash`) in the clone's common
   directory, shared by every linked worktree, so one lane's `git stash pop` can apply another
   lane's stash (incident, 2026-10-21: the dogfood-flow lane's `git stash pop` applied the affected-selection lane's stash `723eec1`, V1-2161). Park work in a

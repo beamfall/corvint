@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -41,9 +40,7 @@ func importMapCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	if !filepath.IsAbs(file) {
-		file = filepath.Join(env.Cwd, file)
-	}
+	file = commandPath(env.Cwd, file)
 	raw, err := intent.ReadFile(file, wire.MaxImportMapBytes)
 	if err != nil {
 		return errorResult(cmd, err)

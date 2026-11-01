@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -25,15 +27,29 @@ const stagedMaxAge = 10 * time.Minute
 // stageCreate creates a staged temporary; a test replaces it to fail staging.
 var stageCreate = os.CreateTemp
 
-// derivedWritten, when a test sets it, observes every write of derived
-// checkpoint bytes: the destination path and the byte count.
-var derivedWritten func(path string, n int)
+// derivedObservers holds, by state directory, the observers a test
+// registers for writes of derived checkpoint bytes (the destination path and
+// the byte count). Each sees only the writes of its own store, the paths in or
+// beside that state directory, so tests on separate stores run in parallel
+// (V1-3665). derivedObserved counts them, so a store nobody observes pays one
+// atomic load per write.
+var (
+	derivedObservers sync.Map // state directory -> func(path string, n int)
+	derivedObserved  atomic.Int32
+)
 
-// noteDerived reports one derived write to derivedWritten.
+// noteDerived reports one derived write to the observers of its store.
 func noteDerived(path string, n int) {
-	if derivedWritten != nil {
-		derivedWritten(path, n)
+	if derivedObserved.Load() == 0 {
+		return
 	}
+	derivedObservers.Range(func(key, value any) bool {
+		dir := key.(string)
+		if path == dir || strings.HasPrefix(path, dir+string(filepath.Separator)) || strings.HasPrefix(path, dir+".") {
+			value.(func(string, int))(path, n)
+		}
+		return true
+	})
 }
 
 // stagedFile is derived bytes already written beside their destination, so

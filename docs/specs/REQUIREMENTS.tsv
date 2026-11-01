@@ -967,6 +967,7 @@ CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
+CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1887,6 +1888,7 @@ ASD-V0-064	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-070	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3233) Under an	standing	2026-10-30; V1-3233
 ASD-V0-071	docs/specs/corvint-self-development-v0.md	Retired by `ASD-V0-831` (V1-3337, 2026-10-31): `script/check-ai-trailers.sh`, it	unrecorded	-
 ASD-V0-072	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3230) A shallo	standing	2026-10-30; V1-3230
+ASD-V0-965	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3651) Linked l	standing	2026-11-01; V1-3651
 ASD-V0-073	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) `make ba	standing	2026-10-30; V1-3238
 ASD-V0-074	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3120; refines	standing	2026-10-30; V1-3120
 ASD-V0-075	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3232; refines	standing	2026-10-30; V1-3232
@@ -2472,6 +2474,9 @@ TCD-V0-872	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the 
 TCD-V0-873	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496) A merged PR whose bo	standing	V1-3496
 TCD-V0-874	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3551; amends	standing	2026-10-11; V1-3551
 TCD-V0-955	docs/specs/corvint-tasks-closeout-debt-v0.md	(standing lane auto-accept, 2026-11-01; V1-3607) `ticket delivery-screen` accept	standing	2026-11-01; V1-3607
+TCD-V0-965	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3644) A usage	standing	2026-10-11; V1-3644
+TCD-V0-966	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3645)	standing	2026-10-11; V1-3645
+TCD-V0-967	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3646; refines	standing	2026-10-11; V1-3646
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
@@ -5803,6 +5808,7 @@ PUB-V0-051	docs/specs/public-release-v0.md	`--version --json` MUST omit `build` 
 PUB-V0-052	docs/specs/public-release-v0.md	A binary is a release build, `release: true`, only when it carries both a stampe	unrecorded	-
 PUB-V0-053	docs/specs/public-release-v0.md	(amended 2026-10-27, GitHub #1902, orchestrator decision for rc.3) The plain	unrecorded	-
 PUB-V0-054	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3221)	standing	2026-10-30; V1-3221
+PUB-V0-965	docs/specs/public-release-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3799; refines	standing	2026-10-11; V1-3799
 PUB-V0-027	docs/specs/public-release-v0.md	`corvint impact ... --producer` and `corvint test-validity ... --producer` MUST	unrecorded	-
 PUB-V0-028	docs/specs/public-release-v0.md	Each member MUST come from its own source only, and a member that source cannot	unrecorded	-
 PUB-V0-029	docs/specs/public-release-v0.md	Build `0` is correct only for an unstamped source build (for example the	unrecorded	-
@@ -6357,6 +6363,10 @@ SRG-V0-951	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-952	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3563) An	standing	2026-11-01; V1-3563
 SRG-V0-953	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3553;	standing	2026-11-01; V1-3553
 SRG-V0-954	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3617, V1-3	standing	2026-11-01; V1-3617; V1-3510
+SRG-V0-965	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3660)	standing	2026-11-01; V1-3660
+SRG-V0-966	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3660) A line	standing	2026-11-01; V1-3660
+SRG-V0-967	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3660)	standing	2026-11-01; V1-3660
+SRG-V0-968	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -6371,6 +6381,7 @@ STA-V0-011	docs/specs/spec-toolchain-adapters-v0.md	`make spec-toolchain-conform
 STA-V0-012	docs/specs/spec-toolchain-adapters-v0.md	`script/spec-toolchain-latest.sh` (operator-run, network) compares `STA-V0-001`	unrecorded	-
 STA-V0-013	docs/specs/spec-toolchain-adapters-v0.md	`docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrati	unrecorded	-
 STA-V0-014	docs/specs/spec-toolchain-adapters-v0.md	A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding th	unrecorded	-
+STA-V0-965	docs/specs/spec-toolchain-adapters-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3657) `script/	standing	2026-11-01; V1-3657
 SNR-V0-001	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST refuse a concurrent invocation. It MUST take an exclusive lock via	unrecorded	-
 SNR-V0-002	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST support a test-only lock-hold mode selected by the	unrecorded	-
 SNR-V0-003	docs/specs/sql-native-ratchet-gate-v0.md	The gate MUST discover the toolchain root as `GOTOOLCHAIN=local go env GOROOT` a	unrecorded	-

@@ -21,7 +21,9 @@
 # nothing is installed globally and the repository is only read.
 #
 # CORVINT_BIN may name a corvint binary built from the current tree; otherwise the script builds
-# one with `go build ./cmd/corvint`. SPEC_TOOLCHAIN_PYTHON overrides the python3 interpreter.
+# one with `go build ./cmd/corvint`. SPEC_TOOLCHAIN_PYTHON overrides the interpreter; otherwise
+# the first of python3, python3.14 .. python3.11 on PATH that is at least 3.11 is used
+# (STA-V0-965). `--print-python` prints that choice and exits, running nothing else.
 
 set -euo pipefail
 
@@ -29,7 +31,29 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 toolchains=$root/interop/spec-toolchains
 manifest=$toolchains/versions.json
 fixtures=$toolchains/fixtures
-python=${SPEC_TOOLCHAIN_PYTHON:-python3}
+python_ok() { command -v "$1" >/dev/null 2>&1 && "$1" -I -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' 2>/dev/null; }
+if [[ -n ${SPEC_TOOLCHAIN_PYTHON-} ]]; then
+    python=$SPEC_TOOLCHAIN_PYTHON
+    tried=$python
+    python_ok "$python" || python=''
+else
+    python='' tried=''
+    for candidate in python3 python3.14 python3.13 python3.12 python3.11; do
+        tried+=${tried:+ }$candidate
+        if python_ok "$candidate"; then
+            python=$candidate
+            break
+        fi
+    done
+fi
+if [[ -z $python ]]; then
+    printf 'spec-toolchain-conformance: no python >= 3.11 (Spec Kit requires-python) among: %s; set SPEC_TOOLCHAIN_PYTHON=/path/to/python3.11+ and rerun\n' "$tried" >&2
+    exit 1
+fi
+if [[ ${1-} == --print-python ]]; then
+    printf '%s\n' "$python"
+    exit 0
+fi
 
 failures=0
 fail() {
@@ -52,8 +76,6 @@ else
 fi
 node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=12)?0:1)' ||
     die "node $(node --version) is older than OpenSpec 1.16.0's engines.node >=22.12.0"
-"$python" -I -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)' ||
-    die "$python is older than Spec Kit's requires-python >=3.11"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/spec-toolchain-conformance.XXXXXX")
 cleanup() { rm -rf -- "$work"; }

@@ -334,6 +334,8 @@ for my $file (sort @specs) {
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
         claim => digest_values($blob)->{Claim}, status => digest_values($blob)->{Status},
+        successor => digest_values($blob)->{Successor},
+        digest => scalar($blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/m),
         intent_line => field_line($blob, 'Intent status:'), status_line => field_line($blob, 'Status', 1),
     };
     # SRG-V0-891 (V1-3295): the ## Requirements section's line range, tracked as
@@ -343,6 +345,7 @@ for my $file (sort @specs) {
     my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
+    my $rollback = 0;
     my ($fence, $continues, $item_open, $pending) = ('', 0, 0, undef);
     for my $line (split /^/, $blob) {
         ++$line_number;
@@ -375,6 +378,10 @@ for my $file (sort @specs) {
             $fence = $run;
         }
         $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
+        # SRG-V0-966 (V1-3660): a rollback section restates IDs (`ID: revert ...`, bulleted or
+        # not) without defining them, so its lines never rank 0 and never count as an
+        # out-of-section definition (SRG-V0-891); the next heading ends the section.
+        $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $run eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
         if ($fence eq '' && $run eq '') {
             if ($line =~ /^## Requirements\r?\n?\z/) {
                 ($in_section, $sections) = (1, $sections + 1);
@@ -382,7 +389,7 @@ for my $file (sort @specs) {
             } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
-            } elsif (!$in_section && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+            } elsif (!$in_section && !$rollback && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
                 push @outside, [$1 // $2, $line_number];
             }
         }
@@ -402,6 +409,7 @@ for my $file (sort @specs) {
                      : $definition_boundary && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?(?:\*\*)?\s*:/ ? 0
                      : $line =~ /^\s*\|\s*`?$quoted`?(?:\s|\||\.)/ ? 1
                      : 2;
+            $rank = 2 if $rank == 0 && $rollback;
             next if $rank > 1;
             if ($rank == 0 && !$wrapped && !grep { $_ eq "$file:$line_number" } @{$definitions{$id} // []}) {
                 push @{$definitions{$id}}, "$file:$line_number";
@@ -556,6 +564,18 @@ sub status_ids {
             . "$section{$_->[0]}[0]..$section{$_->[0]}[1])\n" for @misplaced;
         die "a requirement is defined inside its spec's ## Requirements section, which OCM enumerates; "
             . "move each definition there, then rerun make spec-requirements (SRG-V0-891, RDG-V0-021)\n";
+    }
+}
+# SRG-V0-968 (V1-3661): every live spec's Agent digest carries a Claim, so its README row's leading
+# summary is projected from it (SRG-V0-012); a superseded digest (Successor and Why only, as
+# internal/specindex requires) is exempt. Refused in every mode.
+{
+    my @claimless = grep { $header{$_}{digest} && !defined $header{$_}{claim} && !defined $header{$_}{successor} } sort @specs;
+    if (@claimless) {
+        print STDERR "$_: its ## Agent digest has no `- Claim:` line\n" for @claimless;
+        die "every spec's Agent digest states a one-sentence `- Claim:`, which README.md and INDEX.json "
+            . "project (a superseded spec's digest holds Successor and Why instead), then rerun make "
+            . "spec-requirements (SRG-V0-968)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
@@ -772,7 +792,14 @@ PERL
 generated='REQUIREMENTS.tsv INDEX.json README.md'
 case $mode in
   write)
-    for file in $generated; do cp "$out_dir/$file" "docs/specs/$file" || exit 1; done
+    # SRG-V0-967: one line names each rewritten file, or says nothing changed.
+    updated=
+    for file in $generated; do
+      cmp -s "$out_dir/$file" "docs/specs/$file" && continue
+      cp "$out_dir/$file" "docs/specs/$file" || exit 1
+      updated="$updated $file"
+    done
+    if test -n "$updated"; then echo "spec-requirements: updated$updated"; else echo "spec-requirements: no changes"; fi
     ;;
   check)
     stale=

@@ -104,3 +104,97 @@ func TestTCDV0173_HoldSeveralTicketsReadsRevisions(t *testing.T) {
 		t.Fatalf("several targets on release-hold: %s", x.stdout)
 	}
 }
+
+// TestTCDV0967_InterruptedMultiTargetWriteResumes covers V1-3646: a
+// two-ticket change interrupted after its first target landed resumes by
+// rerunning the same write; the landed target replays its receipt, the other
+// applies once, and a further rerun writes nothing: a replay reports the same
+// resultingRevision and no new receipt. The base request id is
+// long enough that every derived id takes the 64-byte digest form
+// (TCD-V0-967).
+func TestTCDV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, a := tcdTicket(t, root, "alpha", "")
+	_, b := tcdTicket(t, root, "bravo", "")
+	base := "lane-fric-b-split-v1-3646-0123456789abcdef0123456789abcdef-0123"
+	write := func(targets ...string) map[string]wire.Value {
+		args := append([]string{"ticket", "note", "set"}, targets...)
+		return mtRows(t, atm(t, root, nil, append(args, "--request-id", base, "--issued-at", "2026-11-01T06:00:00Z", "--text", "split from V1-3646")...))
+	}
+	first := write(a, "zz-none") // the second target fails: the change is half applied
+	if field(first[a], "outcome").Str != "OK" || field(first["zz-none"], "outcome").Str != "REFUSED" || len(field(first[a], "requestId").Str) != wire.MaxRequestIDBytes {
+		t.Fatalf("interrupted write: %v", first)
+	}
+	resumed := write(a, b)
+	if !field(resumed[a], "replayed").Bool || field(resumed[a], "receipt").Str != "" || field(resumed[a], "resultingRevision").Str != field(first[a], "resultingRevision").Str ||
+		field(resumed[b], "outcome").Str != "OK" || field(resumed[b], "replayed").Bool {
+		t.Fatalf("resume: a=%s b=%s first=%s", wire.EncodeFile(resumed[a]), wire.EncodeFile(resumed[b]), wire.EncodeFile(first[a]))
+	}
+	again := write(a, b)
+	for _, id := range []string{a, b} {
+		if !field(again[id], "replayed").Bool || field(again[id], "receipt").Str != "" || field(again[id], "resultingRevision").Str != "2" {
+			t.Fatalf("converged rerun wrote %s again: %v", id, again)
+		}
+	}
+}
+
+// TestTCDV0967_InterruptedMultiTargetHoldResumes covers the Codex finding on
+// V1-3646: a hold reads each target's revision itself, so after one target
+// landed a retry would read the incremented revision, change the mutation
+// digest and refuse REQUEST_ID_CONFLICT. The retry keeps the landed request's
+// original expected revision and replays it; a single-target hold retried
+// with the same request id replays too, and a retry with another payload is
+// still refused (TCD-V0-967).
+func TestTCDV0967_InterruptedMultiTargetHoldResumes(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, a := tcdTicket(t, root, "alpha", "")
+	_, b := tcdTicket(t, root, "bravo", "")
+	cID, _ := tcdTicket(t, root, "charlie", "")
+	payload := `{"holdId":"owner-wait","reason":"waits for owner"}`
+	hold := func(targets ...string) map[string]wire.Value {
+		args := []string{"ticket", "hold", "--request-id", "park", "--issued-at", "2026-11-01T06:00:00Z", "--payload", payload}
+		for _, target := range targets {
+			args = append(args, "--target", target)
+		}
+		return mtRows(t, atm(t, root, nil, args...))
+	}
+	first := hold(a, "zz-none")
+	if field(first[a], "outcome").Str != "OK" || field(first[a], "expectedRevision").Str != "1" || field(first["zz-none"], "outcome").Str != "REFUSED" {
+		t.Fatalf("interrupted hold: %s", wire.EncodeFile(first[a]))
+	}
+	resumed := hold(a, b)
+	if !field(resumed[a], "replayed").Bool || field(resumed[a], "expectedRevision").Str != "1" || hasRowCode(resumed[a], wire.CodeRequestIDConflict) ||
+		field(resumed[b], "outcome").Str != "OK" || field(resumed[b], "replayed").Bool {
+		t.Fatalf("resumed hold: a=%s b=%s", wire.EncodeFile(resumed[a]), wire.EncodeFile(resumed[b]))
+	}
+	again := hold(a, b)
+	for _, id := range []string{a, b} {
+		if !field(again[id], "replayed").Bool || field(again[id], "outcome").Str != "OK" {
+			t.Fatalf("converged hold rerun of %s: %s", id, wire.EncodeFile(again[id]))
+		}
+	}
+	single := []string{"ticket", "hold", "--target", cID, "--request-id", "solo", "--issued-at", "2026-11-01T06:00:00Z", "--payload", payload}
+	if x := atm(t, root, nil, single...); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("single hold: %s", x.stdout)
+	}
+	if x := atm(t, root, nil, single...); x.res.Outcome != wire.OutcomeOK || !field(x.res.Items[0], "replayed").Bool {
+		t.Fatalf("single hold retry did not replay: %s", x.stdout)
+	}
+	other := append([]string{}, single...)
+	other[len(other)-1] = `{"holdId":"owner-wait","reason":"another reason"}`
+	if x := atm(t, root, nil, other...); x.res.Outcome == wire.OutcomeOK || !wire.HasCode(x.res, wire.CodeRequestIDConflict) {
+		t.Fatalf("a retry with another payload was not refused REQUEST_ID_CONFLICT: %s", x.stdout)
+	}
+}
+
+// hasRowCode reports whether a multi-target row lists code.
+func hasRowCode(row wire.Value, code string) bool {
+	for _, c := range field(row, "codes").Arr {
+		if c.Str == code {
+			return true
+		}
+	}
+	return false
+}

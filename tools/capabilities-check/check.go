@@ -716,6 +716,7 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 	}
 	findings = append(findings, checkSubcommands(catalogRows[sectionCommands], inv.Subcommands)...)
 	findings = append(findings, checkStaleSubcommands(catalogRows[sectionCommands], inv.Subcommands, inv.TreeVerbs)...)
+	findings = append(findings, checkSubcommandSpans(catalogRows[sectionCommands])...)
 	if readme != nil {
 		findings = append(findings, checkReadme(readme, inv, catalogRows)...)
 	}
@@ -780,6 +781,39 @@ func checkStaleSubcommands(rows map[string]row, subcommands map[string][]string,
 // depth zero or the cell end. A span starting with "-" is an option, not a subcommand.
 func documentedSubcommands(cells []string) []string {
 	var out []string
+	for _, span := range subcommandSpans(cells) {
+		if word := literalWord.FindString(span); word != "" && !strings.HasPrefix(span, "-") {
+			out = append(out, word)
+		}
+	}
+	return out
+}
+
+// subcommandName is the whole of a well-formed Subcommands span: one lowercase subcommand word.
+var subcommandName = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// checkSubcommandSpans gives the Subcommands sentence a typed structure (CAP-V0-965, V1-3661):
+// every backticked span at parenthesis depth zero is exactly one subcommand name, so a flag, an
+// argument or an example (`x --flag`, `corvint x y`) is a subcommand-span-malformed finding and
+// belongs in parentheses, where the reader skips it. CAP-V0-961 then reads names, not a prose
+// convention about first words.
+func checkSubcommandSpans(rows map[string]row) []Finding {
+	var findings []Finding
+	for name, r := range rows {
+		for _, span := range subcommandSpans(r.Cells) {
+			if !subcommandName.MatchString(span) {
+				findings = append(findings, Finding{"subcommand-span-malformed", sectionCommands, strings.Fields(name)[0] + " `" + span + "`",
+					fmt.Sprintf("row at line %d: a Subcommands span outside parentheses must be one subcommand name; move flags, arguments and examples into parentheses", r.Line)})
+			}
+		}
+	}
+	return findings
+}
+
+// subcommandSpans returns each backticked span at parenthesis depth zero in a cell's Subcommands
+// sentence, which runs from the word "Subcommands" to the first ". " at depth zero or the cell end.
+func subcommandSpans(cells []string) []string {
+	var out []string
 	for _, cell := range cells {
 		at := strings.Index(cell, "Subcommands")
 		if at < 0 {
@@ -794,9 +828,7 @@ func documentedSubcommands(cells []string) []string {
 			switch {
 			case c == '`':
 				if code && depth == 0 {
-					if word := literalWord.FindString(span.String()); word != "" && !strings.HasPrefix(span.String(), "-") {
-						out = append(out, word)
-					}
+					out = append(out, span.String())
 				}
 				code = !code
 				span.Reset()

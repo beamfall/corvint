@@ -130,9 +130,14 @@ pins this agreement (group V1-3258).
    current row verbatim, re-keys a re-hunked row by path and content or BASE range with a
    `re-keyed OLD -> NEW` note to review, and drafts any other hunk afresh (`DCW-V0-442`).
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
-   needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
-   after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
+   needs a binary built from the change's own tree. `make dogfood-inputs-check` builds the
+   lane binary only after it has a readable `CITATIONS` file, so bootstrap in this order from a
+   clean worktree: (1) draft the first plan from the tree itself with
+   `GOTOOLCHAIN=local go run ./cmd/corvint dogfood propose-citations $BASE > plan.tsv`;
+   (2) run `make dogfood-inputs-check` with that plan, which builds
+   `"$(git rev-parse --absolute-git-dir)/corvint/corvint"`; (3) redraft or `--refresh` later plans
+   with that lane-built binary. Leave `CORVINT_BIN` unset for closeout, which otherwise refuses
+   `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
    Go build stamp is `HEAD` with no uncommitted change, or only `*_test.go` tooling files changed
    (`ASD-V0-901`). A plan with no row is refused up front as `CITATIONS:empty` (`ASD-V0-903`), and
    every up-front refusal names the target you ran (`ASD-V0-902`).

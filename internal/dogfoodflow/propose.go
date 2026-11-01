@@ -96,7 +96,8 @@ type proposal struct {
 	governing map[string]bool
 	weak      []string
 	// modifiedOwners holds, by pattern, the specs this change modifies whose
-	// BASE lines name it: never cited, but counted as governing specs.
+	// BASE lines name it, counted as governing specs; their stable lines are
+	// cited like an untouched spec's, never a line the change edits (DCW-V0-886).
 	modifiedOwners map[string][]string
 }
 
