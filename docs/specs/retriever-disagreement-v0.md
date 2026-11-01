@@ -36,8 +36,10 @@ closure, and it never edits the packet it read.
   path list for a task, so the packet is channel L verbatim and `internal/contextindex` is not
   modified. The relevance-floor candidate set is not used: it is scored over already-verified CEM
   and OCM artifacts, not over a free-text task.
-- **Channel S (structural).** Identifier tokens of the task text that are declared `Symbol.Name`s
-  in the index, the sources declaring them, and one hop of `Index.Imports` in each direction.
+- **Channel S (structural).** Identifier-shaped tokens of the task text that are declared
+  `Symbol.Name`s in the index, the sources declaring them, the sources referencing them where the
+  name resolves structurally (same Go package or an importer of a definer), and one hop of
+  `Index.Imports` in each direction, a Go package counting once (RDS-V0-960 to RDS-V0-963).
   `Index.Imports` records raw specifiers; a specifier resolves to a source of the same index by
   that source's Go package import path, its own path, or its path without extension, and an
   unresolved specifier is dropped as an edge out of the repository.
@@ -62,6 +64,28 @@ closure, and it never edits the packet it read.
   its members are the sources declaring a seed name plus the sources one `Index.Imports` hop away in
   either direction, excluding the declared `--subject` path. No term, prose, path or BM25 matching
   may admit a channel S member, and each member MUST carry its structural reasons in sorted order.
+- **RDS-V0-960:** (Amendment 2026-11-01, V1-3708.) Channel S MUST also admit, as `references
+  NAME`, a file naming a seed name as a whole word where that name resolves structurally: a Go file
+  in a definer's own package (directory), or a file whose import resolves to a definer or to a
+  definer's Go package. A file naming the word outside that scope is prose and is not admitted; a
+  file in scope that never names it stays an import hop. Definers are not references, and a source
+  whose text is not loaded counts nothing.
+- **RDS-V0-961:** (Amendment 2026-11-01, V1-3708.) A Go package import path MUST resolve to the
+  package once, not to every file of the package: a forward hop links one representative source of
+  the imported package (its `doc.go`, else the file named after its directory, else the first
+  non-test file by path), and a reverse hop links an importer of a seed's package once, as
+  `imports PACKAGE_PATH`. A `_test.go` file belongs to no importable package and is never a
+  resolution target.
+- **RDS-V0-962:** (Amendment 2026-11-01, V1-3708; narrows RDS-V0-002.) A seed token MUST be
+  identifier-shaped: quoted in backticks, or holding an underscore, or holding both an upper-case
+  and a lower-case letter. An all-lower-case word (`signal`, `where`) and an all-upper-case acronym
+  (`CEM`) never vote structurally unless quoted, even when they spell a declared name, so pure
+  prose leaves channel S empty and reports `structural_vote: absent`.
+- **RDS-V0-963:** (Amendment 2026-11-01, V1-3708; refines RDS-V0-005.) Channel S MUST rank a
+  declaring file before a referencing file before a file reached by an import hop alone, and only
+  then by distinct link count descending, then total reference occurrences descending, then path
+  ascending, so the declaring file of a named symbol is never ranked out of the top K by import
+  fan-out.
 - **RDS-V0-003:** The signal block MUST report the Jaccard overlap of the two channels' top-K paths,
   where K is `min(limit, 10)`, together with `overlap_paths`, `overlap_size` and `union_size`, and an
   overlap-weighted `rank_correlation`: the Spearman coefficient over the shared paths alone, `null`
@@ -107,7 +131,12 @@ closure, and it never edits the packet it read.
   (RDS-V0-008) is the only guard; it does not remove the correlation.
 - **Wrapper identifiers.** A task naming a common declared symbol (`Read`, `Error`) seeds channel S
   from vocabulary rather than intent, exactly the failure the 2026-09-01 probe found in the floor.
-  V0 does not weight seeds by rarity.
+  V0 does not weight seeds by rarity. The identifier-shape rule (RDS-V0-962) removes lower-case prose
+  words and acronyms, not capitalized common names.
+- **Package fan-out.** Before RDS-V0-960 to RDS-V0-963 (V1-3708) a Go import linked every file of
+  the package, every member tied on one link, the declaring file sorted out of the top K by path,
+  and every task naming a declared symbol proposed `unanswerable`. The representative source of a
+  package (RDS-V0-961) is a deterministic choice, not a claim that that file is the one used.
 - **Empty structural channel is the common case.** Natural-language tasks often name no declared
   symbol, so `uncertain` will dominate. That is deliberate abstention, not a defect, but it caps how
   much the signal can separate.
@@ -130,6 +159,10 @@ closure, and it never edits the packet it read.
 | `RDS-V0-006` | experimental | `TestAnswerabilityAbsentStructuralVoteProposesUncertain`, `TestCompareAgreementAndProposedState` |
 | `RDS-V0-007` | experimental | `TestAnswerabilityWritesNothingAndDiscloses`, `TestRunAnswerabilityHonorsCancellation` |
 | `RDS-V0-008` | experimental | `TestAnswerabilityCoverageNamesUnparsedSources` |
+| `RDS-V0-960` | experimental | `TestStructuralChannelReferencesResolveStructurally`, `TestAnswerabilityNamedSymbolUnderImportFanOutIsNotUnanswerable` |
+| `RDS-V0-961` | experimental | `TestStructuralChannelSeedsDeclarerAheadOfPackageFanOut`, `TestAnswerabilityNamedSymbolUnderImportFanOutIsNotUnanswerable` |
+| `RDS-V0-962` | experimental | `TestIdentifierTokensDropProse` |
+| `RDS-V0-963` | experimental | `TestStructuralChannelSeedsDeclarerAheadOfPackageFanOut`, `TestRankLinksOrdersByLinkCountThenPathAndTruncates` |
 
 ## Promotion and kill criteria
 
