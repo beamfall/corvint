@@ -593,6 +593,8 @@ capability-catalog: ## Regenerate the capability catalog after help usage change
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-ruby-test-provider help --json > internal/capcatalog/trees/corvint-ruby-test-provider.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-update help --json > internal/capcatalog/trees/corvint-update.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-work-queue help --json > internal/capcatalog/trees/corvint-work-queue.json
 
 .PHONY: capability-catalog-check
 capability-catalog-check:
