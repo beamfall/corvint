@@ -3040,6 +3040,7 @@ TRL-V0-005	docs/specs/corvint-tasks-store-relocation-v0.md	The store, the dispat
 TRL-V0-006	docs/specs/corvint-tasks-store-relocation-v0.md	A copied store is bound to a new clone by the same explicit relocation. A copy i	unrecorded	-
 TRL-V0-870	docs/specs/corvint-tasks-store-relocation-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3554) `corvint	standing	2026-10-11; V1-3554
 TRL-V0-871	docs/specs/corvint-tasks-store-relocation-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3554) A comple	standing	2026-10-11; V1-3554
+TRL-V0-960	docs/specs/corvint-tasks-store-relocation-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3590; refines	standing	2026-11-01; V1-3590
 TWT-V0-001	docs/specs/corvint-tasks-ticket-worktrees-v0.md	Policy MAY declare `worktrees` as a closed object `{repository, base,	unrecorded	-
 TWT-V0-002	docs/specs/corvint-tasks-ticket-worktrees-v0.md	The ticket branch is `branchPattern` with `{ticket}` replaced by the ticket's lo	unrecorded	-
 TWT-V0-003	docs/specs/corvint-tasks-ticket-worktrees-v0.md	When the branch is already checked out in a worktree, ensure returns that worktr	unrecorded	-

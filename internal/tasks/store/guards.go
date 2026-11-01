@@ -98,7 +98,7 @@ func unlockedWriterGuards(ctx context.Context, repo *intent.Repository, operatio
 func guardsWith(repo *intent.Repository, operation string, locked bool) (*snapshot.Head, error) {
 	marker := filepath.Join(repo.StateDir, "RESTORE_INCOMPLETE")
 	if _, err := os.Lstat(marker); !errors.Is(err, fs.ErrNotExist) {
-		return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "restore marker present or unobservable")
+		return nil, wire.Errorf(wire.CodeRestoreIncomplete, marker, "restore marker present or unobservable; `archive restore` never writes one: move the state dir aside and rerun `archive restore FILE` (TRL-V0-960)")
 	}
 	// An interrupted retire (JRT-V0-009) blocks writes until `receipt
 	// retire` or `receipt unretire` finishes it under the lock.

@@ -88,6 +88,13 @@ to run.
   of the restored store is byte-identical to the archive. An archive whose head names another
   primary worktree is restored with a warning naming `relocate --from <recorded>`, which binds it
   (`TRL-V0-001`, `TRL-V0-006`).
+- `TRL-V0-960`: (experimental under the standing lane auto-accept (2026-11-01); V1-3590; refines
+  TRL-V0-871) `archive restore` never writes a `RESTORE_INCOMPLETE` marker: a restore interrupted
+  after its rename leaves the whole store, which opens, and its rerun refuses `UNSUPPORTED` with a
+  message saying the store is already published. A marker found in a state dir refuses
+  `RESTORE_INCOMPLETE` in the probe and the writer guards with a recovery that works (move the
+  state dir aside and rerun `archive restore FILE`), never "only `archive restore` may continue".
+  Rollback: restore the prior messages; behavior is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -129,7 +136,8 @@ write are NOT_RUN.
 
 Revert the commit. A store that committed a RELOCATE receipt is then refused fail-closed by the
 reverted binary (unknown receipt kind) and needs the relocating binary, or the checkout moved back
-before relocation, to be read; stores that never relocated are unaffected.
+before relocation, to be read; stores that never relocated are unaffected. TRL-V0-960 rolls back
+by restoring the three prior refusal messages and removing its test; no stored state changes.
 
 ## Traceability
 
@@ -143,6 +151,7 @@ before relocation, to be read; stores that never relocated are unaffected.
 | `TRL-V0-006` | `TestTRLV0006_RelocateCopiedStore` |
 | `TRL-V0-870` | `TestTRLV0870_RestoreRefusalsWriteNothing`, `TestTRLV0870_OversizedIntentFileRefusesUnread` |
 | `TRL-V0-871` | `TestTRLV0871_RestoreRoundTripsByteIdentically`, `TestTRLV0871_RestoreAtANewPathThenRelocate`, `TestTRLV0871_FailedIntentWriteLeavesARetryableRoot`, `TestTRLV0871_DuplicateStagedMemberRefuses`, `TestTRLV0871_RestoreSyncsIntentDirectories` |
+| `TRL-V0-960` | `TestTRLV0960_InterruptedAfterRenameLeavesTheWholeStore` |
 
 ## Unresolved decisions
 
