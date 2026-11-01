@@ -57,3 +57,15 @@ Out of scope, reported to the orchestrator:
 - `query`'s authority start still refuses a symlinked `AGENTS.md`.
 - A `task_evidence` row for an explicit link path is still unavailable.
 - The other slots do not follow links.
+
+## Review fixes
+
+- P2 deduplication bypassed dirty-link screening: FIXED. `governingRows` now records every link that
+  folded into a row under TCP-V0-273 in `contextRow.links`, and `screenRow` screens all of them;
+  `TestGoverningSymlinkLaterLinkModifiedStillScreens_TCPV0271` (`pkg/AGENTS.md -> ../CLAUDE.md`
+  plus `AGENTS.md -> CLAUDE.md`, only the root link dirty) failed before the fix and passes after.
+  TCP-V0-273 now states the rule.
+- P2 link-only modification lost its evidence warning: FIXED. The downgrade and
+  `withAuthorityWarnings` share `screenRow`, so they cannot disagree; the link-modified case of
+  `TestGoverningSymlinkScreenedWhenTargetOrLinkModified_TCPV0271` now asserts the
+  `self-modified-authority` warning and showed `warnings:[]` before the fix.

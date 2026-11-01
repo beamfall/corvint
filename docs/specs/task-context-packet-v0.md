@@ -1314,8 +1314,11 @@ as withheld. This amendment reserves what the routed spec cites.
   `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`.
 - `TCP-V0-273`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
   A target reached twice, by a link and directly or by two links, reserves one row, at its first
-  position; the later candidate is neither a second row nor counted in `withheld`. Test:
-  `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`.
+  position; the later candidate is neither a second row nor counted in `withheld`. Every link
+  that reached the row still binds TCP-V0-271's screen: a modified working-tree copy of any of
+  them downgrades it, and its evidence carries the TCP-V0-057 warning. Tests:
+  `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`,
+  `TestGoverningSymlinkLaterLinkModifiedStillScreens_TCPV0271`.
 - `TCP-V0-274`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
   The local completion packet's `governance` row (`docs/specs/local-completion-policy-v0.md`)
   carries the same `link_path` and `link_blob_hash` beside the target's `path` and `blob_hash`.
