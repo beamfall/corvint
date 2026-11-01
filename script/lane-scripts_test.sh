@@ -896,6 +896,14 @@ out=$(finish 1 '' '' '' '' '')
 printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
 out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
 [[ $out == *'REFUSE missing-inputs BASE:not-full-sha INTENTS:unreadable VERIFY:unreadable OUTCOME:invalid'* ]] || fail "finish unusable inputs: $out"
+# ASD-V0-120 (V1-3765): a short SHA that resolves is named with its full SHA and the retry command.
+full=$(git -C "$script/.." rev-parse HEAD) && short=${full:0:12}
+out=$(finish 1 "$short" plan.tsv plan.tsv plan.tsv passed)
+[[ $out == *"REFUSE missing-inputs BASE:not-full-sha"* && $out == *"fix: BASE $short resolves to $full; rerun with BASE=$full"* ]] ||
+  fail "finish refusal for a short SHA names no full SHA: $out"
+out=$(finish 1 zzzzzzz plan.tsv plan.tsv plan.tsv passed)
+[[ $out == *'fix: BASE zzzzzzz names no unique commit; resolve one with git rev-parse --verify'* ]] ||
+  fail "finish refusal for an unresolvable BASE names no rev-parse hint: $out"
 : > "$tmp/locked.txt" && chmod 000 "$tmp/locked.txt"
 out=$(finish 1 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa plan.tsv locked.txt locked.txt passed)
 chmod 600 "$tmp/locked.txt"
