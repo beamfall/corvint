@@ -7506,6 +7506,7 @@ WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the stand
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
 WQO-V0-910	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The	standing	2026-10-31; V1-3299
 WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
+WQO-V0-684	docs/specs/work-queue-observation-v0.md	(standing lane auto-accept, 2026-11-01; V1-2586) An `ADAPTER_FAILED` command	standing	2026-11-01; V1-2586
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

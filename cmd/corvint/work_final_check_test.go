@@ -103,8 +103,13 @@ func TestWorkFinalCheckCommandFailures(t *testing.T) {
 				var output, stderr bytes.Buffer
 				exit := runWork(context.Background(), root, []string{"propose-wave", "--envelope", envelope, "--limit", "1"}, &output, &stderr)
 				workAssertFinalError(t, output.Bytes(), exit, tc.code)
-				if stderr.Len() != 0 {
-					t.Fatalf("unexpected stderr: %s", &stderr)
+				// WQO-V0-684: only ADAPTER_FAILED names its cause on stderr.
+				want := ""
+				if tc.code == "ADAPTER_FAILED" {
+					want = "corvint work: ADAPTER_FAILED: verify: the adapter exited with status 7\n"
+				}
+				if stderr.String() != want {
+					t.Fatalf("stderr = %q, want %q", &stderr, want)
 				}
 			})
 		}

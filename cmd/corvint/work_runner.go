@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"runtime"
@@ -391,7 +392,39 @@ func (runner *workAdapterRunner) commandError(err error, stderr io.Writer) strin
 	if errors.Is(err, context.Canceled) {
 		return "CANCELLED"
 	}
+	operation := "adapter"
+	if runner.failure != nil && errors.Is(err, runner.failure) && runner.failureReceipt.Operation != "" {
+		operation = runner.failureReceipt.Operation
+	}
+	fmt.Fprintf(stderr, "corvint work: ADAPTER_FAILED: %s: %s\n", operation, workAdapterFailure(err))
 	return "ADAPTER_FAILED"
+}
+
+// workAdapterFailure is the fixed WQO-V0-684 cause text of an ADAPTER_FAILED
+// error, naming the bound that expired. It never echoes adapter output, paths
+// or other repository-controlled bytes.
+func workAdapterFailure(err error) string {
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		if code := exit.ExitCode(); code >= 0 {
+			return fmt.Sprintf("the adapter exited with status %d", code)
+		}
+		return "the adapter was ended by a signal"
+	}
+	var start *fs.PathError
+	switch {
+	case err.Error() == "process residue":
+		return "a process of the adapter's group was still live when its leader exited (process residue)"
+	case err.Error() == "process reap incomplete":
+		return fmt.Sprintf("the adapter's process group was not reaped within %s of its kill (process reap incomplete)", workReapTimeout)
+	case err.Error() == "incomplete pipe capture":
+		return fmt.Sprintf("an output pipe stayed open for %s of awake drain time, or %s of wall time, after the reap (incomplete pipe capture)", workDrainIdle, workDrainHang)
+	case err.Error() == "missing private adapter environment":
+		return "the private adapter environment is missing"
+	case errors.As(err, &start):
+		return "the adapter could not be started"
+	}
+	return "the adapter invocation failed before its output was captured"
 }
 
 func workContainmentClass() string {
