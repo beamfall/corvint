@@ -657,6 +657,16 @@ a test that fails without the fix or justified as not applicable? Report each mi
 untested category as a finding." A case list does not replace review; it moves the cheap refusal
 cases ahead of it.
 
+Fail-without-fix runs (`ASD-V0-906`, V1-3259). Run the new test against the unfixed code with
+`-timeout 2m` or less, for example `script/heavy.sh env GOTOOLCHAIN=local go test -count=1
+-timeout 2m -run '^TestName$' ./internal/pkg`, never the 30-minute hang bound: unfixed code may
+block instead of failing, and a blocked run then holds the tool's whole 10-minute budget. A test
+that proves a file is read once through a FIFO must not block on the unfixed code's second read:
+the writer's first open is a plain `O_WRONLY` open, which waits for the reader and writes the
+content; every later open is `O_WRONLY|syscall.O_NONBLOCK` in a loop, closed at once, until the
+test closes a stop channel. A second read by unfixed code then gets end of file and the test fails
+fast (`internal/dogfoodflow/verify_quote_fix_unix_test.go` is the pattern).
+
 Measurement: over the next 6 lanes that carry the pass, the share of reviews returning CONCERNS
 against the 3 of 3 baseline and the repair rounds per lane, retained in the batch build-log entry.
 It is `NOT_PRODUCED` until those 6 lanes have run.

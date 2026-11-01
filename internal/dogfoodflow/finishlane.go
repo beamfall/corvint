@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
@@ -286,6 +288,11 @@ func (l *finishLane) requireVerifyInput() {
 		l.exit(2)
 		return
 	}
+	if fix := tildeFix(l.options.Change.VerifyFile); reason == "unsupported-verify-syntax" && fix != "" {
+		// DCW-V0-905: a ~ path is never expanded silently; the fix gives the
+		// line with the absolute home directory.
+		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+	}
 	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
@@ -300,7 +307,7 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are one quoted name such as -run '^TestA$' and the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
 	l.exit(2)
 }
@@ -801,6 +808,7 @@ func (l *finishLane) checkAndSeal() int {
 	case code == 0:
 		l.line("check PASS")
 		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		defer l.reportReview()
 	case checked:
 		l.line("check PASS")
 		l.line("seal FAIL exit=%d", code)
@@ -809,7 +817,37 @@ func (l *finishLane) checkAndSeal() int {
 	}
 	l.reportMissing()
 	_, _ = l.stdout.Write(verdict.Bytes())
+	l.reportRuns()
 	return code
+}
+
+// dogfoodChangeRuns is the run log script/dogfood-change.sh appends one line
+// to per invocation, under the Git directory's corvint evidence directory
+// (ASD-V0-907).
+const dogfoodChangeRuns = "dogfood-change-runs.tsv"
+
+// reportRuns prints how many times dogfood-change ran in this worktree, the
+// count the lane batch measures (ASD-V0-907, V1-1629), or NOT_OBSERVED when
+// the log is absent or unreadable.
+func (l *finishLane) reportRuns() {
+	count := "NOT_OBSERVED"
+	if data, err := readPrefix(filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns), 1<<20); err == nil {
+		count = strconv.Itoa(len(textLines(data)))
+	}
+	l.say("%s: RUNS dogfood-change=%s log=%s\n", l.prefix, count, filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns))
+}
+
+// reportReview names the exact reviewer report the seal bound and says that
+// its independent review and the native completion are still to come, so a
+// review is never implied as done (DCW-V0-908, V1-3188).
+func (l *finishLane) reportReview() {
+	report := filepath.Join(l.root, ".corvint", "dogfood-report.json")
+	digest := "NOT_OBSERVED"
+	if sum, ok := fileDigest(report); ok {
+		digest = fmt.Sprintf("%x", sum)
+	}
+	l.say("%s: REVIEW report=%s sha256=%s reviewed=NOT_OBSERVED\n", l.prefix, report, digest)
+	l.say("  next: an independent review of this exact report, then the native completion; finish-lane records neither (DCW-V0-908)\n")
 }
 
 // sealInterrupted unwinds an interrupted check and seal. An interruption after

@@ -2,6 +2,8 @@ package dogfoodflow
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -19,6 +21,13 @@ const runAlternation = `(?:` + runName + `(?:\|` + runName + `)+` +
 	`|\^\(` + runName + `(?:\|` + runName + `)+\)\$` +
 	`|\^` + runName + `\$(?:\|\^` + runName + `\$)+)`
 
+// runQuotedWord is runAlternation plus the single forms only a quoted word
+// admits: one plain name (-run 'TestA', -run '.'), one anchored name
+// (-run '^TestA$') and the match-everything -run '.*' (DCW-V0-904). Only an
+// unquoted alternation gets a quoted-form suggestion; the generic hint names
+// these forms.
+const runQuotedWord = `(?:` + runAlternation + `|` + runName + `|\^` + runName + `\$|\.\*)`
+
 // runPrefix and runSuffix are the words around the -run word: the
 // recorder's v1 command bytes only.
 const (
@@ -32,9 +41,10 @@ const (
 // -run='TestA|TestB', and anchored as ^(TestA|TestB)$ or ^TestA$|^TestB$:
 // inside either quote every one of those bytes is literal to a POSIX shell,
 // and the word is recorded as one argv argument no shell parses. The words
-// around it hold only the recorder's v1 command bytes. No other quote,
-// class, nested group or single anchored name is admitted.
-var quotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(?:'(` + runAlternation + `)'|"(` + runAlternation + `)")` + runSuffix + `$`)
+// around it hold only the recorder's v1 command bytes. DCW-V0-904 also admits
+// one plain or anchored name and .*; no other quote, class or nested group is
+// admitted.
+var quotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(?:'(` + runQuotedWord + `)'|"(` + runQuotedWord + `)")` + runSuffix + `$`)
 
 // unquotedRunAlternation is the same line with the -run word unquoted, which
 // a shell would split at |; the refusal shows the line's quoted form
@@ -176,4 +186,40 @@ func quotedRunSuggestions(options ChangeOptions) []string {
 		}
 	}
 	return suggestions
+}
+
+// ValidateVerifyLine reports whether one verify-file line is a command the
+// dogfood verify input admits, as finish-lane's pre-flight checks it; a
+// repository document that lists verify commands tests its lines with it
+// (ASD-V0-905).
+func ValidateVerifyLine(line string) error {
+	return validateVerify(verifyLineArguments(line))
+}
+
+// tildeFix names the first refused line of the verify file at path whose word
+// starts with ~ and gives it with each leading ~ replaced by the home
+// directory, or returns "" when there is none or no home directory is known
+// (DCW-V0-905). The recorded command is never expanded silently.
+func tildeFix(path string) string {
+	data, err := readPrefix(path, maxVerifyFileBytes)
+	home, homeErr := os.UserHomeDir()
+	if path == "" || err != nil || homeErr != nil || !filepath.IsAbs(home) {
+		return ""
+	}
+	line, text := refusedVerifyLine(data)
+	if line == 0 {
+		return ""
+	}
+	words := strings.Fields(text)
+	changed := false
+	for index, word := range words {
+		if word == "~" || strings.HasPrefix(word, "~/") {
+			words[index] = home + word[1:]
+			changed = true
+		}
+	}
+	if !changed {
+		return ""
+	}
+	return fmt.Sprintf("%s line %d: write the path in full, not with ~: %s (DCW-V0-905)", path, line, strings.Join(words, " "))
 }

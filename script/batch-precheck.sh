@@ -343,7 +343,7 @@ sync_check() {
 # Selection state (ASD-V0-050, ASD-V0-051): sel_on=1 once select_plan narrowed the run; otherwise
 # sel_why says why everything runs. drift_on[i] is 1 for each DRIFT_TESTS entry that runs and
 # cat_skip, when set, is why capability-catalog-check is skipped.
-sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why=''
+sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why='' sel_docs=0
 drift_on=() cat_skip=''
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
@@ -375,6 +375,10 @@ select_plan() {
     { n = split($0, c, "/"); b = c[n]
       if ($0 ~ /\.go$/ || b == "go.mod" || b == "go.sum" || b == "go.work" || b == "go.work.sum") { print; next }
       d = $0; while (sub(/\/[^\/]*$/, "", d)) if (d in dirs) { print; next } }' "$dir/select-go" "$dir/select-changed") || { sel_why='the Go input match failed'; return 0; }
+  # ASD-V0-904 (V1-3441): a diff of documentation alone, with no Go input, cannot reach an @go entry
+  # even when the plan below cannot narrow the run. One grep, not a pipeline: under pipefail an early
+  # `grep -q` exit SIGPIPEs the writer, and the negation would read that as documentation alone.
+  [[ -n $sel_changed && -z $sel_go ]] && ! grep -qvE '(\.md$|^docs/)' <<< "$sel_changed" && sel_docs=1
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
@@ -438,8 +442,19 @@ select_report() {
   drift_on=()
   for ((i = 0; i < n; i++)); do
     drift_on[i]=1
-    ((sel_on)) || continue
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    if ((!sel_on && sel_docs)) && [[ " $inputs " == *' @go '* ]]; then
+      # A declared input that changed still runs the entry, as under the selection.
+      read -ra decl <<< "${inputs//@own/}"
+      decl=("${decl[@]/@go/}")
+      read -ra decl <<< "${decl[*]}"
+      if ! ((${#decl[@]})) || ! wanted "" "${decl[@]}"; then
+        drift_on[i]=0
+        skipped+=("$pkg $prefix")
+        continue
+      fi
+    fi
+    ((sel_on)) || continue
     read -ra decl <<< "${inputs//@own/}"
     wanted "$pkg" ${decl[@]+"${decl[@]}"} && continue
     drift_on[i]=0
@@ -447,6 +462,7 @@ select_report() {
   done
   if ((!sel_on)); then
     printf 'batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (%s)\n' "$sel_why"
+    for i in ${skipped[@]+"${!skipped[@]}"}; do printf 'batch-precheck:   NOT_RUN %s (docs-only diff: no Go input changed since %s)\n' "${skipped[i]}" "$sel_sha"; done
     return 0
   fi
   for ((i = 0; i < n; i++)); do ((drift_on[i])) && k=$((k + 1)); done

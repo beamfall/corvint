@@ -135,9 +135,13 @@ func (p *proposal) run() int {
 	p.requireRoot()
 	p.requireTrustedAncestry()
 	p.readRefreshPlan()
+	// An abbreviated BASE resolves to its full ID; one that names no commit,
+	// or more than one, is refused by name with its fix (DCW-V0-901).
 	base, status := p.git(true, "rev-parse", "--verify", "-q", p.options.Base+"^{commit}")
 	if status != 0 {
-		p.refuse("base-unavailable")
+		p.say("%s: REFUSE base-unavailable BASE=%s\n", p.prefix, p.options.Base)
+		p.say("  fix: pass BASE as a commit of this repository, preferably the full origin/main ID (git rev-parse --verify %s^{commit} names it, or says the prefix is unknown or ambiguous), then rerun corvint dogfood propose-citations BASE (DCW-V0-901)\n", p.options.Base)
+		p.exit(2)
 	}
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
@@ -304,7 +308,9 @@ func (p *proposal) refusePatchUnavailable(reason, detail string) {
 	case cemcode.GitOutputExceeded:
 		p.say("  fix: cem prepare refuses a patch this large as well, so dogfood change cannot run first; split the change into smaller commits on separate branches, then rerun corvint dogfood propose-citations %s\n", base)
 	default:
-		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; make every changed path a regular file with a textual hunk (give an empty file content, revert a mode-only change, drop a binary file or symbolic link), commit, then rerun corvint dogfood propose-citations %s\n", base)
+		// A binary file beside a textual hunk binds since CEM-V1-980; only the
+		// shapes cem prepare still refuses are named (DCW-V0-902).
+		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; give an empty file content, revert a mode-only change and drop a symbolic link; a binary file beside a textual hunk binds (CEM-V1-980), so change only a binary-only patch (add a textual hunk), a binary rename or copy (commit it as a delete and an add), a binary mode change or a GIT binary patch body or abbreviated object IDs (a git diff.binary or diff.noprefix setting); commit, then rerun corvint dogfood propose-citations %s\n", base)
 	}
 	p.say("  prerequisite: propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME (DCW-V0-350)\n")
 	p.say("  next: write the reviewed draft to plan.tsv, then make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked, then make dogfood-finish with the same inputs (docs/DOGFOOD.md §4 first-run order)\n", base)
@@ -444,6 +450,13 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// rows, has no BASE contract either; a path anchor would cite another
 	// requirement's decision (DCW-V0-809).
 	if id := p.addedRequirementRows(p.derivedHunk(hunk)); id != "" {
+		// The BASE requirement the new entry refines, amends or names is a
+		// drafted proposal; unknown only without one (DCW-V0-906).
+		for _, defined := range append(p.definedRequirements(hunk), id) {
+			if row, cite := p.refinedProposal(hunk, ordinal, defined, edited, used); row != "" {
+				return row, cite, ""
+			}
+		}
 		return p.unknownProposal(hunk, ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
 	}

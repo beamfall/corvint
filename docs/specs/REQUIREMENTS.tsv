@@ -1886,6 +1886,13 @@ ASD-V0-582	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-583	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3373) `make li	standing	2026-10-31; V1-3373
 ASD-V0-584	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3374; refines	standing	2026-10-31; V1-3374
 ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
+ASD-V0-901	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3431; amends `	standing	2026-10-31; V1-3431
+ASD-V0-902	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3481; refines	standing	2026-10-31; V1-3481
+ASD-V0-903	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3482; refines	standing	2026-10-31; V1-3482
+ASD-V0-904	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3441; refines	standing	2026-10-31; V1-3441
+ASD-V0-905	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3446) Every li	standing	2026-10-31; V1-3446
+ASD-V0-906	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3259; refines	standing	2026-10-31; V1-3259
+ASD-V0-907	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1629) `script/	standing	2026-10-31; V1-1629
 ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
 ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
 ASD-V0-942	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2393; refines	standing	2026-10-31; V1-2393
@@ -3134,6 +3141,14 @@ DCW-V0-347	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2805, V1-1773)	standing	V1-2805; V1-1773
 DCW-V0-349	docs/specs/daily-change-evidence-workflow-v0.md	(owner-requested V1-1894 repair) `make dogfood-closeout` MUST run	unrecorded	-
 DCW-V0-900	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
+DCW-V0-901	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3335; refines	standing	2026-10-31; V1-3335
+DCW-V0-902	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3444; amends	standing	2026-10-31; V1-3444
+DCW-V0-903	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3447; refines	standing	2026-10-31; V1-3447
+DCW-V0-904	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3410; amends	standing	2026-10-31; V1-3410
+DCW-V0-905	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3468; refines	standing	2026-10-31; V1-3468
+DCW-V0-906	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3483; amends	standing	2026-10-31; V1-3483
+DCW-V0-907	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1629, V1-3361,	standing	2026-10-31; V1-1629; V1-3361
+DCW-V0-908	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3188; refines	standing	2026-10-31; V1-3188
 DCW-V0-350	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)	standing	V1-2810
 DCW-V0-351	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2827) When	standing	V1-2827
 DCW-V0-352	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2835; refines `SRG-V0-018`	standing	V1-2835
@@ -5230,6 +5245,7 @@ OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when	standing	2026-10-11; V1-2170
 OCM-V0-027	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2894, decision 0585) withi	standing	V1-2894; decision 0585
 OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585) the	standing	V1-2893; decision 0585
+OCM-V0-900	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3455; refines	standing	2026-10-31; V1-3455
 OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-

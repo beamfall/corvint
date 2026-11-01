@@ -192,7 +192,7 @@ func (c *check) checkQueryAbstention(report []byte) (string, bool) {
 }
 
 func (c *check) verifyQueryAbstention(task string) {
-	result, agreed := c.verifyAll("query", "--task", task, "--limit", "1")
+	result, agreed := c.verifyAll(false, "query", "--task", task, "--limit", "1")
 	if !agreed || result.status != 2 || len(result.stdout) != 0 || string(result.stderr) != queryAbstentionEnvelope {
 		c.fail("verifier-disagreement")
 	}

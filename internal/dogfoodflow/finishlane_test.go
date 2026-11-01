@@ -317,8 +317,8 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	for _, tc := range []struct {
 		name, verifyFile, verify, reason string
 	}{
-		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
-		{name: "env-quoted", verify: "go test -run \"TestA\" ./internal/a", reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "env-quoted", verify: "go test -run \"Test[A]\" ./internal/a", reason: "unsupported-verify-syntax"},
 		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test[B])$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "unquoted-run-alternation", verifyFile: write("unquoted.txt", []byte("go test -count=1 ./internal/b\ngo test -count=1 -run TestA|TestB ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "over-bound", verifyFile: write("big.txt", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)), reason: "verify-file-over-bound"},
@@ -358,7 +358,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 			// DCW-V0-170 (V1-2344): the refusal names the accepted form for a
 			// quoted -run alternation: one command per test name, or a script.
 			if tc.reason == "unsupported-verify-syntax" {
-				for _, want := range []string{"accepted form:", "-run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801)", "a single anchored name such as -run '^TestA$' or any other quoted regex is refused", "go test -run TestA ./pkg, then go test -run TestB ./pkg", "sh path/to/script.sh"} {
+				for _, want := range []string{"accepted form:", "-run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801)", "an unquoted alternation or any other quoted regex is refused", "go test -run TestA ./pkg, then go test -run TestB ./pkg", "sh path/to/script.sh"} {
 					if !strings.Contains(out, want) {
 						t.Fatalf("stderr = %q, want accepted-form hint %q", out, want)
 					}

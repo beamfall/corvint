@@ -25,6 +25,11 @@ dogfood_require_full_history dogfood-change || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 evidence="$git_dir/corvint"
 mkdir -p "$evidence" || exit 2
+# ASD-V0-907 (V1-1629): one line per run, the newest 1000 kept, so the lane's dogfood-change count is
+# retained for the batch measurement; a write that fails never stops the run.
+runs="$evidence/dogfood-change-runs.tsv"
+{ printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$base_arg" "$(git -C "$repo" rev-parse -q --verify 'HEAD^{commit}')" >> "$runs" &&
+  tail -n 1000 "$runs" > "$runs.tmp" && /bin/mv -f "$runs.tmp" "$runs"; } 2> /dev/null || true
 expected_version=$(cat "$repo/VERSION")
 if [[ -z $expected_version ]]; then
   printf 'dogfood-change: REFUSE project-version-unavailable\n' >&2

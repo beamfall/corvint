@@ -1536,6 +1536,68 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   build or precheck step (`DCW-V0-380`, `ASD-V0-045`). Cost: one more precheck run per closeout.
   Failure mode: before this, the agent-leases spec pushed past the OCM bound was found only
   after the seal. Rollback: drop the first two steps.
+- `DCW-V0-901`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3335; refines
+  `DCW-V0-150`) `corvint dogfood propose-citations BASE` MUST resolve an abbreviated `BASE` that
+  names one commit to its full ID, which the `PROPOSED` line prints, and MUST refuse a `BASE` that
+  names no commit or an ambiguous prefix on stderr, exit 2, as `REFUSE base-unavailable BASE=<as
+  given>` followed by a `fix:` line naming `git rev-parse --verify BASE^{commit}` and the full
+  origin/main ID; it never exits 2 without a refusal line. Evidence:
+  `TestProposeCitationsDCWV0901ResolvesAnAbbreviatedBase`. Rollback: drop the fix line.
+- `DCW-V0-902`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3444; amends
+  `DCW-V0-802`) The `patch-unavailable` fix line of `propose-citations` and `docs/DOGFOOD.md`'s
+  first-run order MUST name only the binary shapes `cem prepare` still refuses after
+  `CEM-V1-980`..`CEM-V1-986`: a binary-only patch (no textual hunk), a `GIT binary patch` body, a
+  binary rename or copy, a mode change and abbreviated object IDs; a binary file beside a textual
+  hunk binds as a hunk-less group and is not to be dropped. Evidence:
+  `TestProposeCitationsDCWV0902NamesOnlyRefusedBinaryShapes`. Rollback: restore the earlier text.
+- `DCW-V0-903`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3447; refines
+  `DCW-V0-343`) The `dogfood-check` `unbound-commits` and `retroactive-bound-commits` NOTE lines
+  MUST carry `window-start=cem-base-of:<commit>` right after `window=START..BASE`, naming the
+  previous binding whose CEM base starts the window (the CEM committed at BASE, else the bind
+  commit under the newest seal reachable from BASE), so a window that starts before a rebased
+  lane's BASE is explained. The window itself is unchanged. Evidence:
+  `TestDCWV0903UnboundCommitsNoteNamesTheWindowStart` (a lane rebased onto a newer BASE whose
+  previous binding has an older base). Rollback: drop the field.
+- `DCW-V0-904`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3410; amends
+  `DCW-V0-384` and `DCW-V0-801`) The quoted `-run` word of a verify line MUST also admit one plain
+  test name (`-run 'TestA'`, `-run '.'`), one anchored name (`-run '^TestA$'`) and the
+  match-everything `-run '.*'`, in single or double quotes or attached with `=`, each recorded as
+  one argv word, so a single anchored test and a whole-package run (listed with
+  `HEAVY_WHOLE_REASON='...'` before `script/heavy.sh`, `DCW-V0-804`) can be verify lines. Other
+  quoted regex syntax stays refused. Evidence: `TestDCWV0904VerifyAdmitsSingleAndWholeRunForms`.
+  Rollback: drop the three alternatives.
+- `DCW-V0-905`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3468; refines
+  `DCW-V0-170`) A verify line that the grammar refuses because a word starts with `~` MUST be
+  refused with a `fix:` line giving the line with each leading `~` or `~/` replaced by the
+  absolute `$HOME` path; the recorded command is never expanded silently. `docs/DOGFOOD.md` MUST
+  say verify lines take absolute paths. Evidence: `TestDCWV0905TildeVerifyLineNamesTheAbsolutePath`.
+  Rollback: drop the hint.
+- `DCW-V0-906`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3483; amends
+  `DCW-V0-809` and refines `DCW-V0-967`) A hunk of the defining spec that adds a same-change
+  requirement, or only rows naming one, MUST be drafted as the `DCW-V0-967` proposal of the BASE
+  requirement that requirement's entry refines, amends or names, labelled a drafted proposal; it
+  stays `unknown` only when the entry names no BASE requirement with a stable definition line.
+  Measured on dffric-w1 (base 3555875f9, head a7a0630b2^^): 13 of 65 rows unknown before, 11
+  after; the 11 are a bookkeeping record and ASD-V0-960 rows, whose entry names no other
+  requirement. Evidence: `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`.
+  Rollback: drop the refined attempt in the `DCW-V0-809` branch.
+- `DCW-V0-907`: (experimental under the standing lane auto-accept, 2026-10-31; V1-1629, V1-3361,
+  V1-3475; refines `DCW-V0-022`) When `CheckOptions.ConcurrentVerifiers` is set (the
+  `corvint dogfood check`, `seal` and `finish-lane` commands set it), the check MUST run the base
+  and tree verifiers' `cem status` commands concurrently, each into its own buffers, and compare
+  them exactly as before; the override and the tree rerun of `verifyDeclared` follow. `impact` and
+  query abstention commands stay sequential, because `impact` takes the non-blocking
+  `contextindex` snapshot-refresh lock, so two at once could disagree. An interruption cancels
+  both through the shared context. The aggregate-enrolled path stays sequential. Evidence:
+  `TestDCWV0907CheckRunsTheVerifierPairConcurrently` (both fakes must start before either returns).
+  Rollback: clear the option.
+- `DCW-V0-908`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3188; refines
+  `DCW-V0-060`) After a successful seal, `finish-lane` MUST print on stderr `dogfood-finish-lane: REVIEW
+  report=<path> sha256=<digest> reviewed=NOT_OBSERVED` naming the exact reviewer report it bound,
+  with a line saying the independent review of that report and the native completion are the
+  next authority steps and that finish-lane records neither, so a review is never implied as
+  done. A report it cannot read prints `sha256=NOT_OBSERVED`. Evidence:
+  `TestFinishLaneDCWV0908NamesTheReportToReview`. Rollback: drop the lines.
 - `DCW-V0-350`: (experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)
   When `.corvint/change.cem.json` does not exist, `corvint dogfood propose-citations BASE` MUST
   draft the plan from the canonical `BASE..HEAD` patch that `cem prepare` derives the map from,
@@ -3344,6 +3406,14 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
 | `DCW-V0-900` (tasks-w1 friction) | `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` (recipe order and the ASD-V0-045 missing-input refusal before any precheck) | recipe-order regression; live closeout NOT_RUN in this change |
+| `DCW-V0-901` (V1-3335) | `internal/dogfoodflow/propose.go` `run`; `TestProposeCitationsDCWV0901ResolvesAnAbbreviatedBase` | unit |
+| `DCW-V0-902` (V1-3444) | `internal/dogfoodflow/propose.go` `refusePatchUnavailable`; `docs/DOGFOOD.md` first-run order; `TestProposeCitationsDCWV0902NamesOnlyRefusedBinaryShapes` | unit |
+| `DCW-V0-903` (V1-3447) | `internal/dogfoodflow/check.go` `windowNote`; `TestDCWV0903UnboundCommitsNoteNamesTheWindowStart` | unit |
+| `DCW-V0-904` (V1-3410) | `internal/dogfoodflow/verify_argv.go` `runAlternation`; `TestDCWV0904VerifyAdmitsSingleAndWholeRunForms` | unit |
+| `DCW-V0-905` (V1-3468) | `internal/dogfoodflow/finishlane.go` `requireVerifyInput`, `tildeFix`; `TestDCWV0905TildeVerifyLineNamesTheAbsolutePath` | unit |
+| `DCW-V0-906` (V1-3483) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`; dffric-w1 replay 13 -> 11 unknown of 65 | unit and replay |
+| `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
+| `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |

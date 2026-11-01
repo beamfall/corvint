@@ -747,7 +747,8 @@ out=$(finish '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
 out=$(finish 1 '' '' '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "lane finish refusal: $out"
-: > "$tmp/plan.tsv"
+# ASD-V0-903: a plan needs a row to count as supplied.
+printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
 out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
 [[ $out == *'REFUSE missing-inputs BASE:not-full-sha INTENTS:unreadable VERIFY:unreadable OUTCOME:invalid'* ]] || fail "finish unusable inputs: $out"
 : > "$tmp/locked.txt" && chmod 000 "$tmp/locked.txt"
@@ -785,7 +786,7 @@ fxgit commit -qm base
 fxbase=$(fxgit rev-parse HEAD)
 printf -- '- ONE-V0-002: The second clause.\n' >> "$fx/docs/specs/one.md"
 fxgit commit -qam 'spec edit only'
-: > "$fx/plan.tsv"
+printf '1\tunknown\tinsufficient-evidence\tx\n' > "$fx/plan.tsv"
 out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
 [[ $? == 2 && $out == *'REFUSE spec-requirements-stale docs/specs/REQUIREMENTS.tsv'*'fix: '*'make spec-requirements'* ]] ||
   fail "finish accepted a stale requirements index: $out"

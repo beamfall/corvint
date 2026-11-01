@@ -233,6 +233,8 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		Root: root, Base: base, BaseVerifier: runner("--base-verifier"), TreeVerifier: runner("--tree-verifier"),
 		Exception: os.Getenv("DOGFOOD_EXCEPTION"), Verbose: os.Getenv("DOGFOOD_VERBOSE") == "1", OutputChange: os.Getenv("DOGFOOD_OUTPUT_CHANGE"),
 		ReusePass: os.Getenv("DOGFOOD_CHECK_REUSE") == "1",
+		// DCW-V0-907: the base and tree cem status commands run at once.
+		ConcurrentVerifiers: true,
 	}
 	if _, ok := flags["--override-verifier"]; ok {
 		override := runner("--override-verifier")

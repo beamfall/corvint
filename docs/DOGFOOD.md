@@ -123,7 +123,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
    needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
    after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`).
+   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
+   Go build stamp is `HEAD` with no uncommitted change, or only `*_test.go` tooling files changed
+   (`ASD-V0-901`). A plan with no row is refused up front as `CITATIONS:empty` (`ASD-V0-903`), and
+   every up-front refusal names the target you ran (`ASD-V0-902`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
@@ -211,8 +214,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
    window since the previous bound CEM contains commits no sidecar covers instead prints one
-   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE newest=SHA oldest=SHA
-   before-base list=FILE` line whose private list file names every commit (`DCW-V0-343`);
+   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE
+   window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE` line whose private
+   list file names every commit (`DCW-V0-343`); BINDING is the previous binding (the CEM committed
+   at BASE, else the bind commit under the newest seal reachable from BASE) whose CEM base starts
+   the window, so a rebased lane's window may start before its own BASE (`DCW-V0-903`);
    neither note changes the verdict.
 10. Run `make dogfood-seal BASE=$BASE`. Expected: the step 9 lines, then `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit. When the step 9
@@ -444,8 +450,10 @@ this order:
    and that committed `HEAD`: no prepared map, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` or
    `DOGFOOD_OUTCOME`. When it refuses `patch-unavailable reason=<code>`, `cem prepare` refuses the
    same patch with that code, so do not run `dogfood change` first: make every changed path a
-   regular file with a textual hunk (no empty, mode-only, binary or symbolic-link change), commit,
-   and rerun it.
+   regular file with content (no empty, mode-only or symbolic-link change), commit, and rerun it.
+   A binary file beside a textual hunk binds (`CEM-V1-980`); only a binary-only patch, a binary
+   rename, copy or mode change, a `GIT binary patch` body and abbreviated object IDs still refuse
+   (`DCW-V0-902`).
 2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
    `LC_ALL=C sort -u`) and `verify.txt` (one verification command per line), and choose
    `OUTCOME=passed|failed|blocked`.
@@ -654,7 +662,7 @@ the sidecar commit and the commits after that CEM's own `baseRevision`. A seal c
 only renames its parent's CEM to `.corvint/changes/<parent>.cem.json`, is covered by that parent;
 any other commit that removes the CEM is not a seal. Every other commit is
 reported on stderr in one line, `dogfood-check: NOTE unbound-commits count=N window=PREV..BASE
-newest=SHA oldest=SHA before-base list=FILE`, where the private file
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where the private file
 `<git-dir>/corvint/dogfood-check.unbound-commits` holds one `unbound SHA` line per commit, newest
 first (`DCW-V0-343`); when that file cannot be written the `  unbound SHA` lines print inline
 instead. Nothing is printed when all are bound. When the
@@ -666,8 +674,8 @@ the check's verdict or exit status. It looks only at the window before this base
 reported by the check of the first change that follows it; merge commits and history before the
 previous binding are not examined. A commit covered only by a retroactive binding (below) is not
 unbound and is not normally bound: it is reported on stderr as
-`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE newest=SHA oldest=SHA
-before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
+`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
 `retroactive SHA binding=BINDING_SHA` line per commit, newest first, naming the newest such
 binding (inline when the file cannot be written). A normal binding of the same commit takes precedence. The retroactive label is read from
 the binding commit's trailer and is not re-verified by the check, just as window CEMs are not.
@@ -1276,7 +1284,13 @@ NOT_PRODUCED verify-file-unavailable`). Each line becomes one recorder `--verify
 512-character, shell-syntax-free grammar applies per command; a refused command names its first
 offending byte and the admitted set. A command that needs quotes or regular-expression syntax, such
 as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
-`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). One quoted `-run`
+word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0-384`,
+`DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`) or the whole package (`-run '.'`,
+`-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
+`HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
+(`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
+with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by

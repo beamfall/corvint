@@ -282,7 +282,7 @@ func TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses(t *testing.T) {
 	}{
 		{"aggregate bound", "REFUSE too-many-obligations", ChangeOptions{IntentsFile: manifest, Verify: "go version"}},
 		{"anchored -run name", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run ^TestA$ ./pre\n")}},
-		{"quoted anchored -run name", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run '^TestA$' ./pre\n")}},
+		{"quoted -run class", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run '^Test[A]$' ./pre\n")}},
 		{"unquoted alternation", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run TestA|TestB ./pre\n")}},
 	}
 	for _, tc := range cases {

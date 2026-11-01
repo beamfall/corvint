@@ -313,7 +313,7 @@ func (f *flow) changeCoverage(mapPath string, intents []string) *changeCoverage 
 				continue
 			}
 			for id := range referenced {
-				if namesRequirement(line, id) {
+				if namesRequirement(line, id) || rowRangeNames(line, id) {
 					traced[id] = true
 				}
 			}
@@ -422,7 +422,7 @@ func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 	args := []string{"-c", "grep.lineNumber=false", "-c", "grep.column=false", "-c", "grep.fullName=false",
 		"grep", "-I", "-h", "--no-color", "-F"}
 	for _, id := range ids {
-		args = append(args, "-e", id)
+		args = append(args, "-e", id, "-e", compactRequirement(id))
 	}
 	args = append(args, f.target, "--", "*_test.go", "*_test.sh")
 	output, status, bounded := f.boundedGit(args...)
@@ -431,10 +431,68 @@ func (f *flow) testsNaming(referenced, traced map[string]bool) bool {
 	}
 	for _, line := range textLines([]byte(output)) {
 		for _, id := range ids {
-			if namesRequirement(line, id) {
+			if namesRequirement(line, id) || namesCompactRequirement(line, id) {
 				traced[id] = true
 			}
 		}
 	}
 	return true
+}
+
+// compactRequirement is id without its hyphens, the form test names carry
+// (TCPV0991 for TCP-V0-991; OCM-V0-900).
+func compactRequirement(id string) string {
+	return strings.ReplaceAll(id, "-", "")
+}
+
+// namesCompactRequirement reports whether line holds id's compact form as a
+// token suffix: after `_` or a byte that cannot continue a token, and before
+// one that cannot, as in TestX_TCPV0991 (OCM-V0-900).
+func namesCompactRequirement(line, id string) bool {
+	compact := compactRequirement(id)
+	for from := 0; ; {
+		at := strings.Index(line[from:], compact)
+		if at < 0 {
+			return false
+		}
+		at += from
+		end := at + len(compact)
+		if (at == 0 || line[at-1] == '_' || !tokenByte(line[at-1])) && (end == len(line) || !tokenByte(line[end])) {
+			return true
+		}
+		from = at + 1
+	}
+}
+
+// requirementRange is a table row's PREFIX-LO..HI or PREFIX-LO..PREFIX-HI;
+// the upper prefix is captured so a mixed-prefix range can be refused.
+var requirementRange = regexp.MustCompile(`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)([0-9]{3})\.\.([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)?([0-9]{3})`)
+
+// rowRangeNames reports whether a table row names id through a range whose
+// prefix is id's and whose numbers include it, as TCP-V0-990..993 names
+// TCP-V0-991 (OCM-V0-900).
+func rowRangeNames(line, id string) bool {
+	cut := strings.LastIndex(id, "-")
+	if cut < 0 {
+		return false
+	}
+	number, err := strconv.Atoi(id[cut+1:])
+	if err != nil {
+		return false
+	}
+	for _, match := range requirementRange.FindAllStringSubmatchIndex(line, -1) {
+		if match[0] > 0 && tokenByte(line[match[0]-1]) || match[1] < len(line) && tokenByte(line[match[1]]) {
+			continue
+		}
+		prefix := line[match[2]:match[3]]
+		if match[6] >= 0 && line[match[6]:match[7]] != prefix {
+			continue
+		}
+		low, _ := strconv.Atoi(line[match[4]:match[5]])
+		high, _ := strconv.Atoi(line[match[8]:match[9]])
+		if prefix == id[:cut+1] && low <= number && number <= high {
+			return true
+		}
+	}
+	return false
 }

@@ -33,8 +33,16 @@ func finishLaneInputs(t *testing.T, plan, intents string) ([]string, []string) {
 // vary per run.
 func dropFinishLaneTiming(stderr string) string {
 	var kept strings.Builder
+	review := false
 	for _, line := range strings.SplitAfter(stderr, "\n") {
-		if !strings.HasPrefix(line, "dogfood-finish-lane: TIMING ") {
+		// The RUNS line (ASD-V0-907) and the REVIEW line with its next-step
+		// line (DCW-V0-908) name per-run paths and digests, as TIMING does.
+		if review && strings.HasPrefix(line, "  next: ") {
+			review = false
+			continue
+		}
+		review = strings.HasPrefix(line, "dogfood-finish-lane: REVIEW ")
+		if !review && !strings.HasPrefix(line, "dogfood-finish-lane: TIMING ") && !strings.HasPrefix(line, "dogfood-finish-lane: RUNS ") {
 			kept.WriteString(line)
 		}
 	}
@@ -79,6 +87,11 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
 	if code != 0 || dropGuardingNote(dropFinishLaneTiming(stderr)) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
 		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	// ASD-V0-907 and DCW-V0-908: a sealed run names its dogfood-change count
+	// and the exact report still to be reviewed.
+	if !strings.Contains(stderr, "\ndogfood-finish-lane: RUNS dogfood-change=") || !strings.Contains(stderr, "\ndogfood-finish-lane: REVIEW report="+filepath.Join(root, ".corvint", "dogfood-report.json")+" sha256=") {
+		t.Fatalf("finish-lane printed no RUNS or REVIEW line: %s", stderr)
 	}
 	bind := cemGit(t, root, "rev-parse", "HEAD^")
 	seal := cemGit(t, root, "rev-parse", "HEAD")
