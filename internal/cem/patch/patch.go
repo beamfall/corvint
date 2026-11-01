@@ -56,6 +56,10 @@ type Group struct {
 	Binary bool
 	OldOID string
 	NewOID string
+	// OldMode and NewMode are a textual modification's or rename's
+	// `old mode`/`new mode` pair (CEM-V1-930); both are "" without one.
+	OldMode string
+	NewMode string
 }
 
 // Patch is a fully parsed patch conforming to the CEM patch grammar.
@@ -84,6 +88,8 @@ type metadata struct {
 	renameTo    string
 	renameSeen  bool // a rename from/to line was present, whatever its value
 	similarity  bool
+	oldMode     string
+	newMode     string
 }
 
 type parser struct {
@@ -328,7 +334,7 @@ func metadataOnlyKind(first, second string) string {
 // CEM-V1-037 refusal.
 func canonicalBinaryGroup(diffLine string, meta *metadata, marker string) *Group {
 	path, ok := symmetricDiffPath(diffLine)
-	if !ok || !meta.indexSeen || meta.renameSeen || meta.similarity {
+	if !ok || !meta.indexSeen || meta.renameSeen || meta.similarity || meta.oldMode != "" {
 		return nil
 	}
 	oldOID, newOID := meta.indexOld, meta.indexNew
@@ -463,8 +469,24 @@ func (p *parser) parseMetadata() (*metadata, error) {
 				return nil, err
 			}
 			meta.deleteMode = mode
-		case strings.HasPrefix(text, "old mode ") || strings.HasPrefix(text, "new mode "):
-			return nil, malformed("old mode/new mode metadata is outside the CEM patch grammar")
+		case strings.HasPrefix(text, "old mode "):
+			if meta.oldMode != "" {
+				return nil, malformed("repeated old mode line")
+			}
+			mode := strings.TrimPrefix(text, "old mode ")
+			if mode != "100644" && mode != "100755" { // CEM-V1-301 keeps this near miss malformed
+				return nil, malformed("old mode %q is not 100644 or 100755", mode)
+			}
+			meta.oldMode = mode
+		case strings.HasPrefix(text, "new mode "):
+			if meta.newMode != "" {
+				return nil, malformed("repeated new mode line")
+			}
+			mode := strings.TrimPrefix(text, "new mode ")
+			if mode != "100644" && mode != "100755" { // CEM-V1-301 keeps this near miss malformed
+				return nil, malformed("new mode %q is not 100644 or 100755", mode)
+			}
+			meta.newMode = mode
 		case strings.HasPrefix(text, "rename from "):
 			if meta.renameFrom != "" {
 				return nil, malformed("repeated rename from line")
@@ -484,6 +506,9 @@ func (p *parser) parseMetadata() (*metadata, error) {
 			}
 			meta.similarity = true
 		default:
+			if (meta.oldMode == "") != (meta.newMode == "") || (meta.oldMode != "" && meta.oldMode == meta.newMode) {
+				return nil, malformed("old mode/new mode must be a pair of different modes")
+			}
 			return meta, nil
 		}
 		p.pos++
@@ -590,6 +615,18 @@ func parseHeaderPath(text, prefix string) (*string, error) {
 }
 
 func classifyGroup(diffLine string, meta *metadata, oldPath, newPath *string) (*Group, error) {
+	if meta.oldMode != "" && (oldPath == nil || newPath == nil || meta.indexMode != "") {
+		return nil, metadataMismatch("old mode/new mode belongs only to a modification or rename whose index line has no mode")
+	}
+	group, err := classifyPaths(diffLine, meta, oldPath, newPath)
+	if err != nil {
+		return nil, err
+	}
+	group.OldMode, group.NewMode = meta.oldMode, meta.newMode
+	return group, nil
+}
+
+func classifyPaths(diffLine string, meta *metadata, oldPath, newPath *string) (*Group, error) {
 	switch {
 	case oldPath == nil: // create
 		if meta.newFileMode == "" {

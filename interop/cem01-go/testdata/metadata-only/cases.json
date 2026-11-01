@@ -55,9 +55,9 @@
     {
       "name": "mode-and-text-change",
       "patch": "mode-and-text-change.patch",
-      "nativeCode": "malformed-patch",
+      "nativeCode": "",
       "portableCode": "unsupported-tree-mode",
-      "nativeStableIssue": "malformed-patch",
+      "nativeStableIssue": "",
       "portableStableIssue": "unsupported-tree-mode",
       "kind": null,
       "path": null
