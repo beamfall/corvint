@@ -4,10 +4,12 @@ package tracemigraterepo
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
@@ -29,8 +31,19 @@ const migrationOperations = gitrun.DefaultOperations + operationsPerTrace*trace.
 // dry run and an apply, which plans twice: beyond the replay window its name is
 // resolved once (one cat-file for its type and tree, one merge-base, both
 // cached), and then either its tree is listed once (cached) or, stranded, its
-// commit object is checked once (cached).
+// commit object is checked once (cached). The batched probe (V1-3321) charges
+// the same operations: one per object or tree listing it answers from its
+// cat-file --batch session, and one for the rev-list that replaces every
+// merge-base, so it never needs more than the one-shot path it replaces.
 const operationsPerTrace = 3
+
+// batchedProbes selects the V1-3321 batched probe; a test turns it off to
+// compare against the one-shot probes it replaces.
+var batchedProbes = true
+
+// maximumCommitBytes bounds one commit object read through the probe session;
+// a larger commit replays the one-shot probe.
+const maximumCommitBytes = 1 << 20
 
 const (
 	maximumAncestryBytes  = 2 << 20
@@ -53,10 +66,11 @@ func Evaluate(ctx context.Context, root string, options Options) (trace.Migratio
 	} else if options.PlanDigest != nil {
 		return trace.MigrationResult{}, fmt.Errorf("dry-run trace migration does not accept a plan digest")
 	}
-	authority, stable, err := bindAuthority(ctx, root)
+	authority, stable, closeProbe, err := bindAuthority(ctx, root)
 	if err != nil {
 		return trace.MigrationResult{}, err
 	}
+	defer closeProbe()
 	if options.Apply {
 		plan, err := trace.ApplyMigration(root, authority, *options.PlanDigest, stable)
 		if err != nil {
@@ -71,16 +85,16 @@ func Evaluate(ctx context.Context, root string, options Options) (trace.Migratio
 	return plan.Result(false), nil
 }
 
-func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, func() error, error) {
+func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, func() error, func(), error) {
 	index, err := contextindex.Build(ctx, root)
 	if err != nil {
-		return trace.MigrationAuthority{}, nil, err
+		return trace.MigrationAuthority{}, nil, nil, err
 	}
 	budget := gitrun.NewBudget(migrationOperations, gitrun.DefaultTotalBudget)
 	raw, err := runGit(ctx, budget, root, maximumAncestryBytes,
 		"log", fmt.Sprintf("--max-count=%d", maximumAncestry+1), "--format=%H %T", "HEAD")
 	if err != nil {
-		return trace.MigrationAuthority{}, nil, err
+		return trace.MigrationAuthority{}, nil, nil, err
 	}
 	lines := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
 	if len(lines) == 1 && lines[0] == "" {
@@ -101,7 +115,7 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 	for _, line := range lines {
 		fields := strings.Split(line, " ")
 		if len(fields) != 2 || !lowerHex(fields[0], length) || !lowerHex(fields[1], length) {
-			return trace.MigrationAuthority{}, nil, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
+			return trace.MigrationAuthority{}, nil, nil, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
 		}
 		paths := []string(nil)
 		if fields[1] == index.Revision {
@@ -121,48 +135,17 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 		ObjectFormat: index.ObjectFormat, DirtyPaths: dirty, ProfileID: index.ProfileID,
 		Commits: commits, Trees: trees,
 	}
+	probe := &objectProbe{ctx: ctx, budget: budget, root: root, length: length, session: &gitrun.Session{},
+		objects: map[string]objectInfo{}, reachable: map[string]bool{}, trees: map[string][]string{index.Revision: currentPaths}}
 	if truncated {
 		authority.AncestryLimit = maximumAncestry
-		authority.ReachableCommit = reachableCommit(ctx, budget, root, length)
+		authority.ReachableCommit = probe.reachableCommit
+		if batchedProbes {
+			authority.ProbeBatch = probe.batch
+		}
 	}
-	trackedCache := map[string][]string{index.Revision: currentPaths}
-	authority.TrackedPaths = func(tree string) ([]string, error) {
-		if cached, ok := trackedCache[tree]; ok {
-			return append([]string(nil), cached...), nil
-		}
-		raw, err := runGit(ctx, budget, root, maximumTreeBytes+1, "ls-tree", "-r", "--name-only", "-z", tree)
-		if err != nil {
-			return nil, err
-		}
-		if len(raw) > maximumTreeBytes {
-			return nil, fmt.Errorf("historical trace tree exceeds %d bytes", maximumTreeBytes)
-		}
-		if bytes.Count(raw, []byte{0}) > maximumHistoricalPath {
-			return nil, fmt.Errorf("historical trace tree exceeds %d paths", maximumHistoricalPath)
-		}
-		paths := make([]string, 0, bytes.Count(raw, []byte{0}))
-		for _, path := range bytes.Split(raw, []byte{0}) {
-			if len(path) != 0 {
-				paths = append(paths, string(path))
-			}
-		}
-		trackedCache[tree] = paths
-		return append([]string(nil), paths...), nil
-	}
-	// --batch-check reports a missing object on stdout and exits zero, so an
-	// error here is a Git failure, never absence.
-	commitObjects := map[string]bool{}
-	authority.CommitObject = func(id string) (bool, error) {
-		if commit, ok := commitObjects[id]; ok {
-			return commit, nil
-		}
-		kind, err := runGitInput(ctx, budget, root, []byte(id+"\n"), 128, "cat-file", "--batch-check=%(objecttype)")
-		if err != nil {
-			return false, err
-		}
-		commitObjects[id] = string(kind) == "commit\n"
-		return commitObjects[id], nil
-	}
+	authority.TrackedPaths = probe.trackedPaths
+	authority.CommitObject = probe.commitObject
 	// The check reads only header fields, so it observes them rather than
 	// compiling an index whose sources it would discard. ProfileID is not
 	// compared because it is a pure function of the tree: an equal Revision
@@ -179,51 +162,245 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 		}
 		return nil
 	}
-	return authority, stable, nil
+	return authority, stable, probe.session.Close, nil
 }
 
-// reachableCommit resolves a trace name outside the replay window: a commit
-// object that `git merge-base --is-ancestor` places under HEAD is reachable,
-// with its tree. One cat-file reads the type and the tree together, so each
-// name costs at most two Git operations, once.
-func reachableCommit(ctx context.Context, budget *gitrun.Budget, root string, length int) func(string) (trace.Revision, bool, error) {
-	type result struct {
-		revision  trace.Revision
-		reachable bool
+// objectProbe answers the migration's per-name Git probes. Object types,
+// commit trees and tree listings come from one `git cat-file --batch` session
+// for the whole migration, and every name beyond the replay window is placed
+// against HEAD by one rev-list, instead of one Git process per probe
+// (V1-3321). Each answer is reserved against the same operation budget as the
+// one-shot command it replaces; a request the session cannot answer as one
+// admitted record (a missing object, an oversized one, a failed child) replays
+// that one-shot command under the same reservation, which alone classifies the
+// failure, so the batched path never changes an outcome.
+type objectProbe struct {
+	ctx       context.Context
+	budget    *gitrun.Budget
+	root      string
+	length    int
+	session   *gitrun.Session
+	objects   map[string]objectInfo
+	reachable map[string]bool
+	trees     map[string][]string
+}
+
+type objectInfo struct {
+	commit bool
+	tree   string
+}
+
+// read answers one full object ID through the session within perOp: its type
+// and body, or ok=false when the session cannot answer it as one record.
+func (p *objectProbe) read(perOp time.Duration, id string, limit int) (string, []byte, bool, error) {
+	if !batchedProbes {
+		return "", nil, false, nil
 	}
-	cache := map[string]result{}
-	return func(id string) (trace.Revision, bool, error) {
-		if cached, ok := cache[id]; ok {
-			return cached.revision, cached.reachable, nil
+	header, body, ok, err := p.session.Read(p.ctx, perOp, gitrun.Options{Env: gitEnvironment()}, gitArgs(p.root, "cat-file", "--batch"), id,
+		func(_ string, fields []string, size int) bool { return fields[0] == id && size <= limit })
+	if err != nil || !ok {
+		return "", nil, false, err
+	}
+	return strings.Fields(header)[1], body, true, nil
+}
+
+// object resolves an object's type and, for a commit, its tree: one reserved
+// operation, answered by the session or by the one-shot --batch-check probe.
+func (p *objectProbe) object(id string) (objectInfo, error) {
+	if info, ok := p.objects[id]; ok {
+		return info, nil
+	}
+	perOp, err := p.budget.ReserveOperation(0)
+	if err != nil {
+		return objectInfo{}, err
+	}
+	kind, body, ok, err := p.read(perOp, id, maximumCommitBytes)
+	if err != nil {
+		return objectInfo{}, err
+	}
+	var info objectInfo
+	if ok {
+		if kind == "commit" {
+			first, _, _ := strings.Cut(string(body), "\n")
+			tree, found := strings.CutPrefix(first, "tree ")
+			if !found || !lowerHex(tree, p.length) {
+				return objectInfo{}, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
+			}
+			info = objectInfo{commit: true, tree: tree}
 		}
+	} else {
 		// --batch-check answers each input line: "<id> <type>" for an object,
-		// "<input> missing" otherwise; the second line peels the commit to its tree.
-		raw, err := runGitInput(ctx, budget, root, []byte(id+"\n"+id+"^{tree}\n"), 512, "cat-file", "--batch-check=%(objectname) %(objecttype)")
+		// "<input> missing" otherwise; the second line peels the commit to its
+		// tree. It reports a missing object on stdout and exits zero, so an
+		// error here is a Git failure, never absence.
+		raw, err := gitrun.RunReserved(p.ctx, perOp, gitrun.Options{Env: gitEnvironment(), Stdin: []byte(id + "\n" + id + "^{tree}\n"), StdoutLimit: 512},
+			gitArgs(p.root, "cat-file", "--batch-check=%(objectname) %(objecttype)")...)
 		if err != nil {
-			return trace.Revision{}, false, err
+			return objectInfo{}, err
 		}
 		answers := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
 		if len(answers) != 2 {
-			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
+			return objectInfo{}, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
 		}
-		if answers[0] != id+" commit" {
-			cache[id] = result{}
-			return trace.Revision{}, false, nil
-		}
-		tree, kind, _ := strings.Cut(answers[1], " ")
-		if kind != "tree" || !lowerHex(tree, length) {
-			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
-		}
-		if _, err := runGit(ctx, budget, root, 128, "merge-base", "--is-ancestor", id, "HEAD"); err != nil {
-			if details, ok := cemcode.GitExitFailureDetails(err); ok && details.ExitCode == 1 {
-				cache[id] = result{}
-				return trace.Revision{}, false, nil
+		if answers[0] == id+" commit" {
+			tree, kind, _ := strings.Cut(answers[1], " ")
+			if kind != "tree" || !lowerHex(tree, p.length) {
+				return objectInfo{}, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
 			}
-			return trace.Revision{}, false, err
+			info = objectInfo{commit: true, tree: tree}
 		}
-		cache[id] = result{trace.Revision{TreeRevision: tree}, true}
-		return cache[id].revision, true, nil
 	}
+	p.objects[id] = info
+	return info, nil
+}
+
+// batch resolves every name outside the replay window before planning: its
+// type and tree through the session, then whether each commit is reachable
+// from HEAD with one `git rev-list ^HEAD <commits>`, which prints exactly the
+// named commits HEAD does not reach. It is best-effort: on any failure, or
+// output past maximumAncestryBytes, the names it did not settle keep their
+// one-shot merge-base probe.
+func (p *objectProbe) batch(names []string) {
+	commits := make([]string, 0, len(names))
+	for _, id := range names {
+		if _, known := p.reachable[id]; known {
+			continue
+		}
+		info, err := p.object(id)
+		if err != nil {
+			return
+		}
+		if info.commit {
+			commits = append(commits, id)
+		}
+	}
+	if len(commits) == 0 {
+		return
+	}
+	input := "^HEAD\n" + strings.Join(commits, "\n") + "\n"
+	raw, err := gitrun.Run(p.ctx, p.budget, gitrun.Options{Env: gitEnvironment(), Stdin: []byte(input), StdoutLimit: maximumAncestryBytes},
+		gitArgs(p.root, "rev-list", "--stdin")...)
+	if err != nil {
+		return
+	}
+	unreached := map[string]bool{}
+	for _, line := range strings.Split(string(raw), "\n") {
+		unreached[line] = true
+	}
+	for _, id := range commits {
+		p.reachable[id] = !unreached[id]
+	}
+}
+
+// reachableCommit resolves a trace name outside the replay window: a commit
+// object that HEAD reaches is reachable, with its tree. The type and tree cost
+// one operation; reachability comes from batch, or else from one
+// `git merge-base --is-ancestor`, once per name.
+func (p *objectProbe) reachableCommit(id string) (trace.Revision, bool, error) {
+	info, err := p.object(id)
+	if err != nil || !info.commit {
+		return trace.Revision{}, false, err
+	}
+	reachable, known := p.reachable[id]
+	if !known {
+		if _, err := runGit(p.ctx, p.budget, p.root, 128, "merge-base", "--is-ancestor", id, "HEAD"); err != nil {
+			details, ok := cemcode.GitExitFailureDetails(err)
+			if !ok || details.ExitCode != 1 {
+				return trace.Revision{}, false, err
+			}
+		} else {
+			reachable = true
+		}
+		p.reachable[id] = reachable
+	}
+	if !reachable {
+		return trace.Revision{}, false, nil
+	}
+	return trace.Revision{TreeRevision: info.tree}, true, nil
+}
+
+// commitObject reports whether an unreachable name is still a commit object.
+func (p *objectProbe) commitObject(id string) (bool, error) {
+	info, err := p.object(id)
+	return info.commit, err
+}
+
+// trackedPaths lists a tree's paths as `git ls-tree -r --name-only -z` does,
+// under one reserved operation: through the session, reading each subtree
+// in order within the one deadline, or by replaying ls-tree itself.
+func (p *objectProbe) trackedPaths(tree string) ([]string, error) {
+	if cached, ok := p.trees[tree]; ok {
+		return append([]string(nil), cached...), nil
+	}
+	perOp, err := p.budget.ReserveOperation(0)
+	if err != nil {
+		return nil, err
+	}
+	paths, ok, err := p.walkTree(time.Now().Add(perOp), tree)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		raw, err := gitrun.RunReserved(p.ctx, perOp, gitrun.Options{Env: gitEnvironment(), StdoutLimit: maximumTreeBytes + 1},
+			gitArgs(p.root, "ls-tree", "-r", "--name-only", "-z", tree)...)
+		if err != nil {
+			return nil, err
+		}
+		if len(raw) > maximumTreeBytes {
+			return nil, fmt.Errorf("historical trace tree exceeds %d bytes", maximumTreeBytes)
+		}
+		if bytes.Count(raw, []byte{0}) > maximumHistoricalPath {
+			return nil, fmt.Errorf("historical trace tree exceeds %d paths", maximumHistoricalPath)
+		}
+		paths = make([]string, 0, bytes.Count(raw, []byte{0}))
+		for _, path := range bytes.Split(raw, []byte{0}) {
+			if len(path) != 0 {
+				paths = append(paths, string(path))
+			}
+		}
+	}
+	p.trees[tree] = paths
+	return append([]string(nil), paths...), nil
+}
+
+// walkTree reads tree and its subtrees through the session in Git's tree order,
+// so the paths match ls-tree -r. Any record the session cannot answer, a
+// malformed entry, or a listing past ls-tree's own bounds returns ok=false and
+// the caller replays ls-tree.
+func (p *objectProbe) walkTree(deadline time.Time, tree string) ([]string, bool, error) {
+	paths := []string{}
+	listed := 0
+	var walk func(id, prefix string) (bool, error)
+	walk = func(id, prefix string) (bool, error) {
+		kind, body, ok, err := p.read(time.Until(deadline), id, maximumTreeBytes)
+		if err != nil || !ok || kind != "tree" {
+			return false, err
+		}
+		for len(body) != 0 {
+			space := bytes.IndexByte(body, ' ')
+			end := bytes.IndexByte(body, 0)
+			if space <= 0 || end <= space+1 || len(body) < end+1+p.length/2 {
+				return false, nil
+			}
+			mode, name := string(body[:space]), prefix+string(body[space+1:end])
+			object := hex.EncodeToString(body[end+1 : end+1+p.length/2])
+			body = body[end+1+p.length/2:]
+			if mode == "40000" {
+				if ok, err := walk(object, name+"/"); err != nil || !ok {
+					return false, err
+				}
+				continue
+			}
+			listed += len(name) + 1
+			paths = append(paths, name)
+			if listed > maximumTreeBytes || len(paths) > maximumHistoricalPath {
+				return false, nil
+			}
+		}
+		return true, nil
+	}
+	ok, err := walk(tree, "")
+	return paths, ok, err
 }
 
 func runGit(ctx context.Context, budget *gitrun.Budget, root string, limit int, arguments ...string) ([]byte, error) {
@@ -231,13 +408,16 @@ func runGit(ctx context.Context, budget *gitrun.Budget, root string, limit int, 
 }
 
 func runGitInput(ctx context.Context, budget *gitrun.Budget, root string, input []byte, limit int, arguments ...string) ([]byte, error) {
+	return gitrun.Run(ctx, budget, gitrun.Options{Env: gitEnvironment(), Stdin: input, StdoutLimit: limit}, gitArgs(root, arguments...)...)
+}
+
+func gitArgs(root string, arguments ...string) []string {
 	args := []string{
 		"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false",
 		"-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false", "-C", root,
 		"-c", "advice.graftFileDeprecated=false",
 	}
-	args = append(args, arguments...)
-	return gitrun.Run(ctx, budget, gitrun.Options{Env: gitEnvironment(), Stdin: input, StdoutLimit: limit}, args...)
+	return append(args, arguments...)
 }
 
 func gitEnvironment() []string {
