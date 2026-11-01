@@ -471,6 +471,35 @@ printf 'stale impact stderr\n' > "$evidence/coordination-time-impact.stderr"
 # evidence directory; a dot-file is not a step envelope and is kept.
 printf 'stale orphan stderr\n' > "$evidence/orphan-step.stderr"
 printf 'kept\n' > "$evidence/.operator-note.stderr"
+# DCW-V0-621 (V1-3681): dogfood-change with TASK and PATHS, run at BASE before the first edit,
+# records the pre-change receipts itself, and a run after the first commit reports both OBSERVED
+# bound instead of NOT_OBSERVED agent-receipt-absent; PATHS without TASK refuses before any step.
+prechange_repo="$test_root/prechange-repo"
+git clone -q "$test_root/repo" "$prechange_repo"
+git -C "$prechange_repo" checkout -q -b prechange "$base"
+prechange_evidence=$(git -C "$prechange_repo" rev-parse --absolute-git-dir)/corvint
+prechange_status=0
+prechange_output=$(cd "$prechange_repo" && CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/prechange-corvint.log" \
+  DOGFOOD_PRECHANGE_PATHS=script/source.sh script/dogfood-change.sh "$base" 2>&1) || prechange_status=$?
+test "$prechange_status" = 2
+rg -q '^dogfood-change: REFUSE prechange-task-missing: ' <<< "$prechange_output"
+test ! -e "$prechange_evidence/prechange-binding.json"
+prechange_output=$(cd "$prechange_repo" && CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/prechange-corvint.log" \
+  DOGFOOD_TASK='change the source' DOGFOOD_PRECHANGE_PATHS=script/source.sh script/dogfood-change.sh "$base" 2>&1)
+rg -q '^dogfood-prechange: RECORD prechange-query sha256=' <<< "$prechange_output"
+rg -q '^dogfood-prechange: RECORD prechange-impact sha256=' <<< "$prechange_output"
+rg -q "^dogfood-change: PRECHANGE no-diff-yet base=$base " <<< "$prechange_output"
+test -f "$prechange_evidence/prechange-binding.json"
+printf 'prechange edit\n' > "$prechange_repo/script/source.sh"
+git -C "$prechange_repo" -c user.name=t -c user.email=t@example.invalid commit -qam edit
+prechange_output=$(cd "$prechange_repo" && CORVINT_BIN="$test_root/bin/corvint" DOGFOOD_TEST_LOG="$test_root/prechange-corvint.log" \
+  DOGFOOD_TASK='change the source' DOGFOOD_PRECHANGE_PATHS=script/source.sh script/dogfood-change.sh "$base" 2>&1) || :
+rg -q '^dogfood-change: NOTE prechange-query OBSERVED bound sha256=[0-9a-f]{64} ' <<< "$prechange_output"
+rg -q '^dogfood-change: NOTE prechange-impact OBSERVED bound sha256=[0-9a-f]{64} ' <<< "$prechange_output"
+if rg -q 'agent-receipt-absent|^dogfood-prechange: ' <<< "$prechange_output"; then
+  printf 'dogfood-change_test: the run after the first commit reran prechange or lost its receipts:\n%s\n' "$prechange_output" >&2
+  exit 1
+fi
 git clone -q "$test_root/repo" "$test_root/default-repo"
 default_evidence=$(git -C "$test_root/default-repo" rev-parse --absolute-git-dir)/corvint
 mkdir -p "$default_evidence"

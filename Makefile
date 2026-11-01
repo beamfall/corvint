@@ -977,9 +977,10 @@ DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(BASE))
 DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (origin/main) is not used by dogfood targets
 
 .PHONY: dogfood-change
+# With TASK= and PATHS= it first records the agent pre-change receipts, as dogfood-prechange does (DCW-V0-621).
 dogfood-change: ## Collect dogfood pre-change context (needs BASE=<full sha>)
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(if $(PATHS),DOGFOOD_TASK="$(TASK)" DOGFOOD_PRECHANGE_PATHS="$(PATHS)") $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
 # Record the agent pre-change receipts at BASE before the first edit (DCW-V0-880): TASK is the task
 # text, PATHS the tracked files the change intends to touch.

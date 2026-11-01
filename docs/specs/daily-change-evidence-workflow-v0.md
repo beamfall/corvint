@@ -3389,6 +3389,29 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
   `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
   commands; a present one is not). Rollback: drop the lines.
+- `DCW-V0-620`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633 AC2;
+  refines `DCW-V0-945`) The `DCW-V0-945` inputs precheck MUST refuse, with `REFUSE intent-invalid`
+  and `code=invalid-requirements-section` for each, an INTENTS file naming the two real files of the
+  V1-3633 repro: a build-log entry (`docs/build-log/2026-10-31-scripts-w5.md`) and the spec index
+  (`docs/specs/README.md`), neither of which carries a `## Requirements` section, before any step
+  runs. Non-goals: changing the refusal text or its prefix. Evidence:
+  `TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles` (copies both files into a scratch repository,
+  runs the preflight, and checks the code, each named intent and that no step ran). Rollback: drop
+  the test.
+- `DCW-V0-621`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3681; refines
+  `DCW-V0-921` and `DCW-V0-819`) `make dogfood-change BASE=SHA TASK="THE CHANGE" PATHS="PATH..."`
+  (`script/dogfood-change.sh` with `DOGFOOD_TASK` and `DOGFOOD_PRECHANGE_PATHS`) MUST, when
+  `<git-dir>/corvint/prechange-binding.json` is absent, run `corvint dogfood prechange BASE PATH...`
+  (the `make dogfood-prechange` step) before the change runs, so the one change-start command, run
+  before the first edit, records both agent receipts bound to BASE and every later run reports them
+  `OBSERVED bound`. A run that finds the binding skips the step; `PATHS` without `TASK` MUST refuse
+  with `REFUSE prechange-task-missing` and exit 2 before any step; a prechange refusal (after the
+  first edit, say) MUST be kept as `NOTE prechange NOT_PRODUCED` and the change run goes on, its
+  receipts staying `NOT_OBSERVED` as before. Without `PATHS` the command is unchanged. Non-goals:
+  choosing the task text or paths for the agent (`DCW-V0-026`: the receipts stay the agent's, made
+  from its own declared task and paths). Evidence: `script/dogfood-change_test.sh` (the prechange
+  case: the refusal, the recorded receipts and binding, and `OBSERVED bound` without a second
+  prechange after the first commit). Rollback: drop the block and the Makefile variables.
 
 ## Code vocabulary
 
@@ -3733,6 +3756,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-943` (experimental under the standing lane auto-accept; V1-3627) | `script/dogfood-build-corvint.sh` `dogfood_corvint_prune`, `dogfood_bin_outcome`; `script/dogfood-bin-reuse_test.sh` | implemented; focused test PASS |
 | `DCW-V0-944` (experimental under the standing lane auto-accept; V1-3550) | `Makefile` `dogfood-closeout`; `script/batch-precheck_test.sh` | implemented; focused test PASS |
 | `DCW-V0-945` (experimental under the standing lane auto-accept; V1-3633) | `internal/lrfrepo` `DeriveIntentAt`, used by `beginOCM` and `IntentObligationCounts`; `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` | implemented; focused tests PASS |
+| `DCW-V0-620` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles` | implemented; focused test PASS |
+| `DCW-V0-621` (experimental under the standing lane auto-accept; V1-3681) | `script/dogfood-change.sh` prechange block; `Makefile` `dogfood-change` `TASK`/`PATHS`; `script/dogfood-change_test.sh` | implemented; focused test PASS |
 | `DCW-V0-946` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/flow.go` `requireBaseAncestor`, called by `propose` and `finishLane.run`; `TestDCWV0946ProposeRefusesNonAncestorBase`, `TestDCWV0946FinishLaneRefusesNonAncestorBase` | implemented; focused tests PASS |
 | `DCW-V0-947` (experimental under the standing lane auto-accept; V1-3638) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-960` (experimental under the standing lane auto-accept; V1-3047) | `Makefile` `dogfood-closeout` target-specific `LANE`; `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestDCWV0960InputsCheckRefusesAbsentIntentManifest`, `script/dogfood-cache_test.sh` | implemented; focused tests PASS |

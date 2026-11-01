@@ -492,7 +492,7 @@ finish-lane hashes every supplied input file before prepare and refuses
 `REFUSE input-changed-during-run step=<step>` naming each changed file (`DCW-V0-378`), instead of the
 `intent-scope-drift` or `citation-plan-map-mismatch` the rewritten file would otherwise surface as.
 
-A lane runs `make dogfood-change BASE=<sha>` once at the start (pre-change context, rc retained) and
+A lane runs `make dogfood-change BASE=<sha> TASK="<the change>" PATHS="<paths>"` (which also records the bound pre-change receipts, `DCW-V0-621`) once at the start (pre-change context, rc retained) and
 then, after its last edit and commit, exactly one
 `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=..`
 (prepare, bind, commit, rebind, check and seal, `DCW-V0-060`). `LANE=1` refuses before any build,
