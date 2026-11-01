@@ -152,6 +152,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `REQUEST_ID_CONFLICT` with the `CAL-V0-250` digest-inputs warning. No wire code, result field or
   journal format changes. `--batch`, multi-target and other verbs that take one shared `issuedAt`
   already print it for the retry and are unchanged.
+- `TCL-V0-801`: (V1-3606) The CLI's shared flag parser MUST accept declared boolean flags: a
+  declared boolean takes no value and reads as set when present, and `--name=VALUE` on one is
+  refused `MALFORMED` naming the flag. A verb with a boolean flag MUST declare it to the parser
+  instead of removing it from argv by hand; `ticket delivery-screen` declares `--lane-refs` and
+  the no-op `--json`. Value flags parse unchanged.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -222,6 +227,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/create_retry_issued_at_test.go`: `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`
   (create retry replays; a changed payload still conflicts), `TestTCLV0800_RefineRetryReplays`,
   `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-800).
+- `internal/tasks/cli/flags_boolean_internal_test.go`: `TestTCLV0801_DeclaredBooleanFlags`;
+  `internal/tasks/cli/delivery_screen_test.go` keeps `--lane-refs` green (TCL-V0-801).
 - `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
 - `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
   (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).

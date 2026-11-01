@@ -826,6 +826,13 @@ func projectionStale(rc *readCtx) string {
 // flags parses `--name value` / `--name=value` pairs; positional arguments
 // are returned in order. Unknown flags are reported.
 func flags(args []string, known ...string) (map[string]string, []string, error) {
+	return flagsWithBooleans(args, nil, known...)
+}
+
+// flagsWithBooleans is flags with declared boolean flags (TCL-V0-801): a
+// boolean flag takes no value, a present one maps to "true", and
+// `--name=VALUE` on one is refused MALFORMED naming the flag.
+func flagsWithBooleans(args []string, booleans []string, known ...string) (map[string]string, []string, error) {
 	out := map[string]string{}
 	var pos []string
 	isKnown := func(n string) bool {
@@ -843,6 +850,13 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 			continue
 		}
 		name, val, hasVal := strings.Cut(a[2:], "=")
+		if slices.Contains(booleans, name) {
+			if hasVal {
+				return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s takes no value", name)
+			}
+			out[name] = "true"
+			continue
+		}
 		if !isKnown(name) {
 			return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
 		}
