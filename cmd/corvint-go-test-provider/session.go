@@ -71,6 +71,9 @@ func (s *stringListFlag) Set(value string) error {
 // authority: see docs/specs/go-live-test-provider-v0.md section 14. With
 // --retain each completed event line is also retained (LPCV-V0-055).
 func runSessionCommand(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if code, handled := serveHelp(append([]string{"session"}, arguments...), stdout, stderr); handled {
+		return code
+	}
 	flags := flag.NewFlagSet("corvint-go-test-provider session", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	experimental := flags.Bool("experimental", false, "enable the experimental provider")

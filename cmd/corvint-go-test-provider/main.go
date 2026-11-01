@@ -125,9 +125,6 @@ func main() {
 		defer cancel()
 		os.Exit(runProductionAuthority(ctx, os.Args[4], capability, os.Stdout))
 	}
-	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
-		os.Exit(code)
-	}
 	if len(os.Args) >= 2 && os.Args[1] == "session" {
 		os.Exit(runSessionCommand(os.Args[2:], os.Stdin, os.Stdout, os.Stderr))
 	}
