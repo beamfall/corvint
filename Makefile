@@ -993,12 +993,12 @@ dogfood-finish:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. It first
-# refuses a stale use-case receipt, naming it, which the seal and CI would otherwise refuse later
+# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. In a
+# repository that carries script/repin-use-case-receipts.sh and its ledger it first refuses a stale use-case receipt, naming it, which the seal and CI would otherwise refuse later
 # (DCW-V0-725, V1-4163).
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check:
-	@receipts=$$(script/repin-use-case-receipts.sh --check 2>&1) || { printf '%s\n' "$$receipts" >&2; \
+	@[ ! -x script/repin-use-case-receipts.sh ] || [ ! -f conformance/use-cases-v0/ledger.json ] || receipts=$$(script/repin-use-case-receipts.sh --check 2>&1) || { printf '%s\n' "$$receipts" >&2; \
 		printf 'dogfood-inputs-check: stale use-case receipt: run script/repin-use-case-receipts.sh, commit the repin, then rerun (DCW-V0-725)\n' >&2; exit 1; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
