@@ -8431,7 +8431,7 @@ after this restore.
 | --- | --- |
 | CAL-V0-300 | `TestCALV0300_ElisionScopeAndTamper`, `TestCALV0300_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
 | CAL-V0-301 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0300_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
-| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`), `TestCALV0302_CompactedStepsKeepTheirPostState` (`internal/tasks/cli`, V1-3669: replays and attempt show read the same post-state after compaction) |
 | CAL-V0-303 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing` |
 | CAL-V0-304 | `TestCALV0304_CompactLivenessIssueShape` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |
 | CAL-V0-311 | `TestCALV0311_KeepLeaseConfigIsClosedAndBounded`, `TestCALV0311_AbsentOptionChangesNothing` (`internal/tasks/dispatch`) |
