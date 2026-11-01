@@ -69,9 +69,14 @@ func validateArgv(argv []string) error {
 	if len(argv) < 1 || len(argv) > MaxArgvArguments || argv[0] == "" {
 		return argvFailure("argv requires 1..32 arguments and a nonempty first argument")
 	}
-	for _, arg := range argv {
-		if !utf8.ValidString(arg) || utf8.RuneCountInString(arg) > MaxCommandCharacters {
-			return argvFailure("invalid argument encoding or character bound")
+	for i, arg := range argv {
+		if !utf8.ValidString(arg) {
+			return argvFailure(fmt.Sprintf("argument %d is not valid UTF-8", i+1))
+		}
+		if n := utf8.RuneCountInString(arg); n > MaxCommandCharacters {
+			// ASD-V0-088 (V1-3641): name the bound, so a long -run alternation
+			// reads as the 512-character limit, not an encoding fault.
+			return argvFailure(fmt.Sprintf("argument %d has %d characters and exceeds %d, the recorder's per-argument character bound (trace.MaxCommandCharacters); shorten it or split the command across verify lines", i+1, n, MaxCommandCharacters))
 		}
 		for _, r := range arg {
 			if unicode.IsControl(r) {
