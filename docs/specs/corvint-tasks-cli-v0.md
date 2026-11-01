@@ -121,8 +121,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   A reader MUST refuse a newer `taskman-intent-snapshot/N` as `UNSUPPORTED_VERSION` (CAL-V0-131).
 - `TCL-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3223) When the
   environment variable `CORVINT_TASKS_SNAPSHOT` names a snapshot file, the inventory reads
-  `ticket search`, `ticket show`, `ticket export`, `ticket similar`, `ticket digest`, `roadmap`
-  and `queue status` MUST be served from it without resolving a repository or journal, with every
+  `ticket search`, `ticket show`, `ticket blockers` (TCL-V0-869), `ticket export`, `ticket similar`,
+  `ticket digest`, `roadmap` and `queue status` MUST be served from it without resolving a repository or journal, with every
   journal fact `NOT_OBSERVED` as for an absent journal (`ticket list` reads attempt history, so it
   is refused as in TCL-V0-012; `ticket search --status S` lists the same tickets): every
   file's sha256 and the tree digest are verified first (a mismatch is `MALFORMED`), and each
@@ -193,6 +193,18 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   is unchanged. Under `serialFallback: WHOLE_REPOSITORY` the view carries no coverage entry at all.
   A policy that makes coverage a claim prerequisite would render it as a blocker again; none
   exists in this contract.
+- `TCL-V0-869`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3173)
+  `corvint-tasks queue snapshot --worktree DIR [--out FILE]` MUST read the intent tree at
+  `DIR/.taskman` itself, without resolving a repository or reading any journal, so a linked or
+  pruned worktree's store can be validated instead of the primary checkout's: every record is
+  decoded and checked as a store load is (a malformed record is refused, nothing is written), the
+  snapshot's `primaryWorktree` is the absolute `DIR` and its `journal` is `null`. Served with
+  `CORVINT_TASKS_SNAPSHOT` (TCL-V0-011), `ticket show`, `ticket blockers` (also served),
+  `queue status` and `roadmap` then report that tree's blockers and dependency closure, such as
+  `DEPENDENCY_MISSING` for a dependency the tree no longer holds. `receipt audit` audits journal
+  receipts, which a worktree tree does not own, so it stays refused under the snapshot and is run
+  against the owning journal. A `DIR` without a `.taskman` directory MUST be refused
+  `UNINITIALIZED`.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -251,7 +263,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
   `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
   `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`,
-  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`, `TestTCLV0868_CoverageIsAdvisoryUnderEveryPolicy`.
+  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`, `TestTCLV0868_CoverageIsAdvisoryUnderEveryPolicy`,
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:

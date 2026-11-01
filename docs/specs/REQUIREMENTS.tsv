@@ -2413,6 +2413,7 @@ TCL-V0-865	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-866	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3597) `claim`	standing	2026-10-11; V1-3597
 TCL-V0-867	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3715) Where	standing	2026-10-11; V1-3715
 TCL-V0-868	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket	standing	2026-10-11; V1-3794
+TCL-V0-869	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3173)	standing	2026-10-11; V1-3173
 TCL-V0-870	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A	standing	2026-10-11; V1-3552
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
