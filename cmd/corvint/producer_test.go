@@ -178,6 +178,17 @@ func TestGPKV0084ImpactCapabilitiesListing(t *testing.T) {
 	if suffixes["unadmitted"] != "unsupported-impact-path-suffix" {
 		t.Fatalf("unadmitted code: %v", suffixes["unadmitted"])
 	}
+	// GPK-V0-881 (V1-2081): the closure depth the help states is in the listing.
+	reverse := decoded["reverseImports"].(map[string]any)
+	if reverse["closureDepth"] != float64(1) || reverse["closedTestSelection"] != false ||
+		reverse["advisoryClosureDepth"].(map[string]any)[".rb"] != float64(2) {
+		t.Fatalf("reverseImports: %v", reverse)
+	}
+	help := helpText("impact")
+	if !strings.Contains(help, "stop at direct importers (one hop; Ruby's advisory\nautoload rows reach two)") ||
+		!strings.Contains(help, "not a closed test selection") {
+		t.Fatalf("impact help no longer states the listed closure")
+	}
 	limits := decoded["limits"].(map[string]any)
 	if limits["pathsMax"] != float64(100) || limits["limitMax"] != float64(50) || limits["limitDefault"] != float64(defaultImpactLimit) || limits["pathCharsMax"] != float64(1024) {
 		t.Fatalf("limits: %v", limits)
