@@ -81,6 +81,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("registered-waiters-rank-and-no-write", func(t *testing.T) {
+		requireObservableFlocks(t)
 		admissionRestore(t)
 		_, repo := preparationOpenFixture(t)
 		const waiters = 4
@@ -166,6 +167,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("unpublished-live-slot-hides-rank", func(t *testing.T) {
+		requireObservableFlocks(t)
 		_, repo := preparationOpenFixture(t)
 		heldSlot(t, repo.CommonDir, 0, admissionRecord(7))
 		heldSlot(t, repo.CommonDir, 1, []byte("CPA1"))
@@ -193,6 +195,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("drift-after-stat-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, replace := range []bool{false, true} {
 			_, repo := preparationOpenFixture(t)
 			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
@@ -233,6 +236,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("drift-after-open-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, held := range []bool{false, true} {
 			for _, replace := range []bool{false, true} {
 				_, repo := preparationOpenFixture(t)
@@ -300,6 +304,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("common-dir-replaced-after-open-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, viaSymlink := range []bool{false, true} {
 			_, repo := preparationOpenFixture(t)
 			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
@@ -385,6 +390,7 @@ func TestCALV0095ProcessHolderHelper(t *testing.T) {
 
 func TestCALV0095_PreparationQueueObservationAcrossProcesses(t *testing.T) {
 	assumeCompleteLockTable(t)
+	requireObservableFlocks(t)
 	r, repo := preparationOpenFixture(t)
 	cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0095ProcessHolderHelper$")
 	cmd.Env = append(os.Environ(), "CAL095_HOLD_ROOT="+r.Root)
