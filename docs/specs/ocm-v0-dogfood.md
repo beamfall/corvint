@@ -314,7 +314,9 @@ claim, and mutation ordering deltas below.
   (the ID without hyphens, such as `TCPV0991` for `TCP-V0-991`) as a token suffix after `_` or a
   non-token byte, as the repository's test names do (`TestX_TCPV0991`), and when a table row
   outside the requirements section names a range `PREFIX-LO..HI` (such as `TCP-V0-990..993`)
-  whose numbers include it. Evidence: `TestOCMV0900TracesCompactTestSuffixesAndRowRanges` (the
+  whose numbers include it. A range written `PREFIX-LO..PREFIX-HI` counts only when both
+  endpoints carry the same prefix; a mixed-prefix range such as `TCP-V0-990..ABC-V0-999` traces
+  nothing. Evidence: `TestOCMV0900TracesCompactTestSuffixesAndRowRanges` (the
   ctxpkt-w1 V1-1269 shape). Rollback: drop the compact and range matches.
 - `OCM-V0-920`: (experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,
   `OCM-V0-020` and `OCM-V0-025` so the change-scoped members cannot be read as the `OCM-V0-013`
