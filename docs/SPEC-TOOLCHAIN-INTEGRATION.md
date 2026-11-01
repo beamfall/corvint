@@ -57,7 +57,7 @@ build.
 The harness authors, plans, writes, and runs. Corvint says what was known, what is cited, and what
 remains unwitnessed — sitting on *both* sides of someone else's edit: the minimum witness before,
 the frontier after. SpecKit and OpenSpec are adapted as **intent sources**, never replaced; the
-adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:183-185@76be4742`, which
+adapter contract already exists at `docs/specs/verified-absence-frontier-v0.md:184-186@76be4742`, which
 requires preserving native requirement IDs and lifecycle state.
 
 The translation boundary is one line: `native requirement ID -> ocmIntent{path, blobOID, span,
@@ -112,7 +112,7 @@ The implemented advisory queue does not supply that host authority.
 ## Staged adoption
 
 1. **Observe only.** Wire an OpenSpec change to a pinned intent scope; emit a read-only frontier
-   report on agent-authored PRs. Block nothing. `docs/specs/verified-absence-frontier-v0.md:149-165@00c1286c` already
+   report on agent-authored PRs. Block nothing. `docs/specs/verified-absence-frontier-v0.md:150-166@00c1286c` already
    preregisters this experiment's success and kill thresholds — reuse them rather than inventing new
    ones.
 2. **First real gate: build and parity, not tests.** Already runs in CI, and its soundness is
