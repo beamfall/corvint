@@ -5,6 +5,8 @@ import (
 	"context"
 	"debug/buildinfo"
 	"fmt"
+	"io"
+	"os"
 	"os/exec"
 	"runtime/debug"
 	"strings"
@@ -136,4 +138,25 @@ func (writer *limitedWriter) Write(data []byte) (int, error) {
 		writer.buffer.Write(data[:min(len(data), room)])
 	}
 	return len(data), nil
+}
+
+// sharedOutputStream reports whether stdout and stderr are the same pipe or
+// regular file, as after 2>&1, so a line written to stderr would land inside
+// the stdout document (AFP-V0-871). A terminal is never shared here: a person
+// reading both streams parses nothing.
+func sharedOutputStream(stdout, stderr io.Writer) bool {
+	out, ok := stdout.(*os.File)
+	if !ok {
+		return false
+	}
+	errFile, ok := stderr.(*os.File)
+	if !ok {
+		return false
+	}
+	outInfo, err := out.Stat()
+	if err != nil || outInfo.Mode()&os.ModeCharDevice != 0 {
+		return false
+	}
+	errInfo, err := errFile.Stat()
+	return err == nil && os.SameFile(outInfo, errInfo)
 }

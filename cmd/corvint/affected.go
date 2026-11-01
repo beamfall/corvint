@@ -767,7 +767,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		receipt, err = compileAffected(ctx, invocation)
 	}
 	if err == nil {
-		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stderr)
+		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr)
 	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
@@ -801,14 +801,19 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 
 // degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
 // affected-plan/1 receipt and prints it on stderr when this binary is stale
-// for root, or could not be compared with it (AFP-V0-846).
-func degradeStaleAffected(ctx context.Context, root string, receipt any, stderr io.Writer) any {
+// for root, or could not be compared with it (AFP-V0-846). When stdout and
+// stderr are one pipe or file (2>&1) and the receipt carries the member, the
+// stderr line is left out so the document still parses (AFP-V0-871).
+func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout, stderr io.Writer) any {
 	freshness := selfBinaryStale(ctx, root)
 	if freshness.Code == "" {
 		return receipt
 	}
-	_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
-	if full, ok := receipt.(affectedReceipt); ok {
+	full, ok := receipt.(affectedReceipt)
+	if !ok || !sharedOutputStream(stdout, stderr) {
+		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+	}
+	if ok {
 		full.Degradations = append(full.Degradations, freshness.Code)
 		return full
 	}

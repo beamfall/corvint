@@ -900,7 +900,8 @@ degradations, present only when it applies, names self-binary-stale: inside
 its own repository this binary was built from a commit whose Go source differs
 from HEAD, so the plan may not be the one current source gives, or
 self-binary-unverified when that comparison could not complete; stderr repeats
-it with the rebuild command (AFP-V0-846).
+it with the rebuild command (AFP-V0-846), except when stdout and stderr are
+one pipe or file (2>&1), so the document still parses (AFP-V0-871).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane

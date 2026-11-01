@@ -18,6 +18,11 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, " base=%s", receipt.Range.Base)
 	}
 	out.WriteString("\n")
+	// AFP-V0-871: the AFP-V0-846 degradation, so a merged-stream reader
+	// that gets no stderr line still sees it.
+	for _, degradation := range receipt.Degradations {
+		fmt.Fprintf(&out, "degraded %s\n", textWord(degradation))
+	}
 	// The AFP-V0-044 / AFP-V0-356 warning that the plan read unpinned
 	// worktree content, with its recovery, as the JSON receipt carries it.
 	if receipt.Warning != "" {

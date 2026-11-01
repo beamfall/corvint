@@ -5405,6 +5405,26 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### A merged output stream still parses (AFP-V0-871; V1-4112)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4112): lanes that ran
+`corvint affected ... 2>&1` with a stale binary got the AFP-V0-846 `DEGRADED` line ahead of the
+JSON document and needed `tail -n +2` before any JSON tool would read it.
+
+- **AFP-V0-871:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4112)
+  Amending AFP-V0-846: when `corvint affected` writes an `affected-plan/1` (compact or `--full`)
+  or `affected-by-path/1` receipt that carries the `degradations` member, and its stdout and
+  stderr are the same pipe or regular file (`os.SameFile`, as after `2>&1`), it SHALL leave out
+  the `corvint: DEGRADED` stderr line, so stdout stays one parseable document that still names
+  the degradation. A terminal, two distinct files or pipes, or a writer that is not a file keeps
+  the line. `--format text` for the plan SHALL carry one `degraded CODE` line after its header,
+  as `--by-path` text already does. Non-goals: `corvint test` (whose `--dry-run` manifest has no
+  degradation member) keeps its line; Playwright receipts, which carry no member, keep theirs;
+  no other stderr output changes. Failure mode: a reader that captured only stderr from a merged
+  stream cannot exist, so no reader loses the code. Acceptance evidence:
+  `TestAffectedStaleBinaryMergedStreamStillParses` and `TestSharedOutputStream`. Rollback:
+  delete `sharedOutputStream` and print the line unconditionally again.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)

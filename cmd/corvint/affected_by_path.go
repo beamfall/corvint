@@ -58,7 +58,7 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 		return 2
 	}
 	// AFP-V0-846: a stale or unverified binary is named here as on the plan.
-	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stderr).(affectedReceipt)
+	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr).(affectedReceipt)
 	result := affectedByPath(receipt, graph, invocation.PathList)
 	result.Degradations = receipt.Degradations
 	if invocation.Format == "text" {
