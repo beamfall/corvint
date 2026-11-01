@@ -2096,6 +2096,14 @@ isolated `CODEX_HOME`, branch-built binaries).
   0.7.29 emits 0 and abstains on all 10 (8 `prompt-context-syntax-only`, 2 `prompt-context-withheld`
   for `BUDGETED` packets); 5 of the 10 prompts also name an existing path. Recorded in
   `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-v2755-prompt-frame-abstains.md`.
+  Offline replay on the 142 replayable ContextBench SWE-bench-Pro rows (2026-10-31,
+  `docs/experiments/v2755/frame_replay.py`, results in
+  `docs/experiments/v2755-contextbench-pro-frame-replay-20261031.json`): the frame emits on 1 task
+  (P@2 0.0) and abstains on 141 (77 `prompt-context-syntax-only`, 56 `prompt-context-withheld`, 8
+  `prompt-names-path`); the candidates it withholds would have had P@2 0.381 against 0.315 for the
+  idf-weighted identifier rg top 2 on the same 135 tasks, and on 67 of 142 tasks held a gold file
+  absent from the rg-idf top 5. That is measured evidence for revisiting the syntax-only rule, not
+  a change to it.
   Non-goals: no change to retrieval, ranking or Core abstention; no repository-wide declaration
   lookup for demotion; no change to other hosts, to `corvint_context`, or to the `AHI-016` twins
   and their conformance goldens; no model-tokenizer measurement.
