@@ -465,13 +465,15 @@ func TestTMV0004_AS05_EligibilityDerived(t *testing.T) {
 	}
 	e = fixture.Ticket("E")
 	e.Effects.Coverage = "UNKNOWN"
-	if v = view(inventory(t, e), "E"); codes(v)[0] != wire.CodeCoverageUnknown {
-		t.Errorf("coverage UNKNOWN under BLOCK: %+v", v.Blockers)
+	// TCL-V0-868: coverage is an advisory under BLOCK, never a blocker.
+	if v = view(inventory(t, e), "E"); len(v.Blockers) != 0 || len(v.Advisories) != 1 || v.Advisories[0].Code != wire.CodeCoverageUnknown ||
+		v.IntentChecks != "PASSED" || v.Eligibility != ticket.EligibilityUnknown || v.NextAction != "set-effects" {
+		t.Errorf("coverage UNKNOWN under BLOCK: %+v", v)
 	}
 	whole := ctx
 	whole.SerialFallback = "WHOLE_REPOSITORY"
-	if v, _ = inventory(t, e).View(fixture.TicketID("E"), whole); len(v.Blockers) != 0 {
-		t.Errorf("coverage UNKNOWN under WHOLE_REPOSITORY must pass: %+v", v.Blockers)
+	if v, _ = inventory(t, e).View(fixture.TicketID("E"), whole); len(v.Blockers) != 0 || len(v.Advisories) != 0 || v.NextAction != "admit" {
+		t.Errorf("coverage UNKNOWN under WHOLE_REPOSITORY must pass: %+v", v)
 	}
 	// Imported record only under a NATIVE writer.
 	im := fixture.Ticket("IM")

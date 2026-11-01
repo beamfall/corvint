@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/evidencestore"
@@ -15,27 +16,51 @@ import (
 func receiptAudit(env Env, args []string) *wire.Result {
 	cmd := []string{"receipt", "audit"}
 	witnesses := false
-	for _, a := range args {
-		if a != "--witness-receipts" || witnesses {
-			return usage(cmd, "receipt audit accepts only --witness-receipts")
+	var through uint64
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--witness-receipts" && !witnesses:
+			witnesses = true
+		case a == "--through" && through == 0:
+			// TCL-V0-820: a decimal receipt sequence of at least 1.
+			var n uint64
+			var err error
+			if i+1 < len(args) {
+				n, err = strconv.ParseUint(args[i+1], 10, 64)
+			}
+			if i+1 >= len(args) || err != nil || n == 0 || strconv.FormatUint(n, 10) != args[i+1] {
+				return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through needs a decimal receipt sequence of at least 1"))
+			}
+			through, i = n, i+1
+		default:
+			return usage(cmd, "receipt audit accepts only --witness-receipts or --through SEQ")
 		}
-		witnesses = true
+	}
+	if witnesses && through != 0 {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through cannot be combined with --witness-receipts"))
 	}
 	var observed *journal.Result
 	var scan *witnessReceiptScan
 	var stored []evidencestore.Entry
 	var listErr error
 	var verified, manual int
-	rc, err := withStore(env, func(rc *readCtx) error {
+	body := func(rc *readCtx) error {
 		observed = nil
 		verified, manual = 0, 0
 		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
 		reader.ReceiptFold = func() func(*snapshot.Receipt, wire.Digest) error { return store.ReceiptBindingFold(rc.repo) }
-		audited, err := reader.Audit()
+		var audited *journal.Result
+		var err error
+		if through != 0 {
+			audited, err = reader.AuditThrough(through)
+		} else {
+			audited, err = reader.Audit()
+		}
 		if err != nil {
 			return err
 		}
-		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
+		// A bounded read hashes no intent tree of its own (TCL-V0-820).
+		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || through == 0 && audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
 			return wire.Errorf(wire.CodeSnapshotMoved, "receipt audit", "journal and outer snapshot differ")
 		}
 		if err := receiptMaterialBindings(rc.repo, audited); err != nil {
@@ -64,7 +89,16 @@ func receiptAudit(env Env, args []string) *wire.Result {
 			stored, listErr = evidencestore.List(rc.repo.StateDir)
 		}
 		return nil
-	})
+	}
+	var rc *readCtx
+	var err error
+	if through != 0 {
+		if rc, err = boundedAuditCtx(env); err == nil {
+			err = body(rc)
+		}
+	} else {
+		rc, err = withStore(env, body)
+	}
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
@@ -79,6 +113,9 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	item.Set("liveness", wire.String(observed.Liveness))
 	item.Set("runtimeQualification", wire.String(observed.RuntimeQualification))
 	item.Set("stagingPresent", wire.Bool(observed.StagingPresent))
+	if through != 0 {
+		item.Set("throughSeq", wire.String(string(wire.SizeOf(through))))
+	}
 	// The audit root (JRT-V0-005): the seal's anchor S on a sealed store,
 	// whose receipts 1..S-1 the audit did not walk; 0 and 0 otherwise.
 	anchor, retired := observed.RetiredThrough(), uint64(0)
@@ -99,6 +136,33 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		receiptAuditWitnesses(result, item, scan, stored, listErr)
 	}
 	return result
+}
+
+// boundedAuditCtx is the read context of `receipt audit --through SEQ`
+// (TCL-V0-820): head.json is decoded, but the head receipt and every other
+// receipt after SEQ need not verify, so the outer snapshot check that
+// withStore applies is not taken; the bounded walk checks receipts 1..SEQ.
+func boundedAuditCtx(env Env) (*readCtx, error) {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return nil, err
+	}
+	rc := &readCtx{repo: repo}
+	s, err := snapshot.Probe(repo.StateDir)
+	if s == nil || s.Head == nil {
+		return rc, err
+	}
+	rc.snap = s
+	if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
+		return rc, wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (TRL-V0-001)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
+	}
+	if rc.store, err = intent.Load(repo.IntentRoot()); err != nil {
+		return rc, err
+	}
+	if rc.store.Queue.QueueID.Raw != s.Head.QueueID.Raw {
+		return rc, wire.Errorf(wire.CodeMalformed, repo.StateDir+"/head.json/queueId", "head queue %s differs from queue.json %s", s.Head.QueueID.Raw, rc.store.Queue.QueueID.Raw)
+	}
+	return rc, nil
 }
 
 // receiptCompact rewrites superseded liveness receipts as their elided

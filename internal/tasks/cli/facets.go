@@ -91,7 +91,7 @@ func (m facetMode) apply(res *wire.Result, summary *wire.Value, matched int) {
 // list items, which drop blockers from COMPLETED and ARCHIVED tickets.
 func facetSummary(rc *readCtx, ids []string) wire.Value {
 	inv := rc.store.Inventory
-	ctx := rc.store.Context()
+	ctx, _ := listContext(rc)
 	byStatus := zeroCounts(ticket.Statuses)
 	byPriority := zeroCounts(ticket.Priorities)
 	byKind := zeroCounts(ticket.Kinds)

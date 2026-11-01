@@ -59,6 +59,10 @@ type Env struct {
 	// lazyClosed opts a read into the closed-ticket index (TCX-V0-982):
 	// only reads that never touch Store.Tickets set it.
 	lazyClosed bool
+	// showItems makes ticket list and search page items the ticket show
+	// items of their tickets (TCL-V0-862); only compactRead's wide rerun
+	// for a --fields key the list item lacks sets it.
+	showItems bool
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
@@ -158,7 +162,10 @@ func Run(env Env) int {
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}
-	if !readOnlyVerbs[verbPath(args)] {
+	// A --dry-run commits nothing, so it never refreshes the derived
+	// closed-ticket index even when another writer advances the head
+	// meanwhile; that writer's own run refreshes it (TCL-V0-821).
+	if !readOnlyVerbs[verbPath(args)] && !hasArg(args, "--dry-run") {
 		defer closedIndexRefresher(env)()
 	}
 	switch args[0] {
@@ -175,7 +182,7 @@ func Run(env Env) int {
 		if len(args) > 1 && args[1] == "cleanup" {
 			return emit(env.Stdout, programCleanup(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"program"}, "expected show or cleanup"))
+		return emit(env.Stdout, groupMiss([]string{"program"}, args[1:], "expected show or cleanup"))
 	case "run":
 		if attemptMode(args[1:]) {
 			return attemptRun(env, args[1:])
@@ -211,9 +218,13 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketList(env, a) }))
+			wide := env
+			wide.showItems = true
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketList(wide, a) }}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
-			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
+			wide := env
+			wide.showItems = true
+			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketSearch(wide, a) }}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
@@ -262,7 +273,7 @@ func Run(env Env) int {
 		if isOmitted("ticket " + args[1]) {
 			return emit(env.Stdout, notRun([]string{"ticket", args[1]}))
 		}
-		return emit(env.Stdout, usage([]string{"ticket"}, "unknown ticket verb"))
+		return emit(env.Stdout, unknownVerb([]string{"ticket"}, args[1]))
 	case "release":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"release"}, "release needs a verb"))
@@ -305,13 +316,16 @@ func Run(env Env) int {
 		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release" || args[1] == "wait" || args[1] == "operate" || args[1] == "observe") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
+		if len(args) < 2 {
+			return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
+		}
+		return emit(env.Stdout, unknownVerb([]string{"pool"}, args[1]))
 	case "slots":
 		// PSR-V0-032..037: shared-capacity slots of a declared resource.
 		if len(args) > 1 && (args[1] == "acquire" || args[1] == "release") {
 			return emit(env.Stdout, leaseCommand(env, "slots "+args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"slots"}, "unknown slots verb; slots acquire|release --help"))
+		return emit(env.Stdout, groupMiss([]string{"slots"}, args[1:], "unknown slots verb; slots acquire|release --help"))
 	case "attempt":
 		if len(args) > 1 && args[1] == "show" {
 			return emit(env.Stdout, compactRead([]string{"attempt", "show"}, args[2:], compactSpec{summary: attemptSummary}, func(a []string) *wire.Result { return attemptCommand(env, append([]string{"show"}, a...)) }))
@@ -339,9 +353,9 @@ func Run(env Env) int {
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status or snapshot"))
+		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status or snapshot"))
 	case "roadmap":
-		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: pageValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
+		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
 		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
@@ -369,7 +383,7 @@ func Run(env Env) int {
 		case "state":
 			return emit(env.Stdout, gateState(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
+		return emit(env.Stdout, unknownVerb([]string{"gate"}, args[1]))
 
 	case "reconcile":
 		if len(args) < 2 {
@@ -381,7 +395,7 @@ func Run(env Env) int {
 		case "intent":
 			return emit(env.Stdout, reconcileIntent(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"reconcile"}, "unknown reconcile verb"))
+		return emit(env.Stdout, unknownVerb([]string{"reconcile"}, args[1]))
 	case "receipt":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"receipt"}, "receipt needs a verb: audit [--witness-receipts], compact [--dry-run], retire --archive FILE [--dry-run], unretire --archive FILE, put FILE, get SHA256, path SHA256, prune [--dry-run], show <seq>, replay <seq>"))
@@ -404,7 +418,7 @@ func Run(env Env) int {
 		case "show", "replay":
 			return emit(env.Stdout, notRun([]string{"receipt", args[1]}))
 		}
-		return emit(env.Stdout, usage([]string{"receipt"}, "unknown receipt verb"))
+		return emit(env.Stdout, unknownVerb([]string{"receipt"}, args[1]))
 	case "journal":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"journal"}, "journal needs a verb: seal, unseal"))
@@ -413,7 +427,7 @@ func Run(env Env) int {
 		case "seal", "unseal":
 			return emit(env.Stdout, journalSeal(env, args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
+		return emit(env.Stdout, unknownVerb([]string{"journal"}, args[1]))
 	case "archive":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE], restore FILE"))
@@ -427,34 +441,12 @@ func Run(env Env) int {
 		case "restore":
 			return emit(env.Stdout, archiveRestore(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"archive"}, "unknown archive verb"))
+		return emit(env.Stdout, unknownVerb([]string{"archive"}, args[1]))
 	}
 	if isOmitted(args[0]) {
 		return emit(env.Stdout, notRun([]string{args[0]}))
 	}
-	res := usage([]string{"help"}, unknownVerbHint(args[0]))
-	res.Codes = []string{wire.CodeMalformed} // TCL-V0-859
-	return emit(env.Stdout, res)
-}
-
-// unknownVerbHint names the implemented verbs whose last word is the unknown
-// first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`,
-// then the first verb words a typo is near (TCL-V0-859), so `tikcet` routes
-// to `ticket`.
-func unknownVerbHint(word string) string {
-	var matches []string
-	for _, verb := range ReadVerbs {
-		if i := strings.LastIndexByte(verb, ' '); i >= 0 && verb[i+1:] == word {
-			matches = append(matches, "`corvint-tasks "+verb+" --help`")
-		}
-	}
-	for _, first := range nearVerbWords(word) {
-		matches = append(matches, "`corvint-tasks "+first+" --help`")
-	}
-	if len(matches) == 0 {
-		return "unknown verb; run `corvint-tasks help`"
-	}
-	return "unknown verb; did you mean " + strings.Join(matches, " or ") + "? run `corvint-tasks help` for every verb"
+	return emit(env.Stdout, unknownVerb(nil, args[0]))
 }
 
 func isOmitted(verb string) bool {
@@ -567,7 +559,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks ticket blockers <ticketId|local>",
 		"corvint-tasks ticket export [--offset N] [--limit N]",
 		"corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
-		"corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+		"corvint-tasks roadmap [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 		"corvint-tasks gate list",
 		"corvint-tasks gate show <gateId>",
 		"corvint-tasks archive export [--staging DIR]   (stream on stdout, envelope on stderr)",
@@ -576,7 +568,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 		"corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]   (optional payload localToken, e.g. BT-002, picks the queue-local ID; no --target)",
-		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks <command> --help   (usage and flags; add --verbose for notes, reason codes and preconditions)",
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
@@ -874,8 +866,8 @@ var (
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
-		"labels":  "list items omit labels; read them with ticket show <id> --fields record.labels, or ticket export for whole records",
-		"effects": "list items omit effects; read them with ticket show <id> --fields record.effects, or ticket export for whole records",
+		"labels":  "list items omit labels; pass --fields record.labels here (each item is then its ticket show item, TCL-V0-862), read ticket show <id> --fields record.labels, or ticket export for whole records",
+		"effects": "list items omit effects; pass --fields record.effects here (each item is then its ticket show item, TCL-V0-862), read ticket show <id> --fields record.effects, or ticket export for whole records",
 	}
 )
 
@@ -950,10 +942,10 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 // (CAL-V0-182); ended, when non-nil, supplies lastAttemptEndedAt for the
 // page's tickets (CAL-V0-183, `ticket list` only; a missing entry is null).
 func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) ([]wire.Value, *wire.Page, []string) {
-	ctx := rc.store.Context()
+	ctx, why := listContext(rc)
 	start, end := p.window(len(ids))
 	items := make([]wire.Value, 0, end-start)
-	var hoisted []string
+	hoisted := readerWarning(why)
 	for _, id := range ids[start:end] {
 		v, _ := rc.store.Inventory.View(id, ctx)
 		terminal := v.Record.Status == ticket.StatusCompleted || v.Record.Status == ticket.StatusArchived
@@ -987,6 +979,32 @@ func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) (
 		}
 	}
 	return items, p.result(len(ids), len(items)), hoisted
+}
+
+// listContext is the ticket context list items and facets are judged in:
+// with a journal it carries the reservation set, as ticket show does, so
+// attempt liveness is observed and no journal-absent unknown is reported
+// where the journal exists (V1-3715). When the reservation set cannot be
+// read, liveness stays NOT_OBSERVED and the returned reason says why.
+func listContext(rc *readCtx) (ticket.Context, string) {
+	if rc.journalAbsent {
+		return rc.store.Context(), ""
+	}
+	ctx, err := ticketContext(rc)
+	if err != nil {
+		return rc.store.Context(), "the reservation set was not readable: " + err.Error()
+	}
+	return ctx, ""
+}
+
+// readerWarning is the store-wide ATTEMPT_LIVE warning for listContext's
+// reason, or nil when the reservation set was read. A count-only read and
+// roadmap rows carry it as list pages do (TCL-V0-867).
+func readerWarning(why string) []string {
+	if why == "" {
+		return nil
+	}
+	return []string{"store-wide unknown " + wire.CodeAttemptLive + " for every listed ticket: attempt liveness NOT_OBSERVED (" + why + "); list items do not repeat it"}
 }
 
 // addTransitionTimes sets completedAt and statusChangedAt (CAL-V0-182) from
@@ -1161,6 +1179,8 @@ func ticketList(env Env, args []string) *wire.Result {
 			summary = &s
 		}
 		if fm.count {
+			_, why := listContext(rc)
+			hoisted = readerWarning(why)
 			return nil // no page, so no per-item attempt read (CAL-V0-207)
 		}
 		start, end := p.window(len(ids))
@@ -1169,7 +1189,7 @@ func ticketList(env Env, args []string) *wire.Result {
 			return err
 		}
 		items, pg, hoisted = listViews(rc, ids, p, ended)
-		return nil
+		return showPage(env, rc, ids[start:end], items)
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
@@ -1367,6 +1387,9 @@ func (f searchFilter) matchesText(rec *ticket.Record) bool {
 func ticketSearch(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "search"}
 	env.lazyClosed = true
+	if queryFlagGiven(args) {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--query", "ticket search has no --query flag; filter by title or body text with --text T (TCL-V0-863)"))
+	}
 	fm, args, err := facetFlags(args, searchValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
@@ -1412,7 +1435,11 @@ func ticketSearch(env Env, args []string) *wire.Result {
 		}
 		if !fm.count {
 			items, pg, hoisted = listViews(rc, ids, p, nil)
+			start, end := p.window(len(ids))
+			return showPage(env, rc, ids[start:end], items)
 		}
+		_, why := listContext(rc)
+		hoisted = readerWarning(why)
 		return nil
 	})
 	if err != nil {
@@ -1425,6 +1452,36 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	res.Warnings = append(res.Warnings, hoisted...)
 	fm.apply(res, summary, matched)
 	return res
+}
+
+// queryFlagGiven reports a --query in a flag position of search's args.
+func queryFlagGiven(args []string) bool {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--query" || strings.HasPrefix(a, "--query="):
+			return true
+		case containsArg(searchValueFlags, a):
+			i++
+		}
+	}
+	return false
+}
+
+// showPage replaces each list item with its ticket's show item when the read
+// was asked for show items (TCL-V0-862); ids are the page's tickets in item
+// order.
+func showPage(env Env, rc *readCtx, ids []string, items []wire.Value) error {
+	if !env.showItems || len(items) == 0 {
+		return nil
+	}
+	sr, err := newShowReader(rc)
+	if err != nil {
+		return err
+	}
+	for i, id := range ids[:len(items)] {
+		items[i] = sr.item(id, true)
+	}
+	return nil
 }
 
 // ticketExport emits the full canonical records of one page of tickets in
@@ -1490,14 +1547,18 @@ func ticketExport(env Env, args []string) *wire.Result {
 func roadmap(env Env, args []string) *wire.Result {
 	cmd := []string{"roadmap"}
 	env.lazyClosed = true
-	fm, args, err := facetFlags(args, pageValueFlags)
+	fm, args, err := facetFlags(args, listValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("roadmap", args)
+	fl, p, err := pagedFlags("roadmap", args, "status")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	statuses, err := listStatuses(args, fl)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
@@ -1505,15 +1566,29 @@ func roadmap(env Env, args []string) *wire.Result {
 	var pg *wire.Page
 	var unmilestoned int64
 	var summary *wire.Value
+	var hoisted []string
 	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		unmilestoned = openWithoutMilestone(rc.store.Inventory)
 		ids := rc.store.Inventory.Sorted()
+		if statuses != nil {
+			// TCL-V0-864: filtered from the summary, so no closed record is decoded.
+			kept := ids[:0:0]
+			for _, id := range ids {
+				if s, ok := rc.store.Inventory.Summary(id); ok && statuses[s.Status] {
+					kept = append(kept, id)
+				}
+			}
+			ids = kept
+		}
 		matched = len(ids)
 		if fm.facets || fm.count {
 			s := facetSummary(rc, ids)
 			summary = &s
 		}
+		// TCL-V0-867: rows are judged with the facets' reservation set.
+		ctx, why := listContext(rc)
+		hoisted = readerWarning(why)
 		if fm.count {
 			return nil
 		}
@@ -1533,7 +1608,6 @@ func roadmap(env Env, args []string) *wire.Result {
 			return a < b
 		})
 		start, end := p.window(len(ids))
-		ctx := rc.store.Context()
 		items = items[:0]
 		for _, id := range ids[start:end] {
 			items = append(items, roadmapRow(rc.store.Inventory, id, ctx))
@@ -1548,6 +1622,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	res.Warnings = append(res.Warnings, hoisted...)
 	if unmilestoned > 0 {
 		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
 	}
@@ -1772,7 +1847,8 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	var item *wire.Value
 	notFound, candidates := "", ""
 	read := withStore
-	if includeRecord {
+	if includeRecord || snapshotBundlePath(env.Cwd) != "" {
+		// TCL-V0-869: blockers is served from a snapshot too.
 		read = withInventoryStore
 	}
 	rc, err := read(env, func(rc *readCtx) error {
@@ -1789,74 +1865,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			}
 			return nil
 		}
-		ctx, err := ticketContext(rc)
+		sr, err := newShowReader(rc)
 		if err != nil {
 			return err
 		}
-		attempts := map[string]*snapshot.Attempt{}
-		var in transaction.PlanInput
-		if !rc.journalAbsent {
-			var e error
-			in, _, e = planInput(rc)
-			if e != nil {
-				return e
-			}
-			attempts = in.Attempts
-			// CAL-V0-102: eligibility shows the derived loop hold.
-			rec, _ := rc.store.Inventory.Get(id)
-			ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
-		}
-		v, _ := rc.store.Inventory.View(id, ctx)
-		// ERG-V0-011: a read-only complete-manual offer when every required
-		// external review gate is a CURRENT PASS; never a write.
-		offers := completionOffers{rc: rc, in: in}
-		offers.offer(&v)
-		val := v.Value(includeRecord)
-		if includeRecord {
-			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
-		}
-		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
-		// ATR-V0-191: the ticket's live attempt, its holder and recovery.
-		observed := in
-		observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
-		switch current := transaction.CurrentAttempt(observed, id); {
-		case rc.journalAbsent:
-			val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
-		case current == nil:
-			val.Obj.Set("liveAttempt", wire.Null())
-		default:
-			val.Obj.Set("liveAttempt", current.Value())
-		}
-		// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
-		// with its retained output tail.
-		if rc.journalAbsent {
-			val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
-		} else {
-			val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
-		}
-		// V1-2038: the gate set complete enforces, policy-required gates included.
-		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
-		// ATR-V0-273: every grant an APPROVAL_REQUIRED ticket still needs
-		// through completion, readable before any claim.
-		val.Obj.Set("missingGrants", wire.Strings(ticket.MissingGrants(v.Record)))
-		// CAL-V0-084: null without a journal, since nothing is observed.
-		val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
-		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
-		// ATR-V0-216: ticket show's declared claim scope, null when the ticket
-		// declares no path and a claim takes its requested scope.
-		if includeRecord {
-			declaredScope := wire.Null()
-			if d := transaction.Declared(v.Record); len(d) > 0 {
-				declaredScope = wire.Strings(d)
-			}
-			val.Obj.Set("declaredScope", declaredScope)
-		}
-		if rc.journalAbsent {
-			val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
-		} else {
-			claimable, reason := transaction.RecordedClaimability(observed, v.Record) // PSR-V0-267: stall age at now
-			val.Obj.Set("claimable", claimable).Set("claimabilityReason", wire.String(reason))
-		}
+		val := sr.item(id, includeRecord)
 		item = &val
 		return nil
 	})
@@ -1881,6 +1894,103 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	return res
 }
 
+// showReader builds `ticket show` items over one read: the ticket context and
+// the plan input are computed once, so `ticket list` and `ticket search`
+// --fields naming a show-only key reuse it per page item (TCL-V0-862).
+type showReader struct {
+	rc       *readCtx
+	ctx      ticket.Context
+	in       transaction.PlanInput
+	attempts map[string]*snapshot.Attempt
+	observed transaction.PlanInput
+}
+
+func newShowReader(rc *readCtx) (*showReader, error) {
+	ctx, err := ticketContext(rc)
+	if err != nil {
+		return nil, err
+	}
+	sr := &showReader{rc: rc, ctx: ctx, attempts: map[string]*snapshot.Attempt{}}
+	if !rc.journalAbsent {
+		in, _, e := planInput(rc)
+		if e != nil {
+			return nil, e
+		}
+		sr.in, sr.attempts = in, in.Attempts
+	}
+	sr.observed = sr.in
+	sr.observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+	return sr, nil
+}
+
+// item is the show item of id, which must exist in the inventory.
+func (sr *showReader) item(id string, includeRecord bool) wire.Value {
+	rc, in, attempts, observed, ctx := sr.rc, sr.in, sr.attempts, sr.observed, sr.ctx
+	if !rc.journalAbsent {
+		// CAL-V0-102: eligibility shows the derived loop hold.
+		rec, _ := rc.store.Inventory.Get(id)
+		ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
+	}
+	v, _ := rc.store.Inventory.View(id, ctx)
+	// ERG-V0-011: a read-only complete-manual offer when every required
+	// external review gate is a CURRENT PASS; never a write.
+	offers := completionOffers{rc: rc, in: in}
+	offers.offer(&v)
+	val := v.Value(includeRecord)
+	if includeRecord {
+		val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
+		// TCL-V0-865: every failing intent check named beside the verdict.
+		failed := []string{}
+		for _, b := range v.Blockers {
+			if !slices.Contains(failed, b.Code) {
+				failed = append(failed, b.Code)
+			}
+		}
+		val.Obj.Set("intentChecksFailed", wire.Strings(failed))
+	}
+	val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+	// ATR-V0-191: the ticket's live attempt, its holder and recovery.
+	switch current := transaction.CurrentAttempt(observed, id); {
+	case rc.journalAbsent:
+		val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
+	case current == nil:
+		val.Obj.Set("liveAttempt", wire.Null())
+	default:
+		val.Obj.Set("liveAttempt", current.Value())
+	}
+	// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
+	// with its retained output tail.
+	if rc.journalAbsent {
+		val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
+	} else {
+		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+	}
+	// V1-2038: the gate set complete enforces, policy-required gates included.
+	val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
+	// ATR-V0-273: every grant an APPROVAL_REQUIRED ticket still needs
+	// through completion, readable before any claim.
+	val.Obj.Set("missingGrants", wire.Strings(ticket.MissingGrants(v.Record)))
+	// CAL-V0-084: null without a journal, since nothing is observed.
+	val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
+	val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
+	// ATR-V0-216: ticket show's declared claim scope, null when the ticket
+	// declares no path and a claim takes its requested scope.
+	if includeRecord {
+		declaredScope := wire.Null()
+		if d := transaction.Declared(v.Record); len(d) > 0 {
+			declaredScope = wire.Strings(d)
+		}
+		val.Obj.Set("declaredScope", declaredScope)
+	}
+	if rc.journalAbsent {
+		val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
+	} else {
+		claimable, reason := transaction.RecordedClaimability(observed, v.Record) // PSR-V0-267: stall age at now
+		val.Obj.Set("claimable", claimable).Set("claimabilityReason", wire.String(reason))
+	}
+	return val
+}
+
 // journalAbsentNotFound is the CTS-V0-010 refusal: a journal-absent read
 // sees only this checkout's intent projection, which can be older than the
 // queue's journal, so a missing ticket is unobserved here, not proven absent.
@@ -1888,7 +1998,7 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 	return "ticket " + id + " is not in this checkout's intent projection (.taskman tree sha256 " + string(rc.store.Tree.Sha256) +
 		"), and no journal exists at " + rc.repo.StateDir + ": a ticket created after the last committed .taskman snapshot is NOT_OBSERVED here, not proven absent. " +
 		"Read it from the checkout whose .git holds the queue's journal (the primary worktree or one of its linked worktrees), " +
-		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`"
+		"for example `cd PRIMARY_WORKTREE && corvint-tasks ticket show " + id + "`." + remoteProjectionHint(rc.repo, id)
 }
 
 func queueStatus(env Env, args []string) *wire.Result {

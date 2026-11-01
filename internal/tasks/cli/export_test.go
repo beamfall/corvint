@@ -569,3 +569,11 @@ func SetSplitAfterStep(f func(step string) error) func() {
 	splitAfterStep = f
 	return func() { splitAfterStep = was }
 }
+
+// SetPolicyDryRunHook runs f after `policy update --dry-run` reads its fence
+// preview (TCL-V0-821).
+func SetPolicyDryRunHook(f func()) func() {
+	was := policyDryRunHook
+	policyDryRunHook = f
+	return func() { policyDryRunHook = was }
+}

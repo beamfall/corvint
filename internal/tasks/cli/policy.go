@@ -20,27 +20,34 @@ func policyCommand(env Env, args []string) *wire.Result {
 	}
 	cmd := []string{"policy", "update"}
 	if len(args) == 0 || args[0] != "update" {
-		return usage([]string{"policy"}, "policy needs the verb show or update")
+		return groupMiss([]string{"policy"}, args, "policy needs the verb show or update")
 	}
 	args = args[1:]
 	role, request, expected, file := "OWNER", "", "", ""
 	values := map[string]*string{"--role": &role, "--request-id": &request, "--expected-policy-version": &expected, "--file": &file}
 	seen := map[string]bool{}
+	dryRun := false
 	for i := 0; i < len(args); i++ {
 		key := args[i]
+		if key == "--dry-run" && !dryRun {
+			dryRun = true
+			continue
+		}
 		destination, ok := values[key]
 		if !ok || seen[key] || i+1 >= len(args) {
-			return usage(cmd, "policy update requires --request-id ID --expected-policy-version N --file PATH and optional --role OWNER|OPERATOR; duplicate and unknown flags refuse")
+			return usage(cmd, "policy update requires --request-id ID --expected-policy-version N --file PATH and optional --role OWNER|OPERATOR and --dry-run; duplicate and unknown flags refuse")
 		}
 		seen[key] = true
 		i++
 		*destination = args[i]
 	}
-	if !seen["--request-id"] || !seen["--expected-policy-version"] || !seen["--file"] {
-		return usage(cmd, "policy update requires --request-id ID --expected-policy-version N --file PATH")
+	if (!dryRun && !seen["--request-id"]) || !seen["--expected-policy-version"] || !seen["--file"] {
+		return usage(cmd, "policy update requires --request-id ID --expected-policy-version N --file PATH (--dry-run needs no --request-id)")
 	}
-	if _, err := mutation.ParseRequestID("requestId", request); err != nil {
-		return errorResult(cmd, err)
+	if seen["--request-id"] {
+		if _, err := mutation.ParseRequestID("requestId", request); err != nil {
+			return errorResult(cmd, err)
+		}
 	}
 	version, err := wire.ParseSize("expectedPolicyVersion", expected)
 	if err != nil {
@@ -62,6 +69,9 @@ func policyCommand(env Env, args []string) *wire.Result {
 	observed, pending, err := writerProbe(nil, repo.StateDir)
 	if err != nil {
 		return errorResult(cmd, err)
+	}
+	if dryRun {
+		return policyDryRun(env, cmd, raw, version, pending)
 	}
 	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
@@ -95,6 +105,42 @@ func policyCommand(env Env, args []string) *wire.Result {
 	}
 	return res
 }
+
+// policyDryRun is `policy update --dry-run` (TCL-V0-821): it checks the file
+// as the write would decode it, then returns the CAL-V0-124 fence preview
+// and writes nothing. The later write repeats every check under the lock.
+func policyDryRun(env Env, cmd []string, raw []byte, expected wire.Size, pending bool) *wire.Result {
+	next, err := intent.DecodePolicy(raw)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	if next.PolicyVersion.Uint64() != expected.Uint64()+1 {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "/policyVersion", "policyVersion %s must be --expected-policy-version plus one (%d)", next.PolicyVersion, expected.Uint64()+1))
+	}
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK}
+	o := wire.NewObject().Set("dryRun", wire.Bool(true)).Set("newPolicySha256", wire.String(string(wire.Sum(raw))))
+	var fences wire.Value
+	var fenceErr error = wire.Errorf(wire.CodeRedoPending, "head.json", "a committed receipt is not settled yet")
+	if !pending {
+		fences, fenceErr = handoffFencePreview(env, raw)
+	}
+	policyDryRunHook()
+	if fenceErr != nil {
+		o.Set("handoffFences", wire.Null())
+		res.Warnings = append(res.Warnings, "handoff fence preview NOT_OBSERVED ("+wire.CodeOf(fenceErr)+"); dry run, nothing was written")
+	} else {
+		o.Set("handoffFences", fences)
+		if n := len(fences.Arr); n > 0 {
+			res.Warnings = append(res.Warnings, fmt.Sprintf("this policy change would fence or may fence the clean HANDOFF/REVIEW_RETURNED release of %d live attempt(s) listed in handoffFences (CAL-V0-124); dry run, nothing was written", n))
+		}
+	}
+	res.Items = []wire.Value{wire.ObjectValue(o)}
+	return res
+}
+
+// policyDryRunHook runs after the dry run reads its preview; tests use it to
+// advance the head the way a concurrent writer does (TCL-V0-821).
+var policyDryRunHook = func() {}
 
 // handoffFencePreview is the CAL-V0-124 advisory read taken before the
 // writer runs: one pinned snapshot of the current policy and live attempts.

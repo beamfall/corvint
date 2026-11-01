@@ -22,7 +22,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	}
 	op, ok := releaseVerbs[verb]
 	if !ok && verb != "record-gate" {
-		return usage(cmd, "unknown release verb")
+		return groupMiss([]string{"release"}, []string{verb}, "unknown release verb")
 	}
 	var add, remove []string
 	if verb == "membership" {

@@ -1002,6 +1002,7 @@ CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-950	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3701; extends `CAP-V0-015`	standing	V1-3701
 CAP-V0-700	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3737, V1-3499) Every compa	standing	V1-3737; V1-3499
 CAP-V0-701	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3737, V1-3499)	standing	V1-3737; V1-3499
+CAP-V0-820	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3902; refines	standing	2026-11-01; V1-3902
 CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines	standing	2026-10-30; V1-3153
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-931	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
@@ -2472,10 +2473,23 @@ TCL-V0-011	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-012	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3223) Under	standing	2026-10-11; V1-3223
 TCL-V0-013	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237, V1-3223)	standing	2026-10-11; V1-3237; V1-3223
 TCL-V0-014	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3236) A new	standing	2026-10-11; V1-3236
+TCL-V0-860	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3714) A	standing	2026-10-11; V1-3714
+TCL-V0-861	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3714) The	standing	2026-10-11; V1-3714
+TCL-V0-862	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3714)	standing	2026-10-11; V1-3714
+TCL-V0-863	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3714)	standing	2026-10-11; V1-3714
+TCL-V0-864	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3714)	standing	2026-10-11; V1-3714
+TCL-V0-865	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3534) A	standing	2026-10-11; V1-3534
+TCL-V0-866	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3597) `claim`	standing	2026-10-11; V1-3597
+TCL-V0-867	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3715) Where	standing	2026-10-11; V1-3715
+TCL-V0-868	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket	standing	2026-10-11; V1-3794
+TCL-V0-869	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3173)	standing	2026-10-11; V1-3173
 TCL-V0-870	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A	standing	2026-10-11; V1-3552
 TCL-V0-990	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The	standing	2026-10-11; V1-3517
 TCL-V0-991	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A	standing	2026-10-11; V1-3766
 TCL-V0-859	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3736) An	standing	2026-10-11; V1-3736
+TCL-V0-820	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3559)	standing	2026-11-01; V1-3559
+TCL-V0-821	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0896; refines	standing	2026-11-01; V1-0896
+TCL-V0-822	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3925; refines	standing	2026-11-01; V1-3925
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
 TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-
@@ -2526,7 +2540,7 @@ TCD-V0-178	docs/specs/corvint-tasks-closeout-debt-v0.md	`release --reason` admit
 TCD-V0-179	docs/specs/corvint-tasks-closeout-debt-v0.md	In `ticket batch-delivered` and `ticket batch-close` (amending TCD-V0-163 and	unrecorded	-
 TCD-V0-180	docs/specs/corvint-tasks-closeout-debt-v0.md	A batch PR that is `MERGED` in the `--prs` export but has no `mergeCommit` refus	unrecorded	-
 TCD-V0-181	docs/specs/corvint-tasks-closeout-debt-v0.md	(amending TCD-V0-174) the store resolves `--scope-from-diff REV` to REV's full t	unrecorded	-
-TCD-V0-182	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket show` and `ticket list` items of an `OPEN` ticket whose blockers are all	unrecorded	-
+TCD-V0-182	docs/specs/corvint-tasks-closeout-debt-v0.md	`ticket show` and `ticket list` items of an `OPEN` ticket with no blocker whose	unrecorded	-
 TCD-V0-183	docs/specs/corvint-tasks-closeout-debt-v0.md	`script/tasks-scratch-queue.sh DIR` creates an execution-ready scratch queue in	unrecorded	-
 TCD-V0-184	docs/specs/corvint-tasks-closeout-debt-v0.md	(amending the TCD-V0-182 non-goal) a full `plan preview` entry for an `OPEN`	unrecorded	-
 TCD-V0-185	docs/specs/corvint-tasks-closeout-debt-v0.md	(amending TCD-V0-169) without `--manual`, `ticket batch-close` closes each	unrecorded	-
@@ -2739,6 +2753,7 @@ TLF-V0-960	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the stan
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
 TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
+TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
@@ -3079,6 +3094,8 @@ CTS-V0-872	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-873	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3304)	standing	2026-10-11; V1-3304
 CTS-V0-990	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11), V1-3565)	standing	2026-10-11; V1-3565
 CTS-V0-991	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11), V1-3566) Whe	standing	2026-10-11; V1-3566
+CTS-V0-820	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
+CTS-V0-821	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-

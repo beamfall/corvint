@@ -56,7 +56,7 @@ func readWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
 	if err != nil {
 		return nil
 	}
-	base, err := intent.ReadFile(journal.WriterBasePath(repo.StateDir), journal.MaxWriterBaseBytes)
+	base, err := intent.ReadFile(journal.WriterBasePath(repo.StateDir), journal.MaxWriterBaseReadBytes)
 	if err != nil {
 		return nil
 	}

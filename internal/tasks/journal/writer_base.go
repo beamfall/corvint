@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"math"
 	"sort"
 	"strings"
 
@@ -55,8 +56,13 @@ const baseAggregates = 10
 // maxBaseSegments bounds the sealed segment digests a base carries.
 const maxBaseSegments = wire.MaxArchiveFiles/snapshot.SegmentReceipts + 1
 
-// MaxWriterBaseBytes bounds the base a writer is willing to consume.
-const MaxWriterBaseBytes = baseHeaderBytes + (baseRecordBytes+maxBasePathBytes)*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + writerNoteBytes*wire.MaxTicketsPerQueue + 8 + maxBaseCheckpointBytes + baseAggregates*8 + 8 + sha256.Size*maxBaseSegments
+// MaxWriterBaseBytes bounds the base a writer is willing to consume. It is
+// an int64 so the bound compiles on 32-bit targets too (V1-3581), where it
+// exceeds int; MaxWriterBaseReadBytes is the bound a read can apply there.
+const MaxWriterBaseBytes = int64(baseHeaderBytes) + (baseRecordBytes+maxBasePathBytes)*maxWriterEntries + writerRequestBytes*wire.MaxArchiveFiles + writerNoteBytes*wire.MaxTicketsPerQueue + 8 + maxBaseCheckpointBytes + baseAggregates*8 + 8 + sha256.Size*maxBaseSegments
+
+// MaxWriterBaseReadBytes is MaxWriterBaseBytes clamped to the platform int.
+const MaxWriterBaseReadBytes = int(min(MaxWriterBaseBytes, math.MaxInt))
 
 // WriterBasePath is the sibling of the writer checkpoint that holds its base.
 func WriterBasePath(stateDir string) string { return WriterCheckpointPath(stateDir) + ".base" }
@@ -236,7 +242,7 @@ func encodeBase(w *WriterCheckpoint) ([]byte, error) {
 // segments only over receipts the base covers.
 func decodeBase(raw []byte) (*baseTable, error) {
 	bad := func(why string) error { return errCheckpoint("writer checkpoint base", why) }
-	if len(raw) > MaxWriterBaseBytes {
+	if int64(len(raw)) > MaxWriterBaseBytes {
 		return nil, bad("larger than its bound")
 	}
 	if name, _, _ := strings.Cut(ProfileWriterBase, "/"); bytes.HasPrefix(raw, []byte(name+"/")) && !bytes.HasPrefix(raw, []byte(baseMagic)) {

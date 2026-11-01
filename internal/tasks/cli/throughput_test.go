@@ -267,10 +267,10 @@ func TestCALV0184_QueueStatusLastCompletionAndWindows(t *testing.T) {
 			t.Fatalf("archived lastCompletion: %s", wire.Encode(lc))
 		}
 
-		// A journal the receipt audit cannot read (this fixture commits 361
-		// inline posts in one receipt) leaves the receipt UNKNOWN and the
-		// read otherwise unchanged.
+		// A journal the receipt audit cannot read leaves the receipt UNKNOWN
+		// and the read otherwise unchanged.
 		big := compactListRepo(t)
+		unreadableJournal(t, big)
 		if lc := field(status(big.Root), "lastCompletion"); field(lc, "ticketId").Str != fixture.TicketID("L357") || field(lc, "receipt").Str != "UNKNOWN" {
 			t.Fatalf("unaudited lastCompletion: %s", wire.Encode(lc))
 		}

@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"slices"
-	"strings"
-
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -34,38 +31,6 @@ func refusalCodes(o mutation.Outcome) []string {
 		return []string{c}
 	}
 	return []string{wire.CodeMalformed}
-}
-
-// nearVerbWords returns the distinct first words of ReadVerbs within edit
-// distance 2 of word, nearest first, at most three (TCL-V0-859). A distance
-// must also be at most half the word's length, so a short unrelated word
-// suggests nothing.
-func nearVerbWords(word string) []string {
-	type candidate struct {
-		word     string
-		distance int
-	}
-	var found []candidate
-	seen := map[string]bool{}
-	for _, verb := range ReadVerbs {
-		first, _, _ := strings.Cut(verb, " ")
-		if seen[first] {
-			continue
-		}
-		seen[first] = true
-		if d := editDistance(word, first); d > 0 && d <= 2 && 2*d <= len(word) {
-			found = append(found, candidate{first, d})
-		}
-	}
-	slices.SortStableFunc(found, func(a, b candidate) int { return a.distance - b.distance })
-	near := make([]string, 0, 3)
-	for _, c := range found {
-		if len(near) == 3 {
-			break
-		}
-		near = append(near, c.word)
-	}
-	return near
 }
 
 // editDistance is the Levenshtein distance between a and b over bytes.

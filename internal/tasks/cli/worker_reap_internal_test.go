@@ -685,3 +685,70 @@ func testMain(m *testing.M) int {
 	}
 	return code
 }
+
+// awaitGroupExit waits, bounded, until no live process is in group pgid, so
+// a group the test killed has exited before ReapWorkersOnCleanup judges it
+// (V1-3832). A group still live at the deadline is left to that check.
+func awaitGroupExit(t *testing.T, pgid int, within time.Duration) {
+	t.Helper()
+	for deadline := time.Now().Add(within); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		table, err := groupreap.ReadProcessTable()
+		if err != nil {
+			return
+		}
+		if !groupLive(table, pgid) {
+			return
+		}
+	}
+}
+
+// groupLive reports a live (non-zombie) member of group pgid in table.
+func groupLive(table map[int]groupreap.Process, pgid int) bool {
+	for _, p := range table {
+		if p.PGID == pgid && live(p) {
+			return true
+		}
+	}
+	return false
+}
+
+// TestAwaitGroupExitWaitsForKilledMembers (V1-3832): a group with a leader
+// and a member, killed with SIGKILL, has no live member once awaitGroupExit
+// returns, so ReapWorkersOnCleanup finds nothing to report.
+func TestAwaitGroupExitWaitsForKilledMembers(t *testing.T) {
+	ReapWorkersOnCleanup(t)
+	cmd := exec.Command("/bin/sh", "-c", "sleep 30 & exec sleep 30")
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waited := make(chan struct{})
+	go func() { _ = cmd.Wait(); close(waited) }()
+	pgid := cmd.Process.Pid
+	for i := 0; i < 250; i++ {
+		table, err := groupreap.ReadProcessTable()
+		if err != nil {
+			t.Fatal(err)
+		}
+		n := 0
+		for _, p := range table {
+			if p.PGID == pgid && live(p) {
+				n++
+			}
+		}
+		if n >= 2 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	syscall.Kill(-pgid, syscall.SIGKILL)
+	awaitGroupExit(t, pgid, 30*time.Second)
+	table, err := groupreap.ReadProcessTable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if groupLive(table, pgid) {
+		t.Fatalf("group %d has a live member after awaitGroupExit", pgid)
+	}
+	<-waited
+}

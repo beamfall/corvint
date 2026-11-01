@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"testing"
 
@@ -52,7 +53,7 @@ func worstCasePools(t *testing.T, reason func(int) string) (*priorityFixture, []
 	oid := strings.Repeat("a", 64)
 	src := &intent.PoolSource{Revision: oid, Tree: strings.Repeat("b", 64)}
 	id, out := wire.Sum([]byte("allocation")), wire.Sum(nil)
-	const top = 1<<63 - 1 // the fixture's int sequence bound: 19 digits
+	const top = math.MaxInt // the fixture's int sequence bound: 19 digits on the 64-bit targets (V1-3581)
 	seqAt := func(n int) wire.Size { return wire.Size(fmt.Sprint(top - 4096 + n)) }
 	longest := strings.TrimSuffix(strings.TrimPrefix(recoverPrefix(), "orphaned "), " command; execution and physical cleanup unknown: ")
 	st := *f.st.pools
