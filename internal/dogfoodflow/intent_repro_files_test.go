@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -41,7 +42,8 @@ func TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles(t *testing.T) {
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	for _, name := range repro {
-		data, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(name)))
+		// The committed blob, read from the repository this test runs in.
+		data, err := exec.Command("git", "show", "HEAD:"+name).Output()
 		if err != nil {
 			t.Fatal(err)
 		}
