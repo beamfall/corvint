@@ -40,6 +40,14 @@ driving Corvint from scripts.
   plan is worktree-derived and is not pinned evidence. `--worktree` without `--path` or
   `--paths-from`, or with `--require-clean`, `--snapshot` or `--base`, SHALL be an argument
   error. Without `--worktree` the AFP-V0-094 refusal SHALL stay the default.
+- **ACX-V0-852:** (experimental, narrowing AFP-V0-021, under the owner's standing lane
+  auto-accept, 2026-10-11; V1-3578) For a dirty `_test.go` path that a Go unit owns, another Go
+  unit SHALL be a `PATH_LITERAL_READER` only when one of its path tokens names the file itself:
+  a component run of the token that matches the path's file name, whole or as the run's
+  trailing fragment. A token that names only an ancestor directory of the path SHALL NOT select
+  it: Go compiles a `_test.go` file only into its own package's test binary, so a directory
+  literal of another package is no read of it. A non-Go unit, a declared read scope
+  (AFP-V0-023), a glob reader (AFP-V0-401) and every other dirty path keep their rules.
 
 ## Non-goals
 
@@ -50,7 +58,10 @@ Pinning a worktree-derived plan as evidence; a repository-wide flag rename.
 (1) A caller that still compares the first `accept` argument with a base name would match nothing;
 the signature change makes every such caller a compile error. (2) A `--worktree` plan can be
 read as evidence by a consumer that ignores `degradations`; the warning and the degradation name
-it.
+it. (3) A Go test that walks a directory holding another package's `_test.go` files and reads
+them as data is no longer selected by that directory literal alone on a test-only edit; it is
+selected when it declares the read in `.corvint/test-read-scopes.json` (AFP-V0-023), and full CI
+still runs it.
 
 ## Acceptance evidence and traceability
 
@@ -58,6 +69,7 @@ it.
 |---|---|---|
 | ACX-V0-850 | `Source.Files`, `Source.FilesIncluding` and `ByName` in `internal/liveverify/affected/source.go`; the catalog filters in `internal/liveverify/affected/kotlin/kotlin.go` | `TestSourceFilesOffersRelativePath_V1_3583`; the plugin package tests |
 | ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go` | `TestACXV0851WorktreePathPlan` |
+| ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
 
 ## Rollback
 
