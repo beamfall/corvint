@@ -111,6 +111,14 @@ whether the new build would adopt the live workers or refuse the ledger.
   record `INTERRUPTED`, discard any stale request (a handed-over image keeps one, which was made for it) (`UPGRADE_REQUEST_DISCARDED`), and adopt the
   recorded workers through the existing CAL-V0-056 path with their leases and attempts unchanged.
   An unreadable record MUST raise `UPGRADE_STATE_UNREADABLE` and start normally.
+- `DSG-V0-684`: (standing lane auto-accept, 2026-11-01; V1-1556) Amending CAL-V0-311, a
+  configuration MUST be refused when a `keepLease` role's `leaseMinutes` × 60 does not exceed two
+  keeper writes at the program's `tickSeconds`: the keeper acts at most once per tick, so its
+  writes are `ceil(intervalSeconds / tickSeconds) × tickSeconds` seconds apart. The refusal names
+  the role, `tickSeconds` and that spacing. Before this, a tick longer than the lease was accepted
+  silently and the kept lease expired between ticks. Failure mode: a configuration that loaded
+  before (for example `tickSeconds` 600 with a 5-minute kept lease) now refuses; raise
+  `leaseMinutes` or shorten `tickSeconds`. Rollback: drop the check in `Config.validate`.
 - `DSG-V0-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved from the
   leases contract at its OCM limit) An
   operator recovery MUST become an observable `reader-recovered` event, kind `OPERATOR`, in the
@@ -173,6 +181,8 @@ start until it is removed. More than 64 links are announced across successive st
   `handoffTokens` receives the notice in-session through the shipped plugin module and the compiled
   hook): `TestDSGV0008_OpenCodeSessionReceivesHandoffInSession`
   (internal/tasks/cli/dispatch_opencode_notice_internal_test.go); live OpenCode qualification NOT_RUN.
+- DSG-V0-684: `TestDSGV0684_KeepLeaseMustOutlastTwoTicks` (internal/tasks/dispatch/keeper_test.go); a live
+  long-running kept attempt (V1-1556 AC1) NOT_RUN.
 - DSG-V0-010 to 015: `TestDSGV0011_UpgradeApplyRequestsOrRefuses`
   (internal/tasks/cli/dispatch_upgrade_internal_test.go); `TestDSGV0012_HandoverFailureAndInterruption`
   (internal/tasks/dispatch/upgrade_test.go: build record, failed exec, changed digest, interrupted
