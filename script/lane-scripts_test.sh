@@ -174,8 +174,10 @@ got=$(env -u HEAVY_NICE HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev
 [[ $got == $((want > 10 ? want : 10)) ]] || fail "heavy.sh default niceness $got, want 10 or the caller's higher $want"
 got=$(HEAVY_NICE=0 HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
 [[ $got == "$want" ]] || fail "heavy.sh HEAVY_NICE=0 niceness $got, want the caller's $want"
-HEAVY_NICE=20 "$heavy" true 2> "$tmp/err"
-[[ $? == 2 ]] && grep -q 'REFUSE invalid-nice' "$tmp/err" || fail "heavy.sh accepted HEAVY_NICE=20"
+# ASD-V0-915 (V1-3618): an expected refusal's stdout REFUSED marker is captured and checked, so a
+# passing run prints no unlabelled REFUSED line.
+HEAVY_NICE=20 "$heavy" true > "$tmp/out" 2> "$tmp/err"
+[[ $? == 2 && $(cat "$tmp/out") == 'heavy.sh: REFUSED invalid-nice (exit 2)' ]] && grep -q 'REFUSE invalid-nice' "$tmp/err" || fail "heavy.sh accepted HEAVY_NICE=20"
 makefile="$script/../Makefile"
 grep -qx 'HEAVY_NICE ?= 10' "$makefile" || fail "Makefile HEAVY_NICE default is not 10"
 grep -q '^HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),' "$makefile" || fail "Makefile HEAVY_NICE=0 does not opt out"
@@ -201,8 +203,8 @@ got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$h
 got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$heavy" go env GOVERSION 2> "$tmp/err")
 [[ $got == go1.99.2 ]] && grep -q '^heavy.sh: pinned go1.99.1 not installed; running go1.99.2$' "$tmp/err" ||
   fail "heavy.sh without the pinned go: ran $got, stderr $(cat "$tmp/err")"
-HEAVY_SLOTS=0 "$heavy" true 2> "$tmp/err"
-[[ $? == 2 ]] && grep -q 'REFUSE invalid-slots' "$tmp/err" || fail "heavy.sh accepted HEAVY_SLOTS=0"
+HEAVY_SLOTS=0 "$heavy" true > "$tmp/out" 2> "$tmp/err"
+[[ $? == 2 && $(cat "$tmp/out") == 'heavy.sh: REFUSED invalid-slots (exit 2)' ]] && grep -q 'REFUSE invalid-slots' "$tmp/err" || fail "heavy.sh accepted HEAVY_SLOTS=0"
 ok
 
 # ASD-V0-940 (V1-3247): a non-zero exit ends stderr with its cause; a zero exit adds no line.
@@ -518,8 +520,8 @@ out=$(HEAVY_MIN_FREE_GB=3 HEAVY_REMOTE_HOSTS=full pk go test -run X ./... 2> "$o
   grep -q 'running locally (logged)' "$off/err" || fail "heavy.sh ran on a remote below the disk floor: $out $(cat "$off/err")"
 out=$(HEAVY_MIN_FREE_GB=0 HEAVY_REMOTE_HOSTS=full pk go test -run X ./... 2> "$off/err")
 [[ $out == where=remote* ]] || fail "HEAVY_MIN_FREE_GB=0 did not disable the floor: $out $(cat "$off/err")"
-HEAVY_MIN_FREE_GB=x HEAVY_REMOTE_HOST=box hv true 2> "$off/err"
-[[ $? == 2 ]] && grep -q 'REFUSE invalid-min-free' "$off/err" || fail "heavy.sh accepted HEAVY_MIN_FREE_GB=x"
+HEAVY_MIN_FREE_GB=x HEAVY_REMOTE_HOST=box hv true > "$off/refused.out" 2> "$off/err"
+[[ $? == 2 && $(cat "$off/refused.out") == 'heavy.sh: REFUSED invalid-min-free (exit 2)' ]] && grep -q 'REFUSE invalid-min-free' "$off/err" || fail "heavy.sh accepted HEAVY_MIN_FREE_GB=x"
 out=$(HEAVY_REMOTE_HOST=box hv sh -c 'go test -run X ./...' 2> "$off/err")
 [[ $out == where=remote* ]] && grep -qx 'heavy.sh: unwrapped sh -c: go test -run X ./...' "$off/err" ||
   fail "heavy.sh did not offload a sh -c wrapped go test: $out $(cat "$off/err")"
@@ -605,11 +607,17 @@ out=$(cd "$off/nogit" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" GIT_CEILIN
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 hvp sub go test -run X ./... > /dev/null 2> "$off/err"
 [[ $? == 2 ]] || fail "HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON ran from a plain clone: $(cat "$off/err")"
 /bin/rm -rf "$off/plain" "$off/nogit"
-# ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE.
+# ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE; that
+# default follows TMPDIR (hv sets $off/ltmp), as the Makefile's does (ASD-V0-914, V1-3796).
 out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(unset GOCACHE
   CORVINT_GOCACHE=/x/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE=/y/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
-[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == 'where=local dir=sub gocache=/tmp/corvint-go-build-cache where=local dir=sub gocache=/x/c where=local dir=sub gocache=/y/c ' ]] ||
+[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == "where=local dir=sub gocache=$off/ltmp/corvint-go-build-cache where=local dir=sub gocache=/x/c where=local dir=sub gocache=/y/c " ]] ||
   fail "heavy.sh local Go cache: $out"
+# ASD-V0-914 (V1-3796): the Makefile's CORVINT_GOCACHE default follows TMPDIR (a trailing `/` dropped),
+# else /tmp; an explicit CORVINT_GOCACHE still wins.
+mk_cache() { (cd "$script/.." && env -u CORVINT_GOCACHE "$@" make -s --no-print-directory --eval 'print-corvint-gocache: ; @echo $(CORVINT_GOCACHE)' print-corvint-gocache 2>&1); }
+out=$(mk_cache TMPDIR="$tmp/")$'\n'$(mk_cache -u TMPDIR)$'\n'$(mk_cache TMPDIR="$tmp" CORVINT_GOCACHE=/y/c)
+[[ $out == "$tmp/corvint-go-build-cache"$'\n/tmp/corvint-go-build-cache\n/y/c' ]] || fail "Makefile CORVINT_GOCACHE default: $out"
 ok
 # ASD-V0-028: go vet and make windows-vet offload too; other commands, HEAVY_REMOTE=0, a missing host
 # and a file-writing test run locally, and the offloadable ones among them are logged.
@@ -1066,8 +1074,8 @@ mkdir -p "$pol/bin" && printf '#!/bin/sh\nexit 0\n' > "$pol/bin/go" &&
   chmod +x "$pol/bin/go" "$pol/bin/sysctl" "$pol/bin/getconf" || fail "policy fixture setup failed"
 pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log" HEAVY_FALLBACK_LOG="$pol/fb.log" \
   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD="${STUB_LOAD:-1.00}" HEAVY_SLOTS=1 "$heavy" "$@"); }
-HEAVY_WHOLE_REASON= pv go test ./x 2> "$pol/err"
-[[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
+HEAVY_WHOLE_REASON= pv go test ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
   fail "heavy.sh ran a whole-package go test without HEAVY_WHOLE_REASON"
 HEAVY_WHOLE_REASON= pv env GOFLAGS=-count=1 go test -run 'TestA|TestB' ./x 2> /dev/null || fail "heavy.sh refused a -run go test"
 HEAVY_WHOLE_REASON= pv go test -run=TestA ./x 2> /dev/null || fail "heavy.sh refused a -run= go test"
@@ -1154,8 +1162,8 @@ l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
 [[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
   grep -Eq "^$d $l rc=0 loadwait=0s load=1 queue=[0-9]+\.[0-9]s pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
   grep -Eq "^$d $l rc=3 loadwait=0s load=1 queue=[0-9]+\.[0-9]s pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
-HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
-[[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
+HEAVY_REMOTE=0 pv go vet ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED local-reason-missing (exit 2)' ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
   grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
   fail "heavy.sh ran HEAVY_REMOTE=0 go vet without HEAVY_LOCAL_REASON"
 # ASD-V0-060 (V1-3213): the documented lane test recipe (docs/LANE-ORCHESTRATION.md section 2) is
@@ -1191,8 +1199,8 @@ STUB_LOAD=50.00 STUB_LOAD_HELD=5.00 STUB_LOAD_SLOT=$pol/slots/slot1 HEAVY_MAX_LO
   fail "heavy.sh logged the load the wait began at: $(cat "$pol/err"; tail -n 1 "$pol/sel.log")"
 STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q 'waited\|queued' "$pol/err" ||
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
-HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
-[[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
+HEAVY_MAX_LOAD=x pv true > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED invalid-max-load (exit 2)' ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
 # ASD-V0-830 (V1-3256): leading NAME=VALUE words are the command's environment, as with env(1).
 [[ $(pv HEAVY_T1=a HEAVY_T2='b c' sh -c 'printf "%s|%s" "$HEAVY_T1" "$HEAVY_T2"' 2> "$pol/err") == 'a|b c' ]] ||
   fail "heavy.sh did not run leading assignments as environment: $(cat "$pol/err")"
@@ -1214,8 +1222,8 @@ HEAVY_MAX_LOAD= STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_LOAD_WAIT=2 pv true 2> "$pol/
   fail "heavy.sh default per-CPU threshold did not wait above 12 on 12 CPUs: $(cat "$pol/err")"
 STUB_CPUS=12 STUB_LOAD=13.00 HEAVY_MAX_LOAD=20 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" || fail "HEAVY_MAX_LOAD did not win over the per-CPU default"
 for bad in x 65 1.2345; do
-  HEAVY_MAX_LOAD= HEAVY_LOAD_PER_CPU=$bad pv true 2> "$pol/err"
-  [[ $? == 2 ]] && grep -q 'REFUSE invalid-load-per-cpu' "$pol/err" || fail "heavy.sh accepted HEAVY_LOAD_PER_CPU=$bad"
+  HEAVY_MAX_LOAD= HEAVY_LOAD_PER_CPU=$bad pv true > "$pol/out" 2> "$pol/err"
+  [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED invalid-load-per-cpu (exit 2)' ]] && grep -q 'REFUSE invalid-load-per-cpu' "$pol/err" || fail "heavy.sh accepted HEAVY_LOAD_PER_CPU=$bad"
 done
 ok
 # ASD-V0-931: the holder exports HEAVY_HELD; a heavy.sh inside an admitted command takes the
@@ -1629,14 +1637,14 @@ head -c 50 /dev/zero | tr '\0' x > "$sp/conformance/c/a_test.go"
 head -c 300 /dev/zero | tr '\0' x > "$sp/tools/big/a_test.go"
 cp "$sp/tools/small/a_test.go" "$sp/internal/x/a_test.go"
 spv() { (cd "$sp" && env -u HEAVY_WHOLE_REASON PATH="$sp/bin:$PATH" HEAVY_SELECTION_LOG="$sp/sel.log" HEAVY_LOCK_DIR="$sp/slots" \
-  HEAVY_SLOTS=1 HEAVY_SMALL_TEST_BYTES="${limit:-200}" "$heavy" "$@") 2> "$sp/err"; }
+  HEAVY_SLOTS=1 HEAVY_SMALL_TEST_BYTES="${limit:-200}" "$heavy" "$@") > "$sp/out" 2> "$sp/err"; }
 spv env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/small ./conformance/c || fail "a small tools package was refused: $(cat "$sp/err")"
 grep -Eq ' whole reason=small-package:150B pwd=.* cmd=env GOTOOLCHAIN=local go test -count=1 -timeout 30m \./tools/small \./conformance/c script=' "$sp/sel.log" ||
   fail "small-package not logged: $(cat "$sp/sel.log")"
 for args in './tools/big' './tools/small ./tools/big' './internal/x' './tools/...' 'example.invalid/tools/small' '-C tools ./small'; do
   # shellcheck disable=SC2086 # each case is a word list on purpose
   spv go test $args
-  [[ $? == 2 ]] && grep -q 'without HEAVY_WHOLE_REASON' "$sp/err" || fail "heavy.sh ran whole go test $args without a reason: $(cat "$sp/err")"
+  [[ $? == 2 && $(cat "$sp/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] && grep -q 'without HEAVY_WHOLE_REASON' "$sp/err" || fail "heavy.sh ran whole go test $args without a reason: $(cat "$sp/err")"
 done
 limit=0 spv go test ./tools/small
 [[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
@@ -1898,6 +1906,56 @@ out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
 [[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
 out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
 [[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
+ok
+
+# ASD-V0-908..910 (V1-3523, V1-3684, V1-3739): a local go test in a Git checkout names its tree
+# whatever the caller's GIT_CONFIG_GLOBAL; a scratch index that cannot be made or copied refuses with
+# exit 2, naming the volume, before the command runs; a reason given as an `env` NAME=VALUE word is
+# honoured, and `go test -c` (compile only) needs no reason.
+hid=$tmp/identity
+mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n: > "%s/ran"\nexit 0\n' "$hid" > "$hid/bin/go" && chmod +x "$hid/bin/go" &&
+  printf 'module example.com/m\n\ngo 1.27\n' > "$hid/repo/go.mod" && git -C "$hid/repo" init -q && git -C "$hid/repo" add -A &&
+  git -C "$hid/repo" -c user.name=t -c user.email=t@t commit -qm i || fail "identity fixture setup failed"
+hv_id() { /bin/rm -f "$hid/ran"; (cd "$hid/repo" && env PATH="$hid/bin:$PATH" HEAVY_SELECTION_LOG="$hid/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
+  HEAVY_WHOLE_REASON= TMPDIR="${ID_TMPDIR:-$hid/tmp}" "$heavy" "$@"); }
+hid_head=$(git -C "$hid/repo" rev-parse HEAD)
+hv_id go test -run TestA ./x > /dev/null 2> "$hid/err" && grep -Eq "^heavy.sh: running locally at $hid_head tree=[0-9a-f]{40} dirty=0\$" "$hid/err" ||
+  fail "heavy.sh local identity: $(cat "$hid/err")"
+# V1-3684: a GIT_CONFIG_GLOBAL naming a directory (as a sandbox sets it) no longer drops the identity.
+GIT_CONFIG_GLOBAL=$hid/tmp hv_id go test -run TestA ./x > /dev/null 2> "$hid/err" &&
+  grep -Eq "^heavy.sh: running locally at $hid_head tree=[0-9a-f]{40} dirty=0\$" "$hid/err" ||
+  fail "heavy.sh lost its tree identity under GIT_CONFIG_GLOBAL=<dir>: $(cat "$hid/err")"
+# V1-3523: a read-only TMPDIR, then an index that cannot be read, refuse before the command runs.
+mkdir -p "$hid/ro" && chmod 555 "$hid/ro"
+ID_TMPDIR=$hid/ro hv_id go test -run TestA ./x > "$hid/out" 2> "$hid/err"
+[[ $? == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED index-copy-failed (exit 2)' && ! -e $hid/ran ]] &&
+  grep -q "^heavy.sh: REFUSE index-copy-failed cannot copy the Git index to a scratch file in $hid/ro on volume /.* KiB free): .*set TMPDIR to a writable directory with space\$" "$hid/err" ||
+  fail "heavy.sh read-only TMPDIR (ran=$([[ -e $hid/ran ]] && echo yes)): $(cat "$hid/out" "$hid/err")"
+chmod 755 "$hid/ro"
+if [[ $(id -u) != 0 ]]; then
+  chmod 000 "$hid/repo/.git/index"
+  hv_id go test -run TestA ./x > "$hid/out" 2> "$hid/err"
+  rc=$?
+  chmod 644 "$hid/repo/.git/index"
+  [[ $rc == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED index-copy-failed (exit 2)' && ! -e $hid/ran ]] && grep -q "in $hid/tmp on volume " "$hid/err" ||
+    fail "heavy.sh unreadable index (rc=$rc): $(cat "$hid/out" "$hid/err")"
+fi
+[[ -z $(ls -A "$hid/tmp") ]] || fail "heavy.sh left a scratch index: $(ls -A "$hid/tmp")"
+# V1-3739: the reason as an env NAME=VALUE word is admitted and logged; go test -c needs none; the
+# refusal states both forms; a match-all -run still refuses.
+hv_id env GOFLAGS=-count=1 HEAVY_WHOLE_REASON='corvint FALLBACK y' go test ./x > /dev/null 2> "$hid/err" && [[ -e $hid/ran ]] &&
+  tail -n 2 "$hid/sel.log" | grep -Eq "^$d whole reason=corvint\\\\ FALLBACK\\\\ y pwd=.* cmd=env GOFLAGS=-count=1 HEAVY_WHOLE_REASON=corvint FALLBACK y go test \./x$h" ||
+  fail "heavy.sh refused an env-word HEAVY_WHOLE_REASON: $(cat "$hid/err"; tail -n 2 "$hid/sel.log")"
+for c in '-c' '-c=true'; do
+  hv_id go test $c -o /dev/null ./x > /dev/null 2> "$hid/err" && [[ -e $hid/ran ]] &&
+    tail -n 2 "$hid/sel.log" | grep -Eq "^$d compile-only pwd=.* cmd=go test $c -o /dev/null \./x$h" ||
+    fail "heavy.sh refused a compile-only go test $c: $(cat "$hid/err"; tail -n 2 "$hid/sel.log")"
+done
+hv_id go test -c=false ./x > "$hid/out" 2> "$hid/err"
+[[ $? == 2 && ! -e $hid/ran ]] && grep -Fq "as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...)" "$hid/err" ||
+  fail "heavy.sh whole-package refusal under -c=false: $(cat "$hid/out" "$hid/err")"
+hv_id env FOO=1 go test -run . ./x > /dev/null 2>&1
+[[ $? == 2 && ! -e $hid/ran ]] || fail "heavy.sh admitted an env-wrapped match-all -run with no reason"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
