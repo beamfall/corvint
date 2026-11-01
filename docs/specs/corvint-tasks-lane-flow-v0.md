@@ -120,13 +120,17 @@ done and number requirements that a peer branch already used.
   `laneHeads` entry and `laneScanTruncated` on the item, and a candidate not otherwise resolved that
   was created before the oldest scanned commit of such a lane is `TRUNCATED`, never `CLEAR`.
   Without the flag the screen MUST be unchanged.
-- `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is
-  `UNKNOWN`, propose touch paths derived from repository paths named in the ticket's title, body
+- `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket in the `TLF-V0-800`
+  population, propose touch paths derived from repository paths named in the ticket's title, body
   and acceptance criteria that exist in the worktree, each with the text span that named it, and
   report tickets with no candidate as `NO_PROPOSAL`. A path token holds a slash or an extension,
   or is a bare name (a dotfile such as `.gitignore`, or an extensionless name such as `Makefile`)
   that exactly matches a non-directory entry of the worktree root. It is a pure read: it MUST NOT write the store,
   the journal or the repository.
+- `TLF-V0-800`: The population `ticket effects-proposals` screens MUST be the population the
+  `COVERAGE_UNKNOWN` blocker names: every OPEN ticket whose effects coverage is short of `QUALIFIED`
+  (`UNKNOWN` or `INCOMPLETE`). Each row MUST carry its `coverage`, and the human summary line MUST
+  name that population (V1-3957).
 - `TLF-V0-889`: A proposal MUST NOT change claimability, eligibility, blockers, planning or any
   record until an operator applies it with `ticket set-effects`; the proposal output is labelled
   `proposal: not authority` and carries no request id or payload that the writer accepts as-is.
@@ -166,6 +170,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
 | TLF-V0-960 | V1-3650 | `tools/requirement-id-collisions` (`outermost`) | `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`; `TestTLFV0886_ReproducesASDV0Collisions` | none |
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
+| TLF-V0-800 | V1-3957 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0800_EffectsProposalsCoversTheBlockerPopulation` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
 
 ## Resolved decisions
