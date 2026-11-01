@@ -15,8 +15,10 @@ import (
 // Probe only the bounded ancestor go.mod metadata of the explicitly selected
 // API. An unlisted nested module must not acquire the root module's identity.
 // A withheld boundary returns the reason naming each failing go.mod path
-// (BKM-V0-955), so the caller can declare the missing source.
-func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured) (bool, string) {
+// (BKM-V0-955), so the caller can declare the missing source. declared holds
+// every manifest source by key, including those Compile could not capture, so
+// a stale pin is named as stale rather than as undeclared.
+func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured, declared map[string]Source) (bool, string) {
 	args := []string{"ls-tree", "-z", c.repo.Commit, "--"}
 	probed := []string{}
 	for dir := path.Dir(c.source.Path); ; dir = path.Dir(dir) {
@@ -41,15 +43,18 @@ func moduleBoundary(ctx context.Context, root string, c captured, sources map[st
 			return false, "malformed go.mod lookup output"
 		}
 		key := sourceKey(c.repo.ID, pair[1])
-		s, ok := sources[key]
+		s, isDeclared := declared[key]
+		_, isCaptured := sources[key]
 		fields := strings.Fields(pair[0])
 		switch {
 		case len(fields) != 3 || fields[1] != "blob":
 			failed = append(failed, key+" is not a regular blob at the pinned commit")
-		case !ok:
+		case !isDeclared:
 			failed = append(failed, key+" is tracked at the pinned commit but not a declared manifest source; add `--source "+key+"` to `breakage manifest`")
-		case s.source.Blob != fields[2]:
-			failed = append(failed, key+" is declared with blob "+s.source.Blob+" but the pinned tree has "+fields[2])
+		case s.Blob != fields[2]:
+			failed = append(failed, key+" is declared with blob "+s.Blob+" but the pinned tree has "+fields[2]+"; rebuild the manifest with `breakage manifest`")
+		case !isCaptured:
+			failed = append(failed, key+" is declared but its bytes could not be read at the pinned commit")
 		default:
 			found = true
 		}

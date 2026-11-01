@@ -149,9 +149,11 @@ func Compile(parent context.Context, raw []byte, bindings map[string]string, api
 		r.Repositories = append(r.Repositories, state)
 	}
 	sources := map[string]captured{}
+	declared := map[string]Source{}
 	total := 0
 	for _, s := range m.Sources {
 		key := sourceKey(s.Repository, s.Path)
+		declared[key] = s
 		if !ready[s.Repository] {
 			r.unknown(key, "repository-unavailable")
 			continue
@@ -176,7 +178,7 @@ func Compile(parent context.Context, raw []byte, bindings map[string]string, api
 		r.unknown(apiKey, "selected API source unavailable")
 	} else if !strings.HasSuffix(selected.source.Path, ".go") {
 		analyzeGo(&r, sources, selected, parts[2])
-	} else if bounded, why := moduleBoundary(ctx, bindings[selected.repo.ID], selected, sources); !bounded {
+	} else if bounded, why := moduleBoundary(ctx, bindings[selected.repo.ID], selected, sources, declared); !bounded {
 		r.unknown(apiKey, "module boundary has an undeclared or unavailable go.mod; syntax mapping withheld: "+why)
 	} else {
 		analyzeGo(&r, sources, selected, parts[2])

@@ -699,14 +699,9 @@ func TestBreakageModuleBoundaryNamesMissingGoMod(t *testing.T) {
 			}
 		}
 	}
-	if r, e := Compile(context.Background(), encode(t, stale), bindings, "api:pkg/api.go:Changed", ""); e == nil {
-		joined := ""
-		for _, u := range r.Unknowns {
-			joined += u.Reason + "\n"
-		}
-		if !strings.Contains(joined, "api:go.mod") {
-			t.Fatalf("stale go.mod blob not named: %s", joined)
-		}
+	got = reason(stale)
+	if !strings.Contains(got, "api:go.mod is declared with blob ") || !strings.Contains(got, "but the pinned tree has") || strings.Contains(got, "add `--source") {
+		t.Fatalf("stale go.mod pin reason = %q", got)
 	}
 	if e := os.Remove(filepath.Join(bindings["api"], "go.mod")); e != nil {
 		t.Fatal(e)
