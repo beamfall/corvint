@@ -13,6 +13,10 @@ import (
 // turns it off to compare the per-file reads (CKC-V0-015).
 var batchBlobReads = true
 
+// blobBatchFormat is the reader's --batch format; a test swaps in an atom Git
+// lacks to exercise the fallback on a Git without %(objectmode).
+var blobBatchFormat = "%(objectmode) %(objecttype) %(objectsize)"
+
 // blobBatch is the one long-lived `git cat-file --batch` reader through which
 // a draft or record reads each blob it has not prefetched, in place of an
 // ls-tree and a cat-file process a blob (CKC-V0-015).
@@ -39,7 +43,7 @@ func (p *proposal) batchBlob(commit, name string) (data []byte, present, ok bool
 		// %(objectmode) is the tree entry's mode, so a symlink or submodule
 		// reads as absent, as blob's ls-tree check has it. A Git without the
 		// atom fails the first read, and every read falls back.
-		command := p.gitCommand(true, "cat-file", "--batch=%(objectmode) %(objecttype) %(objectsize)")
+		command := p.gitCommand(true, "cat-file", "--batch="+blobBatchFormat)
 		stdin, err := command.StdinPipe()
 		if err != nil {
 			p.batch.failed = true
@@ -81,8 +85,10 @@ func (p *proposal) batchBlob(commit, name string) (data []byte, present, ok bool
 		limit = maxGitOutputBytes
 	}
 	regular := strings.HasPrefix(fields[0], "100") && fields[1] == "blob"
-	if err != nil || size < 0 || regular && size > limit {
-		// cat-file blob would refuse this read past the bound; blob makes it.
+	if err != nil || size < 0 || size > limit {
+		// cat-file blob would refuse a blob past the bound, and a symlink,
+		// tree or gitlink past it is not read either: blob makes the read,
+		// whose ls-tree answers absent for a non-regular entry.
 		p.stopBlobBatch()
 		return nil, false, false
 	}

@@ -99,9 +99,17 @@ func (p *proposal) record(options RecordClaimsOptions) int {
 		}
 		return false
 	}
+	// An edit whose every row the author removed keeps a claim that holds
+	// only its tombstones (CKC-V0-017).
 	bury := func(hunk *patch.Hunk, row claimRow) {
+		if row.Kind != "cite" || row.Text == "" {
+			return
+		}
 		entry := byHunk[hunk]
-		if entry == nil || row.Kind != "cite" || row.Text == "" || kept(entry, row) {
+		if entry == nil {
+			entry = p.newClaim(hunk)
+			byHunk[hunk] = entry
+		} else if kept(entry, row) {
 			return
 		}
 		entry.Tombstones = append(entry.Tombstones, row)
@@ -214,6 +222,9 @@ func (p *proposal) readClaimPlan(name, label string, parsed *patch.Patch, ordina
 			refuse(index+1, "selector "+strconv.Quote(fields[0])+" names no hunk of the current BASE..HEAD patch (an ordinal resolves only through a prepared map for BASE that still matches it)")
 		}
 		row := claimRow{Kind: "cite", Path: fields[1], Lines: fields[2], Relation: fields[3]}
+		if !unknownRow(fields) && strings.HasPrefix(fields[2], bytesSpanPrefix) {
+			refuse(index+1, "its span "+fields[2]+" is a byte span; claims cite START:END line spans only, so cite the lines that hold those bytes (CKC-V0-018)")
+		}
 		if unknownRow(fields) {
 			row = claimRow{Kind: "unknown", Reason: fields[2], Note: fields[3]}
 		} else if _, _, ok := parseLineSpan(fields[2]); ok {

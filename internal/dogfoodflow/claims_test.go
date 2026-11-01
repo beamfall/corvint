@@ -714,20 +714,41 @@ func TestClaimsBatchBlobMatchesBlob(t *testing.T) {
 		return &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &stderr}, blobs: map[string][]byte{}, batchBlobs: batch}, &stderr
 	}
 	names := []string{"a.go", "empty.txt", "dir/x.go", "exec.sh", "link", "module", "dir", "missing.go", "dir/missing.go", "new.go", "sp ace.txt", "glob*.go", "./a.go", "dir/../a.go", ""}
-	batched, _ := reader(true)
-	single, _ := reader(false)
-	for _, commit := range []string{first, second, first, "no-such-commit"} {
-		for _, name := range names {
-			got, gotOK := batched.blob(commit, name)
-			want, wantOK := single.blob(commit, name)
-			if gotOK != wantOK || !bytes.Equal(got, want) {
-				t.Errorf("%s:%q: batched = %v %q, blob = %v %q", commit, name, gotOK, got, wantOK, want)
+	parity := func(t *testing.T) *proposal {
+		t.Helper()
+		batched, _ := reader(true)
+		single, _ := reader(false)
+		for _, commit := range []string{first, second, first, "no-such-commit"} {
+			for _, name := range names {
+				got, gotOK := batched.blob(commit, name)
+				want, wantOK := single.blob(commit, name)
+				if gotOK != wantOK || !bytes.Equal(got, want) {
+					t.Errorf("%s:%q: batched = %v %q, blob = %v %q", commit, name, gotOK, got, wantOK, want)
+				}
 			}
 		}
+		return batched
 	}
-	if batched.batch == nil || batched.batch.failed || batched.batch.command == nil {
-		t.Fatalf("the batch reader did not stay up: %+v", batched.batch)
+	batched := parity(t)
+	// Only a Git whose cat-file knows %(objectmode) keeps the reader up; on
+	// another the parity above is the fallback's, which the subtest below
+	// checks on every Git.
+	if gitHasObjectmode(t, root) {
+		if batched.batch == nil || batched.batch.failed || batched.batch.command == nil {
+			t.Fatalf("the batch reader did not stay up: %+v", batched.batch)
+		}
+	} else {
+		t.Log("this Git lacks %(objectmode): the batch reader fell back and only parity is asserted")
 	}
+	t.Run("without objectmode", func(t *testing.T) {
+		original := blobBatchFormat
+		blobBatchFormat = "%(nosuchatom) %(objecttype) %(objectsize)"
+		defer func() { blobBatchFormat = original }()
+		fallback := parity(t)
+		if fallback.batch == nil || !fallback.batch.failed || fallback.batch.command != nil {
+			t.Errorf("a reader whose Git rejects the format did not fall back: %+v", fallback.batch)
+		}
+	})
 	batched.closeBlobBatch()
 	if batched.batch.command != nil {
 		t.Error("closeBlobBatch left the reader running")

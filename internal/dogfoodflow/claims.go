@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -125,7 +127,7 @@ func rangeRecords(records [][]byte, start, count int64) ([][]byte, bool) {
 	if count == 0 {
 		return nil, true
 	}
-	if start < 1 || start-1+count > int64(len(records)) {
+	if start < 1 || count < 0 || count > int64(len(records))-(start-1) {
 		return nil, false
 	}
 	return records[start-1 : start-1+count], true
@@ -148,10 +150,10 @@ func (row claimRow) valid() bool {
 		if row.Reason != "" || row.Note != "" || !fieldText(row.Path) || !wire.Relations[row.Relation] {
 			return false
 		}
-		if _, _, ok := parseLineSpan(row.Lines); ok {
-			return sha256Value.MatchString(row.Text)
-		}
-		return strings.HasPrefix(row.Lines, bytesSpanPrefix) && fieldText(row.Lines) && row.Text == ""
+		// A claim cites START:END lines only; a byte span has no text hash
+		// to relocate or tombstone by, so it is refused (CKC-V0-018).
+		_, _, ok := parseLineSpan(row.Lines)
+		return ok && sha256Value.MatchString(row.Text)
 	}
 	return false
 }
@@ -168,6 +170,9 @@ func decodeClaims(data []byte) (*claimsFile, string) {
 	if err := decoder.Decode(&file); err != nil {
 		return nil, "it is not a claims JSON document"
 	}
+	if decoder.Decode(&json.RawMessage{}) != io.EOF {
+		return nil, "it holds data after the claims JSON document"
+	}
 	if file.Schema != claimsSchema {
 		return nil, "its schema is not " + claimsSchema
 	}
@@ -181,8 +186,11 @@ func decodeClaims(data []byte) (*claimsFile, string) {
 	for index, entry := range file.Claims {
 		rows += len(entry.Rows) + len(entry.Tombstones)
 		if !fieldText(entry.Path) || !sha256Value.MatchString(entry.Content) || !sha256Value.MatchString(entry.Anchor) ||
-			entry.OldStart < 0 || entry.OldCount < 0 || entry.Occurrences < 0 || len(entry.Rows) == 0 {
+			entry.Occurrences < 0 || len(entry.Rows) == 0 && len(entry.Tombstones) == 0 {
 			return nil, fmt.Sprintf("claim %d is malformed", index+1)
+		}
+		if entry.OldStart < 0 || entry.OldCount < 0 || entry.OldCount > 0 && (entry.OldStart < 1 || entry.OldCount > math.MaxInt64-(entry.OldStart-1)) {
+			return nil, fmt.Sprintf("claim %d has an invalid BASE range %d,%d", index+1, entry.OldStart, entry.OldCount)
 		}
 		for _, row := range entry.Rows {
 			if !row.valid() {
@@ -223,6 +231,9 @@ func encodeClaims(file *claimsFile) ([]byte, error) {
 		return a.Content < b.Content
 	})
 	for index := range file.Claims {
+		if file.Claims[index].Rows == nil {
+			file.Claims[index].Rows = []claimRow{}
+		}
 		if file.Claims[index].Tombstones == nil {
 			file.Claims[index].Tombstones = []claimRow{}
 		}

@@ -760,7 +760,12 @@ func (p *proposal) parseAnchors() (bool, map[string]bool) {
 	complete := false
 	patched := map[string]bool{}
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
-		if parsed, err := patch.Parse([]byte(raw)); err == nil {
+		// An empty diff is a patch with no hunks, as readCanonicalPatch has
+		// it, not an unavailable one: every claimed edit was reverted, and
+		// each claim is gone (CKC-V0-005).
+		if raw == "" {
+			complete, p.patchHunks = true, []*patch.Hunk{}
+		} else if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
 			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
