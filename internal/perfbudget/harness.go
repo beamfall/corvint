@@ -170,9 +170,23 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	search := []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "search", "--artifact", fixture.Current, "--query", fixture.SearchQuery}
 	selected := func(id string) bool { return len(o.Selected) == 0 || slices.Contains(o.Selected, id) }
 	r.Selected = slices.Clone(o.Selected)
+	// context-query and lifecycle-hook measure reads over an existing index snapshot, which the
+	// index scenarios leave behind in a whole run; a filtered run that skips them builds it once,
+	// unmeasured, first (PRB-V0-970).
+	indexed := false
 	for _, id := range ScenarioIDs {
 		if !selected(id) && (id != "mcp-first-call" || !selected("mcp-warm-call")) {
 			continue
+		}
+		if (id == "context-query" || id == "lifecycle-hook") && !indexed {
+			progress("setup: index snapshot for " + id)
+			if _, err := runOnce(ctx, fixture.Code, []string{o.Corvint, "--root", fixture.Code, "index", "--if-stale"}, nil); err != nil {
+				return nil, fmt.Errorf("index setup for %s: %w", id, err)
+			}
+			indexed = true
+		}
+		if id == "index-cold-build" || id == "index-warm-build" {
+			indexed = true
 		}
 		progress("scenario: " + id)
 		var m ScenarioMeasured
