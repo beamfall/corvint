@@ -280,9 +280,10 @@ for plan in "$root/empty.tsv" "$root/comments.tsv"; do
   rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
 done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
-# again after the seal for the receipt of the sealed head.
-recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# again after the seal for the receipt of the sealed head, that run selecting since the first run's
+# receipt (DCW-V0-944, V1-3550).
+recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.

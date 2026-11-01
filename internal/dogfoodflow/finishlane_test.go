@@ -465,7 +465,8 @@ func TestFinishLaneDCWV0378RefusesAnInputChangedDuringTheRun(t *testing.T) {
 			if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(intents, []byte("{}\n"), 0o666); err != nil {
+			// DCW-V0-945: the manifest must pass the intent precheck to reach the steps.
+			if err := os.WriteFile(intents, []byte("#no-intent-declared\n"), 0o666); err != nil {
 				t.Fatal(err)
 			}
 			steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {

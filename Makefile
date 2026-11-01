@@ -995,9 +995,11 @@ doc-gates:
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
-# receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
-# failing step. The first precheck leaves out the batch-drift go tests, which read the CEM the seal
-# adds, so each runs once, on the sealed head (ASD-V0-837, V1-3550).
+# receipt of the sealed head, selecting against the head the first run's receipt names, so a step the
+# bind and seal commits cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
+# batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
+# precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
+# on the sealed head (ASD-V0-837, V1-3550).
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
@@ -1008,7 +1010,7 @@ dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
-	@$(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:

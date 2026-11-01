@@ -34,8 +34,9 @@ type passReceipt struct {
 }
 
 // passExcluded are the evidence-directory entries the inputs digest leaves out:
-// the verifier executables, whose digests it binds instead, the receipt itself,
-// and the published review, which no check step reads.
+// the verifier executables, whose digests it binds instead, the receipt itself
+// and the published review, which no check step reads; passInputs also leaves
+// out every timing file (isTimingFile, DCW-V0-942).
 var passExcluded = map[string]bool{"corvint": true, "corvint-base": true, passReceiptName: true, "cem-review.md": true}
 
 // passLedgers are the private .corvint ledgers that read commands append to
@@ -80,7 +81,7 @@ func (c *check) passInputs() (string, bool) {
 			return "", false
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || directory.skip[entry.Name()] {
+			if entry.IsDir() || directory.skip[entry.Name()] || (directory.label == "evidence" && isTimingFile(entry.Name())) {
 				continue
 			}
 			digest, err := fileSHA256(filepath.Join(directory.path, entry.Name()))

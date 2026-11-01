@@ -137,7 +137,13 @@ uncommitted_check_output=$(cd "$test_root/repo" && "$DOGFOOD_TEST_DRIVER" dogfoo
 test "$uncommitted_check_status" = 2
 rg -q '^dogfood-check: REFUSE uncommitted-change-not-in-base-target$' <<< "$uncommitted_check_output"
 printf '\nlocal-only\n' >> "$test_root/repo/.gitignore"
-git -C "$test_root/repo" -c user.name=t -c user.email=t@example.invalid add script/source.sh .gitignore
+# DCW-V0-945: the bootstrap intents the citation cases name exist at the target, as the intent
+# precheck derives every manifest intent at HEAD before any step.
+# shellcheck disable=SC2016
+printf '%s\n' '# New intent' '' '## Requirements' '' '- `TEST-N-001`: test.' |
+  tee "$test_root/repo/docs/specs/new-intent.md" > "$test_root/repo/docs/specs/new\"intent.md"
+git -C "$test_root/repo" -c user.name=t -c user.email=t@example.invalid add script/source.sh .gitignore \
+  docs/specs/new-intent.md 'docs/specs/new"intent.md'
 git -C "$test_root/repo" -c user.name=t -c user.email=t@example.invalid commit -qm target
 
 cat > "$test_root/bin/corvint" <<'EOF'
