@@ -919,9 +919,10 @@ func closingGates(index *Index, profile projectprofile.Profile) []string {
 
 // declaredVerification returns, capped at the plan ceiling, the mandatory
 // commands the indexed AGENTS.md declares (NGI-V0-060), or nil when it
-// declares none or its bytes are unavailable.
+// declares none or its bytes are unavailable. An overlay view reads the
+// committed AGENTS.md, never its worktree edit.
 func declaredVerification(index *Index) []string {
-	source, ok := index.Sources[projectprofile.InstructionsPath]
+	source, ok := index.committedSource(projectprofile.InstructionsPath)
 	if !ok {
 		return nil
 	}

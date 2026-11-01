@@ -103,7 +103,11 @@ func authorCommits(ctx context.Context, root, scratch, draftURL string, change c
 			if e != nil {
 				return "", nil, e
 			}
-			fmt.Fprintf(&info, "100644 %s\t%s\n", blob, file.Path)
+			mode, e := authoredMode(ctx, repo, env, file.Path)
+			if e != nil {
+				return "", nil, e
+			}
+			fmt.Fprintf(&info, "%s %s\t%s\n", mode, blob, file.Path)
 		}
 		if _, err = authorGit(ctx, repo, env, []byte(info.String()), "update-index", "--add", "--index-info"); err != nil {
 			return "", nil, err
@@ -119,6 +123,19 @@ func authorCommits(ctx context.Context, root, scratch, draftURL string, change c
 		drafts = append(drafts, connector.Draft{Kind: a.Kind, Revision: commit, URL: draftURL})
 	}
 	return repo, drafts, nil
+}
+
+// authoredMode keeps an existing executable file executable; a new or
+// non-executable path is written as a regular file.
+func authoredMode(ctx context.Context, repo string, env []string, path string) (string, error) {
+	staged, err := authorGit(ctx, repo, env, nil, "ls-files", "--stage", "--", path)
+	if err != nil {
+		return "", err
+	}
+	if strings.HasPrefix(staged, "100755 ") {
+		return "100755", nil
+	}
+	return "100644", nil
 }
 
 // authorGit runs Git with a fixed configuration-free environment and returns

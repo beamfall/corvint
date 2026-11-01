@@ -111,6 +111,9 @@ type preflightInputs struct {
 	deep           bool
 	gates          []string
 	witnesses      bool
+	// candidate is the witness candidate branch and the commit it resolves
+	// to, so a repaired candidate is a new input (TOL-V0-940).
+	candidate string
 }
 
 func (p preflightInputs) key() wire.Digest {
@@ -129,6 +132,9 @@ func (p preflightInputs) key() wire.Digest {
 	// keeps its bytes.
 	if p.witnesses {
 		lines = append(lines, "witnesses true")
+		if p.candidate != "" {
+			lines = append(lines, "candidate "+strconv.Quote(p.candidate))
+		}
 	}
 	return wire.Sum([]byte(strings.Join(lines, "\n") + "\n"))
 }

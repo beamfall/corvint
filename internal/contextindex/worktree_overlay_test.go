@@ -279,3 +279,62 @@ func anyStrings(value any) []string {
 	}
 	return out
 }
+
+// TestOverlayWorktreeVerificationAuthorityIsCommitted is DIRTY-CACHE-942: a
+// worktree edit of AGENTS.md cannot replace the committed mandatory Verify
+// command; the overlay view still declares the committed one.
+func TestOverlayWorktreeVerificationAuthorityIsCommitted(t *testing.T) {
+	t.Parallel()
+	root := impactRepositoryWithFiles(t, npmRepository(map[string]string{"AGENTS.md": "# Agents\n\n**Verify:** `npm run build`.\n"}))
+	writeTestFile(t, root, "AGENTS.md", "# Agents\n\n**Verify:** `true`.\n")
+	base, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := OverlayWorktree(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, overlaid := view.overlaidBlob("AGENTS.md"); !overlaid {
+		t.Fatal("fixture: the AGENTS.md edit was not overlaid")
+	}
+	if got := declaredVerification(view); !slices.Equal(got, []string{"npm run build"}) {
+		t.Fatalf("declared verification = %v, want the committed npm run build", got)
+	}
+}
+
+// TestOverlayWorktreeRefusesSymlinkedParentDirectory is DIRTY-CACHE-940: a
+// tracked directory replaced by a symlink to an ignored directory is not read
+// through, so ignored bytes never stand in for the tracked path.
+func TestOverlayWorktreeRefusesSymlinkedParentDirectory(t *testing.T) {
+	t.Parallel()
+	root := impactRepositoryWithFiles(t, map[string]string{
+		"go.mod":     "module example.test/overlay\n\ngo 1.27.0\n",
+		".gitignore": "secret/\n",
+		"src/a.go":   "package src\n\nfunc Tracked() {}\n",
+	})
+	writeTestFile(t, root, "secret/a.go", "package src\n\nfunc ignoredSecretBytes() {}\n")
+	if err := os.RemoveAll(filepath.Join(root, "src")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink("secret", filepath.Join(root, "src")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	base, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(base.DirtyPaths, "src/a.go") {
+		t.Fatalf("fixture dirty paths = %v", base.DirtyPaths)
+	}
+	view, err := OverlayWorktree(context.Background(), base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if source, ok := view.Sources["src/a.go"]; ok && strings.Contains(string(source.Data), "ignoredSecretBytes") {
+		t.Fatal("ignored bytes were overlaid as tracked src/a.go")
+	}
+	if _, overlaid := view.overlaidBlob("src/a.go"); overlaid {
+		t.Fatal("src/a.go was overlaid through a symlinked parent")
+	}
+}

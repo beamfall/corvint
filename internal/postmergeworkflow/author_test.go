@@ -2,11 +2,15 @@ package postmergeworkflow
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"testing"
+
+	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 )
 
 // PMR-V0-940..942: the harness authors private commits from adapter content and
@@ -86,5 +90,36 @@ func TestReplayAuthoredBlocks(t *testing.T) {
 				t.Fatalf("got %v %+v, want BLOCKED %s", err, r, tc.want)
 			}
 		})
+	}
+}
+
+// PMR-V0-940: authoring updated content for an executable file keeps its
+// executable mode; a new path is a regular file.
+func TestAuthorCommitsPreservesExecutableMode(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	if err := os.MkdirAll(filepath.Join(root, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "scripts", "check_test.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", ".")
+	git(t, root, "update-index", "--chmod=+x", "scripts/check_test.sh")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "base")
+	change := connector.Change{MergedAt: "2026-10-31T00:00:00Z", Binding: connector.Binding{Change: "change-1", Merge: git(t, root, "rev-parse", "HEAD")}}
+	authored := []Authored{{Kind: "tests", Files: []AuthoredFile{
+		{Path: "scripts/check_test.sh", Content: "#!/bin/sh\nexit 1\n"},
+		{Path: "scripts/new_test.sh", Content: "#!/bin/sh\n"},
+	}}}
+	repo, drafts, err := authorCommits(context.Background(), root, t.TempDir(), "https://example.com/draft", change, authored)
+	if err != nil || len(drafts) != 1 {
+		t.Fatalf("author: %v %v", err, drafts)
+	}
+	tree := git(t, repo, "ls-tree", "-r", drafts[0].Revision, "scripts")
+	if !strings.Contains(tree, "100755 blob") || !strings.Contains(tree, "\tscripts/check_test.sh") ||
+		!regexp.MustCompile(`100644 blob [0-9a-f]+\tscripts/new_test.sh`).MatchString(tree) ||
+		regexp.MustCompile(`100644 blob [0-9a-f]+\tscripts/check_test.sh`).MatchString(tree) {
+		t.Fatalf("authored modes:\n%s", tree)
 	}
 }

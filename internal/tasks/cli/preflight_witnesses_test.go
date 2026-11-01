@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -105,5 +106,67 @@ func TestTOLV0940_PreflightWitnessesUsage(t *testing.T) {
 	}
 	if x := atm(t, r.Root, nil, "preflight", id, "--plan", "e2e/plan.json", "--witnesses", "--cache"); x.res.Outcome != wire.OutcomeError || !warned(x, "--witnesses judges reviewed witnesses at HEAD") {
 		t.Fatalf("--witnesses with --cache: %s", x.stdout)
+	}
+}
+
+// TestTOLV0940_PreflightWitnessSignatureKeysCandidate: a --witnesses
+// failure signature covers the candidate branch's commit, so after
+// --refuse-repeat is exhausted on a stale witness, repairing the candidate
+// admits the next run, which judges the repaired witness (TOL-V0-940).
+func TestTOLV0940_PreflightWitnessSignatureKeysCandidate(t *testing.T) {
+	r, id, _ := obligationRepo(t)
+	seedObligations(t, r.Root, id)
+	const tests = `[{"test":"a","project":"api","obligations":["AC-1"]}]`
+	fixture.Write(t, filepath.Join(r.Root, "e2e", "plan.json"), []byte(`{"profile":"taskman-obligation-plan/0","ticketId":"`+id+`","tests":`+tests+`}`))
+	git(t, r.Root, "add", "e2e")
+	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "plan")
+	head := headOID(t, r.Root)
+	credit := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "asserts the login redirect"))
+	if x := reviewWitness(t, r.Root, id, "rv-1", head, "AC-1", credit); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("review: %s", x.stdout)
+	}
+	short := id[strings.LastIndex(id, ":")+1:]
+	main := strings.TrimSpace(gitOut(t, r.Root, "rev-parse", "--abbrev-ref", "HEAD"))
+	git(t, r.Root, "branch", short, head)
+	c := atm(t, r.Root, nil, "claim", id, "--holder", "owner", "--request-id", "claim-c")
+	if c.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("claim: %s", c.stdout)
+	}
+	attempt, generation := field(c.res.Items[0], "attemptId").Str, field(c.res.Items[0], "generation").Str
+	if s := atm(t, r.Root, nil, "submit", "--attempt", attempt, "--generation", generation, "--tree", strings.TrimSpace(gitOut(t, r.Root, "rev-parse", head+"^{tree}")), "--request-id", "submit-c"); s.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("submit: %s", s.stdout)
+	}
+	spec := filepath.Join(r.Root, "e2e", "login.spec.ts")
+	original, err := os.ReadFile(spec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onCandidate := func(content []byte, msg string) {
+		t.Helper()
+		git(t, r.Root, "checkout", "-q", short)
+		fixture.Write(t, spec, content)
+		git(t, r.Root, "add", "e2e")
+		git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", msg)
+		git(t, r.Root, "checkout", "-q", main)
+	}
+	onCandidate(append(append([]byte{}, original...), "\n// stale\n"...), "stale the witness")
+	preflight := func() run {
+		return atm(t, r.Root, nil, "preflight", id, "--plan", "e2e/plan.json", "--witnesses", "--refuse-repeat", "1")
+	}
+	if x := preflight(); !strings.Contains(string(x.stdout), "STALE_REVIEW") || field(signatureMember(t, x), "status").Str != "RECORDED" {
+		t.Fatalf("stale witness: %s", x.stdout)
+	}
+	if x := preflight(); !hasCode(x.res, wire.CodeLoopDetected) {
+		t.Fatalf("repeat not refused: %s", x.stdout)
+	}
+	onCandidate(original, "repair the witness")
+	x := preflight()
+	if hasCode(x.res, wire.CodeLoopDetected) || len(x.res.Items) != 1 {
+		t.Fatalf("repaired candidate refused before it was checked: %s", x.stdout)
+	}
+	for _, f := range field(x.res.Items[0], "findings").Arr {
+		if field(f, "kind").Str == "STALE_REVIEW" {
+			t.Fatalf("repaired witness still stale: %s", x.stdout)
+		}
 	}
 }

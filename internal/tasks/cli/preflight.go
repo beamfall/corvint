@@ -151,7 +151,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if useCache || threshold > 0 {
 		key, keyReason = preflightInputKey(root, preflightInputs{ticketID: rec.TicketID.Raw, record: wire.Sum(wire.Encode(rec.Value())),
 			ledger: wire.Sum(wire.Encode(ledger.EntriesValue())), policy: policySum, commit: resolved, prefixes: prefixes,
-			plan: planPath, deep: deep, gates: gates, witnesses: withWitnesses})
+			plan: planPath, deep: deep, gates: gates, witnesses: withWitnesses, candidate: witnessCandidateKey(root, candidate)})
 	}
 	guard := startFailureGuard("preflight", rec.TicketID.Raw, key, keyReason, threshold, guardArgs.remediation)
 	if err := guard.admit(); err != nil {
@@ -395,4 +395,18 @@ func findingValue(f obligation.Finding) wire.Value {
 	}
 	return wire.ObjectValue(wire.NewObject().Set("kind", wire.String(f.Kind)).Set("id", opt(f.ID)).Set("path", opt(f.Path)).
 		Set("line", line).Set("detail", wire.String(prose(f.Detail))).Set("remedy", wire.String(f.Remedy)))
+}
+
+// witnessCandidateKey names the candidate branch a --witnesses run judges and
+// the commit it resolves to now, so repairing the candidate changes the
+// failure signature and cache key (TOL-V0-940); "" when there is none.
+func witnessCandidateKey(root, candidate string) string {
+	if candidate == "" {
+		return ""
+	}
+	commit, err := store.ResolveCommit(root, candidate)
+	if err != nil || commit == "" {
+		commit = "unresolved"
+	}
+	return candidate + " " + commit
 }

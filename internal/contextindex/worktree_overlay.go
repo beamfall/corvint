@@ -8,6 +8,7 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 // Worktree overlay (DIRTY-CACHE-940..942, V1-0418). An explicit opt-in
@@ -52,7 +53,7 @@ func OverlayWorktree(ctx context.Context, base *Index) (*Index, error) {
 		if !ok {
 			continue
 		}
-		data, read := readCleanFile(base.Root, dirty)
+		data, read := readOverlayFile(base.Root, dirty)
 		if !read {
 			delete(sources, dirty)
 			dropped[dirty] = worktreeOverlayUnreadReason
@@ -82,7 +83,7 @@ func OverlayWorktree(ctx context.Context, base *Index) (*Index, error) {
 		Features: map[string]Record{}, Scenarios: map[string]Record{}, Documents: map[string]Record{},
 		Markers: map[string][]Marker{}, Imports: map[string]map[string]struct{}{},
 		ProfileID: base.ProfileID, UnsupportedSuffixCount: base.UnsupportedSuffixCount,
-		bodies: base.bodies, lease: base.lease, worktreeOverlay: overlaid,
+		bodies: base.bodies, lease: base.lease, worktreeOverlay: overlaid, committedSources: base.Sources,
 	}
 	if facts, err := priorFacts(base); err == nil {
 		prior := &reusePrior{index: base, facts: facts, taken: make(map[string]struct{}, len(sources))}
@@ -96,6 +97,49 @@ func OverlayWorktree(ctx context.Context, base *Index) (*Index, error) {
 	view.compile()
 	view.blobFacts, view.priorVocabulary = nil, nil
 	return view, nil
+}
+
+// readOverlayFile reads a tracked dirty path's worktree bytes only when every
+// parent directory is a real directory, before and after the read.
+// readCleanFile confines opens to the repository but follows an in-repository
+// directory symlink, which would let untracked or ignored content stand in for
+// a tracked path; the overlay reads no bytes through one.
+func readOverlayFile(root, relative string) ([]byte, bool) {
+	if !realParentDirectories(root, relative) {
+		return nil, false
+	}
+	data, read := readCleanFile(root, relative)
+	if !read || !realParentDirectories(root, relative) {
+		return nil, false
+	}
+	return data, true
+}
+
+func realParentDirectories(root, relative string) bool {
+	current := root
+	for _, component := range strings.Split(path.Dir(relative), "/") {
+		if component == "." {
+			break
+		}
+		current = filepath.Join(current, component)
+		info, err := os.Lstat(current)
+		if err != nil || !info.IsDir() {
+			return false
+		}
+	}
+	return true
+}
+
+// committedSource returns the HEAD source for sourcePath: on an overlay view
+// the committed bytes, never the worktree ones, so worktree edits cannot
+// supply project-owned authority (DIRTY-CACHE-942).
+func (index *Index) committedSource(sourcePath string) (Source, bool) {
+	if index.committedSources != nil {
+		source, ok := index.committedSources[sourcePath]
+		return source, ok
+	}
+	source, ok := index.Sources[sourcePath]
+	return source, ok
 }
 
 // worktreeOverlayCandidate reports whether dirty may be read from the
