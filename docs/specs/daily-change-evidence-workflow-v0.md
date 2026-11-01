@@ -2802,11 +2802,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   and `DCW-V0-404`) A draft MUST rank the BASE lines naming a hunk's path, after the lines defining
   a requirement ID the hunk adds: first a requirement-bearing line (one carrying a requirement ID) of
   a governing spec, then any line of a governing spec, then a requirement-bearing line of another
-  document, then a bare mention, keeping the earlier order within a rank. The governing specs are
-  the specifications whose requirement-bearing BASE lines name the most distinct owed paths; when
-  a spec the change modifies (still never cited) names an owed path, only modified specs compete,
-  since an amended spec is the change's own contract; with several owed paths a spec must name at
-  least two. When a governing spec exists and the drafted cite lies outside every
+  document, then a bare mention, keeping the earlier order (`DCW-V0-966`: untouched files first)
+  within a rank. The governing specs are the specifications whose requirement-bearing BASE lines
+  name the most distinct owed paths; when a spec the change modifies names an owed path, only
+  modified specs compete, since an amended spec is the change's own contract, and its stable lines
+  are cited like an untouched spec's (`DCW-V0-966`), never a line the change edits; with several
+  owed paths a spec must name at least two. When a governing spec exists and the drafted cite lies outside every
   governing spec, the draft MUST keep the row and print `row KEY cited low-confidence (DCW-V0-886):
   PATH:LINE names HUNK_PATH outside the change's governing spec SPEC, ...; review the cite, or keep
   the row unknown`. The `dogfood check` anchor search is unchanged. Design: the drafter cited the
