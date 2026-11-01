@@ -1743,6 +1743,18 @@ CEP-V0-007	docs/specs/context-evolution-program-v0.md	(accepted 2026-10-25, stan
 CEP-V0-008	docs/specs/context-evolution-program-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2945) Equal-budget text windows.	standing	2026-10-28; V1-2945
 CEP-V0-009	docs/specs/context-evolution-program-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2945) Outcome separation. Every	standing	2026-10-28; V1-2945
 CEP-V0-010	docs/specs/context-evolution-program-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2945) Experiment kinds. Every rep	standing	2026-10-28; V1-2945
+CRK-V0-001	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) `countTerms` and `scanWords` MUST	unrecorded	-
+CRK-V0-002	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) `matchTerms(text, wanted)` MUST	unrecorded	-
+CRK-V0-003	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3273) Benchmarks	unrecorded	-
+CRK-V0-004	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219) With `CORVINT_CONTEXT_RRF=on` the	unrecorded	-
+CRK-V0-005	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3710) With `CORVINT_CONTEXT_ADDITIVE=on`	unrecorded	-
+CRK-V0-006	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-3710) With	unrecorded	-
+CRK-V0-007	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219, V1-3710) Each flag MUST be read	unrecorded	-
+CRK-V0-008	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0219, V1-3710) Each ordering MUST be	unrecorded	-
+CRK-V0-009	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114) With `CORVINT_CONTEXT_SPANS=hits`	unrecorded	-
+CRK-V0-010	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114) Under `hits` and `merged`, a	unrecorded	-
+CRK-V0-011	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0116) Under `merged`, a candidate span	unrecorded	-
+CRK-V0-012	docs/specs/context-ranking-v0.md	(proposed 2026-11-01, not accepted; V1-0114, V1-0116) Each span mode MUST be rea	unrecorded	-
 CCF-V1-001	docs/specs/core-compatibility-freeze-v1.md	The Core command set MUST be exactly `init`, `adopt`, `index`, `query`, `context	unrecorded	-
 CCF-V1-002	docs/specs/core-compatibility-freeze-v1.md	Each frozen Core mode MUST exit 0 and emit one canonical JSON document on stdout	unrecorded	-
 CCF-V1-003	docs/specs/core-compatibility-freeze-v1.md	These modes and profiles MUST stay outside the freeze and MUST NOT be advertised	unrecorded	-
@@ -6488,9 +6500,9 @@ TCP-V0-044	docs/specs/task-context-packet-v0.md	The `external` member is separat
 TCP-V0-045	docs/specs/task-context-packet-v0.md	When gopls is absent, the task names no usable Go seed, the session fails or	unrecorded	-
 TCP-V0-046	docs/specs/task-context-packet-v0.md	The flag is measured before any promotion. A frozen `tools/retrieval-bench` run	unrecorded	-
 TCP-V0-047	docs/specs/task-context-packet-v0.md	When governing rows exist (TCP-V0-008), each governing file's text is split into	unrecorded	-
-TCP-V0-048	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With	unrecorded	-
-TCP-V0-049	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; not implemented; decision 0377) With the	unrecorded	-
-TCP-V0-050	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings	unrecorded	-
+TCP-V0-048	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01	unrecorded	-
+TCP-V0-049	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01	unrecorded	-
+TCP-V0-050	docs/specs/task-context-packet-v0.md	(proposed 2026-09-24, not accepted; decision 0377; reading (a) recorded 2026-11-	unrecorded	-
 TCP-V0-051	docs/specs/task-context-packet-v0.md	`context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`)	unrecorded	-
 TCP-V0-052	docs/specs/task-context-packet-v0.md	CLI and the explicit MCP descendant use one shared attachment. Before and after	unrecorded	-
 TCP-V0-053	docs/specs/task-context-packet-v0.md	Required live qualification fails when gopls is missing. Compiled CLI and MCP	unrecorded	-

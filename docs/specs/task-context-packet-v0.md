@@ -869,7 +869,7 @@ reading that decides between them. Corroboration ranks rows by how many relation
 admitted the path; reciprocal rank fusion also weighs where each relation ranked it. Slot
 admission is not changed.
 
-- `TCP-V0-048`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+- `TCP-V0-048`: (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With
   `CORVINT_CONTEXT_RRF=on`, the step that ranks rows by their number of corroborating relations
   (TCP-V0-004, decision 0027) instead ranks them by the fused score
   `F(p) = sum over r of 1/(60 + rank_r(p))`, taken over the relation that admitted path `p` and
@@ -881,7 +881,7 @@ admission is not changed.
   constant 60 is fixed before any reading and is not tuned on the evaluation sets. The sort is
   descending by `F` and stable: rows with equal `F` keep their incoming order, which is slot order,
   or the LTA-V0-011 slot-weight order when an admitted trace supplies one.
-- `TCP-V0-049`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+- `TCP-V0-049`: (proposed 2026-09-24, not accepted; decision 0377; implemented opt-in 2026-11-01 under CRK-V0-004) With the
   flag on, only that ordering changes. Slot admission, caps, relation membership, each row's single
   evidence row, the `score` rise of 50 per corroborating relation, and the `summary` "; also"
   list are the same as with corroboration. The reserved rows (TCP-V0-008, TCP-V0-009, TCP-V0-047)
@@ -892,7 +892,7 @@ admission is not changed.
   corroborating relations in the order `take` recorded them, with `F` to four decimals. An unset,
   `off` or any other value preserves the existing packet bytes (the recipe golden). On or off,
   `context` stays read-only (TCP-V0-001) and keeps TCP-V0-016's abstention.
-- `TCP-V0-050`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings,
+- `TCP-V0-050`: (proposed 2026-09-24, not accepted; decision 0377; reading (a) recorded 2026-11-01 in `docs/build-log/2026-11-01-ctx-u15.md` and lost recall@20, so the flag stays opt-in; reading (b) NOT_RUN without its corpus) Two readings,
   with the same binary and the flag unset and `on`, decide the flag, and both are recorded in
   `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`. (a) The frozen `tools/retrieval-bench --arms context` run over
   `v2_code2test`, `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, recording
@@ -1612,10 +1612,10 @@ co-changes outrank older, more frequent ones; the blame bound and every abstenti
 porcelain parse and the window's oldest commit; GitHub pattern semantics; a `disagrees`, an
 `unverifiable` and an agreeing owner; the `coverage.recency` member and a no-commit abstention).
 The frozen bench and `corvint eval` readings, off and on, are in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (V1-0089).
-Proposed TCP-V0-048..050 (not implemented) will be evidenced by `internal/contextindex` tests: the
+Proposed TCP-V0-048..050 (implemented opt-in under CRK-V0-004, 2026-11-01) are evidenced by `internal/contextindex` tests: the
 recipe golden is kept for unset, `off` and other values; a fixture in which a single-relation row
-at a better rank overtakes one at a worse rank; unchanged admission and the `; rrf` reason. Both
-readings, off and on, go in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` under V1-0219.
+at a better rank overtakes one at a worse rank; unchanged admission and the `; rrf` reason. Reading
+(a), off and on, is in `docs/build-log/2026-11-01-ctx-u15.md` under V1-0219; reading (b) is NOT_RUN.
 
 `internal/contextindex/identgraph_test.go` and `internal/contextindex/ppr_test.go`
 (TCP-V0-030..034, proposed: the fixture's two-hop chain, direction labels and a node without
@@ -1816,9 +1816,9 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
 | TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
 | TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
-| TCP-V0-048 | not implemented: fused ordering in place of `corroborate`'s count sort; per-relation ranks recorded by `take` | `TestContextRRFOrdersByFusedRank` (PLANNED) |
-| TCP-V0-049 | not implemented: flag gate and `; rrf` reason | `TestContextRRFDefaultKeepsTheGolden` (PLANNED), `TestContextRRFKeepsAdmissionAndNamesRanks` (PLANNED) |
-| TCP-V0-050 | `tools/retrieval-bench` `context` arm; the offline gold-rank reading (not implemented) | V1-0219 entry in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (not yet recorded) |
+| TCP-V0-048 | `recordRelationRanks`, `orderRows`, `fuseRanks` (`internal/contextindex/context_order.go`, CRK-V0-004) | `TestContextOrderFuseRanks`, `TestContextOrderRecordRelationRanks` |
+| TCP-V0-049 | `configureContextOrder`, `annotateSupport`, `fuseRanks` (`internal/contextindex/context_order.go`) | `TestContextOrderDefaultBytes`, `TestContextOrderAdditive` |
+| TCP-V0-050 | `tools/retrieval-bench` `context` arm; the offline gold-rank reading (NOT_RUN) | reading (a) in `docs/build-log/2026-11-01-ctx-u15.md`; reading (b) NOT_RUN |
 | TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
 | TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
 | TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |

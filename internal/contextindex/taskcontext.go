@@ -197,6 +197,16 @@ type taskContextCompiler struct {
 	roles bool
 	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
 	graphRanking bool
+	// rrfOrder and additiveOrder are CRK-V0-004/005's opt-in orderings, set
+	// by `CORVINT_CONTEXT_RRF=on` and `CORVINT_CONTEXT_ADDITIVE=on`.
+	rrfOrder, additiveOrder bool
+	// acronymProse is CRK-V0-006's opt-in rule, set by
+	// `CORVINT_CONTEXT_ACRONYMS=prose`.
+	acronymProse bool
+	// relationRank is each path's 1-based position per relation, and
+	// relationSeen each relation's count so far, recorded only for RRF.
+	relationRank map[string]map[string]int
+	relationSeen map[string]int
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -346,7 +356,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextOrder(configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -359,7 +369,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		promoted:      map[string]string{},
 		linked:        map[string]string{},
 		linkRefusals:  map[string]string{},
-	}))))
+	})))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -416,7 +426,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		return nil
 	}
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
-	rows = compiler.corroborate(rows)
+	rows = compiler.orderRows(rows)
 	rows = compiler.reserve(rows)
 	compiler.recordLexicalTail(rows)
 	rows = compiler.placeGraphRows(rows, limit)
@@ -587,6 +597,7 @@ func (compiler *taskContextCompiler) takeSlot(rows, candidates []contextRow, cap
 	for _, candidate := range candidates {
 		compiler.candidates[candidate.kind] = append(compiler.candidates[candidate.kind], candidate.path)
 	}
+	compiler.recordRelationRanks(candidates)
 	return compiler.take(rows, candidates, cap)
 }
 
@@ -596,14 +607,7 @@ func (compiler *taskContextCompiler) takeSlot(rows, candidates []contextRow, cap
 // (decision 0027). Rows keep their one evidence row: the relation that
 // admitted them.
 func (compiler *taskContextCompiler) corroborate(rows []contextRow) []contextRow {
-	for index := range rows {
-		others := compiler.support[rows[index].path]
-		if len(others) == 0 {
-			continue
-		}
-		rows[index].score += 50 * len(others)
-		rows[index].summary += "; also " + strings.Join(others, ", ")
-	}
+	rows = compiler.annotateSupport(rows)
 	sort.SliceStable(rows, func(left, right int) bool {
 		return len(compiler.support[rows[left].path]) > len(compiler.support[rows[right].path])
 	})
@@ -843,7 +847,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 	// score and citation when a rarer name the task also names defines it.
 	seen := map[string]int{}
 	for _, identifier := range compiler.identifiers {
-		if !definitionEligible(identifier) {
+		if !compiler.slotDefinitionEligible(identifier) {
 			continue
 		}
 		symbols := definers[identifier.name]
@@ -891,7 +895,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 	wanted := map[string]struct{}{}
 	for _, identifier := range compiler.identifiers {
-		if definitionEligible(identifier) {
+		if compiler.slotDefinitionEligible(identifier) {
 			wanted[identifier.name] = struct{}{}
 		}
 	}
