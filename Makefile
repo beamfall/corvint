@@ -1051,6 +1051,13 @@ dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
+# import-direction-check runs decision 0397's import-direction tests alone, so a tools/ or other
+# Core package importing a Tasks package other than the wire package fails in doc-gates, before
+# batch-precheck runs the whole internal/tasks package (ASD-V0-783, V1-3486).
+.PHONY: import-direction-check
+import-direction-check:
+	$(DOC_GATE_GO_TEST) -run '^(TestImportDirection|TestImportViolationControls)$$' ./internal/tasks
+
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
 # internal/liveverify/affected package (DCW-V0-812).
@@ -1074,11 +1081,12 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
-# --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+# --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
+# script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
 doc-gates: ## Run the documentation gates
-	@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
+	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input

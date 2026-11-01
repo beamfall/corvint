@@ -701,7 +701,8 @@ drift_step() {
 # doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
 # (the target line may carry a `## help` comment, V1-3734)
 # when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
-# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
+# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930), the first also by `script/doc-gates-summary.sh `
+# (ASD-V0-782) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
 # step (V1-3232: as one step its targets ran one after another). ASD-V0-911 (V1-3789): a doc-gates
 # recipe that exists but matches neither form prints one `drift` line, so the caller names this
@@ -713,6 +714,8 @@ doc_gate_expansion() {
     on { on = 0 }
     END {
       # ASD-V0-930: either line may carry the host-queue admission prefix.
+      # ASD-V0-782: the first may also run through script/doc-gates-summary.sh.
+      sub(/^\t@script\/doc-gates-summary\.sh /, "\t@", recipe[1])
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
       if (n == 0) exit
       if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
@@ -806,6 +809,7 @@ steps() {
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
   printf 'dr-numbers\t%q\n' "${0%/*}/check-dr-numbers.sh" # ASD-V0-642, V1-3764
+  printf 'merge-conflict-comments (%s)\t%q --conflict-comments %q\n' "$(git rev-parse --short HEAD)" "$0" "$base" # ASD-V0-784, V1-3504
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
   # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
@@ -869,8 +873,30 @@ ignored_inputs() {
 # generator may read.
 tree_clean() { local out; out=$(git status --porcelain 2> /dev/null) && [[ -z $out && -z $(ignored_inputs) ]]; }
 
+# conflict_comments [BASE] (ASD-V0-784, V1-3504): a commit in BASE..HEAD whose message keeps the
+# `# Conflicts:` block Git appends to a conflicted merge (a `git commit --no-edit` or `git merge
+# --no-edit` without strip cleanup) is refused, naming it and the reword. An empty BASE means
+# origin/main, and a checkout where that does not resolve skips, saying so.
+conflict_comments() {
+  local base=${1:-} bad
+  if [[ -z $base ]]; then
+    if ! git rev-parse --verify --quiet 'origin/main^{commit}' > /dev/null; then
+      printf 'merge-conflict-comments: skipped: no batch base was given and origin/main does not resolve here\n'
+      return 0
+    fi
+    base=origin/main
+  fi
+  git rev-parse --verify --quiet "$base^{commit}" > /dev/null || { printf 'merge-conflict-comments: base %s does not resolve\n' "$base" >&2; return 2; }
+  bad=$(git log --format='%x1e%H%n%B' "$base..HEAD" | awk 'BEGIN { RS = "\036" } /(^|\n)# Conflicts:/ { split($0, l, "\n"); print l[1] }') || return 2
+  [[ -z $bad ]] && return 0
+  printf 'merge-conflict-comments: %s keeps a "# Conflicts:" block in its message\n' $bad
+  printf 'merge-conflict-comments: recover: reword each without those lines (git commit --amend --cleanup=strip for HEAD, else git rebase -r with reword); conclude a conflicted merge with git commit --no-edit --cleanup=strip\n'
+  return 1
+}
+
 case ${1:-} in
   --sync-check) sync_check; exit $? ;;
+  --conflict-comments) conflict_comments "${2:-}"; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
   # ASD-V0-641 (V1-3745): the rows run_one runs directly, by the same test, so a fixture derives its
   # PASS and reuse counts instead of naming a print-only step.
@@ -878,7 +904,7 @@ case ${1:-} in
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
@@ -1040,6 +1066,11 @@ if [[ -n $step_tmp ]]; then
   (umask 077 && mkdir -p "$step_tmp") && step_tmp=$(cd "$step_tmp" && pwd) ||
     { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
   export TMPDIR=$step_tmp
+fi
+# ASD-V0-781 (V1-4016): an exported GOTMPDIR that does not exist fails every go step, so it is
+# created mode 0700 first.
+if [[ -n ${GOTMPDIR-} && ! -d $GOTMPDIR ]]; then
+  (umask 077 && mkdir -p "$GOTMPDIR") || { printf 'batch-precheck: cannot create GOTMPDIR %s\n' "$GOTMPDIR" >&2; exit 2; }
 fi
 # A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
 # compiler, test and sort spills there fail with no space left on device (ASD-V0-054).

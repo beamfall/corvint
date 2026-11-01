@@ -38,6 +38,8 @@ tmp=$(cd "$tmp" && pwd)
 # V1-3205: every failure names its case (the numbered group and the failing line), the last output
 # of the command under test and the free space of TMPDIR, whose exhaustion once failed this test
 # with an empty log; an exit that bypassed fail says so.
+# ASD-V0-780 (V1-3858): fail records the case in $tmp/failures (so a failure inside a subshell
+# counts too) and returns; the run continues and finish lists every failed case and exits 1.
 failed=0
 # ASD-V0-913 (V1-3805): all scratch lives under TMPDIR. A TMPDIR below the floor, or a failure whose
 # output names ENOSPC, is a host-resource refusal (exit 3) naming the directory and the KiB needed,
@@ -58,15 +60,27 @@ fail() {
     avail=$(tmp_avail)
     [[ $avail =~ ^[0-9]+$ ]] && ((avail < need_kib)) && host_refuse "line $line hit no space left on device"
   fi
+  printf 'case "%s" line %s: %s\n' "$group" "$line" "$*" >>"$tmp/failures"
   {
     printf 'batch-precheck_test: FAIL case "%s" line %s: %s\n' "$group" "$line" "$*"
     [[ -s $tmp/out ]] && { printf 'batch-precheck_test: last output (%s), last 40 lines:\n' "$tmp/out"; tail -n 40 "$tmp/out" | sed 's/^/  | /'; }
     printf 'batch-precheck_test: TMPDIR %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)"
   } >&2
-  exit 1
+  return 1
+}
+finish() {
+  if [[ -s $tmp/failures ]]; then
+    failed=1
+    printf 'batch-precheck_test: FAIL %s case(s):\n' "$(wc -l <"$tmp/failures" | tr -d ' ')" >&2
+    sed 's/^/  - /' "$tmp/failures" >&2
+    exit 1
+  fi
+  printf 'batch-precheck_test: PASS\n'
+  exit 0
 }
 on_exit() {
   local rc=$?
+  [[ -s $tmp/failures ]] && failed=1
   ((rc == 0 || failed)) || printf 'batch-precheck_test: FAIL exit %s without a FAIL line (TMPDIR %s: %s)\n' "$rc" "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2
   /bin/rm -rf "$tmp"
 }
@@ -84,6 +98,25 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 # Every group but the ledger-reuse one runs cold; that group turns the ledger on explicitly.
 export CORVINT_GATE_LEDGER=off
+# ASD-V0-781 (V1-4016): Go fails every build when an exported GOTMPDIR is missing, so the test
+# creates it before any case runs go.
+[[ -z ${GOTMPDIR-} ]] || mkdir -p "$GOTMPDIR" || fail "cannot create GOTMPDIR $GOTMPDIR"
+if [[ ${BATCH_PRECHECK_TEST_SEED-} == 1 ]]; then
+# 0a. ASD-V0-780 seeded failure one: the run must go on to the next case.
+  false || fail "seeded failure one"
+# 0b. ASD-V0-780 seeded failure two, inside a subshell.
+  (false || fail "seeded failure two")
+  finish
+fi
+# 0c. ASD-V0-780: a failing case does not stop the run; the summary names every failed case.
+BATCH_PRECHECK_TEST_SEED=1 "$script/batch-precheck_test.sh" > "$tmp/out" 2>&1
+seed_rc=$?
+[[ $seed_rc == 1 ]] || fail "seeded run exited $seed_rc, want 1: $(cat "$tmp/out")"
+grep -q '^batch-precheck_test: FAIL 2 case(s):$' "$tmp/out" || fail "seeded run did not count two failed cases: $(cat "$tmp/out")"
+grep -q '^  - case "0a\. ASD-V0-780 seeded failure one.*seeded failure one$' "$tmp/out" &&
+  grep -q '^  - case "0b\. ASD-V0-780 seeded failure two.*seeded failure two$' "$tmp/out" ||
+  fail "seeded summary did not name both cases: $(cat "$tmp/out")"
+: > "$tmp/out"
 
 # 1. The real workflow: every doc-gates command is a make target or go run, every gofmt set is
 # mirrored, every drift prefix names a test and every golden writer is listed. This is the check
@@ -1061,6 +1094,14 @@ if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]
   fi
 fi
 
+# 10b. ASD-V0-781 (V1-4016): an exported GOTMPDIR that does not exist is created before
+# any step runs, so a go step does not fail with "GOTMPDIR does not exist".
+/bin/cp -f "$fbin/make" "$tmp/make.saved"
+printf '#!/bin/sh\n[ -d "$GOTMPDIR" ] || { echo "make stub: GOTMPDIR $GOTMPDIR missing" >&2; exit 1; }\nexit 0\n' > "$fbin/make"
+GOTMPDIR=$tmp/gotmp/missing frun || fail "a missing GOTMPDIR failed the run: $(cat "$tmp/out")"
+[[ -d $tmp/gotmp/missing ]] || fail "missing GOTMPDIR was not created"
+/bin/cp -f "$tmp/make.saved" "$fbin/make"
+
 # 13. ASD-V0-109 (V1-3267): a sealed CEM the branch adds must be named for a commit in HEAD's
 # history. A resolvable name passes; an unresolvable one fails naming the file and the reseal
 # recovery; an unreachable name the base already holds is not judged; with no base and no
@@ -1140,6 +1181,25 @@ elist > "$tmp/out" 2>&1 || fail "admitted expansion --list: $(cat "$tmp/out")"
 grep -q 'no longer matches doc_gate_expansion' "$tmp/out" && fail "a matching doc-gates recipe was reported as drifted: $(cat "$tmp/out")"
 grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
   fail "the admitted doc-gates recipe was not expanded: $(cat "$tmp/out")"
+# ASD-V0-782: the first line run through script/doc-gates-summary.sh still expands.
+printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "summarized expansion --list: $(cat "$tmp/out")"
+grep -qx 'make beta-test' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" || fail "the summarized doc-gates recipe was not expanded: $(cat "$tmp/out")"
+# ASD-V0-782 (V1-3884): doc-gates-summary.sh passes output through and, on failure, ends naming each
+# failed doc gate in either make's format (GNU 4 `[Makefile:N: T]`, 3.81 `[T]`) and a rerun command.
+dgs=$tmp/dgs
+mkdir -p "$dgs"
+printf '#!/bin/sh\necho gate-out\necho "make[1]: *** [Makefile:9: beta-test] Error 1" >&2\necho "make: *** [alpha.check] Error 2" >&2\necho "make[2]: *** [Makefile:3: inner] Error 1" >&2\nexit 2\n' > "$dgs/make" && chmod +x "$dgs/make" || fail "summary stub"
+"$script/doc-gates-summary.sh" "$dgs/make" --keep-going alpha.check beta-test gamma-check > "$dgs/out" 2> "$dgs/err"
+[[ $? == 2 ]] || fail "doc-gates-summary did not keep the exit status: $(cat "$dgs/err")"
+[[ $(cat "$dgs/out") == gate-out ]] || fail "doc-gates-summary changed stdout: $(cat "$dgs/out")"
+[[ $(tail -n 2 "$dgs/err") == 'doc-gates-summary: FAIL 2 doc gate(s): alpha.check beta-test
+doc-gates-summary: rerun one alone with: make -s alpha.check' ]] || fail "doc-gates-summary did not end naming the failed gates: $(cat "$dgs/err")"
+grep -q 'Makefile:9: beta-test' "$dgs/err" || fail "doc-gates-summary dropped make's stderr: $(cat "$dgs/err")"
+printf '#!/bin/sh\necho boom >&2\nexit 3\n' > "$dgs/make"
+"$script/doc-gates-summary.sh" "$dgs/make" alpha.check 2> "$dgs/err"
+[[ $? == 3 && $(tail -n 1 "$dgs/err") == 'doc-gates-summary: FAIL exit 3 naming no doc gate; read the output above' ]] || fail "unnamed failure: $(cat "$dgs/err")"
+"$script/doc-gates-summary.sh" true alpha.check > "$dgs/out" 2>&1 && [[ ! -s $dgs/out ]] || fail "a passing run printed a summary: $(cat "$dgs/out")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
@@ -1186,6 +1246,26 @@ mkdir -p "$tmp/gmark"
 grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-coauthor-trailers \([0-9a-f]+\)$' "$tmp/out" ||
   fail "ai-coauthor-trailers not an introduced FAIL: $(cat "$tmp/out")"
 grep -q 'WARN ai-coauthor-trailers' "$tmp/out" && fail "ai-coauthor-trailers was downgraded to base-present: $(cat "$tmp/out")"
+
+# 10c. ASD-V0-784 (V1-3504): the merge-conflict-comments step refuses a commit since the batch base
+# whose message keeps git's "# Conflicts:" block, naming the commit and the strip recovery; a clean
+# range passes, a base that does not resolve exits 2, and no base without origin/main is a skip.
+[[ $(grep -c '^merge-conflict-comments (' <(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list 2> /dev/null)) == 1 ]] ||
+  fail "not one merge-conflict-comments step in the listing"
+crepo=$tmp/crepo
+git init -q "$crepo" && git -C "$crepo" commit -q --allow-empty -m base && cbase=$(git -C "$crepo" rev-parse HEAD) &&
+  git -C "$crepo" commit -q --allow-empty -m 'feat: clean' || fail "conflict-comments fixture"
+(cd "$crepo" && "$pre" --conflict-comments "$cbase") > "$tmp/out" 2>&1 || fail "a clean range failed conflict-comments: $(cat "$tmp/out")"
+(cd "$crepo" && "$pre" --conflict-comments) > "$tmp/out" 2>&1 || fail "no base without origin/main did not skip: $(cat "$tmp/out")"
+grep -q '^merge-conflict-comments: skipped: no batch base' "$tmp/out" || fail "no skip line: $(cat "$tmp/out")"
+(cd "$crepo" && "$pre" --conflict-comments no-such-base) > /dev/null 2>&1
+[[ $? == 2 ]] || fail "an unresolved base did not exit 2"
+git -C "$crepo" commit -q --allow-empty --cleanup=verbatim -m "Merge branch 'lane' into batch" -m "# Conflicts:
+#	script/x.sh" && csha=$(git -C "$crepo" rev-parse HEAD) || fail "conflict-comments dirty commit"
+(cd "$crepo" && "$pre" --conflict-comments "$cbase") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a kept # Conflicts: block did not fail: $(cat "$tmp/out")"
+grep -q "^merge-conflict-comments: $csha keeps a \"# Conflicts:\" block" "$tmp/out" || fail "the dirty commit is not named: $(cat "$tmp/out")"
+grep -q 'cleanup=strip' "$tmp/out" || fail "no strip recovery named: $(cat "$tmp/out")"
 
 # 11. ASD-V0-073 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
 # stale, naming the file and the manifest, and a missing one; matching pins pass.
@@ -1502,4 +1582,4 @@ LANE=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(c
 row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
 
-printf 'batch-precheck_test: PASS\n'
+finish

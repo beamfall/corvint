@@ -496,6 +496,13 @@ cannot silently go missing or outlive its command.
   subcommand spelled like an event key in the same package is not checked. Rollback: drop
   `eventTable` and the event-key filter; event values again need internal entries.
 
+- `CAP-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-3886) A
+  `missing` finding for a top-level command with no catalog row MUST name the three artifacts a
+  new command updates: its row in the `docs/CAPABILITIES.md` commands table and the README
+  capability table, the `internal/capcatalog` regeneration (`make capability-catalog`), and the
+  use-case receipt repin (`script/repin-use-case-receipts.sh`). Other sections keep their plain
+  detail. Rollback: restore the plain detail for the commands section.
+
 ## Boundaries and failure modes
 
 Non-goals: generating `docs/CAPABILITIES.md` from code (the CAP-V0-015 catalog is a separate generated document; the page stays hand-written and checked); checking flags, output schemas or the prose of a row; running any listed command; ranking capabilities; replacing a spec, a help page or
@@ -662,3 +669,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
 | CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
+| CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |

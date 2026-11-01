@@ -707,6 +707,12 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `ambiguous`), a roadmap read that fails (named, never silent). Acceptance requires reversing
   the accepted `LCP-V0-010` withholding, so it needs an owner decision and the `context --task`
   promotion first; until then no code implements it. Rollback: delete this entry.
+- `LCP-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-4053) The
+  strict storage decoder MUST admit an absent member exactly when its Go field carries the struct
+  tag `localcompletion:"optional"`, replacing the hand-kept allowlist; every `omitempty` member
+  of `Plan` and the completion state MUST carry the tag, so a new optional member cannot be
+  refused as missing on a file an older binary wrote. Rollback: restore the allowlist; the
+  tags are inert without the decoder check.
 
 ## Non-goals and simpler baseline
 
@@ -924,6 +930,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-920 | `TestLCPV0920SealArchiveReuseNeedsTheExactSeal` (`internal/localcompletion/sealed_archive_reuse_test.go`: a declared check qualifies at its exact seal from its one bind observation, the observation count and tested commit unchanged; positive-first controls refuse an undeclared check, a missing continuation, another evidence target, a later failed observation, a missing log (restored, it qualifies again) and a source commit after the seal; a false declaration is absent from the encoded plan); `TestLCPV0920UndeclaredCheckReruns` |
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
 | LCP-V0-800 | none (proposed; implementation waits for acceptance and the `context --task` promotion) | NOT_PRODUCED: a test that a natural-language prompt and a ticket ID each get task evidence follows acceptance |
+| LCP-V0-780 | `TestLCPV0780OptionalTagAdmitsAnAbsentMember`, `TestLCPV0780OmitemptyFieldsAreTaggedOptional` (`internal/localcompletion/optional_tag_test.go`: a tagged absent member decodes; every `omitempty` field of `Plan` and the state is tagged) |
 
 ## Rollout, rollback and remaining gates
 

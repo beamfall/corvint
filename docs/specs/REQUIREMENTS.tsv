@@ -1022,6 +1022,7 @@ CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
 CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
+CAP-V0-780	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3886) A	standing	2026-11-01; V1-3886
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -2160,6 +2161,11 @@ ASD-V0-843	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-844	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3875; refines	standing	2026-11-01; V1-3875
 ASD-V0-845	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3500; refines	standing	2026-11-01; V1-3500
 ASD-V0-846	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2432; refines	standing	2026-11-01; V1-2432
+ASD-V0-780	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3858) `script/	standing	2026-11-01; V1-3858
+ASD-V0-781	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4016) An expor	standing	2026-11-01; V1-4016
+ASD-V0-782	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3884) `make do	standing	2026-11-01; V1-3884
+ASD-V0-783	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3486) `make im	standing	2026-11-01; V1-3486
+ASD-V0-784	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3504) `script/	standing	2026-11-01; V1-3504
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -3266,6 +3272,7 @@ CTS-V0-990	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-991	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11), V1-3566) Whe	standing	2026-10-11; V1-3566
 CTS-V0-820	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
 CTS-V0-821	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
+CTS-V0-780	docs/specs/corvint-tasks-store-init-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3562) A	standing	2026-11-01; V1-3562
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
@@ -5208,6 +5215,7 @@ LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real
 LCP-V0-920	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-11-01;	standing	2026-11-01
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LCP-V0-800	docs/specs/local-completion-policy-v0.md	(proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no	unrecorded	-
+LCP-V0-780	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4053) The	standing	2026-11-01; V1-4053
 LMG-V0-001	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL ship as	unrecorded	-
 LMG-V0-002	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) `serve` SHALL bind a	unrecorded	-
 LMG-V0-003	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL forward	unrecorded	-
