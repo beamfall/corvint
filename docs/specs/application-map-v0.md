@@ -2182,6 +2182,26 @@ but does not read it; only non-Go syntax impact does.
   importing `tables/x` that `resolve.alias` maps onto repository code read as external, so the
   injected name resolved with false certainty. Non-goal: resolving the alias target; the name
   stays UNKNOWN. Rollback: drop `readBundlerAliases` from `internal/appmap/stateconst.go`.
+- `AMAP-V0-814`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1614) Cypress
+  calls on `cy` MUST give references as AMAP-V0-091 does: `cy.visit` a route, `cy.intercept` the
+  endpoint segments of its URL argument (the second argument when the first is an exact HTTP
+  method), and `cy.get` the names of its CSS text as `locator` does, except that a `cy.get('@name')`
+  alias is unchecked as `cypress-alias`. A `get` call on any other receiver is not a reference.
+  Failure mode: a Cypress suite read zero references and passed with no check.
+- `AMAP-V0-815`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A
+  `testIdAttribute: '<name>'` property or a `setTestIdAttribute('<name>')` call with a literal name,
+  in a map test file or a committed `playwright.config.{ts,js,mjs,cjs,mts,cts}` at the repository
+  root, MUST make an exact `[<name>=...]` locator a test-id reference like `[data-testid=...]`.
+  Every configured name is honoured (a project may set more than one); `data-testid` stays one.
+- `AMAP-V0-816`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A route
+  regular expression anchored at both ends (`^` then `/` or `\/`, ending in an unescaped `$`, with
+  no flag but `i`) that compiles as an RE2 expression MUST be evaluated against the resolved
+  screens instead of labelled: a parameter-free template matches when the expression matches its
+  path, with or without the map's base path and hash prefix; a template with a parameter or splat
+  matches unless the expression's literal start (AMAP-V0-092) cannot begin it. Such a reference
+  misses unlabelled when no template matches (only a root splat leaves `catch-all-route`). Any
+  other expression keeps the `regular-expression` label. Non-goal: deciding a parameter's value
+  against the expression; that is a possible match.
 
 ## Wire contract
 
@@ -2507,6 +2527,9 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-811 | `TestAMAPV0810ModuleCoverage` (unknown and abstract screens are never counted as reached or unreached; an undeclared `router_globs` file is an `UNKNOWN` module with null counts) |
 | AMAP-V0-812 | `TestFlowsAppmapCoverageCLI` (exit 0 with the schema; a missing map, a stray argument and a bad budget exit 2 with no stdout) |
 | AMAP-V0-813 | `TestAMAPV0813BundlerAliasIsNotExternal` (object, exact, array, computed and assigned aliases leave the injected name UNKNOWN; an unrelated alias or none keeps the external exemption) |
+| AMAP-V0-814 | `TestAMAPV0814CypressRefs` |
+| AMAP-V0-815 | `TestAMAPV0815TestIDAttribute` |
+| AMAP-V0-816 | `TestAMAPV0816AnchoredRegexRoutes` |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
