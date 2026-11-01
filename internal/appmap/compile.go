@@ -270,7 +270,8 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 	}
 	b.idx = newScreenIndex(b.m.HashPrefix, b.m.BasePath, screens)
 	for _, k := range b.idx.ambiguousKeys() {
-		b.unknown(Unknown{Kind: "template", Ref: k, Reason: "ambiguous-template"})
+		// The detail names every declaration sharing the key, so the repeat can be found (AMAP-V0-882).
+		b.unknown(Unknown{Kind: "template", Ref: k, Reason: "ambiguous-template", Detail: "declared by " + strings.Join(b.idx.byKey[k], ", ")})
 	}
 	return nil
 }

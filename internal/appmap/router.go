@@ -29,6 +29,11 @@ type rawState struct {
 	nameFrom, parentFrom []Anchor
 	// parentDetail names why an `X.Y` parent did not resolve (AMAP-V0-202).
 	parentDetail string
+	// tree numbers the React route tree that declared the state, and element is the canonical
+	// token text of a JSX route's `element` attribute; both stay empty in other dialects and for
+	// object-form React routes (AMAP-V0-882).
+	tree    int
+	element string
 }
 
 // constLookup resolves a member expression `X.Y`, read at token index tok, to the string literal a

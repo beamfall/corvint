@@ -339,7 +339,8 @@ type Unknown struct {
 	// Detail names the failed hop (and binding, AMAP-V0-196) of a di-constant refusal
 	// (AMAP-V0-072, AMAP-V0-201), the candidate paths of an ambiguous re-export, why an injected
 	// state name or parent refused (AMAP-V0-202), or the specifier of an unresolved test import
-	// (AMAP-V0-195); absent otherwise.
+	// (AMAP-V0-195), or the screens sharing an ambiguous template key (AMAP-V0-882); absent
+	// otherwise.
 	Detail string `json:"detail,omitempty"`
 }
 
