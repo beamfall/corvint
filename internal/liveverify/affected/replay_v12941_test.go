@@ -70,7 +70,7 @@ var docsOnly = []string{
 // readers that rule (d) selects for every dirty path, which any plan carries.
 // Since the shell foreign-caller declaration (TSP-V0-005) the floor is empty.
 // The replayed CEM and spec paths are still named by undeclared non-test shell
-// scripts (check-line-citations.sh, dogfood-seal.sh and others), path-literal
+// scripts (check-line-citations.sh and others), path-literal
 // readers whose shell:foreign-invocation-unmodelled entry bears; that one
 // entry is the measured residual, and no other may appear.
 func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {

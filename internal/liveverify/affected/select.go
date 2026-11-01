@@ -356,7 +356,10 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	mergeWitnesses(reached, enclosing)
 	graph.execUsersOf(reached, built)
 	narrowed, reads = graph.readers(reached, normalized)
-	carried = graph.testlessReaderUsers(reached, normalized, followed)
+	// A path whose runtime-readers entry states no unbounded reader reads it
+	// is runtime state its literal readers alone read (AFP-V0-772), so a
+	// test-less reader of it carries no users (AFP-V0-921).
+	carried = graph.testlessReaderUsers(reached, unbounded, followed)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	graph.existenceReadersOf(reached, normalized)
@@ -575,8 +578,14 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	// A plugin left out only by the terminal rule still names the entries
 	// that stand for a runtime edge from another plugin's code into its units,
 	// which no traversal can see, unless a declared runtime edge models the
-	// entry's site (AFP-V0-818, AFP-V0-819).
+	// entry's site (AFP-V0-818, AFP-V0-819). Such an edge is a run of code
+	// that may read any path, so it bears on no plan whose every dirty path
+	// the project states no unbounded reader reads (AFP-V0-772, AFP-V0-921).
+	crossing := len(graph.unboundedDirty(dirty)) != 0
 	for name := range terminal {
+		if !crossing {
+			break
+		}
 		for _, entry := range graph.crossLanguageEntries(name) {
 			reasons[entry] = true
 		}
@@ -702,11 +711,15 @@ func (graph *Graph) participants(reached map[string]Witness, carried, followed m
 	}
 	names := make(map[string]bool)
 	terminal = make(map[string][]string)
+	// When the project states no unbounded reader reads any dirty path
+	// (AFP-V0-772), an unbounded reader is reached only as the literal
+	// reader it is, so it is as terminal as a bounded one (AFP-V0-921).
+	bounded := len(graph.unboundedDirty(dirty)) == 0
 	for id, witness := range reached {
 		name, _, _ := strings.Cut(id, ":")
 		// An unbounded reader keeps its plugin whatever its witness: the
 		// AFP-V0-560 argument covers only readers whose reads are bounded.
-		if _, unbounded := graph.causes[id]; !unbounded && !carried[id] && !followed[id] && terminalWitness(witness) {
+		if _, unbounded := graph.causes[id]; (bounded || !unbounded) && !carried[id] && !followed[id] && terminalWitness(witness) {
 			terminal[name] = append(terminal[name], id)
 			continue
 		}

@@ -5609,6 +5609,30 @@ admit a selection that under-selects without detection.
   `script/dogfood-bind-coverage.sh`, whose name a shell file builds (TSP-V0-960); it keeps
   `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
   remove the exclusions declaration, `applyUnboundedExclusions`, `unboundedDirty` and the repository entries.
+
+### Seal commits plan bounded (AFP-V0-921; V1-3898)
+
+- **AFP-V0-921:** (experimental, amending AFP-V0-772, AFP-V0-495, AFP-V0-560 and AFP-V0-818, under
+  the owner's standing lane auto-accept (2026-10-11); V1-3898) A dirty path an excluded
+  runtime-readers entry holds (AFP-V0-772) SHALL carry no users through the test-less reader
+  traversal (AFP-V0-495): the project states that only its literal readers read it, and their
+  callers run them against fixtures. When every dirty path is such a path, an unbounded reader the
+  plan reaches is a terminal selection like a bounded one (AFP-V0-560), and no cross-language entry
+  of a plugin left out by the terminal rule bears (AFP-V0-818, AFP-V0-819), since such an entry is a
+  run of code that may read any path. Any other dirty path restores all three rules. The literal,
+  glob, embed and declared-read-scope readers are still selected, and a reader's own frontier
+  still bears (AFP-V0-581). This repository SHALL declare the TSP-V0-005 callers of the six
+  non-test shell scripts that read a CEM path by literal (`check-cem-base-retained.sh`,
+  `check-install-lifecycle.sh`, `dogfood-bind-coverage.sh`, `dogfood-bind-range.sh`,
+  `dogfood-check.sh`, `dogfood-seal.sh`). Failure mode: a test that runs a test-less CEM reader
+  against the repository's own sealed CEMs, rather than a fixture, is not selected by a seal
+  commit; each such caller listed in the declaration today makes its own temporary repository.
+  Measured on the replayed seal pair `f31dd540e` (bind) and `8dca05f13` (seal): `corvint
+  affected` over bind..seal went from UNKNOWN with 18 unknowns (one shell, 17 TypeScript
+  `e2e-runtime-dependency`) to BOUNDED with 25 selected units and none; lane..seal went from
+  UNKNOWN with one to BOUNDED with 13. Rollback: restore `normalized` as the
+  `testlessReaderUsers` argument in `reach`, drop the `bounded` and `crossing` guards in
+  `participants` and `frontierUnknowns`, and remove the six declaration entries.
 ### Declared existence readers (AFP-V0-980, AFP-V0-981; V1-3772)
 
 Intent (red-team test-selection audit, 2026-11-01; V1-3772): `git rm` of a skill file named in a
@@ -6174,6 +6198,7 @@ traceability table.
 | AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
 | AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
 | AFP-V0-772 | `UnboundedReaderExclusionsPath`, `applyUnboundedExclusions`, `RuntimeReader.NoUnboundedReaders`, `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go`, used by `reach` in `select.go`; `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; `.corvint/shell-foreign-callers.json` | `TestUnboundedReaderExclusionsDropOnlyUnboundedReaders_AFPV0772` (seal-shaped change selects the literal reader and no unbounded reader; an entry the exclusions do not name, another dirty path, and no exclusions file still select it; an exclusion naming no entry, or the member inside the runtime-readers file, refuses); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
+| AFP-V0-921 | `reach` (the `unboundedDirty` argument to `testlessReaderUsers`), `participants` (`bounded`) and `frontierUnknowns` (`crossing`) in `internal/liveverify/affected/select.go`; six script entries in `.corvint/shell-foreign-callers.json` | `TestSealCommitPairIsBounded_AFPV0921` in `internal/liveverify/affected/replay_v13898_test.go` (the real seal pair `f31dd540e`/`8dca05f13`, bind..seal and lane..seal, is BOUNDED with no unknown and still selects its literal readers; an undeclared further dirty path selects more units); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
