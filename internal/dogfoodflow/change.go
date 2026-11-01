@@ -984,14 +984,15 @@ func (c *change) uniformPlan(plan []byte) bool {
 
 // carriedUniform reports a staged plan (DCW-V0-037) that completes a uniform
 // citation: its rows all cite one span, and every hunk it does not name
-// already cites only that span in the map, so the stages together cite one
-// span for every hunk (DCW-V0-883).
+// already cites only that span in the map, read as the BASE byte span cem cite
+// records for the rows' BASE lines, so the stages together cite one span for
+// every hunk (DCW-V0-883).
 func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 	m, ok := c.readCitationMap()
 	if !ok || len(m.Hunks) < 2 {
 		return 0, "", false
 	}
-	named, span := map[string]bool{}, ""
+	named, span, path, lines := map[string]bool{}, "", "", ""
 	for _, line := range textLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
 		if len(fields) != 4 || unknownRow(fields) {
@@ -1001,14 +1002,21 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 		if !ok || span != "" && rowSpan != span {
 			return 0, "", false
 		}
-		span, named[fields[0]] = rowSpan, true
+		span, path, lines, named[fields[0]] = rowSpan, fields[1], fields[2], true
 	}
 	if span == "" {
 		return 0, "", false
 	}
+	// A plan row names BASE lines and map evidence a BASE byte span, so the
+	// row is compared as the byte span cem cite records for it.
+	cited, ok := c.baseLineSpan(map[string][]byte{}, path, lines)
+	if !ok {
+		return 0, "", false
+	}
+	cited = path + ":" + cited
 	spans := map[string]string{}
 	for _, evidence := range m.Evidence {
-		spans[evidence.ID], _ = canonicalSpan(evidence.Path, strconv.FormatInt(evidence.Span.Start, 10)+":"+strconv.FormatInt(evidence.Span.End, 10))
+		spans[evidence.ID] = evidence.Path + ":" + strconv.FormatInt(evidence.Span.Start, 10) + ":" + strconv.FormatInt(evidence.Span.End, 10)
 	}
 	carried := 0
 	for index, hunk := range m.Hunks {
@@ -1019,7 +1027,7 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 			return 0, "", false
 		}
 		for _, basis := range hunk.Basis {
-			if spans[basis.EvidenceID] != span {
+			if spans[basis.EvidenceID] != cited {
 				return 0, "", false
 			}
 		}
@@ -1075,12 +1083,6 @@ func (c *change) recitesCitedHunk(plan []byte) bool {
 // one-based, inclusive line span of path at BASE, or false when the blob or
 // span does not resolve (CEM evidenceSpan).
 func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (string, bool) {
-	left, right, found := strings.Cut(lines, ":")
-	first, firstErr := strconv.Atoi(left)
-	last, lastErr := strconv.Atoi(right)
-	if !found || firstErr != nil || lastErr != nil || first < 1 || last < first {
-		return "", false
-	}
 	blob, cached := blobs[path]
 	if !cached {
 		output, status, bounded := c.boundedGit("cat-file", "blob", c.base+":"+path)
@@ -1089,6 +1091,19 @@ func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (stri
 		}
 		blob = []byte(output)
 		blobs[path] = blob
+	}
+	return lineByteSpan(blob, lines)
+}
+
+// lineByteSpan is the byte span START:END that cem cite derives from a
+// one-based, inclusive line span of blob, or false when the span does not
+// resolve (CEM evidenceSpan).
+func lineByteSpan(blob []byte, lines string) (string, bool) {
+	left, right, found := strings.Cut(lines, ":")
+	first, firstErr := strconv.Atoi(left)
+	last, lastErr := strconv.Atoi(right)
+	if !found || firstErr != nil || lastErr != nil || first < 1 || last < first {
+		return "", false
 	}
 	records := bytes.SplitAfter(blob, []byte("\n"))
 	if len(records) > 0 && len(records[len(records)-1]) == 0 {

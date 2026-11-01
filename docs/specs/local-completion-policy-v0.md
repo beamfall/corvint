@@ -471,24 +471,33 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   lifecycle, plan digest and BASE, HEAD's commit and tree, the source worktree root and Git
   directory, and every regular file of K's session directory (all generations) plus every worktree
   or Git-directory artifact the state names (report-set bindings and reports, terminal artifacts,
-  coordination), each by anchor (`session`, `gitdir`, `root`), relative path, SHA-256 and bytes, at
+  coordination), and K's preservation hold and release records (`holds/K.json` and
+  `holds/K.releases/*`, `LCP-V0-880`, `LCP-V0-881`) as `gitdir` files, each by anchor (`session`,
+  `gitdir`, `root`), relative path, SHA-256 and bytes, at
   most 512 files of 4 MiB and 64 MiB in all (`export-bound-exceeded`), with the SHA-256 of the
   bundle. A path outside its anchor refuses `export-path-invalid` and an output it cannot create
   `export-output-unwritable`. It changes no repository or enrollment state (`"mutates": false`). An absent enrollment
   refuses `enrollment-absent`; one with an aggregate outcome or sealed continuation refuses
   `enrollment-export-unsupported`, since their ledgers name paths the bundle does not relocate.
 - `LCP-V0-884`: (experimental under the standing lane auto-accept; V1-0580)
-  `corvint dogfood import --session-key K --input FILE` MUST refuse, writing nothing: an unreadable
+  `corvint dogfood import --session-key K --input FILE` MUST read FILE through its resolved parent
+  directory, so a symlinked ancestor such as macOS `/tmp` or `/var` is admitted while a FILE that is
+  itself a symlink is not, and MUST refuse, writing nothing: an unreadable
   or over-bound bundle (`import-bundle-unreadable`); a bundle whose digest, profile or any file digest fails (`import-bundle-invalid`); another key
   (`import-session-mismatch`); a worktree where K already has state (`import-would-replace`), so an
   import never resets or replaces an enrollment; another owner (`worktree-already-enrolled`); a HEAD
   whose commit or tree differs from the bundle's (`import-target-mismatch`); an unresolvable BASE
   (`base-unavailable`); a destination file with other bytes (`import-artifact-conflict`); and an
-  absent worktree artifact that Git does not ignore (`import-artifact-not-ignored`). Otherwise it
-  writes the session and Git-directory files, the absent ignored worktree artifacts and the owner,
+  absent worktree artifact that Git does not ignore (`import-artifact-not-ignored`); and, when this
+  worktree's root or Git directory differs from the source's, a frozen plan any string of which names
+  the source root or Git directory (`import-plan-not-relocatable`), since relocating it would break
+  the plan digest that binds it. Otherwise it
+  writes the session and Git-directory files, including the hold and release records, so a held
+  ACTIVE enrollment stays held after the restore, the absent ignored worktree artifacts and the owner,
   and prints the restored policy.
 - `LCP-V0-885`: (experimental under the standing lane auto-accept; V1-0580) Import MUST relocate
-  every saved string path under the source Git directory or root to this worktree's, then
+  every saved string path under the source Git directory or root to this worktree's, except the
+  frozen plan, which is carried byte for byte so its plan digest still holds, then
   recompute the report-set digest only when it held at the source, carrying the review and
   terminal acknowledgments only when they named exactly that report set; nothing else changes, so
   the restored enrollment evaluates as its source did and never more satisfied: a satisfied one
@@ -500,7 +509,9 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   aggregate-outcome and sealed-continuation export, a check executable under the source root
   (its relocated path changes the check digest, so that check reads unqualified). Evidence:
   `TestLCPV0883ExportImportRestoresActiveEnrollment` (refusals; the ACTIVE policy restored with
-  relocated logs; the owner verifies again), `TestLCPV0885RelocationNeverLaundersAStaleReportSet`,
+  relocated logs; the owner verifies again; a bundle under a symlinked ancestor imports),
+  `TestLCPV0884ImportRefusesPlanNamingSourceRoot`, `TestLCPV0883RestoredHoldStillGuardsCancel`,
+  `TestLCPV0885RelocationNeverLaundersAStaleReportSet`,
   and the `LCP-V0-883 restore satisfied` case of `TestLocalCompletionRealEvidenceWorkflow` (a real
   satisfied enrollment imported into a `git worktree add` restore evaluates satisfied there with
   the same target, check and reports). Rollback: delete `internal/localcompletion/export.go` and the
@@ -683,7 +694,7 @@ elsewhere are not repeated.
 | `base-unavailable` | `internal/localcompletion/lifecycle.go` (`Begin`) | the plan base does not resolve, or resolves to a different object |
 | `cancel-reason-required` | `internal/localcompletion/lifecycle.go` (`Cancel`) | an `active` enrollment is cancelled without a nonempty `--reason`; the message names the selected checks and saved observations it would close (`LCP-V0-038`, V1-2177) |
 | `enrollment-preservation-hold` | `internal/localcompletion/lifecycle.go` (`Cancel`), `internal/localcompletion/hold.go` | a coordinator's preservation hold keeps the ACTIVE enrollment; the detail names the distinct-checkout route and the authorized release (`LCP-V0-880`, V1-0581) |
-| `import-would-replace`, `import-target-mismatch`, `import-artifact-conflict` | `internal/localcompletion/export.go` (`Import`) | a restore never replaces an enrollment, is bound to the exported commit and tree, and never overwrites other bytes (`LCP-V0-884`, V1-0580) |
+| `import-would-replace`, `import-target-mismatch`, `import-artifact-conflict`, `import-plan-not-relocatable` | `internal/localcompletion/export.go` (`Import`) | a restore never replaces an enrollment, is bound to the exported commit and tree, never overwrites other bytes, and never rewrites a frozen plan that names the source root or Git directory (`LCP-V0-884`, V1-0580) |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go` (`revalidate`) | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
@@ -839,7 +850,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
 | LCP-V0-038 | `Cancel` in `internal/localcompletion/lifecycle.go`; `CancelReasonError` in `internal/localcompletion/types.go`; `--reason` in `cmd/corvint/local_completion.go` | `TestCancelActiveEnrollmentRequiresReason` (`internal/localcompletion/lifecycle_test.go`: a bare cancel of an active enrollment refuses with the check and observation counts and unchanged state, a reasoned cancel closes it, a repeat bare cancel succeeds; fails without the check); `TestDogfoodCancelActiveEnrollmentRequiresReason` (`cmd/corvint/local_completion_test.go`: exit 2 envelope names `--reason TEXT` and the fresh-worktree route, status stays active, `cancel --reason` echoes `cancelReason`); V1-0953 staged route: `TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt` (`internal/localcompletion/lifecycle_test.go`: a stage-2 begin after a satisfied stage refuses `prior-completion-stale` and keeps the stage-1 state bytes) and `TestDogfoodPriorCompletionStaleNamesStagedRoute` |
 | LCP-V0-880..882 | `Hold`, `HoldError` in `internal/localcompletion/hold.go`; the hold check in `Cancel`; the `hold` subverb in `cmd/corvint/local_completion.go` | `TestLCPV0880PreservationHoldGuardsCancel` (`internal/localcompletion/hold_test.go`) |
-| LCP-V0-883..885 | `Export`, `Import`, `relocateState` in `internal/localcompletion/export.go`; the `export` and `import` subverbs in `cmd/corvint/local_completion.go` | `TestLCPV0883ExportImportRestoresActiveEnrollment`, `TestLCPV0885RelocationNeverLaundersAStaleReportSet` (`internal/localcompletion/export_test.go`); `TestLocalCompletionRealEvidenceWorkflow/LCP-V0-883_restore_satisfied` (`cmd/corvint/local_completion_test.go`) |
+| LCP-V0-883..885 | `Export`, `Import`, `relocateState` in `internal/localcompletion/export.go`; the `export` and `import` subverbs in `cmd/corvint/local_completion.go` | `TestLCPV0883ExportImportRestoresActiveEnrollment`, `TestLCPV0884ImportRefusesPlanNamingSourceRoot`, `TestLCPV0883RestoredHoldStillGuardsCancel`, `TestLCPV0885RelocationNeverLaundersAStaleReportSet` (`internal/localcompletion/export_test.go`); `TestLocalCompletionRealEvidenceWorkflow/LCP-V0-883_restore_satisfied` (`cmd/corvint/local_completion_test.go`) |
 | LCP-V0-039 | `selector`, `explicitPaths`, `anchorIdentifiers`, `crowded` and `pathCandidates` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0039ProseIsNotAnAnchor` (`internal/contextindex/local_completion_context_test.go`: a path among URL, number, version, slash-prose, markup and status-word noise resolves alone; absolute and slash-stripped root paths rebase; prose-only prompts abstain; backticked, missing-path and qualified cases keep their outcome; 129 `main.go` files and two crowded base names count ambiguous without refusing); frozen `TestDogfoodPromptFrozenAnchors`, `TestDogfoodPromptMentionAnchors` and `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` unchanged; end to end through the Claude Code hook, `TestV12762CorvintShapedPromptEnvelopesResolveOrAbstain` (`cmd/corvint/host_adapter_prompt_resolution_test.go`: a path or requirement ID among URL, version, percentage and slash-prose noise yields its one row with no `resolution` member, and anchorless prompts are silent) |
 
 | LCP-V0-040 | `TestLocalCompletionRealEvidenceWorkflow` sealed completion and positive-first drift/checker controls; `TestLocalCompletionSealedBinding` exact rename, source/map/name/mode/symlink/multi-parent/descendant controls; `TestLocalCompletionSealedReportCancellation` caller cancellation reaches canonical-fixture seal validation |

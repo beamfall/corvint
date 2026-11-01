@@ -302,12 +302,15 @@ func (p *proposal) sealedOrdinalIDs() ([]string, bool) {
 }
 
 // sealedHolds reports whether m's hunk at each ordinal row's ordinal holds
-// that row; a plan with no ordinal row is never matched.
+// that row; a plan with no ordinal row is never matched. A cite row names
+// BASE lines while the sealed evidence names bytes of its pinned blob, so the
+// row's lines are resolved against that blob (DCW-V0-885).
 func (p *proposal) sealedHolds(m *citationMap) bool {
-	spans := map[string]string{}
-	for _, evidence := range m.Evidence {
-		spans[evidence.ID], _ = canonicalSpan(evidence.Path, strconv.FormatInt(evidence.Span.Start, 10)+":"+strconv.FormatInt(evidence.Span.End, 10))
+	evidence := map[string]int{}
+	for index, record := range m.Evidence {
+		evidence[record.ID] = index
 	}
+	blobs := map[string][]byte{}
 	matched := 0
 	for _, row := range p.refreshRows {
 		if !ordinal.MatchString(row.selector) {
@@ -326,10 +329,10 @@ func (p *proposal) sealedHolds(m *citationMap) bool {
 			matched++
 			continue
 		}
-		span, ok := canonicalSpan(fields[0], fields[1])
 		holds := false
 		for _, basis := range hunk.Basis {
-			holds = holds || ok && spans[basis.EvidenceID] == span
+			position, found := evidence[basis.EvidenceID]
+			holds = holds || found && p.evidenceHoldsLines(m, blobs, position, fields[0], fields[1])
 		}
 		if !holds {
 			return false
@@ -337,6 +340,27 @@ func (p *proposal) sealedHolds(m *citationMap) bool {
 		matched++
 	}
 	return matched > 0
+}
+
+// evidenceHoldsLines reports whether m's evidence at position is path's
+// one-based inclusive line span lines, resolved to bytes in the evidence's
+// pinned blob as cem cite resolves it.
+func (p *proposal) evidenceHoldsLines(m *citationMap, blobs map[string][]byte, position int, path, lines string) bool {
+	record := m.Evidence[position]
+	if record.Path != path || !wire.IsGitOid(record.BlobOid) {
+		return false
+	}
+	blob, cached := blobs[record.BlobOid]
+	if !cached {
+		output, status, bounded := p.boundedGit("cat-file", "blob", record.BlobOid)
+		if status != 0 || !bounded {
+			return false
+		}
+		blob = []byte(output)
+		blobs[record.BlobOid] = blob
+	}
+	span, ok := lineByteSpan(blob, lines)
+	return ok && span == strconv.FormatInt(record.Span.Start, 10)+":"+strconv.FormatInt(record.Span.End, 10)
 }
 
 // resolveHunkFacts finds each wanted hunk ID in the canonical patch of BASE to

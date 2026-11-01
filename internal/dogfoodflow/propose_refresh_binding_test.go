@@ -5,10 +5,13 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 )
 
 // TestProposeCitationsDCWV0442RefreshOrdinalsNeedBinding pins two review
@@ -74,39 +77,56 @@ func TestProposeCitationsDCWV0442RefreshOrdinalsNeedBinding(t *testing.T) {
 // (V1-3293): after a seal moved the map to .corvint/changes/ and a later
 // commit renumbered the hunks, an ordinal plan with no binding is carried
 // through the sealed CEM whose hunks hold its rows; a sealed CEM that does not
-// hold every row, or two that both do, leave the rows dropped.
+// hold every row, or two that both do, leave the rows dropped. The sealed
+// CEMs are real cem prepare, cite and mark output, whose evidence spans are
+// bytes of the pinned blob while the plan's spans are BASE lines.
 func TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM(t *testing.T) {
-	const (
-		first  = "hunk:sha256:1111111111111111111111111111111111111111111111111111111111111111"
-		second = "hunk:sha256:2222222222222222222222222222222222222222222222222222222222222222"
-		added  = "hunk:sha256:3333333333333333333333333333333333333333333333333333333333333333"
-	)
-	sealed := func(firstSpan string) string {
-		return `{"evidence": [{"id": "e1", "path": "pre.go", "span": {"start": ` + firstSpan + `, "end": ` + firstSpan + `}}, {"id": "e2", "path": "pre.go", "span": {"start": 20, "end": 20}}], "hunks": [` +
-			`{"id": "` + first + `", "disposition": "supported", "basis": [{"evidenceId": "e1", "relation": "implementation"}]}, ` +
-			`{"id": "` + second + `", "disposition": "supported", "basis": [{"evidenceId": "e2", "relation": "implementation"}]}, ` +
-			`{"id": "hunk:sha256:4444444444444444444444444444444444444444444444444444444444444444", "disposition": "unknown", "reason": "insufficient-evidence"}]}` + "\n"
-	}
+	const added = "hunk:sha256:3333333333333333333333333333333333333333333333333333333333333333"
 	plan := "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n3\tunknown\tinsufficient-evidence\tno caller yet\n"
 	planPath := writeInput(t, plan)
-	owed := []proposedHunk{{ordinal: 1, id: added, path: "a.go"}, {ordinal: 2, id: first, path: "pre.go"}, {ordinal: 3, id: second, path: "pre.go"}}
 	for name, tc := range map[string]struct {
-		seals map[string]string
-		want  bool
+		firstLines string
+		seals      int
+		want       bool
 	}{
-		"one matching seal": {map[string]string{strings.Repeat("a", 40): sealed("3")}, true},
-		"seal cites other":  {map[string]string{strings.Repeat("a", 40): sealed("4")}, false},
-		"two matching":      {map[string]string{strings.Repeat("a", 40): sealed("3"), strings.Repeat("b", 40): sealed("3")}, false},
+		"one matching seal": {"3:3", 1, true},
+		"seal cites other":  {"4:4", 1, false},
+		"two matching":      {"3:3", 2, false},
 	} {
 		t.Run(name, func(t *testing.T) {
-			root, base := preflightRepository(t, nil)
+			root, base := preflightRepository(t, map[string]string{"z.txt": "added\n"})
+			cem := func(args ...string) {
+				t.Helper()
+				var stdout, stderr bytes.Buffer
+				if code := cemcli.Run(context.Background(), root, args, &stdout, &stderr); code != 0 {
+					t.Fatalf("cem %q = %d\n%s%s", args, code, &stdout, &stderr)
+				}
+			}
+			const mapArg = ".corvint/change.cem.json"
+			cem("prepare", "--base", base, "--target", testGit(t, root, "rev-parse", "HEAD"))
+			cem("cite", "--map", mapArg, "--hunk", "1", "--evidence-path", "pre.go", "--lines", tc.firstLines, "--relation", "implementation")
+			cem("cite", "--map", mapArg, "--hunk", "2", "--evidence-path", "pre.go", "--lines", "20:20", "--relation", "implementation")
+			cem("mark", "--map", mapArg, "--hunk", "3", "--disposition", "unknown", "--reason", "insufficient-evidence")
+			data, err := os.ReadFile(filepath.Join(root, mapArg))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Remove(filepath.Join(root, mapArg)); err != nil {
+				t.Fatal(err)
+			}
+			var sealedMap citationMap
+			if err := json.Unmarshal(data, &sealedMap); err != nil || len(sealedMap.Hunks) != 3 {
+				t.Fatalf("sealed map = %v, %v\n%s", sealedMap.Hunks, err, data)
+			}
+			first, second, gone := sealedMap.Hunks[0].ID, sealedMap.Hunks[1].ID, sealedMap.Hunks[2].ID
 			files := map[string]string{}
-			for commit, data := range tc.seals {
-				files[".corvint/changes/"+commit+".cem.json"] = data
+			for _, commit := range []string{strings.Repeat("a", 40), strings.Repeat("b", 40)}[:tc.seals] {
+				files[".corvint/changes/"+commit+".cem.json"] = string(data)
 			}
 			writeTree(t, root, files)
-			testGit(t, root, "add", ".")
+			testGit(t, root, "add", ".corvint/changes")
 			testGit(t, root, "commit", "-q", "-m", "seal change evidence")
+			owed := []proposedHunk{{ordinal: 1, id: added, path: "a.go"}, {ordinal: 2, id: first, path: "pre.go"}, {ordinal: 3, id: second, path: "pre.go"}}
 			var stderr bytes.Buffer
 			p := &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &stderr, base: base, target: testGit(t, root, "rev-parse", "HEAD")}, options: ProposeOptions{Root: root, Refresh: planPath}}
 			p.readRefreshPlan()
@@ -125,7 +145,7 @@ func TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM(t *testi
 				t.Errorf("ordinal 2 carried to %q, want hunk %s", p.carried, second)
 			}
 			if !strings.Contains(notes, "resolved through the sealed CEM .corvint/changes/"+strings.Repeat("a", 40)+".cem.json") ||
-				!strings.Contains(notes, "refresh row 3 dropped: hunk hunk:sha256:4444") {
+				!strings.Contains(notes, "refresh row 3 dropped: hunk "+gone) {
 				t.Errorf("notes do not name the seal and the one unmapped row:\n%s", notes)
 			}
 		})
