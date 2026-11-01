@@ -358,6 +358,17 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   pinned citation MUST be selected before its target is resolved, so a citation into a file deleted
   since REV (or otherwise unreadable in the index) is still listed (review fix, 2026-10-31).
   Non-goals: selecting from unpinned citations, which are frozen by DCG-V0-041.
+- `DCG-V0-980`: (experimental under the standing lane auto-accept (2026-11-01); lane cit-u18
+  friction; refines DCG-V0-921) Each `--selects REV` line for a citation the index already breaks
+  MUST end with `[moved: --repin rewrites it]` when its content moved unchanged, or with
+  `[breaks: <reason>]` naming the plain check's reason, and with `[outside this change]` when the
+  citing document is unchanged between REV and the index. When any selected citation breaks, one
+  `selects hint: K of N selected citation(s) break at the index (M moved, R need a read); D sit in
+  documents this change does not edit; run script/check-line-citations.sh --repin and commit the
+  rewritten documents before sealing (DCG-V0-980)` line MUST follow; the mode still exits 0 and
+  writes nothing. Before it, a lane that moved lines cited from a spec outside its scope learnt it
+  only from the seal-time mechanical repin. Non-goals: rewriting anything (that stays `--repin`);
+  judging whether a changed span still supports its sentence.
 - `DCG-V0-922`: (experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413)
   Scope decisions, recorded so they are not re-asked: (a) `path:N` references in code comments (Go,
   shell, any source file) are out of this gate's scope: it scans only the DCG-V0-001 document set,
@@ -500,6 +511,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
 | DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
 | DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
+| DCG-V0-980 | the `%reason` labels and `selects hint` line in the `--selects` report of `script/check-line-citations.sh` | `script/check-line-citations_test.sh` case 40: an in-scope and an out-of-scope citation of a moved file are labelled moved, the out-of-scope one is marked, and the hint counts 2 of 2 with 1 outside |
 
 ## Traceability
 
@@ -541,6 +553,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-840 | `CHECK_LINE_CITATIONS_REPIN_TOTAL` and the repin report in `script/check-line-citations.sh` | case 37 |
 | DCG-V0-841 | the relocation hint in `script/check-line-citations.sh` | case 32c |
 | DCG-V0-842 | the end of the `--repin` block in `script/check-line-citations.sh` | case 38 |
+| DCG-V0-980 | the `--selects` report in `script/check-line-citations.sh` | case 40 |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
 

@@ -12,7 +12,7 @@ import (
 
 // TestDogfoodDCWV0849RefusesBaseNotAncestorOfHead pins V1-3680: with a BASE
 // HEAD lacks, propose-citations (with and without --refresh) and dogfood
-// change refuse base-not-ancestor-of-head with exit 2, print no draft and
+// change refuse base-not-ancestor (DCW-V0-946) with exit 2, print no draft and
 // write no map, instead of drafting or binding the revert of BASE's commits.
 func TestDogfoodDCWV0849RefusesBaseNotAncestorOfHead(t *testing.T) {
 	root, base := preflightRepository(t, nil)

@@ -1073,6 +1073,48 @@ git -C "$test_root" rm -q -f docs/specs/moved39.md internal/demo/moved.go
 git -C "$test_root" rm -q --cached internal/demo/gone.go
 rm -f "$test_root/internal/demo/gone.go"
 
+# 40. DCG-V0-980 (lane cit-u18 friction): --selects labels each selected citation the index breaks
+#     (moved, a mechanical --repin) and marks one in a document the change does not edit, so a lane
+#     sees before the seal the out-of-scope specs its moved lines break.
+cite "$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:4)"
+commit_all case40-reset
+printf '%s\n' 'package demo' '' 'func Hint() int {' '	return 40' '}' > "$test_root/internal/demo/hint.go"
+stage internal/demo/hint.go
+hint=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/hint.go:3-5)
+mkdir -p "$test_root/docs/specs"
+# shellcheck disable=SC2016
+printf '# In\n\nThe claim rests on `%s`.\n' "$hint" > "$test_root/docs/specs/in40.md"
+# shellcheck disable=SC2016
+printf '# Out\n\nThe other claim rests on `%s`.\n' "$hint" > "$test_root/docs/specs/out40.md"
+stage docs/specs/in40.md
+stage docs/specs/out40.md
+run >/dev/null || fail "the hint fixture did not pass before the move: $(run)"
+commit_all hint
+printf '%s\n' 'package demo' '' '// inserted' '' 'func Hint() int {' '	return 40' '}' > "$test_root/internal/demo/hint.go"
+stage internal/demo/hint.go
+printf 'An edit in scope.\n' >> "$test_root/docs/specs/in40.md"
+stage docs/specs/in40.md
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 2 pinned citation(s) cite a file changed since HEAD'*) ;;
+*) fail "--selects did not select the two hint citations: $out" ;;
+esac
+case $out in
+*"docs/specs/in40.md:3  \`$hint\`  [moved: --repin rewrites it]
+"*) ;;
+*) fail "--selects did not label the in-scope citation moved: $out" ;;
+esac
+case $out in
+*"docs/specs/out40.md:3  \`$hint\`  [moved: --repin rewrites it]  [outside this change]"*) ;;
+*) fail "--selects did not mark the out-of-scope citation: $out" ;;
+esac
+case $out in
+*'selects hint: 2 of 2 selected citation(s) break at the index (2 moved, 0 need a read); 1 sit in documents this change does not edit; run script/check-line-citations.sh --repin'*'(DCG-V0-980)'*) ;;
+*) fail "--selects did not print the pre-seal hint summary: $out" ;;
+esac
+git -C "$test_root" rm -q -f docs/specs/in40.md docs/specs/out40.md internal/demo/hint.go
+commit_all hint-gone
+
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
 blob=$(printf 'x\ny\n' | git -C "$test_root" hash-object -w --stdin)

@@ -3539,6 +3539,7 @@ DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
 DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
 DCW-V0-827	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3368) A citation-plan row'	standing	V1-3368
+DCW-V0-980	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; lane cit-u18 fric	standing	2026-11-01
 DCW-V0-990	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends	standing	2026-10-31; V1-3637
 DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`	standing	V1-3369
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
@@ -3745,6 +3746,7 @@ DCG-V0-841	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-842	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3672); refines DCG-V0-048)	standing	V1-3672
 DCG-V0-920	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408	standing	2026-10-31; V1-3342; V1-3408
 DCG-V0-921	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3323)	standing	2026-10-31; V1-3323
+DCG-V0-980	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); lane cit-u18	standing	2026-11-01
 DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413
 DCG-V0-630	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3722; refines	standing	2026-11-01; V1-3722
 DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467

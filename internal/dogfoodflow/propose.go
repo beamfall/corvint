@@ -451,17 +451,18 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			uniform = false
 			continue
 		}
+		if p.carried != nil {
+			// Drafted afresh: no row was carried, or a carried all-unknown row
+			// on a sealed CEM is redrafted (DCW-V0-966). A carried-forward
+			// candidate still needs review, so it counts as redrafted too.
+			p.redrafted = append(p.redrafted, hunk)
+		}
 		row, cite, fellBack := "", "", ""
 		ordinal := fmt.Sprint(hunk.ordinal)
 		if p.keyByID {
 			ordinal = hunk.id
 		}
 		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
-			if p.carried != nil {
-				// Drafted afresh: no row was carried, or a carried all-unknown row
-				// on a sealed CEM is redrafted (DCW-V0-966).
-				p.redrafted = append(p.redrafted, hunk)
-			}
 			row, cite, fellBack = p.propose(hunk, edited, used)
 			// A drafted cite the author removed for this edit is never drafted
 			// again; the hunk keeps the unknown fallback (CKC-V0-007).
