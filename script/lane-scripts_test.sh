@@ -243,6 +243,18 @@ kill -TERM "$holder"
 wait "$holder" 2> /dev/null
 gone "$(cat "$tmp/g.pid")" || { kill "$(cat "$tmp/g.pid")" 2> /dev/null; fail "heavy.sh did not forward TERM to the workload's group"; }
 ok
+# ASD-V0-926: a heavy.sh nested in another one's workload (BATCH_PRECHECK_GO_WRAPPER=script/heavy.sh
+# around a make recipe that runs DOC_GATE_GO_TEST) runs in the enclosing slot, so at one slot it
+# completes instead of deadlocking; timeout bounds the case, and its TERM reaches the whole group.
+# A forged HEAVY_SLOT_FD (an own descriptor on slot1, not the holder's) still waits for the slot.
+got=$(HEAVY_SLOTS=1 timeout 20 "$heavy" bash -c '"$1" echo nested-ran' _ "$heavy" 2> "$tmp/err")
+[[ $? == 0 && $got == nested-ran ]] && grep -qx 'heavy.sh: slot 1/1 held by an enclosing heavy.sh' "$tmp/err" ||
+  fail "nested heavy.sh at HEAVY_SLOTS=1 did not run in the enclosing slot: $got $(cat "$tmp/err")"
+got=$(perl -MFcntl=:flock,F_SETFD -e 'open(my $h, ">>", $ARGV[0]) or exit 9; flock($h, LOCK_EX) or exit 9;
+  open(my $f, ">>", $ARGV[0]) or exit 9; fcntl($f, F_SETFD, 0); @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = (1, fileno $f);
+  exit(system("timeout", "3", @ARGV[1 .. $#ARGV]) >> 8)' "$HEAVY_LOCK_DIR/slot1" env HEAVY_SLOTS=1 "$heavy" echo forged-ran 2> /dev/null)
+[[ $? == 124 && -z $got ]] || fail "a forged HEAVY_SLOT_FD bypassed a held slot: $got"
+ok
 # ASD-V0-028: a go test offloads to HEAVY_REMOTE_HOST at the checkout's exact tree (an unpushed
 # commit as a bundle, the uncommitted diff, untracked files, the working directory), returns its
 # status, admits through the remote flock semaphore, cleans up the remote, and falls back to a local

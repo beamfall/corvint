@@ -266,7 +266,18 @@ my ($dir, $n, $nice, @cmd) = @ARGV;
 my $log = delete $ENV{HEAVY_RUN_LOG} // "";
 my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
 my $t0 = time;
-my ($lock, $slot);
+my ($lock, $slot, $held);
+# ASD-V0-926: a run inside an enclosing heavy.sh workload reuses that slot instead of waiting for
+# another (nested wrappers would deadlock at HEAVY_SLOTS=1), but only when the inherited descriptor
+# is the slot file of this lock directory and its lock is held through it; anything else queues.
+my ($hk, $hfd) = (delete $ENV{HEAVY_SLOT} // "", delete $ENV{HEAVY_SLOT_FD} // "");
+if ($hk =~ /^[1-9][0-9]{0,3}$/ && $hfd =~ /^[0-9]{1,4}$/ && open(my $dup, ">>&", $hfd)) {
+    my @a = stat($dup);
+    my @b = stat("$dir/slot$hk");
+    if (@a && @b && $a[0] == $b[0] && $a[1] == $b[1] && flock($dup, LOCK_EX | LOCK_NB)) {
+        ($lock, $slot, $held) = ($dup, $hk, 1);
+    }
+}
 until ($lock) {
     for my $i (1 .. $n) {
         open(my $fh, ">>", "$dir/slot$i") or die "heavy.sh: REFUSE lock-open-failed $dir/slot$i: $!\n";
@@ -275,10 +286,14 @@ until ($lock) {
     }
     select(undef, undef, undef, 1) unless $lock;
 }
-truncate($lock, 0);
-syswrite($lock, "$$\n");
 my $t1 = time;
-printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, $t1 - $t0;
+if ($held) {
+    printf STDERR "heavy.sh: slot %d/%d held by an enclosing heavy.sh\n", $slot, $n;
+} else {
+    truncate($lock, 0);
+    syswrite($lock, "$$\n");
+    printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, $t1 - $t0;
+}
 # The command inherits the locked descriptor, so the slot stays held until every process that
 # kept it has exited, even when the wrapper itself is killed.
 fcntl($lock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
@@ -287,6 +302,7 @@ die "heavy.sh: fork failed: $!\n" unless defined $pid;
 if ($pid == 0) {
     setpgid(0, 0);
     setpriority(0, 0, $nice) if $nice > getpriority(0, 0);
+    @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = ($slot, fileno($lock));
     no warnings "exec";
     exec { $cmd[0] } @cmd or print STDERR "heavy.sh: cannot run $cmd[0]: $!\n";
     POSIX::_exit(127);
