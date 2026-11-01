@@ -401,6 +401,14 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   refuse the `cem/1.0` fixture (`cem` rejects `--artifacts`; `ocm` exits 1), observed 2026-10-16.
   NOT_PRODUCED: a success-mode N-1 replay of `cem`, `ocm` and `frontier`, and any refusal other than
   these twelve cases.
+- **CCF-V1-620:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3342;
+  refines CCF-V1-002) Regenerating a golden (`CORVINT_UPDATE_GOLDEN=1`, run by `make batch-regen`)
+  MUST keep each `<varies:KIND>` leaf of the previous golden whose path the two new runs pin to a
+  value of that same JSON kind, because two runs can agree on a value that varies (a build time in
+  milliseconds); a regenerated golden that froze it failed the next `batch-precheck`. A leaf whose
+  kind changed, a path the previous golden lacks, and every pinned value follow the new runs.
+  Non-goals: making a newly varying value a placeholder on one pair of runs. Rollback: drop
+  `keepCoreVaries`.
 
 ## Non-goals
 
@@ -475,6 +483,7 @@ no N-1, and each later release's N-1 is the previous release published in it; se
 | CCF-V1-010 | `TestCoreRefusalsKeepTheFrozenEnvelope` under `make core-n1-replay` (`replayCoreRefusalN1`), run by the `core-n1-replay-*` gates of `.github/workflows/release-gates.yml`; three stand-in N-1 binaries (renamed code, exit 1, an extra member) each fail all twelve cases, build log 2026-10-16-v1-0285-n1-refusal-replay |
 | CCF-V1-008 | `TestRootHelpLabelsEveryVerbWithMaturityAndOwner`, `TestInvalidChoiceNamesEveryDispatchedTopLevelVerb`, `TestOnlyThePinnedHookPlumbingVerbsBypassRootHelp`, `TestHiddenVerbsStayCallableButUnlisted`, `TestInitIsDocumentedAsAnAliasOfAdopt` |
 | CCF-V1-650 | `TestEveryVerbHelpFollowsTheHouseFormat`, `TestFeatureHelpGivesAValidFeatureIDExample` |
+| CCF-V1-620 | `TestCCFV1620GoldenRegenKeepsAPreviousVariesLeaf`; the V1-3342 rerun in `docs/build-log/2026-11-01-dgs-u28.md` |
 | CCF-V1-009 | `TestRootHelpIsACompactVerbIndex`, `TestRootHelpListsContextAndWorkCommands`, `TestSupportBoundaryDisclosesTheSelfObservationLedgerWrite`, `TestRootHelpMutationBoundary`, `TestHelpInvocationsAreDeterministicAndDoNotInspectRootOrStdin` |
 
 ## Rollback
