@@ -26,10 +26,13 @@ import (
 // tests reading the interop module; cmd/corvint's TCB-V0-016 test and the
 // interop module's own tests run the real interop/cem01-go consumer. Capture
 // tests' work source scratch stays under the test temporary root (V1-2768).
+// Every git the tests spawn runs detached from the account's global and system
+// configuration (testsupport.IsolateGit, V1-2635).
 func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == portableRoute {
 		os.Exit(standInConsumer(os.Args[2:]))
 	}
+	testsupport.IsolateGit()
 	removeRunParent, err := testsupport.PrivateWorkRunParent()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "work run parent:", err)
