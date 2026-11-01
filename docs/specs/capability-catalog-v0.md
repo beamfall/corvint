@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: the 40 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, and the ten subcommand companions of CAP-V0-970 under that requirement); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: the 40 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, and the ten subcommand companions of CAP-V0-972 under that requirement); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -362,7 +362,7 @@ cannot silently go missing or outlive its command.
   a verb is accepted there and ignored, as before. Rollback: restore the two ratchet rows and the
   ceiling of 52, delete the two snapshots, their `commandTreeRefs`, `llms.txt`, Makefile and
   Command trees entries, the two `help.go` files and `clitree.Answer`.
-- `CAP-V0-970`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
   Every ratchet binary whose dispatch code matches a subcommand word MUST ship a command tree:
   `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-go-test-provider`,
   `corvint-intake`, `corvint-js-test-provider`, `corvint-postmerge-connect`,
@@ -375,7 +375,7 @@ cannot silently go missing or outlive its command.
   whose `ratchetCeiling` falls from 50 to 40. Each tree's dispatch source is the binary's own
   `cmd/` directory, so `tools/capabilities-check` fails on a word or option the binary matches that
   its tree lacks (CAP-V0-047).
-- `CAP-V0-971`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+- `CAP-V0-973`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
   `clitree.Help.Serve` MUST answer exactly the invocations `clitree.Answer` answers (CAP-V0-931),
   before the binary's own dispatch, with exit 0, or exit 2 and one stderr line for `help` with an
   unknown path. The root help is the binary's authored usage when it has one, otherwise a
@@ -384,7 +384,7 @@ cannot silently go missing or outlive its command.
   detail (its flag defaults), so help a binary printed before keeps its content and moves to
   stdout. Every other invocation is not answered, so the binary's dispatch, refusals and exit codes
   are unchanged.
-- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+- `CAP-V0-974`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
   `clitreetest.CheckCompanion` MUST, in each of the ten binaries' own tests, run the binary's help
   entry point in process for every node with `--help` and `-h` (exit 0, stdout starting with
   `Render`, empty stderr), check that the root help lists every node and names `help --json`, that

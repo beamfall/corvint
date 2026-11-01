@@ -947,9 +947,9 @@ CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing 
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-931	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-932	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
-CAP-V0-970	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
-CAP-V0-971	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
