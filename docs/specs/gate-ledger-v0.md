@@ -166,7 +166,9 @@ therefore come from something keyed on content, not from Go's cache.
   The unresolved key already includes the package names, so a scoped run never matches a
   whole-tree record. When the `go list` or selector partition fails, it MUST fall back to one
   uncached run of LIST, not `./...`. An empty LIST, or a pattern that starts with `-`, MUST be
-  refused with usage and exit 2 before anything runs. Without `--packages`, `go-test` behaves
+  refused with usage and exit 2 before anything runs. A LIST that partitions to no package (for
+  example `./docs/...`) MUST fail with exit 1 and `gate-ledger: SCOPE packages LIST matches no
+  packages to test` before anything runs, as `go test` fails with no packages to test. Without `--packages`, `go-test` behaves
   exactly as before. Design: the flag belongs to the tool, not to the Makefile, because
   `ledger/go-test` is pinned by `STR-V0-006`. A lane that changes three packages can now record
   a ledger run of only those, where before it needed a full-tree run of about 25 minutes.
@@ -271,7 +273,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
-| GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, and an empty list or a `-x` pattern refuses with exit 2 |
+| GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
 
 ## Rollout, rollback, and drift
 
