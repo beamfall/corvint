@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -58,8 +59,8 @@ func waitFrame(ctx context.Context, root, label string, has, absent []string, wi
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-timer.C:
-			_ = os.WriteFile(root+"/failed-frame.txt", []byte(f.text), 0600)
-			return errors.New("native UI witness missing: " + label + ": " + frameWitnessCause(root, f, has, absent, width))
+			saveErr := os.WriteFile(root+"/failed-frame.txt", []byte(f.text), 0600)
+			return errors.New("native UI witness missing: " + label + ": " + frameWitnessCause(root, f, has, absent, width, saveErr))
 		case <-ticker.C:
 		}
 	}
@@ -67,8 +68,9 @@ func waitFrame(ctx context.Context, root, label string, has, absent []string, wi
 
 // frameWitnessCause names why a witness frame never matched (AHI-620): no
 // captured frame, or the frame's size and each expected string it lacks or
-// forbidden string it shows, plus the witness plugin's last logged error.
-func frameWitnessCause(root string, f frame, has, absent []string, width int) string {
+// forbidden string it shows, plus the witness plugin's last logged error and
+// whether the failed frame was saved.
+func frameWitnessCause(root string, f frame, has, absent []string, width int, saveErr error) string {
 	var parts []string
 	if len(f.data) == 0 {
 		loaded := "the witness plugin never logged loaded"
@@ -102,12 +104,17 @@ func frameWitnessCause(root string, f frame, has, absent []string, width int) st
 	if logged := witnessLastError(root); logged != "" {
 		parts = append(parts, "witness plugin error "+strconv.Quote(logged))
 	}
+	if saveErr != nil {
+		return strings.Join(append(parts, "frame not saved to "+root+"/failed-frame.txt: "+saveErr.Error()), "; ")
+	}
 	return strings.Join(append(parts, "frame saved to "+root+"/failed-frame.txt"), "; ")
 }
 
 // witnessEntries reads the witness plugin's JSON-lines log; unreadable lines are skipped.
+// The log must be an in-run regular file within maxEvidenceBytes; anything else reads as
+// no entries.
 func witnessEntries(root string) []map[string]any {
-	bytes, err := os.ReadFile(root + "/witness.jsonl")
+	bytes, err := readRegularBounded(root+"/witness.jsonl", maxEvidenceBytes)
 	if err != nil {
 		return nil
 	}
@@ -119,6 +126,44 @@ func witnessEntries(root string) []map[string]any {
 		}
 	}
 	return entries
+}
+
+var errNotRegularEvidence = errors.New("evidence is not a regular file")
+
+// readRegularBounded reads at most limit bytes from path, refusing a symlink (which
+// could import another run's evidence) and any non-regular file such as a FIFO (which
+// could block after the witness timer fired). The opened file must be the file lstat saw.
+func readRegularBounded(path string, limit int64) ([]byte, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errNotRegularEvidence
+	}
+	if info.Size() > limit {
+		return nil, errEvidenceBound
+	}
+	f, err := os.OpenFile(path, os.O_RDONLY|evidenceOpenFlags, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	opened, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !opened.Mode().IsRegular() || !os.SameFile(info, opened) {
+		return nil, errNotRegularEvidence
+	}
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, errEvidenceBound
+	}
+	return b, nil
 }
 
 func witnessLogged(root, stage string) bool {
