@@ -27,6 +27,10 @@
     {
       "word": "--supervise",
       "reason": "run option the detached launcher passes to its own supervisor process"
+    },
+    {
+      "word": "--query",
+      "reason": "ticket search refuses it and points to --text (TCL-V0-863)"
     }
   ],
   "nodes": [
