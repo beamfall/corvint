@@ -38,7 +38,9 @@ if [[ ${DOGFOOD_FINISH_LANE-} == 1 ]]; then
   [[ -z $base_arg || $base_arg =~ ^[0-9a-f]{40}$ ]] || missing+=(BASE:not-full-sha)
   [[ -n $intents ]] || missing+=(INTENTS)
   [[ -n $verify ]] || missing+=(VERIFY)
-  [[ -n $outcome || ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]] || missing+=(OUTCOME)
+  # dogfood-closeout runs this pre-flight first and still refuses a missing OUTCOME before any
+  # build (DCW-V0-848).
+  [[ -n $outcome || (${DOGFOOD_FINISH_PREFLIGHT-} == 1 && ${DOGFOOD_FINISH_ENTRY-} != dogfood-closeout) ]] || missing+=(OUTCOME)
 fi
 for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
   [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")
