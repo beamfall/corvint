@@ -5656,6 +5656,7 @@ RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
 RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
 RGV-V0-955	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3528) When ever	standing	2026-11-01; V1-3528
+RGV-V0-956	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3532) A guidanc	standing	2026-11-01; V1-3532
 RPB-V0-001	docs/specs/reproduction-bundle-v0.md	A bundle MUST be one JSON object with exactly the members `profile`	unrecorded	-
 RPB-V0-002	docs/specs/reproduction-bundle-v0.md	Bounds: a bundle of at most 4 MiB; 1 to 64 arguments of at most 4096 bytes and n	unrecorded	-
 RPB-V0-003	docs/specs/reproduction-bundle-v0.md	Inputs are pinned, never assumed. `record` MUST refuse with	unrecorded	-
