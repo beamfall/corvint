@@ -40,3 +40,29 @@ func version(git string) string {
 	}
 	return strings.TrimPrefix(strings.TrimSpace(string(output)), "git version ")
 }
+
+// GraftAdvice reports whether git prints its graft-file deprecation advice on
+// stderr when GIT_GRAFT_FILE names the null device, the precondition of a test
+// that proves a caller suppresses it (V1-3588).
+func GraftAdvice(git string) bool {
+	dir, err := os.MkdirTemp("", "corvint-gitprobe-")
+	if err != nil {
+		return false
+	}
+	defer os.RemoveAll(dir)
+	environment := append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
+	// The advice is printed when Git parses a commit, so the probe needs one.
+	for _, args := range [][]string{{"init", "-q", dir}, {"-C", dir, "-c", "user.name=probe", "-c", "user.email=probe@example.invalid", "commit", "-q", "--allow-empty", "-m", "probe"}} {
+		step := exec.Command(git, args...)
+		step.Env = environment
+		if step.Run() != nil {
+			return false
+		}
+	}
+	command := exec.Command(git, "-C", dir, "rev-list", "HEAD")
+	command.Env = append(environment, "GIT_GRAFT_FILE="+os.DevNull)
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	_ = command.Run()
+	return strings.Contains(stderr.String(), "grafts is deprecated")
+}

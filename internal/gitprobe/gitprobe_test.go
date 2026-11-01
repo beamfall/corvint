@@ -37,3 +37,24 @@ func TestReftableNamesTheOldGitVersion(t *testing.T) {
 		t.Fatalf("supporting git refused: %v", err)
 	}
 }
+
+func TestGraftAdviceDetectsTheHint(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("fake git is a POSIX shell script")
+	}
+	path := filepath.Join(t.TempDir(), "git")
+	script := "#!/bin/sh\ncase \"$*\" in *rev-list*) [ -n \"$GIT_GRAFT_FILE\" ] && echo 'hint: Support for <GIT_DIR>/info/grafts is deprecated' >&2; exit 1;; esac\nexit 0\n"
+	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if !GraftAdvice(path) {
+		t.Fatal("a git printing graft advice was not detected")
+	}
+	quiet := filepath.Join(t.TempDir(), "git")
+	if err := os.WriteFile(quiet, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if GraftAdvice(quiet) {
+		t.Fatal("a quiet git was reported as printing graft advice")
+	}
+}

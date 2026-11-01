@@ -91,6 +91,8 @@ func (r *repository) git(ctx context.Context, limit int, stdin []byte, args ...s
 		"-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "credential.helper=",
 		"-c", "core.quotePath=false", "-c", "core.hooksPath=" + os.DevNull,
 		"-c", "log.showSignature=false", "-c", "trailer.separators=:",
+		// GIT_GRAFT_FILE names the null device; keep Git's graft advice out of stderr (V1-3588).
+		"-c", "advice.graftFileDeprecated=false",
 	}
 	options := gitrun.Options{Dir: r.root, Env: scrubbedEnv(), Stdin: stdin, StdoutLimit: limit}
 	return gitrun.Run(ctx, r.budget, options, append(prefix, args...)...)
