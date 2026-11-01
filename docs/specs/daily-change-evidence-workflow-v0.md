@@ -3460,6 +3460,21 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   help-snapshot tests (`TestCAPV0047` among them) run through `capability-catalog-check` and the
   `DRIFT_TESTS` list. Evidence: the `DCW-V0-751` case of `script/batch-precheck_test.sh`. Rollback:
   drop the test case.
+- `DCW-V0-752`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2360; refines
+  `DCW-V0-161`) `corvint dogfood propose-citations`, and the anchor search of `dogfood check` and of
+  the `--refresh` carry that share its drafter, MUST read BASE and HEAD blobs through one `git
+  ls-tree -r -z --full-tree` listing per commit and one long-lived `git cat-file --batch` process,
+  not an `ls-tree` and a `cat-file` per blob, and MUST compute a hunk's file-wide and change-wide
+  requirement-family fallbacks once per change, not once per hunk. A listing that is unreadable or
+  over the flow's Git output bound, or a batch answer that is not the expected blob, falls back to
+  the per-blob commands, so the draft is byte-identical either way; a blob over the bound still
+  refuses `git-output-over-bound`. Measured on WSL (load 8 to 22), before and after, identical
+  drafts: a 593-hunk lane 12.8-14.6 s to 2.1 s (2639 Git spawns to 20), a 629-hunk lane 19.7 s to
+  3.8 s, 58 to 67 hunks 1.4-2.0 s to 0.6 s. Non-goals: changing any drafted row or note. Evidence:
+  `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` (the draft and each blob, symbolic
+  link, directory and missing path read the same both ways) and
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `blobFastPath` false and drop
+  `familyFallbacks`.
 
 ## Code vocabulary
 
@@ -3821,6 +3836,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDCWV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
 | `DCW-V0-750` (experimental under the standing lane auto-accept; V1-3615, V1-3790) | `script/dogfood-cache_test.sh` (`DCW-V0-750` case) | implemented; shell test PASS |
 | `DCW-V0-751` (experimental under the standing lane auto-accept; V1-3854) | `script/batch-precheck_test.sh` (`DCW-V0-751` case) | implemented; shell test PASS |
+| `DCW-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose_blobs.go` `commitTree`, `batchBlob`, `fastBlob`, `closeBlobs`; `propose.go` `blob`, `familyFallbacks`; `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

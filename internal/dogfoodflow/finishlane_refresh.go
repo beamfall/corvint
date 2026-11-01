@@ -57,6 +57,7 @@ func (l *finishLane) refreshMovedPlan() {
 		blobs: map[string][]byte{}, lines: map[string][][]byte{},
 	}
 	code, err := boundary(l.ctx, run.run, func() {})
+	run.closeBlobs()
 	if err != nil {
 		l.exit(-1)
 	}

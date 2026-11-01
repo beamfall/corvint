@@ -302,6 +302,7 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool,
 	searched.ctx = ctx
 	searched.stderr = io.Discard
 	search := &proposal{flow: searched, blobs: map[string][]byte{}, lines: map[string][][]byte{}, basenames: true}
+	defer search.closeBlobs()
 	wanted := map[string]bool{}
 	for _, id := range below {
 		wanted[id] = true

@@ -52,10 +52,18 @@ type proposal struct {
 	cemBase string
 	blobs   map[string][]byte
 	lines   map[string][][]byte
+	// trees and batch serve blob without a Git spawn per read (V1-2360).
+	trees map[string]map[string]treeEntry
+	batch *blobBatch
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
 	matches map[string][]spanLine
+	// fileFamilies and changeFamilies cache the hunkFamiliesScope
+	// fallbacks, the dominant families of each file's edits and of the whole
+	// change's, which depend only on derived (V1-2360).
+	fileFamilies   map[string]map[string]bool
+	changeFamilies map[string]bool
 	// basenames also searches each hunk path's basename of at least 6
 	// bytes, which CEM-V1-081 counts as a path anchor. The check sets it to
 	// decide that no anchor is available (DCW-V0-165); drafts do not, since
@@ -146,6 +154,7 @@ func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stder
 		flow:    flow{ctx: ctx, prefix: "dogfood-propose-citations", root: options.Root, stderr: stderr},
 		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
 	}
+	defer run.closeBlobs()
 	return boundary(ctx, run.run, func() {})
 }
 
@@ -790,23 +799,36 @@ func (p *proposal) hunkFamiliesScope(hunk *patch.Hunk) (map[string]bool, bool) {
 		return context, false
 	}
 	// The fallbacks count every ID of the other edits together, so the
-	// family they name most often wins (DCW-V0-404).
-	var file, all []byte
+	// family they name most often wins (DCW-V0-404). They are computed once
+	// per change, not once per hunk (V1-2360).
+	if p.fileFamilies == nil {
+		p.familyFallbacks()
+	}
+	if families := p.fileFamilies[hunk.DisplayPath]; len(families) > 0 {
+		return families, false
+	}
+	return p.changeFamilies, len(p.changeFamilies) > 0
+}
+
+// familyFallbacks fills fileFamilies and changeFamilies from the derived
+// hunks' edits: one scan of the change instead of one per hunk, which made a
+// 593-hunk draft quadratic (V1-2360).
+func (p *proposal) familyFallbacks() {
+	files := map[string][]byte{}
+	var all []byte
 	for key, other := range p.derived {
 		if key != other.ID {
 			continue
 		}
 		edits, _ := hunkText(other)
 		all = append(all, edits...)
-		if other.DisplayPath == hunk.DisplayPath {
-			file = append(file, edits...)
-		}
+		files[other.DisplayPath] = append(files[other.DisplayPath], edits...)
 	}
-	if families := dominantFamilies(file); len(families) > 0 {
-		return families, false
+	p.fileFamilies = make(map[string]map[string]bool, len(files))
+	for name, edits := range files {
+		p.fileFamilies[name] = dominantFamilies(edits)
 	}
-	families := dominantFamilies(all)
-	return families, len(families) > 0
+	p.changeFamilies = dominantFamilies(all)
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path
@@ -831,6 +853,7 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
+	p.fileFamilies, p.changeFamilies = nil, nil
 	p.modifiedOwners = map[string][]string{}
 	complete := false
 	patched := map[string]bool{}
@@ -1174,6 +1197,13 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 	key := commit + ":" + name
 	if data, ok := p.blobs[key]; ok {
 		return data, data != nil
+	}
+	if data, found, handled := p.fastBlob(commit, name); handled {
+		if !found {
+			data = nil
+		}
+		p.blobs[key] = data
+		return data, found
 	}
 	entry, status := p.git(true, "ls-tree", commit, "--", name)
 	if status != 0 || !strings.HasPrefix(entry, "100") || !strings.Contains(entry, " blob ") {
