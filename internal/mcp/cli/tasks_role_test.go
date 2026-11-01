@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -13,7 +15,9 @@ import (
 
 // TAW-V0-015: --tool-profile tasks lists the AGENT tools by default and the
 // store-host tools under --tasks-role OPERATOR; --tasks-role is closed,
-// given once, and needs the tasks group; a call runs the verb in process.
+// given once, and needs the tasks group; a call runs the corvint-tasks
+// binary found on PATH and fails as a tool error when there is none
+// (TAW-V0-025).
 func TestTAWV0015TasksGroupProfile(t *testing.T) {
 	root := filepath.Clean(t.TempDir())
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
@@ -53,9 +57,37 @@ func TestTAWV0015TasksGroupProfile(t *testing.T) {
 			t.Fatalf("%q exit=%d stdout=%q stderr=%q", refusal.arguments, exit, stdout.String(), stderr.String())
 		}
 	}
-	// A root without a store copy: work start checks the form only and says so.
+	if runtime.GOOS == "windows" {
+		return // corvint-tasks refuses Windows (CTS-V0-025)
+	}
+	binaries := t.TempDir() // a corvint-tasks built from this tree
+	if output, err := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-tasks").CombinedOutput(); err != nil {
+		t.Fatalf("go build corvint-tasks: %v: %s", err, output)
+	}
+	// Without corvint-tasks beside the executable or on PATH (which keeps
+	// only git), a call is the TASKS_BINARY_UNAVAILABLE tool error, never an
+	// in-process run (TAW-V0-025).
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitOnly := t.TempDir()
+	if err := os.Symlink(gitPath, filepath.Join(gitOnly, "git")); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", gitOnly)
+	unavailable := startPipeSession(t, []string{"--root", root, "--tool-profile", "tasks"})
+	result := resultOf(t, unavailable.send(toolCall(1, "tasks_work_start", map[string]any{"tickets": []any{"V1-0001"}})))
+	if result["isError"] != true || !strings.Contains(mustJSONText(t, result["structuredContent"]), `"TASKS_BINARY_UNAVAILABLE"`) {
+		t.Fatalf("tasks_work_start without corvint-tasks: %v", result)
+	}
+	if exit := unavailable.close(); exit != 0 {
+		t.Fatalf("exit %d: %s", exit, unavailable.stderr.String())
+	}
+	// With the built corvint-tasks on PATH, a root without a store copy: work start checks the form only and says so.
+	t.Setenv("PATH", binaries+string(os.PathListSeparator)+gitOnly)
 	session := startPipeSession(t, []string{"--root", root, "--tool-profile", "tasks"})
-	result := resultOf(t, session.send(toolCall(1, "tasks_work_start", map[string]any{"tickets": []any{"V1-0001"}})))
+	result = resultOf(t, session.send(toolCall(1, "tasks_work_start", map[string]any{"tickets": []any{"V1-0001"}})))
 	envelope, _ := result["structuredContent"].(map[string]any)
 	if result["isError"] != false || !strings.Contains(mustJSONText(t, envelope), `"command":["work","start"]`) || !strings.Contains(mustJSONText(t, envelope), "STORE_NOT_PRESENT") {
 		t.Fatalf("tasks_work_start: %v", result)

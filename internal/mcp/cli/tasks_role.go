@@ -7,7 +7,8 @@ import (
 )
 
 // toolProfileTasks is the tasks tool group (TAW-V0-015): the corvint-tasks
-// work verbs, run in process against the store of each declared root.
+// work verbs, run by the installed corvint-tasks binary against the store of
+// each declared root (TAW-V0-025).
 const toolProfileTasks = "tasks"
 
 // The refusal reasons of --tasks-role (TAW-V0-015).

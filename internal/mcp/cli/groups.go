@@ -183,7 +183,7 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 				}
 				group = toolgroup.Docs{Registry: registry}
 			case toolProfileTasks: // TAW-V0-015
-				group = tasksbridge.Group{Root: root, Class: handler.tasksRole}
+				group = tasksbridge.Group{Root: root, Class: handler.tasksRole, Binary: tasksbridge.Locate()}
 			default:
 				continue
 			}

@@ -1,20 +1,29 @@
 // Package tasksbridge is the corvint-mcp tasks tool group (TAW-V0-015): the
 // role-scoped corvint-tasks work verbs as MCP tools. Each call runs the same
-// CLI verb in process against the declared root, with the session class
-// set, and returns its command envelope. It opens no listener and starts no
-// process: the server is stdio and runs on the host that holds the store.
+// CLI verb in the installed corvint-tasks binary, as a child process in the
+// declared root with the session class set, and returns its command
+// envelope. The process boundary keeps Tasks mutation code out of the Core
+// binaries (decision 0397, TAW-V0-025): this package imports no Tasks
+// package but the wire package. It opens no listener; the server is stdio
+// and runs on the host that holds the store.
 package tasksbridge
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
-	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // The tasks group tool names (TAW-V0-015).
@@ -32,15 +41,54 @@ const (
 	maxRefBytes      = 256
 	maxRequestBytes  = 128
 	maxPayloadsBytes = 1 << 20
+	// BinaryName is the companion binary each call runs (TAW-V0-025).
+	BinaryName = "corvint-tasks"
+	// CodeBinaryUnavailable is the tool error of a call when corvint-tasks
+	// is not installed or cannot be started (TAW-V0-025).
+	CodeBinaryUnavailable = "TASKS_BINARY_UNAVAILABLE"
+	// CodeEnvelopeUnreadable is the tool error of a run that printed no
+	// JSON envelope.
+	CodeEnvelopeUnreadable = "TASKS_ENVELOPE_UNREADABLE"
 )
 
 // Classes are the --tasks-role values; AGENT is the default.
-var Classes = []string{cli.ClassAgent, cli.ClassOperator, cli.ClassOwner}
+var Classes = []string{wire.ClassAgent, wire.ClassOperator, wire.ClassOwner}
 
-// Group answers the tasks tools for one store root under one class.
+// Group answers the tasks tools for one store root under one class. Binary
+// is the corvint-tasks path from Locate; empty means it was not found.
 type Group struct {
-	Root  string
-	Class string
+	Root   string
+	Class  string
+	Binary string
+}
+
+// Locate resolves corvint-tasks as the Corvint companion binaries are
+// resolved (cmd/corvint-console): beside the running executable, after
+// symlinks, and then on PATH. It returns "" when neither has it, and a call
+// then fails CodeBinaryUnavailable instead of running Tasks in process.
+func Locate() string {
+	executable, err := os.Executable()
+	if err != nil {
+		executable = ""
+	}
+	return locate(executable, exec.LookPath)
+}
+
+func locate(executable string, lookPath func(string) (string, error)) string {
+	name := BinaryName
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	if resolved, err := filepath.EvalSymlinks(executable); executable != "" && err == nil {
+		candidate := filepath.Join(filepath.Dir(resolved), name)
+		if info, statErr := os.Stat(candidate); statErr == nil && info.Mode().IsRegular() {
+			return candidate
+		}
+	}
+	if candidate, err := lookPath(BinaryName); err == nil {
+		return candidate
+	}
+	return ""
 }
 
 func stringSchema(max int) map[string]any {
@@ -92,7 +140,7 @@ func (g Group) Tools() []bridge.ToolDescriptor {
 				"issuedAt":   stringSchema(32),
 			}, "requestId")},
 	}
-	if g.Class == cli.ClassOperator || g.Class == cli.ClassOwner {
+	if g.Class == wire.ClassOperator || g.Class == wire.ClassOwner {
 		tools = append(tools,
 			bridge.ToolDescriptor{Name: ToolCloseMerged, Description: "On the store host, ingest the Corvint-Ticket trailers reachable from the integration ref: complete delivered tickets with an evidence document, record blocks, and report lane deliveries not yet integrated; idempotent (TAW-V0-004 to TAW-V0-008).", Annotations: write,
 				InputSchema: objectSchema(map[string]any{
@@ -296,11 +344,30 @@ func (g Group) Call(ctx context.Context, name string, arguments map[string]any) 
 	if ctx.Err() != nil {
 		return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
 	}
-	var stdout, stderr bytes.Buffer
-	code := cli.Run(cli.Env{Cwd: g.Root, Args: argv, Stdin: bytes.NewReader(stdin), Stdout: &stdout, Stderr: &stderr, Role: g.Class})
+	if g.Binary == "" {
+		return failure(name, CodeBinaryUnavailable, BinaryName+" was not found beside the running executable or on PATH")
+	}
+	var stdout bytes.Buffer
+	command := exec.CommandContext(ctx, g.Binary, argv...)
+	command.Dir = g.Root
+	command.Env = withClass(os.Environ(), g.Class)
+	command.Stdin = bytes.NewReader(stdin)
+	command.Stdout = &stdout
+	code := 0
+	if err := command.Run(); err != nil {
+		var exit *exec.ExitError
+		switch {
+		case ctx.Err() != nil:
+			return nil, protocol.NewError(protocol.CodeInternalError, "Internal error")
+		case errors.As(err, &exit):
+			code = exit.ExitCode()
+		default:
+			return failure(name, CodeBinaryUnavailable, BinaryName+" could not be started")
+		}
+	}
 	var envelope map[string]any
 	if err := json.Unmarshal(stdout.Bytes(), &envelope); err != nil {
-		return failure(name, "TASKS_ENVELOPE_UNREADABLE", fmt.Sprintf("corvint-tasks exited %d without an envelope", code))
+		return failure(name, CodeEnvelopeUnreadable, fmt.Sprintf("%s exited %d without an envelope", BinaryName, code))
 	}
 	// Ticket titles and reasons are repository-authored text, so the text
 	// block is framed (AHI-004); structuredContent stays unwrapped.
@@ -313,6 +380,19 @@ func (g Group) Call(ctx context.Context, name string, arguments map[string]any) 
 		"isError":           code != 0,
 		"structuredContent": envelope,
 	}, nil
+}
+
+// withClass sets the session class for the child (TAW-V0-001): the group's
+// class replaces any inherited value, so the caller's environment cannot
+// widen it.
+func withClass(environ []string, class string) []string {
+	out := make([]string, 0, len(environ)+1)
+	for _, entry := range environ {
+		if !strings.HasPrefix(entry, wire.RoleEnv+"=") {
+			out = append(out, entry)
+		}
+	}
+	return append(out, wire.RoleEnv+"="+class)
 }
 
 // encodeStdin writes a decoded JSON argument back as one canonical-key JSON

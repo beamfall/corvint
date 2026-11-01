@@ -2242,6 +2242,7 @@ TAW-V0-013	docs/specs/corvint-tasks-agent-workflow-v0.md	Under class `AGENT` the
 TAW-V0-021	docs/specs/corvint-tasks-agent-workflow-v0.md	The class MUST be checked at command entry for every verb that is not a pure rea	unrecorded	-
 TAW-V0-014	docs/specs/corvint-tasks-agent-workflow-v0.md	`work release-sync --release R --milestone M --request-id ID [--dry-run]` MUST a	unrecorded	-
 TAW-V0-015	docs/specs/corvint-tasks-agent-workflow-v0.md	`corvint-mcp --tool-profile tasks` MUST expose a `tasks` group whose tools are	unrecorded	-
+TAW-V0-025	docs/specs/corvint-tasks-agent-workflow-v0.md	The tasks group MUST reach Tasks only through that process boundary (decision 03	unrecorded	-
 TAW-V0-016	docs/specs/corvint-tasks-agent-workflow-v0.md	`work start`, `work deliver` and `work block` MUST be allowed in a read-only ses	unrecorded	-
 TAW-V0-017	docs/specs/corvint-tasks-agent-workflow-v0.md	The lane protocol (which trailers a lane writes and when) MUST be documented in	unrecorded	-
 ATR-V0-001	docs/specs/corvint-tasks-attempt-runner-v0.md	`corvint-tasks run` MUST enter attempt mode only when `--attempt` appears before	unrecorded	-

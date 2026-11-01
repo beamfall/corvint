@@ -257,7 +257,8 @@ receipt-bearing `COMPLETE_MANUAL` with an evidence document and reason code
 nothing. A squash merge drops the trailers from the parsed message, so merge with merge commits.
 `corvint-mcp --tool-profile tasks` serves the same verbs as `tasks_work_*` tools: the lane verbs
 and finding by default, and `close-merged` and `release-sync` under `--tasks-role OPERATOR` or
-`OWNER` (TAW-V0-015).
+`OWNER` (TAW-V0-015). Each call runs the installed `corvint-tasks`, found beside `corvint-mcp` or on
+PATH; without it the call fails `TASKS_BINARY_UNAVAILABLE` (TAW-V0-025).
 
 ## Payloads and shared worktrees
 

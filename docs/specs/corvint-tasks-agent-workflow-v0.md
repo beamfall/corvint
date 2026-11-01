@@ -169,8 +169,17 @@ the similar match as the place to attach a finding, and release membership is ed
 - `TAW-V0-015`: `corvint-mcp --tool-profile tasks` MUST expose a `tasks` group whose tools are
   `tasks_work_start`, `tasks_work_deliver`, `tasks_work_block` and `tasks_work_finding` for class
   `AGENT` (the default), plus `tasks_work_close_merged` and `tasks_work_release_sync` for `OPERATOR`
-  and `OWNER` (`--tasks-role`). Each call runs the same CLI verb in process over stdio, with the
-  class set, and returns the command envelope. No daemon and no network listener.
+  and `OWNER` (`--tasks-role`). Each call runs the same CLI verb in the installed `corvint-tasks`
+  binary as a child process in the root, with the class set in `CORVINT_TASKS_ROLE`, and returns the
+  command envelope it prints. No daemon and no network listener.
+- `TAW-V0-025`: The tasks group MUST reach Tasks only through that process boundary (decision 0397):
+  `internal/mcp` imports no `internal/tasks` package other than `internal/tasks/wire`, so no Core
+  binary links Tasks mutation code. `corvint-tasks` MUST be resolved as the companion binaries are,
+  beside the running executable after symlinks and then on PATH. The child's class MUST be the
+  session's, replacing any inherited `CORVINT_TASKS_ROLE`. When the binary is absent or cannot be
+  started, a call MUST return the tool error `TASKS_BINARY_UNAVAILABLE` (profile
+  `corvint-tasks-mcp-tool-error/0`) and never run the verb in process; output without a JSON
+  envelope is `TASKS_ENVELOPE_UNREADABLE`.
 
 ### Reads and protocol
 
@@ -197,6 +206,9 @@ the similar match as the place to attach a finding, and release membership is ed
   move, and the rerun replays the written rows.
 - Commit messages are lane-authored text. They can carry Git's record separators, so the walk never
   trusts a combined read it cannot match to the listed commit IDs (`TAW-V0-018`).
+- The tasks group runs whichever `corvint-tasks` it resolves. An installed binary older than
+  corvint-mcp may lack the `work` verbs; the call then returns that binary's own refusal envelope
+  as a tool error (`TAW-V0-025`).
 - `targetRequestID` hashes base and ticket only when the suffixed ID is too long, so a caller with
   several phases on one ticket puts the phase in the hashed part (`TAW-V0-024`).
 
@@ -220,6 +232,7 @@ the similar match as the place to attach a finding, and release membership is ed
 | TAW-V0-010 to TAW-V0-012 | V1-3975 criteria 4 and 8 | `internal/tasks/cli/work_finding.go`; `internal/tasks/mutation` REFINE | `TestTAWV0010_FindingAttachesOrCreates`; `TestTAWV0011_IngestDedupesBatch`; `TestTAWV0012_SupersedeArchives` | none |
 | TAW-V0-014 | V1-3975 criterion 6 | `internal/tasks/cli/work_release_sync.go` | `TestTAWV0014_ReleaseSync` | none |
 | TAW-V0-015 | V1-3975 criterion 7 | `internal/mcp/tasksbridge`; `internal/mcp/cli` | `TestTAWV0015_TasksToolsPerRole`; `TestTAWV0015_CallsEachTool`; `TestTAWV0015TasksGroupProfile` | none |
+| TAW-V0-025 | V1-3975 criterion 7 | `internal/mcp/tasksbridge`; `internal/tasks/wire/roles.go`; `internal/tasks/boundary_test.go` | `TestTAWV0025_ChildProcessContract`; `TestTAWV0025_BinaryUnavailable`; `TestTAWV0025_Locate`; `TestTAWV0015TasksGroupProfile`; `TestImportDirection` | none |
 | TAW-V0-017 | V1-3975 criterion 8 | `docs/TASKS-EXTERNAL-AGENTS.md` | doc gates | none |
 | TAW-V0-018 | V1-3975 criterion 3 | `internal/tasks/cli/work_close_merged.go` | `TestTAWV0018_TrailerForgeryRefused`; `TestTAWV0018_PinnedRefHead` | live-store qualification |
 | TAW-V0-019 | V1-3975 criterion 3 | `internal/tasks/cli/work_close_merged.go` | `TestTAWV0019_HeldDeliveryNotOpen` | none |

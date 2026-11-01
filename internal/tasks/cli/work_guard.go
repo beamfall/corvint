@@ -11,14 +11,15 @@ import (
 // RoleEnv names the session principal class when Env.Role is empty
 // (TAW-V0-001). It is a cooperative guard for agents, not authentication:
 // the store role (--role) and the trusted actor binding still decide
-// permission.
-const RoleEnv = "CORVINT_TASKS_ROLE"
+// permission. The names live in the wire package, which the corvint-mcp
+// tasks group shares (TAW-V0-025).
+const RoleEnv = wire.RoleEnv
 
 // The principal classes of TAW-V0-001; the empty class is today's behavior.
 const (
-	ClassAgent    = "AGENT"
-	ClassOperator = "OPERATOR"
-	ClassOwner    = "OWNER"
+	ClassAgent    = wire.ClassAgent
+	ClassOperator = wire.ClassOperator
+	ClassOwner    = wire.ClassOwner
 )
 
 // completeReasonCodes and archiveReasonCodes are the fixed reason codes an
