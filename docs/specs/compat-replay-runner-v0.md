@@ -14,7 +14,7 @@ Authoritative inputs: `ROADMAP.md:343-348` (AT-10), `docs/specs/compat-trial-v0.
 ## Agent digest
 - Claim: Specifies `tools/compat-trial`'s descriptor validation, containment, comparison and status envelope AT-10's runner implements under frozen CTR-V0-001-003/010.
 - Status: accepted (decision 0052)/experimental
-- Exists: `tools/compat-trial` (`descriptor.go`, `fixture.go`, `runner.go`, `snapshot.go`, `main.go`) and `internal/procgroup` (`process.go`, `process_posix.go`, `process_other.go`, `adjudicate.go`), the latter extracted from `cli-parity-v0` per `CRR-V0-003`(d); no acceptance row below is marked passed, the full manifest replay (`TestGPKV0002ManifestReplay`, `conformance/cli-parity-v0/runner_test.go:1294@6ead4d11`) passes after the extraction (418 s isolated, 491 s inside `make gate`; the earlier 10-minute timeouts were contention from parallel runs, not a hang), and the scored trial and external/setsid containment remain unqualified.
+- Exists: `tools/compat-trial` (`descriptor.go`, `fixture.go`, `runner.go`, `snapshot.go`, `main.go`) and `internal/procgroup` (`process.go`, `process_posix.go`, `process_other.go`, `adjudicate.go`), the latter extracted from `cli-parity-v0` per `CRR-V0-003`(d); no acceptance row below is marked passed, the full manifest replay (`TestGPKV0002ManifestReplay`, `conformance/cli-parity-v0/runner_test.go:1295@6ead4d11`) passes after the extraction (418 s isolated, 491 s inside `make gate`; the earlier 10-minute timeouts were contention from parallel runs, not a hang), and the scored trial and external/setsid containment remain unqualified.
 - Blocked on: scoring on CTR-V0-004/005/009; `make gate` passing every row before promotion to `implemented`.
 - Read next: `CRR-V0-003`(d), then `CRR-V0-006`(e)'s truth table, then CRR-V0-001..007.
 
@@ -786,7 +786,7 @@ those two packages, this file, and its `docs/specs/README.md` and `docs/specs/IN
 then regenerating the requirement index
 with `script/gen-spec-requirements.sh > docs/specs/REQUIREMENTS.tsv`. That regeneration is a
 mandatory part of *every* edit to this file, not of rollback alone, because each clause's line
-number is recorded there and `Makefile:342@7cae1d1b`'s `spec-requirements-check` compares it byte for byte.
+number is recorded there and `Makefile:343@7cae1d1b`'s `spec-requirements-check` compares it byte for byte.
 It implements the AT-10 slice of `docs/specs/compat-trial-v0.md` (`CTR-V0-001`-`003`,
 `CTR-V0-010`, "as written") without adjudicating a label or naming the baseline; promote to
 `implemented` only once `tools/compat-trial` exists and every row above passes `make gate`.
