@@ -562,8 +562,8 @@ func TestLMGV0011LedgerPrefixKeys(t *testing.T) {
 		}
 		response.Body.Close()
 	}
-	raw := ledger.String()
 	lines := ledgerLines(t, gateway, ledger)
+	raw := ledger.String()
 	if strings.Contains(raw, "SECRET-SYSTEM") || strings.Contains(raw, "input_schema") {
 		t.Fatalf("ledger stored prefix text: %s", raw)
 	}
