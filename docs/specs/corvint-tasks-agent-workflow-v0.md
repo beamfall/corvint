@@ -85,7 +85,8 @@ the similar match as the place to attach a finding, and release membership is ed
   `AWAITING_INTEGRATION`, and its row carries reason `NOT_ON_INTEGRATION_REF`. A ticket whose latest
   recorded `DELIVERED_ON_BRANCH` head is no longer on its branch and has no integrated trailer is a
   row `HEAD_NOT_ON_REF` with no write. A rebased commit is ingested by its new commit's trailer.
-- `TAW-V0-008`: The cursor MUST be a private local file under the state directory keyed by REF, written
+- `TAW-V0-008`: The cursor MUST be a private local file keyed by REF beside the state directory
+  (`<git-common-dir>/taskman-work/`, outside the audited store layout), written
   only after a run that is not `--dry-run` and has no `FAILED` row. Correctness MUST NOT depend on
   it: a lost cursor re-walks and replays. `--dry-run` MUST write nothing and report the same rows with
   disposition prefix `WOULD_`.
@@ -177,7 +178,7 @@ the similar match as the place to attach a finding, and release membership is ed
 | TAW-V0-009 | V1-3975 criterion 5 | `internal/tasks/cli/work.go` | `TestTAWV0013_AgentGuard` | none |
 | TAW-V0-010 to TAW-V0-012 | V1-3975 criteria 4 and 8 | `internal/tasks/cli/work_finding.go`; `internal/tasks/mutation` REFINE | `TestTAWV0010_FindingAttachesOrCreates`; `TestTAWV0011_IngestDedupesBatch`; `TestTAWV0012_SupersedeArchives` | none |
 | TAW-V0-014 | V1-3975 criterion 6 | `internal/tasks/cli/work_release_sync.go` | `TestTAWV0014_ReleaseSync` | none |
-| TAW-V0-015 | V1-3975 criterion 7 | `internal/mcp/tasksbridge`; `internal/mcp/cli` | `TestTAWV0015_TasksToolsPerRole`; `TestTAWV0015_CallsEachTool` | none |
+| TAW-V0-015 | V1-3975 criterion 7 | `internal/mcp/tasksbridge`; `internal/mcp/cli` | `TestTAWV0015_TasksToolsPerRole`; `TestTAWV0015_CallsEachTool`; `TestTAWV0015TasksGroupProfile` | none |
 | TAW-V0-017 | V1-3975 criterion 8 | `docs/TASKS-EXTERNAL-AGENTS.md` | doc gates | none |
 
 ## Resolved decisions

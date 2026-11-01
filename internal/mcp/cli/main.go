@@ -65,17 +65,18 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"       corvint-mcp --root ABSOLUTE_ROOT --follow-ref REF\n" +
 	"       corvint-mcp --root ALIAS=ABSOLUTE_ROOT ... --follow-ref ALIAS=REF [--follow-ref ALIAS=REF ...]\n" +
 	"       corvint-mcp --workspace FILE [--follow-ref ALIAS=REF ...]\n" +
-	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]\n" +
+	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH] [--tasks-role AGENT|OPERATOR|OWNER]\n" +
 	"       corvint-mcp --version\n" +
-	"A local read-only stdio MCP server. Each --root must be an absolute path to a Git worktree.\n" +
+	"A local stdio MCP server, read-only except the tasks group. Each --root must be an absolute path to a Git worktree.\n" +
 	"One plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\n" +
 	"The import-graph profile adds corvint.graph.imports; calls require a full commit revision.\n" +
 	"--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\n" +
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +
 	"--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n" +
 	"--tool-profile LIST is a comma list of at most one of task-review, task-review-lsp, flows or import-graph\n" +
-	"and the groups test-validity, docs and corpus; corpus needs --corpus-artifact, a path relative to the root\n" +
-	"(ALIAS=PATH with aliased roots). Without --tool-profile the default tools are listed.\n" +
+	"and the groups test-validity, docs, corpus and tasks; corpus needs --corpus-artifact, a path relative to the root\n" +
+	"(ALIAS=PATH with aliased roots). tasks runs the corvint-tasks work verbs against each root's store as\n" +
+	"--tasks-role (AGENT by default). Without --tool-profile the default tools are listed.\n" +
 	"Example: corvint-mcp --root /absolute/repo --tool-profile import-graph"
 
 // Serve runs one stdio MCP server until stdin closes or SIGINT/SIGTERM arrives. Both entry
@@ -112,16 +113,18 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	arguments, reasonClass, errorProfileOK := extractErrorProfile(arguments)
 	arguments, followSelectors, followReason := extractFollowRef(arguments)
 	arguments, corpusArtifact, corpusReason := extractCorpusArtifact(arguments)
+	arguments, tasksRole, tasksReason := extractTasksRole(arguments)
 	arguments, workspaceReason := expandWorkspace(arguments, stderr)
 	roots, versionOnly, ok := parseArguments(arguments)
-	if !protocolOK || !profileOK || !errorProfileOK || (cmp.Or(followReason, corpusReason, workspaceReason) == "" && !ok) {
+	if !protocolOK || !profileOK || !errorProfileOK || (cmp.Or(followReason, corpusReason, tasksReason, workspaceReason) == "" && !ok) {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments")
 		return 2
 	}
 	profile, groups, _ := splitToolProfile(profile)
 	followRefs, bindReason := bindFollowSelectors(roots, followSelectors)
 	corpusRoot, corpusPath, corpusBindReason := bindCorpusArtifact(roots, groups, corpusArtifact)
-	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason, corpusBindReason); reason != "" { // MMR-V0-011: name the reason.
+	tasksRole, tasksBindReason := bindTasksRole(groups, tasksRole)
+	if reason := cmp.Or(followReason, corpusReason, tasksReason, workspaceReason, bindReason, corpusBindReason, tasksBindReason); reason != "" { // MMR-V0-011: name the reason.
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+reason)
 		return 2
 	}
@@ -151,7 +154,7 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	// The CEM seams spawn Git through their own runner; pin it to the same path.
 	gitrun.PinBinary(git)
-	handler := &toolHandler{reasonClass: reasonClass}
+	handler := &toolHandler{reasonClass: reasonClass, tasksRole: tasksRole}
 	bindings := map[*bridge.Registry]string{}
 	if len(roots) == 1 && roots[0].alias == "" {
 		registry, registryErr := profileRegistries[profile](roots[0].root)
@@ -326,6 +329,8 @@ type toolHandler struct {
 	// the corpus group is selected (MMR-V0-014, MMR-V0-017).
 	corpus      *toolgroup.CorpusArtifact
 	corpusTools map[string]bool
+	// tasksRole is the session class of the tasks group (TAW-V0-015).
+	tasksRole string
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {

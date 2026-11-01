@@ -26,6 +26,7 @@ var readOnlyVerbs = map[string]bool{
 	"ticket list": true, "ticket search": true, "ticket show": true, "ticket blockers": true, "ticket closeout-debt": true, "ticket effects-proposals": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 	"ticket note show": true, "ticket note history": true, "ticket know-how list": true,
 	"ticket escalation list": true, "ticket escalation show": true, "ticket escalation history": true,
+	"work start": true, "work deliver": true, "work block": true,
 	"ticket obligations show": true, "ticket obligations plan": true, "ticket obligations boundary": true, "ticket obligations worklist": true,
 }
 
@@ -40,6 +41,9 @@ func readOnlyRefusal(args []string) *wire.Result {
 	verb := verbPath(args)
 	if readOnlyVerbs[verb] && !(verb == "doctor" && hasArg(args, "--refresh")) {
 		return nil
+	}
+	if strings.HasPrefix(verb, "work ") && hasArg(args, "--dry-run") {
+		return nil // a dry-run work verb writes nothing (TAW-V0-016)
 	}
 	return &wire.Result{Command: strings.Fields(verb), Outcome: wire.OutcomeError, Codes: []string{wire.CodeUnsupported}, NotRetryable: true, Warnings: []string{
 		ReadOnlyEnv + " is set: this is a read-only session, and " + verb + " is not a pure read, so it was refused before any store access; nothing was written. Run it outside the read-only session (ATR-V0-212).",

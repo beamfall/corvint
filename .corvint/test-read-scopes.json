@@ -378,6 +378,7 @@
       "internal/"
     ],
     "internal/mcp/corpusbridge": [],
+    "internal/mcp/tasksbridge": [],
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
     ],

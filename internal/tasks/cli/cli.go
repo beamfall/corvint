@@ -72,6 +72,9 @@ type Env struct {
 	// ScopeDeriver derives a claim scope for a ticket that declares none
 	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
+	// Role is the session principal class (TAW-V0-001): AGENT, OPERATOR or
+	// OWNER; empty reads CORVINT_TASKS_ROLE, and unset keeps today's behavior.
+	Role string
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure
@@ -102,6 +105,7 @@ var ReadVerbs = []string{
 	"worktree ensure",
 	"source contains",
 	"defects add", "defects update", "defects list",
+	"work start", "work deliver", "work block", "work finding", "work close-merged", "work release-sync",
 	"run-batch",
 	"qualify",
 	"gate record", "gate resubmit", "gate history", "gate packet", "gate state",
@@ -199,6 +203,9 @@ func Run(env Env) int {
 	case "defects":
 		// TDR-V0-010: the defect register.
 		return emit(env.Stdout, defectsCommand(env, args[1:]))
+	case "work":
+		// TAW-V0-003..014: the role-scoped agent workflow verbs.
+		return emit(env.Stdout, workCommand(env, args[1:]))
 	case "run-batch":
 		return emit(env.Stdout, runBatch(env, []string{"run-batch"}, args[1:]))
 	case "qualify":

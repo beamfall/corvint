@@ -11,8 +11,11 @@ it may narrow the rules here but never loosens them.
 Roles. The **orchestrator** owns the Tasks store (claims, heartbeats, gates, completion), lane
 admission, CI and merge-queue waits, the idle watchdog and checkout cleanup. A **builder lane** owns
 one branch: spec, implementation, focused checks, one dogfood finish, one push and one PR. A lane
-never runs `corvint-tasks`, never edits `.taskman/` or `.github/`, never starts background jobs or
-subagents, and never touches another lane's checkout.
+writes no Tasks store state: it reports ticket state as `Corvint-Ticket` commit trailers from
+`corvint-tasks work start|deliver|block` (read-only; [TASKS-EXTERNAL-AGENTS](TASKS-EXTERNAL-AGENTS.md)
+"Report lane work with commit trailers"), and the orchestrator ingests them with `work
+close-merged` after the merge (TAW-V0-017). A lane never edits `.taskman/` or `.github/`, never
+starts background jobs or subagents, and never touches another lane's checkout.
 
 ## 1. Admission: cap heavy lanes by host pressure (ASD-V0-013)
 

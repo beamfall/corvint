@@ -2227,7 +2227,7 @@ TAW-V0-004	docs/specs/corvint-tasks-agent-workflow-v0.md	`work close-merged --in
 TAW-V0-005	docs/specs/corvint-tasks-agent-workflow-v0.md	For a `delivered` state the run MUST record `ticket progress MERGED_AWAITING_CLO	unrecorded	-
 TAW-V0-006	docs/specs/corvint-tasks-agent-workflow-v0.md	For a `blocked` state the run MUST record progress `BLOCKED` with the trailer re	unrecorded	-
 TAW-V0-007	docs/specs/corvint-tasks-agent-workflow-v0.md	A `delivered` trailer reachable from a `--lane-ref` and not from REF MUST record	unrecorded	-
-TAW-V0-008	docs/specs/corvint-tasks-agent-workflow-v0.md	The cursor MUST be a private local file under the state directory keyed by REF,	unrecorded	-
+TAW-V0-008	docs/specs/corvint-tasks-agent-workflow-v0.md	The cursor MUST be a private local file keyed by REF beside the state directory	unrecorded	-
 TAW-V0-009	docs/specs/corvint-tasks-agent-workflow-v0.md	`work close-merged` and `work release-sync` MUST refuse under class `AGENT`	unrecorded	-
 TAW-V0-010	docs/specs/corvint-tasks-agent-workflow-v0.md	`work finding --payload FILE|- --request-id R [--new-despite ID]` MUST run the s	unrecorded	-
 TAW-V0-011	docs/specs/corvint-tasks-agent-workflow-v0.md	`work finding --ingest FILE --request-id R` MUST take a JSON array of create	unrecorded	-
