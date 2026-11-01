@@ -3351,6 +3351,19 @@ DCW-V0-965	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-966	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3284; amends	standing	2026-10-31; V1-3284
 DCW-V0-967	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3428; refines	standing	2026-10-31; V1-3428
 DCW-V0-921	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane	standing	2026-11-01
+DCW-V0-720	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4131; refines	standing	2026-11-01; V1-4131
+DCW-V0-721	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4106; refines	standing	2026-11-01; V1-4106
+DCW-V0-722	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4105; refines	standing	2026-11-01; V1-4105
+DCW-V0-723	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2372; decision	standing	2026-11-01; V1-2372
+DCW-V0-724	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4115; refines	standing	2026-11-01; V1-4115
+DCW-V0-725	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4163) In a rep	standing	2026-11-01; V1-4163
+DCW-V0-726	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4169; refines	standing	2026-11-01; V1-4169
+DCW-V0-727	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4108) A passin	standing	2026-11-01; V1-4108
+DCW-V0-728	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3683; records	standing	2026-11-01; V1-3683
+DCW-V0-729	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-0683) When `lo	standing	2026-11-01; V1-0683
+DCW-V0-730	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3261) A non-em	standing	2026-11-01; V1-3261
+DCW-V0-731	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2275; refines	standing	2026-11-01; V1-2275
+DCW-V0-732	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4095; refines	standing	2026-11-01; V1-4095
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
