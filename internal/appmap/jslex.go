@@ -640,18 +640,39 @@ func unescape(b *strings.Builder, text string, j int) (int, bool) {
 // unicodeEscape reads the HHHH or {H+} after a \u at text[j].
 func unicodeEscape(text string, j int) (rune, int, bool) {
 	if j < len(text) && text[j] == '{' {
-		end := strings.IndexByte(text[j:], '}')
-		if end < 2 || end > 7 {
+		// Any number of hex digits, leading zeros included, up to the value 0x10FFFF.
+		k, r := j+1, rune(0)
+		for ; k < len(text) && text[k] != '}'; k++ {
+			d, ok := hexDigit(text[k])
+			if !ok {
+				return 0, j, false
+			}
+			if r = r<<4 | d; r > utf8.MaxRune {
+				return 0, j, false
+			}
+		}
+		if k == j+1 || k >= len(text) {
 			return 0, j, false
 		}
-		r, ok := hexRune(text, j+1, j+end)
-		return r, j + end + 1, ok && r <= utf8.MaxRune
+		return r, k + 1, true
 	}
 	r, ok := hexRune(text, j, j+4)
 	if !ok {
 		return 0, j, false // never consume past a short or non-hex escape
 	}
 	return r, j + 4, true
+}
+
+func hexDigit(c byte) (rune, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return rune(c - '0'), true
+	case c >= 'a' && c <= 'f':
+		return rune(c-'a') + 10, true
+	case c >= 'A' && c <= 'F':
+		return rune(c-'A') + 10, true
+	}
+	return 0, false
 }
 
 func hexRune(text string, from, to int) (rune, bool) {
