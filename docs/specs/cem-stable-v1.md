@@ -899,7 +899,12 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   precedence, and the `CEM-V1-272` records only when the state is `verified`. A refusal MUST exit 2
   with `{"ok":false,"code":CODE}`, where CODE is the native reader's. A commit that does not resolve
   is `repository-object-unavailable`. Missing, unknown or repeated flags, or a relative repository
-  path, are `invalid-arguments`. The read MUST write no ref, note, object, index, config or worktree
+  path, are `invalid-arguments`. The repository MUST be admitted as the native reader admits it: a
+  path that is not a worktree root (a subdirectory or a bare repository) is
+  `repository-object-unavailable`, object alternates are `unsupported-object-alternates`, effective
+  `info/attributes` lines are `unsupported-repository-attributes`, and a reciprocal linked worktree
+  is read. Like the native reader, a `git notes list` output over 4 MiB or a note over 1 MiB MUST
+  refuse `git-output-exceeded`, and each bound admits its limit. The read MUST write no ref, note, object, index, config or worktree
   file. Like the native ledger, it MUST carry no authority (`CEM-V1-278`): no verify route reads
   it. Non-goals: no `--verdicts-tip` rollback read and no portable writer.
 
@@ -3133,7 +3138,7 @@ codes.
 | CEM-V1-751 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `span-hash-recomputed` and `evidence-ids-swapped` pin ACCEPT; `span-end-edited` and `span-hash-mismatch` pin REJECT |
 | CEM-V1-752 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file and the preserved `revisions/r2/` files against the stable manifest; build log 2026-11-01-cemint-u10 retains the committed-corpus order scan |
 | CEM-V1-753 | `TestCEMV1753LegacyEnvelopeNamesLinkedWorktree` (`interop/cem01-go`) | A linked worktree refuses `unsupported-repository-envelope` on `verify-stable` and ACCEPTs on `verify-stable-canonical`; a `git clone --shared` clone refuses `unsupported-object-alternates` |
-| CEM-V1-754 | `TestCEMV1754PortableVerdictLedgerMatchesNative` (`internal/gitnotes`, which builds `interop/cem01-go`); `readVerdictLedger` in `interop/cem01-go/verdict_ledger.go` | Fourteen ledger cases (absent, two verified, six `malformed`, two `chain-broken`, two `scope-mismatch`, one `conflict`) give the native listing's exact members, and the repository is unchanged; an unresolvable commit refuses `repository-object-unavailable` on both; a relative repository refuses `invalid-arguments` |
+| CEM-V1-754 | `TestCEMV1754PortableVerdictLedgerMatchesNative` (`internal/gitnotes`, which builds `interop/cem01-go`); `readVerdictLedger` in `interop/cem01-go/verdict_ledger.go` | Fourteen ledger cases (absent, two verified, six `malformed`, two `chain-broken`, two `scope-mismatch`, one `conflict`) give the native listing's exact members, and the repository is unchanged; an unresolvable commit refuses `repository-object-unavailable` on both; a relative repository refuses `invalid-arguments`; `TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative`: a subdirectory, a bare clone, an alternates-backed clone and effective `info/attributes` refuse with the native code, a linked worktree reads the native listing, a note of 1 MiB is `malformed` and one byte more refuses `git-output-exceeded`, and a notes listing of 51150 lines is read while 51151 lines refuse `git-output-exceeded`, on both readers |
 
 ## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
 

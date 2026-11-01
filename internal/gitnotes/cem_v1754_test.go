@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -172,4 +173,115 @@ func TestCEMV1754PortableVerdictLedgerMatchesNative(t *testing.T) {
 			t.Fatalf("portable exit %d %v", status, got)
 		}
 	})
+}
+
+// nativeLedger returns the native `verdicts` member as decoded JSON, or the
+// native refusal code.
+func nativeLedger(t *testing.T, root string) (map[string]any, string) {
+	t.Helper()
+	read, err := ProvenanceWithVerdicts(context.Background(), root, "HEAD", "", true)
+	if err != nil {
+		return nil, cemcode.CodeOf(err)
+	}
+	raw, err := json.Marshal(read["verdicts"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var listing map[string]any
+	if err := json.Unmarshal(raw, &listing); err != nil {
+		t.Fatal(err)
+	}
+	return listing, ""
+}
+
+// flatNotes points refs/notes/corvint-verdicts at a notes commit holding count
+// notes on objects that need not exist, so `git notes list` prints count lines
+// of 82 bytes each.
+func flatNotes(t *testing.T, root string, count int) {
+	t.Helper()
+	var input bytes.Buffer
+	input.WriteString("blob\nmark :1\ndata 2\nx\n\ncommit " + VerdictRef + "\ncommitter t <t@example.invalid> 946684800 +0000\ndata 1\nn\n")
+	for i := 1; i <= count; i++ {
+		fmt.Fprintf(&input, "M 100644 :1 %040x\n", i)
+	}
+	fixtureGit(t, root, input.Bytes(), "fast-import", "--quiet")
+}
+
+// CEM-V1-754: the portable reader admits the repository and bounds its Git
+// reads as the native reader does: a subdirectory, a bare repository, an
+// alternates-backed clone and effective info/attributes refuse with the native
+// code, a linked worktree is read, a notes listing over 4 MiB and a note over
+// 1 MiB refuse git-output-exceeded, and each bound admits its limit.
+func TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative(t *testing.T) {
+	binary := buildPortableLedgerReader(t)
+	cases := []struct {
+		name, code, state string
+		repo              func(t *testing.T) string
+	}{
+		{"subdirectory", cemcode.RepositoryObjectUnavailable, "", func(t *testing.T) string {
+			return filepath.Join(fixtureRepo(t), "src")
+		}},
+		{"bare repository", cemcode.RepositoryObjectUnavailable, "", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			bare := filepath.Join(filepath.Dir(root), "bare.git")
+			fixtureGit(t, filepath.Dir(root), nil, "clone", "-q", "--bare", root, bare)
+			return bare
+		}},
+		{"alternates-backed clone", cemcode.UnsupportedObjectAlternates, "", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			clone := filepath.Join(filepath.Dir(root), "shared")
+			fixtureGit(t, filepath.Dir(root), nil, "clone", "-q", "--shared", root, clone)
+			return clone
+		}},
+		{"effective info/attributes", cemcode.UnsupportedRepositoryAttributes, "", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			writeFile(t, root, ".git/info/attributes", "* -text\n")
+			return root
+		}},
+		{"linked worktree", "", "absent", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			linked := filepath.Join(filepath.Dir(root), "linked")
+			fixtureGit(t, root, nil, "worktree", "add", "-q", "--detach", linked)
+			return linked
+		}},
+		{"note at 1 MiB", "", "malformed", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			attachLedger(t, root, fixtureGit(t, root, nil, "rev-parse", "HEAD"), bytes.Repeat([]byte("x"), MaxNoteBytes))
+			return root
+		}},
+		{"note over 1 MiB", cemcode.GitOutputExceeded, "", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			attachLedger(t, root, fixtureGit(t, root, nil, "rev-parse", "HEAD"), bytes.Repeat([]byte("x"), MaxNoteBytes+1))
+			return root
+		}},
+		{"notes list within 4 MiB", "", "absent", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			flatNotes(t, root, MaxListBytes/82)
+			return root
+		}},
+		{"notes list over 4 MiB", cemcode.GitOutputExceeded, "", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			flatNotes(t, root, MaxListBytes/82+1)
+			return root
+		}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			repo := c.repo(t)
+			want, code := nativeLedger(t, repo)
+			if code != c.code || (code == "" && want["state"] != c.state) {
+				t.Fatalf("native code %q listing %v, want code %q state %q", code, want, c.code, c.state)
+			}
+			got, status := portableLedger(t, binary, repo, "HEAD")
+			if code != "" {
+				if status != 2 || got["code"] != code || got["ok"] != false {
+					t.Fatalf("native %q, portable exit %d %v", code, status, got)
+				}
+				return
+			}
+			if status != 0 || !reflect.DeepEqual(got, want) {
+				t.Fatalf("portable exit %d\n got %v\nwant %v", status, got, want)
+			}
+		})
+	}
 }

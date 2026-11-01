@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -24,7 +23,8 @@ const (
 	verdictLedgerRef      = "refs/notes/corvint-verdicts"
 	verdictLedgerSchema   = "corvint-cem-verdict/1"
 	verdictLedgerMax      = 256
-	verdictLedgerNoteMax  = 1 << 20
+	verdictLedgerNoteMax  = 1 << 20 // the native MaxNoteBytes
+	verdictLedgerListMax  = 4 << 20 // the native MaxListBytes
 	verdictLedgerTextMax  = 256
 	verdictLedgerConsumer = "native"
 )
@@ -101,8 +101,15 @@ func readVerdictLedgerCLI(ctx context.Context, argv []string) (ledgerListing, st
 // chain-broken, scope-mismatch and conflict, else verified (CEM-V1-276).
 // Records are listed only when the state is verified (CEM-V1-277).
 func readVerdictLedger(v *verifier, rev string) (ledgerListing, string) {
-	if _, err := v.git("rev-parse", "--git-dir"); err != nil {
-		return ledgerListing{}, "repository-object-unavailable"
+	// Admit the repository as the native gitauth.Open does: the exact worktree
+	// root (primary or reciprocal linked worktree), no object alternates and no
+	// effective info/attributes. A subdirectory, a bare repository and an
+	// alternates-backed clone are refused, never read (CEM-V1-754).
+	if _, e := stableAdmit(v.repo, nil); e != nil {
+		if e.code == "unsupported-repository-envelope" {
+			return ledgerListing{}, "unsupported-repository-attributes"
+		}
+		return ledgerListing{}, e.code
 	}
 	out, err := v.git("rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
 	if err != nil {
@@ -122,9 +129,9 @@ func readVerdictLedger(v *verifier, rev string) (ledgerListing, string) {
 }
 
 func verdictLedgerState(v *verifier, target string) (string, []ledgerRecord, string) {
-	list, err := v.git("notes", "--ref="+verdictLedgerRef, "list")
-	if err != nil {
-		return "", nil, "repository-io"
+	list, code := ledgerGit(v, verdictLedgerListMax, "notes", "--ref="+verdictLedgerRef, "list")
+	if code != "" {
+		return "", nil, code
 	}
 	noteOid := ""
 	for _, line := range strings.Split(string(list), "\n") {
@@ -135,16 +142,9 @@ func verdictLedgerState(v *verifier, target string) (string, []ledgerRecord, str
 	if noteOid == "" {
 		return "absent", nil, ""
 	}
-	size, err := v.git("cat-file", "-s", noteOid)
-	if err != nil {
-		return "", nil, "repository-io"
-	}
-	if n, e := strconv.Atoi(strings.TrimSpace(string(size))); e != nil || n > verdictLedgerNoteMax {
-		return "", nil, "repository-io"
-	}
-	body, err := v.git("cat-file", "blob", noteOid)
-	if err != nil {
-		return "", nil, "repository-io"
+	body, code := ledgerGit(v, verdictLedgerNoteMax, "cat-file", "blob", noteOid)
+	if code != "" {
+		return "", nil, code
 	}
 	if len(body) == 0 || body[len(body)-1] != '\n' {
 		return "malformed", nil, ""
@@ -193,6 +193,35 @@ func verdictLedgerState(v *verifier, target string) (string, []ledgerRecord, str
 		seen[record.MapSha256] = true
 	}
 	return "verified", records, ""
+}
+
+// ledgerBuffer keeps at most limit bytes and records an overrun, so an
+// oversized Git output refuses git-output-exceeded as the native gitrun bound does.
+type ledgerBuffer struct {
+	buffer   bytes.Buffer
+	limit    int
+	exceeded bool
+}
+
+func (b *ledgerBuffer) Write(p []byte) (int, error) {
+	if len(p) > b.limit-b.buffer.Len() {
+		b.exceeded = true
+		return 0, errSizeLimit
+	}
+	return b.buffer.Write(p)
+}
+
+// ledgerGit runs one bounded read: more than limit bytes of standard output
+// refuses git-output-exceeded, any other failure repository-io.
+func ledgerGit(v *verifier, limit int, args ...string) ([]byte, string) {
+	out := &ledgerBuffer{limit: limit}
+	if e := v.gitTo(out, nil, args...); e != nil || out.exceeded {
+		if out.exceeded {
+			return nil, "git-output-exceeded"
+		}
+		return nil, "repository-io"
+	}
+	return out.buffer.Bytes(), ""
 }
 
 // wellFormedLedgerRecord checks every member's value domain (CEM-V1-272).
