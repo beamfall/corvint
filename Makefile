@@ -725,6 +725,12 @@ release-artifact-reproducibility-test:
 long-lines-check:
 	@script/long-lines-check.sh
 
+# ASD-V0-574 (V1-2178): no tracked Python signal handler raises InterruptedError, which the code
+# around an interrupted call can catch and retry; handlers raise SystemExit or KeyboardInterrupt.
+.PHONY: py-signal-lint
+py-signal-lint:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/py-signal-lint
+
 .PHONY: flow-guide-check
 flow-guide-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
@@ -1043,7 +1049,7 @@ shell-test-registration-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check long-lines-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check long-lines-check py-signal-lint
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
