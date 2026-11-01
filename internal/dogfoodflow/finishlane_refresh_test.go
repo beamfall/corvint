@@ -101,6 +101,29 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 	if string(readFile(plan)) != original {
 		t.Fatal("the caller's plan was rewritten")
 	}
+	// The refreshed plan, reviewed and passed back as CITATIONS after HEAD moves
+	// again, is refreshed into the other file and kept byte-identical; the two
+	// files alternate, so a refresh never writes over its own input.
+	reviewed := strings.Replace(data, "\treviewed\n", "\treviewed again\n", 1)
+	if err := os.WriteFile(refreshed, []byte(reviewed), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	write("a.txt", "lane 3\n")
+	testGit(t, root, "commit", "-q", "-am", "lane 3")
+	alternate := gitDir + "/corvint/" + finishRefreshedPlanAlt
+	firstPlan := plan
+	plan = refreshed
+	_, stderr, _ = run()
+	if !strings.Contains(stderr, "dogfood-inputs-check: NOTE citations-refreshed plan="+alternate+" carried=1 rekeyed=1\n") {
+		t.Fatalf("refreshing the refreshed plan:\n%s", stderr)
+	}
+	if string(readFile(refreshed)) != reviewed {
+		t.Fatalf("the reviewed refreshed plan, the refresh's own input, was rewritten: %q", readFile(refreshed))
+	}
+	if _, rest, _ := strings.Cut(strings.TrimSuffix(string(readFile(alternate)), "\n"), "\t"); rest != "unknown\tinsufficient-evidence\treviewed again" {
+		t.Fatalf("alternate plan %q", readFile(alternate))
+	}
+	plan = firstPlan
 	// A new hunk the plan never named must be drafted afresh: the run stops
 	// before any step, naming it and the plan to review.
 	write("b.txt", "new\n")

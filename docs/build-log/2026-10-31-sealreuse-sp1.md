@@ -229,6 +229,26 @@ case in `TestDCWV0947FinishRefreshesAMovedPlan` fails without the fix. (2) A car
 row on a sealed CEM that `DCW-V0-966` redrafts was not counted as drafted, so the refresh would
 continue on an unreviewed draft. It now counts.
 
+### Codex review (orchestrator relay, 2026-11-01)
+
+Two P2 findings on `fdf31abd8`, each confirmed against the code before the fix:
+
+1. `finishlane_refresh.go` wrote the refreshed plan to one fixed file and told the user to rerun
+   with `CITATIONS=` that file. After HEAD moved again, the refresh read that file and then removed
+   and rewrote it, losing a reviewed plan, and with it reviewed rows, when the refresh was
+   incomplete. The spec (amended in its own commit) and the code now alternate between
+   `dogfood-finish.refreshed-plan.tsv` and `dogfood-finish.refreshed-plan.alt.tsv`, so the output
+   is never the input (`os.SameFile`). The new case in `TestDCWV0947FinishRefreshesAMovedPlan`
+   passes the reviewed refreshed plan back after a further commit and requires it to stay
+   byte-identical. It fails on the previous code.
+2. `script/dogfood-bin-reuse_test.sh` required the build-timings file. Under macOS Bash 3.2, which
+   has no `EPOCHREALTIME`, the wrapper writes none, so the suite failed every time on the Mac. It
+   now probes the bash it runs: without `EPOCHREALTIME` it asserts the file is absent, with it it
+   checks the rows. A new case on every host runs the wrapper with `EPOCHREALTIME` unset and asserts
+   reuse with no build file. Checked with a `bash` shim on PATH that unsets `EPOCHREALTIME` for
+   every invocation: the previous test fails (`no build timings at ...`) and the new one passes. A
+   run on a real Mac was not done in this lane (NOT_RUN).
+
 ### Evidence (addendum)
 
 `internal/dogfoodflow` whole package PASS; `internal/lrfrepo -run 'OCM|Ocm|Prepare|Intent|Obligation'`

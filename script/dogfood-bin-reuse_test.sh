@@ -93,9 +93,16 @@ expect_builds check 0 'unchanged check'
 
 # DCW-V0-942 (V1-3625): the check wrapper writes its setup and build rows, with reuse or build, bound
 # to the process ID the exec'd check runs as.
-# expect_build_rows GITDIR TREE BASE checks the wrapper's build file under GITDIR.
+# Bash before 5 (macOS /bin/bash 3.2) has no EPOCHREALTIME, so its wrapper writes no build file.
+# expect_build_rows GITDIR TREE BASE checks the wrapper's build file under GITDIR, or its absence
+# under such a bash.
+has_epoch=$(bash -c 'printf %s "${EPOCHREALTIME:+yes}"')
 expect_build_rows() {
   local file="$1/corvint/dogfood-check.build.$(cat "$TEST_PID_LOG").tsv"
+  if [[ -z $has_epoch ]]; then
+    [[ ! -e $file ]] || { printf 'a bash without EPOCHREALTIME wrote build timings at %s\n' "$file" >&2; exit 1; }
+    return 0
+  fi
   [[ -f $file ]] || { printf 'no build timings at %s\n' "$file" >&2; exit 1; }
   awk -v pid="$(cat "$TEST_PID_LOG")" -v tree="$2" -v base="$3" -F '\t' '
     NR == 1 { ok = $0 == "corvint-dogfood-check-build/0" }
@@ -107,6 +114,16 @@ expect_build_rows() {
     END { exit !(ok && NR == 6) }' "$file" || { printf 'bad build timings (want %s/%s):\n' "$2" "$3" >&2; cat "$file" >&2; exit 1; }
 }
 expect_build_rows .git reuse reuse
+# The same on any host: a wrapper whose bash lacks EPOCHREALTIME (simulated by unsetting it, which
+# drops its special meaning, as Bash 3.2 never had it) reuses both builds and writes no build file.
+/bin/rm -f .git/corvint/dogfood-check.build.*.tsv
+: > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
+bash -c 'unset EPOCHREALTIME; . "$0" "$@"' script/dogfood-check.sh "$base" > "$root/output" 2>&1 ||
+  { cat "$root/output" >&2; exit 1; }
+[[ ! -s $TEST_BUILD_LOG && -s $TEST_FLOW_LOG ]] || { printf 'no-EPOCHREALTIME check rebuilt or did not run\n' >&2; exit 1; }
+for leftover in .git/corvint/dogfood-check.build.*.tsv; do
+  [[ ! -e $leftover ]] || { printf 'a wrapper without EPOCHREALTIME wrote %s\n' "$leftover" >&2; exit 1; }
+done
 /bin/rm -rf "$CORVINT_DOGFOOD_BIN_CACHE"
 expect_builds check 2 'cold check'
 expect_build_rows .git build build

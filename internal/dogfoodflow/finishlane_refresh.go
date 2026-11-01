@@ -9,11 +9,29 @@ import (
 )
 
 // finishRefreshedPlan is the file, under the Git directory's corvint evidence
-// directory, that keeps a citation plan finish-lane refreshed (DCW-V0-947).
-const finishRefreshedPlan = "dogfood-finish.refreshed-plan.tsv"
+// directory, that keeps a citation plan finish-lane refreshed, and
+// finishRefreshedPlanAlt the one it writes instead when the plan it refreshes
+// is that file, so a refresh never writes over its own input (DCW-V0-947).
+const (
+	finishRefreshedPlan    = "dogfood-finish.refreshed-plan.tsv"
+	finishRefreshedPlanAlt = "dogfood-finish.refreshed-plan.alt.tsv"
+)
 
 // maxRefreshListed bounds the uncarried hunks a refusal names.
 const maxRefreshListed = 5
+
+// refreshedPlanPath is the refreshed plan's file in evidence: the default one,
+// or the alternate one when plan already is the default file, so the two
+// alternate and the input plan is never rewritten.
+func refreshedPlanPath(evidence, plan string) string {
+	name := evidence + "/" + finishRefreshedPlan
+	planInfo, planErr := os.Stat(plan)
+	nameInfo, nameErr := os.Stat(name)
+	if planErr == nil && nameErr == nil && os.SameFile(planInfo, nameInfo) {
+		return evidence + "/" + finishRefreshedPlanAlt
+	}
+	return name
+}
 
 // refreshMovedPlan refreshes the citation plan, as propose-citations BASE
 // --refresh CITATIONS would, when a row names a hunk ID the current BASE..HEAD
@@ -63,7 +81,7 @@ func (l *finishLane) refreshMovedPlan() {
 			dropped++
 		}
 	}
-	name := l.gitDir + "/corvint/" + finishRefreshedPlan
+	name := refreshedPlanPath(l.gitDir+"/corvint", plan)
 	if os.MkdirAll(l.gitDir+"/corvint", 0o777) != nil || removeFile(name) != nil || writePrivate(name, stdout.Bytes()) != nil {
 		l.say("%s: REFUSE citations-refresh-unwritable plan=%s\n", l.prefix, name)
 		l.say("  fix: the plan names a hunk ID BASE..HEAD no longer has; run corvint dogfood propose-citations %s --refresh %s > PLAN.new yourself, review it, then rerun with that plan (DCW-V0-947)\n", l.base, plan)
