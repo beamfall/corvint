@@ -24,6 +24,9 @@ func runEvalInvocation(ctx context.Context, arguments []string, stdout, stderr i
 		emitError(stderr, err)
 		return 2, true
 	}
+	if code, handled := runFrictionInvocation(root, rest, stdout, stderr); handled {
+		return code, true
+	}
 	if code, handled := runSlotWeightsInvocation(ctx, root, rest, stdout, stderr); handled {
 		return code, true
 	}

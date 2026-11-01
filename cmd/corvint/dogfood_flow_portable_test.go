@@ -361,7 +361,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 	if err := os.WriteFile(snapshot, []byte("intent.md\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 1 || !strings.HasSuffix(stderr, "\ndogfood-check: FAIL dogfood-report-drift\n") {
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 1 || !strings.Contains(stderr, "\ndogfood-check: FAIL dogfood-report-drift\n  fix: the recorded evidence no longer matches") {
 		t.Fatalf("swapped declaration exit=%d stderr=%s", code, stderr)
 	}
 	if err := os.WriteFile(snapshot, []byte("#no-intent-declared\n"), 0600); err != nil {

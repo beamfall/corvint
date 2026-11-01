@@ -310,8 +310,14 @@ work of lane scripts-w5 never prints from it). A lane on an older base therefore
 even after the wrapper was updated. Check from the lane worktree: `~/lanes/heavy.sh --print-lock-dir`
 prints the lock directory when the delegated script runs, and fails or runs a command when it is the
 prototype.
-On the Unraid host the wrapper read on 2026-10-31 (read-only) is the delegating form, so the
-prototype seen by `scripts-w5` came from a checkout whose base predated `--print-lock-dir`. The
+On the Unraid host the delegating wrapper was installed at 2026-11-01T01:16Z (`~/lanes/heavy.sh`,
+with the prototype kept as `~/lanes/heavy.sh.bak-20261101-prototype`, last changed 2026-10-31
+18:36Z), so lane scripts-w5 on 2026-10-31 most likely ran the prototype itself; a checkout whose
+base predates `--print-lock-dir` still gets it. Observed 2026-11-01 from the lane spectool-r
+worktree: each run printed `heavy.sh: script sha256=... <worktree>/script/heavy.sh` and took a
+slot of `HEAVY_LOCK_DIR=/home/agent/lanes/.flock-slots` from `~/.config/corvint/heavy.env`
+(`HEAVY_SLOTS=2`), so it delegated; the host line of the unmerged ASD-V0-920 work does not print
+because that work is not on this base. The
 orchestrator refreshes the lane base, or the host wrapper, between batches; no lane changes a host.
 A lane's focused checks include `make line-citations-selects BASE=<base>` (`DCG-V0-921`, V1-3323):
 when it names a pinned citation into a file the change touched, run `make line-citations-check`
@@ -841,11 +847,19 @@ Common refusals and their recovery:
 | `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
 | `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
 
-Drift. A refusal named here that the product renames is a docs defect; the map is checked against
-the real CLI by the guide-drift test of V1-3239 AC2 (NOT DELIVERED in this lane: it is a Go test
-under `internal/`, outside this docs lane's scope). The refusal audit and the check that a new
-refusal code carries a recovery hint (AC3, AC4) are likewise NOT DELIVERED here and stay open on
-V1-3239.
+Drift. `make flow-guide-check` (a doc gate, ASD-V0-996) checks this section and the repository
+skill `.claude/skills/corvint-lane-flow/SKILL.md` against the real CLI: every `corvint`,
+`corvint-tasks`, `make` and `script/` span must name an existing subcommand, flag, Makefile rule or
+script, and every code in the table above must occur in source. A refusal the product renames
+therefore fails the gate instead of misleading a lane.
+
+New refusals (ASD-V0-997). The same check gates the refusal sites of `script/*.sh` (`refuse "CODE
+..."`) and `internal/dogfoodflow` (`.fail` and `.refuse`): a site must name its recovery (a `fix:`
+line, a valid form such as `want` or `usage:`, a `failRecoveries` default) or have its code in the
+table above. The pairs that did not on 2026-11-01 are listed in
+`tools/flow-guide-check/unhinted-refusals.tsv`, which only shrinks; a new unhinted code fails.
+`go run ./tools/flow-guide-check --audit` prints the counts (ASD-V0-998). A `dogfood check` FAIL
+without its own fix line now prints the code's default recovery.
 
 Lane notes (V1-3610). A lane starts with no seeded sibling hand-over by design: its inputs are the
 charter, the open-friction digest (section 12) and `~/lane-inputs`. The orchestrator names an
@@ -856,8 +870,8 @@ another lane's checkout (Roles above).
 ## 14. Remote (SSH) lane hosts: inputs and closeout channel
 
 An SSH lane host (WSL, Unraid) has no `gh` login (Unraid) or no `gh` at all (WSL), no Tasks journal
-and no route to the orchestrator session. SendMessage fails there with `session not visible from
-the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the lane starts:
+and no route to the orchestrator session. SendMessage from there failed on 2026-10-31 with `session not visible from the Unraid SSH host`
+(V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
   assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
@@ -869,13 +883,17 @@ the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the la
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
 
-Closeout channel. A remote lane writes its final report and the full numbered Friction list
-(section 11 format) to `~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md`
-before wrap_up, and names both paths in its last message. The orchestrator fetches them with
-`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted so the remote shell expands `$HOME`; or `scp`) in the round the lane ends and treats the
-files as the section 11 message. NOT DELIVERED: AC2 of V1-3620, a delivered test message from a live
-SSH lane; it needs a lane host and an orchestrator session, and this lane changes no host. The
-orchestrator verifies the route with the first remote lane of the next batch.
+Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
+format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
+from the lane brief. Observed 2026-11-01 from the Unraid lane spectool-r: the send returned
+`Forwarded to Claude Desktop's session messaging: Message queued` (message 669b8253) while the
+orchestrator was mid-turn, and the orchestrator acted on it, staging the requested ticket bodies as
+`~/lanes/spectool-r-tickets.txt` at 03:23Z. The tool reports queued delivery only, not a read, so
+the lane also keeps the file fallback: it writes the same report and list to
+`~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md` before wrap_up and names
+both paths in its last message. The orchestrator fetches them with
+`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted
+so the remote shell expands `$HOME`; or `scp`) when no message arrived in the round the lane ends.
 
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 

@@ -668,6 +668,15 @@ release-artifact-reproducibility-test:
 # cmd/ and internal/ is named by no docs/specs/*.md and is not in
 # script/error-code-ownership.allowlist, or when a listed code has since been owned or retired, so
 # the list only shrinks (ECO-V0, docs/specs/error-code-ownership-gate-v0.md).
+# flow-guide-check fails when the lane flow guide (docs/LANE-ORCHESTRATION.md section 13) or the
+# corvint-lane-flow skill names a command, flag, Makefile rule, script or refusal code that does not
+# exist, or when a gated refusal names no recovery and is not listed in
+# tools/flow-guide-check/unhinted-refusals.tsv, a list that only shrinks (ASD-V0-996, ASD-V0-997).
+# `go run ./tools/flow-guide-check --audit` prints the refusal audit counts (ASD-V0-998).
+.PHONY: flow-guide-check
+flow-guide-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/flow-guide-check
+
 .PHONY: error-code-ownership-check
 error-code-ownership-check:
 	@script/check-error-code-ownership.sh
@@ -973,7 +982,7 @@ shell-test-registration-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:

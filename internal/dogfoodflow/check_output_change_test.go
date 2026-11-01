@@ -104,7 +104,7 @@ func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 	}
 
 	// Undeclared, the additive member fails as before.
-	if _, code, stdout, stderr := check("", treeVerifier); code != 1 || stdout != "" || stderr != "dogfood-check: FAIL verifier-disagreement\n" ||
+	if _, code, stdout, stderr := check("", treeVerifier); code != 1 || stdout != "" || !strings.HasPrefix(stderr, "dogfood-check: FAIL verifier-disagreement\n  fix: the base and tree verifiers disagree") ||
 		!strings.Contains(readReport(), `"outputsAgree": false}`) || strings.Contains(readReport(), "baseIndependence") {
 		t.Fatalf("undeclared exit=%d stdout=%q stderr=%q report=%q", code, stdout, stderr, readReport())
 	}
@@ -143,7 +143,7 @@ func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 		_, _ = io.WriteString(stdout, strings.Repeat(" ", flips)+treeStatus)
 		return 0
 	}
-	if _, code, _, stderr := check("A-V0-002", unstable); code != 1 || stderr != "dogfood-check: FAIL verifier-disagreement\n" {
+	if _, code, _, stderr := check("A-V0-002", unstable); code != 1 || !strings.HasPrefix(stderr, "dogfood-check: FAIL verifier-disagreement\n  fix: the base and tree verifiers disagree") {
 		t.Fatalf("unstable tree exit=%d stderr=%q", code, stderr)
 	}
 

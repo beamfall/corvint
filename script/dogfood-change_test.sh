@@ -639,7 +639,8 @@ phase_jobs="$phase_jobs $!"
   disagreement_output=$(DOGFOOD_TEST_BASE_CORVINT="$test_root/bin/disagree-corvint" \
     run_dogfood_check "$base" 2>&1) || disagreement_status=$?
   test "$disagreement_status" = 1
-  test "$disagreement_output" = $'dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable\ndogfood-check: FAIL verifier-disagreement'
+  test "${disagreement_output%%$'\n  fix: '*}" = $'dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable\ndogfood-check: FAIL verifier-disagreement'
+  rg -q '^  fix: the base and tree verifiers disagree' <<< "$disagreement_output"
   rg -Fq '"outputsAgree": false' .corvint/dogfood-report.json
   wrong_status=0
   wrong_output=$(CORVINT_BIN="$test_root/bin/wrong-corvint" run_dogfood_check "$base" 2>&1) || \

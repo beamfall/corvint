@@ -1924,6 +1924,9 @@ ASD-V0-960	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-961	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3394; refines	standing	2026-10-31; V1-3394
 ASD-V0-962	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3472; extends	standing	2026-10-31; V1-3472
 ASD-V0-970	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2209; refines	standing	2026-11-01; V1-2209
+ASD-V0-996	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `make fl	standing	2026-11-01; V1-3239
+ASD-V0-997	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) The same	standing	2026-11-01; V1-3239
+ASD-V0-998	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `dogfood	standing	2026-11-01; V1-3239
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -7130,6 +7133,9 @@ URE-V0-006	docs/specs/unplanned-read-events-v0.md	`HookPostTool(root, packetPath
 URE-V0-007	docs/specs/unplanned-read-events-v0.md	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write	unrecorded	-
 URE-V0-008	docs/specs/unplanned-read-events-v0.md	After a Claude Code `user-prompt` event renders a delivered context,	unrecorded	-
 URE-V0-009	docs/specs/unplanned-read-events-v0.md	`corvint host-adapter claude-code post-tool` MUST call	unrecorded	-
+URE-V0-996	docs/specs/unplanned-read-events-v0.md	`frictionmetric.Evaluate` MUST read one bounded JSON document of profile	unrecorded	-
+URE-V0-997	docs/specs/unplanned-read-events-v0.md	The metrics MUST be emitted only by `corvint eval --friction FILE`, which takes	unrecorded	-
+URE-V0-998	docs/specs/unplanned-read-events-v0.md	For each session marked `labelled`, every event a human labelled with a metric n	unrecorded	-
 UCL1142-V0-001	docs/specs/upgrade-checklist-v0.md	`corvint [--root SOURCE] changes --from SHA --to SHA` MUST resolve hexadecimal	unrecorded	-
 UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	The deterministic range MUST use first-parent commits in FROM..TO. Only merge	unrecorded	-
 UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC	unrecorded	-
