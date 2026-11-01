@@ -169,6 +169,11 @@ operator can add the archive directory to the session's allowed directories.
 Live qualification (V1-4021): a Claude Code print-mode run with `ANTHROPIC_BASE_URL` pointing at
 the gateway succeeds and writes ledger lines; recorded in the delivering build-log entry.
 
+Live qualification (V1-4055): an enrolled Claude Code dogfood session run through the gateway
+writes ledger lines whose `claudeSessionKey` equals the session key its Corvint session-start hook
+issues, and `corvint-gateway report --session KEY` reports that run's billed tokens; recorded in
+`docs/build-log/2026-11-01-gateway-dogfood-session-join.md`.
+
 ## Rollback
 
 Stop the `serve` process and unset `ANTHROPIC_BASE_URL`; nothing else changed. Removing the
