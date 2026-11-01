@@ -947,12 +947,12 @@ HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/o
 # ASD-V0-891 (V1-3397): a corvint test manifest of HEAD admits the packages it selects whole, and
 # --plan prints one heavy.sh command per unit.
 sel=$tmp/selection
-mkdir -p "$sel/x" "$sel/y" && printf 'module example.com/m\n\ngo 1.27\n' > "$sel/go.mod" &&
+mkdir -p "$sel/x" "$sel/y" "$sel/w" && printf 'module example.com/m\n\ngo 1.27\n' > "$sel/go.mod" &&
   git -C "$sel" init -q && git -C "$sel" -c user.name=t -c user.email=t@t commit -q --allow-empty -m s || fail "selection fixture setup failed"
 selhead=$(git -C "$sel" rev-parse HEAD)
 manifest() { # manifest HEAD > FILE
   printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","source":{"head":"%s"},"units":[%s]}\n' "$1" \
-    '{"unit":"go:example.com/m/x","slice":"whole"},{"unit":"go:example.com/m/y","slice":"selected","flag":"-run","pattern":"^(TestA)$"},{"unit":"go:other.org/z","slice":"whole"}'
+    '{"unit":"go:example.com/m/x","slice":"whole"},{"unit":"go:example.com/m/y","slice":"selected","flag":"-run","pattern":"^(TestA)$"},{"unit":"go:example.com/m/w","slice":"0/2","flag":"-run","pattern":"^(TestB)$"},{"unit":"go:example.com/m/w","slice":"1/2","flag":"-skip","pattern":"^(TestB)$"},{"unit":"go:example.com/m/v","slice":"0/2"},{"unit":"go:other.org/z","slice":"whole"}'
 }
 manifest "$selhead" > "$sel/m.json" && manifest 0000000000000000000000000000000000000000 > "$sel/old.json"
 sv() { (cd "$sel" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 HEAVY_WHOLE_REASON= "$heavy" "$@"); }
@@ -963,9 +963,23 @@ for c in "m.json ./y" "m.json ./x ./y" "old.json ./x"; do
   HEAVY_SELECTION="$sel/${c%% *}" sv go test ${c#* } > /dev/null 2> "$sel/err"
   [[ $? == 2 ]] && grep -q 'HEAVY_SELECTION=M' "$sel/err" || fail "heavy.sh admitted $c: $(cat "$sel/err")"
 done
+# A numbered -skip slice's own command is admitted (both -skip forms); another -skip pattern refuses.
+for s in "-skip ^(TestB)\$" "-skip=^(TestB)\$"; do
+  HEAVY_SELECTION="$sel/m.json" sv go test -count=1 $s ./w > /dev/null 2> "$sel/err" &&
+    [[ $(grep -v ' local wait=' "$sel/sel.log" | tail -n 1) == *" whole reason=corvint-selection:0123456789ab pwd="*" cmd=go test -count=1 $s ./w"* ]] ||
+    fail "heavy.sh did not admit the -skip slice ($s): $(cat "$sel/err")"
+done
+HEAVY_SELECTION="$sel/m.json" sv go test -count=1 -skip '^(TestC)$' ./w > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] && grep -q 'HEAVY_SELECTION=M' "$sel/err" || fail "heavy.sh admitted a -skip pattern the manifest does not list: $(cat "$sel/err")"
 sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan failed: $(cat "$sel/err")"
-printf -v want "HEAVY_SELECTION='%s' script/heavy.sh go test -count=1 ./x\nHEAVY_SELECTION='%s' script/heavy.sh go test -count=1 -run '^(TestA)\$' ./y\n# skipped go:other.org/z: outside example.com/m" "$sel/m.json" "$sel/m.json"
-[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 2 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
+q="HEAVY_SELECTION='$sel/m.json' script/heavy.sh go test -count=1 -timeout 30m"
+want="$q ./x
+$q -run '^(TestA)\$' ./y
+$q -run '^(TestB)\$' ./w
+$q -skip '^(TestB)\$' ./w
+# skipped go:example.com/m/v: slice 0/2 has no -run/-skip pattern
+# skipped go:other.org/z: outside example.com/m"
+[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 4 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
   fail "heavy.sh --plan output: $(cat "$sel/plan" "$sel/err")"
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"

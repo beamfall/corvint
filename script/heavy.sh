@@ -1030,11 +1030,13 @@ run_selects_all() {
 
 # manifest_perl: reads a corvint-test-manifest/0 (ARGV[0]) for manifest_admits and print_plan
 # (ASD-V0-891). Mode "admit" (ARGV[1]) succeeds, printing the planDigest's first 12 hex digits, when
-# source.head is ARGV[2] and every remaining package (an import path) is a unit with slice "whole".
-# Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], or a skipped line.
+# source.head is ARGV[2] and every remaining package (an import path) is a unit with slice "whole",
+# or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern.
+# Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
+# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line.
 manifest_perl='
 use strict; use warnings; use JSON::PP;
-my ($path, $mode, $key, @pkgs) = @ARGV;
+my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
 open(my $fh, "<", $path) or do { print STDERR "heavy.sh: REFUSE manifest-unreadable $path\n"; exit 2 };
 my $m = eval { local $/; JSON::PP->new->decode(<$fh>) };
 ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" && ref $m->{units} eq "ARRAY"
@@ -1042,8 +1044,10 @@ ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" && ref $m
 my $digest = ($m->{planDigest} // "") =~ /^sha256:([0-9a-f]{12})/ ? $1 : "unknown";
 if ($mode eq "admit") {
   exit 1 unless ref $m->{source} eq "HASH" && ($m->{source}{head} // "") eq $key && @pkgs;
-  my %whole = map { ($_->{unit} // "") => 1 } grep { ($_->{slice} // "") eq "whole" } @{ $m->{units} };
-  $whole{"go:$_"} or exit 1 for @pkgs;
+  my %admit = map { ($_->{unit} // "") => 1 } grep {
+    $skip eq "" ? ($_->{slice} // "") eq "whole" : ($_->{flag} // "") eq "-skip" && ($_->{pattern} // "") eq $skip
+  } @{ $m->{units} };
+  $admit{"go:$_"} or exit 1 for @pkgs;
   print "$digest\n"; exit 0;
 }
 sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
@@ -1054,8 +1058,12 @@ for my $u (@{ $m->{units} }) {
   my $ip = $1;
   my $rel = $ip eq $key ? "." : index($ip, "$key/") == 0 ? "./" . substr($ip, length($key) + 1) : undef;
   if (!defined $rel) { print "# skipped $unit: outside $key\n"; next }
-  my $run = ($u->{slice} // "") eq "selected" && defined $u->{pattern} ? " -run " . sq($u->{pattern}) : "";
-  print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1$run $rel\n"; $n++;
+  my ($slice, $flag, $pattern, $sel) = ($u->{slice} // "", $u->{flag} // "", $u->{pattern} // "", "");
+  if ($slice ne "whole") {
+    if (($flag ne "-run" && $flag ne "-skip") || $pattern eq "") { print "# skipped $unit: slice $slice has no -run/-skip pattern\n"; next }
+    $sel = " $flag " . sq($pattern);
+  }
+  print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
 }
 print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)\n";
 '
@@ -1066,17 +1074,20 @@ module_path() {
 }
 
 # manifest_admits COMMAND...: ASD-V0-891. Succeeds, printing the manifest's planDigest prefix, when
-# HEAVY_SELECTION is a manifest of HEAD that selects every package argument whole; each argument must
-# be ./REL (or .) with no ..., .. or -C. Flags are skipped as in small_package_bytes.
+# HEAVY_SELECTION is a manifest of HEAD that selects every package argument whole, or, with one
+# -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
+# or -C. Other flags are skipped as in small_package_bytes.
 manifest_admits() {
-  local seen=0 skip=0 prev_go=0 arg dir mod head pkgs=()
+  local seen=0 skip=0 prev_go=0 arg dir mod head pkgs=() skips=()
   mod=$(module_path) && [[ -n $mod ]] || return 1
   head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || return 1
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
-    if ((skip)); then skip=0; continue; fi
+    if ((skip)); then ((skip == 2)) && skips+=("$arg"); skip=0; continue; fi
     case $arg in
-      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -skip) skip=2 ;;
+      -skip=*) skips+=("${arg#-skip=}") ;;
+      -run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
       -C | -C=*) return 1 ;;
       -*) ;;
       .) pkgs+=("$mod") ;;
@@ -1088,8 +1099,8 @@ manifest_admits() {
         ;;
     esac
   done
-  ((${#pkgs[@]})) || return 1
-  perl -e "$manifest_perl" "$HEAVY_SELECTION" admit "$head" "${pkgs[@]}" 2> /dev/null
+  ((${#pkgs[@]})) && ((${#skips[@]} < 2)) || return 1
+  perl -e "$manifest_perl" "$HEAVY_SELECTION" admit "$head" "${skips[0]-}" "${pkgs[@]}" 2> /dev/null
 }
 
 # print_plan MANIFEST: ASD-V0-891 --plan; prints the per-package heavy.sh commands, runs nothing.
