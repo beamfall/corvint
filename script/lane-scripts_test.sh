@@ -1963,10 +1963,10 @@ t1=$ld/in/ticket-bodies-abc-w1/V1-0001.txt
 out=$(ldi --out "$ld/in" V1-0001 2>&1)
 [[ $? == 2 && $out == "lane-dispatch: REFUSE exists $ld/in/lane.env"* ]] || fail "lane-dispatch reused a dispatch directory: $out"
 out=$(ldi --out "$ld/bad1" V1-0003 2>&1)
-[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-not-ok V1-0003: {"outcome":"REFUSED"'* && ! -e $ld/bad1/lane.env ]] ||
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-not-ok V1-0003 (fix: '*'): {"outcome":"REFUSED"'* && ! -e $ld/bad1/lane.env ]] ||
   fail "lane-dispatch accepted a refused ticket read: $out"
 out=$(ldi --out "$ld/bad2" V1-0009 2>&1)
-[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-failed V1-0009: no such ticket V1-0009'* ]] || fail "lane-dispatch failed ticket read: $out"
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-failed V1-0009 (fix: '*'): no such ticket V1-0009'* ]] || fail "lane-dispatch failed ticket read: $out"
 out=$( (cd "$ld/repo" && "$script/lane-dispatch.sh" inputs --lane abc-w1 --base nosuch --date 2026-11-01 --out "$ld/bad3" V1-0001) 2>&1)
 [[ $? == 2 && $out == 'lane-dispatch: REFUSE unknown-base nosuch'* ]] || fail "lane-dispatch unknown base: $out"
 out=$(ldi --host lanebox --out "$ld/hin" V1-0001 2> "$ld/err")
