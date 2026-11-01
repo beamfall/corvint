@@ -101,8 +101,10 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   amended for V1-3480 by the orchestrator's option B decision, 2026-10-31) gate-affected-select
   (`gateselect.Select`, the CI PR tier's selector, and so every `corvint-pr-tests` plan and
   rerun) SHALL run a plan narrowed while it names unknowns only when every unknown is one of:
-  (1) a `LANGUAGE_FRONTIER` that is not module level (the AFP-V0-935 case); (2) an
-  `UNOWNED_DIRTY_PATH`; (3) a `NO_SELECTABLE_TEST`; (4) an `UNINDEXED_SOURCE_PATH` naming a `.go`
+  (1) to (3) an entry the shared allowlist `gateselect.AllowedUnknown` admits (AFP-V0-982: a
+  `LANGUAGE_FRONTIER` that is not a `go:` frontier other than `go:build-constraint-variants` or
+  `go:nested-module-frontier`, an `UNOWNED_DIRTY_PATH` or a `NO_SELECTABLE_TEST`, the list the
+  shadow uses; before AFP-V0-982 (1) admitted every frontier that is not module level); (4) an `UNINDEXED_SOURCE_PATH` naming a `.go`
   file that no longer exists in the tested tree and whose directory still holds an indexed Go
   package, which AFP-V0-012 rule (a) attributes to that package and its importers. Safety: CI
   narrows only the Go test shards, every other job runs in full; Select attributes every dirty

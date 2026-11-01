@@ -359,6 +359,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
+	graph.existenceReadersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
@@ -842,7 +843,7 @@ func (graph *Graph) listsBelowAny(name string, directories []string) bool {
 // edge into a locator would widen it.
 func terminalWitness(witness Witness) bool {
 	switch witness.Kind {
-	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessBinaryExec:
+	case WitnessPathLiteralReader, WitnessPathGlobReader, WitnessDeclaredReadScope, WitnessDeclaredExistenceReader, WitnessBinaryExec:
 		return true
 	}
 	return false

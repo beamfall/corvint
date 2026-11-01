@@ -380,6 +380,44 @@ func TestUnsupportedReadScopeKeysNameTheirReason_V1_3326(t *testing.T) {
 	}
 }
 
+// AFP-V0-981 (V1-3772): a declared package whose test stats a repository path
+// joined from a parent-only literal and a value read from data fails the check,
+// naming the file and line, until the package is declared an existence reader
+// (AFP-V0-980). A stat of a temporary directory, or of a join of literals only,
+// is no such check.
+func TestStatOfDataDerivedPathFails_V1_3772(t *testing.T) {
+	test := "package idx\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\n" +
+		"func TestPaths(t *testing.T) {\n\tfor _, p := range []string{} {\n" +
+		"\t\tif _, err := os.Stat(filepath.Join(\"" + up + strings.TrimSuffix(up, "/") + "\", p)); err != nil {\n\t\t\tt.Error(err)\n\t\t}\n\t}\n" +
+		"\t_, _ = os.Lstat(filepath.Join(t.TempDir(), \"x\"))\n}\n"
+	for name, c := range map[string]struct {
+		existence string
+		code      int
+		want      string
+	}{
+		"undeclared": {"", 1, "package idx: idx/idx_test.go:11 stats a repository path read from data"},
+		"declared":   {`{"profile":"corvint-existence-readers/0","entries":[{"package":"idx","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`, 0, "test-read-scopes-check: ok"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"specs/INDEX.json":               "[]\n",
+			"idx/idx.go":                     "package idx\n",
+			"idx/idx_test.go":                test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"idx":["specs/"]}}`,
+		}
+		if c.existence != "" {
+			files[".corvint/existence-readers.json"] = c.existence
+		}
+		root := writeRepository(t, files)
+		var stdout, stderr bytes.Buffer
+		code := run(root, &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Count(output, "stats a repository path") > 1 {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+	}
+}
+
 // AFP-V0-819: the checker builds a Go-only graph, which cannot observe the
 // Playwright specs a declared Go-to-Playwright runtime edge names, so it must
 // skip that edge rather than refuse it as holding no test file.
