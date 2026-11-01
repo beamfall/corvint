@@ -5,7 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), lane-binary-check.sh (ASD-V0-755..757),
+# requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go
 # build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
@@ -1726,6 +1727,57 @@ out=$(cd "$tmp/lane-caller" && "$script/lane-setup.sh" --repo ../lane-setup-full
 [[ -x $(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg) ]] || fail "relative lane setup installed no hook: $out"
 git -C "$tmp/lane-caller/lanes/b" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
   fail "the relative lane's hook let an AI trailer through"
+ok
+
+# ASD-V0-755..757 (V1-3761, V1-4044): lane-binary-check.sh judges an installed corvint against a
+# Corvint checkout's HEAD with the AFP-V0-846 rule and names both builds; --rebuild installs a
+# rebuilt binary with a rollback; a foreign module is not judged; lane-setup.sh reports a stale
+# binary with exit 1 after creating the lane. The corvint and go here are fakes: no Go build runs.
+lb=$tmp/lane-binary
+mkdir -p "$lb/repo/cmd/corvint" "$lb/bin" || fail "lane-binary dirs"
+printf 'module github.com/Beamfall/corvint\n' > "$lb/repo/go.mod"
+printf 'package main\n' > "$lb/repo/cmd/corvint/main.go"
+git -C "$lb/repo" init -q && git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m one || fail "lane-binary repo"
+c1=$(git -C "$lb/repo" rev-parse HEAD)
+fake_corvint() { printf '#!/bin/sh\necho "Corvint 1.0.0 (build %s, commit %s)"\n' "$1" "$2" > "$lb/bin/corvint" && chmod 0755 "$lb/bin/corvint"; }
+fake_corvint 1 "$c1"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == "lane-binary-check: FRESH corvint build 1 (commit ${c1:0:12}) for build 1 (commit ${c1:0:12})" ]] || fail "lane-binary fresh: $out"
+printf 'package main\n' > "$lb/repo/cmd/corvint/main_test.go"
+git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-binary commit two"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == *'FRESH corvint build 1'*'for build 2'*'(no Go source differs)' ]] || fail "lane-binary test-only change: $out"
+printf 'package main\n\nfunc x() {}\n' > "$lb/repo/cmd/corvint/main.go"
+git -C "$lb/repo" add . && git -C "$lb/repo" -c user.name=t -c user.email=t@t commit -q -m three || fail "lane-binary commit three"
+c3=$(git -C "$lb/repo" rev-parse HEAD)
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == "lane-binary-check: STALE corvint build 1 (commit ${c1:0:12}) for build 3 (commit ${c3:0:12}): 1 Go source paths differ (cmd/corvint/main.go); rebuild: script/lane-binary-check.sh --rebuild $lb/repo" ]] ||
+  fail "lane-binary stale: $out"
+fake_corvint 1 0123456789012345678901234567890123456789
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED corvint build 1 (commit 012345678901)'*'is absent in'* ]] || fail "lane-binary absent commit: $out"
+printf '#!/bin/sh\necho "Corvint 1.0.0 (build 0)"\n' > "$lb/bin/corvint"
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 1 && $out == *'UNVERIFIED'*'states no build commit'* ]] || fail "lane-binary unstamped: $out"
+mkdir -p "$lb/foreign" && printf 'module example.com/other\n' > "$lb/foreign/go.mod" && git -C "$lb/foreign" init -q
+out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/foreign" 2>&1)
+[[ $? == 0 && -z $out ]] || fail "lane-binary judged a foreign module: $out"
+# --rebuild: a fake go writes a corvint that reports the checkout's HEAD and the stamped build.
+printf '#!/bin/sh\nwhile [ $# -gt 0 ]; do case $1 in -o) o=$2; shift;; -ldflags) l=$2; shift;; esac; shift; done\nb=${l##*=}\nprintf "#!/bin/sh\\necho \\"Corvint 1.0.0 (build %%s, commit %%s)\\"\\n" "$b" "$(git rev-parse HEAD)" > "$o"\n' > "$lb/go"
+chmod 0755 "$lb/go"
+fake_corvint 1 "$c1"
+touch "$lb/repo/untracked"
+out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 2 && $out == *'REFUSE dirty-checkout'* ]] || fail "lane-binary rebuild of a dirty checkout: $out"
+rm -f "$lb/repo/untracked"
+out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
+[[ $? == 0 && $out == *'STALE'*'INSTALLED'*"FRESH corvint build 3 (commit ${c3:0:12}) for build 3"* && -f $lb/bin/corvint.corvint-prev-1 ]] ||
+  fail "lane-binary rebuild: $out"
+# lane-setup.sh names a stale installed corvint (on PATH) and exits 1 after creating the lane.
+fake_corvint 1 "$c1"
+out=$(PATH=$lb/bin:$PATH "$script/lane-setup.sh" --repo "$lb/repo" --dir "$lb/lane" --branch claude/lb --base HEAD 2>&1)
+[[ $? == 1 && -d $lb/lane && $out == *'STALE corvint build 1'*'for build 3'*'installed corvint does not match its base'* ]] ||
+  fail "lane-setup with a stale corvint: $out"
 ok
 
 # ASD-V0-064 (V1-3219): the Codex review preflight reports NOT_AVAILABLE once, with the login fix.
