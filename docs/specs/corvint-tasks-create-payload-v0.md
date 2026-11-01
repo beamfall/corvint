@@ -55,7 +55,7 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   single-target mutation whose `--request-id` is longer than `wire.MaxRequestIDBytes` (64 bytes)
   MUST be refused `LIMIT_EXCEEDED` before any store read, with a message that names
   `--request-id`, its length in bytes and the 64-byte maximum, and writes nothing. Every
-  mutation's `--help` (including `ticket create --help`) MUST state the limit in a `requestId`
+  mutation's `--help --verbose` (including `ticket create --help --verbose`) MUST state the limit in a `requestId`
   member. Multi-target and `--batch` forms keep their derived-ID handling and limits.
 
 ## Non-goals
@@ -89,7 +89,7 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   accepted spellings print the template, and each valued spelling is refused naming the flag.
 - `TestTCTV0991_LongRequestIDNamesTheLimit` (`internal/tasks/cli/create_skeleton_test.go`): a
   65-byte `--request-id` is refused naming the flag and its maximum, writes nothing, a 64-byte one
-  is accepted, and `ticket create --help` states the limit.
+  is accepted, and `ticket create --help --verbose` states the limit.
 
 ## Rollback
 
