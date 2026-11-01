@@ -1,6 +1,8 @@
 package typescript
 
 import (
+	"os"
+	"path/filepath"
 	"slices"
 	"testing"
 )
@@ -58,5 +60,34 @@ func TestPlaywrightArgvFollowsPackageManager_V13498(t *testing.T) {
 				t.Fatalf("a %v manager is not bound into the source digest", c.launch)
 			}
 		})
+	}
+}
+
+// TJAA-V0-780 review fix: the argv use the manager the plan's final source check bound into its
+// digest. A lockfile change after that check yields neither Yarn argv nor a digest that disagrees
+// with them: the plan keeps the pnpm argv and the pnpm-bound digest.
+func TestPlaywrightArgvUseTheValidatedManager_V13498(t *testing.T) {
+	root := playwrightFixture(t)
+	write(t, root, "pnpm-lock.yaml", "lockfileVersion: '9.0'\n")
+	pnpm, err := ObservePlaywrightSources(root, "playwright.config.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	playwrightAfterSourceCheck.Store(root, func() {
+		if err := os.Remove(filepath.Join(root, "pnpm-lock.yaml")); err != nil {
+			t.Error(err)
+		}
+		write(t, root, "yarn.lock", "\n")
+	})
+	defer playwrightAfterSourceCheck.Delete(root)
+	plan, err := SelectPlaywright(root, "playwright.config.ts", discoveryFixtureRevision, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.SourceDigest != pnpm {
+		t.Fatalf("source digest %s, want the pnpm-bound %s", plan.SourceDigest, pnpm)
+	}
+	if want := []string{"pnpm", "exec", "playwright", "test", "--config=playwright.config.ts"}; !slices.Equal(plan.FallbackArgv, want) {
+		t.Fatalf("fallbackArgv = %v, want %v", plan.FallbackArgv, want)
 	}
 }

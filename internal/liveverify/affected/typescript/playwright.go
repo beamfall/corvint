@@ -136,6 +136,9 @@ type PlaywrightPlan struct {
 	Selected     []PlaywrightSelection      `json:"selected"`
 	SourceDigest string                     `json:"sourceDigest"`
 	Unknown      []PlaywrightUnknown        `json:"unknown"`
+	// manager is the package manager the final source check bound into SourceDigest; every
+	// emitted argv launches through it (TJAA-V0-780).
+	manager string
 	// Narrowed is advisory evidence present only beside FULL_RELEVANT_SUITE; it never changes
 	// Scope, Fallback, Selected or Excluded (TJAA-V0-030).
 	Narrowed *PlaywrightNarrowing `json:"narrowed,omitzero"`
@@ -280,13 +283,15 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 	if err != nil {
 		return PlaywrightPlan{}, none, err
 	}
-	after, err := ObservePlaywrightSources(root, configPath)
+	after, manager, err := observePlaywrightSources(root, configPath)
 	if err != nil {
 		return PlaywrightPlan{}, none, err
 	}
 	if after != sourceDigest {
 		return PlaywrightPlan{}, none, errors.New("Playwright source changed while the plan was compiled")
 	}
+	plan.manager = manager
+	afterPlaywrightSourceCheck(root)
 	return plan, draft, nil
 }
 
@@ -295,9 +300,17 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 // (TJAA-V0-114), every jsconfig*.json, which Playwright reads for aliases (AFP-V0-418), plus
 // the explicitly selected config.
 func ObservePlaywrightSources(root, configPath string) (string, error) {
+	digest, _, err := observePlaywrightSources(root, configPath)
+	return digest, err
+}
+
+// observePlaywrightSources is ObservePlaywrightSources that also returns the package manager it
+// read and bound into the digest, so the argv a plan emits use the manager its final source check
+// validated, never a later reread (TJAA-V0-780).
+func observePlaywrightSources(root, configPath string) (string, string, error) {
 	files, generated, err := playwrightBoundSourceFiles(root)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if !containsString(files, configPath) {
 		files = append(files, configPath)
@@ -319,14 +332,15 @@ func ObservePlaywrightSources(root, configPath string) (string, error) {
 	for _, declared := range [][2]string{{NonTestAssetPathsPath, NonTestAssetPathsProfile}, {PlaywrightUnreachedPathsPath, PlaywrightUnreachedPathsProfile}} {
 		sum, entries, declErr := readPathDeclaration(affected.DiskSource(root), declared[0], declared[1])
 		if declErr != nil {
-			return "", declErr
+			return "", "", declErr
 		}
 		if entries != nil {
 			identities = append(identities, sourceIdentity{Path: declared[0], SHA256: sum})
 		}
 	}
 	// A manager other than npm changes every emitted argv, so it is a plan input (TJAA-V0-780).
-	if sum := playwrightPackageManagerSum(root); sum != "" {
+	manager := playwrightPackageManager(root)
+	if sum := playwrightPackageManagerSum(manager); sum != "" {
 		identities = append(identities, sourceIdentity{Path: playwrightPackageManagerIdentity, SHA256: sum})
 	}
 	for _, relative := range files {
@@ -334,23 +348,23 @@ func ObservePlaywrightSources(root, configPath string) (string, error) {
 		if errors.Is(readErr, affected.ErrWalkLimit) && relative != configPath {
 			sum, hashErr := affected.HashOverBoundSource(root, relative)
 			if hashErr != nil {
-				return "", hashErr
+				return "", "", hashErr
 			}
 			identities = append(identities, sourceIdentity{OverBound: true, Path: relative, SHA256: sum})
 			continue
 		}
 		if readErr != nil {
-			return "", readErr
+			return "", "", readErr
 		}
 		sum := sha256.Sum256(body)
 		identities = append(identities, sourceIdentity{Path: relative, SHA256: hex.EncodeToString(sum[:])})
 	}
 	body, err := json.Marshal(identities, json.Deterministic(true))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	sum := sha256.Sum256(body)
-	return "playwright-sources:sha256:" + hex.EncodeToString(sum[:]), nil
+	return "playwright-sources:sha256:" + hex.EncodeToString(sum[:]), manager, nil
 }
 
 // playwrightObservedName is observedName plus jsconfig.json, an alias config Playwright reads,

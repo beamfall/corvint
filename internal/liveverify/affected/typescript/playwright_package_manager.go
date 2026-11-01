@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/projectprofile"
@@ -32,10 +33,21 @@ func playwrightPackageManager(root string) string {
 	return manager
 }
 
+// playwrightAfterSourceCheck holds, per repository root, a test seam run once a plan's final
+// source check passed; a test changes that worktree there to prove the emitted argv read nothing
+// later. It is empty in use.
+var playwrightAfterSourceCheck sync.Map // root -> func()
+
+// afterPlaywrightSourceCheck runs root's seam, if any.
+func afterPlaywrightSourceCheck(root string) {
+	if hook, ok := playwrightAfterSourceCheck.Load(root); ok {
+		hook.(func())()
+	}
+}
+
 // playwrightPackageManagerSum is the digest identity of a non-npm manager, or "" for npm, whose
 // plans keep their bytes.
-func playwrightPackageManagerSum(root string) string {
-	manager := playwrightPackageManager(root)
+func playwrightPackageManagerSum(manager string) string {
 	if manager == "npm" {
 		return ""
 	}
@@ -44,10 +56,10 @@ func playwrightPackageManagerSum(root string) string {
 }
 
 // applyPlaywrightPackageManager rewrites the `npx` launcher of every argv the plan emits to the
-// repository's package manager (TJAA-V0-780).
-func applyPlaywrightPackageManager(plan *PlaywrightPlan, root string) {
-	manager := playwrightPackageManager(root)
-	if manager == "npm" {
+// package manager the plan's final source check bound (TJAA-V0-780). It reads no file.
+func applyPlaywrightPackageManager(plan *PlaywrightPlan) {
+	manager := plan.manager
+	if manager == "" || manager == "npm" {
 		return
 	}
 	exec := projectprofile.NodeExec(manager)
