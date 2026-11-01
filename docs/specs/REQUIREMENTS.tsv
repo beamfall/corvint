@@ -1255,6 +1255,9 @@ CEM-V1-934	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-935	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The portable consum	standing	V1-3443
 CEM-V1-936	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The stable packet i	standing	V1-3443
 CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
+CEM-V1-961	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
+CEM-V1-962	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
+CEM-V1-963	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -5946,6 +5949,10 @@ REC-V0-006	docs/specs/retrieval-eval-comparability-v0.md	Every scored case recor
 REC-V0-007	docs/specs/retrieval-eval-comparability-v0.md	The v0 split manifest MUST label held-out rows `previously-observed`. Every v0 r	unrecorded	-
 RDS-V0-001	docs/specs/retriever-disagreement-v0.md	`corvint [--root PATH] answerability --task TEXT [--subject PATH] [--limit N]`	unrecorded	-
 RDS-V0-002	docs/specs/retriever-disagreement-v0.md	Channel S MUST be derived only from index structure. Its seeds are the task's	unrecorded	-
+RDS-V0-960	docs/specs/retriever-disagreement-v0.md	(Amendment 2026-11-01, V1-3708.) Channel S MUST also admit, as `references	unrecorded	-
+RDS-V0-961	docs/specs/retriever-disagreement-v0.md	(Amendment 2026-11-01, V1-3708.) A Go package import path MUST resolve to the	unrecorded	-
+RDS-V0-962	docs/specs/retriever-disagreement-v0.md	(Amendment 2026-11-01, V1-3708; narrows RDS-V0-002.) A seed token MUST be	unrecorded	-
+RDS-V0-963	docs/specs/retriever-disagreement-v0.md	(Amendment 2026-11-01, V1-3708; refines RDS-V0-005.) Channel S MUST rank a	unrecorded	-
 RDS-V0-003	docs/specs/retriever-disagreement-v0.md	The signal block MUST report the Jaccard overlap of the two channels' top-K path	unrecorded	-
 RDS-V0-004	docs/specs/retriever-disagreement-v0.md	`signal.agreement` MUST be `high` when the top-K Jaccard is at least `0.34`, `lo	unrecorded	-
 RDS-V0-005	docs/specs/retriever-disagreement-v0.md	The whole report MUST be deterministic at one revision: channel S is ranked by	unrecorded	-
@@ -6540,6 +6547,8 @@ TCP-V0-993	docs/specs/task-context-packet-v0.md	(experimental under the owner's 
 TCP-V0-995	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-975	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-3457)	standing	2026-10-31; V1-3457
 TCP-V0-994	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-960	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3709)	standing	2026-10-11; V1-3709
+TCP-V0-961	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3710)	standing	2026-10-11; V1-3710
 TCP-V0-270	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-271	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-272	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272

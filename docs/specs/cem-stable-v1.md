@@ -856,6 +856,33 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   from the native reader and from both portable stable routes, and a REJECT once the digest is
   altered. The `old mode`/`new mode` divergence of `CEM-V1-932` is unchanged.
 - `CEM-V1-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint lrf --cem`, `--ocm` and `--patch` read only inside the repository root; an absolute path outside it MUST refuse `invalid-arguments` with a message that states the rule, the resolved absolute path and the root, and names `corvint cem verify --map` as the stable reader that accepts a map outside the repository (`CEM-V1-315`). Unlike `cem status`/`verify`, `lrf` keeps the inside-root rule: it is the frozen `lrf/0` admission. Test: `TestLRFOutsideRootRefusalNamesRulePathAndRoot`. Rollback: restore the fixed message.
+- `CEM-V1-961`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The tree-entry, tree-byte, depth, commit-size and Git-operation bounds of `CEM-V1-352`, and the
+  legacy configuration profile of `CEM-V1-962`, MUST bind the legacy `verify-stable` route only
+  (`verify-candidate` keeps its own candidate-proof bounds). `verify-stable-canonical` MUST verify a map whose snapshots hold
+  more than 4096 entries, in an ordinary checkout whose `.git/config` carries `[remote]` and
+  `[branch]` sections, with the same outcome it gives at any smaller size. An independent
+  verification or Go/native agreement claim over a repository of this repository's size MUST name
+  the canonical route; a legacy-route `UNSUPPORTED` answer is a bound, not a verdict.
+- `CEM-V1-962`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The legacy `verify-stable` route's repository profile, which `verify-candidate` shares, is
+  declared, not incidental: `.git` MUST be a directory
+  (a linked worktree's `.git` file is outside it), `.git/config` MUST be a regular file of at most
+  64 KiB holding only `[core]` with `repositoryformatversion`, `filemode`, `bare`,
+  `logallrefupdates`, `ignorecase` or `precomposeunicode`, and `[extensions]` with
+  `objectformat`. Any other section or key (an ordinary clone's `[remote "origin"]` and
+  `[branch]` sections included) is refused `UNSUPPORTED` / `repository` /
+  `unsupported-repository-envelope` before any object is read. A linked worktree is refused
+  `unsupported-object-alternates`, because the alternates probe fails first under a `.git` file;
+  that code names the probe, not an alternates file.
+- `CEM-V1-963`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)
+  Every tracked `.corvint/changes/NAME.cem.json` MUST have a `baseRevision` that a retained ref
+  (default `refs/remotes/origin/main`) reaches, or a `.corvint/cem-lineage.tsv` row
+  (`corvint-cem-lineage/1`: target, base, label, retained ref) labelling that exact base
+  `archive-lineage`, `rebased-lane-base` or `base-unavailable`. `make cem-base-retention-check`
+  MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
+  unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
+  A label is a disclosure and changes no verdict.
 
 ## Non-goals and failure modes
 
@@ -5718,3 +5745,69 @@ committed map, seal, golden or ledger depends on the revision.
 | CEM-V1-934 | `TestCEMV1934PortableBinarySectionGrammar` (`interop/cem01-go`) | A binary creation, modification and deletion (SHA-1 and SHA-256 lengths) beside a textual hunk parse; a binary-only patch, abbreviated or mixed-length IDs, a missing or misplaced mode suffix, equal or zero IDs on a modification, a wrong label, rename or mode-pair metadata, a trailing record and `GIT binary patch` data refuse `patch` |
 | CEM-V1-935 | `TestCEMV1935PortableBinaryEntries` (`interop/cem01-go`) | Matching entries pass; a symlink, a mode mismatch and an object ID mismatch on either side refuse with the named codes |
 | CEM-V1-936 | `TestCEMV1936PortableReaderAgreesOnBinarySectionVector` (`interop/cem01-go`), `TestCEMV1936NativeReaderAgreesOnBinarySectionVector` (`internal/cem/verify`) | The shared case ACCEPTs at `complete` with patch `f551fd0a…` on the native reader and on both portable stable routes, maps only `text.txt`, and REJECTs once the digest is altered |
+
+## Portable route envelopes over the committed corpus (V1-3756, 2026-11-01)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756.
+
+Decision: the 2026-11-01 CEM format audit read the legacy `cem01-go verify-stable` route's
+4096-entry refusal as the independent consumer refusing every real CEM. The repository-scale
+portable route is `verify-stable-canonical` (`CEM-V1-352`), which has no such bound, so the fork
+taken is to measure that route over the whole committed corpus and state each route's envelope,
+not to raise the legacy bound.
+
+Requirements: `CEM-V1-961` (the legacy bounds bind the legacy route only; canonical verifies past them) and
+`CEM-V1-962` (the legacy repository profile), both in the Requirements section.
+
+Non-goals: no change to either route's bounds, codes or results; no claim about maps outside
+`.corvint/changes/`; no ancestry repair of the maps whose objects a clone lacks (V1-3758).
+
+Failure modes:
+- A clone that lacks a map's base or target object answers `UNSUPPORTED` /
+  `repository-object-unavailable` on both consumers. That is missing evidence, reported as such,
+  never a REJECT.
+- The corpus measurement is a dated observation, not a gate: a later map is covered only by a
+  rerun.
+
+Acceptance evidence: `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound`
+(`interop/cem01-go`) rebuilds the public `neutral-criterion` case with 5000 extra unchanged
+entries and an ordinary remote/branch config: the canonical route ACCEPTs, the legacy snapshot of
+the same target refuses `unsupported-resource-limit`, and the legacy repository check refuses
+`unsupported-repository-envelope`. Corpus measurement (2026-11-01, base
+`8daec98ce4349c1583186692726d2c3a782ac647`, Linux amd64): for all 111 maps under
+`.corvint/changes/`, `corvint cem verify-stable` and `cem01-go verify-stable-canonical` gave the
+same outcome, stage, code and `verdictSha256` in a linked worktree (108 ACCEPT, 1 REJECT
+`binding` for `8668f77b`, 2 UNSUPPORTED `repository-object-unavailable`) and in an ordinary
+`git clone --no-local` checkout (104 ACCEPT, 1 REJECT, 6 UNSUPPORTED
+`repository-object-unavailable`, the 4 extra being objects only local refs retain). Each
+canonical run took under one second; see `docs/build-log/2026-11-01-searchcem-w8.md`.
+
+Rollback: revert the change commit; it adds a test, a test helper parameter and this record only.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-961 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`) | canonical ACCEPT over 5000+ entries and an ordinary config; 111/111 corpus parity |
+| CEM-V1-962 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`); `candidateRepository` and `repository03` in `interop/cem01-go/cem.go` | ordinary config refused `unsupported-repository-envelope` on the legacy route |
+
+## Committed map base retention (V1-3758, 2026-11-01)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758; decision
+0588.
+
+Requirement: `CEM-V1-963` (every committed map base retained or labelled), in the Requirements section.
+
+Non-goals: no rewrite of a sealed map, no new ref, no verification of the archive repository.
+
+Failure modes: a shallow or remote-less clone skips the check, saying so; a label cannot make an
+absent object verify, so a `base-unavailable` map stays `UNSUPPORTED`.
+
+Acceptance evidence: `script/check-cem-base-retained_test.sh` (retained base passes; a base only a
+deleted branch held and a missing base are refused with the fix; a label admits exactly its base;
+stale, mismatched and unknown-label rows are refused; no retained ref skips). The committed corpus
+passes with 111 maps and 17 labelled rows (decision 0588).
+
+Rollback: delete the register, the scripts and their Makefile targets; no map changes.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-963 | `script/check-cem-base-retained_test.sh` (`make cem-base-retention-test`) | `make cem-base-retention-check` over the committed corpus |

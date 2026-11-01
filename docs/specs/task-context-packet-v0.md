@@ -1296,6 +1296,37 @@ as withheld. This amendment reserves what the routed spec cites.
   `internal/contextindex/spec_cited.go`, its call in `reservedRows`, `contextRankOrder` and the
   `omitted_spec_cited` call, and repin the analyzer input digest; packets without a spec citation
   are unaffected either way.
+- `TCP-V0-960`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3709)
+  When the packet's own `coverage.answerability.verdict` is `no-specific-terms`, the packet MUST
+  consult `corvint query`'s ranking pass and relevance floor (GPK-V0-066, GPK-V0-093) over the same
+  task text, through `contextindex.QueryRelevanceAbstention`, which shares that pass and floor with
+  `EvalQuery` and reads only the index (no trace learning, no Git observation). When the floor
+  rejects the ranked candidates (`below-relevance-floor`), the packet MUST carry a top-level
+  `abstention` member `{"active": true, "reason": "below-relevance-floor", "source": "query
+  relevance floor"}` and a `coverage.uncertainty` line saying query abstains and the rows are
+  lexical neighbours, not answers; its rows and `state` stay as compiled. Query's
+  `no-relevant-candidates` (its record, document and symbol classes ranked nothing) passes no
+  judgement on the packet's lexical file rows and MUST add nothing, and a task over query's length
+  limit is not judged. Falsifier: an out-of-domain task that query withdraws `OUT_OF_SCOPE`
+  `below-relevance-floor` while the context packet reports `READY` with no abstention. Tests:
+  `TestTaskContextAgreesWithQueryAbstention`, `TestTaskContextIgnoresQueryEmptyUniverse`.
+  Trace-learned query candidates can lift query's floor; this check does not read them, so on a
+  repository with matching traces context may abstain where query does not. Rollback: delete
+  `queryFloorCoverage` and its call; `evalRank`/`relevanceFloor` are a behavior-neutral split of
+  `evalQuery`.
+- `TCP-V0-961`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3710)
+  The definition slot MUST NOT admit an unquoted all-capitals token (two or more of `A`-`Z` and
+  nothing else) that at least `max(sources/16, 2)` indexed sources name as written, the
+  answerability cut of TCP-V0-016: such an acronym (`CEM`, `PR`) is prose vocabulary, and its one
+  declarer (`type CEM` in `internal/revieworder/order.go`) must not outrank the files the task is
+  about. A backticked acronym and a rarer one keep the slot; `definitionEligible`'s other callers
+  are unchanged. Falsifier: on the `CEM canonical binding` probe a definition row for the `CEM`
+  declarer above `internal/cem/wire/canonical.go`. Test:
+  `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot`. The ticket's other criterion, slot
+  evidence as an additive bonus on the lexical score measured on the frozen retrieval eval, is not
+  delivered: the frozen `tools/retrieval-bench` corpora are absent from the host that made this
+  change, and an unmeasured re-ranking would break TCP-V0-994's no-regression bound. Rollback:
+  call `definitionEligible` again in `symbolRows` and `eligibleDefiners`.
 
 - `TCP-V0-270`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
   A TCP-V0-008 governing candidate whose tree entry is a symlink (mode `120000`) stands for its
@@ -1853,3 +1884,5 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-975 (experimental, standing lane auto-accept, V1-3457) | `taskContextCompiler.sufficiency`, `taskContextCompiler.pathAnchor` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
 | TCP-V0-270..275 (experimental, standing lane auto-accept, V1-1272) | `instructionLink`, `linkTarget`, `governingRows`, `withheld`, `unexamined`, `renderRow`, `localPromptCompiler.addGovernance` | `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`, `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`, `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`; `docs/build-log/2026-10-31-governance-symlink.md` |
+| TCP-V0-961 (experimental, standing lane auto-accept, V1-3710) | `definitionSlotEligible`, `allCapitalAcronym`, `symbolRows`, `eligibleDefiners` | `TestTaskContextCommonAcronymDoesNotTakeTheDefinitionSlot` |
+| TCP-V0-960 (experimental, standing lane auto-accept, V1-3709) | `queryFloorCoverage`, `QueryRelevanceAbstention`, `evalRank`, `evalRanked.relevanceFloor` | `TestTaskContextAgreesWithQueryAbstention`, `TestTaskContextIgnoresQueryEmptyUniverse` |

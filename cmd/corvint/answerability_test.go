@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -115,7 +116,8 @@ func TestAnswerabilityStructuralChannelIsStructuralOnly(t *testing.T) {
 			t.Fatalf("reasons are unsorted for %s: %q", path, reason)
 		}
 		for _, part := range parts {
-			if !strings.HasPrefix(part, "declares ") && !strings.HasPrefix(part, "imports ") && !strings.HasPrefix(part, "imported by ") {
+			if !strings.HasPrefix(part, "declares ") && !strings.HasPrefix(part, "references ") &&
+				!strings.HasPrefix(part, "imports ") && !strings.HasPrefix(part, "imported by ") {
 				t.Fatalf("non-structural reason for %s: %q", path, part)
 			}
 		}
@@ -131,11 +133,62 @@ func TestAnswerabilityStructuralChannelIsStructuralOnly(t *testing.T) {
 	}
 }
 
+// RDS-V0-960 to RDS-V0-963 (V1-3708): a task naming a declared symbol whose
+// package is imported by many files never proposes unanswerable. Before the
+// fix every importer and every file of an imported package tied on one link,
+// the declaring file sorted out of the top K by path, and the channels shared
+// nothing.
+func TestAnswerabilityNamedSymbolUnderImportFanOutIsNotUnanswerable(t *testing.T) {
+	t.Parallel()
+	extra := map[string]string{
+		"zz/query/eval_query.go": "package query\n\nimport \"example.test/answer/store\"\n\n" +
+			"// EvalQuery evaluates one query.\nfunc EvalQuery(key string) string { return store.Fetch(key) }\n",
+		"zz/query/eval_query_test.go": "package query\n\nimport \"testing\"\n\n" +
+			"func TestEvalQuery(t *testing.T) { _ = EvalQuery(\"query\") }\n",
+	}
+	for position := range 14 {
+		extra[fmt.Sprintf("app/a%02d.go", position)] = "package app\n\nimport \"example.test/answer/zz/query\"\n\n" +
+			fmt.Sprintf("func Use%02d() string { return query.EvalQuery(\"x\") }\n", position)
+		extra[fmt.Sprintf("store/s%02d.go", position)] = fmt.Sprintf("package store\n\nfunc helper%02d() {}\n", position)
+	}
+	root := answerabilityRepository(t, extra)
+	_, report, _ := runAnswerabilityForTest(t, root, "--task", "where is EvalQuery defined")
+	signal := answerabilitySignal(t, report)
+	if signal["structural_vote"] != "present" || signal["proposed_state"] == "unanswerable" {
+		t.Fatalf("a task naming a declared symbol proposed %v (signal %v)", signal["proposed_state"], signal)
+	}
+	rows, _ := report["channel_s"].([]any)
+	first, _ := rows[0].(map[string]any)
+	if first["path"] != "zz/query/eval_query.go" {
+		t.Fatalf("declaring file is not channel S rank 1: %v", rows)
+	}
+	stores := 0
+	for _, raw := range rows {
+		if row, _ := raw.(map[string]any); strings.HasPrefix(row["path"].(string), "store/") {
+			stores++
+		}
+	}
+	if stores > 1 {
+		t.Fatalf("one package import linked %d store files: %v", stores, rows)
+	}
+}
+
 // RDS-V0-004: partial overlap is reported as low agreement and never upgraded
 // to answerable.
 func TestAnswerabilityLowAgreementProposesUncertain(t *testing.T) {
 	t.Parallel()
-	root := answerabilityRepository(t)
+	// Packages the declaring file imports are import hops only: channel S
+	// ranks one representative per package, the packet has no term to rank
+	// them, so the channels share the two cache files and nothing more.
+	imports := ""
+	extra := map[string]string{}
+	for position := range 8 {
+		extra[fmt.Sprintf("p%d/p%d.go", position, position)] = fmt.Sprintf("package p%d\n\nfunc Helper() {}\n", position)
+		imports += fmt.Sprintf("\t_ \"example.test/answer/p%d\"\n", position)
+	}
+	extra["cache/demux.go"] = "package cache\n\nimport (\n" + imports + ")\n\n" +
+		"// SplitDemuxKey splits the demux key of a cache read.\nfunc SplitDemuxKey(key string) string { return key }\n"
+	root := answerabilityRepository(t, extra)
 	_, report, _ := runAnswerabilityForTest(t, root, "--task", "SplitDemuxKey mishandles the demux key of a cache read")
 	signal := answerabilitySignal(t, report)
 	if signal["structural_vote"] != "present" {

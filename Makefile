@@ -56,6 +56,8 @@ GATE_STEPS = \
   analyzer-schema-test \
   batch-precheck-test \
   binary-blobs-check \
+  cem-base-retention-check \
+  cem-base-retention-test \
   ci-least-privilege-check \
   ci-least-privilege-test \
   codex-review-test \
@@ -395,6 +397,17 @@ traceability-tests-test:
 .PHONY: decision-numbers-check
 decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
+
+# cem-base-retention-check (decision 0588, V1-3758) refuses a tracked .corvint/changes map whose
+# baseRevision origin/main does not reach unless .corvint/cem-lineage.tsv labels it; with no
+# origin/main (a shallow clone) it prints that it was skipped. cem-base-retention-test is its fixture test.
+.PHONY: cem-base-retention-check
+cem-base-retention-check:
+	@script/check-cem-base-retained.sh
+
+.PHONY: cem-base-retention-test
+cem-base-retention-test:
+	@script/check-cem-base-retained_test.sh
 
 .PHONY: decision-numbers-test
 decision-numbers-test:
@@ -1146,6 +1159,7 @@ shell-test: \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
   batch-precheck-test \
+  cem-base-retention-test \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
