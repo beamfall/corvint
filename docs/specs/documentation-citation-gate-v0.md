@@ -443,8 +443,8 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
-| DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes |
-| DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected |
+| DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
+| DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
 | DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
 
 ## Traceability
@@ -452,19 +452,19 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:418-421@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:421-424@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:696-713@b0ffc20a` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:714-731@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:418-421@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:421-424@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:696-713@b0ffc20a` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:714-731@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |

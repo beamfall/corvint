@@ -245,14 +245,28 @@ gone "$(cat "$tmp/g.pid")" || { kill "$(cat "$tmp/g.pid")" 2> /dev/null; fail "h
 ok
 # ASD-V0-926: a heavy.sh nested in another one's workload (BATCH_PRECHECK_GO_WRAPPER=script/heavy.sh
 # around a make recipe that runs DOC_GATE_GO_TEST) runs in the enclosing slot, so at one slot it
-# completes instead of deadlocking; timeout bounds the case, and its TERM reaches the whole group.
+# completes instead of deadlocking; a watchdog bounds the case, and its TERM reaches the whole group.
 # A forged HEAVY_SLOT_FD (an own descriptor on slot1, not the holder's) still waits for the slot.
-got=$(HEAVY_SLOTS=1 timeout 20 "$heavy" bash -c '"$1" echo nested-ran' _ "$heavy" 2> "$tmp/err")
+# The watchdog is a perl alarm, since macOS has no GNU timeout: SECONDS CMD... runs CMD in its own
+# process group and, past SECONDS, sends TERM to that group and exits 124 as timeout(1) does.
+watchdog=$tmp/watchdog
+cat > "$watchdog" << 'PERL'
+#!/usr/bin/perl
+my $seconds = shift;
+my $pid = fork // exit 125;
+if (!$pid) { setpgrp(0, 0); exec @ARGV or exit 127 }
+$SIG{ALRM} = sub { kill 'TERM', -$pid; waitpid $pid, 0; exit 124 };
+alarm $seconds;
+waitpid $pid, 0;
+exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+PERL
+chmod +x "$watchdog"
+got=$(HEAVY_SLOTS=1 "$watchdog" 20 "$heavy" bash -c '"$1" echo nested-ran' _ "$heavy" 2> "$tmp/err")
 [[ $? == 0 && $got == nested-ran ]] && grep -qx 'heavy.sh: slot 1/1 held by an enclosing heavy.sh' "$tmp/err" ||
   fail "nested heavy.sh at HEAVY_SLOTS=1 did not run in the enclosing slot: $got $(cat "$tmp/err")"
 got=$(perl -MFcntl=:flock,F_SETFD -e 'open(my $h, ">>", $ARGV[0]) or exit 9; flock($h, LOCK_EX) or exit 9;
   open(my $f, ">>", $ARGV[0]) or exit 9; fcntl($f, F_SETFD, 0); @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = (1, fileno $f);
-  exit(system("timeout", "3", @ARGV[1 .. $#ARGV]) >> 8)' "$HEAVY_LOCK_DIR/slot1" env HEAVY_SLOTS=1 "$heavy" echo forged-ran 2> /dev/null)
+  exit(system($ARGV[1], "3", @ARGV[2 .. $#ARGV]) >> 8)' "$HEAVY_LOCK_DIR/slot1" "$watchdog" env HEAVY_SLOTS=1 "$heavy" echo forged-ran 2> /dev/null)
 [[ $? == 124 && -z $got ]] || fail "a forged HEAVY_SLOT_FD bypassed a held slot: $got"
 ok
 # ASD-V0-028: a go test offloads to HEAVY_REMOTE_HOST at the checkout's exact tree (an unpushed

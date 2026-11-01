@@ -369,9 +369,12 @@ sub check {
         my @numbers = anchored_numbers($first, $last, @extra);
         my $in_range = !grep { $_ < 1 || $_ > @$lines } @numbers;
         if (!$in_range || anchor_of($lines, @numbers) !~ /^\Q$pin\E/) {
-            my @shifts = relocations($lines, $pin, @numbers);
+            # DCG-V0-920: a span the diff from the base deletes is never moved, even when an identical
+            # block survives elsewhere; the deletion guard runs before the hash relocation.
+            my $deleted = defined $repin_base && diff_deletes($path, $pin, @numbers);
+            my @shifts = $deleted ? () : relocations($lines, $pin, @numbers);
             my $shift = @shifts == 1 && relocatable($lines, $shifts[0], @numbers) ? $shifts[0] : undef;
-            $shift //= diff_relocation($path, $lines, $pin, @numbers) if defined $repin_base;
+            $shift //= diff_relocation($path, $lines, $pin, @numbers) if defined $repin_base && !$deleted;
             if (defined $shift) {
                 my $moved = shifted_token($token, $shift);
                 push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
@@ -576,6 +579,21 @@ sub diff_relocation {
     return anchor_of($lines, @moved) =~ /^\Q$pin\E/ ? $shift : undef;
 }
 
+# DCG-V0-920: whether the pin matched these lines at the base and a hunk with no new lines (a
+# pure deletion) removed any of them.
+sub diff_deletes {
+    my ($path, $pin, @numbers) = @_;
+    my $base = base_lines($path) or return 0;
+    return 0 if grep { $_ < 1 || $_ > @$base } @numbers;
+    return 0 unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
+    my $hunks = base_hunks($path) or return 0;
+    for my $number (@numbers) {
+        my ($moved, undef, $count) = map_line($hunks, $number);
+        return 1 if !defined $moved && !$count;
+    }
+    return 0;
+}
+
 # For a pinned span whose text changed since the base, the span the diff maps it to and that
 # span's current anchor: an unchanged endpoint maps exactly, and one inside a rewritten hunk
 # widens to that hunk's new lines. It is printed for the author to read, never written.
@@ -771,7 +789,8 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
             }
             if (defined $10) {
                 my ($name, $span, $pin) = ($10, $11, $12);
-                if ($tracked{$name} && $span =~ /^(\d+)((?:,\d+)*)(?:-(\d+))?$/) {
+                # DCG-V0-921: a changed, deleted root file such as README.md still reaches check() under --selects.
+                if (($tracked{$name} || $selects_changed{$name}) && $span =~ /^(\d+)((?:,\d+)*)(?:-(\d+))?$/) {
                     $current = $name;
                     my @extra = grep { length } split /,/, $2;
                     check($doc, $line_number, $token, $name, $pin, $1, $3, @extra);
@@ -784,7 +803,8 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
             if (defined $13) {
                 # An untracked token is prose, so it leaves the paragraph anchor exactly as
                 # it was: before this alternative existed the regex did not match it at all.
-                next unless $tracked{$13};
+                # DCG-V0-921: so does a changed, deleted extensionless file such as Makefile.
+                next unless $tracked{$13} || $selects_changed{$13};
                 $current = $13;
                 my @extra = grep { length } split /,/, ($15 // '');
                 check($doc, $line_number, $token, $13, $17, $14, $16, @extra);

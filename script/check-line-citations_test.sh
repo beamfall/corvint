@@ -764,6 +764,57 @@ git -C "$test_root" rm -q --cached internal/demo/del.go
 rm -f "$test_root/internal/demo/del.go"
 cite "$single"
 
+# 32c. DCG-V0-920 (review fix): a deleted two-line block that also occurs elsewhere in the file is
+#      not moved to the surviving copy: the deletion guard runs before the hash relocation.
+printf '%s\n' 'package demo' '' 'func Twin() {' '  return' 'func Mid() {}' 'func Twin() {' '  return' 'func End() {}' \
+  > "$test_root/internal/demo/dup.go"
+stage internal/demo/dup.go
+twin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/dup.go:3-4)
+cite "$twin"
+run >/dev/null || fail "the duplicate-block fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m duplicate
+printf '%s\n' 'package demo' '' 'func Mid() {}' 'func Twin() {' '  return' 'func End() {}' > "$test_root/internal/demo/dup.go"
+stage internal/demo/dup.go
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || true
+case $out in *'moved unchanged to'* | *'re-anchored as'*) fail "--repin moved a deleted block to its surviving twin: $out" ;; esac
+grep -qF "$twin" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a deleted block's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>&1) || true
+case $out in *'re-anchored'* | *'the diff maps it to'*) fail "--repin --changed mapped a deleted block to other lines: $out" ;; esac
+grep -qF "$twin" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed rewrote a deleted block's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+rc=0
+output=$(run) || rc=$?
+# Without a base the plain check cannot see the deletion, so it may report the twin as a move; it
+# still fails, and only --repin consults the diff.
+[ "$rc" = 1 ] && case $output in *"$twin"*) true ;; *) false ;; esac ||
+  fail "a citation of a deleted duplicate block did not stay a failure (exit $rc): $output"
+git -C "$test_root" rm -q --cached internal/demo/dup.go
+rm -f "$test_root/internal/demo/dup.go"
+cite "$single"
+
+# 32d. DCG-V0-921 (review fix): a deleted root basename (README.md) and a deleted extensionless file
+#      (Makefile) still select line-citations-check through --selects.
+printf '%s\n' '# Readme' 'The readme claim line.' > "$test_root/README.md"
+stage README.md
+printf '%s\n' 'all:' 'echo build the selected target' > "$test_root/Makefile"
+stage Makefile
+readme=$(cd "$test_root" && script/check-line-citations.sh --hash README.md:2)
+make_pin=$(cd "$test_root" && script/check-line-citations.sh --hash Makefile:2)
+printf '# Fixture\n\nThe claims rest on `%s` and `%s`.\n' "$readme" "$make_pin" > "$test_root/docs/agent-memory/fixture.md"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the root-file fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m root-files
+git -C "$test_root" rm -q README.md Makefile
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 2 pinned citation(s)'*"$readme"*"$make_pin"*) ;;
+*) fail "--selects missed the citations into a deleted README.md and Makefile: $out" ;;
+esac
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m root-files-gone
+cite "$single"
+
 # 33. DCG-V0-047 (V1-3124), DCG-V0-048 (V1-3228): a transitive chain repins in one --repin call
 #     with no hand-run --hash and no manual staging. The fixture pins a spec line that itself cites
 #     a moved source line; --repin moves the spec's token, which changes the spec line, stages the
