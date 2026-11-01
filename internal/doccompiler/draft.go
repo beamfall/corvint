@@ -47,6 +47,8 @@ type SourceDraft struct {
 	OwnerRelation string
 	// Page of Pages (SDD-V0-632); Pages is 1 when every list fits one page.
 	Page, Pages int
+	// OwnerSection is the named owner heading, empty for the default (SDD-V0-633).
+	OwnerSection string
 }
 
 // Owner relations (SDD-V0-630).
@@ -88,7 +90,13 @@ const draftDryRunProfile = "corvint-source-documentation-draft-dry-run/0"
 type DraftOptions struct {
 	// Page is the 1-based page of declarations and importers; 0 means 1.
 	Page int
+	// OwnerSection names the owner's H2 section (SDD-V0-633); empty means
+	// the default "Agent digest", whose excerpt keeps the preamble.
+	OwnerSection string
 }
+
+// defaultOwnerSection is the Corvint owner heading drafted when no section is named.
+const defaultOwnerSection = "Agent digest"
 
 // draftPageSize bounds each of the declaration and importer lists per page.
 const draftPageSize = 64
@@ -108,7 +116,7 @@ func DraftSourcesWith(index *contextindex.Index, sourcePath, directory string, o
 	if !ok || !strings.HasSuffix(sourcePath, ".md") {
 		return SourceDraft{}, failure("unsupported-documentation-source", "owner source must be admitted tracked Markdown")
 	}
-	owner, err := ownerEntry(source)
+	owner, err := ownerEntry(source, options.OwnerSection)
 	if err != nil {
 		return SourceDraft{}, err
 	}
@@ -134,7 +142,7 @@ func DraftDryRunWith(index *contextindex.Index, sourcePath string, owner []byte,
 	if len(owner) > DraftMaxBytes {
 		return SourceDraft{}, failure("documentation-limit-exceeded", "dry-run owner source exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes", DraftMaxBytes, len(owner))
 	}
-	entry, err := ownerEntry(contextindex.Source{Path: sourcePath, Data: owner})
+	entry, err := ownerEntry(contextindex.Source{Path: sourcePath, Data: owner}, options.OwnerSection)
 	if err != nil {
 		return SourceDraft{}, err
 	}
@@ -181,6 +189,9 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 		fmt.Sprintf("Index coverage: %d exclusions, %d unparsed diagnostics; affected unparsed declarations and imports omitted. Dirty worktree bytes are not source evidence.", len(index.Exclusions), len(index.Unparsed)),
 	}}
 	draft.OwnerRelation = ownerRelation(owner.Excerpt, directory)
+	if options.OwnerSection != defaultOwnerSection {
+		draft.OwnerSection = options.OwnerSection
+	}
 	if draft.OwnerRelation == OwnerUnrelated {
 		draft.Limitations = append([]string{ownerUnrelatedLimitation}, draft.Limitations...)
 	}
@@ -224,7 +235,14 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	return draft, nil
 }
 
-func ownerEntry(source contextindex.Source) (DraftEntry, error) {
+// ownerEntry excerpts the owner. The default Agent digest keeps the preamble
+// through the digest; a named section (SDD-V0-633) is that section alone.
+func ownerEntry(source contextindex.Source, section string) (DraftEntry, error) {
+	if section == "" {
+		section = defaultOwnerSection
+	} else if err := ownerSectionHeading(section); err != nil {
+		return DraftEntry{}, err
+	}
 	text, valid, loaded := source.Text()
 	if !loaded || !valid || strings.Contains(text, "\r") {
 		return DraftEntry{}, failure("unsupported-documentation-source", "owner source must be loaded UTF-8 LF text")
@@ -245,7 +263,7 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 			fence = marker
 			continue
 		}
-		if line == "## Agent digest" {
+		if line == "## "+section {
 			start = n
 			count++
 			continue
@@ -258,26 +276,45 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 		return DraftEntry{}, failure("unsupported-documentation-source", "owner source has an unclosed fenced code block")
 	}
 	if count != 1 {
-		return DraftEntry{}, failure("unsupported-documentation-source", "exactly one Agent digest is required")
+		if section == defaultOwnerSection {
+			return DraftEntry{}, failure("unsupported-documentation-source", "exactly one Agent digest is required")
+		}
+		return DraftEntry{}, failure("unsupported-documentation-source", "exactly one literal ## %s heading outside fenced code is required: observed %d", draftMetadata(section), count)
 	}
-	if end > 64 {
-		return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed the limit of 64 lines: observed %d lines", end)
+	first := 0
+	if section != defaultOwnerSection {
+		first = start
+	}
+	if end-first > 64 {
+		if section == defaultOwnerSection {
+			return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed the limit of 64 lines: observed %d lines", end)
+		}
+		return DraftEntry{}, failure("documentation-limit-exceeded", "owner section exceeds the limit of 64 lines: observed %d lines", end-first)
 	}
 	if source.BlobHash == "" {
-		return dryRunOwnerEntry(source, strings.TrimPrefix(lines[start], "## "), lines[:end])
+		return dryRunOwnerEntry(source, section, first, lines[first:end])
 	}
-	return sourceEntry(source, "owner", strings.TrimPrefix(lines[start], "## "), 1, end)
+	return sourceEntry(source, "owner", section, first+1, end)
+}
+
+// ownerSectionHeading admits 1..200 bytes of printable UTF-8 with no newline.
+func ownerSectionHeading(section string) error {
+	printable := utf8.ValidString(section) && !strings.ContainsFunc(section, func(r rune) bool { return !unicode.IsPrint(r) })
+	if len(section) > 200 || !printable || strings.TrimSpace(section) != section {
+		return failure("unsupported-documentation-source", "owner section must be 1..200 bytes of printable UTF-8 without a newline or surrounding spaces")
+	}
+	return nil
 }
 
 // dryRunOwnerEntry is the owner entry over bytes with no Git object: Blob stays
 // empty so the page renders no immutable original route.
-func dryRunOwnerEntry(source contextindex.Source, title string, lines []string) (DraftEntry, error) {
+func dryRunOwnerEntry(source contextindex.Source, title string, first int, lines []string) (DraftEntry, error) {
 	excerpt := strings.Join(lines, "\n")
 	if len(excerpt) > 4<<10 {
 		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds the limit of %d bytes (4 KiB): observed %d bytes", 4<<10, len(excerpt))
 	}
 	digest := sha256.Sum256(source.Data)
-	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, 1, title), Kind: "dry-run-owner", Title: title, Excerpt: excerpt, Path: source.Path, SHA256: hex.EncodeToString(digest[:]), StartLine: 1, EndLine: len(lines)}, nil
+	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, first+1, title), Kind: "dry-run-owner", Title: title, Excerpt: excerpt, Path: source.Path, SHA256: hex.EncodeToString(digest[:]), StartLine: first + 1, EndLine: first + len(lines)}, nil
 }
 
 // Only top-level fences with up to three leading spaces can hide literal H2
@@ -834,6 +871,9 @@ func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
 		fmt.Fprintf(&output, "<!-- Code generated by Corvint source documentation draft. DO NOT EDIT. -->\n# Corvint capability orientation: %s\n\nProfile: corvint-source-documentation-draft/0\n", draftMetadata(directory))
 	}
 	fmt.Fprintf(&output, "Policy: %s\nDerivation: GENERATED\nBehavior: UNKNOWN\nCommit: %s\nTree: %s\nOwner source: %s\nPackage: %s\nOwner relation: %s\n", draftMetadata(draftPolicy), draftMetadata(draft.Commit), draftMetadata(draft.Tree), draftMetadata(sourcePath), draftMetadata(directory), draft.OwnerRelation)
+	if draft.OwnerSection != "" {
+		fmt.Fprintf(&output, "Owner section: %s\n", draftMetadata(draft.OwnerSection))
+	}
 	if draft.Pages > 1 {
 		fmt.Fprintf(&output, "Page: %d of %d\n", draft.Page, draft.Pages)
 	}

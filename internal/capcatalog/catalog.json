@@ -1764,6 +1764,7 @@
       "owningSpec": "SDD-V0",
       "freezeContract": null,
       "operations": [
+        "citations",
         "consume",
         "corpus",
         "draft",
@@ -2033,6 +2034,7 @@
         "--no-workspace",
         "--offset",
         "--output-dir",
+        "--owner-section",
         "--owner-stdin",
         "--package",
         "--page",
@@ -2099,6 +2101,7 @@
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
+        0,
         1
       ],
       "writes": "mode-dependent",

@@ -794,3 +794,50 @@ func TestSDDV0631ProvenanceOncePerFile(t *testing.T) {
 		}
 	}
 }
+
+// SDD-V0-633: a foreign owner drafts from a named section without any Agent digest.
+func TestSDDV0633OwnerSectionDraftsWithoutAgentDigest(t *testing.T) {
+	const owner = "# Upstream\n\nIntro prose that stays out.\n\n## Overview\nThe compiler package plans.\n\n## Install\nnot excerpted\n"
+	index := draftFixture()
+	source := index.Sources["docs/owner.md"]
+	source.Data = []byte(owner)
+	index.Sources[source.Path] = source
+	if _, err := DraftSources(index, source.Path, "compiler"); err == nil {
+		t.Fatal("default heading admitted an owner without an Agent digest")
+	}
+	for _, dryRun := range []bool{false, true} {
+		var draft SourceDraft
+		var err error
+		if dryRun {
+			draft, err = DraftDryRunWith(index, source.Path, source.Data, "compiler", DraftOptions{OwnerSection: "Overview"})
+		} else {
+			draft, err = DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: "Overview"})
+		}
+		if err != nil {
+			t.Fatalf("dry-run=%t: %v", dryRun, err)
+		}
+		entry := draft.Entries[0]
+		if entry.StartLine != 5 || entry.EndLine != 7 || entry.Excerpt != "## Overview\nThe compiler package plans.\n" || entry.Title != "Overview" {
+			t.Fatalf("dry-run=%t owner entry %+v", dryRun, entry)
+		}
+		markdown := string(draft.Markdown)
+		if !strings.Contains(markdown, "\nOwner section: `\"Overview\"`\n") || strings.Contains(markdown, "Intro prose") || strings.Contains(markdown, "not excerpted") {
+			t.Fatalf("dry-run=%t section draft:\n%s", dryRun, markdown)
+		}
+	}
+	plain, err := DraftSources(draftFixture(), "docs/owner.md", "compiler")
+	named, namedErr := DraftSourcesWith(draftFixture(), "docs/owner.md", "compiler", DraftOptions{OwnerSection: "Agent digest"})
+	if err != nil || namedErr != nil || !bytes.Equal(plain.Markdown, named.Markdown) || strings.Contains(string(plain.Markdown), "Owner section:") {
+		t.Fatalf("default section changed bytes: %v %v", err, namedErr)
+	}
+	for _, section := range []string{"Missing", "Install\n", " Overview", strings.Repeat("x", 201), "Tab\there"} {
+		if _, err := DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: section}); err == nil {
+			t.Fatalf("section %q admitted", section)
+		}
+	}
+	source.Data = []byte("## Overview\n" + strings.Repeat("line\n", 64) + "## Next\n")
+	index.Sources[source.Path] = source
+	if _, err := DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: "Overview"}); err == nil || !strings.Contains(err.Error(), "owner section exceeds the limit of 64 lines") {
+		t.Fatalf("65-line section admitted: %v", err)
+	}
+}

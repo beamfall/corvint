@@ -1041,7 +1041,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `command-timeout` | `internal/doccompiler/process.go:92` | 1 | "command exceeded its deadline" |
 | `corpus-too-large` | `internal/doccompiler/build.go:255` | 2 | "staged corpus exceeds its byte limit" |
 | `corpus-unavailable` | `internal/doccompiler/build.go:244` | 3 | "cannot read staged document target" |
-| `documentation-limit-exceeded` | `internal/doccompiler/draft.go:150@9fd0f2ff` | 5 | "draft exceeds the DraftMaxBytes limit of <value> bytes (64 KiB): observed <value> bytes" |
+| `documentation-limit-exceeded` | `internal/doccompiler/draft.go:233@9fd0f2ff` | 5 | "draft exceeds the DraftMaxBytes limit of <value> bytes (64 KiB): observed <value> bytes" |
 | `duplicate-claim` | `internal/doccompiler/plan.go:161@e2c46350` | 1 | "claim ID is duplicated: <value>" |
 | `duplicate-clause` | `internal/doccompiler/admission.go:115` | 2 | "clause ID is duplicated: <value>" |
 | `duplicate-document` | `internal/doccompiler/plan.go:45@febb118a` | 1 | "document proposal is duplicated: <value>" |
@@ -1120,7 +1120,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `pymdown-pin-mismatch` | `internal/doccompiler/discover.go:176` | 1 | "expected PyMdown Extensions <value>, found <value>" |
 | `receipt-encoding-failed` | `internal/doccompiler/receipt.go:75` | 1 | "cannot encode canonical receipt" |
 | `receipt-input-invalid` | `internal/doccompiler/receipt.go:37` | 1 | "environment and plan must be closed before receipt creation" |
-| `stale-documentation-draft` | `internal/doccompiler/draft.go:664@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
+| `stale-documentation-draft` | `internal/doccompiler/draft.go:939@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
 | `stale-source` | `internal/doccompiler/admittedplan.go:498@9a12a50a` | 4 | "plan revision <value> is not the index revision" |
 | `stale-toolchain` | `internal/doccompiler/paths.go:199@08aa9ed3` | 1 | "<value> no longer matches its pin" |
 | `symlink-rejected` | `internal/doccompiler/build.go:288` | 3 | "staged corpus contains a symlink: <value>" |
@@ -1134,7 +1134,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `unknown-clause` | `internal/doccompiler/admittedplan.go:282@e7f16961` | 1 | "operation <value> names an unadmitted clause <value>" |
 | `unordered-set` | `internal/doccompiler/admittedplan.go:569@0420bea2` | 1 | "plan carries an unordered or repeated path or ID set" |
 | `unpinned-target` | `internal/doccompiler/admittedplan.go:306@1efbd577` | 2 | "target <value> is tracked but its bytes are not pinned" |
-| `unsupported-documentation-source` | `internal/doccompiler/draft.go:116@ef17930c` | 16 | "package must name one repository-relative module directory" |
+| `unsupported-documentation-source` | `internal/doccompiler/draft.go:180@ef17930c` | 16 | "package must name one repository-relative module directory" |
 | `unsupported-supported-claim` | `internal/doccompiler/plan.go:168@e67f76d8` | 1 | "SUPPORTED claim <value> has no evidence" |
 | `version-pins-required` | `internal/doccompiler/discover.go:88` | 1 | "exact MkDocs, Material, Python-Markdown, and PyMdown Extensions versions are required" |
 
