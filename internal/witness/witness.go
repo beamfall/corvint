@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/witnesspaths"
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 )
 
 // Profile is the frozen report identity.
@@ -382,6 +383,8 @@ func resolveBaseTree(ctx context.Context, budget *gitrun.Budget, index *contexti
 	if err != nil || string(kind) != "commit\n" {
 		return "", fmt.Errorf("--base must identify an available commit object")
 	}
+	// Safe unguarded (EEP-V0-771): gitEnvironment sets GIT_GRAFT_FILE=/dev/null and a shallow
+	// boundary only removes parents, so a wrong answer can only refuse --base.
 	if _, err := run(ctx, budget, index.Root, 64, "merge-base", "--is-ancestor", base, index.CommitRevision); err != nil {
 		return "", fmt.Errorf("--base must be an ancestor of the captured HEAD commit")
 	}
@@ -438,6 +441,13 @@ func admit(ctx context.Context, index *contextindex.Index, base string, pinned b
 	engine := contextindex.PerPathRangeImpact
 	if pinned {
 		engine = contextindex.CommitPinnedPerPathRangeImpact
+	}
+	// The engine's merge-base honours info/grafts, unlike this package's own reads; a shallow
+	// boundary cannot make its exact --base check wrong (EEP-V0-770).
+	if reason := gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return run(ctx, gitrun.NewDefaultBudget(), index.Root, 8192, args...)
+	}); reason != "" && reason != gitancestry.Shallow {
+		return stage{status: "REFUSED", detail: "--base ancestry cannot be trusted: " + reason, packets: []PacketCoverage{}, refused: map[string]string{}}
 	}
 	receipt, err := engine(ctx, index, base, impactLimit)
 	if err != nil {

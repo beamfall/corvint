@@ -28,6 +28,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -171,10 +172,19 @@ func querySummary(request Request, seeds []string) map[string]any {
 // rootCommit reads the revision's root commit under Core's sanitized Git
 // environment, with no credential helper and no transport, so replace refs,
 // ambient configuration and a promisor remote cannot change the origin.
+//
+// A grafted or shallow checkout has no trustworthy root commit: its parentless commits are the
+// graft or the shallow boundary (EEP-V0-773), so the origin is unavailable.
 func rootCommit(ctx context.Context, root, revision string) (string, error) {
-	output, err := gitrun.RunReserved(ctx, 10*time.Second, gitrun.Options{
-		Binary: gitstatus.Executable(), Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 10,
-	}, "-c", "credential.helper=", "rev-list", "--max-parents=0", revision)
+	read := func(ctx context.Context, args ...string) ([]byte, error) {
+		return gitrun.RunReserved(ctx, 10*time.Second, gitrun.Options{
+			Binary: gitstatus.Executable(), Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 10,
+		}, append([]string{"-c", "credential.helper="}, args...)...)
+	}
+	if reason := gitancestry.Rewritten(ctx, read); reason != "" {
+		return "", errors.New(reason)
+	}
+	output, err := read(ctx, "rev-list", "--max-parents=0", revision)
 	if err != nil {
 		return "", err
 	}

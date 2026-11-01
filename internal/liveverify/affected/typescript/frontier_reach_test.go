@@ -36,7 +36,7 @@ func TestFrontierReachHoldsForUnownedPaths_AFPV0511(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	alias := FrontierPathAlias + ":tests/dep.test.ts:1 `vitest`"
+	alias := FrontierBareImportUndeclared + ":tests/dep.test.ts:1 `vitest`"
 	relative := FrontierUnresolvedImport + ":tests/dep.test.ts:3 `./gone`"
 	runner := FrontierUnknownRunner + ":tests/other.test.ts"
 	if fmt.Sprint(before.Frontier) != fmt.Sprint([]string{alias, relative, runner}) {

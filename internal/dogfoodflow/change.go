@@ -164,6 +164,7 @@ func (c *change) path(name string) string {
 
 func (c *change) run() int {
 	c.requireRoot()
+	c.requireTrustedAncestry()
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
 	c.acquireOperation()
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")

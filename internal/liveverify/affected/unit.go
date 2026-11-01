@@ -93,6 +93,9 @@ const MaxPathsPerUnit = 20_000
 // (TSP-V0-005). The graph makes each file's owning unit a dependent of this
 // one: a test user when the file is one of its tests, else an importer. A file
 // no unit owns adds no edge.
+// ExecConsumers name repository files the project declares as running the
+// command unit's built binary (AFP-V0-762). They add no edge: a plan that
+// reaches the command's build names each one no selection runs as an unknown.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -119,6 +122,7 @@ type Unit struct {
 	Frontier             []string `json:"frontier,omitempty"`
 	FrontierBears        string   `json:"frontierBears,omitempty"`
 	Callers              []string `json:"callers,omitempty"`
+	ExecConsumers        []string `json:"execConsumers,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -181,6 +185,14 @@ type PathReader interface {
 	ReadsAnyPath() bool
 }
 
+// FrontierRoute is implemented by a plugin that names, for some of its frontier
+// reasons, the supported route past the frontier (AFP-V0-761). The route is
+// appended to the entry's Hint, so it never changes selection, scope or the
+// bare Detail consumers key on. An empty route names nothing.
+type FrontierRoute interface {
+	FrontierRoute(reason string) string
+}
+
 // FrontierReach is implemented by a plugin that classifies its frontier reasons
 // by the paths their hidden edge can bind (AFP-V0-511). A reason is the first
 // two colon-separated fields of a frontier entry, `<plugin>:<category>`. A
@@ -235,6 +247,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validPathList(unit.Callers); err != nil {
+		return err
+	}
+	if err := validPathList(unit.ExecConsumers); err != nil {
 		return err
 	}
 	if err := validIdentifierList(unit.Imports); err != nil {

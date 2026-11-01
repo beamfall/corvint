@@ -226,8 +226,12 @@ func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, err
 		}
 	}
 	// GIT_OPTIONAL_LOCKS=0 keeps reads such as `status` from refreshing the
-	// index (SPC-V0-004).
-	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
+	// index (SPC-V0-004). GIT_GRAFT_FILE=/dev/null makes every merge-base and
+	// rev-list read answer from the commits' real parents, as the private dry
+	// merge repository already does, since Git honours info/grafts even with
+	// replace objects disabled; refuseShallowMergeBase covers the shallow
+	// boundary (EEP-V0-771).
+	cmd.Env = append(cmd.Env, "GIT_GRAFT_FILE="+os.DevNull, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
 	cmd.Env = append(cmd.Env, extra...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)

@@ -199,6 +199,7 @@ type cachedUnit struct {
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears"`
 	Callers              []string `json:"callers"`
+	ExecConsumers        []string `json:"execConsumers"`
 }
 
 type cachedStamp struct {
@@ -449,7 +450,7 @@ func completeStamps(entry cacheEntry) string {
 	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
 		return incomplete
 	}
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, RuntimeEdgesPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, RuntimeEdgesPath, UnboundedReaderExclusionsPath} {
 		if _, ok := stamps[observedPath{relative: declaration}]; !ok {
 			return incomplete
 		}

@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	dashboardauthority "github.com/Beamfall/corvint/internal/dashboard/authority"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 )
 
 const (
@@ -77,6 +78,12 @@ func (authority *Authority) QualifyTrace(ctx context.Context, revision string, r
 		return authority.failObjectQualification(ctx)
 	}
 
+	// GIT_GRAFT_FILE=/dev/null already disables info/grafts here, but a shallow boundary still cuts
+	// parents: it can hide the ancestry or undercount the path below the bound, so a rewritten
+	// checkout qualifies no trace (EEP-V0-770).
+	if gitancestry.RewrittenAt(authority.layout.common.path) != "" {
+		return dashboardauthority.TraceQualification{Code: dashboardauthority.TraceAncestryBound}
+	}
 	ancestorResult, failure := authority.run(ctx, authority.layout.worktree.path, nil,
 		[]string{"merge-base", "--is-ancestor", revision, authority.snapshot.HeadRevision})
 	if failure != nil || len(ancestorResult.stdout) != 0 || (ancestorResult.exit != 0 && ancestorResult.exit != 1) {

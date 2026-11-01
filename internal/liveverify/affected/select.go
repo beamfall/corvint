@@ -66,6 +66,10 @@ const (
 	// UnknownNoSelectableTest reports a changed unit (one owning a dirty path)
 	// that no selectable test checks under its plugin's rule (AFP-V0-020).
 	UnknownNoSelectableTest = "NO_SELECTABLE_TEST"
+	// UnknownUnselectedBinaryConsumer reports a file the project declares as
+	// running the built binary of a Go command this change reaches, when no
+	// selected unit carries it as a test (AFP-V0-762).
+	UnknownUnselectedBinaryConsumer = "UNSELECTED_BINARY_CONSUMER"
 )
 
 // Scope axes, per the LPCV result-axis rule. Selection produces scope only;
@@ -283,7 +287,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		})
 	}
 	graph.rank(plan.Selected)
+	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
+	instructionHints(plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}
@@ -323,7 +329,8 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	for id := range reached {
 		followed[id] = true
 	}
-	if len(normalized) != 0 {
+	unbounded := graph.unboundedDirty(normalized)
+	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {
 			followed[id] = true
 		}
@@ -339,7 +346,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.execUsersOf(reached, built)
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
-	graph.unboundedReadersOf(reached, normalized)
+	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
 	return reached, seeds, unknown, narrowed, reads, carried, followed, additive
 }
@@ -560,6 +567,17 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	for name := range terminal {
 		for _, entry := range graph.crossLanguageEntries(name) {
 			reasons[entry] = true
+		}
+	}
+	for _, name := range graph.languages {
+		route, names := graph.claimants[name].(FrontierRoute)
+		if !names {
+			continue
+		}
+		for _, entry := range graph.frontierBy[name] {
+			if text := route.FrontierRoute(entry); reasons[entry] && text != "" {
+				hints[entry] = strings.TrimPrefix(hints[entry]+"; "+text, "; ")
+			}
 		}
 	}
 	unknown := make([]Unknown, 0, len(reasons))

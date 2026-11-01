@@ -270,6 +270,21 @@ or Cucumber scenarios.
   its own (under-selection); the parity test compares every test's edges against the per-test
   reference scan, twice over one memo.
 
+- `RUBY-AFFECTED-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1831)
+  The adapter MUST also own every file below the root `app/views/` directory (an `erb`, `haml`,
+  `slim`, `jbuilder` or any other template; a `.rb` file there stays a Ruby file) and make each
+  template the source unit `ruby:view:<path>`, never scanned as Ruby. In a Rails application every
+  route-dispatched test (`RUBY-AFFECTED-V0-011`: a test under `requests`, `system`, `features`,
+  `integration`, `routing` or `controllers`, or one declaring such a type) MUST carry every view
+  unit as a `RUBY-AFFECTED-V0-049` route-dispatch edge, because a controller renders a template by
+  name and no constant names it; a view change then selects those tests with the advisory
+  `ROUTE_DISPATCH_BOOT` witness and adds no frontier, so the plan keeps its scope. A template
+  outside the root `app/views/` (an engine's, a mailer's under `lib/`) stays unowned and raises
+  `UNOWNED_DIRTY_PATH`; a view in a repository with no Rails application, or with no
+  route-dispatched test, reaches no test and abstains as `NO_SELECTABLE_TEST` naming its unit.
+  Non-goals: no render-call or partial resolution, so a view change over-selects every
+  route-dispatched test. Rollback: drop `isView` from `Owns` and the view units and edges.
+
 ### Autoload edge failure modes
 
 - A dynamic constant lookup or unresolvable association hides its target: the slice keeps
@@ -399,6 +414,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-049` | `bootEdges` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go`; `Unit.RouteDispatchImports` and `traverse` in `internal/liveverify/affected/`; `tierAffectedSelections` in `cmd/corvint/affected_tiers.go`; `request-spec` and `controller-spec` rows in `conformance/ruby-profile-v0/rows.json` | `TestRouteDispatchEdgesCarryTheirOwnWitness_RUBYAFFECTEDV0049`, `TestRubyRouteDispatchSpecsAreTierTwo_RUBYAFFECTEDV0049`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-050` | `supportIndex.supportEdges` and `bootEdges` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestMemoizedSupportAndBootEdgesMatchPerTestScan_RUBYAFFECTEDV0050`, `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012`, `TestRailsBootAndRouteEdgesSelectTheirSpecs_RUBYAFFECTEDV0011` |
 | `RUBY-AFFECTED-V0-045` | `newConventionAutoload`, `mapAutoload` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045`, `TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045`, `TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045`, `TestAffectedSelectsEveryImpactAutoloadTest_RUBYAFFECTEDV0045` |
+| `RUBY-AFFECTED-V0-761` | `Owns`, `isView`, `viewUnitID` and the view route edges in `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestViewTemplateSelectsRouteDispatchedSpecs_RUBYAFFECTEDV0761` (a view change selects every route-dispatched spec with `ROUTE_DISPATCH_BOOT` and stays `BOUNDED`; a template outside `app/views` stays unowned; a library view abstains as `NO_SELECTABLE_TEST`) |
 
 ## Unresolved decisions
 

@@ -1305,7 +1305,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:167@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:168@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

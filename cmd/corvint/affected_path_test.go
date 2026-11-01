@@ -167,13 +167,25 @@ func TestAFPV0094PathListRefusals(t *testing.T) {
 		{"empty", []string{"--path="}, "invalid-arguments"},
 		{"missing value", []string{"--path"}, "invalid-arguments"},
 		{"base", []string{"--path", "core/core.go", "--base", head}, "invalid-arguments"},
-		{"snapshot", []string{"--path", "core/core.go", "--snapshot", "receipt.json"}, "invalid-arguments"},
-		{"provider", []string{"--path", "core/core.go", "--provider", "record.json"}, "invalid-arguments"},
-		{"playwright", []string{"--path", "core/core.go", "--playwright-config", "playwright.config.ts"}, "invalid-arguments"},
+		// AFP-V0-764 (V1-2082): each profile that plans its own change set
+		// keeps a typed refusal naming its reason and recovery.
+		{"snapshot", []string{"--path", "core/core.go", "--snapshot", "receipt.json"}, "--path and --paths-from do not plan under --snapshot"},
+		{"provider", []string{"--path", "core/core.go", "--provider", "record.json"}, "--path and --paths-from do not plan under --provider"},
+		{"playwright", []string{"--path", "core/core.go", "--playwright-config", "playwright.config.ts"}, "--path and --paths-from do not plan under the Playwright profile"},
+		{"playwright discovery", []string{"--path", "core/core.go", "--playwright-discovery", "discovery.json"}, "--path and --paths-from do not plan under the Playwright profile"},
+		{"appmap", []string{"--path", "core/core.go", "--appmap-impact", "impact.json"}, "--path and --paths-from do not plan under --appmap-impact"},
+		{"paths-from provider", []string{"--paths-from", "list.txt", "--provider", "record.json"}, "--path and --paths-from do not plan under --provider"},
 	} {
 		receipt, stdout, stderr, code := runAffectedCLI(t, root, tc.options...)
 		if code != 2 || len(stdout) != 0 || receipt != nil || !strings.Contains(stderr, tc.code) {
 			t.Fatalf("%s: exit %d stdout=%s stderr=%s", tc.name, code, stdout, stderr)
+		}
+		profile := strings.HasPrefix(tc.code, "--path and --paths-from do not plan under")
+		if profile && !strings.Contains(stderr, affectedPathProfileCode) {
+			t.Fatalf("%s: refusal is not typed %s: %s", tc.name, affectedPathProfileCode, stderr)
+		}
+		if profile && tc.name != "snapshot" && !strings.Contains(stderr, "commit the paths and run corvint affected --base <HEAD>") {
+			t.Fatalf("%s: refusal names no recovery: %s", tc.name, stderr)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(root, "core", "core.go"), []byte("package core\n\nconst Value = 2\n"), 0o644); err != nil {

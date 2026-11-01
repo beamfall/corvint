@@ -51,6 +51,12 @@
         "script/lane-scripts_test.sh"
       ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005)."
+    },
+    "script/proof-tour.sh": {
+      "callers": [
+        "script/proof-tour-test.sh"
+      ],
+      "reason": "Every tracked file naming proof-tour.sh: its shell test runs it (TSP-V0-005; V1-3571)."
     }
   }
 }
