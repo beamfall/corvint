@@ -168,13 +168,12 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	}
 	auditHead := canonical.Head
 	keepWriterCheckpoint(ctx, repo, func() (*journal.WriterCheckpoint, error) {
-		wc, err := audit.WriterCheckpoint()
-		if err == nil {
-			if rebased := rebaseOnSealed(auditHead, wc, sealed); rebased != nil {
+		if sealed != nil && auditHead != nil && auditHead.Segments != nil {
+			if rebased, err := audit.SealedBaseCheckpoint(sealed, auditHead.Segments.Through.Uint64()); err == nil {
 				return rebased, nil
 			}
 		}
-		return wc, err
+		return audit.WriterCheckpoint()
 	}, token)
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")

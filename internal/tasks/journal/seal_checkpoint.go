@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -209,16 +210,77 @@ func (w *WriterCheckpoint) appendDelta(f *WriterCheckpoint, i int) {
 	}
 }
 
-// RebaseOnSealedBase is the base-at-S capture (LGL-V0-891, V1-2621). w is the
-// checkpoint a complete audit derived from receipt 1 at its head on a
-// segmented store whose manifest seals through S, and old is the bound
+// SealedBaseCheckpoint is the base-at-S capture (LGL-V0-891, V1-2621). res is
+// a complete audit from receipt 1 at its head on a segmented store whose
+// manifest seals through S, physical the bytes it read, and old the bound
 // checkpoint whose base is at S with FullSeq S, the base a seal rebased. It
-// returns w on old's base: FullSeq S, every entry, request and note posted
-// after S in the delta, so a later command still finds the sealed base
-// (LGL-V0-009). rebase refuses unless everything w holds at or before S is
-// exactly old's base, and the base's segment digests must be w's, so old's
-// base is checked against the complete audit rather than trusted.
-func (w *WriterCheckpoint) RebaseOnSealedBase(old *WriterCheckpoint, through uint64) (*WriterCheckpoint, error) {
+// returns the audit's checkpoint re-based on old's base: FullSeq S, every
+// entry, request and note posted after S in the delta, so a later command
+// still finds the sealed base (LGL-V0-009). Nothing of old's base is taken on
+// trust: its receipt bytes and archive cost must equal what this audit
+// derives at S from the files it read (receipts 1..S and every request
+// afterimage posted at or before S), rebase refuses unless every entry,
+// request and note at or before S is exactly the audit's, and its segment
+// digests must be the manifest's.
+func (res *Result) SealedBaseCheckpoint(physical map[string]PhysicalFile, old *WriterCheckpoint, through uint64) (*WriterCheckpoint, error) {
+	if res == nil || res.Mode != ModeFull || old == nil || old.base == nil {
+		return nil, errCheckpoint("writer checkpoint", "no complete audit and sealed base")
+	}
+	w, err := res.WriterCheckpoint(physical)
+	if err != nil {
+		return nil, err
+	}
+	at, err := res.aggregatesThrough(physical, through)
+	if err != nil {
+		return nil, err
+	}
+	if m := &old.base.meta; at.ReceiptBytes != m.receiptBytes || at.Cost != m.cost {
+		return nil, errCheckpoint("writer checkpoint", "sealed base aggregates differ from the complete audit at the sealed sequence")
+	}
+	return w.rebaseOnSealedBase(old, through)
+}
+
+// SealedBaseCheckpoint is Result.SealedBaseCheckpoint for the mutation audit.
+func (m *MutationAudit) SealedBaseCheckpoint(old *WriterCheckpoint, through uint64) (*WriterCheckpoint, error) {
+	if m == nil || m.result == nil {
+		return nil, errCheckpoint("writer checkpoint", "no settled mutation audit")
+	}
+	return m.result.SealedBaseCheckpoint(m.Physical.Files, old, through)
+}
+
+// aggregatesThrough is the receipt bytes and archive cost a checkpoint at s
+// carries, charged from the files this complete audit read: receipts 1..s
+// and every request afterimage posted at or before s, which no later receipt
+// changes.
+func (res *Result) aggregatesThrough(physical map[string]PhysicalFile, s uint64) (*WriterCheckpoint, error) {
+	if res == nil || res.chain == nil || s == 0 || s > res.LastSeq.Uint64() {
+		return nil, errCheckpoint("writer checkpoint", "sequence is not on the audited chain")
+	}
+	at := &WriterCheckpoint{}
+	for seq := uint64(1); seq <= s; seq++ {
+		name, err := snapshot.ReceiptName(seq)
+		if err != nil {
+			return nil, err
+		}
+		if err := at.charge(physical, "receipts/"+name, nil); err != nil {
+			return nil, err
+		}
+	}
+	for _, p := range sortedPaths(res.chain.canonical) {
+		l := res.chain.canonical[p]
+		if !strings.HasPrefix(p, "requests/") || l.seq.Uint64() > s {
+			continue
+		}
+		if err := at.charge(physical, p, l.digest); err != nil {
+			return nil, err
+		}
+	}
+	return at, nil
+}
+
+// rebaseOnSealedBase returns w on old's base at through, with the structural
+// checks of rebase; SealedBaseCheckpoint checks old's aggregates first.
+func (w *WriterCheckpoint) rebaseOnSealedBase(old *WriterCheckpoint, through uint64) (*WriterCheckpoint, error) {
 	if w == nil || w.base != nil || old == nil || old.base == nil || through == 0 || old.FullSeq != through || old.base.seq != through || w.Seq.Uint64() < through {
 		return nil, errCheckpoint("writer checkpoint", "no complete checkpoint and sealed base at the sealed sequence")
 	}

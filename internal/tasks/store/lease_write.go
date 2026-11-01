@@ -357,7 +357,7 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			}
 			supplied = proof
 			p.writer, _ = proof.WriterCheckpoint(observation.Files)
-			if rebased := sealedBaseRebase(repo, proof.Head, p.writer, p.writerToken); rebased != nil {
+			if rebased := sealedBaseRebase(repo, proof, observation.Files, p.writerToken); p.writer != nil && rebased != nil {
 				p.writerComplete, p.writer = p.writer, rebased
 			}
 			p.writerProof, p.writerPhys = proof, observation.Files

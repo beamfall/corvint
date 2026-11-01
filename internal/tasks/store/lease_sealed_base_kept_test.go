@@ -82,3 +82,40 @@ func TestLGLV0891_CompleteRouteWriteKeepsTheSealedBase(t *testing.T) {
 	}
 	mustSegmentAudit(t, f.repo, headSeqOf(t, f.repo))
 }
+
+// LGL-V0-891 review (V1-2621): a sealed base whose historical receipt bytes
+// and archive cost were lowered, with every current total still correct, is
+// not reused. The complete-route write retains its own checkpoint at its
+// head instead of re-basing on the forged base, so no later sealed resume
+// charges the lowered costs.
+func TestLGLV0891_ForgedSealedBaseAggregatesAreNotReused(t *testing.T) {
+	t.Parallel()
+	if !journal.ResumableAudits() {
+		t.Skip("platform reports no change time")
+	}
+	f := newSealedBaseFixture(t)
+	through := segmentThrough(t, f.repo)
+	wc, _ := boundWriterCheckpoint(f.repo)
+	if wc == nil || wc.FullSeq != through {
+		t.Fatalf("fixture checkpoint %+v, want FullSeq %d", wc, through)
+	}
+	base, delta, err := journal.ForgeSealedBaseAggregatesForTest(wc, 100)
+	if err != nil {
+		t.Fatal(err)
+	}
+	historyWrite(t, journal.WriterBasePath(f.repo.StateDir), base)
+	historyWrite(t, journal.WriterCheckpointPath(f.repo.StateDir), delta)
+	if forged, _ := boundWriterCheckpoint(f.repo); forged == nil || forged.FullSeq != through || forged.ReceiptBytes != wc.ReceiptBytes || forged.Cost != wc.Cost {
+		t.Fatalf("forged checkpoint %+v is not bound with the true totals", forged)
+	}
+	mutateWriterOff.Store(f.repo.StateDir, struct{}{})
+	complete := writerMutate(t, f.repo, "forged-complete", nil)
+	mutateWriterOff.Delete(f.repo.StateDir)
+	if !complete.completed() || complete.fast() {
+		t.Fatalf("complete-route mutate: %+v %v %v", complete.rep, complete.err, complete.stages)
+	}
+	got, _ := boundWriterCheckpoint(f.repo)
+	if got == nil || got.FullSeq == through {
+		t.Fatalf("the complete-route write re-based on the forged base: %+v", got)
+	}
+}
