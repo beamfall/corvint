@@ -60,6 +60,7 @@ GATE_STEPS = \
   bash32-test \
   batch-precheck-test \
   binary-blobs-check \
+  capability-catalog-test \
   cem-base-retention-check \
   cem-base-retention-test \
   ci-least-privilege-check \
@@ -1191,6 +1192,7 @@ shell-test: \
   analyzer-schema-test \
   bash32-test \
   batch-precheck-test \
+  capability-catalog-test \
   cem-base-retention-test \
   ci-least-privilege-test \
   codex-review-test \
