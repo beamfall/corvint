@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -309,16 +308,13 @@ func runProbe(ctx context.Context, p PreflightProbe, dir string, result *Preflig
 func probeHTTP(ctx context.Context, address string, expect []int, limit time.Duration) (string, string) {
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	client := &http.Client{Timeout: time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	if probeAddress(address) != nil {
+		return "http-unreachable", ""
+	}
 	last := 0
 	for {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-		if err != nil {
-			return "http-unreachable", ""
-		}
-		if resp, err := client.Do(req); err == nil {
-			resp.Body.Close()
-			last = resp.StatusCode
+		if status, err := loopbackGet(ctx, address, false); err == nil {
+			last = status
 			if admittedStatus(last, expect) {
 				return "", fmt.Sprintf("status %d", last)
 			}

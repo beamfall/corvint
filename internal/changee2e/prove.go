@@ -26,6 +26,8 @@ import (
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	// The E2E readiness and preflight probes need the loopback HTTP client (V1-2185).
+	_ "github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
