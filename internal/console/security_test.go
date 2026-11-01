@@ -11,12 +11,14 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestBrowserBoundaryBeforeTools(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "invoked")
 	binary := filepath.Join(t.TempDir(), "tool")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\ntouch '"+marker+"'\n"), 0755); err != nil {
+	if err := execfile.WriteFile(binary, []byte("#!/bin/sh\ntouch '"+marker+"'\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	s := newTestServer(t, binary)

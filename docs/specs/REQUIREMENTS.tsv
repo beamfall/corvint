@@ -648,6 +648,7 @@ AFU-V1-252	docs/specs/application-flow-understanding-v1.md	A variation's `no-tes
 AFU-V1-950	docs/specs/application-flow-understanding-v1.md	Three decoders of a Playwright `--reporter=json` report remain, each a different	unrecorded	-
 AFU-V1-810	docs/specs/application-flow-understanding-v1.md	`e2e-safe-selection/1` MUST carry `frontier_excluded`, one entry per plan	unrecorded	-
 AFU-V1-811	docs/specs/application-flow-understanding-v1.md	When a flow's static calls are anchored in more than one path, each flow-diagram	unrecorded	-
+AFU-V1-904	docs/specs/application-flow-understanding-v1.md	`corvint flows ingest` MUST treat `--run-id`, `--runner-version`,	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -2094,6 +2095,8 @@ ASD-V0-913	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-914	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3796; refines	standing	2026-11-01; V1-3796
 ASD-V0-915	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3618) Every ex	standing	2026-11-01; V1-3618
 ASD-V0-918	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3522) `make ca	standing	2026-11-01; V1-3522
+ASD-V0-919	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4083) A test t	standing	2026-11-01; V1-4083
+ASD-V0-929	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2587; extends	standing	2026-11-01; V1-2587
 ASD-V0-920	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3518; refines	standing	2026-10-31; V1-3518
 ASD-V0-921	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3243; refines	standing	2026-10-31; V1-3243
 ASD-V0-922	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3342; refines	standing	2026-10-31; V1-3342

@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // FPK-V0-920 (V1-3042): a worktree status read that outlasts its fixed Git deadline refuses
@@ -41,7 +43,7 @@ func TestProveStatusDeadlineRefusesWithTheTimeoutCode(t *testing.T) {
 		base := coreFreezeParent(t, root)
 		shim := t.TempDir()
 		script := "#!/bin/sh\nfor argument in \"$@\"; do\n  if [ \"$argument\" = status ]; then exec /bin/sleep 30; fi\ndone\nexec '" + git + "' \"$@\"\n"
-		if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))

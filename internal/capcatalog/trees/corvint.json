@@ -4511,7 +4511,7 @@
       "command": "corvint flows ingest",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE [--run-id ID] [--runner-version VERSION] [--source-commit SHA] [--source-tree SHA] [--source-clean] [--build-artifact-digest DIGEST] [--environment-id ID] [--environment-digest DIGEST] [--fixture-id ID] [--fixture-digest DIGEST] [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]..."
+        "corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean] --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]..."
       ],
       "flags": [
         "--build-artifact-digest",
@@ -4533,9 +4533,18 @@
       ],
       "required": [
         "--format playwright-json|playwright-receipt|junit-xml|go-test-json",
-        "--from FILE"
+        "--from FILE",
+        "--run-id ID",
+        "--runner-version VERSION",
+        "--source-commit SHA",
+        "--source-tree SHA",
+        "--build-artifact-digest DIGEST",
+        "--environment-id ID",
+        "--environment-digest DIGEST",
+        "--fixture-id ID",
+        "--fixture-digest DIGEST"
       ],
-      "example": "corvint flows ingest --format playwright-json --from FILE",
+      "example": "corvint flows ingest --format playwright-json --from FILE --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST --fixture-id ID --fixture-digest DIGEST",
       "help": "corvint flows ingest --help"
     },
     {

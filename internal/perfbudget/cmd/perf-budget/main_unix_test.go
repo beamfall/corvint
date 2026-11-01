@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/perfbudget"
 )
 
@@ -47,7 +48,7 @@ func (w *readyWriter) Write(p []byte) (int, error) {
 func TestPRBV0037InterruptRetiresBuildDescendants(t *testing.T) {
 	bin := t.TempDir()
 	fakeGo := "#!/bin/sh\nsleep 30 </dev/null >/dev/null 2>&1 &\necho \"ready $!\" >&2\nwait\n"
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -77,7 +78,7 @@ func TestPRBV0037InterruptRetiresBuildDescendants(t *testing.T) {
 func TestPRBV0029UnstartableMCPExitsTwo(t *testing.T) {
 	dir := t.TempDir()
 	corvint := filepath.Join(dir, "corvint")
-	if err := os.WriteFile(corvint, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(corvint, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	notExecutable := filepath.Join(dir, "not-executable")

@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // LCP-V0-019: reuse immutable facts without changing policy results.
@@ -114,7 +116,7 @@ func TestEvaluateAgainstDirtyAndDrift(t *testing.T) {
 	marker := filepath.Join(dir, "status-seen")
 	// Mutate before the second status call, after the first status proved clean.
 	shim := "#!/bin/sh\ncase \" $* \" in\n*' status --porcelain=v1 '*)\nif [ -f '" + marker + "' ]; then printf drift > '" + dirty + "'; else printf seen > '" + marker + "'; fi;;\nesac\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -164,7 +166,7 @@ func TestEvaluateAgainstChangedBase(t *testing.T) {
 	dir := t.TempDir()
 	log := filepath.Join(dir, "calls")
 	shim := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + log + "'\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -196,7 +198,7 @@ func TestEvaluateAgainstDetectsSameTreeHeadMove(t *testing.T) {
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "status-seen")
 	shim := "#!/bin/sh\ncase \" $* \" in\n*' status --porcelain=v1 '*)\nif [ -f '" + marker + "' ]; then '" + real + "' -C '" + root + "' update-ref HEAD " + other + "; else printf seen > '" + marker + "'; fi;;\nesac\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(shim), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

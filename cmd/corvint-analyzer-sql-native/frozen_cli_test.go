@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func buildFrozenCLI(t *testing.T) string {
@@ -144,7 +146,7 @@ func TestCLIBuiltProcessNetworkAndAmbientSpies(t *testing.T) {
 	controlMarker := filepath.Join(root, "control-process-hit")
 	candidateMarker := filepath.Join(root, "candidate-process-hit")
 	spy := filepath.Join(spyDir, "sqlite3")
-	if err := os.WriteFile(spy, []byte("#!/bin/sh\nprintf hit > \"$SPY_MARKER\"\n"), 0700); err != nil {
+	if err := execfile.WriteFile(spy, []byte("#!/bin/sh\nprintf hit > \"$SPY_MARKER\"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	control := exec.Command(spy)

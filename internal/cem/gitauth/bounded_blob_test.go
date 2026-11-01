@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
@@ -30,7 +32,7 @@ func testBoundedBlobRejectsHeaderWithoutFallback(t *testing.T) {
 			calls := filepath.Join(dir, "calls")
 			quoted := "'" + strings.ReplaceAll(calls, "'", "'\\''") + "'"
 			script := "#!/bin/sh\nprintf x >>" + quoted + "\nIFS= read -r oid\nprintf '" + response + "' \"$oid\"\n"
-			if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -71,7 +73,7 @@ func TestBoundedBlobOneMiBHeaderAdmission(t *testing.T) {
 				// Supply only the header and wait for another request. A consumer
 				// admitting this body must time out; a header refusal returns now.
 				script := fmt.Sprintf("#!/bin/sh\nprintf x >>%s\nIFS= read -r oid\nprintf '%%s blob %d\\n' \"$oid\"\nIFS= read -r next\n", quoted, size)
-				if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+				if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
 					t.Fatal(err)
 				}
 				t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -117,7 +119,7 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	// The pid is published by rename: the shell creates a redirect target
 	// before writing it, and an empty read is not a started descendant (V1-0582).
 	script := "#!/bin/sh\nIFS= read -r oid\nprintf '%s blob 3\\n' \"$oid\"\nsleep 30 &\necho $! >" + quoted + ".tmp && mv " + quoted + ".tmp " + quoted + "\nwait\n"
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

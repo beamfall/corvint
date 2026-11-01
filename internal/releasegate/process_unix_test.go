@@ -10,6 +10,8 @@ import (
 	"sync"
 	"syscall"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func killProcess(pid int)      { _ = syscall.Kill(pid, syscall.SIGKILL) }
@@ -21,7 +23,7 @@ func processGone(pid int) bool { return syscall.Kill(pid, 0) == syscall.ESRCH }
 func TestV11036PostReapGroupCheckOnlyObservesAndFailsClosed(t *testing.T) {
 	directory := t.TempDir()
 	script := filepath.Join(directory, "git")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	scriptBytes, err := os.ReadFile(script)

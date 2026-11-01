@@ -251,6 +251,7 @@
       "cmd/corvint-analyzer-java/",
       "cmd/corvint-analyzer-objective-c/",
       "go.mod",
+      "internal/execfile/",
       "tools/native-bridge-pre-review.sh"
     ],
     "internal/analyzerruby": [
@@ -774,6 +775,19 @@
       "script/"
     ],
     "tools/test-commands-run": [],
+    "tools/test-exec-writes-check": [
+      ".github/",
+      "benchmarks/",
+      "cmd/",
+      "conformance/",
+      "examples/",
+      "experimental/",
+      "internal/",
+      "interop/",
+      "protocol/",
+      "script/",
+      "tools/"
+    ],
     "tools/tiers-replay": [
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"

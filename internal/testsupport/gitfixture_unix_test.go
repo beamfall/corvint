@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // V1-0730: a hung fixture git is stopped at the timeout together with the
@@ -20,7 +22,7 @@ func TestRunGitFixtureTimesOutAndStopsDescendants(t *testing.T) {
 	// Argv is: stand-in -C ROOT -c ... status, so $2 is the fixture root.
 	hang := filepath.Join(t.TempDir(), "git")
 	script := "#!/bin/sh\nsleep 30 &\necho $! > \"$2/child\"\necho $$ > \"$2/leader\"\nwait\n"
-	if err := os.WriteFile(hang, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(hang, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	root := t.TempDir()

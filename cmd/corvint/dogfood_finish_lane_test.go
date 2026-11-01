@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // finishLaneIdentity makes every commit the finish-lane run writes match the
@@ -340,7 +342,7 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\n! grep -q 'chore: seal change evidence' \"$1\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\n! grep -q 'chore: seal change evidence' \"$1\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	finish := append([]string{"dogfood", "finish-lane", "--base", base}, args...)

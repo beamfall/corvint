@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
 
@@ -157,7 +158,7 @@ func TestFlowGitIgnoresAmbientConfigurationAndReplaceRefs(t *testing.T) {
 	testGit(t, root, "commit", "-q", "--allow-empty", "-m", "second")
 	testGit(t, root, "replace", first, testGit(t, root, "rev-parse", "HEAD"))
 	marker, hook, global := filepath.Join(scratch, "hook-ran"), filepath.Join(scratch, "fsmonitor"), filepath.Join(scratch, "gitconfig")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(global, []byte("[core]\n\tfsmonitor = "+hook+"\n"), 0o644); err != nil {

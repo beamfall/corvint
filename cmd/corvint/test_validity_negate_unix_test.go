@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/stepnegation"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -20,7 +21,7 @@ func negateProvider(t *testing.T) (provider, argvFile string) {
 	directory := t.TempDir()
 	provider, argvFile = filepath.Join(directory, "provider"), filepath.Join(directory, "argv")
 	script := "#!/bin/sh\nprintf '%s\\n' \"$@\" > " + argvFile + "\ncat \"$NEGATE_FIXTURE\"\nexit \"${NEGATE_EXIT:-0}\"\n"
-	if err := os.WriteFile(provider, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(provider, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return provider, argvFile

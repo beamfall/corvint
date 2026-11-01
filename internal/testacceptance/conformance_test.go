@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -89,7 +90,7 @@ func TestNEAV0006SanitizedNestedCleanup(t *testing.T) {
 		t.Setenv("NODE_OPTIONS", "credential-sentinel")
 		temp := canonicalTemp(t)
 		script := filepath.Join(temp, "parent.sh")
-		if err := os.WriteFile(script, []byte("#!/bin/sh\n[ -z \"$GITHUB_TOKEN\" ] && [ -z \"$NODE_OPTIONS\" ] || exit 9\n/bin/sh -c 'sleep 30' &\nsleep 30\n"), 0700); err != nil {
+		if err := execfile.WriteFile(script, []byte("#!/bin/sh\n[ -z \"$GITHUB_TOKEN\" ] && [ -z \"$NODE_OPTIONS\" ] || exit 9\n/bin/sh -c 'sleep 30' &\nsleep 30\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), 350*time.Millisecond)
@@ -116,7 +117,7 @@ func command(t *testing.T, dir string, argv ...string) string {
 }
 func write(t *testing.T, path, text string) {
 	t.Helper()
-	if e := os.WriteFile(path, []byte(text), 0700); e != nil {
+	if e := execfile.WriteFile(path, []byte(text), 0700); e != nil {
 		t.Fatal(e)
 	}
 }

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -783,7 +784,7 @@ func TestFreshProcessHostileGitFailuresReturnNativeErrors(t *testing.T) {
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
-			if err := os.WriteFile(fakeGit, []byte(test.script), 0o755); err != nil {
+			if err := execfile.WriteFile(fakeGit, []byte(test.script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			arguments := cliArguments(root, "session-start")

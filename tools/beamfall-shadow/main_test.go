@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestFrozenRequestIsByteExactAndHasOnlyFourFamilies(t *testing.T) {
@@ -376,7 +378,7 @@ func fixtureArtifact(t *testing.T) string {
 func fixtureScript(t *testing.T, body string) string {
 	t.Helper()
 	name := filepath.Join(t.TempDir(), "artifact")
-	if err := os.WriteFile(name, []byte(body), 0o700); err != nil {
+	if err := execfile.WriteFile(name, []byte(body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return name

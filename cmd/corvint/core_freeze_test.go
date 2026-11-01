@@ -15,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
@@ -584,7 +586,7 @@ func TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway(t *testing.T) {
 	}
 	shim := t.TempDir()
 	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -703,7 +705,7 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 		if dropsLazyFetchGuard {
 			shim := t.TempDir()
 			script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-			if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))

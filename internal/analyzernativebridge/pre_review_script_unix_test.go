@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 type preReviewReceipt struct {
@@ -307,7 +309,7 @@ func newPreReviewFixture(t *testing.T) preReviewFixture {
 		t.Fatal(err)
 	}
 	scriptPath := filepath.Join(root, "tools", "native-bridge-pre-review.sh")
-	if err := os.WriteFile(scriptPath, script, 0o755); err != nil {
+	if err := execfile.WriteFile(scriptPath, script, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{

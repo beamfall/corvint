@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -319,10 +320,10 @@ func tasks(m map[string]any) map[string]any { return m["tasks"].([]any)[0].(map[
 func TestOwnedVersionedFixturesReplayDifferentThroughPreflight(t *testing.T) {
 	path, p := fixtureManifest(t)
 	base := filepath.Dir(path)
-	if err := os.WriteFile(filepath.Join(base, "old"), oldFixtureBinary, 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(base, "old"), oldFixtureBinary, 0700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(base, "new"), newFixtureBinary, 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(base, "new"), newFixtureBinary, 0700); err != nil {
 		t.Fatal(err)
 	}
 	task := &p.Manifest.Tasks[0]

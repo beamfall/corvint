@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 )
 
 // cancellationTestBound bounds this file's waits for observed events. It is a
@@ -49,7 +51,7 @@ func TestCALV0053_CancelledTickKeepsState(t *testing.T) {
 	}
 	reader := filepath.Join(c.WorkRoot, "reader.sh")
 	ready := filepath.Join(c.WorkRoot, "ready")
-	if err := os.WriteFile(reader, []byte("#!/bin/sh\necho ready > ready\nexec /bin/sleep 30\n"), 0700); err != nil {
+	if err := fixture.WriteExecutable(reader, []byte("#!/bin/sh\necho ready > ready\nexec /bin/sleep 30\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	c.WorkState = &WorkState{Kind: "command", Argv: []string{reader}}
@@ -137,7 +139,7 @@ func TestCALV0053_ReaderFailureAndRealUnknownRemainObservable(t *testing.T) {
 	reader := filepath.Join(c.WorkRoot, "reader.sh")
 	write := func(body string) {
 		t.Helper()
-		if err := os.WriteFile(reader, []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
+		if err := fixture.WriteExecutable(reader, []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}

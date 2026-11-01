@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const (
@@ -70,7 +72,7 @@ func syntheticMachOWithVersions(t *testing.T, versionCommands uint32, versionWor
 func parseMachFixture(t *testing.T, value []byte) (NativePlatform, error) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "mach-executable")
-	if err := os.WriteFile(path, value, 0o500); err != nil {
+	if err := execfile.WriteFile(path, value, 0o500); err != nil {
 		t.Fatal(err)
 	}
 	file, err := os.Open(path)

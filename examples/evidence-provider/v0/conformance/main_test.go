@@ -3,13 +3,13 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -41,7 +41,7 @@ func TestProviderKitConformanceRunner(t *testing.T) {
 func TestRefusalBoundsNeverExitingProvider(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the never-exiting provider is a #!/bin/sh script")
 	provider := filepath.Join(t.TempDir(), "provider")
-	if err := os.WriteFile(provider, []byte("#!/bin/sh\nexec sleep 3600\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(provider, []byte("#!/bin/sh\nexec sleep 3600\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	defer func(saved time.Duration) { refusalTimeout = saved }(refusalTimeout)

@@ -14,6 +14,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // module is a temporary committed Go module: a calls b, b calls c, and d
@@ -114,7 +116,7 @@ func TestExpandDegrades(t *testing.T) {
 	t.Parallel()
 	m := newModule(t)
 	failing := filepath.Join(t.TempDir(), "gopls")
-	if err := os.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cases := map[string]struct {
@@ -265,7 +267,7 @@ func fakeGoplsWith(t *testing.T, name, capabilities, log string) string {
 	}
 	path := filepath.Join(t.TempDir(), "gopls")
 	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=%s LSPPROVIDER_FAKE_CAPABILITIES='%s' LSPPROVIDER_FAKE_LOG=%q exec %q \"$@\"\n", name, capabilities, log, binary)
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path

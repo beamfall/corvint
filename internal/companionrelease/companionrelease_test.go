@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // --- target validation ---
@@ -235,7 +237,7 @@ func withExportByteBound(t *testing.T, n int64) {
 func writeFakeGit(t *testing.T, home string) string {
 	t.Helper()
 	path := filepath.Join(home, "fake-git.sh")
-	if err := os.WriteFile(path, []byte(fakeGitScript), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(fakeGitScript), 0o755); err != nil {
 		t.Fatalf("write fake git script: %v", err)
 	}
 	return path
@@ -783,7 +785,7 @@ func companionOwnedFixture(t *testing.T) (string, string) {
 	pidfile := filepath.Join(dir, "child.pid")
 	script := filepath.Join(dir, "tool")
 	body := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null' EXIT\ntrap 'exit 0' INT TERM\necho $child > '%s'\nwait\n", pidfile)
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -1086,7 +1088,7 @@ case "$1" in
 esac
 `
 		gitPath := filepath.Join(home, "fake-git.sh")
-		if err := os.WriteFile(gitPath, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(gitPath, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		const oid = "95d09f2b10159347eece71399a7e2e907ea3df4f" // blob "hello world"
@@ -1160,7 +1162,7 @@ func TestVerifyBuildInfoRequiresPinnedClosedBuild(t *testing.T) {
 			t.Fatal(err)
 		}
 		otherVersion := filepath.Join(dir, "other-version")
-		if err := os.WriteFile(otherVersion, bytes.ReplaceAll(raw, []byte(requiredGoVersion), []byte("go1.27.9")), 0o755); err != nil {
+		if err := execfile.WriteFile(otherVersion, bytes.ReplaceAll(raw, []byte(requiredGoVersion), []byte("go1.27.9")), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if err := verifyBuildInfo(otherVersion, runtime.GOOS, runtime.GOARCH); err == nil || !strings.Contains(err.Error(), "Go version") {
@@ -1254,7 +1256,7 @@ func TestBuildComponentTwiceRefusesDivergentOrUnverifiedBuilds(t *testing.T) {
 		writeStub := func(payload string) {
 			script := "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" = -o ] && out=$2; shift; done\n" +
 				"printf '%s\\n' \"$GOCACHE\" >> '" + log + "'\nprintf '%s' " + payload + " > \"$out\"\n"
-			if err := os.WriteFile(filepath.Join(stubDir, "go"), []byte(script), 0o755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(stubDir, "go"), []byte(script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -1286,7 +1288,7 @@ func TestBuildComponentTwiceRefusesPlantedScratchLink(t *testing.T) {
 	stubDir, outside, scratch := t.TempDir(), t.TempDir(), t.TempDir()
 	t.Setenv("PATH", stubDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	script := "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" = -o ] && out=$2; shift; done\nprintf same > \"$out\"\n"
-	if err := os.WriteFile(filepath.Join(stubDir, "go"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(stubDir, "go"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(outside, filepath.Join(scratch, "build-a-x")); err != nil {
@@ -1760,7 +1762,7 @@ func TestVerifyStagedTreeRefusesMissingFile(t *testing.T) {
 // report exactly the pinned GOVERSION.
 func TestResolveToolchainRefusesMismatchedGoVersion(t *testing.T) {
 	stubDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(stubDir, "go"), []byte("#!/bin/sh\necho go1.0.0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(stubDir, "go"), []byte("#!/bin/sh\necho go1.0.0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", stubDir+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -4,10 +4,11 @@ package doccompiler
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"syscall"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestTrustedNavCancellation proves TPN-V0-006 for the actual bounded runner.
@@ -16,7 +17,7 @@ func TestTrustedNavCancellation(t *testing.T) {
 	pidPath := filepath.Join(root, "grandchild.pid")
 	script := filepath.Join(root, "runner")
 	body := "#!/bin/sh\n/bin/sh -c '/bin/sleep 3600 & echo $! > \"" + pidPath + "\"; wait' &\nwait\n"
-	if err := os.WriteFile(script, []byte(body), 0700); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0700); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())

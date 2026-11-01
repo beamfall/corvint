@@ -18,6 +18,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -99,7 +100,7 @@ func patchedConsumer(t *testing.T, consumer, expression, status string) string {
 	}
 	path := filepath.Join(t.TempDir(), "patched-consumer")
 	script := "#!/bin/sh\nout=$('" + consumer + "' \"$@\")\nstatus=$?\nprintf '%s\\n' \"$out\" | sed -e '" + expression + "'\nexit " + status + "\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -137,11 +138,11 @@ func TestTCBV0017PortableConsumerMustRecomputeTheSameVerdict(t *testing.T) {
 		}
 	}
 	garbage := filepath.Join(t.TempDir(), "garbage-consumer")
-	if err := os.WriteFile(garbage, []byte("#!/bin/sh\necho not-a-result\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(garbage, []byte("#!/bin/sh\necho not-a-result\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	killed := filepath.Join(t.TempDir(), "killed-consumer")
-	if err := os.WriteFile(killed, []byte("#!/bin/sh\nout=$('"+f.portable+"' \"$@\")\nprintf '%s\\n' \"$out\"\nkill -KILL $$\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(killed, []byte("#!/bin/sh\nout=$('"+f.portable+"' \"$@\")\nprintf '%s\\n' \"$out\"\nkill -KILL $$\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for name, consumer := range map[string]string{
@@ -258,7 +259,7 @@ func attrSourceRejectingConsumer(t *testing.T, consumer, status string) string {
 		t.Fatal(err)
 	}
 	git := "#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in --attr-source=*) printf '%s\\n' \"error: unknown option \\`attr-source'\" >&2; exit 129;; esac; done\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "old-git-consumer")
@@ -268,7 +269,7 @@ func attrSourceRejectingConsumer(t *testing.T, consumer, status string) string {
 	} else {
 		script += "'" + consumer + "' \"$@\"\nexit " + status + "\n"
 	}
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -281,7 +282,7 @@ func TestTCBV0017PortableConsumerSharesTheGateProcessGroup(t *testing.T) {
 	in := f.input(PredicateTouchedAnchored, "src/")
 	group := filepath.Join(t.TempDir(), "group")
 	in.PortableConsumer = filepath.Join(t.TempDir(), "group-consumer")
-	if err := os.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nps -o pgid= -p $$ > '"+group+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nps -o pgid= -p $$ > '"+group+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if result, _ := evaluateVerdict(t, in); !result.Granted {
@@ -308,7 +309,7 @@ func TestTCBV0043PortableConsumerResolvesTheGateGit(t *testing.T) {
 	if err := os.Mkdir(shimDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(shimDir, "git"), []byte("#!/bin/sh\nexec '"+real+"' \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shimDir, "git"), []byte("#!/bin/sh\nexec '"+real+"' \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", shimDir+":"+os.Getenv("PATH"))
@@ -319,7 +320,7 @@ func TestTCBV0043PortableConsumerResolvesTheGateGit(t *testing.T) {
 	in := f.input(PredicateTouchedAnchored, "src/")
 	seen := filepath.Join(t.TempDir(), "seen")
 	in.PortableConsumer = filepath.Join(t.TempDir(), "recording-consumer")
-	if err := os.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nprintf '%s\\n%s\\n' \"$PATH\" \"$(command -v git)\" > '"+seen+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(in.PortableConsumer, []byte("#!/bin/sh\nprintf '%s\\n%s\\n' \"$PATH\" \"$(command -v git)\" > '"+seen+"'\nexec '"+f.portable+"' \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if result, _ := evaluateVerdict(t, in); !result.Granted {

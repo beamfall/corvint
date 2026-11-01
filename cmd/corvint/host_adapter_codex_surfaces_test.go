@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func readCodexPackageFile(t *testing.T, parts ...string) string {
@@ -98,7 +100,7 @@ func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 	}
 	bin := t.TempDir()
 	stub := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_ARGV\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "corvint"), []byte(stub), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "corvint"), []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	launch := func(dir, ceiling string) (string, string, error) {

@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestContextMissSpawnsTheObservationPairOnce counts the Git processes a
@@ -46,7 +47,7 @@ func TestContextMissSpawnsTheObservationPairOnce(t *testing.T) {
 	}
 	bin, log := t.TempDir(), filepath.Join(t.TempDir(), "spawns")
 	shim := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$*\" >> %s\nexec %s \"$@\"\n", strconv.Quote(log), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(shim), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	arguments := []string{"--root", root, "context", "--task", "does `Split` keep empty keys", "--subject", "cache/demux.go"}

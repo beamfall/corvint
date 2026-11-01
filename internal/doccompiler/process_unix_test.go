@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestRunCommandCancellationKillsProcessGroupDescendant(t *testing.T) {
@@ -20,7 +22,7 @@ func TestRunCommandCancellationKillsProcessGroupDescendant(t *testing.T) {
 	pidPath := filepath.Join(root, "child.pid")
 	scriptPath := filepath.Join(root, "runner")
 	script := "#!/bin/sh\n/bin/sleep 3600 &\necho $! > '" + pidPath + "'\nwait\n"
-	if err := os.WriteFile(scriptPath, []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(scriptPath, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	stateRoot := filepath.Join(root, "state")

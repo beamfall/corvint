@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
 
@@ -64,7 +65,7 @@ func TestTimeoutDeletesAppiumSession(t *testing.T) {
 				if err := os.MkdirAll(filepath.Dir(filepath.Join(root, name)), 0700); err != nil {
 					t.Fatal(err)
 				}
-				if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0700); err != nil {
+				if err := execfile.WriteFile(filepath.Join(root, name), []byte(body), 0700); err != nil {
 					t.Fatal(err)
 				}
 			}

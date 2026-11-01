@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/ruby"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
@@ -380,7 +381,7 @@ func standInRSpec(t *testing.T, table rowTable) string {
 		"    --out) if [ \"$format\" = json ]; then cat '" + report + "' > \"$argument\"; fi ;;\n" +
 		"  esac\n  previous=\"$argument\"\ndone\nexit 0\n"
 	path := filepath.Join(t.TempDir(), "rspec")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path

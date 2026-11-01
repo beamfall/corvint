@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func transportRequestFixture() TransportRecoveryRequest {
@@ -142,7 +144,7 @@ func TestTransportRecoveryRefusesRunningExecutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	other := filepath.Join(t.TempDir(), "corvint")
-	if err = os.WriteFile(other, []byte("other verifier"), 0700); err != nil {
+	if err = execfile.WriteFile(other, []byte("other verifier"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	otherSHA, err := regularFileSHA256(other)

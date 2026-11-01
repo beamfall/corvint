@@ -17,6 +17,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func ownedFixture(t *testing.T, mode string) (string, string) {
@@ -28,7 +30,7 @@ func ownedFixture(t *testing.T, mode string) (string, string) {
 	// the descendant for the runner's group cleanup regression.
 	end := map[string]string{"normal": "trap - EXIT; exit 0", "timeout": "wait", "cancel": "wait", "overflow": "yes x", "stderr": "yes x >&2"}[mode]
 	body := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null' EXIT\ntrap 'exit 0' INT TERM\necho $child > '%s'\nprintf '%%s' '{\"profile\":\"taskman-command-result/0\",\"outcome\":\"OK\",\"items\":[]}'\n%s\n", pidfile, end)
-	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0755); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
@@ -254,7 +256,7 @@ func exitFixture(t *testing.T, envelope, end string) string {
 	t.Helper()
 	script := filepath.Join(t.TempDir(), "tool")
 	body := fmt.Sprintf("#!/bin/sh\nprintf '%%s' '%s'\n%s\n", envelope, end)
-	if err := os.WriteFile(script, []byte(body), 0755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0755); err != nil {
 		t.Fatal(err)
 	}
 	return script
@@ -295,7 +297,7 @@ func TestConsoleExitClassification(t *testing.T) {
 	})
 	t.Run("ok-envelope-on-stderr-with-zero-exit", func(t *testing.T) {
 		binary := filepath.Join(t.TempDir(), "tool")
-		if err := os.WriteFile(binary, []byte("#!/bin/sh\nprintf '%s' '"+ok+"' >&2\nexit 0\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(binary, []byte("#!/bin/sh\nprintf '%s' '"+ok+"' >&2\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if env, source := run(binary); env != nil || source.Err == "" {

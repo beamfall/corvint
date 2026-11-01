@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // repository writes a module with one bounded and one unbounded test package.
@@ -271,7 +273,7 @@ func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(test), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(test, []byte("#!/bin/sh\nset -eu\nout=$(make -s -n instruction-conflicts)\ntest \"$out\" = \"script/check-instruction-conflicts.sh --repository-only\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(test, []byte("#!/bin/sh\nset -eu\nout=$(make -s -n instruction-conflicts)\ntest \"$out\" = \"script/check-instruction-conflicts.sh --repository-only\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var stdout, stderr bytes.Buffer

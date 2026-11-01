@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // PGO-V0-009: the version probe's group is killed with its leader, before
@@ -21,7 +23,7 @@ func TestPGOV0009WorkVersionProbeKillsItsGroupBeforeTheReap(t *testing.T) {
 	pidFile := filepath.Join(dir, "member")
 	script := filepath.Join(dir, "corvint")
 	body := "#!/bin/sh\n/bin/sleep 300 >/dev/null 2>&1 &\necho $! > '" + pidFile + "'\necho 'Corvint test (build 7, commit unknown)'\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	version, err := workBoundExecutableVersion(context.Background(), &workExecutable{executionPath: script}, os.Environ(), dir)

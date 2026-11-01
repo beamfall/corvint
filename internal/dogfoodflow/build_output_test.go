@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestChangeDCWV0386NotesUntrackedBuildOutputs pins V1-3132: a binary that
@@ -40,7 +41,7 @@ func TestChangeDCWV0386NotesUntrackedBuildOutputs(t *testing.T) {
 		t.Fatalf("a clean worktree got a build-output note:\n%s", out)
 	}
 	for _, name := range []string{"tool", "tool.exe", "notes.txt", "other"} {
-		if err := os.WriteFile(filepath.Join(root, name), []byte("x"), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(root, name), []byte("x"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

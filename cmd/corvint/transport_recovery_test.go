@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
@@ -118,7 +119,7 @@ func TestTransportAdaptedRecoveryNative(t *testing.T) {
 	if err = os.MkdirAll(filepath.Dir(disagree), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(disagree, []byte("#!/bin/sh\n\""+verifierA.binary+"\" \"$@\"\nstatus=$?\necho transport-disagreement\nexit $status\n"), 0755); err != nil {
+	if err = execfile.WriteFile(disagree, []byte("#!/bin/sh\n\""+verifierA.binary+"\" \"$@\"\nstatus=$?\necho transport-disagreement\nexit $status\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	shaA, shaB, shaD := transportFileSHA(t, verifierA.binary), transportFileSHA(t, verifierB), transportFileSHA(t, disagree)

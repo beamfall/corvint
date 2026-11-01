@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 var (
@@ -216,7 +218,7 @@ func openDescriptorCount(t *testing.T) int {
 func TestNativeExecutablePlatformRequiresCompleteNativeObject(t *testing.T) {
 	for _, value := range [][]byte{{0x7f, 'E', 'L', 'F'}, {0xcf, 0xfa, 0xed, 0xfe}, make([]byte, 64)} {
 		path := filepath.Join(t.TempDir(), "forged-native")
-		if err := os.WriteFile(path, value, 0o500); err != nil {
+		if err := execfile.WriteFile(path, value, 0o500); err != nil {
 			t.Fatal(err)
 		}
 		file, err := os.Open(path)
@@ -444,7 +446,7 @@ func TestLaunchValidationRetainsDescriptorAndRejectsPostStageMutation(t *testing
 		if err := os.Chmod(stagePath, 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(stagePath, []byte("replaced"), 0o700); err != nil {
+		if err := execfile.WriteFile(stagePath, []byte("replaced"), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		if err := staged.validateForLaunch(context.Background()); !Is(err, Race) {
@@ -683,7 +685,7 @@ func TestStagePinsArtifactAndExecutableIndependently(t *testing.T) {
 		t.Fatal(err)
 	}
 	contents = append(contents, []byte("artifact-binding")...)
-	if err := os.WriteFile(artifact, contents, 0o500); err != nil {
+	if err := execfile.WriteFile(artifact, contents, 0o500); err != nil {
 		t.Fatal(err)
 	}
 	artifact, err = filepath.EvalSymlinks(artifact)
@@ -757,7 +759,7 @@ func TestStageRemovesDivergentReusedEntry(t *testing.T) {
 	if err := os.Chmod(stagePath, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(stagePath, []byte("replaced"), 0o700); err != nil {
+	if err := execfile.WriteFile(stagePath, []byte("replaced"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(stagePath, 0o500); err != nil {

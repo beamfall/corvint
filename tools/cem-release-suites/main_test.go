@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func build(path, revision, modified string) *debug.BuildInfo {
@@ -114,10 +115,10 @@ func TestCEMV1572RuntimeConsistent(t *testing.T) {
 func TestCEMV1572ProvenanceIsReportedNotProven(t *testing.T) {
 	dir := t.TempDir()
 	corvint, cem01 := filepath.Join(dir, "corvint"), filepath.Join(dir, "cem01-go")
-	if err := os.WriteFile(corvint, []byte("a"), 0o755); err != nil {
+	if err := execfile.WriteFile(corvint, []byte("a"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(cem01, []byte("b"), 0o755); err != nil {
+	if err := execfile.WriteFile(cem01, []byte("b"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	line, err := provenanceReport("1111111111111111111111111111111111111111", corvint, cem01)
@@ -166,7 +167,7 @@ func TestCEMV1572SuitesReadCommittedObjects(t *testing.T) {
 	if err := os.WriteFile(sealed, []byte("committed\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(tool, []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(tool, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	gitT(t, repo, "add", ".")
@@ -176,7 +177,7 @@ func TestCEMV1572SuitesReadCommittedObjects(t *testing.T) {
 	if err := os.WriteFile(sealed, []byte("forged\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(tool, []byte("#!/bin/sh\nforged\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(tool, []byte("#!/bin/sh\nforged\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	decoy := t.TempDir()
@@ -474,7 +475,7 @@ func TestCEMV1610FailingBinaryEnvelopeRunIsRefused(t *testing.T) {
 	}
 	tmp := t.TempDir()
 	stub := filepath.Join(tmp, "stub")
-	if err := os.WriteFile(stub, []byte("#!/bin/sh\necho '{}'\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(stub, []byte("#!/bin/sh\necho '{}'\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd, report := binaryEnvelopeSuite(src, tmp, binary{name: "stub", argv: []string{stub, "verify-stable"}})

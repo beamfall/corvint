@@ -14,6 +14,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 type snapshots struct {
@@ -44,7 +46,7 @@ func fakeConfig(t *testing.T, mode string) (Config, *snapshots) {
 		t.Fatal("unsupported test binary path")
 	}
 	body := "#!/bin/sh\nexport GOPLS_TEST_MODE=" + mode + "\nexec '" + bin + "' -test.run '^TestHost$' -- \"$@\"\n"
-	if err = os.WriteFile(script, []byte(body), 0700); err != nil {
+	if err = execfile.WriteFile(script, []byte(body), 0700); err != nil {
 		t.Fatal(err)
 	}
 	store := &snapshots{values: map[string]Snapshot{}}

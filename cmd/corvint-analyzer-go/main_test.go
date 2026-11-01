@@ -8,6 +8,7 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"github.com/Beamfall/corvint/internal/analyzergo"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"io"
 	"os"
 	"os/exec"
@@ -131,7 +132,7 @@ func TestProductionProcessNetworkRepositoryAndAmbientSpy(t *testing.T) {
 	root := t.TempDir()
 	marker := filepath.Join(root, "unexpected-capability-use")
 	shim := filepath.Join(root, "git")
-	if err := os.WriteFile(shim, []byte("#!/bin/sh\nprintf x > \"$CORVINT_ANALYZER_SPY_MARKER\"\n"), 0700); err != nil {
+	if err := execfile.WriteFile(shim, []byte("#!/bin/sh\nprintf x > \"$CORVINT_ANALYZER_SPY_MARKER\"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Mkdir(filepath.Join(root, ".git"), 0700); err != nil {
