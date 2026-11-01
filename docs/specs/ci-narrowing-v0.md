@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332; CIN-V0-960: V1-3330. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -131,6 +131,15 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   marker of another epoch, and an unknown reason SHALL take no place, so an epoch-1 run is never
   counted as absence. `verdict.sh` SHALL trip the AFP-V0-030 kill switch when either the row count
   or `absence.jq` trips. The bar, its thresholds and the `MISS` rule are unchanged.
+- **CIN-V0-960:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3330)
+  The live forward epoch has one source for the tests: `CORVINT_PR_FORWARD_EPOCH` in
+  `.github/workflows/ci.yml`. A `tools/ci-forward-row` test that needs the live epoch SHALL read it
+  there and derive the epochs around it (the previous and the next), and a test SHALL fail when the
+  `FORWARD_EPOCH` and `CORVINT_PR_FORWARD_EPOCH` values in `ci.yml`, `FORWARD_EPOCH` in
+  `ci-forward-bar.yml` and `FORWARD_EPOCH` in `ci-control-plane.yml` are missing or disagree.
+  Fixtures that pin a historical epoch transition (the epoch-1 dead-pin rows of CIN-V0-001, and the
+  self-contained `bar.jq` fixtures that pass their own epoch) stay literal, since they do not move
+  with the live epoch.
 
 ## Non-goals
 
@@ -181,6 +190,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and `deletedGoSource` and their calls in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers, an unowned path alone or beside frontiers, no selectable test and a deleted source of an existing package run, the deleted package and its importer selected; a module-level frontier, an unindexed existing source, a deleted source of a removed package, a malformed or empty reason, an UNKNOWN plan naming none and another reason fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
+| CIN-V0-960 | `forwardEpoch`, `forwardEpochSites` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
 ## Rollback
