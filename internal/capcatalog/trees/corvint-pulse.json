@@ -1,0 +1,32 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-pulse",
+  "helpJson": "corvint-pulse help --json",
+  "source": "cmd/corvint-pulse usageText",
+  "dispatchSources": [
+    "cmd/corvint-pulse"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "serve"
+      ],
+      "command": "corvint-pulse serve",
+      "summary": "Serve the Pulse protocol over stdin and stdout for the repository at --root, which is required and comes first",
+      "usage": [
+        "corvint-pulse [--root ROOT] serve --stdio"
+      ],
+      "flags": [
+        "--root",
+        "--stdio"
+      ],
+      "required": [
+        "--stdio"
+      ],
+      "example": "corvint-pulse --root . serve --stdio",
+      "help": "corvint-pulse serve --help"
+    }
+  ]
+}

@@ -21,28 +21,18 @@ corvint-console	no command-tree snapshot yet; remove this row when the binary sh
 corvint-corpus-http	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-corpus-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
 corvint-corpus-parity	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-corpus-republish	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-dashboard-snapshot	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-docs-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
-corvint-go-test-provider	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-go-toolchain-receipt	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-intake	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-js-test-provider	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-lsp	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
 corvint-playwright-minimize	folded into corvint-test minimize, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
-corvint-postmerge-connect	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-postmerge-host-launcher	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-postmerge-metrics	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-postmerge-workflow	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-public-release-check	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-pulse	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-readiness-record	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-release-candidate	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-release-gate	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-release-install	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-remote-provider	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-ruby-test-provider	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-test-runner	folded into corvint-test runner, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
 corvint-test-validity-mcp	MCP server: its tools are gated as mcp-tools catalog rows; no command tree for its options yet
 corvint-tests-accept	folded into corvint-test accept, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)

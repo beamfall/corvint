@@ -1,0 +1,37 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-postmerge-metrics",
+  "helpJson": "corvint-postmerge-metrics help --json",
+  "source": "cmd/corvint-postmerge-metrics usageText",
+  "dispatchSources": [
+    "cmd/corvint-postmerge-metrics"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "report"
+      ],
+      "command": "corvint-postmerge-metrics report",
+      "summary": "Report post-merge metrics for the records between --from and --until under a host policy",
+      "usage": [
+        "corvint-postmerge-metrics report --policy FILE --records FILE --from TIME --until TIME"
+      ],
+      "flags": [
+        "--from",
+        "--policy",
+        "--records",
+        "--until"
+      ],
+      "required": [
+        "--policy FILE",
+        "--records FILE",
+        "--from TIME",
+        "--until TIME"
+      ],
+      "example": "corvint-postmerge-metrics report --policy FILE --records FILE --from TIME --until TIME",
+      "help": "corvint-postmerge-metrics report --help"
+    }
+  ]
+}

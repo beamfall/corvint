@@ -4542,6 +4542,56 @@
       "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
     },
     {
+      "binary": "corvint-corpus-republish",
+      "command": "corvint-corpus-republish help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-republish.json"
+    },
+    {
+      "binary": "corvint-dashboard-snapshot",
+      "command": "corvint-dashboard-snapshot help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
+    },
+    {
+      "binary": "corvint-go-test-provider",
+      "command": "corvint-go-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-go-test-provider.json"
+    },
+    {
+      "binary": "corvint-intake",
+      "command": "corvint-intake help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-intake.json"
+    },
+    {
+      "binary": "corvint-js-test-provider",
+      "command": "corvint-js-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-js-test-provider.json"
+    },
+    {
+      "binary": "corvint-postmerge-connect",
+      "command": "corvint-postmerge-connect help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
+    },
+    {
+      "binary": "corvint-postmerge-metrics",
+      "command": "corvint-postmerge-metrics help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-metrics.json"
+    },
+    {
+      "binary": "corvint-postmerge-workflow",
+      "command": "corvint-postmerge-workflow help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
+    },
+    {
+      "binary": "corvint-pulse",
+      "command": "corvint-pulse help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-pulse.json"
+    },
+    {
+      "binary": "corvint-ruby-test-provider",
+      "command": "corvint-ruby-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-ruby-test-provider.json"
+    },
+    {
       "binary": "corvint-tasks",
       "command": "corvint-tasks help --json",
       "snapshot": "internal/capcatalog/trees/corvint-tasks.json"

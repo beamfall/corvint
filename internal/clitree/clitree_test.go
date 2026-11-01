@@ -1,6 +1,8 @@
 package clitree
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -404,6 +406,35 @@ func TestCAPV0931AnswerRoutesHelpOnly(t *testing.T) {
 		var out strings.Builder
 		if handled, err := Answer(tree, args, root, &out); handled || err != nil || out.Len() != 0 {
 			t.Fatalf("%v answered: handled=%t err=%v out=%q", args, handled, err, out.String())
+		}
+	}
+}
+
+// TestCAPV0971HelpServe answers the tree's help invocations with the authored root and node
+// detail, refuses an unknown help path with exit 2, and leaves every other invocation unanswered.
+func TestCAPV0971HelpServe(t *testing.T) {
+	tree := CompanionTree("demo", "demo run --dir DIR [--retain]\n", map[string]string{"run": "Run once"}, nil, nil, nil)
+	help := Help{Tree: tree, Title: "a demo", RootForms: []string{"demo --serve"},
+		Detail: func(path []string, w io.Writer) { io.WriteString(w, "detail "+strings.Join(path, " ")+"\n") }}
+	serve := func(args ...string) (string, string, int, bool) {
+		var stdout, stderr bytes.Buffer
+		code, handled := help.Serve(args, &stdout, &stderr)
+		return stdout.String(), stderr.String(), code, handled
+	}
+	node, _ := tree.Find([]string{"run"})
+	if stdout, stderr, code, handled := serve("run", "--dir", "x", "-h"); !handled || code != 0 || stderr != "" || stdout != Render(tree, node)+"detail run\n" {
+		t.Fatalf("run -h: %v %d %q %q", handled, code, stderr, stdout)
+	}
+	if stdout, _, code, _ := serve("--help"); code != 0 || !strings.HasPrefix(stdout, "demo: a demo\n\nUsage:\n  demo --serve\n  demo run --dir DIR [--retain]\n") ||
+		!strings.Contains(stdout, "  run: Run once\n") || !strings.HasSuffix(stdout, "Every command of demo: demo help --json\n") || strings.Contains(stdout, "detail") {
+		t.Fatalf("--help: %d %q", code, stdout)
+	}
+	if _, stderr, code, handled := serve("help", "nope"); !handled || code != 2 || !strings.Contains(stderr, "run `demo help`") {
+		t.Fatalf("help nope: %v %d %q", handled, code, stderr)
+	}
+	for _, args := range [][]string{nil, {"run", "--dir", "x"}, {"run", "--", "-h"}} {
+		if _, _, _, handled := serve(args...); handled {
+			t.Fatalf("%v answered", args)
 		}
 	}
 }

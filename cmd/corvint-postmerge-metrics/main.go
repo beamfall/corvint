@@ -52,6 +52,9 @@ func run(ctx context.Context, args []string, out, errOut io.Writer) int {
 		}{string(code)})
 		return 1
 	}
+	if code, handled := serveHelp(args, out, errOut); handled {
+		return code
+	}
 	if len(args) != 9 || args[0] != "report" {
 		return fail(postmergemetrics.ErrInput)
 	}

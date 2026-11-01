@@ -1,0 +1,64 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-go-test-provider",
+  "helpJson": "corvint-go-test-provider help --json",
+  "source": "cmd/corvint-go-test-provider usageText",
+  "dispatchSources": [
+    "cmd/corvint-go-test-provider"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [
+    {
+      "word": "--corvint-go-live-authority",
+      "reason": "worker the provider re-executes itself with to attach the live parent verifier; not an operator entry point"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [
+        "session"
+      ],
+      "command": "corvint-go-test-provider session",
+      "summary": "Run the experimental foreground live-test loop and print one JSON line per state transition",
+      "usage": [
+        "corvint-go-test-provider session --experimental --trusted-local --foreground --authority-bundle FILE [--interval DURATION] [--debounce DURATION] [--scope PATTERN]... [--watch FILE]... [--retain]"
+      ],
+      "flags": [
+        "--authority-bundle",
+        "--debounce",
+        "--experimental",
+        "--foreground",
+        "--interval",
+        "--retain",
+        "--scope",
+        "--trusted-local",
+        "--watch"
+      ],
+      "required": [
+        "--experimental",
+        "--trusted-local",
+        "--foreground",
+        "--authority-bundle FILE"
+      ],
+      "example": "corvint-go-test-provider session --experimental --trusted-local --foreground --authority-bundle FILE",
+      "help": "corvint-go-test-provider session --help"
+    },
+    {
+      "path": [
+        "test-run"
+      ],
+      "command": "corvint-go-test-provider test-run",
+      "summary": "Run go test -json once and print the corvint-go-test-run/0 document with repository identity and test file blob IDs",
+      "usage": [
+        "corvint-go-test-provider test-run [--dir DIR] [--timeout DURATION] [PACKAGE...]"
+      ],
+      "flags": [
+        "--dir",
+        "--timeout"
+      ],
+      "required": [],
+      "example": "corvint-go-test-provider test-run",
+      "help": "corvint-go-test-provider test-run --help"
+    }
+  ]
+}

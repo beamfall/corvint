@@ -62,6 +62,9 @@ func main() {
 }
 
 func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
+	if code, handled := companionHelp().Serve(args, stdout, stderr); handled {
+		return code
+	}
 	if len(args) == 0 {
 		fmt.Fprint(stderr, usage)
 		return 2
