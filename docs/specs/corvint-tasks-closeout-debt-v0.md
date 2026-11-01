@@ -511,6 +511,9 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-955`: (standing lane auto-accept, 2026-11-01; V1-3607) `ticket delivery-screen` accepts
+  a bare `--json` flag as a no-op, because its output is always JSON: the output and exit code
+  are byte-identical with and without it. `--json=VALUE` stays `MALFORMED`.
 
 ## Failure modes
 
@@ -712,6 +715,7 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-955 | V1-3607 | `internal/tasks/cli` (`deliveryScreenCommand`, usage) | `TestTCDV0955_DeliveryScreenAcceptsJSONAsNoOp` (identical stdout and exit with and without `--json`; `--json=x` refused `MALFORMED`) | none |
 
 ## Rollout and rollback
 
