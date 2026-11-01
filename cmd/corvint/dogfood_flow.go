@@ -41,6 +41,61 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 		"--corvint-bin": true},
 }
 
+// dogfoodFlowOptionHelp describes each option of dogfoodFlowOptions, so every daily-path
+// subverb's --help lists its options with a description (CAP-V0-120); a test keeps the two
+// tables equal.
+var dogfoodFlowOptionHelp = map[string]string{
+	"--corvint-bin":       "corvint executable that runs the change steps (default: this binary)",
+	"--base-verifier":     "executable that runs the base cem status check (default: this binary)",
+	"--tree-verifier":     "executable that runs the current-tree cem status check (default: this binary)",
+	"--override-verifier": "optional third verifier the check also replays and records",
+	"--verifier":          "executable that verifies each sealed CEM (default: this binary)",
+	"--refresh":           "earlier plan whose current rows are kept and whose re-hunked rows are re-keyed",
+	"--task":              "task text for the prechange context and query receipts (default: DOGFOOD_TASK)",
+	"--base":              "full commit ID of the change's base (the BASE other subverbs take positionally)",
+	"--citations":         "citation plan file (TSV; format below; default: DOGFOOD_CITATIONS)",
+	"--intents":           "file of intent spec paths, one per line (default: DOGFOOD_INTENTS_FILE)",
+	"--verify":            "file of verification commands, one per line (default: DOGFOOD_VERIFY_FILE)",
+	"--outcome":           "passed, failed or blocked (default: DOGFOOD_OUTCOME)",
+}
+
+// dogfoodCitationPlanFormat is the citation plan row format the plan-taking subverbs print
+// in their --help (CAP-V0-120); docs/DOGFOOD.md DOGFOOD_CITATIONS has the full rules.
+const dogfoodCitationPlanFormat = `Plan file: LF-terminated TSV, at most 256 rows, one row per hunk and cited base:
+  HUNK<TAB>PATH<TAB>START:END<TAB>RELATION   HUNK is a hunk ordinal (from 1) or full
+                                             hunk ID; START:END a BASE line span
+  HUNK<TAB>unknown<TAB>REASON<TAB>NOTE       REASON insufficient-evidence or
+                                             conflicting-evidence
+  deferred<TAB>PATH<TAB>REASON               an intent left for later
+See docs/DOGFOOD.md (DOGFOOD_CITATIONS) for every rule.
+`
+
+// dogfoodFlowOptionsText is the Options block of a daily-path subverb's node help, or "" for
+// any other node.
+func dogfoodFlowOptionsText(path []string) string {
+	if len(path) != 2 || path[0] != "dogfood" {
+		return ""
+	}
+	options, ok := dogfoodFlowOptions[path[1]]
+	if !ok {
+		return ""
+	}
+	names := make([]string, 0, len(options))
+	for name := range options {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var text strings.Builder
+	text.WriteString("\nOptions:\n")
+	for _, name := range names {
+		fmt.Fprintf(&text, "  %-20s %s\n", name, dogfoodFlowOptionHelp[name])
+	}
+	if options["--refresh"] || options["--citations"] {
+		text.WriteString("\n" + dogfoodCitationPlanFormat)
+	}
+	return text.String()
+}
+
 // dogfoodFlagError is a dogfood option refusal whose detail names the option
 // at fault and the options the subverb takes (DCW-V0-808); Error is the
 // fixed reason code alone.
