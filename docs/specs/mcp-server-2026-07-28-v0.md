@@ -870,7 +870,31 @@ Each row cites the first emitting site and states only the condition checked the
   `corvint-mcp: repository unavailable: --root must be an absolute path`, exit 2; it is never
   resolved against the launch directory. Non-goals: resolving relative roots; `--help` for the
   docs, corpus or test-validity servers. Failure mode: `--help` beside any other argument stays
-  `invalid arguments`.
+  `invalid arguments`. Amended by `MCPV0-950`: a non-absolute plain single root (including an
+  empty or unexpanded `${CLAUDE_PROJECT_DIR}` value) now starts the server unavailable with the
+  same reason text instead of exiting 2; an aliased one still exits 2.
+- `MCPV0-950`: (experimental under the standing lane auto-accept; V1-3700; amends `MCPV0-001`,
+  `MCPV0-113` and `AHI-820`) At startup each declared `--root` MUST be resolved to the Git
+  worktree toplevel it lies in: the root itself when it holds the `.git` marker, else its nearest
+  physical ancestor that does (`git rev-parse --show-toplevel` without the environment), and that
+  toplevel is then bound under every `MCPV0-001` check. When a root cannot be resolved, stderr MUST
+  name one fixed reason (`--root must be an absolute path`, `--root must be a clean path of at
+  most 4,096 bytes without control characters`, `--root does not exist`, `--root is not a
+  directory`, `--root is inside a .git directory, not a worktree`, `--root is not inside a Git
+  worktree`, or a refused toplevel `.git` marker) after `corvint-mcp: repository unavailable: `,
+  never the path or a system error. A single plain root that neither follows a ref nor binds a
+  corpus artifact then starts UNAVAILABLE instead of exiting: `initialize`, `server/discover` and
+  `tools/list` answer as for a usable root with the same tool list (profile and groups), and
+  `corvint.help` still answers from the binary (`MCPV0-100`), but every other listed tool's
+  `tools/call` MUST return an `isError` result with code `invalid-root` (the group tools under
+  their own tool-error profiles), so no repository evidence is ever returned; an unlisted tool
+  stays invalid params. Aliased roots, `--follow-ref` and `--corpus-artifact` still exit 2 with the
+  named reason. The release install lifecycle (`script/check-install-lifecycle.sh`, step
+  `mcp-unavailable-root`) runs the handshake against a non-repository root. Non-goals: resolving
+  relative roots; a root that becomes usable later (restart the server); partial multi-root
+  service. Falsifier: a subdirectory root that exits, an unusable root that exits 2 or answers a
+  repository call without `isError`, or a reason line that carries the path. Rollback: restore the
+  exit-2 branch in `run` and drop `rootbind.Resolve` and `internal/mcp/cli/unavailable.go`.
 - `MCPV0-114`: (experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)
   Under `--follow-ref`, `tools/list` MUST advertise every tool a call binds to the ref with
   `readOnlyHint` false and its description followed by one fixed sentence stating that each call
@@ -1023,6 +1047,7 @@ cleanup remain outside that receipt.
 | `MCPV0-110` | `internal/mcp/bridge` (`impactInput.BudgetBytes`, `optionalBytes`, `callImpact`) | `internal/mcp/bridge/budget_args_test.go`'s `TestMCPV0110ImpactBudgetBytesIsCLIPathImpactBudget` (budgeted receipt equals `EvalImpactSyntax`'s bytes, omitted budget equals `ImpactSyntax`'s, six invalid values refused); repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
 | `MCPV0-111` | `internal/contextsummary` (`Summarize`, `SafePath`), `internal/mcp/bridge` (`contextInput.SummaryBytes`, `summarizedContext`), `cmd/corvint` (`summarizeContextPacket`) | `TestMCPV0111ContextSummaryBytesIsCLISummary` (summary equals `Summarize` over the canonical receipt plus LF, digest and MCP continuation, binding kept, five invalid values refused, `SUMMARY_SHAPE` reason); CLI bytes unchanged under the existing `cmd/corvint` context-summary tests |
 | `MCPV0-113` | `internal/mcp/cli` (`run`, `usage`) | `usage_test.go`'s `TestMCPV0113HelpAndRelativeRoot`; `roots_test.go` relative aliased root |
+| `MCPV0-950` | `internal/mcp/rootbind` (`Resolve`), `internal/mcp/bridge` (`Profile.Tools`), `internal/mcp/cli` (`run`, `startUnavailable`, `answerUnavailable`), `script/check-install-lifecycle.sh` | `internal/mcp/cli/unavailable_test.go`'s `TestMCPV0950SubdirectoryRootBindsToplevel`, `TestMCPV0950UnusableRootServesListAndRefusesCalls` (eight unusable roots: same `tools/list`, every tool `invalid-root` but help, unknown tool `-32602`, exact reason line), `TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired`, `TestMCPV0950ProfileToolsMatchRegistries`; `script/check-install-lifecycle_test.sh` step `mcp-unavailable-root` |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
