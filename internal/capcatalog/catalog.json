@@ -2704,7 +2704,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2752,7 +2752,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2804,7 +2804,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [

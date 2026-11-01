@@ -3400,7 +3400,7 @@
         "features"
       ],
       "command": "corvint features",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] features"
       ],
@@ -5281,7 +5281,7 @@
         "overview"
       ],
       "command": "corvint overview",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] overview"
       ],
@@ -5536,7 +5536,7 @@
         "review"
       ],
       "command": "corvint review",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only)",
+      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
       "usage": [
         "corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]"
       ],

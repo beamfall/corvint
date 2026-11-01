@@ -41,6 +41,10 @@ type guidanceFeature struct {
 	Label     string             `json:"label"`
 	Authority string             `json:"authority"`
 	Evidence  []guidanceEvidence `json:"evidence"`
+	// FeatureID and FeatureCall feed `corvint feature` when the label is a
+	// canonical feature ID (RGV-V0-956); other labels carry neither.
+	FeatureID   string   `json:"featureId,omitempty"`
+	FeatureCall []string `json:"featureCall,omitempty"`
 }
 type guidanceCall struct {
 	Argv      []string `json:"argv"`
@@ -421,6 +425,9 @@ func addGuidanceFeature(candidates map[string]*guidanceFeature, label string, e 
 			return
 		}
 		candidate = &guidanceFeature{Label: label, Authority: "inferred", Evidence: []guidanceEvidence{}}
+		if contextindex.ValidateFeature(label, 1) == nil {
+			candidate.FeatureID, candidate.FeatureCall = label, []string{"corvint", "feature", label}
+		}
 		candidates[label] = candidate
 	}
 	for _, existing := range candidate.Evidence {

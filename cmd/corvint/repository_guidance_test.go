@@ -641,3 +641,47 @@ func TestGuidanceUntrackedOnlyDegradesLikeAffectedMixed(t *testing.T) {
 		t.Fatalf("tracked change accepted: %v", err)
 	}
 }
+
+// RGV-V0-956 (V1-3532): a features label that is a canonical feature ID carries
+// featureId and an inert featureCall, and that call is answered by `corvint feature`.
+func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
+	root := t.TempDir()
+	for _, args := range [][]string{{"init", "-q", "-b", "main"}, {"config", "user.email", "test@example.test"}, {"config", "user.name", "Test"}} {
+		guidanceGit(t, root, args...)
+	}
+	guidanceWrite(t, root, "go.mod", "module example.test/demo\n\ngo 1.27.0\n")
+	guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {}\n")
+	guidanceWrite(t, root, "testing/features.yaml", "features:\n  - id: greeting\n    title: Greeting\n")
+	guidanceWrite(t, root, "testing/scenarios.yaml", "scenarios:\n")
+	guidanceGit(t, root, "add", ".")
+	guidanceGit(t, root, "commit", "-qm", "base")
+	out, _ := guidanceRead(t, root, "features", "")
+	var call []string
+	for _, f := range out.Features {
+		switch f.Label {
+		case "greeting":
+			if f.FeatureID != "greeting" || !reflect.DeepEqual(f.FeatureCall, []string{"corvint", "feature", "greeting"}) {
+				t.Fatalf("canonical label lacks its feature call: %+v", f)
+			}
+			call = f.FeatureCall
+		case "cmd/demo":
+			if f.FeatureID != "" || f.FeatureCall != nil {
+				t.Fatalf("path label carries a feature ID: %+v", f)
+			}
+		}
+	}
+	if call == nil {
+		t.Fatalf("greeting feature missing: %+v", out.Features)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(append([]string{"--root", root}, call[1:]...), strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("%v exit %d: %s", call, code, stderr.String())
+	}
+	var detail map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &detail); err != nil {
+		t.Fatalf("feature output: %v %s", err, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), `"READY"`) || !strings.Contains(stdout.String(), "feature:greeting") {
+		t.Fatalf("feature did not resolve the listed ID: %s", stdout.String())
+	}
+}
