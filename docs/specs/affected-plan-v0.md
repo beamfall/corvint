@@ -5346,6 +5346,22 @@ already states for the BOUNDED case. Acceptance evidence: the cases named in the
 fail on the base scripts and pass. Hosted queue behavior stays `NOT_OBSERVED` until
 `CORVINT_MQ_NARROWING` runs a grouped queue. Rollback: revert the three scripts and the gate step.
 
+
+### Temporary-space refusal (AFP-V0-920; V1-3912)
+
+- **AFP-V0-920:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3912)
+  When `corvint affected` cannot create a scratch directory under the temporary directory (a full
+  `/tmp` with no `TMPDIR`, or a `TMPDIR` that is missing or unwritable), it SHALL exit 2 with the
+  stable code `temp-unavailable` on stderr. The message SHALL name the temporary directory it tried
+  and tell the caller to set `TMPDIR` to a writable directory with free space. The `affected audit`
+  scratch clone is the only temporary directory the command creates; the plan itself writes no
+  temporary file, and a failed receipt write already exits 2 with `output-failed`.
+
+Non-goals: no free-space probe before the work starts and no fallback directory. Failure mode: a
+child process (`git`) that writes its own temporary files reports its own error, which the audit
+names as that change's error. Acceptance: `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920`.
+Rollback: restore the `cannot create a scratch clone` message in `auditAffectedChange`.
+
 ### Frame metadata and embedded JavaScript (V1-2758, V1-2898)
 
 - `AFP-V0-810`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2758)
@@ -6094,6 +6110,7 @@ traceability table.
 | AFP-V0-933 | the `.github/` exit-status branch of `.github/forward-rows/narrow.sh` | the quoted non-ASCII, `.github/` and unreadable cases of `TestAFPV0731MergeQueueSelection`; `TestAFPV0098SupersetGuardSidecar` (stale event base, PR-owned `.github/` edit) |
 | AFP-V0-934 | `SELECTION_BASE` in `decide` and `select_` of `.github/forward-rows/mq-narrow.sh`; the `scripts` merge base of the narrowing gate in `.github/workflows/ci.yml` | `TestAFPV0731MergeQueueSelection` (a stacked entry selects from main's commit; one sharing no commit with main is FULL); `TestAFPV0097WorkflowBindings` |
 | AFP-V0-935 | the scope test of `plan_` in `.github/forward-rows/mq-narrow.sh` | the language-frontier-only reuse case and the unowned-path and malformed-list refusals of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` |
+| AFP-V0-920 | `affectedTempUnavailable` and `auditAffectedChange` in `cmd/corvint/affected_audit.go` | `TestAffectedAuditTempUnavailableNamesTMPDIR_AFPV0920` (a missing `TMPDIR` exits 2 with `temp-unavailable`, the path and the `TMPDIR` advice) |
 | AFP-V0-828 | `tempRootOnly`, `tempRooted`, `tempRootScan`, `packageNames`, `localNames` and `importAliases` in `tools/test-read-scopes-check/temp_root.go`; the `exempt` term in `check` | `TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137` (five accepted shapes and twenty-five refusals), `TestTempRootOnlyRefusesAnUnparsableFile_V1_3137` |
 | AFP-V0-840 | `closesEscapedTag` and the closing-tag branch of `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralBoundary_AFPV0840` (escaped tags lex to lone names; `source.sh` and `foo-source.sh` do not select `script/core-n1-source.sh`, the full path and `../script/` do) |
 | AFP-V0-841 | `seed` direct test-change selection in `internal/liveverify/affected/select.go`; `FrontierBuildConstraint` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstrainedTestFileSelectsOwner_AFPV0841` (a `//go:build` test file selects only its package, with the variant unknown retained) |
