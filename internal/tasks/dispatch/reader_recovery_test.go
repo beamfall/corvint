@@ -4,6 +4,7 @@ package dispatch
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -394,4 +395,34 @@ func TestCALV0226_UnreadableMarkers(t *testing.T) {
 		t.Fatal("directory marker removed", err)
 	}
 	_ = dir
+}
+
+// CAL-V0-227 (V1-3635): the standalone work-state reader lifts its own
+// quarantine by the same reboot proof, so it also reports it with a
+// reader-recovered event; a lifted quarantine never goes unreported.
+func TestCALV0227_StandaloneReaderRebootEmitsEvent(t *testing.T) {
+	if !platformSupported {
+		t.Skip("reader ownership is unsupported here")
+	}
+	const program = "work-state-reader"
+	machine, boot1, boot2 := digestHex("m"), digestHex("b1"), digestHex("b2")
+	fakeHost(t, machine, boot1)
+	c, dir, mark := quarantinedProgram(t, program)
+	fakeHost(t, machine, boot2)
+	if _, err := standaloneStateCommand(context.Background(), c, []string{"/bin/sh", "-c", "exit 0"}); errors.Is(err, ErrReaderQuiescence) {
+		t.Fatal("reboot proof refused", err)
+	}
+	if _, err := os.Lstat(mark.path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("marker survived the reboot proof", err)
+	}
+	events, err := ReadEvents(dir, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range events {
+		if e.Kind == "reader-recovered" && e.Program == program && e.Detail["kind"] == RecoveryHostReboot && e.Detail["run"] == mark.marker.Run && e.Seq > 0 {
+			return
+		}
+	}
+	t.Fatalf("no reader-recovered event: %+v", events)
 }

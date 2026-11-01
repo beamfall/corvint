@@ -469,12 +469,35 @@ func standaloneStateCommand(ctx context.Context, c *Config, argv []string) (map[
 	if err := lockExclusive(lock); err != nil {
 		return nil, err
 	}
-	if _, err := resolveReaderByReboot(dir, program, time.Now()); err != nil {
+	recovered, err := resolveReaderByReboot(dir, program, time.Now())
+	if err != nil {
 		return nil, fmt.Errorf("%w: the reboot proof was not recorded: %v", ErrReaderQuiescence, err)
+	}
+	if recovered != nil {
+		// CAL-V0-227 (V1-3635): a lifted quarantine is always reported. This
+		// reader keeps no ledger, so the event continues the log's own
+		// sequence; an unwritable event refuses this read.
+		if err := emitStandaloneRecovery(dir, program, recovered); err != nil {
+			return nil, fmt.Errorf("%w: the reboot proof was recorded but its event was not: %v", ErrReaderQuiescence, err)
+		}
 	}
 	if err := checkReaderQuarantine(dir, program); err != nil {
 		return nil, err
 	}
 	d := &Dispatcher{Program: program, Config: c, dir: dir, lock: lock}
 	return d.stateCommand(ctx, c.WorkRoot, argv)
+}
+
+// emitStandaloneRecovery appends the reader-recovered event the dispatch start
+// emits (loop.go) for a reader with no dispatcher ledger, numbered after the
+// last event already in its log.
+func emitStandaloneRecovery(dir, program string, rec *ReaderRecovery) error {
+	var seq uint64
+	if last, err := ReadEvents(dir, 1); err == nil && len(last) > 0 {
+		seq = last[len(last)-1].Seq
+	}
+	e := Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", rec.Run, rec.Reason, rec.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": rec.Kind, "run": rec.Run}}
+	e.Profile, e.Seq, e.Program = EventProfile, seq+1, program
+	e.At = time.Now().UTC().Format(time.RFC3339)
+	return appendEvent(dir, e)
 }
