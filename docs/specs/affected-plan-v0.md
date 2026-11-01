@@ -5285,11 +5285,15 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
 ### Declared binary consumers (AFP-V0-762; V1-1017)
 
 - **AFP-V0-762:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1017)
-  Amending AFP-V0-037: `.corvint/test-binary-execs.json` MAY carry the optional member
-  `consumers`, `{FILE:[COMMAND_DIR...]}`, naming a repository file that no Go package holds (such as
-  a Node script) and the commands whose built binary it runs; `packages` and `consumers` together
-  hold at most 4096 keys, each under the `packages` entry grammar, and every entry must be an
-  observed command, else the whole declaration is invalid (`go:test-binary-execs-invalid`). The Go
+  Amending AFP-V0-037: a repository MAY declare `.corvint/test-binary-consumers.json`, the closed
+  object `{"profile":"corvint-test-binary-consumers/0","consumers":{FILE:[COMMAND_DIR...]}}`,
+  naming a repository file that no Go package holds (such as a Node script) and the commands whose
+  built binary it runs: 1 to 4096 keys under the AFP-V0-037 `packages` entry grammar, each entry an
+  observed command. It is a file of its own, never a member of `.corvint/test-binary-execs.json`,
+  whose closed grammar a planner pinned to an older commit (the CI driver, AFP-V0-098) still reads:
+  that planner ignores the new file instead of refusing the old one. A consumer declaration that is
+  present but invalid keeps no consumer and raises `go:test-binary-execs-invalid`; the `packages`
+  edges stay. A dirty consumer declaration is an unowned path, like AFP-V0-037's. The Go
   plugin SHALL record each consumer file in the named command units' `execConsumers` member (sorted
   paths, part of the AFP-V0-005 projection when non-empty, and of the graph cache entry), which adds
   no edge: a consumer that runs only a built binary is no importer of the command's code, and an
@@ -5305,7 +5309,7 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   change reaches that build, so that edge is left undeclared rather than naming them on almost
   every plan (a `cmd/corvint` change is left to its own tests and the web-flows gate). Non-goals: no
   driver run of the consumer, no inference of a consumer from environment variables. Rollback:
-  remove the member, `Unit.ExecConsumers`, `matchBinaryConsumers`, `unselectedConsumers` and the
+  remove `.corvint/test-binary-consumers.json`, `readBinaryConsumers`, `Unit.ExecConsumers`, `matchBinaryConsumers`, `unselectedConsumers` and the
   repository entries.
 
 ### Agent instruction files (AFP-V0-763; V1-2077)
@@ -5416,13 +5420,20 @@ admit a selection that under-selects without detection.
 ### Unbounded readers of declared CEM paths (AFP-V0-772; V1-3571)
 
 - **AFP-V0-772:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571)
-  Amending AFP-V0-602: a runtime-readers entry MAY carry the optional member
-  `"noUnboundedReaders": true`, the project's statement that no unbounded reader (AFP-V0-012 rule
-  (d)) reads the entry's paths. A dirty path such an entry holds SHALL then select no unbounded
+  Amending AFP-V0-602: a repository MAY declare `.corvint/unbounded-reader-exclusions.json`, the
+  closed object `{"profile":"corvint-unbounded-reader-exclusions/0","paths":[PATH...]}`, 1 to 256
+  strictly ascending paths each equal to a runtime-readers entry's path: the project's statement
+  that no unbounded reader (AFP-V0-012 rule (d)) reads that entry's paths. It is a file of its own,
+  never a member of `.corvint/runtime-readers.json`, whose closed grammar the pinned CI planner
+  (AFP-V0-098) still reads, so that planner keeps the AFP-V0-602 selection rather than refusing the
+  graph. A present declaration that is unreadable, oversized, not exactly this grammar or that names
+  a path no entry declares refuses the graph build; it is read, and stamped in the graph cache
+  entry, whether or not the runtime-readers declaration exists, and a dirty copy no unit reaches is
+  a `CORVINT_DECLARATION` path (AFP-V0-443). A dirty path an excluded entry holds SHALL then select no unbounded
   reader and follow no root locator's dependents; the path's literal, glob, embed and
   declared-read-scope readers, and the test-less reader traversal, are unchanged, and any other
-  dirty path still selects every unbounded reader. The member is part of the entry, and so of the
-  graph digest, only when present. This repository SHALL declare both CEM paths that way: the
+  dirty path still selects every unbounded reader. The exclusion is part of the entry in the graph
+  digest and cache, only when present. This repository SHALL declare both CEM paths that way: the
   shared bind path `.corvint/change.cem.json`, newly declared, because a seal commit deletes it
   and an undeclared deletion made every path-open frontier bear; and `.corvint/changes/`, after
   measuring that none of the 37 unbounded readers a sealed CEM selected reads sealed CEMs other
@@ -5437,7 +5448,7 @@ admit a selection that under-selects without detection.
   `.github` workflow runs and the shell plugin's universe cannot declare, and from
   `script/dogfood-bind-coverage.sh`, whose name a shell file builds (TSP-V0-960); it keeps
   `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
-  remove the member, `unboundedDirty` and the repository entries.
+  remove the exclusions declaration, `applyUnboundedExclusions`, `unboundedDirty` and the repository entries.
 
 ## Non-goals and authority
 
@@ -5798,7 +5809,7 @@ traceability table.
 | AFP-V0-484 | the `$costNames`, `costs` and `$shadowCost` block and the `Shadow cost` lines of `.github/forward-rows/bar.jq`; `shadowCost` in `.github/forward-rows/verdict.sh` | `TestAFPV0484BarShadowCost` (cost names leave the status, counts and tripped kill switch identical; the nearest name listed before its row prices it, while a name listed after it, other epochs, INCOMPLETE rows and malformed names do not; a CLEAN re-run without its own cost is unpriced, not priced by an older MISS or CLEAN run; median, mean and miss rows per selector) |
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
 | AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
-| AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `Unit.ExecConsumers` (`unit.go`, `graph.go`, `graphcache.go`); `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
+| AFP-V0-762 | `binaryConsumersFile`, `readBinaryConsumers`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `Unit.ExecConsumers` (`unit.go`, `graph.go`, `graphcache.go`); `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
 | AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `INSTRUCTIONS` in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
 | AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
 | AFP-V0-766 | `options.confine`, `identity.Confine`, `identity.ConfinedEnv`, `goTestArgs`, `runEnv` and the wrapper checks of `toolIdentity` and `execute` in `tools/corvint-pr-tests/main.go` | `TestConfinedDriverRunsFailUndeclaredReads` (identity, argv and environment of a confined run; drift and a missing wrapper refused); `TestSelectedFailureAndFallback` (unconfined identity unchanged) |
@@ -5806,7 +5817,7 @@ traceability table.
 | AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
 | AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
 | AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
-| AFP-V0-772 | `RuntimeReader.NoUnboundedReaders`, `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go`, used by `reach` in `select.go`; `.corvint/runtime-readers.json`; `.corvint/shell-foreign-callers.json` | `TestNoUnboundedReadersEntryDropsOnlyUnboundedReaders_AFPV0772` (seal-shaped change selects the literal reader and no unbounded reader; an entry without the statement, and another dirty path, still select it); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
+| AFP-V0-772 | `UnboundedReaderExclusionsPath`, `applyUnboundedExclusions`, `RuntimeReader.NoUnboundedReaders`, `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go`, used by `reach` in `select.go`; `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; `.corvint/shell-foreign-callers.json` | `TestUnboundedReaderExclusionsDropOnlyUnboundedReaders_AFPV0772` (seal-shaped change selects the literal reader and no unbounded reader; an entry the exclusions do not name, another dirty path, and no exclusions file still select it; an exclusion naming no entry, or the member inside the runtime-readers file, refuses); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
