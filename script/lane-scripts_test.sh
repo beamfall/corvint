@@ -1219,7 +1219,7 @@ ok
 # load gate, and two nested commands never overlap on one token; a HEAVY_HELD of another lock dir
 # is ignored.
 got=$(pv sh -c 'printf "%s\n" "$HEAVY_HELD"' 2> /dev/null)
-[[ $got == "$pol/slots/slot1" ]] || fail "heavy.sh did not export HEAVY_HELD: $got"
+[[ $got == "$(cd "$pol" && pwd -P)/slots/slot1" ]] || fail "heavy.sh did not export HEAVY_HELD: $got"
 printf '#!/bin/sh\nmkdir "$1" || exit 9\nsleep 1\nrmdir "$1"\n' > "$pol/bin/excl" && chmod +x "$pol/bin/excl" || fail "excl stub"
 export heavy
 s0=$SECONDS
@@ -1895,7 +1895,7 @@ ok
 # ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
 # ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN
 # names a binary whose --version fails, so each run refuses after the appends and before any build.
-dcr=$tmp/dcr
+mkdir -p "$tmp/dcr" && dcr=$(cd "$tmp/dcr" && pwd -P)
 mkdir -p "$dcr/repo/script" && cp "$script/dogfood-change.sh" "$script/dogfood-build-corvint.sh" "$script/dogfood-change-runs.sh" "$dcr/repo/script/" &&
   printf '0.0.0\n' > "$dcr/repo/VERSION" && git init -q -b main "$dcr/repo" && git -C "$dcr/repo" add . &&
   git -C "$dcr/repo" -c user.name=t -c user.email=t@example.invalid commit -qm dcr &&
@@ -1903,7 +1903,7 @@ mkdir -p "$dcr/repo/script" && cp "$script/dogfood-change.sh" "$script/dogfood-b
 dcr_base=$(git -C "$dcr/repo" rev-parse HEAD) dcr_log=$(git -C "$dcr/repo" rev-parse --path-format=absolute --git-common-dir)/corvint/dogfood-change-runs-all.tsv
 dcr_run() { (cd "$1" && CORVINT_BIN=/bin/false script/dogfood-change.sh "$dcr_base" > /dev/null 2>&1); }
 dcr_run "$dcr/a"; dcr_run "$dcr/b"; dcr_run "$dcr/b"; dcr_run "$dcr/b"
-[[ $(wc -l < "$(git -C "$dcr/b" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") == 3 ]] || fail "dogfood-change-runs per-worktree log (ASD-V0-907) changed"
+[[ $(wc -l < "$(git -C "$dcr/b" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") -eq 3 ]] || fail "dogfood-change-runs per-worktree log (ASD-V0-907) changed"
 git -C "$dcr/repo" worktree remove "$dcr/a" || fail "dogfood-change-runs worktree remove"
 out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2>&1)
 [[ $? == 0 && $out == $'run-count lane-a 1\nrun-count lane-b 3\n'"dogfood-change-runs: lanes=2 median=2 max=3 total=4 since=ALL log=$dcr_log" ]] ||
@@ -1921,7 +1921,7 @@ out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2099-01-01T00:00:00Z 2>&1)
 # A run in the primary checkout, whose git dir is the common dir, is counted once in the shared
 # ledger and keeps its own one-line per-worktree log (review: one file name would double it).
 dcr_run "$dcr/repo"
-[[ $(wc -l < "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") == 1 ]] ||
+[[ $(wc -l < "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv") -eq 1 ]] ||
   fail "dogfood-change-runs primary checkout per-worktree log: $(cat "$(git -C "$dcr/repo" rev-parse --absolute-git-dir)/corvint/dogfood-change-runs.tsv")"
 out=$(cd "$dcr/repo" && script/dogfood-change-runs.sh 2001-01-01 2>&1)
 [[ $out == *$'run-count main 1\n'* && $out == *'lanes=4 '*'total=6 '* ]] || fail "dogfood-change-runs primary checkout: $out"
