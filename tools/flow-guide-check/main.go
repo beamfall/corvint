@@ -46,7 +46,7 @@ var (
 	backticked  = regexp.MustCompile("`([^`]+)`")
 	kebabCode   = regexp.MustCompile(`^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$`)
 	upperCode   = regexp.MustCompile(`^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$`)
-	shellRefuse = regexp.MustCompile(`\brefuse "((?:[^"\\]|\\.)*)"`)
+	shellRefuse = regexp.MustCompile(`\brefuse "`)
 	makeRule    = regexp.MustCompile(`^([A-Za-z0-9_./%-]+(?:[ \t]+[A-Za-z0-9_./%-]+)*)[ \t]*::?(?:[^=]|$)`)
 )
 
@@ -380,6 +380,88 @@ func hinted(message string) bool {
 	return false
 }
 
+// shellRefuseMessages returns the double-quoted message of each `refuse "..."` call on line. A
+// command substitution inside the message, such as `$(git -C "$dir" ...)`, opens a new quoting
+// context, so its inner quotes do not end the message (ASD-V0-566, V1-4175).
+func shellRefuseMessages(line string) []string {
+	var messages []string
+	next := 0
+	for _, loc := range shellRefuse.FindAllStringIndex(line, -1) {
+		if loc[0] < next {
+			continue
+		}
+		if end, ok := shellQuoted(line, loc[1]); ok {
+			messages = append(messages, line[loc[1]:end])
+			next = end + 1
+		}
+	}
+	return messages
+}
+
+// shellQuoted scans a double-quoted string whose body starts at i and returns the index of its
+// closing quote.
+func shellQuoted(s string, i int) (int, bool) {
+	for i < len(s) {
+		switch {
+		case s[i] == '\\':
+			i += 2
+		case s[i] == '"':
+			return i, true
+		case strings.HasPrefix(s[i:], "$("):
+			end, ok := shellSubstitution(s, i+2)
+			if !ok {
+				return 0, false
+			}
+			i = end + 1
+		case s[i] == '`':
+			end := strings.IndexByte(s[i+1:], '`')
+			if end < 0 {
+				return 0, false
+			}
+			i += end + 2
+		default:
+			i++
+		}
+	}
+	return 0, false
+}
+
+// shellSubstitution scans a $( ... ) body starting at i and returns the index of its closing
+// parenthesis.
+func shellSubstitution(s string, i int) (int, bool) {
+	depth := 1
+	for i < len(s) {
+		switch s[i] {
+		case '\\':
+			i += 2
+			continue
+		case '\'':
+			end := strings.IndexByte(s[i+1:], '\'')
+			if end < 0 {
+				return 0, false
+			}
+			i += end + 2
+			continue
+		case '"':
+			end, ok := shellQuoted(s, i+1)
+			if !ok {
+				return 0, false
+			}
+			i = end + 1
+			continue
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i, true
+			}
+		}
+		i++
+	}
+	return 0, false
+}
+
 func refusalSites(root string, repo *repository) ([]site, error) {
 	var sites []site
 	scripts, err := filepath.Glob(filepath.Join(root, "script", "*.sh"))
@@ -399,13 +481,13 @@ func refusalSites(root string, repo *repository) ([]site, error) {
 		scanner := bufio.NewScanner(file)
 		scanner.Buffer(make([]byte, 1<<20), 1<<20)
 		for number := 1; scanner.Scan(); number++ {
-			for _, match := range shellRefuse.FindAllStringSubmatch(scanner.Text(), -1) {
-				code, _, _ := strings.Cut(match[1], " ")
+			for _, message := range shellRefuseMessages(scanner.Text()) {
+				code, _, _ := strings.Cut(message, " ")
 				if code == "" {
 					continue
 				}
 				code = strings.TrimSuffix(code, ":")
-				sites = append(sites, site{"script", relative, code, number, hinted(match[1]) || slices.Contains(repo.guideCodes, code)})
+				sites = append(sites, site{"script", relative, code, number, hinted(message) || slices.Contains(repo.guideCodes, code)})
 			}
 		}
 		err = scanner.Err()
