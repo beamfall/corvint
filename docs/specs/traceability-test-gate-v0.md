@@ -99,6 +99,13 @@ arguments, and requires only `git` and `perl` on `PATH`.
   (`git add -- FILE`). A name no working-tree file declares keeps the plain `path:line: Name` line.
   Non-goals: reading working-tree content as evidence. Failure mode: a name declared only in a
   Git-ignored file gets no hint.
+- `TTG-V0-920`: (experimental under the owner's standing lane auto-accept, 2026-11-01; V1-4048;
+  refines TTG-V0-005) A matched name that is followed, after an optional closing backtick and
+  blanks, by `(NOT A TEST)` is prose, such as a fixture, type or message word that begins with
+  `Test`, and MUST NOT be checked under TTG-V0-005; it counts toward no total. Every other match on
+  the same line, including an unmarked repeat of the same word, is still checked. Non-goals:
+  column-scoped parsing, since rows of different specs place cited tests in different columns.
+  Failure mode: a real test citation wrongly marked goes unchecked.
 - `TTG-V0-950`: (experimental under the owner's standing auto-accept (2026-11-01); V1-3586)
   `script/check-traceability-tests.sh --range BASE..HEAD` (`make traceability-tests-check
   TRACE_RANGE=BASE..HEAD`) MUST check the traceability rows of every first-parent commit of the
@@ -163,6 +170,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-011 | `script/check-traceability-tests_test.sh` qualified fixture: `toolgroup.TestValidity` and `(*v).TestRun` pass, a bare undeclared name of that word on the same row is still reported (the fixture fails on the base checker) |
 | TTG-V0-012 | `script/check-traceability-tests_test.sh` untracked and unstaged-edit fixtures: each failure names the working-tree file and `git add`; a never-declared name carries no hint; staging resolves the row (the fixture fails on the base checker) |
 | TTG-V0-950 | `script/check-traceability-tests_test.sh` spec-first fixture: the spec-only index check fails with the range hint, `--range BASE..HEAD` passes once the next commit adds the test and fails for a range that ends before it, and a never-landing test is named once at its first citing commit |
+| TTG-V0-920 | `script/check-traceability-tests_test.sh` prose fixture: a backticked fixture word and a bare word, each marked `(NOT A TEST)`, pass; an unmarked repeat of the marked word on the same row is still reported (the fixture fails on the base checker) |
 
 ## Traceability
 

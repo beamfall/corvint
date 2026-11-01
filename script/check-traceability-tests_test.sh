@@ -103,6 +103,26 @@ esac
 /bin/rm -f "$test_root/docs/specs/qualified.md"
 stage docs/specs/qualified.md
 
+# TTG-V0-920 (V1-4048): a backticked Test word marked (NOT A TEST), such as a fixture name, passes;
+# the same word unmarked, or a marked word's bare repeat on the row, is still reported.
+# shellcheck disable=SC2016
+printf '%s\n' '# Prose' '' '## Traceability' '' \
+  '| FIX-V0-009 | fixture `TestLine` (NOT A TEST) and TestFrame (NOT A TEST) | `TestOther` |' \
+  > "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+run >/dev/null || fail "a Test word marked (NOT A TEST) was checked as a test function: $(run)"
+# shellcheck disable=SC2016
+printf '%s\n' '# Prose' '' '## Traceability' '' '| FIX-V0-009 | fixture `TestLine` (NOT A TEST) | `TestLine` |' \
+  > "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+output=$(run) && fail "an unmarked undeclared name beside a marked one passed"
+case "$output" in
+  *"docs/specs/prose.md:5: TestLine"*) ;;
+  *) fail "the unmarked name was not reported: $output" ;;
+esac
+/bin/rm -f "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+
 # TTG-V0-012 (V1-3235): a declaration added to a tracked file but not staged is named with its file
 # and the staging fix; staging it resolves the row.
 printf '%s\n' 'func TestAddedUnstaged() {}' >> "$test_root/internal/demo/ghost_test.go"

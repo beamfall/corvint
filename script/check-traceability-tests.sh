@@ -190,6 +190,9 @@ for my $spec_ref (@spec_refs) {
                     ++$planned;
                     next;
                 }
+                # TTG-V0-920 (V1-4048): a word marked `(NOT A TEST)`, such as a fixture or type name that
+                # begins with Test, is prose rather than a cited test function; it is not checked.
+                next if $after =~ /^`?[ \t]*\(NOT A TEST\)/;
                 # DCW-V0-356 (V1-2855): a wildcard such as `TestX_*` is never expanded; the refusal says
                 # so and names the declared functions it would have matched, so the row can list them.
                 if ($after =~ /^\*/) {
