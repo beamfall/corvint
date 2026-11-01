@@ -338,13 +338,8 @@ type toolHandler struct {
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
 	case "tools/list":
-		if !onlyKeys(request.Params, "_meta", "cursor") {
-			return nil, protocol.InvalidParams("Invalid params")
-		}
-		if cursor, present := request.Params["cursor"]; present {
-			if value, valid := cursor.(string); !valid || value != "" {
-				return nil, protocol.InvalidParams("Invalid params")
-			}
+		if refusal := toolgroup.ListParamsRefusal(request.Params); refusal != nil { // MCPV0-952
+			return nil, refusal
 		}
 		return map[string]any{
 			"cacheScope": "private", "tools": handler.listTools(), "ttlMs": 300_000,
@@ -381,6 +376,7 @@ func (handler *toolHandler) listTools() []bridge.ToolDescriptor {
 
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {
 	response, failure := handler.dispatch(ctx, params)
+	failure = toolgroup.WithInvalidParamsData(handler.listTools, params, failure)
 	if name, _ := params["name"].(string); name == bridge.ToolStatus && response != nil {
 		handler.notePluginCompatibility(response)
 	}

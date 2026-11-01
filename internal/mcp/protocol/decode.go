@@ -193,43 +193,43 @@ func decodeValue(decoder *json.Decoder, depth int) (any, error) {
 
 func DecodeRequestMeta(params map[string]any) (RequestMeta, *RPCError) {
 	if params == nil {
-		return RequestMeta{}, InvalidParams("Missing request metadata")
+		return RequestMeta{}, InvalidParamsAt("Missing request metadata", "missing-param", "_meta")
 	}
 	rawMeta, ok := params["_meta"].(map[string]any)
 	if !ok {
-		return RequestMeta{}, InvalidParams("Missing request metadata")
+		return RequestMeta{}, InvalidParamsAt("Missing request metadata", "missing-param", "_meta")
 	}
 	for key := range rawMeta {
 		if !metaKeyPattern.MatchString(key) {
-			return RequestMeta{}, InvalidParams("Invalid request metadata")
+			return RequestMeta{}, InvalidParamsAt("Invalid request metadata", "invalid-meta-key", "_meta")
 		}
 	}
 	version, ok := rawMeta["io.modelcontextprotocol/protocolVersion"].(string)
 	if !ok || version == "" || len(version) > MaxProtocolVersionBytes {
-		return RequestMeta{}, InvalidParams("Missing protocol version")
+		return RequestMeta{}, InvalidParamsAt("Missing protocol version", "missing-param", "_meta.io.modelcontextprotocol/protocolVersion")
 	}
 	capabilities, ok := rawMeta["io.modelcontextprotocol/clientCapabilities"].(map[string]any)
 	if !ok || !clientCapabilitiesValid(capabilities) {
-		return RequestMeta{}, InvalidParams("Missing client capabilities")
+		return RequestMeta{}, InvalidParamsAt("Missing client capabilities", "invalid-param", "_meta.io.modelcontextprotocol/clientCapabilities")
 	}
 	meta := RequestMeta{ProtocolVersion: version, ClientCapabilities: capabilities}
 	if info, present := rawMeta["io.modelcontextprotocol/clientInfo"]; present {
 		object, ok := info.(map[string]any)
 		if !ok || !implementationValid(object) {
-			return RequestMeta{}, InvalidParams("Invalid client information")
+			return RequestMeta{}, InvalidParamsAt("Invalid client information", "invalid-param", "_meta.io.modelcontextprotocol/clientInfo")
 		}
 		meta.ClientInfo = object
 	}
 	if level, present := rawMeta["io.modelcontextprotocol/logLevel"]; present {
 		value, ok := level.(string)
 		if !ok || !validLogLevel(value) {
-			return RequestMeta{}, InvalidParams("Invalid log level")
+			return RequestMeta{}, InvalidParamsAt("Invalid log level", "invalid-enum", "_meta.io.modelcontextprotocol/logLevel")
 		}
 		meta.LogLevel = value
 	}
 	if token, present := rawMeta["progressToken"]; present {
 		if !validOpaqueID(token) {
-			return RequestMeta{}, InvalidParams("Invalid progress token")
+			return RequestMeta{}, InvalidParamsAt("Invalid progress token", "invalid-param", "_meta.progressToken")
 		}
 		meta.ProgressToken = token
 	}
@@ -239,7 +239,7 @@ func DecodeRequestMeta(params map[string]any) (RequestMeta, *RPCError) {
 // DecodeCursor returns the optional cursor on current list requests.
 func DecodeCursor(params map[string]any) (string, *RPCError) {
 	if params == nil {
-		return "", InvalidParams("Missing request parameters")
+		return "", InvalidParamsAt("Missing request parameters", "missing-param", "params")
 	}
 	value, present := params["cursor"]
 	if !present {
@@ -247,7 +247,7 @@ func DecodeCursor(params map[string]any) (string, *RPCError) {
 	}
 	cursor, ok := value.(string)
 	if !ok {
-		return "", InvalidParams("Invalid cursor")
+		return "", InvalidParamsAt("Invalid cursor", "invalid-cursor", "cursor")
 	}
 	return cursor, nil
 }

@@ -354,7 +354,7 @@ func (connection *connection) handleRequest(requestCtx context.Context, cancel c
 	}
 	if inbound.Method == "server/discover" && !onlyParams(inbound.Params, "_meta") {
 		connection.respond(active, func() error {
-			return connection.writeRPCErrorContext(requestCtx, inbound.ID, protocol.InvalidParams("Invalid params"))
+			return connection.writeRPCErrorContext(requestCtx, inbound.ID, protocol.InvalidParamsAt("Invalid params", "unknown-param", "params"))
 		})
 		return
 	}
@@ -494,6 +494,10 @@ func (connection *connection) serverInfo() map[string]any {
 	return info
 }
 
+// maxInvalidParamsField bounds the request-supplied field path an
+// invalid-params error echoes; a longer one drops the data.
+const maxInvalidParamsField = 1024
+
 func sanitize(rpcErr *protocol.RPCError) *protocol.RPCError {
 	if rpcErr == nil {
 		return &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}
@@ -504,7 +508,12 @@ func sanitize(rpcErr *protocol.RPCError) *protocol.RPCError {
 	case protocol.CodeMethodNotFound:
 		return &protocol.RPCError{Code: rpcErr.Code, Message: "Method not found"}
 	case protocol.CodeInvalidParams:
-		return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params"}
+		// Only the closed MCPV0-952 data passes; any other handler data is dropped.
+		data, _ := rpcErr.Data.(protocol.InvalidParamsData)
+		if data.Reason == "" || len(data.Field) > maxInvalidParamsField {
+			return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params"}
+		}
+		return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params", Data: data}
 	default:
 		return &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}
 	}
