@@ -163,3 +163,37 @@ func ticketFiles(t *testing.T, store string) int {
 	}
 	return len(es)
 }
+
+// gen --root with a relative root records an absolute manifest root, so
+// relocate of a copy passes the primary worktree the copy names as --from.
+func TestRelativeGenRootRelocatesACopy(t *testing.T) {
+	skipPOSIXWriters(t)
+	if testing.Short() {
+		t.Skip("generates a store")
+	}
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(dir)
+	if err := gen([]string{"--root", "orig", "--tickets", "58"}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(manifestPath("orig"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m manifest
+	if err := json.Unmarshal(raw, &m); err != nil {
+		t.Fatal(err)
+	}
+	if m.Root != filepath.Join(dir, "orig") {
+		t.Fatalf("manifest root %q, want %q", m.Root, filepath.Join(dir, "orig"))
+	}
+	if out, err := exec.Command("cp", "-a", "orig", "copy").CombinedOutput(); err != nil {
+		t.Fatalf("cp -a: %v %s", err, out)
+	}
+	if err := relocate([]string{"--store", "copy"}); err != nil {
+		t.Fatalf("relocate of a relative-root copy: %v", err)
+	}
+}

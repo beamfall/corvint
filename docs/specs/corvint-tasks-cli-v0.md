@@ -148,7 +148,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   single-target mutation other than CREATE reads the target's revision from the intent store
   and submits it, so the store's revision check still refuses `STALE_TICKET` when the ticket
   changes between that read and the write; with several `--target` values it is refused as a
-  number is.
+  number is. A retry of a recorded request with the same `--request-id` and `--issued-at`
+  submits the revision the recorded request was digested with, not the advanced live revision,
+  so it replays the recorded result instead of being refused `REQUEST_ID_CONFLICT`.
 - `TCL-V0-861`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714) The
   usage of every single-target mutation other than CREATE and HOLD MUST mark `--target` and
   `--expected-revision` as required, so the derived help example names both and, with its
@@ -181,6 +183,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   attempt liveness is observed and no `no journal available to this reader` unknown or
   CAL-V0-173 store-wide warning appears. When that reservation set cannot be read, the
   store-wide ATTEMPT_LIVE warning MUST name the read failure rather than a missing journal.
+  `roadmap` rows MUST be judged with the same reservation set as its facets, so a row and the
+  facet it is counted in agree, and a `--count` read of `ticket list`, `ticket search` or
+  `roadmap` MUST carry the same store-wide ATTEMPT_LIVE warning when that set cannot be read.
 - `TCL-V0-868`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket
   view MUST list a non-`QUALIFIED` effects coverage under policy `serialFallback: BLOCK` as a
   `COVERAGE_UNKNOWN` entry in a separate `advisories` array, never in `blockers`, because no queue
@@ -204,7 +209,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `DEPENDENCY_MISSING` for a dependency the tree no longer holds. `receipt audit` audits journal
   receipts, which a worktree tree does not own, so it stays refused under the snapshot and is run
   against the owning journal. A `DIR` without a `.taskman` directory MUST be refused
-  `UNINITIALIZED`.
+  `UNINITIALIZED`. The `DIR` tree is digested again after the snapshot is built, as an inventory
+  read is: a changed tree is read afresh, and after four changed reads the command is refused
+  `SNAPSHOT_MOVED` with nothing written.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -288,7 +295,10 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
   `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`,
   `TestTCLV0867_JournalPresentReadsWarnNoAbsence`, `TestTCLV0868_CoverageIsAdvisoryUnderEveryPolicy`,
-  `TestTCLV0869_SnapshotValidatesAWorktreeStore`.
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`; `review_fixes_test.go`:
+  `TestTCLV0860_CurrentRevisionRetryReplays`, `TestTCLV0867_RoadmapRowsMatchFacets`,
+  `TestTCLV0867_CountWarnsWhenReservationsUnreadable`; `snapshot_worktree_internal_test.go`:
+  `TestTCLV0869_WorktreeSnapshotRefusesAMovingTree`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:

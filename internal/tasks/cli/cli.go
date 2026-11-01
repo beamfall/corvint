@@ -926,10 +926,7 @@ func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) (
 	ctx, why := listContext(rc)
 	start, end := p.window(len(ids))
 	items := make([]wire.Value, 0, end-start)
-	var hoisted []string
-	if why != "" {
-		hoisted = []string{"store-wide unknown " + wire.CodeAttemptLive + " for every listed ticket: attempt liveness NOT_OBSERVED (" + why + "); list items do not repeat it"}
-	}
+	hoisted := readerWarning(why)
 	for _, id := range ids[start:end] {
 		v, _ := rc.store.Inventory.View(id, ctx)
 		terminal := v.Record.Status == ticket.StatusCompleted || v.Record.Status == ticket.StatusArchived
@@ -979,6 +976,16 @@ func listContext(rc *readCtx) (ticket.Context, string) {
 		return rc.store.Context(), "the reservation set was not readable: " + err.Error()
 	}
 	return ctx, ""
+}
+
+// readerWarning is the store-wide ATTEMPT_LIVE warning for listContext's
+// reason, or nil when the reservation set was read. A count-only read and
+// roadmap rows carry it as list pages do (TCL-V0-867).
+func readerWarning(why string) []string {
+	if why == "" {
+		return nil
+	}
+	return []string{"store-wide unknown " + wire.CodeAttemptLive + " for every listed ticket: attempt liveness NOT_OBSERVED (" + why + "); list items do not repeat it"}
 }
 
 // addTransitionTimes sets completedAt and statusChangedAt (CAL-V0-182) from
@@ -1153,6 +1160,8 @@ func ticketList(env Env, args []string) *wire.Result {
 			summary = &s
 		}
 		if fm.count {
+			_, why := listContext(rc)
+			hoisted = readerWarning(why)
 			return nil // no page, so no per-item attempt read (CAL-V0-207)
 		}
 		start, end := p.window(len(ids))
@@ -1378,6 +1387,8 @@ func ticketSearch(env Env, args []string) *wire.Result {
 			start, end := p.window(len(ids))
 			return showPage(env, rc, ids[start:end], items)
 		}
+		_, why := listContext(rc)
+		hoisted = readerWarning(why)
 		return nil
 	})
 	if err != nil {
@@ -1504,6 +1515,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	var pg *wire.Page
 	var unmilestoned int64
 	var summary *wire.Value
+	var hoisted []string
 	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		unmilestoned = openWithoutMilestone(rc.store.Inventory)
@@ -1523,6 +1535,9 @@ func roadmap(env Env, args []string) *wire.Result {
 			s := facetSummary(rc, ids)
 			summary = &s
 		}
+		// TCL-V0-867: rows are judged with the facets' reservation set.
+		ctx, why := listContext(rc)
+		hoisted = readerWarning(why)
 		if fm.count {
 			return nil
 		}
@@ -1542,7 +1557,6 @@ func roadmap(env Env, args []string) *wire.Result {
 			return a < b
 		})
 		start, end := p.window(len(ids))
-		ctx := rc.store.Context()
 		items = items[:0]
 		for _, id := range ids[start:end] {
 			items = append(items, roadmapRow(rc.store.Inventory, id, ctx))
@@ -1557,6 +1571,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
+	res.Warnings = append(res.Warnings, hoisted...)
 	if unmilestoned > 0 {
 		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
 	}
