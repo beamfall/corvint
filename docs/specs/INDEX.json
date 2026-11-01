@@ -4308,5 +4308,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/incremental-closeout-v0.md",
+    "title": "Incremental Closeout V0",
+    "reqPrefix": "ICL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "The closeout re-runs only what a commit's content invalidates under each result's binding, prints every carry and decline, and refuses missing inputs first.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

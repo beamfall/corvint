@@ -4731,6 +4731,12 @@ DLT-V0-007	docs/specs/immutable-delta-v0.md	Optional bounded work-key extraction
 DLT-V0-008	docs/specs/immutable-delta-v0.md	Output MUST be deterministic canonical JSON containing only validated paths,	unrecorded	-
 DLT-V0-009	docs/specs/immutable-delta-v0.md	The complete record MUST expose sorted uncertainty and a downstream decision	unrecorded	-
 DLT-V0-010	docs/specs/immutable-delta-v0.md	The command MUST be R0: no network, state, tracing, object/ref/index writes or	unrecorded	-
+ICL-V0-001	docs/specs/incremental-closeout-v0.md	A closeout step MAY skip work only when a recorded result binds every input	unrecorded	-
+ICL-V0-010	docs/specs/incremental-closeout-v0.md	A repeated `dogfood-inputs-check` whose pre-flight key equals the key of a passi	unrecorded	-
+ICL-V0-020	docs/specs/incremental-closeout-v0.md	A batch-drift entry marked `@prebind` is one the bind cannot reach: its package	unrecorded	-
+ICL-V0-021	docs/specs/incremental-closeout-v0.md	When that first precheck passes on a pristine, clean tree with HEAD unchanged, i	unrecorded	-
+ICL-V0-022	docs/specs/incremental-closeout-v0.md	A failing pre-bind run, a non-pristine or dirty tree, or a moved HEAD MUST leave	unrecorded	-
+ICL-V0-030	docs/specs/incremental-closeout-v0.md	`make dogfood-inputs-check` and `make dogfood-finish` MUST first run the	unrecorded	-
 IDX-SNAP-V0-001	docs/specs/index-snapshot-v0.md	`corvint [--root PATH] index` builds the index of the committed tree exactly as	unrecorded	-
 IDX-SNAP-V0-002	docs/specs/index-snapshot-v0.md	`context` reads the repository's identity and status as a build's opening	unrecorded	-
 IDX-SNAP-V0-003	docs/specs/index-snapshot-v0.md	any mismatch (no file, a different tree, a different engine, a different	unrecorded	-

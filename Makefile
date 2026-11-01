@@ -1003,9 +1003,14 @@ dogfood-seal: ## Seal the checked CEM (needs BASE=<full sha>)
 dogfood_finish_quote = '$(subst ','\'',$(1))'
 
 # script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
-# VERIFY and OUTCOME (ASD-V0-015).
+# VERIFY and OUTCOME (ASD-V0-015). The first, unadmitted line runs that refusal alone
+# (DOGFOOD_FINISH_INPUTS_ONLY=1), so a missing input is named before heavy.sh queues on host load
+# (ICL-V0-030).
 .PHONY: dogfood-finish
 dogfood-finish:
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
+		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1014,6 +1019,9 @@ dogfood-finish:
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
+		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1056,7 +1064,10 @@ doc-gates: ## Run the documentation gates
 # bind and seal commits cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
 # batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
 # precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
-# on the sealed head (ASD-V0-837, V1-3550).
+# on the sealed head (ASD-V0-837, V1-3550); it runs only the @prebind ones, which cannot read it, so
+# their failure stops the closeout before the bind, and the second precheck carries their passes
+# while the evidence plan still binds them (ICL-V0-020, ICL-V0-021).
+# dogfood-finish reuses the pre-flight's prepare, so cem prepare runs once (ICL-V0-010).
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.

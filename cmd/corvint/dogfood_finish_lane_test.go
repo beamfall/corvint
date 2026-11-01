@@ -354,6 +354,43 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 	}
 }
 
+// ICL-V0-010 (V1-1629): a second inputs-check over the inputs a passing one
+// prepared replays its prepare line and keeps the receipt, so the closeout's
+// own pre-flight and dogfood-finish's prepare once and the finish-lane run
+// still reuses it; an input changed in between prepares afresh.
+func TestDogfoodInputsCheckICLV0010ReusesAMatchingPreflight(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	for _, changed := range []bool{false, true} {
+		root, base := portableDogfoodRepo(t)
+		env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+		check := append([]string{"dogfood", "inputs-check", "--base", base}, args...)
+		if code, stdout, stderr := run.exec(t, root, env[:3], check...); code != 0 || strings.Contains(stdout, "reused=") {
+			t.Fatalf("first inputs-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		if changed {
+			if err := os.WriteFile(args[1], []byte("1\tintent.md\t1:4\tspecification\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		code, stdout, stderr := run.exec(t, root, env[:3], check...)
+		if code != 0 || strings.Contains(stdout, "prepare PASS hunks=1 reused=inputs-check\n") == changed {
+			t.Fatalf("changed=%t second inputs-check exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
+		gitDir := cemGit(t, root, "rev-parse", "--absolute-git-dir")
+		if _, err := os.Stat(gitDir + "/corvint/inputs-check-pass"); err != nil {
+			t.Fatalf("changed=%t: the second inputs-check left no receipt: %v", changed, err)
+		}
+		if _, err := os.Stat(root + "/.corvint/change.cem.json"); !os.IsNotExist(err) {
+			t.Fatalf("changed=%t: the second inputs-check left a map: %v", changed, err)
+		}
+		code, stdout, stderr = run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+		if code != 0 || !strings.HasPrefix(stdout, "dogfood-finish-lane: prepare PASS hunks=1 reused=inputs-check\n") {
+			t.Fatalf("changed=%t finish-lane exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
+	}
+}
+
 // DCW-V0-887 (V1-2978): a finish-lane run after a passing inputs-check with
 // the same base, HEAD, inputs and binary replays the pre-flight's prepare line
 // and runs no cem prepare of its own; an input changed in between forces a

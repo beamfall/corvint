@@ -1378,6 +1378,18 @@ out=$(tv --admit-only sh -c 'echo "go test ./x | tail"; exit 4')
 out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY_LOCK_DIR=$to/slots "$script/codex-review.sh" 'review the diff; run go test ./internal/x' 2> "$to/err")
 [[ $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review the diff; run go test ./internal/x' ]] && grep -q '^heavy.sh: slot 1/' "$to/err" ||
   fail "codex-review through heavy.sh misread its prompt: $out $(cat "$to/err")"
+# ICL-V0-030 (V1-1629): a missing input is refused before admission, so a held slot or host load
+# cannot delay it; the admission wrapper is never invoked and the refusal names every missing input.
+printf '#!/bin/sh\ntouch "%s/admitted"\n' "$to" > "$to/bin/admit-never" && chmod +x "$to/bin/admit-never" || fail "admit-never stub"
+for target in dogfood-inputs-check dogfood-finish; do
+  /bin/rm -f "$to/admitted"
+  (cd "$script/.." && env -u BASE -u CITATIONS -u INTENTS -u VERIFY -u OUTCOME make -s --no-print-directory "$target" LANE=1 HEAVY_ADMIT="$to/bin/admit-never" 2> "$to/early.err")
+  rc=$?
+  ((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q 'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME$' "$to/early.err" &&
+    grep -q 'nothing was built, prepared or bound' "$to/early.err" ||
+    fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
+done
+printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
 # Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too: with the only
 # slot held, its recipe waits for it (a stub admission wrapper stands in for the preflight build).
 printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
@@ -1385,7 +1397,8 @@ printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-onl
 holder=$!
 sleep 0.5
 s0=$SECONDS
-(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" 2> "$to/admit.err")
+(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
+  BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
 rc=$?
 wait "$holder"
 ((rc == 0 && SECONDS - s0 >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||

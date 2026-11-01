@@ -250,7 +250,7 @@ grep -q 'drift test prefix TestRenamedAway names no test in ./pkg' "$tmp/out" ||
 git -C "$repo" add pkg/a_test.go
 drift="./pkg TestDriftOne @go pkg/" fixture --sync-check || fail "declared @go and a tracked directory refused: $(cat "$tmp/out")"
 drift="./pkg TestDriftOne docs/missing.md" fixture --sync-check && fail "a declared input naming no tracked path accepted"
-grep -q 'drift test ./pkg TestDriftOne declares input docs/missing.md, which is not @go, @root or a tracked path' "$tmp/out" || fail "missing input: $(cat "$tmp/out")"
+grep -q 'drift test ./pkg TestDriftOne declares input docs/missing.md, which is not @go, @root, @own, @prebind or a tracked path' "$tmp/out" || fail "missing input: $(cat "$tmp/out")"
 drift="./pkg TestDriftOne @bogus" fixture --sync-check && fail "an unknown @ token accepted"
 # A test that rewrites a golden must be both a drift test and a batch-regen golden; a helper that
 # only names the variable in a message is not attributed to the test before it.
@@ -1317,5 +1317,73 @@ git -C "$rrepo" checkout -q -- notes/a.txt
 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "no-receipt run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: since-receipt not used: no well-formed passing receipt' "$tmp/out" || fail "a missing receipt was used: $(cat "$tmp/out")"
 grep -q "^batch-precheck: batch-drift runs .* for the diff since $rbase" "$tmp/out" || fail "no-receipt run did not keep its base: $(cat "$tmp/out")"
+
+# 16. ICL-V0-020, ICL-V0-021 (V1-1629): the pre-bind run (BATCH_PRECHECK_SKIP_DRIFT=1) runs the
+# @prebind drift entries, which no bind or seal can reach, so a failure stops the closeout before
+# the bind; it records their passes for its head. The run on the sealed head carries each recorded
+# pass only while it still binds: change evidence alone changed since, the plan of those paths
+# selects no carried package and has no unknown but the frontier, and the salt is unchanged; any
+# other case prints why and runs the entry again.
+prepo=$tmp/prepo
+git clone -q "$srepo" "$prepo" && git -C "$prepo" reset -q --hard "$sbase" && mkdir -p "$prepo/interop/cem01-go" || fail "pre-bind fixture clone"
+pdrift='./golden TestGoldenDrift @go
+./other TestOtherDrift @prebind'
+prun() { (unset GOFLAGS; PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$prepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$pdrift "$pre" "$@") > "$tmp/out" 2>&1; }
+prec=$(git -C "$prepo" rev-parse --path-format=absolute --git-path batch-precheck-prebind)
+preceipt=$(git -C "$prepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+phead=$(git -C "$prepo" rev-parse HEAD)
+BATCH_PRECHECK_SKIP_DRIFT=1 prun || fail "pre-bind run failed: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (pre-bind, 1 packages, 1 of 2 tests)'
+row_is PASS 'batch-drift (skipped before the bind)'
+[[ -f $preceipt ]] && fail "a pre-bind run wrote a receipt"
+[[ $(sed -n 1p "$prec") == corvint-batch-precheck-prebind/1 && $(sed -n 2p "$prec") == "head $phead" ]] || fail "pre-bind record: $(cat "$prec" 2> /dev/null)"
+grep -qxF 'entry ./other TestOtherDrift @prebind' "$prec" && ! grep -q 'TestGoldenDrift' "$prec" || fail "pre-bind record entries: $(cat "$prec")"
+# A bind commits change evidence alone; the plan of that path selects ./golden only: ./other's pass carries.
+mkdir -p "$prepo/.corvint" && printf '{}\n' > "$prepo/.corvint/change.cem.json"
+git -C "$prepo" add -A && git -C "$prepo" commit -qm 'chore: bind change evidence' || fail "bind commit"
+plan "$frontier" golden
+: > "$tmp/scalls"
+prun || fail "sealed-head run failed: $(cat "$tmp/out")"
+grep -qx 'planner affected --path .corvint/change.cem.json --format json' "$tmp/scalls" || fail "carry plan not asked for the evidence paths: $(cat "$tmp/scalls")"
+grep -q "^batch-precheck: carried 1 pre-bind drift pass(es) from ${phead:0:12}: " "$tmp/out" || fail "carry line: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   carried ./other TestOtherDrift @prebind' "$tmp/out" || fail "carried entry: $(cat "$tmp/out")"
+row_is PASS "batch-drift (1 pre-bind passes carried from ${phead:0:12})"
+row_is PASS 'batch-drift (1 packages, 1 of 2 tests)'
+[[ -f $preceipt ]] || fail "a carried run wrote no receipt: $(cat "$tmp/out")"
+# The plan of the evidence selects the entry's package: it runs again, named.
+plan "$frontier" golden other
+prun || fail "selected-package run failed: $(cat "$tmp/out")"
+grep -qx 'batch-precheck:   runs again ./other TestOtherDrift (the plan of the evidence paths selects ./other)' "$tmp/out" || fail "runs-again line: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+# An unknown beyond the frontier, a failed plan and a changed environment carry nothing.
+plan '{"reason":"UNRESOLVED_READER","detail":"x"}' golden
+prun || fail "unknown-plan run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no pre-bind carry: the plan of the evidence paths has the unknown UNRESOLVED_READER x; ' "$tmp/out" || fail "unknown carried: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+plan "$frontier,{\"reason\":\"LANGUAGE_FRONTIER\",\"detail\":\"typescript:e2e-runtime-dependency:a.ts\"}" golden
+prun && grep -q '^batch-precheck: carried 1 pre-bind' "$tmp/out" || fail "a TypeScript frontier unknown stopped the carry: $(cat "$tmp/out")"
+plan "$frontier" golden
+STUB_PLAN_RC=4 prun || fail "failed-plan run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no pre-bind carry: .*planner affected --path exited 4' "$tmp/out" || fail "failed plan carried: $(cat "$tmp/out")"
+CORVINT_PREBIND_PROBE=1 prun || fail "changed-env run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no pre-bind carry: the go command or the Go, cgo or Corvint environment changed; ' "$tmp/out" || fail "changed env carried: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+# A dirty tree and a commit beyond change evidence carry nothing.
+printf 'x\n' > "$prepo/other/note.txt"
+prun || fail "dirty run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no pre-bind carry: the checkout has uncommitted' "$tmp/out" || fail "dirty tree carried: $(cat "$tmp/out")"
+git -C "$prepo" add -A && git -C "$prepo" commit -qm fix || fail "fix commit"
+prun || fail "fix run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: no pre-bind carry: ${phead:0:12}..HEAD changes other/note.txt, which is not change evidence; " "$tmp/out" || fail "a source change carried: $(cat "$tmp/out")"
+row_is PASS 'batch-drift (2 packages)'
+# A failing @prebind entry fails the pre-bind run, before any bind, and removes the record.
+printf 'v2\n' > "$prepo/golden/testdata/want.txt"
+git -C "$prepo" add -A && git -C "$prepo" commit -qm drift || fail "drift commit"
+pdrift='./golden TestGoldenDrift @go @prebind
+./other TestOtherDrift @prebind'
+BATCH_PRECHECK_SKIP_DRIFT=1 prun && fail "a failing pre-bind entry passed the pre-bind run"
+row_is FAIL 'batch-drift (pre-bind, 2 packages)'
+grep -q 'batch-drift (skipped before the bind)' "$tmp/out" && fail "a skip row with nothing held: $(cat "$tmp/out")"
+[[ -f $prec ]] && fail "a failed pre-bind run left a record: $(cat "$prec")"
 
 printf 'batch-precheck_test: PASS\n'

@@ -64,6 +64,9 @@ if ((${#missing[@]} > 0)); then
   printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
   exit 2
 fi
+# ICL-V0-030 (V1-1629): the Makefile runs this refusal alone first, before the host admission, so a
+# missing input is named before the admitted run queues on host load.
+[[ ${DOGFOOD_FINISH_INPUTS_ONLY-} != 1 ]] || exit 0
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
