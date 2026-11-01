@@ -361,3 +361,18 @@ func dispatch(argv []string) {
 		t.Errorf("flags %v, want only --real-flag", flags)
 	}
 }
+
+// TestSynopsesSkipsIndentedExamples is CAP-V0-955 (V1-3286): an indented
+// example line before or after the Usage block is not a synopsis.
+func TestSynopsesSkipsIndentedExamples(t *testing.T) {
+	for name, text := range map[string]string{
+		"after":  "Build the thing.\n\nUsage:\n  sample build --out FILE [--force]\n\nExamples:\n  sample build --out a.bin --force\n  sample build --out b.bin\n",
+		"before": "Build the thing.\n\nFor example:\n    sample build --out a.bin\n\nUsage:\n  sample build --out FILE [--force]\n",
+		"inline": "Build the thing.\n\nExample:\n  sample build --out a.bin\nUsage:\n  sample build --out FILE [--force]\n",
+	} {
+		got := Synopses("sample", text)
+		if !slices.Equal(got, []string{"sample build --out FILE [--force]"}) {
+			t.Errorf("%s: synopses %q", name, got)
+		}
+	}
+}
