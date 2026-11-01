@@ -127,7 +127,7 @@ The implemented advisory queue does not supply that host authority.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:1063@982aa756`), in the frontier spec
+(`internal/mcp/bridge/bridge.go:1102@982aa756`), in the frontier spec
 (`docs/specs/change-frontier-v0.md:249-250@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one
