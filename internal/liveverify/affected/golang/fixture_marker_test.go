@@ -18,7 +18,7 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	marker := "//" + "corvint:fixture-path"
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
-		"go.mod":               "module example.test/m\n",
+		"go.mod":               "module example.test/m\n", //corvint:fixture-path
 		"marked/m.go":          "package marked\n",
 		"marked/m_test.go":     "package marked\n\nvar fixture = map[string]string{\n\t\"Makefile\": \"all:\\n\", " + marker + "\n}\n",
 		"raw/r.go":             "package raw\n",
@@ -51,12 +51,12 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	}
 	const m = "go:example.test/m/"
 	want := "[" + m + "climb<-UNBOUNDED_READER " + m + "elsewhere<-PATH_LITERAL_READER " + m + "shared<-PATH_LITERAL_READER " + m + "source<-PATH_LITERAL_READER " + m + "unmarked<-PATH_LITERAL_READER]"
-	if got := selected("Makefile"); got != want {
+	if got := selected("Makefile"); got != want { //corvint:fixture-path
 		t.Fatalf("Makefile selects %s, want %s", got, want)
 	}
 	// A marker exempts per file: another test file's unmarked literal of the
 	// same package still reads the path.
-	if got := selected("go.mod"); got != "["+m+"climb<-UNBOUNDED_READER "+m+"neighbour<-PATH_LITERAL_READER]" {
+	if got := selected("go.mod"); got != "["+m+"climb<-UNBOUNDED_READER "+m+"neighbour<-PATH_LITERAL_READER]" { //corvint:fixture-path
 		t.Fatalf("go.mod selects %s", got)
 	}
 	// The AFP-V0-021 lexicon itself is unchanged: FilePathTokens, which
