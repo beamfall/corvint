@@ -1249,9 +1249,10 @@
       "summary": "",
       "usage": [
         "corvint-tasks policy show",
-        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]"
+        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR] [--dry-run]"
       ],
       "flags": [
+        "--dry-run",
         "--expected-policy-version",
         "--file",
         "--request-id",
@@ -1284,9 +1285,10 @@
       "command": "corvint-tasks policy update",
       "summary": "",
       "usage": [
-        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]"
+        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR] [--dry-run]"
       ],
       "flags": [
+        "--dry-run",
         "--expected-policy-version",
         "--file",
         "--request-id",

@@ -127,6 +127,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "policy update" {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
+		o.Set("dryRun", wire.String("--dry-run decodes the file, checks its version and returns dryRun:true, newPolicySha256 and the handoffFences preview; it writes nothing and needs no --request-id (TCL-V0-821)."))
 	}
 	if name == "queue status" || name == "roadmap" {
 		o.Set("milestoneCount", wire.String("queue status reports openWithoutMilestone, the count of OPEN tickets with a null milestone; roadmap warns with that count when it is non-zero (CAL-V0-196)."))
@@ -352,7 +353,7 @@ var commandUsage = map[string]string{
 	"pause":                    "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]",
 	"unpause":                  "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
 	"policy show":              "corvint-tasks policy show",
-	"policy update":            "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
+	"policy update":            "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR] [--dry-run]",
 	"import":                   "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
 	"import amend-map":         "corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 	"cutover":                  "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
