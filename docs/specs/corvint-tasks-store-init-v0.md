@@ -344,11 +344,13 @@ on a fixture queue remain non-goals.
   CTS-V0-010 warning MUST name the ref, the commit SHA and the exact sync steps: read the record
   read-only with `git show SHA:.taskman/tickets/LOCAL.json`, or update this checkout's projection
   with `git merge --ff-only REF` on a checkout of that branch, then retry. When the tree lacks it,
-  the warning MUST say so and name `git fetch origin` as the step that refreshes the ref. The read
+  the warning MUST say so and name `git fetch origin` as the step that refreshes the ref; only a
+  probe that read the commit's tree and found no such entry proves that absence. The read
   stays a refusal: the remote record is never decoded, served or trusted, so the outcome, code,
   item and snapshot of CTS-V0-010 are unchanged, and no other store or worktree is searched. A
   repository without either ref, a ticket id whose local part is not a plain file name, or a git
-  failure or timeout leaves the CTS-V0-010 warning as it is. Non-goals: serving a ticket from a
+  failure or timeout, a tree probe that cannot read the tree included, leaves the CTS-V0-010
+  warning as it is. Non-goals: serving a ticket from a
   ref, fetching, and writing the projection. Rollback: revert; the CTS-V0-010 wording returns.
 
 ## Import export and batching
@@ -643,4 +645,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
 | CTS-V0-820 | `internal/tasks/cli/init.go` (`initPrerequisites`) | TestCTSV0820_InitInFreshRepositoryNamesMissingQueueAndPolicy |
-| CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep |
+| CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep, TestCTSV0821_UnreadableTreeLeavesWarningUncertain |

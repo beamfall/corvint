@@ -229,7 +229,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `throughSeq` naming that bound; `headSeq` and `lastReceiptSha256` then name receipt SEQ.
   Receipts after SEQ are not validated, so a store whose later receipts are inconsistent still
   reports `structuralConsistency: CONSISTENT` for the bound, and `projectionAgreement` stays
-  `NOT_OBSERVED` because the current projection is not compared with the state at SEQ. A SEQ of
+  `NOT_OBSERVED` because the current projection is not compared with the state at SEQ. The
+  bounded read decodes `head.json` but MUST NOT require the head receipt to verify, so a corrupt
+  receipt after SEQ, the head receipt included, never refuses the bound. Elided liveness receipts
+  (CAL-V0-300) within the bound MUST be restored as the complete walk restores them; only a walk
+  that reaches the head applies the check that each elided receipt is superseded. A SEQ of
   0, above the head, or not a decimal sequence MUST be refused `MALFORMED` before any walk;
   `--through` with `--witness-receipts` MUST be refused `MALFORMED`; a store with a retired
   prefix or staged names is refused as the prefix walk refuses it. Without `--through` the
@@ -238,8 +242,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   CAL-V0-124) `policy update --dry-run --expected-policy-version N --file PATH` MUST decode the
   file as `policy.json` and check that its `policyVersion` is N+1, then return one item with
   `dryRun: true`, `newPolicySha256` and the CAL-V0-124 `handoffFences` preview, and write
-  nothing: the journal, receipts, head, checkpoints and the intent `policy.json` stay
-  byte-identical. `--request-id` and `--role` are accepted and unused. A file that does not decode
+  nothing: the journal, receipts, head, checkpoints, the intent `policy.json` and the derived
+  closed-ticket index stay byte-identical, even when another writer advances the head during the
+  preview. `--request-id` and `--role` are accepted and unused. A file that does not decode
   or carries another version is refused with the decoder's code or `MALFORMED`. Over a pending
   receipt `handoffFences` is `null` with a `NOT_OBSERVED` warning, as for a committed update. The
   preview is advisory: the later write still takes its own version check under the writer lock.
@@ -311,9 +316,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
   (TCL-V0-870).
 - `internal/tasks/cli/receipt_audit_through_test.go`:
-  `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt` (TCL-V0-820).
+  `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt`,
+  `TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt`; `internal/tasks/cli/receipt_compact_test.go`:
+  `TestTCLV0820_BoundedAuditRestoresElidedReceipts` (TCL-V0-820).
 - `internal/tasks/cli/policy_dry_run_test.go`:
-  `TestTCLV0821_PolicyDryRunPreviewsFencesAndWritesNothing` (TCL-V0-821).
+  `TestTCLV0821_PolicyDryRunPreviewsFencesAndWritesNothing`,
+  `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
 - `internal/tasks/cli/review_fixes_test.go`:
   `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
 
