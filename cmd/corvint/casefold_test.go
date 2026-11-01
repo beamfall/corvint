@@ -112,7 +112,9 @@ func assertFreshness(t *testing.T, receipt map[string]any, dirty []string) {
 func TestCaseFoldCollidingPathsAreDisclosedNotSilentlyMerged(t *testing.T) {
 	t.Parallel()
 	root, base, blobs, dirty := caseFoldCLIRepository(t)
-	if code, _, stderr := runCLITwice(t, "--root", root, "index"); code != 0 {
+	// The index receipt reports elapsed build_ms (V1-2881), so only the
+	// answers below are compared across two runs.
+	if code, _, stderr := runCLI(t, "--root", root, "index"); code != 0 {
 		t.Fatalf("index exit %d: %s", code, stderr)
 	}
 	t.Run("query", func(t *testing.T) {
