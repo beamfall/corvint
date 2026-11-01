@@ -579,6 +579,8 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[name]...)
 	}
 	for index, candidate := range candidates {
+		// A large candidate set honours the deadline (DCW-V0-818).
+		p.checkpoint()
 		cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
 		// The hunk's own file is a proposal, never an anchor (DCW-V0-962).
 		if candidate.path == hunk.path || used[cite] || !p.stable(candidate.path, candidate.line, edited) {
@@ -713,6 +715,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
 			for _, hunk := range parsed.Hunks {
+				p.checkpoint()
 				p.derived[hunk.ID] = hunk
 				patched[hunk.DisplayPath] = true
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
@@ -791,6 +794,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		return false
 	}
 	for _, record := range strings.Split(out, "\n") {
+		p.checkpoint()
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)

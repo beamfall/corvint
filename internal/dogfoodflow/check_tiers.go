@@ -190,11 +190,16 @@ func (c *check) tierWarnings(cemLine []byte) []string {
 // quietHunks classes the below-anchored hunks that draw a NOTE count instead
 // of a warning: those no citation could anchor (DCW-V0-165), then, of the
 // rest, those whose basis cites a span of the hunk's own path (DCW-V0-388).
-// A map that is unreadable or bound to another base classes none, so every
-// hunk keeps its warning.
+// A map that is unreadable or bound to another base classes none, and so
+// does an anchor search past its budget, so every hunk keeps its warning
+// (DCW-V0-818).
 func (c *check) quietHunks(cemLine []byte) map[string]string {
 	quiet := map[string]string{}
-	for id := range c.unanchorableHunks(cemLine) {
+	unanchorable, classified := c.unanchorableHunks(cemLine)
+	if !classified {
+		return quiet
+	}
+	for id := range unanchorable {
 		quiet[id] = quietUnanchorable
 	}
 	data, err := readPrefix(filepath.Join(c.root, ".corvint", "change.cem.json"), maxPlanBytes)
@@ -254,19 +259,22 @@ func samePathHunks(data []byte) map[string]bool {
 // reads the bound map in the clean worktree, so its hunks and old ranges are
 // the ones the status verified. Any read it cannot complete (an unreadable
 // map, an oversized or failed patch or grep, a Git refusal) returns none, so
-// every such hunk keeps its warning (DCW-V0-165).
-func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool) {
+// every such hunk keeps its warning (DCW-V0-165). classified is false only
+// when the search ran past its budget: then no hunk is classed at all, not
+// even by its same-path basis (DCW-V0-818). An interrupt of the check itself
+// unwinds as its stop.
+func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool, classified bool) {
 	below, _, _ := tierRows(cemLine)
 	if len(below) == 0 {
-		return nil
+		return nil, true
 	}
 	data, err := readPrefix(filepath.Join(c.root, ".corvint", "change.cem.json"), maxPlanBytes)
 	if err != nil {
-		return nil
+		return nil, true
 	}
 	baseRevision, hunks, ok := preparedHunks(data)
 	if !ok || baseRevision != c.base {
-		return nil
+		return nil, true
 	}
 	// The search runs after the SUMMARY line, so it is bounded and, for a
 	// large set, announced; past its budget no hunk is classed unanchorable
@@ -283,10 +291,10 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool)
 			if !isStop || (unwound.code == -1 && !overBudget()) {
 				panic(recovered)
 			}
-			unanchorable = nil
+			unanchorable, classified = nil, true
 		}
 		if overBudget() {
-			unanchorable = nil
+			unanchorable, classified = nil, false
 			c.say("dogfood-check: NOTE tier-anchor-search NOT_OBSERVED budget-exceeded hunks=%d; every below-anchored hunk keeps its warning (DCW-V0-818)\n", len(below))
 		}
 	}()
@@ -305,20 +313,25 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool)
 		}
 	}
 	if !search.prepareAnchors(owed) {
-		return nil
+		return nil, true
 	}
 	edited := editedRanges(hunks)
 	unanchorable = map[string]bool{}
 	for _, hunk := range owed {
-		if ctx.Err() != nil {
-			return nil
-		}
+		anchorSearchBeforeHunk()
+		// A deadline or an interrupt between hunks unwinds as stop{-1}: the
+		// deferred recover keeps a budget stop and re-raises an interrupt.
+		search.checkpoint()
 		if row, _ := search.anchoredProposal(hunk, "", edited, map[string]bool{}); row == "" {
 			unanchorable[hunk.id] = true
 		}
 	}
-	return unanchorable
+	return unanchorable, true
 }
+
+// anchorSearchBeforeHunk runs before each hunk of the check's anchor search;
+// tests replace it to interrupt the search between hunks.
+var anchorSearchBeforeHunk = func() {}
 
 // writeLines writes each line followed by a newline.
 func writeLines(out io.Writer, lines []string) {
