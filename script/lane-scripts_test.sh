@@ -1398,7 +1398,8 @@ awk '/^IFS= read -r -d .. slot_perl << .PERL. \|\| :$/ { on = 1; print; next } o
   "$script/heavy.sh" > "$to/heavy-quote.sh"
 grep -q "^# the holder's apostrophe$" "$to/heavy-quote.sh" && bash -n "$to/heavy-quote.sh" &&
   HEAVY_LOCK_DIR=$to/slots bash "$to/heavy-quote.sh" true 2> /dev/null || fail "an apostrophe in the slot_perl body breaks heavy.sh"
-bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" "$script"/lane-*.sh)
+# V1-3632: scan every script/*.sh, not only heavy.sh and the lane scripts; a comment line is not code.
+bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script"/*.sh | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#')
 [[ -z $bad ]] || fail "unguarded array expansion (bash 3.2 set -u aborts on an empty one; use \${a[@]+\"\${a[@]}\"}): $bad"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never

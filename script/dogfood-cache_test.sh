@@ -384,7 +384,7 @@ done
   chmod +x script/check-requirement-definitions.sh
   : > "$TEST_BUILD_LOG"
   status=0
-  make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || status=$?
+  make -s dogfood-inputs-check ${inputs[@]+"${inputs[@]}"} > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
   rg -q '^dogfood-inputs-check: REFUSE requirement-definitions-invalid$' "$root/output" || { cat "$root/output" >&2; exit 1; }
   rg -qF 'X-V0-1 is defined after ## Requirements' "$root/output" || exit 1
@@ -394,7 +394,7 @@ done
   printf 'package a\n' > scope_test.go
   git add scope_test.go
   status=0
-  make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || status=$?
+  make -s dogfood-inputs-check ${inputs[@]+"${inputs[@]}"} > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
   rg -q '^dogfood-inputs-check: REFUSE test-read-scopes-invalid$' "$root/output" || { cat "$root/output" >&2; exit 1; }
   git rm -q --cached scope_test.go && /bin/rm -f scope_test.go script/check-requirement-definitions.sh

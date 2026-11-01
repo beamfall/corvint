@@ -31,7 +31,7 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
   if [[ -z $base ]]; then
     needs_vet+=("$local_sha $local_ref (no base to diff against)")
-  elif ! changed=$(git diff --name-only "$base" "$local_sha" -- "${go_paths[@]}" 2> /dev/null); then
+  elif ! changed=$(git diff --name-only "$base" "$local_sha" -- ${go_paths[@]+"${go_paths[@]}"} 2> /dev/null); then
     needs_vet+=("$local_sha $local_ref (diff failed)")
   elif [[ -n $changed ]]; then
     needs_vet+=("$local_sha $local_ref")
@@ -40,7 +40,7 @@ done
 ((${#needs_vet[@]} > 0)) || exit 0
 
 head=$(git rev-parse HEAD 2> /dev/null) || head=
-for entry in "${needs_vet[@]}"; do
+for entry in ${needs_vet[@]+"${needs_vet[@]}"}; do
   sha=${entry%% *}
   commit=$(git rev-parse -q --verify "$sha^{commit}" 2> /dev/null) || commit=$sha
   if [[ $commit != "$head" ]]; then
@@ -48,11 +48,11 @@ for entry in "${needs_vet[@]}"; do
     exit 1
   fi
 done
-if [[ -n $(git status --porcelain --untracked-files=no -- "${go_paths[@]}" 2> /dev/null) ]]; then
+if [[ -n $(git status --porcelain --untracked-files=no -- ${go_paths[@]+"${go_paths[@]}"} 2> /dev/null) ]]; then
   printf 'pre-push: REFUSE windows-vet-not-run the working tree has uncommitted Go changes, so the vet would not check the pushed commit; commit or stash them and push again\n' >&2
   exit 1
 fi
-if ! untracked=$(git ls-files --others -- "${go_paths[@]}" 2> /dev/null) || [[ -n $untracked ]]; then
+if ! untracked=$(git ls-files --others -- ${go_paths[@]+"${go_paths[@]}"} 2> /dev/null) || [[ -n $untracked ]]; then
   printf 'pre-push: REFUSE windows-vet-not-run untracked Go files would be vetted but are not pushed; remove or commit them and push again\n' >&2
   exit 1
 fi

@@ -39,14 +39,14 @@ done
 ((${#ranges[@]} > 0)) || exit 0
 
 head=$(git rev-parse HEAD 2> /dev/null) || head=
-for entry in "${ranges[@]}"; do
+for entry in ${ranges[@]+"${ranges[@]}"}; do
   read -r base sha ref <<< "$entry"
   [[ $sha == "$head" ]] ||
     refuse "dogfood-seal-not-checked $ref is not the checked-out HEAD; check it out and push again, or run make dogfood-batch-check BASE=$base on it and push with --no-verify"
 done
 [[ -z $(git status --porcelain --untracked-files=no 2> /dev/null) ]] ||
   refuse "dogfood-seal-not-checked the working tree has uncommitted tracked changes, so the batch check would not build the pushed commit; commit or stash them and push again"
-for entry in "${ranges[@]}"; do
+for entry in ${ranges[@]+"${ranges[@]}"}; do
   read -r base sha ref <<< "$entry"
   printf 'pre-push: checking sealed change evidence for %s..%s (%s)\n' "$base" "$sha" "$ref" >&2
   if ! bash -c "$check_command \"\$1\"" pre-push "$base" >&2; then

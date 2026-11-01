@@ -133,14 +133,14 @@ fi
 tooling_paths=(internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go' ':(exclude,glob)**/*_test.go')
 tooling_admitted() {
   local stamp revision modified
-  [[ -z $(git -C "$repo" diff --name-only HEAD -- "${tooling_paths[@]}") ]] || return 1
+  [[ -z $(git -C "$repo" diff --name-only HEAD -- ${tooling_paths[@]+"${tooling_paths[@]}"}) ]] || return 1
   stamp=$(GOTOOLCHAIN=local go version -m "$corvint_bin" 2> /dev/null) || return 1
   revision=$(awk '$1 == "build" && $2 ~ /^vcs\.revision=/ { sub(/^vcs\.revision=/, "", $2); print $2 }' <<< "$stamp")
   modified=$(awk '$1 == "build" && $2 ~ /^vcs\.modified=/ { sub(/^vcs\.modified=/, "", $2); print $2 }' <<< "$stamp")
   [[ -n $revision && $revision == "$(git -C "$repo" rev-parse HEAD)" && $modified == false ]]
 }
 if [[ -n $corvint_bin_set && $corvint_bin != "$git_dir/corvint/corvint" ]]; then
-  tooling=$(git -C "$repo" diff --name-only "$base" -- "${tooling_paths[@]}") || exit 2
+  tooling=$(git -C "$repo" diff --name-only "$base" -- ${tooling_paths[@]+"${tooling_paths[@]}"}) || exit 2
   if [[ -n $tooling ]] && ! tooling_admitted; then
     printf '%s: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=%s changed=%s (%d paths)\n' "$prefix" \
       "$corvint_bin" "${tooling%%$'\n'*}" "$(printf '%s\n' "$tooling" | wc -l | tr -d ' ')" >&2
@@ -212,9 +212,9 @@ build_step=inputs-check
 if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
   trap - INT TERM
   cd "$repo" || exit 2
-  exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin"
+  exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
 fi
-(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin") || exit $?
+(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
 base_status=0
 build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
@@ -228,5 +228,5 @@ elif ((base_status != 0)); then
 fi
 trap - INT TERM
 cd "$repo" || exit 2
-exec "$tree_bin" dogfood finish-lane --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin" \
+exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
   --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"}

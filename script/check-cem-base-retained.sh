@@ -28,7 +28,7 @@ register=.corvint/cem-lineage.tsv
 
 tips=()
 tip_count=0
-for ref in "${retained[@]}"; do
+for ref in ${retained[@]+"${retained[@]}"}; do
   if tip=$(git rev-parse --verify -q "$ref^{commit}"); then tips+=("$tip"); tip_count=$((tip_count + 1)); fi
 done
 if ((tip_count == 0)); then
@@ -77,7 +77,7 @@ while IFS= read -r map; do
   fi
   reached=0
   if git cat-file -e "$base^{commit}" 2> /dev/null; then
-    for tip in "${tips[@]}"; do
+    for tip in ${tips[@]+"${tips[@]}"}; do
       if git merge-base --is-ancestor "$base" "$tip" 2> /dev/null; then reached=1; break; fi
     done
   fi

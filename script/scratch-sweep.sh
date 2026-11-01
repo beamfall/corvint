@@ -159,7 +159,7 @@ archive_checkout() {
   if (($3 > 0 || $4 > 0)); then
     local refs=(HEAD --branches)
     (($4 > 0)) && refs+=(refs/stash)
-    git -C "$dir" bundle create "$out/repo.bundle" "${refs[@]}" --not --remotes > /dev/null 2>&1 || return 1
+    git -C "$dir" bundle create "$out/repo.bundle" ${refs[@]+"${refs[@]}"} --not --remotes > /dev/null 2>&1 || return 1
     git -C "$dir" bundle list-heads "$out/repo.bundle" > /dev/null 2>&1 || return 1
   fi
   printf '%s\n' "$out"

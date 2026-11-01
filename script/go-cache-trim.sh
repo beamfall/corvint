@@ -85,7 +85,7 @@ nl=$'\n'
 ncaches=0
 trim_total=0
 seen=" "
-for cache in "${caches[@]}"; do
+for cache in ${caches[@]+"${caches[@]}"}; do
   [[ -d $cache ]] || continue
   real=$(cd "$cache" 2> /dev/null && pwd -P) || { printf 'KEEP unreadable cache %s\n' "$cache"; continue; }
   [[ $seen == *" $real "* ]] && continue
@@ -98,7 +98,7 @@ for cache in "${caches[@]}"; do
   listing=$(mktemp "${TMPDIR:-/tmp}/corvint-go-cache-trim.XXXXXX") || refuse "temporary-file-unavailable"
   # Entries: oldest first, as "mtime size path".
   # Names holding a newline are never listed, so each "mtime size path" line is one whole file.
-  find "$real" -mindepth 2 -maxdepth 2 -type f -path "$real/[0-9a-f][0-9a-f]/*" ! -name "*$nl*" -exec stat "${stat_format[@]}" {} + 2> /dev/null |
+  find "$real" -mindepth 2 -maxdepth 2 -type f -path "$real/[0-9a-f][0-9a-f]/*" ! -name "*$nl*" -exec stat ${stat_format[@]+"${stat_format[@]}"} {} + 2> /dev/null |
     sort -n -k1,1 > "$listing"
   bound=$max_bytes
   if ((!max_explicit)); then
@@ -136,7 +136,7 @@ in_use() {
 }
 snapshot
 seen=" "
-for temp_root in "${temp_roots[@]}"; do
+for temp_root in ${temp_roots[@]+"${temp_roots[@]}"}; do
   [[ -d $temp_root ]] || continue
   root_real=$(cd "$temp_root" 2> /dev/null && pwd -P) || continue
   [[ $root_real != / ]] || continue

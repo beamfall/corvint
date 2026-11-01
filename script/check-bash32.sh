@@ -114,7 +114,7 @@ refuse() {
   echo "check-bash32: FAIL incomplete scan: $1; refusing rather than reporting ok (ASD-V0-750)" >&2
   exit 2
 }
-out=$(BASH32_RULES=$rules awk "$prog" "${files[@]}") || refuse "the scanner exited $?; fix: the awk error above names the cause, then rerun make bash32-check"
+out=$(BASH32_RULES=$rules awk "$prog" ${files[@]+"${files[@]}"}) || refuse "the scanner exited $?; fix: the awk error above names the cause, then rerun make bash32-check"
 summary=${out##*$'\n'}
 case $summary in
   "#END "*) ;;

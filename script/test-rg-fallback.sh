@@ -39,8 +39,8 @@ while (($#)); do
   esac
 done
 (($# == 1 || $# == 2)) || { printf 'rg stand-in: expected PATTERN [FILE], got %d arguments\n' "$#" >&2; exit 2; }
-if ((fixed)); then exec grep "${flags[@]}" -- "$@"; fi
-exec grep -P "${flags[@]}" -- "$@"
+if ((fixed)); then exec grep ${flags[@]+"${flags[@]}"} -- "$@"; fi
+exec grep -P ${flags[@]+"${flags[@]}"} -- "$@"
 SHIM
   chmod +x "$1/rg"
 }

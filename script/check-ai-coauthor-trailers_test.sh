@@ -57,7 +57,7 @@ forms=(
   'Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>'
   'Co-authored-by: Claude'
 )
-for form in "${forms[@]}"; do
+for form in ${forms[@]+"${forms[@]}"}; do
   git reset -q --hard "$base"
   sha=$(printf 'agent\n\n%s\n' "$form" | commit)
   git update-ref refs/remotes/origin/main "$base"

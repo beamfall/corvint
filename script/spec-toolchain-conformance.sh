@@ -157,8 +157,8 @@ curl -fsSL --proto '=https' -o "$work/download/spec-kit.tar.gz" "$sk_archive"
 pip=("$work/venv/bin/python" -I -m pip install --quiet --require-hashes)
 # The build backend is installed first, from hashes, so building specify-cli needs no unhashed
 # isolated build environment; every other distribution must be a hashed wheel.
-"${pip[@]}" --only-binary=:all: -r "$toolchains/speckit/build-requirements.txt" </dev/null
-"${pip[@]}" --no-build-isolation --only-binary=:all: --no-binary=specify-cli -r "$requirements" </dev/null
+${pip[@]+"${pip[@]}"} --only-binary=:all: -r "$toolchains/speckit/build-requirements.txt" </dev/null
+${pip[@]+"${pip[@]}"} --no-build-isolation --only-binary=:all: --no-binary=specify-cli -r "$requirements" </dev/null
 specify=$work/venv/bin/specify
 installed=$("$work/venv/bin/python" -I -c 'import importlib.metadata as m; print(m.version("specify-cli"))')
 [ "$installed" = "$sk_version" ] || die "installed specify-cli is $installed, want $sk_version"

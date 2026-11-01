@@ -250,7 +250,7 @@ doc_gates() {
         esac
       done
       if ((ok)) && ((${#targets[@]})); then
-        for w in "${targets[@]}"; do printf 'make\t%s\n' "$w"; done
+        for w in ${targets[@]+"${targets[@]}"}; do printf 'make\t%s\n' "$w"; done
         continue
       fi
     elif [[ ${#words[@]} == 3 && ${words[0]} == go && ${words[1]} == run && ${words[2]} =~ ^\./[A-Za-z0-9_./-]*$ ]]; then
@@ -288,7 +288,7 @@ golden_tests() {
 drift_names() {
   local line re
   local pkg prefix
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix _ <<< "$line"
     [[ $pkg == "$1" ]] || continue
     re="^$prefix"
@@ -312,13 +312,13 @@ sync_check() {
     while read -r args; do
       dir=.
       [[ $job == go-interop ]] && dir=interop/cem01-go
-      contains "$dir|$args" "${GOFMT_SETS[@]}" || {
+      contains "$dir|$args" ${GOFMT_SETS[@]+"${GOFMT_SETS[@]}"} || {
         printf 'batch-precheck: %s %s runs gofmt -l %s in %s, which batch-precheck does not\n' "$workflow" "$job" "$args" "$dir" >&2
         bad=1
       }
     done < <(job_block "$job" | grep -oE 'gofmt -l [^)"]+' | sed -E 's/^gofmt -l //; s/[[:space:]]+$//')
   done
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix inputs <<< "$line"
     found=$(grep -lE "^func ${prefix}[A-Za-z0-9_]*\(t \*testing\.T\)" "$pkg"/*_test.go 2> /dev/null | head -n 1)
     [[ -n $found ]] || {
@@ -486,7 +486,7 @@ select_report() {
       read -ra decl <<< "${inputs//@own/}"
       decl=("${decl[@]/@go/}")
       read -ra decl <<< "${decl[*]}"
-      if ! ((${#decl[@]})) || ! wanted "" "${decl[@]}"; then
+      if ! ((${#decl[@]})) || ! wanted "" ${decl[@]+"${decl[@]}"}; then
         drift_on[i]=0
         skipped+=("$pkg $prefix")
         continue
@@ -510,7 +510,7 @@ select_report() {
   pkgs=$(awk '/^capability-catalog-check:/ { getline; print; exit }' Makefile 2> /dev/null | grep -oE '\./[^[:space:]]+' | tr '\n' ' ')
   if [[ -z $pkgs ]]; then
     printf 'batch-precheck: capability-catalog-check runs (the Makefile recipe names no package)\n'
-  elif wanted "$pkgs" "${CATALOG_INPUTS[@]}"; then
+  elif wanted "$pkgs" ${CATALOG_INPUTS[@]+"${CATALOG_INPUTS[@]}"}; then
     printf 'batch-precheck: capability-catalog-check runs (a catalog input changed since %s)\n' "$sel_sha"
   else
     cat_skip="no catalog input changed since $sel_sha: $why"
@@ -530,7 +530,7 @@ select_baseline() {
   if [[ -z $pkgs ]]; then
     printf 'batch-precheck: selection-baseline-check runs (the Makefile recipe names no package)\n'
   elif ((sel_on)); then
-    if wanted "$pkgs" "${SELECTION_BASELINE_INPUTS[@]}"; then
+    if wanted "$pkgs" ${SELECTION_BASELINE_INPUTS[@]+"${SELECTION_BASELINE_INPUTS[@]}"}; then
       printf 'batch-precheck: selection-baseline-check runs (a selection-baseline input changed since %s)\n' "$sel_sha"
     else
       sb_skip="no selection-baseline input changed since $sel_sha: $why"
@@ -538,7 +538,7 @@ select_baseline() {
     fi
   elif ((sel_diff)); then
     [[ -z $sel_go ]] || { printf 'batch-precheck: selection-baseline-check runs (a Go input changed and the plan is not used)\n'; return 0; }
-    for tok in "${SELECTION_BASELINE_INPUTS[@]}"; do
+    for tok in ${SELECTION_BASELINE_INPUTS[@]+"${SELECTION_BASELINE_INPUTS[@]}"}; do
       case $tok in
         @go) ;;
         @root) grep -q '^[^/][^/]*$' <<< "$sel_changed" && { printf 'batch-precheck: selection-baseline-check runs (a top-level file changed and the plan is not used)\n'; return 0; } ;;
@@ -610,14 +610,14 @@ steps() {
     # Every entry was skipped under the selection (ASD-V0-050); no go test runs.
     printf 'batch-drift (0 of %d tests)\tprintf "%%s\\n" %q\n' "$n" "batch-drift: no drift test is reachable from the batch diff; every one is skipped"
   elif ((${#pkgs[@]})); then
-    drift_step "batch-drift ($label)" "$re" "${pkgs[@]}"
+    drift_step "batch-drift ($label)" "$re" ${pkgs[@]+"${pkgs[@]}"}
   fi
   for ((i = 0; i < ${#own[@]}; i++)); do
     read -r pkg prefix <<< "${own[i]}"
     drift_step "batch-drift $prefix" "$prefix" "$pkg"
   done
   # The make steps share batch-drift's GOCACHE (ASD-V0-051); a skipped catalog check prints why.
-  for t in "${EXTRA_TARGETS[@]}"; do
+  for t in ${EXTRA_TARGETS[@]+"${EXTRA_TARGETS[@]}"}; do
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
       printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "skipped: $cat_skip"
     else
@@ -645,7 +645,7 @@ steps() {
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
   done)
-  for s in "${GOFMT_SETS[@]}"; do
+  for s in ${GOFMT_SETS[@]+"${GOFMT_SETS[@]}"}; do
     dir=${s%%|*}
     args=${s#*|}
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
@@ -1032,7 +1032,7 @@ for ((i = 1; i <= n; i++)); do
   name=$(sed -n "${i}p" "$dir/steps" | cut -f1)
   if contains "${name#make }" "${SERIAL_TARGETS[@]+"${SERIAL_TARGETS[@]}"}"; then serial+=("$i"); else parallel+=("$i"); fi
 done
-((${#parallel[@]})) && printf '%s\n' "${parallel[@]}" | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
+((${#parallel[@]})) && printf '%s\n' ${parallel[@]+"${parallel[@]}"} | xargs -P "$jobs" -n 1 bash -c 'run_one "$1"' _
 for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`

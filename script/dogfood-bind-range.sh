@@ -212,7 +212,7 @@ citation_plan_matches_map() {
     END {
       if (bad || !stable) exit 1
       for (hunk in owed) if (!(hunk in named) && !(id[hunk] in named)) exit 1
-    }' "$map" "${plans[@]}"
+    }' "$map" ${plans[@]+"${plans[@]}"}
 }
 
 # Decision 0165: a removed-intent.OID.START-END detail must name a regular blob in BASE's tree
@@ -326,7 +326,7 @@ else
     [[ ! $lines =~ ^bytes:([0-9]+:[0-9]+)$ ]] || span_flag=(--bytes "${BASH_REMATCH[1]}")
     run_child "$run_tmp/cem-cite.json" "$run_tmp/cem-cite.stderr" \
       "$corvint_bin" --root "$worktree" cem cite --map .corvint/change.cem.json --hunk "$hunk" \
-      --evidence-path "$evidence_path" "${span_flag[@]}" --relation "$relation"
+      --evidence-path "$evidence_path" ${span_flag[@]+"${span_flag[@]}"} --relation "$relation"
     if [[ $child_status -ne 0 && -n $auto_inherit ]]; then
       refused_inherited=$((refused_inherited + 1))
     elif [[ $child_status -ne 0 ]]; then

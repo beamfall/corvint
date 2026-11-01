@@ -60,7 +60,7 @@ if [[ -n $apply ]]; then
       manual) argv+=(--manual) ;;
     esac
     echo "apply: ${argv[*]}"
-    "${argv[@]}" < /dev/null > "$dir/apply-$pr.json" || failed=1
+    ${argv[@]+"${argv[@]}"} < /dev/null > "$dir/apply-$pr.json" || failed=1
   done
 fi
 [[ $failed -eq 0 ]] || { echo "tasks-reconcile: a batch-close failed; outputs in $dir" >&2; exit 1; }

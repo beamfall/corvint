@@ -62,7 +62,7 @@ target_of() {
 # (TCB-V0-045): both must record the same revision and an unmodified tree.
 check_pair() {
   local dir=$1 tool line rev modified first='' status=MATCH report=''
-  for tool in "${tools[@]}"; do
+  for tool in ${tools[@]+"${tools[@]}"}; do
     [[ -f $dir/$tool ]] || refuse "missing-tool $dir/$tool"
     line=$(build_of "$dir/$tool")
     rev=${line% *}
@@ -107,13 +107,13 @@ trap '/bin/rm -rf "$work"' EXIT
   refuse "build-failed corvint"
 (cd "$repo/interop/cem01-go" && GOOS=$hostos GOARCH=$hostarch GOTOOLCHAIN=local "$go" build -trimpath -o "$work/cem01-go" .) ||
   refuse "build-failed cem01-go"
-for tool in "${tools[@]}"; do
+for tool in ${tools[@]+"${tools[@]}"}; do
   line=$(build_of "$work/$tool")
   [[ $line == "$head false" ]] || refuse "build-not-stamped $tool records '$line', want '$head false'"
   line=$(target_of "$work/$tool")
   [[ $line == "$hostos/$hostarch" ]] || refuse "build-not-host $tool targets '$line', want '$hostos/$hostarch'"
 done
-for tool in "${tools[@]}"; do
+for tool in ${tools[@]+"${tools[@]}"}; do
   "$script/install-local-bin.sh" --keep "$keep" "$work/$tool" "$bin_dir/$tool" || refuse "install-failed $tool"
 done
 check_pair "$bin_dir" || refuse "installed-pair-mismatch $bin_dir"

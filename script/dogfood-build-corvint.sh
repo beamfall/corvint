@@ -95,7 +95,7 @@ dogfood_corvint_key() {
     optional=$(git -C "$source" ls-tree "$rev" -- go.mod go.sum go.work vendor) || return 1
     [[ $optional == *$'\tgo.mod'* ]] || return 1
     status=$(git -C "$source" status --porcelain --ignored --untracked-files=all -- \
-      "${paths[@]}" go.mod go.sum go.work vendor) || return 1
+      ${paths[@]+"${paths[@]}"} go.mod go.sum go.work vendor) || return 1
     [[ -z $status ]] || return 1
     objects+=$'\n'"$optional"$'\n'"${paths[*]}"
   fi
