@@ -20,6 +20,7 @@ ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing
 ADS-V0-800	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends	standing	2026-11-01; V1-3725
 ADS-V0-801	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends	standing	2026-11-01; V1-3725
 ADS-V0-802	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725) a fifth	standing	2026-11-01; V1-3725
+ADS-V0-650	docs/specs/adoption-setup-report-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3732,	standing	2026-10-11; V1-3732
 ACX-V0-850	docs/specs/affected-cli-consistency-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)	standing	2026-10-11; V1-3583
 ACX-V0-851	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP-V0-094, under the owner's standing lane	standing	-
 ACX-V0-852	docs/specs/affected-cli-consistency-v0.md	(experimental, narrowing AFP-V0-021, under the owner's standing lane	standing	-
@@ -1012,6 +1013,7 @@ CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
 CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
+CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1805,6 +1807,7 @@ CCF-V1-006	docs/specs/core-compatibility-freeze-v1.md	Breaking-change rule. For 
 CCF-V1-007	docs/specs/core-compatibility-freeze-v1.md	(accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy.	owner	2026-09-25; decision 0401
 CCF-V1-008	docs/specs/core-compatibility-freeze-v1.md	Root help MUST label every dispatched top-level verb with its maturity. (amended	unrecorded	-
 CCF-V1-009	docs/specs/core-compatibility-freeze-v1.md	(accepted, decision 0548; V1-0945) Root help is a compact verb index of at most	owner	decision 0548; V1-0945
+CCF-V1-650	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730,	standing	2026-10-11; V1-3730
 CCF-V1-010	docs/specs/core-compatibility-freeze-v1.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0285, panel	standing	2026-10-11; V1-0285
 RCP-V0-001	docs/specs/corpus-republish-v0.md	The operator supplies separate closed request and trusted approval-policy files.	unrecorded	-
 RCP-V0-002	docs/specs/corpus-republish-v0.md	Approval pins bind the exact documentation bytes: every provider/document input	unrecorded	-
@@ -5225,6 +5228,7 @@ MCPV0-114	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standin
 MCPV0-115	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3497; amends `MCPV0-001` a	standing	V1-3497
 MCPV0-112	docs/specs/mcp-server-2026-07-28-v0.md	(proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impac	owner	2026-10-24; V1-1003
 MCPV0-095	docs/specs/mcp-server-2026-07-28-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2219) A `MIXED	standing	2026-10-11; V1-2219
+MCPV0-650	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-3705) The `corvint.query`	standing	V1-3705
 MTV-V0-001	docs/specs/mcp-test-validity-profile-v0.md	The profile MUST be served by the separate executable `corvint-test-validity-mcp	unrecorded	-
 MTV-V0-002	docs/specs/mcp-test-validity-profile-v0.md	The tool's input schema MUST be a closed JSON Schema 2020-12 object with two	unrecorded	-
 MTV-V0-003	docs/specs/mcp-test-validity-profile-v0.md	Receipt location contract. The only receipt source MUST be the caller's `receipt	unrecorded	-
@@ -6686,6 +6690,9 @@ TCP-V0-272	docs/specs/task-context-packet-v0.md	(experimental under the owner's 
 TCP-V0-273	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-274	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-275	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
+TCP-V0-650	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-11-01; V1-3711)	standing	2026-11-01; V1-3711
+TCP-V0-651	docs/specs/task-context-packet-v0.md	(experimental, same acceptance; V1-3711) Under the same flag a path token of	unrecorded	-
+TCP-V0-652	docs/specs/task-context-packet-v0.md	(experimental, same acceptance; V1-3711) Under the same flag the task words	unrecorded	-
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-

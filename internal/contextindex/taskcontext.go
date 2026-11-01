@@ -93,6 +93,9 @@ type contextRow struct {
 	score, line int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
+	// fuzzy is the TCP-V0-650 disclosure prefix of a lexical row that took a
+	// fuzzy credit, kept so a row it only corroborates still discloses it.
+	fuzzy string
 }
 
 type taskIdentifier struct {
@@ -198,6 +201,11 @@ type taskContextCompiler struct {
 	roles bool
 	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
 	graphRanking bool
+	// fuzzy is TCP-V0-650's opt-in fallback, set by `CORVINT_CONTEXT_FUZZY=on`.
+	fuzzy bool
+	// fuzzySupport is the TCP-V0-650 disclosure of a fuzzy lexical row that
+	// corroborated a path another relation admitted.
+	fuzzySupport map[string]string
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -347,7 +355,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextFuzzy(configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -355,12 +363,13 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		terms:         taskLexicalTerms(task),
 		chosen:        map[string]struct{}{},
 		support:       map[string][]string{},
+		fuzzySupport:  map[string]string{},
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
 		linked:        map[string]string{},
 		linkRefusals:  map[string]string{},
-	}))))
+	})))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -604,11 +613,21 @@ func (compiler *taskContextCompiler) corroborate(rows []contextRow) []contextRow
 		}
 		rows[index].score += 50 * len(others)
 		rows[index].summary += "; also " + strings.Join(others, ", ")
+		rows[index].reason = discloseFuzzy(rows[index].reason, compiler.fuzzySupport[rows[index].path])
 	}
 	sort.SliceStable(rows, func(left, right int) bool {
 		return len(compiler.support[rows[left].path]) > len(compiler.support[rows[right].path])
 	})
 	return rows
+}
+
+// discloseFuzzy prefixes reason with the TCP-V0-650 disclosure of a fuzzy
+// lexical row that corroborated or was promoted into the row, once.
+func discloseFuzzy(reason, disclosure string) string {
+	if disclosure == "" || strings.HasPrefix(reason, disclosure) {
+		return reason
+	}
+	return disclosure + reason
 }
 
 // take appends candidates not yet chosen and never the subject, up to cap.
@@ -624,6 +643,9 @@ func (compiler *taskContextCompiler) take(rows, candidates []contextRow, cap int
 		}
 		if _, seen := compiler.chosen[candidate.path]; seen {
 			compiler.support[candidate.path] = appendRelation(compiler.support[candidate.path], candidate.kind)
+			if compiler.fuzzySupport[candidate.path] == "" {
+				compiler.fuzzySupport[candidate.path] = candidate.fuzzy
+			}
 			continue
 		}
 		compiler.chosen[candidate.path] = struct{}{}
@@ -1344,6 +1366,8 @@ type lexicalHit struct {
 	data    bool
 	anchors []anchorHit
 	role    *roleHit
+	// fuzzy lists the TCP-V0-650 credits this source took, in credit order.
+	fuzzy []fuzzyMatch
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1374,6 +1398,8 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 	scores := make([]float64, len(table.Paths))
 	rarestIDF := make([]float64, len(table.Paths))
 	rarest := make([]string, len(table.Paths))
+	// pathNamed counts the path-field credits of each source (TCP-V0-652).
+	pathNamed := make([]int, len(table.Paths))
 	credit := func(field int, source uint32, term string, idf, gain float64) {
 		gain = compiler.queryTermGain(field, term, gain)
 		scores[source] += gain
@@ -1400,8 +1426,13 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			idf := idfOf(high - low)
 			for index := low; index < high; index++ {
 				credit(1, table.PathTerms.Sources[index], term, idf, idf*(k1+1)/(1+k1)*pathGain)
+				pathNamed[table.PathTerms.Sources[index]]++
 			}
 		}
+	}
+	var fuzzyHits map[uint32][]fuzzyMatch
+	if compiler.fuzzy {
+		fuzzyHits = compiler.fuzzyCredits(table, idfOf, lengths, average, occurrences, pathNamed, credit)
 	}
 	// A whole identifier the task names (`stripFinalNewline`) is a third
 	// field over the as-written identifier vocabulary: the body postings
@@ -1456,9 +1487,13 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			hits = append(hits, lexicalHit{
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
-				documentation: isDocumentationSuffix(table.Paths[source]), data: isRecordDataSuffix(table.Paths[source]),
+				documentation: isDocumentationSuffix(table.Paths[source]),
+				// TCP-V0-652: a record-data path naming two task terms is the
+				// configuration the task names, ranked as code.
+				data:    isRecordDataSuffix(table.Paths[source]) && !(compiler.fuzzy && pathNamed[source] >= 2),
 				anchors: anchorHits[uint32(source)],
 				role:    roles[uint32(source)],
+				fuzzy:   fuzzyHits[uint32(source)],
 			})
 		}
 	}
@@ -1603,6 +1638,11 @@ func lexicalContextRow(item lexicalHit, strongest float64) contextRow {
 	if item.role != nil {
 		reason = roleReason(item.role) + reason
 	}
+	disclosure := ""
+	if len(item.fuzzy) > 0 {
+		disclosure = fuzzyReason(item.fuzzy)
+		reason = disclosure + reason
+	}
 	if item.documentation {
 		kind = "documentation"
 		reason = "documentation: " + reason
@@ -1611,7 +1651,7 @@ func lexicalContextRow(item lexicalHit, strongest float64) contextRow {
 		kind: kind, path: item.path, score: lexicalScore(item.score, strongest), line: 1,
 		summary:    fmt.Sprintf("%d task terms match", item.distinct),
 		reason:     reason,
-		confidence: "low", authority: "vocabulary",
+		confidence: "low", authority: "vocabulary", fuzzy: disclosure,
 	}
 }
 
@@ -1893,6 +1933,7 @@ func (compiler *taskContextCompiler) reserve(rows []contextRow) []contextRow {
 		compiler.promoted[row.path] = row.kind
 		compiler.reserved[index].summary += "; also " + strings.Join(
 			orderRelations(append([]string{row.kind}, compiler.support[row.path]...)), ", ")
+		compiler.reserved[index].reason = discloseFuzzy(compiler.reserved[index].reason, row.fuzzy+compiler.fuzzySupport[row.path])
 	}
 	return append(compiler.reserved, kept...)
 }

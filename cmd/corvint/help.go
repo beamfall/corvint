@@ -203,7 +203,11 @@ func helpText(topic string) string {
 	if command, ok := strings.CutPrefix(topic, catalogCommandHelpPrefix); ok {
 		return catalogCommandJSON(command)
 	}
-	return topicText(topic) + helpExampleTrailer(topic)
+	text := topicText(topic) + helpExampleTrailer(topic)
+	if _, hidden := hiddenCommands[topic]; hidden {
+		text += hiddenHelpNote
+	}
+	return text
 }
 
 // topicText is a help topic's authored text, the source the command tree derives from.
@@ -347,8 +351,8 @@ Usage:
 
 Commands:
   Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
-    init  first repository inventory
-    adopt  recoverable repository inventory
+    init  alias of adopt
+    adopt  bounded repository inventory; --setup lists setup gaps
     index  write the index snapshot
     query  repository context or authority receipt
     context  task-context packet: files to read
@@ -359,49 +363,44 @@ Commands:
     ocm  Obligation Closure Map tool
     frontier  Change Frontier review queue
     dogfood  evidence: change, check, seal, batch-check
-  Experimental, no stability promise; owning spec in parentheses:
+  Experimental, context and review:
+    feature  one declared feature's context (GPK-V0)
+    features | overview | review  inferred repository guidance (RGV-V0)
     graph  pinned whole-tree import edges and uncertainty (NGI-V0)
-    feature  bounded feature context (GPK-V0)
-    eval  evaluate a frozen corpus (REC-V0)
+    batch  batched query, context, impact (SBQ-V0)
+    docs  source-derived documentation (SDD-V0)
+    depsource  cite pinned Go module source (DSE-V0)
     breakage  cross-repository API relations (BKM-V0)
-    changes  offline upgrade checklist (UCL1142-V0)
-    runs  Playwright verdicts (PWR-V0)
+    witness  unwitnessed surface of a range (AGW-V0)
+    obligations  CEM external-obligations sidecar (EFO-V0)
+    step  declared authoring scope receipts (ASS-V0)
+    delta  source-free record of one change (DLT-V0)
+  Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
+    test-plan  test consolidation plan (TCN-V0)
+    test-validity  project a live-test receipt (MTV-V0)
+    runs  Playwright verdicts (PWR-V0)
+    flows  application flows and assertions (AFU-V0)
+    how  how do I GOAL: alias of flows appmap how (SKH-V0)
     repro  pinned reproduction bundles (RPB-V0)
+  Experimental, agent hosts and local records:
     harness event  one agent lifecycle event (AHI)
     adapter  one native host adapter (AHI)
     mcp  local read-only stdio MCP server (AHI)
-    dogfood-ocm  verify dogfood OCM maps (OCM-V0)
-    lrf  lexical relevance floor (LRF-V0)
-    record  record one local task outcome (LTPM-V0)
-    migrate-traces  plan or apply trace migration (LTPM-V0)
-    migration-ratchet  compare migration evidence (MER-V0)
-    observations  self-observation digest (SOL-V0)
-    features  inferred feature candidates (RGV-V0)
-    overview  immutable repository guidance (RGV-V0)
-    review  range advice and branch overlaps (RGV-V0)
-    flows  application flows and assertions (AFU-V0)
-    how  how do I GOAL: alias of flows appmap how (SKH-V0)
-    obligations  CEM external-obligations sidecar (EFO-V0)
-    prove-observe  record prove verdict counts (SOL-V0)
-    batch  batched query, context, impact (SBQ-V0)
     work  queue observation or shadow wave (WQO-V0)
-    docs  source-derived documentation (SDD-V0)
-    depsource  cite pinned Go module source (DSE-V0)
+    lease  local scope lease over paths (SCL-V0)
+    reads  opt-in unplanned-read digest (URE-V0)
+    record  record one local task outcome (LTPM-V0)
+    observations  self-observation digest (SOL-V0)
+    skill-export  learned traces as SKILL.md (LTA-V0)
+  Experimental, lab (research metrics):
+    eval  evaluate a frozen corpus (REC-V0)
     necessity  label packet file necessity (NEC-V0)
     surprise  touched set vs delivered packet (TSS-V0)
     answerability  retrieval channel agreement (RDS-V0)
-    kernel  compaction kernel (CKN-V0)
-    lease  local scope lease over paths (SCL-V0)
-    reads  opt-in unplanned-read digest (URE-V0)
     calibrate  packet stances vs outcomes (OCL-V0)
-    skill-export  learned traces as SKILL.md (LTA-V0)
-    witness  unwitnessed surface of a range (AGW-V0)
-    test-validity  project a live-test receipt (MTV-V0)
-    test-plan  test consolidation plan (TCN-V0)
-    step  declared authoring scope receipts (ASS-V0)
-    delta  source-free record of one change (DLT-V0)
+    kernel  compaction kernel (CKN-V0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
@@ -409,6 +408,8 @@ Global options:
   --help       Print this help on stdout and exit 0.
 
 Support boundary:
+  Experimental verbs carry no stability promise; parentheses name the owning spec.
+  Internal and historical verbs stay callable but unlisted (corvint help --json).
   Local-only; no network or telemetry. init, adopt, query, feature and impact are
   qualified on Darwin and Linux only.
   init, adopt, query, impact, docs, harness, and lrf read without mutating
@@ -420,6 +421,21 @@ Support boundary:
   CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
   flows and maintain write local state (COMMAND --help).
 `
+
+// hiddenCommands are the dispatched internal or historical verbs that root help leaves out of
+// its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
+// it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
+var hiddenCommands = map[string]string{
+	"changes":           "offline upgrade checklist (UCL1142-V0)",
+	"dogfood-ocm":       "verify dogfood OCM maps (OCM-V0)",
+	"lrf":               "lexical relevance floor, historical only (LRF-V0)",
+	"migrate-traces":    "plan or apply trace migration (LTPM-V0)",
+	"migration-ratchet": "compare migration evidence (MER-V0)",
+	"prove-observe":     "record prove verdict counts (SOL-V0)",
+}
+
+// hiddenHelpNote ends the help topic of each hiddenCommands verb.
+const hiddenHelpNote = "\nUnlisted in root help: an internal or historical verb that stays callable.\n"
 
 const adapterHelp = `Run one bounded native host adapter.
 
@@ -682,6 +698,13 @@ for inferred discovery. --limit defaults to 10 (range 1-50).
 --budget-bytes bounds the complete packet and retains omitted-result counts.
 Repository and trace state are read-only; do not substitute a legacy runtime
 for a typed unsupported result. See docs/specs/go-production-kernel-migration-v0.md.
+
+FEATURE_ID is the lowercase kebab-case ID a source declares with a feature:ID
+marker, such as feature:checkout-flow; a requirement prefix such as GPK-V0 is
+refused. Use features to list inferred candidates.
+
+Example:
+  corvint feature --limit 1 checkout-flow
 `
 
 const evalHelp = `Evaluate a frozen retrieval corpus through the native candidate.
@@ -728,9 +751,10 @@ Usage:
     [--exclude-prefix PATH] [--full-receipt]
   corvint [--root PATH] adopt --setup
 
---revision defaults to HEAD. --exclude-prefix is repeatable. The default output
-is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
-Both activations are read-only and local-only.
+init is an alias of adopt: both run the same inventory, and the output's tool
+member names the verb that ran. --revision defaults to HEAD. --exclude-prefix is
+repeatable. The default output is a bounded sealed summary; --full-receipt emits
+the complete canonical receipt. Both activations are read-only and local-only.
 
 Experimental (ADS-V0): adopt --setup takes no other option and reports the
 repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
@@ -2177,13 +2201,15 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only;
-features and overview degrade to a MIXED unknown when the only dirt is untracked).
+const repositoryGuidanceHelp = `Experimental inferred repository guidance: features, overview and review.
 
 Usage:
   corvint [--root PATH] features
   corvint [--root PATH] overview
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
+
+All three are read-only and need a clean HEAD; features and overview degrade to
+a MIXED unknown when the only dirt is untracked.
 
 Features are bounded heuristic candidates with immutable blob/line evidence, not
 accepted feature IDs. A label that is a canonical feature ID also carries featureId

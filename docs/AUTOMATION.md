@@ -228,6 +228,65 @@ so its exit code is not a gate; `dogfood-check` hits the V1-0182 limitation (scr
 entries. Building `corvint` writes only to the work directory and the Go build cache outside the
 clone.
 
+## Adopter CI recipe
+
+`script/adopter-ci-advisory.sh RELEASE_DIR [BASE]` (ADS-V0-650) is the reusable step an adopting
+repository adds to its own CI. Copy it into the adopter at a pinned Corvint commit; it is
+Apache-2.0 like the rest of Corvint. It downloads nothing. Given a directory that holds a release
+archive and the release `SHA256SUMS`, it:
+
+1. selects `corvint_<os>_<arch>.tar.gz` for the runner and refuses unless `SHA256SUMS` names it
+   exactly once and the archive matches, before extracting anything;
+2. extracts into a fresh directory, verifies the archive's own `SHA256SUMS`, and probes
+   `corvint --version`;
+3. runs `corvint adopt --setup` and, when `BASE` is a full 40-hex commit, `corvint affected --base
+   BASE`, both against `CORVINT_REPO` (default: the current directory).
+
+Steps 1 and 2 exit 1 on any failure, and no binary runs before both checksums pass. The step-3
+verbs are advisory: each one's stdout, stderr and exit code are kept in `CORVINT_ADVISORY_OUT`
+(default `$RUNNER_TEMP/corvint-advisory`), a failure prints a `::warning` annotation, and the
+script still exits 0. Under GitHub Actions it also writes a step summary and adds the verified
+directory to `GITHUB_PATH`. Release archives are unsigned, so the checksums detect changed bytes
+but not who published them (`docs/INSTALL.md`).
+
+A GitHub Actions job for a pull request, with the release tag pinned by the adopter:
+
+```yaml
+corvint-advisory:
+  runs-on: ubuntu-latest
+  continue-on-error: true          # advisory: never blocks the pull request
+  permissions:
+    contents: read
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0             # BASE must be present in the clone
+    - name: Download the pinned Corvint release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        mkdir -p "$RUNNER_TEMP/corvint-release"
+        gh release download v1.0.0-rc.3 --repo beamfall/corvint \
+          --pattern 'corvint_linux_amd64.tar.gz' --pattern SHA256SUMS \
+          --dir "$RUNNER_TEMP/corvint-release"
+    - name: Corvint advisory (adopt --setup, affected)
+      run: |
+        base=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+        ci/adopter-ci-advisory.sh "$RUNNER_TEMP/corvint-release" "$base"
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: corvint-advisory
+        path: ${{ runner.temp }}/corvint-advisory/*.*
+```
+
+`ci/adopter-ci-advisory.sh` is wherever the adopter keeps its copy. On a push or merge-queue run
+without a base, pass no `BASE`: the summary then records `affected: skipped, no BASE`. Use the
+release tag the adopter has qualified; this page does not choose one. Limits: the recipe was run
+on Linux amd64 against a locally packed archive of a source build at this lane's commit and a
+two-commit repository (both advisory steps exited 0), not yet from a sibling repository's hosted
+CI; `script/adopter-ci-advisory_test.sh` covers the refusals.
+
 ## Session hooks: `frontier-authority-unavailable`
 
 For an adopter that does not produce Change Evidence Map (CEM) or Obligation Coverage Map (OCM)

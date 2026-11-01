@@ -838,11 +838,16 @@ func TestInvalidChoiceNamesEveryDispatchedTopLevelVerb(t *testing.T) {
 		if !strings.HasPrefix(line, "    ") {
 			continue
 		}
-		command := strings.Fields(line)[0]
-		documentedCommands[command] = true
-		if !strings.Contains(message, "'"+command+"'") {
-			t.Fatalf("documented command %q is missing from %q", command, message)
+		names, _, _ := strings.Cut(strings.TrimSpace(line), "  ")
+		for _, command := range strings.Split(strings.TrimSuffix(names, " event"), " | ") {
+			documentedCommands[command] = true
+			if !strings.Contains(message, "'"+command+"'") {
+				t.Fatalf("documented command %q is missing from %q", command, message)
+			}
 		}
+	}
+	for command := range hiddenCommands {
+		documentedCommands[command] = true
 	}
 	for _, command := range topLevelCommands {
 		if !documentedCommands[command] {

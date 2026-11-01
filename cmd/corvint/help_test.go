@@ -342,7 +342,7 @@ func TestRootHelpListsReleaseAuditCommands(t *testing.T) {
 	})
 	commands := strings.SplitN(rootHelp, "\nCommands:\n", 2)[1]
 	commands, _, _ = strings.Cut(commands, "\nGlobal options:")
-	for _, command := range []string{"adapter", "dogfood-ocm", "witness"} {
+	for _, command := range []string{"adapter", "witness"} {
 		if !strings.Contains("\n"+commands, "\n    "+command+" ") {
 			t.Errorf("root help command list omits %q", command)
 		}
@@ -379,17 +379,27 @@ func TestRootHelpIsACompactVerbIndex(t *testing.T) {
 	if lines := strings.Count(usage, "\n") + 1; lines != 3 {
 		t.Fatalf("root usage has %d lines, want 3:\n%s", lines, usage)
 	}
-	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	if lines := strings.Count(commands, "\n"); lines != len(topLevelCommands)+2 {
-		t.Fatalf("Commands has %d lines, want two group headers and one per verb (%d)", lines, len(topLevelCommands))
+	headers, lines := rootHelpGroups(t)
+	listed := map[string]int{}
+	for _, header := range headers {
+		for _, line := range lines[header] {
+			names, _, _ := strings.Cut(strings.TrimPrefix(line, "    "), "  ")
+			for _, family := range strings.Split(names, " | ") {
+				listed[strings.Fields(family)[0]]++
+			}
+		}
 	}
 	if strings.Contains(rootHelp, "\nCommand maturity:\n") {
 		t.Error("root help repeats every verb in a separate Command maturity section")
 	}
 	for _, command := range topLevelCommands {
-		if count := strings.Count(rootHelp, "\n    "+command+" "); count != 1 {
-			t.Errorf("root help lists verb %q %d times, want once", command, count)
+		_, hidden := hiddenCommands[command]
+		if want := map[bool]int{true: 0, false: 1}[hidden]; listed[command] != want {
+			t.Errorf("root help lists verb %q %d times, want %d", command, listed[command], want)
 		}
+	}
+	if len(listed)+len(hiddenCommands) != len(topLevelCommands) {
+		t.Errorf("root help lists %d verbs and hides %d, want the %d dispatched verbs", len(listed), len(hiddenCommands), len(topLevelCommands))
 	}
 	for _, flag := range []string{"--task", "--base", "--cem", "--limit"} {
 		if strings.Contains(rootHelp, flag) {

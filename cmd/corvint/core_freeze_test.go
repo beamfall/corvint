@@ -724,23 +724,46 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 	}
 }
 
-// maturityLabel matches one Experimental line of the root-help Commands list: the verb, its
-// gloss, and the owning spec prefix in trailing parentheses.
-var maturityLabel = regexp.MustCompile(`^    ([a-z][a-z-]*) .* \(([A-Z][A-Z0-9-]*)\)$`)
+// maturityLabel matches one Experimental line of the root-help Commands list: the verb or a
+// " | "-joined verb family, its gloss, and the owning spec prefix in trailing parentheses.
+var maturityLabel = regexp.MustCompile(`^    ([a-z][a-z-]*(?: \| [a-z][a-z-]*)*)(?: event)?  .* \(([A-Z][A-Z0-9-]*)\)$`)
 
-// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008: the root-help Commands list
-// names each dispatched verb once, under either the Core group, which holds exactly the frozen
-// Core verbs, or the Experimental group, where every verb carries an owning spec prefix that
-// docs/specs/INDEX.json indexes, so no companion or research verb is frozen by omission.
+// rootHelpGroups splits the root-help Commands list into its group headers, in order, and the
+// lines each heads.
+func rootHelpGroups(t *testing.T) ([]string, map[string][]string) {
+	t.Helper()
+	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
+	headers, lines := []string{}, map[string][]string{}
+	for _, line := range strings.Split(strings.TrimSuffix(commands, "\n"), "\n") {
+		if !strings.HasPrefix(line, "    ") {
+			if !strings.HasPrefix(line, "  ") || !strings.HasSuffix(line, ":") {
+				t.Fatalf("Commands line %q is neither a group header nor a verb line", line)
+			}
+			headers = append(headers, line)
+			continue
+		}
+		if len(headers) == 0 {
+			t.Fatalf("verb line %q precedes every group header", line)
+		}
+		lines[headers[len(headers)-1]] = append(lines[headers[len(headers)-1]], line)
+	}
+	return headers, lines
+}
+
+// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008 as amended by V1-3730: the
+// root-help Commands list opens with the Core group, which holds exactly the frozen Core verbs,
+// then groups every other listed verb by job under Experimental headers, each verb or verb family
+// carrying an owning spec prefix that docs/specs/INDEX.json indexes. Every dispatched verb is
+// exactly one of Core, labelled experimental, or a hiddenCommands verb, which root help omits
+// and whose catalog line names an indexed owner too.
 func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	t.Parallel()
-	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	core, experimental, found := strings.Cut(commands, "\n  Experimental, no stability promise; owning spec in parentheses:\n")
-	if !found || !strings.HasPrefix(core, "  Core (decision 0332;") {
-		t.Fatalf("Commands has no Core and Experimental groups:\n%s", commands)
+	headers, lines := rootHelpGroups(t)
+	if len(headers) < 2 || !strings.HasPrefix(headers[0], "  Core (decision 0332;") {
+		t.Fatalf("Commands has no leading Core group and Experimental groups: %q", headers)
 	}
 	coreVerbs := []string{}
-	for _, line := range strings.Split(core, "\n")[1:] {
+	for _, line := range lines[headers[0]] {
 		coreVerbs = append(coreVerbs, strings.Fields(line)[0])
 	}
 	if !slices.Equal(coreVerbs, frozenCoreVerbs) {
@@ -766,28 +789,56 @@ func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	}
 
 	labelled := map[string]string{}
-	for _, line := range strings.Split(strings.TrimSuffix(experimental, "\n"), "\n") {
-		match := maturityLabel.FindStringSubmatch(line)
+	label := func(verbs, owner, line string) {
+		for _, verb := range strings.Split(verbs, " | ") {
+			if _, repeated := labelled[verb]; repeated {
+				t.Errorf("verb %q is labelled twice", verb)
+			}
+			labelled[verb] = owner
+		}
+		if !indexed[owner] {
+			t.Errorf("line %q names owner %q, which docs/specs/INDEX.json does not index", line, owner)
+		}
+	}
+	for _, header := range headers[1:] {
+		if !strings.HasPrefix(header, "  Experimental, ") {
+			t.Errorf("group header %q is not an Experimental job group", header)
+		}
+		for _, line := range lines[header] {
+			match := maturityLabel.FindStringSubmatch(line)
+			if match == nil {
+				t.Errorf("experimental line %q carries no owning spec prefix", line)
+				continue
+			}
+			label(match[1], match[2], line)
+		}
+	}
+	hidden := map[string]bool{}
+	for verb, line := range hiddenCommands {
+		match := maturityLabel.FindStringSubmatch("    " + verb + "  " + line)
 		if match == nil {
-			t.Errorf("experimental line %q carries no owning spec prefix", line)
+			t.Errorf("hidden verb %q line %q carries no owning spec prefix", verb, line)
 			continue
 		}
-		if _, repeated := labelled[match[1]]; repeated {
-			t.Errorf("verb %q is labelled twice", match[1])
-		}
-		labelled[match[1]] = match[2]
+		hidden[verb] = true
 		if !indexed[match[2]] {
-			t.Errorf("verb %q names owner %q, which docs/specs/INDEX.json does not index", match[1], match[2])
+			t.Errorf("hidden verb %q names owner %q, which docs/specs/INDEX.json does not index", verb, match[2])
 		}
 	}
 	for _, command := range topLevelCommands {
 		_, isExperimental := labelled[command]
-		if slices.Contains(frozenCoreVerbs, command) == isExperimental {
-			t.Errorf("verb %q must be exactly one of Core or labelled experimental", command)
+		kinds := 0
+		for _, is := range []bool{slices.Contains(frozenCoreVerbs, command), isExperimental, hidden[command]} {
+			if is {
+				kinds++
+			}
+		}
+		if kinds != 1 {
+			t.Errorf("verb %q must be exactly one of Core, labelled experimental or hidden", command)
 		}
 	}
-	if len(labelled)+len(frozenCoreVerbs) != len(topLevelCommands) {
-		t.Errorf("%d labelled + %d Core verbs, want the %d dispatched verbs", len(labelled), len(frozenCoreVerbs), len(topLevelCommands))
+	if len(labelled)+len(frozenCoreVerbs)+len(hidden) != len(topLevelCommands) {
+		t.Errorf("%d labelled + %d Core + %d hidden verbs, want the %d dispatched verbs", len(labelled), len(frozenCoreVerbs), len(hidden), len(topLevelCommands))
 	}
 }
 

@@ -200,7 +200,7 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 // TestDocsHelpListsEveryDispatchedSubcommand drives each entry into its own parser (V1-2134).
 var docsSubcommands = []string{"nav", "draft", "consume", "corpus", "maintain", "flows"}
 
-const docsHelp = `Experimental source documentation orientation
+const docsHelp = `Experimental source documentation orientation.
 
 Usage:
   corvint [--root PATH] docs nav --trusted-project --request FILE

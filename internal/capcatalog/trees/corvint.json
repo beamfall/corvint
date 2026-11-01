@@ -448,7 +448,7 @@
         "answerability"
       ],
       "command": "corvint answerability",
-      "summary": "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON:",
+      "summary": "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] answerability --task TEXT [--subject PATH] [--limit N]"
       ],
@@ -534,7 +534,7 @@
         "calibrate"
       ],
       "command": "corvint calibrate",
-      "summary": "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text:",
+      "summary": "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text",
       "usage": [
         "corvint [--root PATH] calibrate [--since REV | --window N] [--exclude-producer NAME]... [--format json|table]"
       ],
@@ -1274,7 +1274,7 @@
         "depsource"
       ],
       "command": "corvint depsource",
-      "summary": "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON:",
+      "summary": "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] depsource MODULE [--file PATH] [--limit N]"
       ],
@@ -3502,7 +3502,7 @@
         "features"
       ],
       "command": "corvint features",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] features"
       ],
@@ -4879,7 +4879,7 @@
         "kernel"
       ],
       "command": "corvint kernel",
-      "summary": "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text:",
+      "summary": "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text",
       "usage": [
         "corvint [--root PATH] kernel [--requirements IDS]"
       ],
@@ -4915,7 +4915,7 @@
         "lease"
       ],
       "command": "corvint lease",
-      "summary": "Scope lease (experimental, SCL-V0 proposed), JSON:",
+      "summary": "Scope lease (experimental, SCL-V0 proposed), JSON",
       "usage": [
         "corvint [--root PATH] lease acquire --holder NAME --ttl DURATION [--path GLOB]... [--ticket ID] [--note TEXT]",
         "corvint [--root PATH] lease list",
@@ -5450,7 +5450,7 @@
         "overview"
       ],
       "command": "corvint overview",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] overview"
       ],
@@ -5557,7 +5557,7 @@
         "reads"
       ],
       "command": "corvint reads",
-      "summary": "Unplanned reads (experimental, URE-V0 proposed), JSON:",
+      "summary": "Unplanned reads (experimental, URE-V0 proposed), JSON",
       "usage": [
         "corvint [--root PATH] reads [--limit N]"
       ],
@@ -5704,7 +5704,7 @@
         "review"
       ],
       "command": "corvint review",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]"
       ],
@@ -6077,7 +6077,7 @@
         "skill-export"
       ],
       "command": "corvint skill-export",
-      "summary": "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only:",
+      "summary": "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only",
       "usage": [
         "corvint [--root PATH] skill-export --out DIR"
       ],
@@ -6185,7 +6185,7 @@
         "surprise"
       ],
       "command": "corvint surprise",
-      "summary": "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON:",
+      "summary": "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] surprise --task TEXT --base REV --target REV [--subject PATH] [--limit N]"
       ],

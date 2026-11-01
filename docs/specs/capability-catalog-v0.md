@@ -471,6 +471,13 @@ cannot silently go missing or outlive its command.
   the verb, the span and the row line, and such detail goes inside parentheses, which the reader
   skips. CAP-V0-961 then reads names rather than relying on the first-word prose convention.
   Rollback: drop `checkSubcommandSpans` and its call; the CAP-V0-961 reader is unchanged.
+- `CAP-V0-650`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-01)
+  The root-help parsers (`capcatalog.Build` and `tools/capabilities-check`) MUST accept the job
+  groups of CCF-V1-008: every header after the Core group starts `Experimental`, a line naming
+  verbs separated by ` | ` labels each verb, and a Core header after an experimental one fails. The
+  registry's `HiddenCommands` verbs MUST appear in the catalog and in the capabilities inventory as
+  experimental with their gloss, though root help does not list them. Rollback: drop the family
+  split and the hidden-verb merge and regenerate the catalog.
 
 ## Boundaries and failure modes
 
@@ -595,6 +602,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-961 | `documentedSubcommands`, `checkStaleSubcommands` | `TestCAPV0961StaleDocumentedSubcommandFails`, `TestCAPV0961DocumentedSubcommandsParse` |
 | CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
+| CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
 | CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")`, `capcatalog.requiredFlags`, `capcatalog.FormKey` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep`, `TestCAPV0017RequiredFlagsAreDerivedFromUsageForms`, `TestCAPV0017GuideExamplesCarryRequiredOptions` |

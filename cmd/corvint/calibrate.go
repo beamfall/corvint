@@ -203,9 +203,9 @@ func writeCalibrate(report outcomecal.Report, format string, stdout, stderr io.W
 	return 0
 }
 
-const calibrateHelp = `
-Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text:
+const calibrateHelp = `Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text.
 
+Usage:
   corvint [--root PATH] calibrate [--since REV | --window N]
                                   [--exclude-producer NAME]... [--format json|table]
 
