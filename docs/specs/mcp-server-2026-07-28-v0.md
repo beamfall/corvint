@@ -915,6 +915,23 @@ Each row cites the first emitting site and states only the condition checked the
   `0.1.0-experimental`, a missing expected tool reported compatible, or an undeclared launch whose
   status bytes change. Rollback: pass the empty version from `cmd/corvint/mcp.go`, drop
   `internal/mcp/cli/plugin.go` and the `.mcp.json` `env`.
+- `MCPV0-952`: (experimental under the standing lane auto-accept; V1-3703) Every `-32602
+  Invalid params` that `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp` or
+  `corvint-corpus-mcp` answers MUST carry `data` with a closed `reason` and the offending `field`
+  (a dotted path such as `arguments.paths[1]` or `_meta.io.modelcontextprotocol/protocolVersion`),
+  plus `allowed` (enum, const, tool or param names) or `rule` (expected type, `minimum N`-style
+  bound, or the pattern) when the listed schema states them. Reasons: `unknown-param`,
+  `missing-param`, `invalid-param`, `invalid-meta-key`, `invalid-cursor`, `missing-tool-name`,
+  `unknown-tool`, `unknown-argument`, `missing-argument`, `invalid-type`, `invalid-enum`,
+  `invalid-const`, `pattern-mismatch`, `out-of-range`, `duplicate-item`, and `invalid-argument`
+  (a rule the advertised schema does not state, field `arguments`). A tools/call diagnosis reads
+  only the request and the tools/list schemas after the existing decision, so it never changes
+  which calls are refused, and the unified and dedicated servers answer the same data
+  (`MMR-V0-013`). The message stays `Invalid params`; the server forwards only this closed data
+  from a handler and drops a field longer than 1,024 bytes. Non-goals: data on other error codes,
+  diagnosing every runtime-only rule. Falsifier: a -32602 without `data.reason` and `data.field`,
+  or a diagnosis that differs between the unified and a dedicated server. Rollback: drop
+  `toolgroup.WithInvalidParamsData` and `InvalidParamsAt`, restoring bare errors.
 - `MCPV0-114`: (experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)
   Under `--follow-ref`, `tools/list` MUST advertise every tool a call binds to the ref with
   `readOnlyHint` false and its description followed by one fixed sentence stating that each call
@@ -1069,6 +1086,7 @@ cleanup remain outside that receipt.
 | `MCPV0-113` | `internal/mcp/cli` (`run`, `usage`) | `usage_test.go`'s `TestMCPV0113HelpAndRelativeRoot`; `roots_test.go` relative aliased root |
 | `MCPV0-950` | `internal/mcp/rootbind` (`Resolve`), `internal/mcp/bridge` (`Profile.Tools`), `internal/mcp/cli` (`run`, `startUnavailable`, `answerUnavailable`), `script/check-install-lifecycle.sh` | `internal/mcp/cli/unavailable_test.go`'s `TestMCPV0950SubdirectoryRootBindsToplevel`, `TestMCPV0950UnusableRootServesListAndRefusesCalls` (eight unusable roots: same `tools/list`, every tool `invalid-root` but help, unknown tool `-32602`, exact reason line), `TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired`, `TestMCPV0950ProfileToolsMatchRegistries`; `script/check-install-lifecycle_test.sh` step `mcp-unavailable-root` |
 | `MCPV0-951` | `cmd/corvint` (`mcpServerVersion`), `internal/mcp/cli` (`Serve`, `runVersioned`, `declaredPlugin`, `notePluginCompatibility`), `integrations/claude-code/plugins/corvint/.mcp.json` | `internal/mcp/cli/plugin_test.go`'s `TestMCPV0951ServerInfoCarriesTheBuildVersion`, `TestMCPV0951DeclaredPluginIsBounded`, `TestMCPV0951StatusReportsPluginCompatibility`; `cmd/corvint/mcp_test.go`'s `TestMCPV0951MCPVerbReportsTheBuildVersion`; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups` and `TestAHI820ClaudePluginArgsServeTestValidityAndDocs` (declared version and tools); `AHI-198` in `integrations/host-adapters.test.mjs` |
+| `MCPV0-952` | `internal/mcp/protocol` (`InvalidParamsData`, `InvalidParamsAt`), `internal/mcp/server` (`sanitize`), `internal/mcp/toolgroup` (`ListParamsRefusal`, `WithInvalidParamsData`, `diagnose`), the `tools/list` and `tools/call` handlers of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/cli/invalid_params_test.go`'s `TestMCPV0952InvalidParamsCarryReasonAndField` (unknown tool, bad enum, pattern violation and ten more) and `TestMCPV0952LegacyInitializeInvalidParamsCarryField`; `TestMMRV0013ParityWithDedicatedServers` (same data from both servers) |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
