@@ -14,15 +14,15 @@ func TestSRGV0015IndexOrderedByDefinitionPosition(t *testing.T) {
 	if header, _, _ := strings.Cut(text, "\n"); strings.Contains("\t"+header+"\t", "\tline\t") {
 		t.Fatalf("REQUIREMENTS.tsv header %q carries a line column", header)
 	}
-	specs := map[string]string{}
+	specs := map[string]*Definitions{}
 	previousFile, previousLine := "", 0
 	for _, line := range strings.Split(strings.TrimSuffix(text, "\n"), "\n")[1:] {
 		fields := strings.Split(line, "\t")
 		id, file := fields[0], fields[1]
 		if _, ok := specs[file]; !ok {
-			specs[file] = string(mustRead(t, filepath.Join("../..", filepath.FromSlash(file))))
+			specs[file] = NewDefinitions(string(mustRead(t, filepath.Join("../..", filepath.FromSlash(file)))))
 		}
-		at := DefinitionLine(specs[file], id)
+		at := specs[file].Line(id)
 		switch {
 		case file < previousFile:
 			t.Fatalf("%s in %s follows a row of %s: rows are not ordered by file", id, file, previousFile)
@@ -43,14 +43,20 @@ func TestSRGV0017DefinitionLineLocatesEveryRow(t *testing.T) {
 	if len(rows) < 1000 {
 		t.Fatalf("parsed %d rows from the live index, want the whole corpus", len(rows))
 	}
-	specs := map[string][]string{}
+	type spec struct {
+		lines []string
+		defs  *Definitions
+	}
+	specs := map[string]spec{}
 	for id, row := range rows {
-		lines, ok := specs[row.File]
+		s, ok := specs[row.File]
 		if !ok {
-			lines = strings.Split(string(mustRead(t, filepath.Join("../..", filepath.FromSlash(row.File)))), "\n")
-			specs[row.File] = lines
+			text := string(mustRead(t, filepath.Join("../..", filepath.FromSlash(row.File))))
+			s = spec{strings.Split(text, "\n"), NewDefinitions(text)}
+			specs[row.File] = s
 		}
-		at := DefinitionLine(strings.Join(lines, "\n"), id)
+		lines := s.lines
+		at := s.defs.Line(id)
 		if at < 1 || at > len(lines) {
 			t.Errorf("%s: no definition line in %s", id, row.File)
 			continue
@@ -115,6 +121,14 @@ func TestSRGV0017DefinitionLineFollowsGeneratorRanks(t *testing.T) {
 	for id, want := range map[string]int{"X-V0-001": 9, "T-V0-001": 4, "X-V0-002": 13, "X-V0-003": 10, "X-V0-004": 0, "X-V0-005": 0, "X-V0-006": 18, "X-V0-007": 16} {
 		if got := DefinitionLine(spec, id); got != want {
 			t.Errorf("DefinitionLine(%s) = %d, want %d", id, got, want)
+		}
+	}
+	// ASD-V0-913: one NewDefinitions scan answers every id, in any order and more than once, as
+	// DefinitionLine does.
+	defs := NewDefinitions(spec)
+	for _, id := range []string{"X-V0-007", "X-V0-001", "T-V0-001", "X-V0-006", "X-V0-002", "X-V0-001", "X-V0-005", "X-V0-003", "X-V0-004"} {
+		if got, want := defs.Line(id), DefinitionLine(spec, id); got != want {
+			t.Errorf("NewDefinitions(spec).Line(%s) = %d, DefinitionLine says %d", id, got, want)
 		}
 	}
 }
