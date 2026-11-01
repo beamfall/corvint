@@ -65,8 +65,7 @@ func packetFiles(v wire.Value) []string {
 // test file and one that does not; c3 changes the tests again.
 func reviewRounds(t *testing.T) (root, id, c1, c3 string) {
 	t.Helper()
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ = ergStore(t)
 	id = planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	runOK := func(args ...string) run {
@@ -169,8 +168,7 @@ func TestERGV0019_CapNamesOmittedRanges(t *testing.T) {
 // generation without the candidate, it refuses with the named reason
 // instead of a bare missing branch (Codex #1189 finding 2).
 func TestERGV0017_ReviewClaimNamesClearedCandidate(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	runOK := func(args ...string) run {
@@ -201,7 +199,7 @@ func TestERGV0017_ReviewClaimNamesClearedCandidate(t *testing.T) {
 // full diff from its fallback base, every path, and the packet says so
 // (ERG-V0-018).
 func TestERGV0018_NoPassedAncestorFallsBack(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "unreviewed", "P1", `["src/"]`)
 	first, _ := packetCommit(t, root, "c1", map[string]string{"src/a.go": "package src\n"})

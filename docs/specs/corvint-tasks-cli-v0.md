@@ -371,6 +371,19 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   reads this result and reports `ORPHAN` for each assigned ticket it lists. Non-goals: reading
   another host's branches; the orchestrator pushes batch branches to each lane host clone before
   dispatch (`docs/LANE-ORCHESTRATION.md`).
+- `TCL-V0-825`: (experimental under the standing lane auto-accept (2026-11-01); V1-4187) `cli.Env`
+  MUST carry an `Actor` field. When it is non-empty, every verb that binds the local operator
+  identity MUST use it in place of `CORVINT_TASKS_ACTOR` and `ATM_ACTOR`, after validating it as a
+  label, and a detached `corvint-tasks` child the run starts MUST receive it as
+  `CORVINT_TASKS_ACTOR` with `ATM_ACTOR` removed. `cmd/corvint-tasks` MUST leave it empty, so a
+  production run keeps the decision 0003 precedence: `CORVINT_TASKS_ACTOR`, then `ATM_ACTOR`, then
+  the OS user, with `MALFORMED` when the two variables disagree. Tests in `internal/tasks/cli` name
+  their actor with `setActor`, which sets the process variables for a serial test and only the seam
+  for a test started with `parallelTest`. A test runs in parallel only when it reaches no
+  `t.Setenv` other than `setActor`, no `Chdir`, reaper, hook setter, `os.Stdout`/`os.Stderr`,
+  package-variable write, executable-mode literal (a written-then-executed file can fail
+  `ETXTBSY` under fork, V1-2587) or direct `cli.Run`. Non-goals: changing the precedence or
+  authenticating the actor.
 
 ## Non-goals
 
@@ -474,6 +487,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries`; `make lane-scripts-test` group
   `ASD-V0-645` (`ORPHAN` and a bad `--orphans` file); the wsl-lanes live run in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-744).
+- `internal/tasks/cli/actor_seam_internal_test.go`: `TestTCLV0825_ActorSeamKeepsEnvPrecedence`;
+  the 126 `parallelTest` tests passing in the whole-package run, with wall times in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-825).
 
 ## Rollback
 

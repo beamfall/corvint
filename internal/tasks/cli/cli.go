@@ -75,6 +75,11 @@ type Env struct {
 	// ScopeDeriver derives a claim scope for a ticket that declares none
 	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
+	// Actor, when non-empty, is the local operator identity of this run in
+	// place of CORVINT_TASKS_ACTOR and ATM_ACTOR (TCL-V0-825). cmd/corvint-tasks
+	// leaves it empty, so the binary resolves the process environment as
+	// before; in-process callers such as parallel tests set it.
+	Actor string
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure

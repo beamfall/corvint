@@ -37,8 +37,7 @@ func gbDispositions(rows map[string]wire.Value) map[string]string {
 // M on the intent branch of lane A (src/a.go) and lane B (docs/b.md).
 func gbRepo(t *testing.T) (root, base, laneA, merge string) {
 	t.Helper()
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ = ergStore(t)
 	verify := commandGate("verify", "/bin/sh", "-c", "exit 0")
 	verify.Obj.Set("required", wire.Bool(true))

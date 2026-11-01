@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
@@ -14,6 +15,56 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
+
+// testActors maps a test name to the actor setActor named for it, and
+// parallelTests holds the names of the tests parallelTest started; both are
+// keyed by t.Name() and read through the subtest name prefixes (V1-4187).
+var testActors, parallelTests sync.Map
+
+// parallelTest runs t in parallel and makes every setActor under it name the
+// actor through cli.Env.Actor instead of the process environment, which a
+// parallel test may not write (TCL-V0-825).
+func parallelTest(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	parallelTests.Store(t.Name(), true)
+	t.Cleanup(func() { parallelTests.Delete(t.Name()) })
+}
+
+// setActor names the local operator identity of t's commands. A serial test
+// also sets CORVINT_TASKS_ACTOR and ATM_ACTOR, for the commands it runs
+// without atm; a parallelTest test only records it, and atm passes it as
+// cli.Env.Actor (TCL-V0-825).
+func setActor(t *testing.T, actor string) {
+	t.Helper()
+	testActors.Store(t.Name(), actor)
+	t.Cleanup(func() { testActors.Delete(t.Name()) })
+	if _, ok := lookupByTestName(&parallelTests, t.Name()); !ok {
+		t.Setenv("CORVINT_TASKS_ACTOR", actor)
+		t.Setenv("ATM_ACTOR", actor)
+	}
+}
+
+// testActor is the actor setActor named for t or a test enclosing it, or ""
+// to resolve the process environment.
+func testActor(t *testing.T) string {
+	v, _ := lookupByTestName(&testActors, t.Name())
+	s, _ := v.(string)
+	return s
+}
+
+func lookupByTestName(m *sync.Map, name string) (any, bool) {
+	for {
+		if v, ok := m.Load(name); ok {
+			return v, true
+		}
+		i := strings.LastIndexByte(name, '/')
+		if i < 0 {
+			return nil, false
+		}
+		name = name[:i]
+	}
+}
 
 type run struct {
 	code   int
@@ -38,7 +89,7 @@ func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, 
 	// (CTS-V0-025); help and the refusal itself are tested with cli.Run.
 	fixture.SkipUnsupportedPlatform(t)
 	var out, errb bytes.Buffer
-	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive})
+	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive, Actor: testActor(t)})
 	r := run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
 	env := r.stdout
 	if len(args) >= 2 && args[0] == "archive" && args[1] == "export" {

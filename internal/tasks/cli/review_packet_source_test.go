@@ -74,7 +74,7 @@ func refusal(t *testing.T, x run, code string, parts ...string) {
 // both refuses COMMIT_NOT_FOUND naming each repository searched, and an
 // unknown source refuses SOURCE_REPOSITORY_UNKNOWN (ERG-V0-022).
 func TestERGV0022_PacketFromSourceRepository(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "external", "P1", `["src/"]`)
 	src, s1, s2 := sourceRepo(t)
@@ -129,7 +129,7 @@ func TestERGV0022_PacketFromSourceRepository(t *testing.T) {
 // there without --source or --commit; with no candidate branch it reviews
 // the source checkout's HEAD and says so (ERG-V0-022).
 func TestERGV0022_DispatchSourceBuildsWithoutSource(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "external", "P1", `["src/"]`)
 	src, s1, s2 := sourceRepo(t)
@@ -164,7 +164,7 @@ func TestERGV0022_DispatchSourceBuildsWithoutSource(t *testing.T) {
 // cannot forge the END line. The same ticket's `gate packet` result carries
 // the same profile and ticket inside an untrusted envelope.
 func TestERGV0017_DispatchPacketFraming(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "external", "P1", `["src/"]`)
 	src, _, s2 := sourceRepo(t)

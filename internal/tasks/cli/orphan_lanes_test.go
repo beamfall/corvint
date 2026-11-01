@@ -15,8 +15,8 @@ import (
 // matching batch branch the batched lane is listed with a NOT_OBSERVED
 // warning.
 func TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	orphanID, orphan := tcdTicket(t, root, "orphaned", "")
 	_, batched := tcdTicket(t, root, "batched", "")

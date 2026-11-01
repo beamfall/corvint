@@ -107,7 +107,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if len(flags.targets) > 1 && flags.expected != "" {
 		return usage(cmd, "--expected-revision names one revision: with several --target values hold reads each target's revision itself")
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

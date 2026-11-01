@@ -113,7 +113,7 @@ func preflightRepo(t *testing.T, body, seed string, gates ...string) (*fixture.R
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %+v", x.res)
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "owner")
+	setActor(t, "owner")
 	id := planTicket(t, r.Root, "preflight", "P2", `["e2e/"]`)
 	x := atm(t, r.Root, nil, "ticket", "obligations", "seed", "--target", id, "--expected-revision", obligationRevision(t, r.Root, id),
 		"--request-id", "seed-1", "--issued-at", "2026-10-09T12:00:00Z", "--payload", seed)
@@ -152,6 +152,7 @@ func findingList(t *testing.T, v wire.Value) string {
 // contract-annotated obligation is named, an isolated split is accepted,
 // and the read writes no state.
 func TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := preflightRepo(t, preflightSpec, preflightSeed)
 	// A later uncommitted edit is not read: preflight reads the commit.
 	fixture.Write(t, filepath.Join(r.Root, "e2e", "checkout.spec.ts"), []byte("// emptied\n"))
@@ -179,6 +180,7 @@ func TestTOLV0025_PreflightRefusesUnnamedMixedAndSplit(t *testing.T) {
 // obligation is named, with a contract annotation and a whole-test test.fail
 // that names only its expected-fail obligation, passes with no finding.
 func TestTOLV0025_PreflightCleanTicketPasses(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	x := atm(t, r.Root, nil, "preflight", id)
 	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 || !field(x.res.Items[0], "ok").Bool || findingList(t, x.res.Items[0]) != "" {
@@ -191,6 +193,7 @@ func TestTOLV0025_PreflightCleanTicketPasses(t *testing.T) {
 // not one, TOL-V0-057); a plan path absent at the commit is a PLAN_MISSING
 // finding.
 func TestTOLV0026_PreflightPlanCheck(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	fixture.Write(t, filepath.Join(r.Root, "e2e", "plan.json"), []byte(`{"profile":"taskman-obligation-plan/0","ticketId":"`+id+
 		`","tests":[{"test":"cart","project":"chromium","obligations":["AC-1","AC-2"]},{"test":"receipt","project":"chromium","obligations":["AC-1","AC-3"]}]}`))
@@ -214,6 +217,7 @@ func TestTOLV0026_PreflightPlanCheck(t *testing.T) {
 // failing gate as DEEP_CHECK_FAILED quoting its first actionable line, and
 // removes the worktree; the caller's dirty checkout is not what runs.
 func TestTOLV0027_PreflightDeepRunsGatesInCleanWorktree(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	gate := func(id, script string) string { return deepGate(id, script, "60") }
 	// lint (a committed script) fails on a TODO in the committed spec;
 	// contract passes only in a clean checkout of the commit. Gates run with
@@ -292,6 +296,7 @@ func TestTOLV0027_PreflightDeepRunsNoRepositoryHooks(t *testing.T) {
 // expected but modifies a tracked file is a DEEP_CHECK_FAILED finding, and
 // the later gates do not run against the changed tree.
 func TestTOLV0027_PreflightDeepGateThatChangesSourceFails(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed,
 		deepGate("truncate", ": > e2e/checkout.spec.ts", "60"), deepGate("after", "exit 3", "60"))
 	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "truncate", "--gate", "after")
@@ -312,6 +317,7 @@ func TestTOLV0027_PreflightDeepGateThatChangesSourceFails(t *testing.T) {
 // tree listing itself, so a commit whose unrelated subtree Git cannot read
 // is still checked under the named prefix.
 func TestTOLV0025_PreflightPathNarrowsTheTreeListing(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	// A root tree with an "other" subtree whose object is absent.
 	listing := gitIn(t, r.Root, "", "ls-tree", "HEAD") + "\n040000 tree " + strings.Repeat("1", 40) + "\tother\n"
@@ -328,6 +334,7 @@ func TestTOLV0025_PreflightPathNarrowsTheTreeListing(t *testing.T) {
 // requested, so a blob whose content Git cannot stream does not fail the
 // read.
 func TestTOLV0025_PreflightSkipsOversizedSpecUnread(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	big := gitIn(t, r.Root, strings.Repeat("// padding\n", (2<<20)/11), "hash-object", "-w", "--stdin")
 	// Keep only the object's header: its size is readable, its content not.
@@ -368,6 +375,7 @@ func TestTOLV0025_PreflightSkipsOversizedSpecUnread(t *testing.T) {
 // never asked of Git, so it cannot shift the answers for the other spec
 // files and AC-1 at e2e/checkout.spec.ts stays named.
 func TestTOLV0025_PreflightRefusesALineBreakSpecPath(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed)
 	odd := "e2e/a\nb.spec.ts"
 	fixture.Write(t, filepath.Join(r.Root, filepath.FromSlash(odd)), []byte("// no tests\n"))

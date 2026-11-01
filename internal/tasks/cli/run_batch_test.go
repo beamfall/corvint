@@ -165,7 +165,7 @@ func obligationBatchRepo(t *testing.T) (*fixture.Repo, string) {
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %s", x.stdout)
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "owner")
+	setActor(t, "owner")
 	id := planTicket(t, r.Root, "batch", "P2", `["e2e/"]`)
 	x := atm(t, r.Root, nil, "ticket", "obligations", "seed", "--target", id, "--expected-revision", obligationRevision(t, r.Root, id),
 		"--request-id", "seed-1", "--issued-at", "2026-10-10T12:00:00Z", "--payload", batchSeed)

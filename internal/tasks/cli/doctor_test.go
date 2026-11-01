@@ -256,6 +256,7 @@ func TestTQDV0007_SlowLaneRecovery(t *testing.T) {
 
 // TQD-V0-008: a completion whose ledger witnessed no core obligation.
 func TestTQDV0008_SetupOnlyProof(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-setup", obligationRevision(t, r.Root, id), head, "AC-3")...); x.res.Outcome != wire.OutcomeOK {

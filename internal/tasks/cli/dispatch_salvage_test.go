@@ -97,8 +97,7 @@ func TestATRV0126_SalvageAttemptWritesScreenedNote(t *testing.T) {
 // branch holds, and `gate packet` binds the checkpoint to it; an attempt
 // whose branch does not resolve leaves the note without a commit.
 func TestERGV0028_SalvagedNoteBindsPacketCheckpoint(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	tk := planTicket(t, root, "checkpointed", "P1", `["src/"]`)
 	config, dir := readerCLIConfig(t, root, `printf '{}'`)

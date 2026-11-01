@@ -49,7 +49,8 @@ func reconcileRepo(t *testing.T) (root string, l map[string]string, prs, runs st
 // `- **ID**:` lines and Delivers line declare as delivered; a prose mention
 // and a vetoed line stay mentioned (TCD-V0-870).
 func TestTCDV0870_DirectPRDeliversItsOwnTickets(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, l, prs, runs := reconcileRepo(t)
 	x := atm(t, root, nil, "ticket", "batch-delivered", "--pr", "35", "--prs", prs, "--runs", runs)
 	if x.code != 0 || x.res.Outcome != wire.OutcomeOK {
@@ -79,7 +80,7 @@ func TestTCDV0870_DirectPRDeliversItsOwnTickets(t *testing.T) {
 // (TCD-V0-871). The proposed batch-close then completes the PR's tickets
 // and a rerun reports no candidate or proposal for them (TCD-V0-873).
 func TestTCDV0871_CloseoutDebtProposesBatchClose(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, l, prs, runs := reconcileRepo(t)
 	intentDir, stateDir := filepath.Join(root, ".taskman"), filepath.Join(root, ".git", "taskman")
 	beforeIntent, beforeState := fixture.TreeSnapshot(t, intentDir), fixture.TreeSnapshot(t, stateDir)
@@ -186,7 +187,7 @@ func TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Setenv("CORVINT_TASKS", cli.CompiledTasksBinary(t))
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	t.Setenv("RECONCILE_REF", "main")
 	root, l, prs, runs := reconcileRepo(t)
 	stub := filepath.Join(t.TempDir(), "gh")
@@ -262,7 +263,7 @@ func sortedLocals(ls ...string) []string {
 // and d proposes only d; a stays under #35 and each of its rows names both
 // PRs (TCD-V0-874).
 func TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, l, _, _ := reconcileRepo(t)
 	first := revParse(t, root, "HEAD~2")
 	firstTitle := "Tasks: OPEN reads skip archived tickets (" + l["a"] + ", " + l["b"] + ")"

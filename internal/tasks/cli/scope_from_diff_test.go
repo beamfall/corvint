@@ -19,8 +19,7 @@ import (
 // docs/old.md, head adds src/new.go and renames docs/old.md to docs/new.md.
 func diffScopeRepo(t *testing.T) (root, base, head, headTree string) {
 	t.Helper()
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ = ergStore(t)
 	gate := commandGate("verify", "/bin/sh", "-c", "exit 0") // portable: macOS has no /bin/true
 	gate.Obj.Set("required", wire.Bool(true))

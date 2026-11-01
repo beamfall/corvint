@@ -31,8 +31,8 @@ func tlfUnknownTicket(t *testing.T, root, title, body, criterion string) string 
 // and its human line states the same population; a QUALIFIED ticket is
 // still not screened.
 func TestTLFV0742_ProposalsCoverTheBlockerPopulation(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	unknown := tlfUnknownTicket(t, root, "unknown", "Nothing named", "it works")
 	payload := strings.NewReplacer(`"title":"Console ticket"`, `"title":"incomplete"`, `"coverage":"QUALIFIED"`, `"coverage":"INCOMPLETE"`).Replace(createPayloadJSON)
@@ -76,8 +76,7 @@ func tlfProposals(t *testing.T, root string) wire.Value {
 // not proposed, a ticket naming none is NO_PROPOSAL, and a QUALIFIED ticket
 // is not screened.
 func TestTLFV0888_EffectsProposals(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	if err := os.MkdirAll(filepath.Join(root, "src", "parser"), 0o755); err != nil {
 		t.Fatal(err)
@@ -119,8 +118,8 @@ func TestTLFV0888_EffectsProposals(t *testing.T) {
 // trees byte-identical, the ticket keeps its revision and COVERAGE_UNKNOWN
 // blocker, and the output carries no request id or mutation payload.
 func TestTLFV0889_ProposalsAreNotAuthority(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := tlfUnknownTicket(t, root, "named", "See internal/ for the code.", "it works")
 	blockers := func() string {
@@ -156,8 +155,7 @@ func TestTLFV0889_ProposalsAreNotAuthority(t *testing.T) {
 // dotfile or extensionless root file gets it proposed; a bare word that
 // names no root file, or names a directory, is not proposed (TLF-V0-888).
 func TestTLFV0888_RootFilesWithoutExtension(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	for _, f := range []string{".gitignore", "Makefile"} {
 		if err := os.WriteFile(filepath.Join(root, f), []byte("x\n"), 0o644); err != nil {

@@ -162,7 +162,7 @@ func reconcileIntent(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

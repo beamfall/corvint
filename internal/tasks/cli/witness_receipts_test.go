@@ -260,6 +260,7 @@ func TestTOLV0139_ArchiveCarriesReceipts(t *testing.T) {
 
 // TestTOLV0135_RetainNeedsReport: --retain belongs to a report witness.
 func TestTOLV0135_RetainNeedsReport(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	x := atm(t, r.Root, nil, declareArgs(id, "w-d", obligationRevision(t, r.Root, id), head, "AC-1", "--retain")...)
 	if x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), "--retain belongs to --from-playwright-report") {

@@ -118,7 +118,7 @@ func obligationsPayloadWrite(env Env, cmd []string, op string, args []string) *w
 	if f.target == "" || f.expected == "" {
 		return usage(cmd, "--target and --expected-revision are required")
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -528,7 +528,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 			return errorResult(cmd, err)
 		}
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

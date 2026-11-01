@@ -70,7 +70,7 @@ func obligationRepoWith(t *testing.T, edit func(policy wire.Value)) (*fixture.Re
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %+v", x.res)
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "owner")
+	setActor(t, "owner")
 	id := planTicket(t, r.Root, "ledger", "P2", `["e2e/"]`)
 	return r, id, headOID(t, r.Root)
 }
@@ -125,6 +125,7 @@ func seedObligations(t *testing.T, root, id string) {
 // and seeds OPEN entries; a later seed must repeat the prefix and may not
 // repeat an id; another native ticket cannot declare a held prefix.
 func TestTOLV0005_SeedPrefixAndDuplicates(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	v := obligationsShow(t, r.Root, id)
@@ -166,6 +167,7 @@ func TestTOLV0005_SeedPrefixAndDuplicates(t *testing.T) {
 // ledger is an empty OK result; a missing chain event is UNKNOWN with a
 // typed diagnostic.
 func TestTOLV0006_ShowIsReadOnly(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	empty := atm(t, r.Root, nil, "ticket", "obligations", "show", "--target", id)
 	if empty.res.Outcome != wire.OutcomeOK || len(empty.res.Items) != 0 {
@@ -317,6 +319,7 @@ func strList(v wire.Value, key string) string {
 // WITNESSED entry clears its evidence; an unknown id refuses with
 // OBLIGATION_UNKNOWN; a non-OWNER cannot change core.
 func TestTOLV0007_SetTransitions(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	set := func(req, changes string, extra ...string) run {
@@ -370,6 +373,7 @@ func TestTOLV0007_SetTransitions(t *testing.T) {
 // witness that credits nothing writes no receipt and returns written:false;
 // an unknown commit refuses.
 func TestTOLV0008_DeclaredWitness(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	decl := func(req, ids string) run {
@@ -764,6 +768,7 @@ func TestTOLV0013_AuditAfterReportDeleted(t *testing.T) {
 // TestTOLV0013_DeclaredWitnessAudit: a DECLARED witness, a set and a later
 // seed all pass receipt audit from their retained events alone.
 func TestTOLV0013_DeclaredWitnessAudit(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1,AC-2")...); x.res.Outcome != wire.OutcomeOK {
@@ -783,6 +788,7 @@ func TestTOLV0013_DeclaredWitnessAudit(t *testing.T) {
 // required; an identical retry replays; HELD admits writes and COMPLETED
 // refuses TICKET_STATE.
 func TestTOLV0014_RevisionOnlyWrite(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	show := func() wire.Value { return atm(t, r.Root, nil, "ticket", "show", id).res.Items[0] }
 	before := show()
@@ -891,7 +897,7 @@ func workerObligationRepo(t *testing.T) (r *fixture.Repo, id, head, attempt, gen
 		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(true))))
 	})
 	seedObligations(t, r.Root, id)
-	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
+	setActor(t, "agent")
 	c := atm(t, r.Root, nil, "claim", id, "--holder", "agent", "--request-id", "claim-1")
 	if c.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("claim: %s", c.stdout)
@@ -951,6 +957,7 @@ func TestTOLV0015_WorkerStaleGenerationFenced(t *testing.T) {
 // highWater within one acceptance revision, so a rewitness is not a raise;
 // an acceptance change resets the mark to the current count.
 func TestTOLV0016_HighWaterMonotone(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	ref := func() wire.Value { return field(obligationsShow(t, r.Root, id), "reference") }
@@ -991,6 +998,7 @@ func TestTOLV0016_HighWaterMonotone(t *testing.T) {
 // TestTOLV0019_QueueStatusLegacyIdentity: without a ledger ticket queue
 // status and its summary carry no obligations key.
 func TestTOLV0019_QueueStatusLegacyIdentity(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	for _, args := range [][]string{{"queue", "status"}, {"queue", "status", "--summary"}} {
 		if x := atm(t, r.Root, nil, args...); strings.Contains(string(x.stdout), `"obligations"`) {
@@ -1007,6 +1015,7 @@ func TestTOLV0019_QueueStatusLegacyIdentity(t *testing.T) {
 // TestTOLV0019_ObligationSummary: queue status and its summary sum the OPEN
 // and HELD ledger tickets; ticket show and list items carry the counts.
 func TestTOLV0019_ObligationSummary(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1,AC-3")...); x.res.Outcome != wire.OutcomeOK {
@@ -1030,6 +1039,7 @@ func TestTOLV0019_ObligationSummary(t *testing.T) {
 // obligation has exactly one planned test (a non-core one may be omitted,
 // TOL-V0-057), and writes nothing.
 func TestTOLV0020_PlanCheck(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-9")...); x.res.Outcome != wire.OutcomeOK {
@@ -1070,6 +1080,7 @@ func TestTOLV0020_PlanCheck(t *testing.T) {
 // OBLIGATION_EVENT_TOO_LARGE: and writes nothing; the same obligations split
 // across two seeds are admitted.
 func TestTOLV0002_OversizedWriteRefused(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	items := func(from, to int) string {
 		var xs []string
@@ -1103,6 +1114,7 @@ func TestTOLV0002_OversizedWriteRefused(t *testing.T) {
 // retained events alone: the fold of the chain read from the evidence store
 // equals what show reports, and a missing event makes show UNKNOWN.
 func TestTOLV0002_FoldFromRetainedRequestsAfterRestart(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1,AC-3")...); x.res.Outcome != wire.OutcomeOK {
@@ -1173,6 +1185,7 @@ func TestTOLV0002_FoldFromRetainedRequestsAfterRestart(t *testing.T) {
 // is the retained request's issuedAt and updatedBy its actor, never the
 // receipt's recordedAt (the wall clock of the write, not 2026-10-08T13:00Z).
 func TestTOLV0003_UpdatedAtIsIssuedAtNotRecordedAt(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1")...); x.res.Outcome != wire.OutcomeOK {

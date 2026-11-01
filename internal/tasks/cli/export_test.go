@@ -119,7 +119,7 @@ func SetObligationQualifiedVersions(v []string) func() {
 // test can present a payload that differs from the recomputation.
 func SubmitObligationWitness(env Env, target, expected, requestID string, check *mutation.ObligationReportCheck, payload wire.Value) *wire.Result {
 	cmd := []string{"ticket", "obligations", "witness"}
-	actor, err := initActor("OWNER")
+	actor, err := initActor(env, "OWNER")
 	if err == nil {
 		payload, err = mutation.CanonicalPayload(ticket.OpObligationsWitness, payload)
 	}

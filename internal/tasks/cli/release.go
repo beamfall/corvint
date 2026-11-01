@@ -54,7 +54,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if f.requestID == "" || f.target == "" {
 		return usage(cmd, "--request-id and --target are required")
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

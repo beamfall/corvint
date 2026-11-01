@@ -152,6 +152,7 @@ func TestTOLV0013_TamperedWorkerGenerationInconsistent(t *testing.T) {
 // every byte rehashed, to name a commit the repository lacks fails receipt
 // audit; the shape and grant still replay, so only the commit check refuses.
 func TestTOLV0013_DeclaredCommitAudited(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1")...); x.res.Outcome != wire.OutcomeOK {

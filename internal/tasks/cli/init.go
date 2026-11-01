@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/user"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -17,7 +18,19 @@ import (
 // receipt carries it with ActorAuthentication NOT_OBSERVED, and `corvint-tasks`
 // verifies nothing about it. A real multi-agent queue still needs a
 // qualified issuer, which this is not.
-func initActor(role string) (mutation.Binding, error) {
+//
+// env.Actor, when set, is that identity for this run in place of the process
+// environment (TCL-V0-825): an in-process caller such as a parallel test names
+// its actor without mutating process state. The binary never sets it, so a
+// production run resolves CORVINT_TASKS_ACTOR, then ATM_ACTOR, then the OS
+// user, and refuses the two variables when they disagree.
+func initActor(env Env, role string) (mutation.Binding, error) {
+	if env.Actor != "" {
+		if _, err := wire.ParseLabel("actor", env.Actor); err != nil {
+			return mutation.Binding{}, err
+		}
+		return mutation.Binding{ID: env.Actor, Role: role}, nil
+	}
 	primary := os.Getenv("CORVINT_TASKS_ACTOR")
 	legacy := os.Getenv("ATM_ACTOR")
 	if primary != "" && legacy != "" && primary != legacy {
@@ -40,6 +53,23 @@ func initActor(role string) (mutation.Binding, error) {
 		return mutation.Binding{}, err
 	}
 	return mutation.Binding{ID: id, Role: role}, nil
+}
+
+// childActorEnv is the environment for a corvint-tasks child this run
+// starts: nil (inherit) when env.Actor is empty, else the process
+// environment with CORVINT_TASKS_ACTOR set to env.Actor and ATM_ACTOR
+// removed, so the child records the same actor (TCL-V0-825).
+func childActorEnv(env Env) []string {
+	if env.Actor == "" {
+		return nil
+	}
+	out := []string{"CORVINT_TASKS_ACTOR=" + env.Actor}
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "CORVINT_TASKS_ACTOR=") && !strings.HasPrefix(kv, "ATM_ACTOR=") {
+			out = append(out, kv)
+		}
+	}
+	return out
 }
 
 // initCommand runs `corvint-tasks init`: it qualifies the filesystem, takes the
@@ -67,7 +97,7 @@ func initCommand(env Env, args []string) *wire.Result {
 			return usage(cmd, "unknown init flag "+args[i])
 		}
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
