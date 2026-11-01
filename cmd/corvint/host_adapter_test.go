@@ -1245,3 +1245,52 @@ func TestAHI802SharedCloneFallbackNamesObjectAlternates(t *testing.T) {
 		t.Fatalf("source repository named alternates: %q", line)
 	}
 }
+
+// TestAHI803SiblingRepositoryEditIsAttributedToItsOwner edits a file in a sibling Git repository
+// from a session rooted in another and requires the post-tool receipt to come from, and name, the
+// owning repository, with no outside-project exclusion ledgered for the session's project.
+func TestAHI803SiblingRepositoryEditIsAttributedToItsOwner(t *testing.T) {
+	t.Parallel()
+	root := cliGoModuleRepository(t)
+	sibling := cliGoModuleRepository(t)
+	writeFixtureFile(t, sibling, "pkg/sample.go", "package sample\n\n// edited\n")
+	resolvedSibling, err := filepath.EvalSymlinks(sibling)
+	if err != nil {
+		t.Fatal(err)
+	}
+	relative, err := filepath.Rel(root, filepath.Join(sibling, "pkg", "sample.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, spelled := range []string{filepath.Join(sibling, "pkg", "sample.go"), relative} {
+		payload, err := json.Marshal(map[string]any{
+			"session_id": "0b5c7c8e-3f0e-4c55-9a53-7d1f3f0c2a12", "cwd": root, "hook_event_name": "PostToolUse", "tool_name": "Edit",
+			"tool_input": map[string]any{"file_path": spelled, "old_string": "package sample\n", "new_string": "package sample\n\n// edited\n"},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var stdout bytes.Buffer
+		ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+		if status := runHostAdapter(ctx, []string{"claude-code", "post-tool"}, bytes.NewReader(payload), &stdout); status != 0 {
+			t.Fatalf("status=%d output=%s", status, &stdout)
+		}
+		var output map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &output); err != nil || output["systemMessage"] != nil {
+			t.Fatalf("%s: output=%s err=%v", spelled, &stdout, err)
+		}
+		text, _ := claudeHookOutput(t, output)["additionalContext"].(string)
+		receipt, attribution, ok := strings.Cut(text, "\n")
+		if !ok || !strings.HasPrefix(receipt, "Corvint FALLBACK harness-receipt:sha256:") ||
+			attribution != "Corvint attributed this edit to the sibling repository at "+resolvedSibling+"." {
+			t.Fatalf("%s: sibling edit was not attributed: %q", spelled, text)
+		}
+	}
+	if ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl")); err == nil && bytes.Contains(ledger, []byte("post-tool-path-outside-project")) {
+		t.Fatalf("sibling edit was ledgered as an outside-project exclusion: %s", ledger)
+	}
+	// A target in no repository keeps the AHI-019 exclusion and has no owner.
+	if _, _, ok := postToolOwningRepository(root, map[string]any{"tool_name": "Write", "tool_input": map[string]any{"file_path": filepath.Join(t.TempDir(), "x.go")}}); ok {
+		t.Fatalf("a target outside every repository was given an owner")
+	}
+}

@@ -365,6 +365,14 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		if event == "post-tool" {
 			abstention = postToolTargetAbstention(root, payload)
 		}
+		if abstention == "post-tool-path-outside-project" {
+			if owner, target, ok := postToolOwningRepository(root, payload); ok {
+				// A target inside a sibling Git repository is that repository's change (AHI-803,
+				// V1-3728): its receipt comes from the owner's root and names it, and no
+				// outside-project exclusion is recorded for this project.
+				return invokeSiblingClaudePostTool(ctx, owner, target, payload)
+			}
+		}
 		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, abstention != "")
 		if abstention != "" && len(output) == 0 {
 			// The abstaining target stays silent (AHI-019) but is ledgered (SOL-V0-010, V1-0746):
@@ -1113,6 +1121,77 @@ func postToolTargetAbstention(root string, payload map[string]any) string {
 		return "post-tool-path-outside-project"
 	}
 	return "post-tool-path-not-project-relative"
+}
+
+// postToolOwningRepository is the nearest enclosing Git work tree of a post-tool target that
+// resolves outside root (AHI-803): the closest ancestor of the resolved target with a .git entry.
+// It reads only directory entries and also returns the resolved target. A target with no
+// enclosing repository, or one whose nearest repository encloses root itself, has no owner and
+// keeps the AHI-019 exclusion.
+func postToolOwningRepository(root string, payload map[string]any) (string, string, bool) {
+	input, _ := payload["tool_input"].(map[string]any)
+	name, _ := payload["tool_name"].(string)
+	fields := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}
+	path, _ := input[fields[name]].(string)
+	if path == "" {
+		return "", "", false
+	}
+	if !filepath.IsAbs(path) {
+		path = root + string(filepath.Separator) + path
+	}
+	resolved, ok := resolvePostToolTarget(path)
+	if !ok {
+		return "", "", false
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", "", false
+	}
+	for current := filepath.Dir(resolved); ; current = filepath.Dir(current) {
+		if _, err := os.Lstat(filepath.Join(current, ".git")); err == nil {
+			if withinFoldingCase(current, resolvedRoot) {
+				return "", "", false
+			}
+			return current, resolved, true
+		}
+		if filepath.Dir(current) == current {
+			return "", "", false
+		}
+	}
+}
+
+// invokeSiblingClaudePostTool runs the shared post-tool harness event against the repository that
+// owns the target (AHI-803), with the target spelled as its resolved absolute path, and returns
+// its AHI-019 receipt with one trusted line naming that repository. A failing call keeps its own
+// degradation.
+func invokeSiblingClaudePostTool(ctx context.Context, owner, target string, payload map[string]any) map[string]any {
+	routed := map[string]any{}
+	for key, value := range payload {
+		routed[key] = value
+	}
+	name, _ := payload["tool_name"].(string)
+	field := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}[name]
+	input := map[string]any{}
+	for key, value := range payload["tool_input"].(map[string]any) {
+		input[key] = value
+	}
+	input[field] = target
+	routed["tool_input"] = input
+	normalized, reason := normalizeAdapterInput("claude-code", "post-tool", routed, owner)
+	if reason != "" {
+		return claudeDegradedOutput("post-tool", reason)
+	}
+	output := invokeLegacyClaudeEvent(ctx, owner, "post-tool", normalized, false)
+	hook, ok := output["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		return output
+	}
+	text, _ := hook["additionalContext"].(string)
+	attributed := claudeContextOutput("PostToolUse", text+"\nCorvint attributed this edit to the sibling repository at "+owner+".")
+	if !withinAdapterOutputLimit(attributed) {
+		return output
+	}
+	return attributed
 }
 
 // outsideProject reports whether path is established to lie outside the
