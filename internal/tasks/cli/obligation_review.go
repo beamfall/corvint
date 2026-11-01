@@ -22,8 +22,8 @@ const maxReviewInputBytes = 65536
 // readReviewInput reads the --review file: {policy, subject {path,
 // startLine, endLine}, verdicts}. The command adds the subject blob digest
 // and the authors; verdicts are sorted by reviewer at this input boundary.
-func readReviewInput(file string) (*ticket.ObligationReview, error) {
-	raw, err := readBoundedFile("--review", file, maxReviewInputBytes)
+func readReviewInput(cwd, file string) (*ticket.ObligationReview, error) {
+	raw, err := readBoundedFile(cwd, "--review", file, maxReviewInputBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func reviewAuthorSet(attempts map[string]*snapshot.Attempt, ticketID string, exp
 // read from Git at commit, and the payload is checked through the
 // authoritative reader so an author reviewer refuses before any write.
 func reviewedWitness(env Env, root, commit, ticketID, file, excludeArg string) (*ticket.ObligationReview, string, error) {
-	review, err := readReviewInput(file)
+	review, err := readReviewInput(env.Cwd, file)
 	if err != nil {
 		return nil, "", err
 	}

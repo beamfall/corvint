@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -23,9 +22,7 @@ func cutoverCommand(env Env, args []string) *wire.Result {
 	case len(args) == 2 && args[0] == "--decision":
 	case len(args) == 5 && args[0] == "--execution" && args[1] == "--decision" && args[3] == "--qualification":
 		file := args[4]
-		if !filepath.IsAbs(file) {
-			file = filepath.Join(env.Cwd, file)
-		}
+		file = commandPath(env.Cwd, file)
 		raw, err := intent.ReadFile(file, wire.MaxGateOutputBytes)
 		if err != nil {
 			return errorResult(cmd, err)

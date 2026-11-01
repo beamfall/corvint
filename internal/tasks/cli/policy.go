@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -51,9 +50,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	if !filepath.IsAbs(file) {
-		file = filepath.Join(env.Cwd, file)
-	}
+	file = commandPath(env.Cwd, file)
 	raw, err := intent.ReadFile(file, wire.MaxPolicyFileBytes)
 	if err != nil {
 		return errorResult(cmd, err)

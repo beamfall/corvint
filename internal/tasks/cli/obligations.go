@@ -283,7 +283,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	if target == "" || file == "" {
 		return usage(cmd, "--target and --plan FILE are required")
 	}
-	raw, err := readPlanFile(file, ticket.MaxObligationPlanBytes)
+	raw, err := readPlanFile(env.Cwd, file, ticket.MaxObligationPlanBytes)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -411,9 +411,10 @@ func givenFlags(args []string) map[string]bool {
 	return given
 }
 
-// readPlanFile reads at most max bytes of file, refusing a larger one.
-func readPlanFile(file string, max int) ([]byte, error) {
-	f, err := os.Open(file)
+// readPlanFile reads at most max bytes of file, refusing a larger one. A
+// relative file resolves against cwd (commandPath).
+func readPlanFile(cwd, file string, max int) ([]byte, error) {
+	f, err := os.Open(commandPath(cwd, file))
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeMissingEvidence, "--plan", "the plan file is unreadable")
 	}

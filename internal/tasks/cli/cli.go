@@ -2053,7 +2053,7 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	}
 	var r io.Reader = env.Stdin
 	if len(args) == 1 && args[0] != "-" {
-		f, err := os.Open(args[0])
+		f, err := os.Open(commandPath(env.Cwd, args[0]))
 		if err != nil {
 			return failure(cmd, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, "argv", "cannot open archive: %v", err))
 		}

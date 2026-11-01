@@ -95,8 +95,8 @@ type ghRun struct {
 }
 
 // readGitHubExport decodes a bounded `gh --json` array file into out.
-func readGitHubExport(flag, file string, out any) error {
-	raw, err := readBoundedFile(flag, file, maxGitHubExportBytes)
+func readGitHubExport(cwd, flag, file string, out any) error {
+	raw, err := readBoundedFile(cwd, flag, file, maxGitHubExportBytes)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func readGitHubExport(flag, file string, out any) error {
 // export from stdin under the same byte bound (TCD-V0-171).
 func readGitHubExportArg(env Env, flag, file string, out any) error {
 	if file != "-" {
-		return readGitHubExport(flag, file, out)
+		return readGitHubExport(env.Cwd, flag, file, out)
 	}
 	if env.Stdin == nil {
 		return wire.Errorf(wire.CodeMissingEvidence, flag, "the %s export on stdin is unreadable", flag)
@@ -591,7 +591,7 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	runsFile, runsObserved := fl["runs"]
 	in.runsObserved = runsObserved
 	if err == nil && runsObserved {
-		err = readGitHubExport("--runs", runsFile, &in.runs)
+		err = readGitHubExport(env.Cwd, "--runs", runsFile, &in.runs)
 	}
 	for i := range prs {
 		in.byNumber[prs[i].Number] = &prs[i]

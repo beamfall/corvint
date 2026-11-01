@@ -175,9 +175,7 @@ func reconcileIntent(env Env, args []string) *wire.Result {
 		raw, err = io.ReadAll(io.LimitReader(env.Stdin, int64(limit)+1))
 	} else {
 		path := flags.file
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(env.Cwd, path)
-		}
+		path = commandPath(env.Cwd, path)
 		limit := wire.MaxTicketFileBytes
 		if _, e := wire.ParseTicketID("targetId", flags.target); e != nil {
 			limit = wire.MaxReleaseFileBytes

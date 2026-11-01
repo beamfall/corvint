@@ -97,9 +97,7 @@ func serviceCommand(env Env, args []string) *wire.Result {
 	switch verb {
 	case "install":
 		config := values["--config"]
-		if !filepath.IsAbs(config) {
-			config = filepath.Join(env.Cwd, config)
-		}
+		config = commandPath(env.Cwd, config)
 		o, err = h.Install(service.InstallRequest{Program: program, Config: filepath.Clean(config), RequestID: values["--request-id"], Replace: flag})
 	case "status":
 		o, err = h.Status(program)

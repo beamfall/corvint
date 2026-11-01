@@ -71,7 +71,7 @@ func defaultDoctorConfig() *doctorConfig {
 // readDoctorConfig reads and decodes the --config file; relative paths in
 // it resolve against the file's directory.
 func readDoctorConfig(path string) (*doctorConfig, error) {
-	raw, err := readBoundedFile("--config", path, doctorConfigBytes)
+	raw, err := readBoundedFile("", "--config", path, doctorConfigBytes)
 	if err != nil {
 		return nil, err
 	}

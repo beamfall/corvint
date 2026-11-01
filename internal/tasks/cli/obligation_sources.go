@@ -38,7 +38,7 @@ func sourceReviewValue(env Env, l *ticket.ObligationLedger, casesFile string) (w
 	}
 	var cases map[string]string
 	if casesFile != "" {
-		raw, err := readBoundedFile("--legacy-cases", casesFile, obligation.MaxLegacyCasesBytes)
+		raw, err := readBoundedFile(env.Cwd, "--legacy-cases", casesFile, obligation.MaxLegacyCasesBytes)
 		if err != nil {
 			return wire.Value{}, false, err
 		}
@@ -111,8 +111,10 @@ func legacySpecPath(p string) bool { return repoRelative(p) && path.Clean(p) == 
 // readBoundedFile reads at most max bytes of the regular file a flag names,
 // refusing a larger or unreadable one. A symlink, FIFO, device or directory
 // is refused before it is opened, and the open never blocks (openRegular).
-func readBoundedFile(flag, file string, max int) ([]byte, error) {
-	f, _, err := openRegular(file)
+// A relative file resolves against cwd, the command's working directory
+// (commandPath), never the process directory.
+func readBoundedFile(cwd, flag, file string, max int) ([]byte, error) {
+	f, _, err := openRegular(commandPath(cwd, file))
 	if errors.Is(err, errNotRegular) {
 		return nil, wire.Errorf(wire.CodeMalformed, flag, "the %s file is not a regular file", flag)
 	}
