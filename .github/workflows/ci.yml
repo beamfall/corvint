@@ -1176,6 +1176,27 @@ jobs:
           path: ${{ runner.temp }}/forward-outcomes/outcomes.json
           if-no-files-found: ignore
           overwrite: true
+      - name: Classify a failed main shard's packages for the main-miss link (AFP-V0-983)
+        # V1-3750: a failed full push shard of main keeps failed.jq's classification of its
+        # capture, so the ci-control-plane main-miss job can link the failed packages back to the
+        # narrowed pull requests that skipped them. It never changes the shard's status.
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 2
+        run: |
+          mkdir -p "$RUNNER_TEMP/main-failed"
+          jq -R -s -c -f .github/forward-rows/failed.jq "$RUNNER_TEMP/shard-costs/shard-${{ strategy.job-index }}.json" \
+            > "$RUNNER_TEMP/main-failed/failed.json"
+      - name: Retain a failed main shard's packages (AFP-V0-983)
+        if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        timeout-minutes: 2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-failed-push-${{ strategy.job-index }}
+          path: ${{ runner.temp }}/main-failed/failed.json
+          if-no-files-found: ignore
+          overwrite: true
       - name: Refresh the host-local Go build seed (self-hosted merge-queue shards on main, AFP-V0-428)
         # AFP-V0-428: only a merge-queue entry on main whose race invocation passed refreshes this
         # runner's seed. The job cache, its test results expired, is copied beside the seed and

@@ -1209,6 +1209,10 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 	if e, f := one(ci, `(?m)^      CORVINT_PR_FORWARD_EPOCH: "([0-9]+)"$`), one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`); e != f {
 		t.Fatalf("FORWARD_EPOCH %s names rows of another epoch than CORVINT_PR_FORWARD_EPOCH %s", f, e)
 	}
+	// AFP-V0-983: the main-miss job names its rows with the same epoch.
+	if m := one(cp, `(?m)^          FORWARD_EPOCH: "([0-9]+)"$`); m != one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`) {
+		t.Fatalf("main-miss FORWARD_EPOCH %s differs from the forward-rows epoch", m)
+	}
 	job := one(cp, `(?ms)^  forward-rows:\n(.*?)\z`)
 	if one(job, `(?m)^    permissions:\n((?:      .*\n)+)`) != "      actions: read\n      contents: read\n" {
 		t.Fatalf("forward-rows permissions are not exactly actions: read and contents: read")

@@ -18,6 +18,8 @@
 # AFP-V0-463: an INCOMPLETE row listed in infra-reclassified.txt counts as INFRA.
 # AFP-V0-484: the additive shadowCost aggregate reads ci-forward-cost-* names only after the status
 # and the kill switch are decided, and neither reads it.
+# AFP-V0-983 (V1-3750): the advisory mainMiss count reads the epoch's ci-forward-MAINMISS-* names
+# (one per failed full run of main; a re-run's newer name replaces) the same way.
 def counts($rows):
   ([$rows[] | select(.class != "INCOMPLETE" and .class != "INFRA")]) as $complete
   | {rows: ([$rows[] | select(.class != "INFRA")] | length), complete: ($complete | length),
@@ -75,9 +77,18 @@ def counts($rows):
                         missRows: ([$flags[] | select(. == "1")] | length)}));
   {advisory: "never feeds the AFP-V0-029 status, the AFP-V0-030 kill switch or narrowing",
    epoch: costs($unique), window: costs($window.rows)} as $shadowCost
+| ([split("\n")[]
+    | capture("^ci-forward-MAINMISS-r(?<run>[0-9]+)-(?<sha>[0-9a-f]{40})-e(?<epoch>[0-9]+)-n(?<n>[0-9]+)-pr(?<prs>[0-9]+(_[0-9]+)*)$")
+    | select(.epoch == $epoch)]
+   | reduce .[] as $m ({seen: {}, rows: []}; if .seen[$m.run] then . else .seen[$m.run] = true | .rows += [$m] end)
+   | .rows
+   | {advisory: "never feeds the AFP-V0-029 status, the AFP-V0-030 kill switch or narrowing",
+      runs: length, misses: (map(.n | tonumber) | add // 0),
+      pullRequests: ([.[].prs | split("_")[] | tonumber] | unique)}) as $mainMiss
 | if ($ARGS.named.format // "") == "json" then
     {status: $status, epoch: ($epoch | tonumber), covered: $covered, epochRows: $e,
      window: $w, windowInfra: $window.infra, killSwitch: $kill, narrowed: $narrowed, shadowCost: $shadowCost,
+     mainMiss: $mainMiss,
      # CIN-V0-004: the window's row names, newest first, so a pull request re-checks the kill
      # switch over the rows since the verdict plus these instead of listing back to the window.
      windowNames: [$window.rows[] | "ci-forward-\(.class)-pr\(.pr)-\(.sha)-e\(.epoch)-f\(.f)"]}
@@ -104,6 +115,9 @@ def counts($rows):
      + ([["S", "selection"], ["B", "changed"], ["C", "hop1"], ["D", "hop2"]]
         | map(.[0] as $l | $c[.[1]] | "\($l) \(.medianShare // "-")/\(.meanShare // "-") over \(.measured), \(.missRows) of \(.missMeasured) missed")
         | join("; ")) + "."),
+  "",
+  "Main full-run misses (AFP-V0-983, advisory; never the bar or the kill switch): \($mainMiss.misses) narrowed pull request(s) skipped a package a later full run of main failed, over \($mainMiss.runs) failed run(s)"
+    + (if ($mainMiss.pullRequests | length) > 0 then ": " + ($mainMiss.pullRequests | map("#\(.)") | join(", ")) else "" end) + ".",
   "",
   "This count is advisory: only the trusted AFP-V0-097 verdict artifact lets a pull request narrow."
   end

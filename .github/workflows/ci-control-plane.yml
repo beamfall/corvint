@@ -124,6 +124,42 @@ jobs:
             -f target_url="$RUN_URL" >/dev/null
           echo "ci-control-plane: success posted on merge-queue commit $HEAD"
 
+  main-miss:
+    # AFP-V0-983 (V1-3750): a failed full push run of main is linked back to the narrowed pull
+    # requests merged since the last green full run whose selection skipped a failed package. Like
+    # forward-rows it runs only .github/forward-rows from this default-branch commit, with gh and
+    # jq, and posts no status; its MAINMISS artifact name is advisory for the bar.
+    if: github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Link the failed run to narrowed pull requests
+        id: miss
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          # Must equal FORWARD_EPOCH of forward-rows and CORVINT_PR_FORWARD_EPOCH in ci.yml.
+          FORWARD_EPOCH: "2"
+        run: sh trusted/.github/forward-rows/mainmiss.sh
+      - name: Retain the main-miss row
+        if: steps.miss.outputs.name != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.miss.outputs.name }}
+          path: ${{ runner.temp }}/main-miss/miss.json
+          if-no-files-found: error
+
   forward-rows:
     if: >-
       (github.event.workflow_run.event == 'merge_group' || github.event.workflow_run.event == 'pull_request') &&
