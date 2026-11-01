@@ -110,6 +110,7 @@ type preflightInputs struct {
 	plan           string
 	deep           bool
 	gates          []string
+	witnesses      bool
 }
 
 func (p preflightInputs) key() wire.Digest {
@@ -123,6 +124,11 @@ func (p preflightInputs) key() wire.Digest {
 	}
 	for _, g := range p.gates {
 		lines = append(lines, "gate "+strconv.Quote(g))
+	}
+	// TOL-V0-940: only a --witnesses run adds a line, so every earlier key
+	// keeps its bytes.
+	if p.witnesses {
+		lines = append(lines, "witnesses true")
 	}
 	return wire.Sum([]byte(strings.Join(lines, "\n") + "\n"))
 }

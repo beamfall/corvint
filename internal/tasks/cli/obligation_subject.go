@@ -296,18 +296,10 @@ func obligationsCapability(env Env, cmd []string, args []string) *wire.Result {
 		return abstain(environmentBaselineUnresolve)
 	}
 	baseline.Set("commit", wire.String(commit))
-	var files []string
-	over := false
-	_, err = store.TreePathsAtCommit(root, commit, []string{p}, func(f string) bool {
-		if p != "." && f != p && !strings.HasPrefix(f, p+"/") {
-			return false
-		}
-		if len(files) >= maxCapabilityFiles {
-			over = true
-			return false
-		}
-		files = append(files, f)
-		return false
+	// The listing stops at the first file past the bound, so a large tree
+	// costs no more than the bound (TOL-V0-941).
+	files, over, err := store.TreePathsAtCommitUpTo(root, commit, []string{p}, maxCapabilityFiles, func(f string) bool {
+		return p == "." || f == p || strings.HasPrefix(f, p+"/")
 	})
 	if err != nil {
 		baseline.Set("commit", wire.Null())

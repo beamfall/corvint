@@ -51,10 +51,10 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	target := args[0]
 	commit, planPath := "HEAD", ""
 	var gates, prefixes []string
-	deep, useCache, fresh := false, false, false
+	deep, useCache, fresh, withWitnesses := false, false, false, false
 	var guardArgs failureGuardArgs
 	if res := pairFlags(cmd, args[1:], guardArgs.singles(map[string]*string{"--commit": &commit, "--plan": &planPath}),
-		map[string]*[]string{"--gate": &gates, "--path": &prefixes}, map[string]*bool{"--deep": &deep, "--cache": &useCache, "--fresh": &fresh}); res != nil {
+		map[string]*[]string{"--gate": &gates, "--path": &prefixes}, map[string]*bool{"--deep": &deep, "--cache": &useCache, "--fresh": &fresh, "--witnesses": &withWitnesses}); res != nil {
 		return res
 	}
 	threshold, bad := guardArgs.check(cmd)
@@ -66,6 +66,15 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	}
 	if useCache && deep {
 		return usage(cmd, "--cache covers the static checks only: --deep runs gates, so give it without --cache")
+	}
+	// TOL-V0-940: --witnesses judges the plan's ledger witnesses, and a
+	// reviewed witness is judged at a HEAD or candidate branch the cache key
+	// does not cover.
+	if withWitnesses && planPath == "" {
+		return usage(cmd, "--witnesses judges the plan's ledger witnesses: give it with --plan PATH")
+	}
+	if withWitnesses && useCache {
+		return usage(cmd, "--witnesses judges reviewed witnesses at HEAD or the candidate branch, which the cache key does not cover: give it without --cache")
 	}
 	if deep != (len(gates) > 0) {
 		return usage(cmd, "--deep runs the named gates: give --deep with one or more --gate GATE")
@@ -82,7 +91,9 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	var register *defects.Register
 	defectPrefix := ""
 	var policySum wire.Digest
+	candidate := ""
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+		candidate = ""
 		r, l, ferr := obligationTarget(rc, target)
 		if ferr != nil {
 			return ferr
@@ -110,6 +121,13 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 			}
 			defs = d
 		}
+		if withWitnesses {
+			c, cerr := reviewCandidate(rc, r.TicketID.Raw, l)
+			if cerr != nil {
+				return cerr
+			}
+			candidate = c
+		}
 		return nil
 	})
 	if err != nil {
@@ -133,7 +151,7 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if useCache || threshold > 0 {
 		key, keyReason = preflightInputKey(root, preflightInputs{ticketID: rec.TicketID.Raw, record: wire.Sum(wire.Encode(rec.Value())),
 			ledger: wire.Sum(wire.Encode(ledger.EntriesValue())), policy: policySum, commit: resolved, prefixes: prefixes,
-			plan: planPath, deep: deep, gates: gates})
+			plan: planPath, deep: deep, gates: gates, witnesses: withWitnesses})
 	}
 	guard := startFailureGuard("preflight", rec.TicketID.Raw, key, keyReason, threshold, guardArgs.remediation)
 	if err := guard.admit(); err != nil {
@@ -188,12 +206,22 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	if register != nil {
 		findings = append(findings, defects.Findings(register, defectPrefix, ledger, files)...)
 	}
+	var wr planWitnessReport
 	if planPath != "" {
-		pf, err := preflightPlan(root, resolved, planPath, rec, ledger)
+		pf, found, err := preflightPlan(root, resolved, planPath, rec, ledger)
 		if err != nil {
 			return errorResult(cmd, err)
 		}
 		findings = append(findings, pf...)
+		// --witnesses (TOL-V0-940) judges the plan as `ticket obligations
+		// plan --witnesses` does; a missing plan document has nothing to
+		// judge, so it names no witness.
+		if withWitnesses {
+			if wr, err = planWitnesses(env, rc, ledger, found, candidate); err != nil {
+				return errorResult(cmd, err)
+			}
+			findings = append(findings, staleWitnessFindings(wr, planPath)...)
+		}
 	}
 	if deep {
 		// An interrupt kills the running gate's process group and removes
@@ -232,7 +260,11 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	obligation.SortFindings(findings)
 	items := make([]wire.Value, 0, len(findings))
 	for _, f := range findings {
-		items = append(items, findingValue(f))
+		v := findingValue(f)
+		if c, has := wr.considered[f.ID]; has && f.Kind == ticket.PlanUnassigned && f.Path == planPath {
+			v.Obj.Set("considered", c)
+		}
+		items = append(items, v)
 	}
 	ok := len(findings) == 0
 	status := preflightPassed
@@ -243,12 +275,21 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 	item := wire.NewObject().Set("ok", wire.Bool(ok)).Set("status", wire.String(status)).
 		Set("ticketId", wire.String(rec.TicketID.Raw)).Set("commit", wire.String(resolved)).
 		Set("specFileCount", wire.String(string(wire.CountOf(int64(len(files)))))).Set("findings", wire.Array(items...))
+	if withWitnesses {
+		if wr.witnesses == nil {
+			wr.witnesses = []wire.Value{}
+		}
+		item.Set("ledgerWitnesses", wire.Array(wr.witnesses...))
+	}
 	res.Items = []wire.Value{wire.ObjectValue(item)}
 	res.Untrusted = true
 	res.Warnings = append(res.Warnings, warnings...)
 	if !ok {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, preflightFailed+": the ticket's obligations are not ready to run at this commit; each finding names its remedy")
+	}
+	if len(wr.stale) > 0 {
+		res.Warnings = append(res.Warnings, "a reviewed ledger witness is stale or unresolved at HEAD (STALE_REVIEW)")
 	}
 	if cache != nil {
 		cache.finish(res, item)
@@ -268,25 +309,25 @@ func preflight(env Env, cmd []string, args []string) *wire.Result {
 // preflightPlan runs the TOL-V0-020 plan check on the plan document at
 // commit (TOL-V0-026). A path that is not a file there is a PLAN_MISSING
 // finding; an unreadable, oversized or mismatched plan refuses.
-func preflightPlan(root, commit, planPath string, rec *ticket.Record, l *ticket.ObligationLedger) ([]obligation.Finding, error) {
+func preflightPlan(root, commit, planPath string, rec *ticket.Record, l *ticket.ObligationLedger) ([]obligation.Finding, []ticket.ObligationPlanFinding, error) {
 	_, present, content, err := store.FilesAtCommit(root, commit, []string{planPath})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !present[planPath] {
 		return []obligation.Finding{{Kind: obligation.FindingPlanMissing, Path: planPath,
-			Detail: "the commit holds no file " + planPath, Remedy: planMissingRemedy}}, nil
+			Detail: "the commit holds no file " + planPath, Remedy: planMissingRemedy}}, nil, nil
 	}
 	raw, ok := content[planPath]
 	if !ok {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, "--plan", "the plan at the commit exceeds %d bytes", store.PreflightBlobBytes)
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, "--plan", "the plan at the commit exceeds %d bytes", store.PreflightBlobBytes)
 	}
 	plan, err := ticket.DecodeObligationPlan(raw)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if plan.TicketID.Raw != rec.TicketID.Raw {
-		return nil, wire.Errorf(wire.CodeMalformed, "/ticketId", "the plan names %s, not %s", plan.TicketID.Raw, rec.TicketID.Raw)
+		return nil, nil, wire.Errorf(wire.CodeMalformed, "/ticketId", "the plan names %s, not %s", plan.TicketID.Raw, rec.TicketID.Raw)
 	}
 	found, _ := ticket.CheckObligationPlan(l, plan)
 	out := make([]obligation.Finding, 0, len(found))
@@ -297,7 +338,32 @@ func preflightPlan(root, commit, planPath string, rec *ticket.Record, l *ticket.
 		}
 		out = append(out, obligation.Finding{Kind: f.Kind, ID: f.ID, Path: planPath, Detail: detail, Remedy: planRemedies[f.Kind]})
 	}
-	return out, nil
+	return out, found, nil
+}
+
+// staleWitnessRemedy is the remedy of a TOL-V0-940 STALE_REVIEW finding.
+const staleWitnessRemedy = "re-review the changed test at the current revision, or witness the obligation again"
+
+// staleWitnessFindings turns each ledger witness that is not COVERED into a
+// STALE_REVIEW preflight finding on the plan (TOL-V0-940), naming its status.
+func staleWitnessFindings(wr planWitnessReport, planPath string) []obligation.Finding {
+	status := map[string]string{}
+	for _, w := range wr.witnesses {
+		if w.Kind != wire.KindObject {
+			continue
+		}
+		id, okID := w.Obj.Get("id")
+		st, okStatus := w.Obj.Get("status")
+		if okID && okStatus {
+			status[id.Str] = st.Str
+		}
+	}
+	out := make([]obligation.Finding, 0, len(wr.stale))
+	for _, f := range wr.stale {
+		out = append(out, obligation.Finding{Kind: f.Kind, ID: f.ID, Path: planPath,
+			Detail: "the reviewed ledger witness is " + status[f.ID], Remedy: staleWitnessRemedy})
+	}
+	return out
 }
 
 // underAny reports whether p lies under one of prefixes, or prefixes is

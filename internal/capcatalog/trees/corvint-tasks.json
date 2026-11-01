@@ -1702,7 +1702,7 @@
       "command": "corvint-tasks preflight",
       "summary": "",
       "usage": [
-        "corvint-tasks preflight <ticketId|local> [--commit OID] [--path PREFIX ...] [--plan PATH] [--deep --gate GATE ... | --cache [--fresh]] [--refuse-repeat N [--remediation REF]]"
+        "corvint-tasks preflight <ticketId|local> [--commit OID] [--path PREFIX ...] [--plan PATH [--witnesses]] [--deep --gate GATE ... | --cache [--fresh]] [--refuse-repeat N [--remediation REF]]"
       ],
       "flags": [
         "--cache",
@@ -1713,7 +1713,8 @@
         "--path",
         "--plan",
         "--refuse-repeat",
-        "--remediation"
+        "--remediation",
+        "--witnesses"
       ],
       "required": [
         "<ticketId|local>"
