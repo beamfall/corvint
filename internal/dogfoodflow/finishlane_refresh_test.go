@@ -141,6 +141,9 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 		"dogfood-inputs-check: REFUSE citations-refresh-incomplete plan=" + refreshed + " carried=1 rekeyed=1 dropped=0 drafted=1\n",
 		"path=b.txt BASE 0,0\n",
 		"  fix: review the drafted rows in " + refreshed + " (a drafted citation is a proposal, not evidence), then rerun with CITATIONS=" + refreshed + "\n",
+		// DCW-V0-982: the refusal names the candidate and the command that
+		// installs it over the caller's plan.
+		"  install: after that review, cp -f -- " + shellQuote(refreshed) + " " + shellQuote(plan) + " installs the candidate as the plan CITATIONS names, so the same rerun binds it (DCW-V0-982)\n",
 	} {
 		if !strings.Contains(stderr, want) {
 			t.Errorf("refusal lacks %q:\n%s", want, stderr)

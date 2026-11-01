@@ -3163,6 +3163,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a current plan is untouched; the previous refresh output passed back as CITATIONS after HEAD
   moved again is refreshed into the other file and left byte-identical). Rollback: drop the refresh; the stale row is refused at the bind as
   before (`DCW-V0-441`).
+- `DCW-V0-982`: (experimental under the standing lane auto-accept, 2026-11-01; lane dck-u24
+  friction; refines `DCW-V0-947`) The `REFUSE citations-refresh-incomplete` refusal MUST also name
+  the refreshed plan as the install candidate and print the command that installs it over the
+  caller's CITATIONS file, `install: after that review, cp -f -- CANDIDATE CITATIONS ...`, each path
+  shell-quoted, so a lane whose inputs live at a fixed path (such as `$(git rev-parse
+  --git-dir)/citations.tsv`) reruns the same command after review. Non-goal: the run still never
+  rewrites the caller's file itself. Evidence: `TestDCWV0947FinishRefreshesAMovedPlan`. Rollback:
+  drop the install line.
 - `DCW-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines
   `DCW-V0-380` and `DCW-V0-800`) `make dogfood-closeout` MUST run its `dogfood-inputs-check` and
   `dogfood-finish` steps with `LANE=1`, so one closeout without `INTENTS`, `VERIFY` or `OUTCOME`
@@ -3623,6 +3631,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-944` (experimental under the standing lane auto-accept; V1-3550) | `Makefile` `dogfood-closeout`; `script/batch-precheck_test.sh` | implemented; focused test PASS |
 | `DCW-V0-945` (experimental under the standing lane auto-accept; V1-3633) | `internal/lrfrepo` `DeriveIntentAt`, used by `beginOCM` and `IntentObligationCounts`; `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` | implemented; focused tests PASS |
 | `DCW-V0-946` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/flow.go` `requireBaseAncestor`, called by `propose` and `finishLane.run`; `TestDCWV0946ProposeRefusesNonAncestorBase`, `TestDCWV0946FinishLaneRefusesNonAncestorBase` | implemented; focused tests PASS |
+| `DCW-V0-982` (experimental under the standing lane auto-accept; lane dck-u24 friction) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-947` (experimental under the standing lane auto-accept; V1-3638) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-960` (experimental under the standing lane auto-accept; V1-3047) | `Makefile` `dogfood-closeout` target-specific `LANE`; `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestDCWV0960InputsCheckRefusesAbsentIntentManifest`, `script/dogfood-cache_test.sh` | implemented; focused tests PASS |
 | `DCW-V0-961` (experimental under the standing lane auto-accept; V1-3047) | `internal/dogfoodflow/obligation_precheck.go` `refuseOverBoundIntents`, `overMapBound`; `TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep` | implemented; focused test PASS |
