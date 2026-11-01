@@ -838,6 +838,9 @@ AMAP-V0-813	docs/specs/application-map-v0.md	(accepted under the owner's standin
 AMAP-V0-814	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-1614) Cypress	standing	2026-11-01; V1-1614
 AMAP-V0-815	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A	standing	2026-11-01; V1-1614
 AMAP-V0-816	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A route	standing	2026-11-01; V1-1614
+AMAP-V0-600	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3932; amendin	standing	2026-11-01; V1-3932
+AMAP-V0-881	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3954; amendin	standing	2026-11-01; V1-3954
+AMAP-V0-882	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3935; amendin	standing	2026-11-01; V1-3935
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -7554,6 +7557,8 @@ TJAA-V0-147	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimenta
 TJAA-V0-810	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2611; amendin	standing	2026-10-31; V1-2611
 TJAA-V0-127	docs/specs/typescript-javascript-affected-adapter-v0.md	(standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static	standing	2026-10-27; V1-2584
 TJAA-V0-960	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); V1-2533; amendin	standing	2026-10-11; V1-2533
+TJAA-V0-600	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3933; amendin	standing	2026-11-01; V1-3933
+TJAA-V0-601	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3933) A liter	standing	2026-11-01; V1-3933
 TJAA-V0-761	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)	standing	2026-10-11; V1-2060
 TJAA-V0-762	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)	standing	2026-10-11; V1-2060
 TJAA-V0-763	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)	standing	2026-10-11; V1-2060

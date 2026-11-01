@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -16,6 +18,7 @@ type reactParser struct {
 	unknowns []Unknown
 	ordinal  int
 	anchor   Anchor
+	trees    int
 }
 
 // reactImporter reads the module a relative import specifier names at the build revision for the
@@ -179,7 +182,54 @@ func parseReactRouterWith(e blobEntry, data []byte, imp reactImporter) ([]rawSta
 	if !found {
 		p.unknown(1, "react-routes-not-found")
 	}
-	return p.states, p.unknowns
+	return reactMergeAlternates(p.states, "react:"+e.path+":"), p.unknowns
+}
+
+// reactMergeAlternates folds a leaf route that a later route tree declares again, with the same
+// full path and the same element, into its first declaration: mutually exclusive <Routes> trees
+// that render one element at one URL declare one screen (AMAP-V0-882). Only resolved, unnamed,
+// non-redirect leaves with a read element merge; the merged entry carries every constraint either
+// declaration had. Any other repeat keeps both states, so the template stays ambiguous.
+func reactMergeAlternates(states []rawState, generated string) []rawState {
+	first := map[string]int{}
+	out := make([]rawState, 0, len(states))
+	for _, s := range states {
+		if s.element == "" || s.abstract || s.redirect || s.reason != "" || !strings.HasPrefix(s.name, generated) {
+			out = append(out, s)
+			continue
+		}
+		k := s.url + "\x00" + s.element
+		j, seen := first[k]
+		if seen && out[j].tree != s.tree {
+			out[j].entry = mergeEntries(out[j].entry, s.entry)
+			continue
+		}
+		if !seen {
+			first[k] = len(out)
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// mergeEntries is the union of two entry declarations' constraints; nil when neither has one.
+func mergeEntries(a, b *EntryDeclaration) *EntryDeclaration {
+	if a == nil && b == nil {
+		return nil
+	}
+	out := &EntryDeclaration{URLDeclared: true, Constraints: []string{}}
+	for _, e := range []*EntryDeclaration{a, b} {
+		if e == nil {
+			continue
+		}
+		for _, c := range e.Constraints {
+			if !containsString(out.Constraints, c) {
+				out.Constraints = append(out.Constraints, c)
+			}
+		}
+	}
+	sort.Strings(out.Constraints)
+	return out
 }
 
 func (p *reactParser) unknown(line int, reason string) {
@@ -274,6 +324,9 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 		p.unknown(v.line, "non-literal-react-children")
 		return
 	}
+	if depth == 0 {
+		p.trees++
+	}
 	for _, node := range v.arr {
 		if node.kind == "jsx-expression" {
 			p.unknown(node.line, "non-literal-react-children") // its siblings stay read (AMAP-V0-190)
@@ -289,6 +342,7 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 		routePath := ""
 		index := false
 		redirect := false
+		element := ""
 		children, hasChildren := node.get("children")
 		for _, pair := range node.obj {
 			value := pair.value
@@ -321,6 +375,9 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 				}
 			case "element":
 				redirect = value.kind == "navigate"
+				if value.kind == "element" {
+					element = value.str
+				}
 			case "Component", "errorElement", "ErrorBoundary", "loader", "action", "handle", "shouldRevalidate", "hydrateFallbackElement", "HydrateFallback":
 				// These do not supply route paths. Their behavior is not inferred.
 			default:
@@ -347,7 +404,7 @@ func (p *reactParser) routes(v jsValue, parent, parentPath string, depth int) {
 			return
 		}
 		// A childless route whose element is only a <Navigate> redirects; it declares no screen (AMAP-V0-194).
-		p.states = append(p.states, rawState{name: name, parent: parent, parentSet: true, url: "^" + full, urlSet: true, abstract: hasChildren || redirect, redirect: redirect, reason: reason, anchor: p.anchor})
+		p.states = append(p.states, rawState{name: name, parent: parent, parentSet: true, url: "^" + full, urlSet: true, abstract: hasChildren || redirect, redirect: redirect, reason: reason, anchor: p.anchor, tree: p.trees, element: element})
 		if hasChildren && children.kind == "array" {
 			p.routes(children, name, full, depth+1)
 		}
@@ -398,6 +455,9 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 				}
 				if reactNavigateElement(ts[i+1 : end]) {
 					value = jsValue{kind: "navigate", line: v.line}
+				} else if key == "element" {
+					// The element's canonical token text tells two declarations of one path apart (AMAP-V0-882).
+					value = jsValue{kind: "element", str: reactTokenText(ts[i+1 : end]), line: v.line}
 				}
 				i = end + 1
 			} else {
@@ -446,6 +506,24 @@ func reactJSX(ts []token, i, depth int) (jsValue, int, bool) {
 		i = after
 	}
 	return jsValue{}, i, false
+}
+
+// reactTokenText is the canonical text of an attribute expression: its tokens, string literals
+// quoted, separated by one space, so layout and comments never matter. It is empty, and the
+// element unread, when a token's value is not exact (a substitution, an undecodable escape, or
+// source the lexer could not bound).
+func reactTokenText(ts []token) string {
+	parts := make([]string, len(ts))
+	for k, t := range ts {
+		if t.subst || t.inexact || t.unsure || t.regex != "" {
+			return ""
+		}
+		parts[k] = t.text
+		if t.kind == tokString {
+			parts[k] = strconv.Quote(t.text)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // reactNavigateElement reports whether an attribute expression is exactly one self-closing

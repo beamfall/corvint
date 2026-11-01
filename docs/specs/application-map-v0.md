@@ -789,7 +789,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `cmd/corvint/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/1`), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/3`; bumped from `/1` by the V1-3932 React route ranking and to `/3` by the AMAP-V0-881 screen `dialect`), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2220,6 +2220,83 @@ but does not read it; only non-Go syntax impact does.
   misses unlabelled when no template matches (only a root splat leaves `catch-all-route`). Any
   other expression keeps the `regular-expression` label. Non-goal: deciding a parameter's value
   against the expression; that is a possible match.
+- `AMAP-V0-600`: (experimental under the standing lane auto-accept (2026-11-01); V1-3932; amending
+  `AMAP-V0-003` and `AMAP-V0-005`) When a literal test URL (a spec's or page object's own `goto`,
+  `waitForURL` or `toHaveURL`) matches several routable screens and every candidate was declared by a
+  `react-router/0` router file, the build MUST rank them as React Router does: each candidate scores
+  its path segments plus one, plus 10 per static segment, 3 per parameter segment and 1 for the
+  leading empty segment, and a trailing splat subtracts 2. The single highest score is the match, so
+  `/new` beside `/*` places `/new` and `/dynamic/new` beside `/dynamic/:id` places `/dynamic/new`.
+  A tie, or any candidate from another dialect (Rails and UI-Router keep declaration-order or
+  their own ranking), keeps `ambiguous-template`. A render guard (`AMAP-V0-193`) never changes the
+  match: a guarded route is ranked like any other. Template lookups and the `ambiguous-template`
+  unknown for two screens sharing one key are unchanged.
+  - Non-goals: ranking for other dialects; index-route and optional-segment bonuses, since the
+    shared template key has neither.
+  - Failure modes: a screen that shares its state name with another dialect's state is not
+    ranked, so the lookup stays `UNKNOWN`.
+  - Falsifier: `TestAMAPV0600SpecificRouteBeatsSplat_V13932` in `goto_splat_v13932_test.go`
+    (render-guarded react routes beside a `/*` splat: `/new` and `/dynamic/new` gotos attribute to
+    their screens, `/dynamic/42` to `/dynamic/{id}`, `/kindred` to the splat), failing on base
+    `e9a5d6c80`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a mixed-dialect or tied match stays
+    ambiguous).
+  - Rollback: drop `screenIndex.ranked` and the ranking in `urlMatches`; map bytes change only in the
+    newly attributed specs. Since AMAP-V0-881 the ranked set is read from each screen's `dialect`,
+    so every reader that rebuilds an index from a map ranks as the build did.
+- `AMAP-V0-881`: (experimental under the standing lane auto-accept (2026-11-01); V1-3954; amending
+  `AMAP-V0-600` and `AMAP-V0-215`) Each map screen MUST carry `dialect`, the route dialect of the
+  router file that declared its state (`react-router/0`, `ui-router-states/0` or `rails-routes/0`).
+  The member is omitted when router files of more than one dialect declared states with the
+  screen's ID. Every screen index MUST derive its AMAP-V0-600 ranked set from that member alone,
+  and the ranking MUST apply wherever a literal URL is matched against screens: the build's goto
+  attribution, `flows appmap find`, `observe` visits, UI-record screens, and the refs and
+  site-knowledge readers that rebuild an index from a map. A URL therefore resolves to the same
+  screen, or to the same ambiguous candidate list, whether the builder or a reader looks it up.
+  The builder version is bumped to `appmap-builder/3`, so a `--from` MAP written before the member
+  rebuilds in full (`builder-version-differs`). A map written by an earlier builder still parses:
+  its screens carry no `dialect`, and its readers rank no candidate, keeping the reading they gave
+  before this change.
+  - Non-goals: a map-level dialect, since one map may combine router files of several dialects;
+    bumping `application-map/0`, since the member is optional and omitted when unknown.
+  - Failure modes: a reader built before this change refuses a map that carries `dialect`, since
+    `ParseMap` rejects unknown members; such a binary must be upgraded with the map. A
+    hand-edited `dialect` changes reader ranking but not the build's spec attributions.
+  - Falsifier: `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go` (the
+    VanillaTwisted-shaped fixture round-tripped through `Encode` and `ParseMap`: every screen reads
+    `react-router/0`, and the build's goto attribution, a rebuilt index, `findScreen`, `Observe` and
+    the UI-record resolver agree for `/new`, `/dynamic/new`, `/dynamic/42` and `/kindred`; the same
+    map with `dialect` stripped still parses and `findScreen("/new")` stays `ambiguous-template`,
+    the unranked reading every reader gave on base `f60c1b027`).
+  - Rollback: delete the `dialect` member and `markDialects`, restore the builder-only ranked set
+    and `appmap-builder/2`; maps written with the member must be rebuilt.
+- `AMAP-V0-882`: (experimental under the standing lane auto-accept (2026-11-01); V1-3935; amending
+  `AMAP-V0-003` and `AMAP-V0-190`) In a `react-router/0` router file, a leaf route that a later
+  route tree (another `<Routes>` element, `createBrowserRouter` or `createRoutesFromElements` call in
+  the same file) declares again with the same full path and the same `element` MUST fold into its
+  first declaration, so mutually exclusive trees that render one element at one URL yield one
+  screen and no `ambiguous-template` unknown. Two elements are the same when their attribute
+  expressions have the same tokens, string literals compared by value, ignoring layout and
+  comments. Only a resolved, non-redirect leaf with a generated `react:` name and an exactly read
+  JSX `element` folds; the folded screen's entry carries the union of both declarations'
+  constraints, so a render guard on either keeps `render-guarded`. Every other repeat keeps both
+  screens, and each `ambiguous-template` unknown for a key shared by several screens MUST carry
+  `detail` `declared by <screen id>, <screen id>...` naming every screen with that key, in any
+  dialect. The change ships under the AMAP-V0-881 builder version `appmap-builder/3`.
+  - Non-goals: folding object-form route arrays, whose `element` is not read; folding routes with
+    an explicit `id`, since a flow may name either; deciding which mutually exclusive tree renders.
+  - Failure modes: two trees whose identical element tokens resolve to different components
+    (a shadowed import) fold into one screen; an element written once as `<About />` and once as
+    `{About}` stays ambiguous.
+  - Falsifier: `TestAMAPV0882SameElementAcrossTreesMerges_V13935` in
+    `alternate_routes_v13935_test.go` (the VanillaTwisted legal-page shape: a standalone `<Routes>`
+    and the guarded main tree both declaring `/about` and `/privacy` give one resolved screen per
+    path, `render-guarded`, no `ambiguous-template`, and the `/about` goto attributed; the
+    VanillaTwisted build-38 map reported two `ambiguous-template` unknowns for this shape);
+    `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` (a different `/privacy` element stays
+    ambiguous with a detail naming both screens; a repeat within one tree, an explicit id or an
+    unread element never folds).
+  - Rollback: delete `reactMergeAlternates`, `mergeEntries`, `reactTokenText`, the `tree` and
+    `element` raw-state members and the ambiguity detail; repeated paths read ambiguous again.
 
 ## Wire contract
 
@@ -2549,6 +2626,9 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-815 | `TestAMAPV0815TestIDAttribute`; `TestAMAPV0815AliasedRootTestIDAttribute` (a bound aliased root's own `playwright.config` attribute is checked) |
 | AMAP-V0-816 | `TestAMAPV0816AnchoredRegexRoutes` (an `i`-flag literal start matches a parameterized route without case; top-level alternation keeps the label) |
 | AMAP-V0-880 | `TestAMAPV0880EscapedIdentifierToken` (an escaped identifier is one raw-text token marked escaped; a malformed escape stays punctuation), `TestAMAPV0880EscapedIdentifierKeyIsDoubt` (the shared object reader reads an escaped key as doubt, a plain key as its name), `TestAMAPV0880EscapedEndpointConfigKey` (an escaped `method` or `baseURL` key refuses the config or reads `*`, never the plain verb), `TestAMAPV0880BracedEscapeDigits` (leading-zero braced escapes up to `0x10FFFF` are one escaped identifier; a larger value stays punctuation) |
+| AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
+| AMAP-V0-881 | `TestAMAPV0881ReadersRankAsBuilder_V13954` in `dialect_rank_v13954_test.go`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a screen with its dialect cleared ranks nothing) |
+| AMAP-V0-882 | `TestAMAPV0882SameElementAcrossTreesMerges_V13935`, `TestAMAPV0882DifferentElementStaysAmbiguous_V13935` in `alternate_routes_v13935_test.go` (VanillaTwisted rebuild `NOT_RUN` in the lane) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
