@@ -847,7 +847,7 @@ func (b *builder) sequence(tf *TestFile) {
 		anchor := spanOf(e, b.sources[tf.Path], uses[i-1].line, uses[i].line)
 		// The whole spec is cited: its imports and instance bindings decide which methods are read.
 		eff := stepEffect{kind: EffectNavigation, from: []Anchor{spanOf(e, b.sources[tf.Path], 1, strings.Count(string(b.sources[tf.Path]), "\n")+1)}}
-		eff.join(b.effects.span(tf.Path, toks, uses[i-1].at, uses[i].at, inst, classes, "", 0))
+		eff.join(b.effects.span(tf.Path, toks, uses[i-1].at, uses[i].at, inst, classes, "", false, 0))
 		// Both constructions that bound the step run their page objects' constructors; the closing
 		// construction's arguments run in this step too (the opening one's lie inside the span).
 		for _, u := range []use{uses[i-1], uses[i]} {
@@ -856,7 +856,7 @@ func (b *builder) sequence(tf *TestFile) {
 		if end := closeParen(toks, uses[i].at+1); !next(toks, uses[i].at+1, "(") || !isPunct(toks[end], ")") {
 			eff.join(effectAt(EffectUnknown, tf.Path, uses[i].line, "new"))
 		} else {
-			eff.join(b.effects.span(tf.Path, toks, uses[i].at+1, end, inst, classes, "", 0))
+			eff.join(b.effects.span(tf.Path, toks, uses[i].at+1, end, inst, classes, "", false, 0))
 		}
 		edge := Edge{From: uses[i-1].screen, To: uses[i].screen, Basis: "test-sequence", Source: tf.ID, Anchor: anchor,
 			Effect: eff.kind, EffectFrom: eff.from}

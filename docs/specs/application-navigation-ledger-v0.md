@@ -225,8 +225,8 @@ are URL templates, not component source files. This slice makes neither missing 
   construction runs: that file's tokens outside its recognized non-constructor methods, plus the
   closing construction's arguments. A page-object file whose class `extends` another or declares a
   `get`/`set` accessor is not read: its methods and constructions are `unknown` (`extends`,
-  `accessor`). A page object may assign its own fields (`this.NAME = ...`) when NAME is not one of
-  its members. The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
+  `accessor`). A page object may assign its own fields (`this.NAME = ...`) in the tokens its
+  construction runs when NAME is not one of its members (ANL-V0-920). The step is `state-effect` when any call fills, types, presses, checks, selects, uploads,
   clears, drags or submits; issues a request (`fetch(`, or an HTTP verb on a `request` receiver);
   or writes storage or cookies (`setItem`, `removeItem`, `addCookies`, `clearCookies`). Otherwise
   it is `unknown` when any call is not provable: a navigation, wait, read or click whose receiver is
@@ -549,6 +549,15 @@ either root (they fail closed or refuse instead).
   as ANL-V0-044 keeps a route. Acceptance: `TestANLV0073FragmentRedaction`,
   `TestANLV0044ProducerRedactionMatchesObserve`, `TestANLV0037ProducerNodeUnit`. Rollback: revert
   the bare-fragment branches of `redactURL` in `observe.go` and `navigation-events.cjs`.
+- `ANL-V0-920`: (proposed under the owner's standing auto-accept (2026-10-11); V1-3889) Under
+  ANL-V0-035, a constructor or field-initializer assignment `this.NAME = ...` to a field the class
+  declares (the Playwright page-object style `readonly save: Locator;` with
+  `this.save = page.getByRole(...)`) is read, not `member-assignment`, when NAME is not also one of
+  the class's methods. The same assignment inside a non-constructor method is `member-assignment`,
+  so a step calling a method that reassigns a field stays `unknown` at that line. A field named like
+  a method stays `member-assignment` everywhere, since it could replace that method. Acceptance:
+  `TestANLV0920ConstructorAssignsDeclaredFields`. Rollback: drop the `construction` argument of
+  `effectReader.span` in `effects.go`.
 
 ## Wire and limits
 
@@ -640,6 +649,7 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-071 | `internal/appmap/impacthop.go` `registrations`, `hopDINames`, `hopNgForms`, `references` | `TestANLV0071AngularDIRegistrationsAreReferences`, `TestANLV0071FiltersAndDirectiveSpellingsAreReferences` |
 | ANL-V0-072 | `internal/appmap/impact.go` `ImpactUnknown.Detail`, `cmd/corvint/impact_tworoot.go` | `TestANLV0070CommonStemIdentifiersAreNotReferences`, `TestANLV0071AngularDIRegistrationsAreReferences`, `TestANLV0072TwoRootUnknownNamesItsDetail` |
 | ANL-V0-073 | `internal/appmap/observe.go` `redactURL`, `internal/appmap/navigation-events.cjs` `redactBareFragment` | `TestANLV0073FragmentRedaction`, `TestANLV0044ProducerRedactionMatchesObserve`, `TestANLV0037ProducerNodeUnit` |
+| ANL-V0-920 | `internal/appmap/effects.go` `span`, `construct`, `method` | `TestANLV0920ConstructorAssignsDeclaredFields` |
 
 ## Follow-ups and promotion
 
