@@ -87,7 +87,11 @@ type executionOutcome struct {
 // not proved within retirementWindow is CLEANUP_ERROR/PROCESS_GROUP_HOLD,
 // and a platform without the owner is UNSUPPORTED_EXECUTION_AUTHORITY.
 func (x *ownedExecution) run(ctx context.Context, c *exec.Cmd) executionOutcome {
-	c.WaitDelay = 250 * time.Millisecond
+	// The owner retires the whole group before the reap, so the output pipes
+	// close with it; this bounds only the copy and an escaped holder. 250 ms
+	// could turn a successful candidate into PROCESS_ERROR on a loaded host
+	// (V1-3435); 5 s keeps it within retirementWindow's order.
+	c.WaitDelay = 5 * time.Second
 	owner, err := groupreap.StartWith(c, executionHost())
 	if errors.Is(err, groupreap.ErrOwnerUnavailable) {
 		return executionOutcome{group: "NOT_OBSERVED", cleanup: "NOT_OBSERVED", status: "UNSUPPORTED_EXECUTION_AUTHORITY", reason: "UNSUPPORTED_EXECUTION_AUTHORITY", unsupported: true}

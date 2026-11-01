@@ -13,6 +13,10 @@ import (
 	"time"
 )
 
+// snapshotOutputDrain bounds how long a descendant snapshot waits for ps's
+// output after ps exits (V1-3435).
+var snapshotOutputDrain = 5 * time.Second
+
 func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 	command := exec.CommandContext(ctx, "/bin/ps", "-axo", "pid=,ppid=,lstart=,stat=")
 	return descendantSnapshotCommand(command)
@@ -22,7 +26,10 @@ func descendantSnapshot(ctx context.Context) (map[int]ObservedProcess, error) {
 // Production always supplies /bin/ps with the original arguments above.
 func descendantSnapshotCommand(command *exec.Cmd) (map[int]ObservedProcess, error) {
 	command.Env = []string{"LC_ALL=C", "TZ=UTC"}
-	command.WaitDelay = 100 * time.Millisecond
+	// ps exits before its output copy finishes; on a loaded host that copy can
+	// lag well past 100 ms, which made a successful snapshot read as
+	// unavailable. 5 s matches the portable Git backend (CEM-V1-820, V1-3435).
+	command.WaitDelay = snapshotOutputDrain
 	capture := newProcessCapture(4<<20, make(chan struct{}, 1), OverflowFail)
 	command.Stdout = capture
 	// Drain excess diagnostics so a noisy ps does not block on a full pipe.
