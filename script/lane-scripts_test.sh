@@ -248,6 +248,8 @@ ok
 # shell on this host with its own HOME and TMPDIR; go is a stub reporting where and on what it ran.
 off=$tmp/off
 mkdir -p "$off/bin" "$off/rhome" "$off/rtmp" "$off/ltmp"
+# Like a real ssh, the fake forwards neither of the caller's Go cache variables, so a lane's exported
+# GOCACHE and CORVINT_GOCACHE never reach the remote command (V1-3822).
 cat > "$off/bin/ssh" << SSH
 #!/usr/bin/env bash
 while [[ \$1 == -o ]]; do shift 2; done
@@ -256,7 +258,7 @@ printf '%s\n' "\$host" >> "$off/ssh.log"
 [[ \$host == down ]] && exit 255
 if [[ \$host == flaky && ! -e $off/flaky.once ]]; then : > "$off/flaky.once"; exit 255; fi
 [[ \$host == hang ]] && { echo \$\$ > "$off/hang.pid"; exec sleep 30; }
-tee "$off/payload.last" | env -u GOCACHE -u GIT_CONFIG_GLOBAL -u XDG_CONFIG_HOME HOME="$off/rhome" TMPDIR="$off/rtmp" bash -c "\$*"
+tee "$off/payload.last" | env -u GOCACHE -u CORVINT_GOCACHE -u GIT_CONFIG_GLOBAL -u XDG_CONFIG_HOME HOME="$off/rhome" TMPDIR="$off/rtmp" bash -c "\$*"
 SSH
 cat > "$off/bin/go" << GO
 #!/usr/bin/env bash
