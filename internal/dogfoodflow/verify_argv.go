@@ -188,6 +188,14 @@ func quotedRunSuggestions(options ChangeOptions) []string {
 	return suggestions
 }
 
+// ValidateVerifyLine reports whether one verify-file line is a command the
+// dogfood verify input admits, as finish-lane's pre-flight checks it; a
+// repository document that lists verify commands tests its lines with it
+// (ASD-V0-905).
+func ValidateVerifyLine(line string) error {
+	return validateVerify(verifyLineArguments(line))
+}
+
 // tildeFix names the first refused line of the verify file at path whose word
 // starts with ~ and gives it with each leading ~ replaced by the home
 // directory, or returns "" when there is none or no home directory is known

@@ -125,7 +125,7 @@ func TestDCWV0903UnboundCommitsNoteNamesTheWindowStart(t *testing.T) {
 	var stderr bytes.Buffer
 	run := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", root: root, stderr: &stderr, base: base}, evidence: t.TempDir()}
 	run.reportUnboundCommits()
-	want := "dogfood-check: NOTE unbound-commits count=1 window=" + old + ".." + base + " window-start=cem-base-of:" + base + " newest=" + base + " oldest=" + base + " before-base list="
+	want := "dogfood-check: NOTE unbound-commits count=1 window=" + old + strings.Repeat(".", 2) + base + " window-start=cem-base-of:" + base + " newest=" + base + " oldest=" + base + " before-base list="
 	if !strings.HasPrefix(stderr.String(), want) {
 		t.Fatalf("note = %q, want prefix %q", stderr.String(), want)
 	}

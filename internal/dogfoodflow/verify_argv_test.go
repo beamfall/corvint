@@ -158,7 +158,7 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 		"go test -count=1 -run '^TestA$' ./a": `["go","test","-count=1","-run","^TestA$","./a"]`,
 		"go test -run 'TestA' ./a":            `["go","test","-run","TestA","./a"]`,
 		"go test -run=\"^TestA_b$\" ./a":      `["go","test","-run=^TestA_b$","./a"]`,
-		"HEAVY_WHOLE_REASON='corvint selected the package whole' /x/heavy.sh go test -count=1 -run '.' ./a": `["HEAVY_WHOLE_REASON=corvint selected the package whole","/x/heavy.sh","go","test","-count=1","-run",".","./a"]`,
+		"HEAVY_WHOLE_REASON='corvint selected the package whole' /x/run.sh go test -count=1 -run '.' ./a": `["HEAVY_WHOLE_REASON=corvint selected the package whole","/x/run.sh","go","test","-count=1","-run",".","./a"]`,
 		"go test -run '.*' ./a": `["go","test","-run",".*","./a"]`,
 	} {
 		got := verifyArguments([]byte(line + "\n"))
@@ -195,14 +195,14 @@ func TestDCWV0905TildeVerifyLineNamesTheAbsolutePath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	verify := filepath.Join(t.TempDir(), "verify.txt")
-	if err := os.WriteFile(verify, []byte("go vet ./a\n~/lanes/heavy.sh go test -count=1 -run TestA ./a\n"), 0o600); err != nil {
+	if err := os.WriteFile(verify, []byte("go vet ./a\n~/lanes/run.sh go test -count=1 -run TestA ./a\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	want := verify + " line 2: write the path in full, not with ~: " + home + "/lanes/heavy.sh go test -count=1 -run TestA ./a (DCW-V0-905)"
+	want := verify + " line 2: write the path in full, not with ~: " + home + "/lanes/run.sh go test -count=1 -run TestA ./a (DCW-V0-905)"
 	if got := tildeFix(verify); got != want {
 		t.Fatalf("tildeFix = %q, want %q", got, want)
 	}
-	if args := verifyArguments([]byte("~/lanes/heavy.sh go test ./a\n")); validateVerify(args) == nil {
+	if args := verifyArguments([]byte("~/lanes/run.sh go test ./a\n")); validateVerify(args) == nil {
 		t.Fatalf("a ~ path was admitted: %q", args)
 	}
 	if err := os.WriteFile(verify, []byte("go test -run 'Test[A-C]' ./a\n"), 0o600); err != nil {
@@ -210,31 +210,5 @@ func TestDCWV0905TildeVerifyLineNamesTheAbsolutePath(t *testing.T) {
 	}
 	if got := tildeFix(verify); got != "" {
 		t.Fatalf("a refusal without ~ got %q", got)
-	}
-}
-
-// ASD-V0-905 (V1-3446): every command of the AGENTS.md Verify block is one a
-// VERIFY file admits, so a lane can copy the block as it is.
-func TestASDV0905AgentsVerifyBlockIsAdmitted(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "AGENTS.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(data)
-	marker := "each in a form a dogfood `VERIFY` file accepts (`ASD-V0-905`):\n\n```sh\n"
-	start := strings.Index(text, marker)
-	if start < 0 {
-		t.Fatal("AGENTS.md has no ASD-V0-905 Verify block")
-	}
-	block := text[start+len(marker):]
-	block = block[:strings.Index(block, "```")]
-	lines := strings.Split(strings.TrimSpace(block), "\n")
-	if len(lines) < 4 || !strings.Contains(block, "go -C interop/cem01-go test") {
-		t.Fatalf("Verify block = %q", block)
-	}
-	for _, line := range lines {
-		if err := validateVerify(verifyArguments([]byte(line + "\n"))); err != nil {
-			t.Errorf("AGENTS.md Verify line %q is refused: %v", line, err)
-		}
 	}
 }
