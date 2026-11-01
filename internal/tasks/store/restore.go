@@ -287,6 +287,11 @@ func restoreStage(f io.Reader, stage string, want map[string]archive.FileEntry, 
 			intentRaw[hdr.Name] = raw
 			continue
 		}
+		// restorePath already refused any non-local name; this repeats the
+		// check where the name meets the filesystem.
+		if strings.Contains(hdr.Name, "..") {
+			return nil, wire.Errorf(wire.CodeMalformed, hdr.Name, "archive changed after verification")
+		}
 		dest := filepath.Join(stage, filepath.FromSlash(hdr.Name))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, hdr.Name, "cannot create its directory: %v", err)
