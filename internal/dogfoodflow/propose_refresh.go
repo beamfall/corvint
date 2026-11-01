@@ -32,6 +32,9 @@ type hunkFacts struct {
 	oldStart int64
 	oldCount int64
 	content  string
+	// base is the BASE whose patch held the hunk; a range from another BASE
+	// does not match a current range (DCW-V0-842).
+	base string
 }
 
 // refreshHistoryLimit caps the earlier commits --refresh derives patches for
@@ -127,6 +130,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		return
 	}
 	p.carried = map[string][]string{}
+	p.carriedFiles = map[string]string{}
 	current := map[string]proposedHunk{}
 	for _, hunk := range owed {
 		current[hunk.id] = hunk
@@ -163,7 +167,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			return hunk.path == old.path && derived != nil && derived.ContentSha256 == old.content
 		},
 		func(hunk proposedHunk, old hunkFacts) bool {
-			return hunk.path == old.path && int64(hunk.oldStart) == old.oldStart && int64(hunk.oldCount) == old.oldCount
+			return old.base == p.base && hunk.path == old.path && int64(hunk.oldStart) == old.oldStart && int64(hunk.oldCount) == old.oldCount
 		},
 	} {
 		for _, id := range sortedKeys(unresolved) {
@@ -213,17 +217,26 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			hunk := current[target]
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d re-keyed %s -> %s (%s BASE %d,%d; %s)", row.line, row.id, target, hunk.path, hunk.oldStart, hunk.oldCount, how))
 			// The NOTE of a re-keyed unknown row was written for the old
-			// hunk, so it is carried marked stale for review (DCW-V0-884).
-			if fields[0] == "unknown" {
+			// hunk, so it is carried marked stale for review (DCW-V0-884),
+			// unless the hunk's content is unchanged (DCW-V0-842).
+			if fields[0] == "unknown" && how != "content unchanged" {
 				fields[2] = staleNotePrefix + row.id + ", review] " + staleNote.ReplaceAllString(fields[2], "")
 				row.rest = strings.Join(fields, "\t")
 				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d note marked stale: it was written for %s; review it for %s", row.line, row.id, target))
 			}
 		}
-		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 		if fields[0] != "unknown" {
+			if lines, note := p.repinLines(fields[0], fields[1]); note != "" {
+				fields[1] = lines
+				row.rest = strings.Join(fields, "\t")
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d: %s", row.line, note))
+			}
 			used[fields[0]+":"+fields[1]] = true
+			if hunk := current[target]; p.carriedFiles[hunk.path] == "" {
+				p.carriedFiles[hunk.path] = row.rest
+			}
 		}
+		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 	}
 }
 
@@ -380,16 +393,28 @@ func (p *proposal) resolveHunkFacts(wanted map[string]bool) map[string]hunkFacts
 	if listed, status, bounded := p.boundedGit("log", "-g", "--format=%H", "-n", strconv.Itoa(refreshHistoryLimit), "HEAD"); status == 0 && bounded {
 		sources = append(sources, textLines([]byte(chomp(listed))))
 	}
-	seen := map[string]bool{p.target: true}
-	for _, candidates := range sources {
-		p.collectHunkFacts(candidates, wanted, seen, facts)
+	// A plan drafted at another BASE names hunk IDs of that BASE's patches,
+	// including the current HEAD's (DCW-V0-842).
+	bases := []string{p.base}
+	if p.priorBase != "" && p.priorBase != p.base {
+		bases = append(bases, p.priorBase)
+		sources = append(sources, []string{p.target})
+	}
+	for _, from := range bases {
+		seen := map[string]bool{}
+		if from == p.base {
+			seen[p.target] = true
+		}
+		for _, candidates := range sources {
+			p.collectHunkFacts(from, candidates, wanted, seen, facts)
+		}
 	}
 	return facts
 }
 
 // collectHunkFacts adds to facts each wanted hunk found in the canonical patch
-// of BASE to one of candidates, trying at most refreshHistoryLimit patches.
-func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string]bool, facts map[string]hunkFacts) {
+// of from to one of candidates, trying at most refreshHistoryLimit patches.
+func (p *proposal) collectHunkFacts(from string, candidates []string, wanted, seen map[string]bool, facts map[string]hunkFacts) {
 	tried := 0
 	for _, commit := range candidates {
 		if len(facts) == len(wanted) || tried == refreshHistoryLimit {
@@ -399,11 +424,11 @@ func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string
 			continue
 		}
 		seen[commit] = true
-		if _, status := p.git(true, "merge-base", "--is-ancestor", p.base, commit); status != 0 {
+		if _, status := p.git(true, "merge-base", "--is-ancestor", from, commit); status != 0 {
 			continue
 		}
 		tried++
-		raw, status, bounded := p.boundedGit(p.canonicalDiffArgumentsFor(p.base, commit)...)
+		raw, status, bounded := p.boundedGit(p.canonicalDiffArgumentsFor(from, commit)...)
 		if status != 0 || !bounded || raw == "" {
 			continue
 		}
@@ -413,7 +438,7 @@ func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string
 		}
 		for _, hunk := range parsed.Hunks {
 			if wanted[hunk.ID] {
-				facts[hunk.ID] = hunkFacts{hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count, hunk.ContentSha256}
+				facts[hunk.ID] = hunkFacts{hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count, hunk.ContentSha256, from}
 			}
 		}
 	}

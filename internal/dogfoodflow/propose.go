@@ -40,8 +40,13 @@ type proposal struct {
 	stdout  io.Writer
 	// siblingDirs caches each parent's BASE directories (DCW-V0-841).
 	siblingDirs map[string][]string
-	blobs       map[string][]byte
-	lines       map[string][][]byte
+	// priorBase is the BASE the --refresh plan was drafted at when it is not
+	// BASE, the map's baseRevision; carriedFiles holds the first cite row
+	// carried to each file (DCW-V0-842).
+	priorBase    string
+	carriedFiles map[string]string
+	blobs        map[string][]byte
+	lines        map[string][][]byte
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
@@ -161,6 +166,11 @@ func (p *proposal) run() int {
 		return p.template("UNREADABLE")
 	}
 	if baseRevision != p.base {
+		if p.options.Refresh != "" {
+			if prior, status := p.git(true, "rev-parse", "--verify", "-q", baseRevision+"^{commit}"); status == 0 {
+				p.priorBase = chomp(prior)
+			}
+		}
 		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
 		return p.template("OTHER_BASE")
 	}
@@ -397,7 +407,14 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			uniform = false
 			continue
 		}
-		row, cite, fellBack := p.propose(hunk, edited, used)
+		row, cite, fellBack := "", "", ""
+		ordinal := fmt.Sprint(hunk.ordinal)
+		if p.keyByID {
+			ordinal = hunk.id
+		}
+		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
+			row, cite, fellBack = p.propose(hunk, edited, used)
+		}
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
 		}
