@@ -161,10 +161,10 @@ func runGoBuild(ctx context.Context, goPath, moduleRoot, pkgPath, out string, en
 	arguments := []string{"build", "-trimpath", "-buildvcs=false"}
 	arguments = append(arguments, flags...)
 	arguments = append(arguments, "-o", out, pkgPath)
-	_, stderr, err := runCaptured(ctx, moduleRoot, env, buildTimeout,
-		append([]string{goPath}, arguments...)...)
-	if err != nil {
-		return fmt.Errorf("%w (stderr=%s)", err, trimForError(stderr))
+	// runCaptured's error already carries the wait status and stderr.
+	if _, _, err := runCaptured(ctx, moduleRoot, env, buildTimeout,
+		append([]string{goPath}, arguments...)...); err != nil {
+		return err
 	}
 	if info, statErr := os.Stat(out); statErr != nil || info.Size() == 0 {
 		return fmt.Errorf("go build produced no output at %s", out)

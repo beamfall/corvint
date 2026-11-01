@@ -36,7 +36,7 @@ func runCaptured(ctx context.Context, dir string, env []string, timeout time.Dur
 		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %w (stderr=%s)", argv, observation.Err, trimForError(observation.Stderr))
 	}
 	if !observation.ExitObserved || observation.ExitStatus != 0 {
-		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: exit=%d (stderr=%s)", argv, observation.ExitStatus, trimForError(observation.Stderr))
+		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %s (stderr=%s)", argv, describeExit(observation), trimForError(observation.Stderr))
 	}
 	return observation.Stdout, observation.Stderr, nil
 }
@@ -48,7 +48,7 @@ func runExpectedExit(ctx context.Context, dir string, env []string, timeout time
 		return observation.Stdout, observation.Stderr, observation.Err
 	}
 	if !observation.ExitObserved || observation.ExitStatus != expected {
-		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: exit=%d, want %d", argv, observation.ExitStatus, expected)
+		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %s, want exit=%d", argv, describeExit(observation), expected)
 	}
 	return observation.Stdout, observation.Stderr, nil
 }
@@ -69,9 +69,26 @@ func runCapturedStdin(ctx context.Context, dir string, env []string, timeout tim
 		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %w (stderr=%s)", argv, observation.Err, trimForError(observation.Stderr))
 	}
 	if !observation.ExitObserved || observation.ExitStatus != 0 {
-		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: exit=%d (stderr=%s)", argv, observation.ExitStatus, trimForError(observation.Stderr))
+		return observation.Stdout, observation.Stderr, fmt.Errorf("%v: %s (stderr=%s)", argv, describeExit(observation), trimForError(observation.Stderr))
 	}
 	return observation.Stdout, observation.Stderr, nil
+}
+
+// describeExit renders the full wait status, so a tool killed by a signal
+// (for example a compiler lost to host memory pressure, which leaves stderr
+// with only the package header) is distinguishable from a real failure exit.
+func describeExit(observation procgroup.Observation) string {
+	text := fmt.Sprintf("exit=%d", observation.ExitStatus)
+	if !observation.ExitObserved {
+		text += " exit-unobserved"
+	}
+	if observation.Signal != "" {
+		text += " signal=" + observation.Signal
+	}
+	if observation.StopSignal != "" {
+		text += " stop-signal=" + observation.StopSignal
+	}
+	return text
 }
 
 func trimForError(b []byte) string {
