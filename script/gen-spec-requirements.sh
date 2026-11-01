@@ -861,7 +861,19 @@ case $mode in
       cp "$out_dir/$file" "docs/specs/$file" || exit 1
       updated="$updated $file"
     done
+    # SRG-V0-820 (V1-4068): the regenerated files are staged with the specs they came from, so a
+    # commit of the staged spec carries them; a caller with a private GIT_INDEX_FILE (dogfood-finish)
+    # stages nothing.
+    staged=
+    if test -z "${GIT_INDEX_FILE:-}"; then
+      for file in $generated; do
+        git diff --quiet -- "docs/specs/$file" 2>/dev/null && git ls-files --error-unmatch -- "docs/specs/$file" >/dev/null 2>&1 && continue
+        git add -- "docs/specs/$file" || { printf '%s: REFUSE could not stage docs/specs/%s\n' "$0" "$file" >&2; exit 1; }
+        staged="$staged docs/specs/$file"
+      done
+    fi
     if test -n "$updated"; then echo "spec-requirements: updated$updated"; else echo "spec-requirements: no changes"; fi
+    test -z "$staged" || echo "spec-requirements: staged$staged"
     ;;
   check)
     stale=

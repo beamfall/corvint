@@ -730,6 +730,14 @@ git -C "$w16" add -- docs/specs/alpha.md docs/specs/gamma.md
 grep -q '^GAMMA-V0-001	' "$w16/docs/specs/REQUIREMENTS.tsv" || fail "--write did not regenerate the index"
 (cd "$w16" && script/gen-spec-requirements.sh --check 2>&1 | grep -q STALE) &&
   fail "--check named a file stale right after --write"
+# SRG-V0-820 (V1-4068): --write stages the files it regenerated and says so.
+git -C "$w16" diff --quiet -- docs/specs || fail "--write left regenerated files unstaged: $(git -C "$w16" diff --name-only)"
+git -C "$w16" diff --cached --name-only | grep -qx docs/specs/REQUIREMENTS.tsv || fail "--write did not stage REQUIREMENTS.tsv"
+spec16 alpha ALPHA-V0-001 'a second staged edit'
+git -C "$w16" add -- docs/specs/alpha.md
+staged_out=$( (cd "$w16" && script/gen-spec-requirements.sh --write) 2>&1) || fail "--write refused a staged edit: $staged_out"
+case $staged_out in *'spec-requirements: staged docs/specs/REQUIREMENTS.tsv'*) ;; *) fail "--write did not name the staged files: $staged_out" ;; esac
+git -C "$w16" diff --quiet -- docs/specs || fail "a second --write left regenerated files unstaged"
 usage_err=$( (cd "$w16" && script/gen-spec-requirements.sh --check extra) 2>&1) && fail "--check accepted an argument"
 case $usage_err in *'--check compares them with a fresh generation (make spec-requirements-check)'*) ;; *) fail "the usage text lacks --check: $usage_err" ;; esac
 

@@ -2147,6 +2147,12 @@ ASD-V0-973	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-974	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3782) `script/	standing	2026-11-01; V1-3782
 ASD-V0-945	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3632; extends	standing	2026-11-01; V1-3632
 ASD-V0-946	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4058) An edit	standing	2026-11-01; V1-4058
+ASD-V0-820	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4065; amends `	standing	2026-11-01; V1-4065
+ASD-V0-821	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4065; amends `	standing	2026-11-01; V1-4065
+ASD-V0-822	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4064; amends `	standing	2026-11-01; V1-4064
+ASD-V0-823	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4063; amends `	standing	2026-11-01; V1-4063
+ASD-V0-824	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4063; amends `	standing	2026-11-01; V1-4063
+ASD-V0-825	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4069; amends `	standing	2026-11-01; V1-4069
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -6708,6 +6714,7 @@ SRG-V0-968	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-790	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793; refines	standing	2026-11-01; V1-3793
 SRG-V0-791	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every	standing	2026-11-01; V1-3793
 SRG-V0-979	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3797; refines	standing	2026-11-01; V1-3797
+SRG-V0-820	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4068; amends	standing	2026-11-01; V1-4068
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -7145,6 +7152,7 @@ TSP-V0-945	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-946	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3616)	standing	2026-10-11; V1-3616
 TSP-V0-947	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3587,	standing	2026-10-11; V1-3587
 TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)	standing	2026-10-11; V1-2892
+TSP-V0-820	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-950	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-951	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-900	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,	standing	2026-10-11; V1-3763

@@ -824,6 +824,10 @@ done
 grep -q "^heavy.sh: copied back $off/out/abs-bin\$" "$off/err" && grep -q '^heavy.sh: copied back sub/bin/tool$' "$off/err" &&
   grep -q '^heavy.sh: building for stubos/stubarch$' "$off/err" && [[ $(conns) == 8 ]] ||
   fail "heavy.sh build copy-back: $(conns) ssh connections, $(cat "$off/err")"
+# ASD-V0-824 (V1-4063): a rebuilt output whose content and mode already match here is not listed.
+out=$(bv go build -o bin/tool ./cmd 2> "$off/err")
+[[ $out == 'build where=remote' ]] && ! grep -q 'copied back sub/bin/tool' "$off/err" ||
+  fail "heavy.sh listed an unchanged copy-back: $out $(cat "$off/err")"
 /bin/rm -rf "$off/lc/sub/bin"
 out=$(bv go build -exit=4 -o "$off/out/failed" ./cmd 2> "$off/err")
 [[ $? == 4 && $out == 'build where=remote' && ! -e $off/out/failed ]] || fail "heavy.sh failed remote build: $out $(cat "$off/err")"
@@ -1088,6 +1092,9 @@ pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log
 HEAVY_WHOLE_REASON= pv go test ./x > "$pol/out" 2> "$pol/err"
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
   fail "heavy.sh ran a whole-package go test without HEAVY_WHOLE_REASON"
+# ASD-V0-822 (V1-4064): the refusal names its cause.
+grep -q 'HEAVY_WHOLE_REASON: it names no -run, so every test in the package runs (V1-4064, ASD-V0-822)' "$pol/err" ||
+  fail "heavy.sh's no--run refusal did not name its cause: $(cat "$pol/err")"
 HEAVY_WHOLE_REASON= pv env GOFLAGS=-count=1 go test -run 'TestA|TestB' ./x 2> /dev/null || fail "heavy.sh refused a -run go test"
 HEAVY_WHOLE_REASON= pv go test -run=TestA ./x 2> /dev/null || fail "heavy.sh refused a -run= go test"
 HEAVY_WHOLE_REASON='corvint FALLBACK x' pv go test ./x 2> /dev/null || fail "heavy.sh refused a go test with HEAVY_WHOLE_REASON"
@@ -1104,12 +1111,25 @@ grep -v ' local wait=' "$pol/sel.log" > "$pol/sel.policy"
 for i in 0 1 2 3; do
   sed -n "$((i + 1))p" "$pol/sel.policy" | grep -Eq "${want[$i]}" || fail "heavy.sh selection log line $((i + 1)): $(sed -n "$((i + 1))p" "$pol/sel.policy")"
 done
+# ASD-V0-823 (V1-4063): a local run on a host that is not darwin names the darwin-only files it skips.
+mkdir -p "$pol/x" && printf 'package x\n' > "$pol/x/a_darwin.go" || fail "darwin-only fixture setup failed"
+HEAVY_WHOLE_REASON= pv go test -run TestA ./x > /dev/null 2> "$pol/err" || fail "heavy.sh refused a darwin-only -run go test"
+if [[ $(uname -s) == Darwin ]]; then
+  ! grep -q 'darwin-only file(s), first ./x/a_darwin.go; this run is no darwin evidence' "$pol/err" ||
+    fail "heavy.sh denied darwin evidence on a darwin host: $(cat "$pol/err")"
+else
+  grep -q "^heavy.sh: this $(uname -s) host neither builds nor runs 1 darwin-only file(s), first ./x/a_darwin.go; this run is no darwin evidence" "$pol/err" ||
+    fail "heavy.sh did not name the skipped darwin-only file: $(cat "$pol/err")"
+fi
+/bin/rm -f "$pol/x/a_darwin.go"
 # ASD-V0-860: a -run that matches every test is a whole-package go test; a narrower one is selected.
 for run in 'Test' '-run=.' '^Test.*' '.*/Sub' ''; do
   case $run in -run=*) runargs=("$run") ;; *) runargs=(-run "$run") ;; esac
   HEAVY_WHOLE_REASON= pv go test ${runargs[@]+"${runargs[@]}"} ./x > /dev/null 2> "$pol/err"
   [[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
     fail "heavy.sh logged go test ${runargs[*]} as a selection"
+  grep -q 'HEAVY_WHOLE_REASON: its -run pattern matches every test name' "$pol/err" ||
+    fail "heavy.sh's match-all refusal for ${runargs[*]} did not name its cause: $(cat "$pol/err")"
 done
 HEAVY_WHOLE_REASON= pv go test -run TestAll ./x 2> /dev/null || fail "heavy.sh refused go test -run TestAll"
 grep -v ' local wait=' "$pol/sel.log" | tail -n 6 > "$pol/sel.all"
@@ -1207,7 +1227,8 @@ sv go test -c=false -c ./x > /dev/null 2> "$sel/err" ||
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits, and
 # (ASD-V0-970) its load wait and starting load.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
-[[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
+# Seven local runs: the six above plus the ASD-V0-823 darwin-only run.
+[[ $(grep -c ' local wait=' "$pol/sel.log") == 7 ]] &&
   grep -Eq "^$d $l rc=0 loadwait=0s load=1 queue=[0-9]+\.[0-9]s pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
   grep -Eq "^$d $l rc=3 loadwait=0s load=1 queue=[0-9]+\.[0-9]s pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
 HEAVY_REMOTE=0 pv go vet ./x > "$pol/out" 2> "$pol/err"

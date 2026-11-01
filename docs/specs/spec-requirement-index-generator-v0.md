@@ -581,6 +581,16 @@ No requirement below diverges from the implementation.
   spec (its Delivery status `superseded` and a digest of Successor and Why) then regenerates to an
   index that `internal/specindex` accepts with no hand edit of INDEX.json. Rollback: drop the
   projection; `supersededBy` is again hand-written.
+- `SRG-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-4068; amends
+  SRG-V0-954 and SRG-V0-967) `--write` (`make spec-requirements`) MUST stage each generated file
+  (`REQUIREMENTS.tsv`, `INDEX.json`, `README.md`) whose worktree bytes differ from the Git index, or
+  that is untracked, and print `spec-requirements: staged FILE ...` naming them after its
+  `updated`/`no changes` line, so a commit of the staged spec carries the regenerated files. A caller
+  that sets `GIT_INDEX_FILE` (a private snapshot index, as `dogfood-finish.sh` uses) stages nothing.
+  A failed `git add` refuses, naming the file. Design: lanes left `REQUIREMENTS.tsv` unstaged after
+  `make spec-requirements` (V1-4068 item 3). Non-goals: staging specs or any other path. Evidence:
+  `script/gen-spec-requirements_test.sh` case 17 (both `--write` runs leave no unstaged generated
+  file and the second names the staged index). Rollback: drop the staging loop; stage by hand.
 
 ## Non-goals and simpler baseline
 
@@ -703,6 +713,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-979 | `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex` in `internal/specindex/superseded_test.go`: a live spec superseded in a fixture repository regenerates through `--index` and `--readme` to an index `checkIndex` accepts, and `supersededBy` names the Successor |
+| SRG-V0-820 | `script/gen-spec-requirements_test.sh` case 17: `--write` stages the regenerated files and prints the `staged` line |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
