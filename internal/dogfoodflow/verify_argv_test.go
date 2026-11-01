@@ -150,8 +150,9 @@ func TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments(t *testing.T)
 
 // DCW-V0-904 (V1-3410): one quoted plain or anchored test name and the
 // whole-package -run '.' or '.*' are one typed argv word each, including after
-// a quoted HEAVY_WHOLE_REASON assignment; an unquoted anchored name or .* is
-// refused with its quoted form suggested, and other quoted regex stays refused.
+// a quoted HEAVY_WHOLE_REASON assignment; an unquoted anchored name or .* stays
+// refused under the generic hint, which names the quoted form, and other quoted
+// regex stays refused.
 func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 	for line, want := range map[string]string{
 		"go test -count=1 -run '^TestA$' ./a": `["go","test","-count=1","-run","^TestA$","./a"]`,
@@ -170,8 +171,8 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 		}
 	}
 	for line, quoted := range map[string]string{
-		"go test -run ^TestA$ ./a":    "go test -run '^TestA$' ./a",
-		"go test -run .* ./a":         "go test -run '.*' ./a",
+		"go test -run ^TestA$ ./a":    "",
+		"go test -run .* ./a":         "",
 		"go test -run '^Test.*$' ./a": "",
 		"go test -run '^TestA' ./a":   "",
 	} {

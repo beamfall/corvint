@@ -23,14 +23,10 @@ const runAlternation = `(?:` + runName + `(?:\|` + runName + `)+` +
 
 // runQuotedWord is runAlternation plus the single forms only a quoted word
 // admits: one plain name (-run 'TestA', -run '.'), one anchored name
-// (-run '^TestA$') and the match-everything -run '.*' (DCW-V0-904). An
-// unquoted plain name is already a v1 command, so it gets no suggestion.
+// (-run '^TestA$') and the match-everything -run '.*' (DCW-V0-904). Only an
+// unquoted alternation gets a quoted-form suggestion; the generic hint names
+// these forms.
 const runQuotedWord = `(?:` + runAlternation + `|` + runName + `|\^` + runName + `\$|\.\*)`
-
-// runUnquotedWord is the unquoted -run word a quoted form would admit but the
-// v1 grammar refuses: an alternation, an anchored name or .* (DCW-V0-801,
-// DCW-V0-904).
-const runUnquotedWord = `(?:` + runAlternation + `|\^` + runName + `\$|\.\*)`
 
 // runPrefix and runSuffix are the words around the -run word: the
 // recorder's v1 command bytes only.
@@ -53,7 +49,7 @@ var quotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(?:'(
 // unquotedRunAlternation is the same line with the -run word unquoted, which
 // a shell would split at |; the refusal shows the line's quoted form
 // (DCW-V0-801).
-var unquotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(` + runUnquotedWord + `)` + runSuffix + `$`)
+var unquotedRunAlternation = regexp.MustCompile(`^` + runPrefix + ` -run(=| )(` + runAlternation + `)` + runSuffix + `$`)
 
 // quotedRunFix names the first refused line of the verify file at path and
 // its admitted quoted form when that line is an unquoted -run alternation,
