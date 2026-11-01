@@ -329,7 +329,7 @@ var commandUsage = map[string]string{
 	"ticket split":             "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]   (example: corvint-tasks ticket split V1-3577 --criteria 2,3 --expected-revision 4 --request-id split-3577)",
 	"queue status":             "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
 	"queue snapshot":           "corvint-tasks queue snapshot [--out FILE]   (writes the intent tree as one taskman-intent-snapshot/0 object for a lane host without a journal, which reads it with CORVINT_TASKS_SNAPSHOT=FILE; example: corvint-tasks queue snapshot --out /tmp/queue-snapshot.json)",
-	"roadmap":                  "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+	"roadmap":                  "corvint-tasks roadmap [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"critical-path":            "corvint-tasks critical-path <ticketId|local>",
 	"gate list":                "corvint-tasks gate list",
 	"gate show":                "corvint-tasks gate show <gateId>",

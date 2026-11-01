@@ -130,6 +130,13 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if operation == mutation.OpHold && len(flags.targets) > 1 {
 		return multiTargetSubmit(env, cmd, operation, actor, flags, flags.targets, payload, true)
 	}
+	if flags.expected == "current" && operation != mutation.OpCreate && flags.target != "" {
+		// TCL-V0-860: the read revision is submitted as given, so a write
+		// racing this read still refuses STALE_TICKET at the store.
+		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
+			return errorResult(cmd, err)
+		}
+	}
 	if operation == mutation.OpHold && flags.target != "" && flags.expected == "" {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
@@ -185,8 +192,11 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			continue
 		}
 		dest, ok := set[args[i]]
+		if !ok && !strings.HasPrefix(args[i], "-") {
+			return f, malformedUsage(cmd, "unexpected argument "+args[i]+": a mutation names its ticket with --target TICKET and its revision with --expected-revision N|current")
+		}
 		if !ok {
-			return f, usage(cmd, "unknown flag "+args[i])
+			return f, malformedUsage(cmd, "unknown flag "+args[i])
 		}
 		if i+1 >= len(args) {
 			return f, usage(cmd, args[i]+" needs a value")
@@ -205,6 +215,14 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		return f, usage(cmd, "--verbose is accepted only with --help")
 	}
 	return f, nil
+}
+
+// malformedUsage is a usage refusal that carries MALFORMED in the top-level
+// codes (TCL-V0-860), so a caller branching on codes sees the refusal.
+func malformedUsage(cmd []string, msg string) *wire.Result {
+	res := usage(cmd, msg)
+	res.Codes = []string{wire.CodeMalformed}
+	return res
 }
 
 // readPayload reads the caller's payload as any valid JSON value (V1-0750):
@@ -272,7 +290,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o := wire.NewObject()
 	o.Set("operation", wire.String(operation))
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
-	target := " [--target TICKET|LOCAL --expected-revision N]"
+	// TCL-V0-861: a single-target verb needs both flags (buildEnvelope), so
+	// its usage marks them required and the derived example runs.
+	target := " --target TICKET|LOCAL --expected-revision N|current"
 	if operation == mutation.OpCreate {
 		target = ""
 		o.Set("localToken", wire.String("Optional payload member localToken chooses the queue-local ID, e.g. \"localToken\":\"BT-002\". It uses the existing LocalToken grammar and refuses collisions (including case-fold collisions). Omit it for automatic allocation. CREATE forbids --target and --expected-revision."))
@@ -281,7 +301,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. --template --skeleton prints only the complete payload as items[0] (every key, nulls, empty arrays, the native source; title empty so an unedited submit refuses). A MALFORMED CREATE payload is refused with every missing, unknown and invalid key and its expected shape in one error. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpHold {
-		target = " [--target TICKET|LOCAL ...] [--expected-revision N]"
+		target = " [--target TICKET|LOCAL ...] [--expected-revision N|current]"
 		o.Set("multiTarget", wire.String(multiTargetHoldHelp))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"condition"}))
 		o.Set("condition", wire.String("Optional machine-checkable condition (SCC-V0-010): {\"kind\":\"COMMIT_CONTAINED\",\"ref\":REF,\"commit\":OID}, {\"kind\":\"PATH_EXISTS\",\"ref\":REF,\"path\":PATH} or {\"kind\":\"SYMBOL_DEFINED\",\"ref\":REF,\"path\":FILE,\"symbol\":IDENTIFIER}; REF is a full refname under refs/. queue status re-evaluates it at every read (holdConditions: UNBLOCKED, BLOCKED or UNKNOWN with the reason) and doctor names met and unknown conditions; a met condition never releases the hold by itself. A commit is contained by ancestry or by a patch-equivalent commit (source contains)."))

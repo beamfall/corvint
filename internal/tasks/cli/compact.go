@@ -31,6 +31,10 @@ type compactSpec struct {
 	// routes names, per item key this read does not carry, the read that
 	// returns it; a --fields refusal for that key appends the route (CTS-V0-012).
 	routes map[string]string
+	// wide, when set, reruns the read with each page item widened to the
+	// ticket show item; a --fields key the narrow items lack is checked
+	// against the wide items before it refuses (TCL-V0-862).
+	wide func([]string) *wire.Result
 }
 
 // compactRead strips `--fields` and `--summary` from args, runs read on the
@@ -95,8 +99,21 @@ func compactRead(cmd []string, args []string, spec compactSpec, read func([]stri
 		}
 		return res
 	}
+	wideRefusal := ""
+	if msg := checkCompactFields(res.Items, fields); msg != "" && spec.wide != nil {
+		switch wide := spec.wide(rest); {
+		case wide == nil || wide.Outcome != wire.OutcomeOK:
+			// The show items could not be read; the field refusal stands
+			// and names why the wider read failed.
+			if wide != nil && len(wide.Warnings) > 0 {
+				wideRefusal = "; the ticket show items were not readable: " + wide.Warnings[0]
+			}
+		case checkCompactFields(wide.Items, fields) == "":
+			res = wide
+		}
+	}
 	if msg := checkCompactFields(res.Items, fields); msg != "" {
-		msg += fieldRoute(msg, spec.routes)
+		msg += fieldRoute(msg, spec.routes) + wideRefusal
 		refused := compactRefusal(cmd, msg)
 		refused.Snapshot = res.Snapshot
 		return refused

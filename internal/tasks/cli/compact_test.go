@@ -379,7 +379,9 @@ func TestCALV0174_SearchAndRoadmapCompact(t *testing.T) {
 		if with == 0 || with == len(f.res.Items) {
 			t.Fatalf("expected mixed projection, %d of %d with blockers", with, len(f.res.Items))
 		}
-		compactRefused(t, r.Root, append(search, "--fields", "record")...)
+		// TCL-V0-862 admits show keys such as record; a key neither item
+		// carries still refuses.
+		compactRefused(t, r.Root, append(search, "--fields", "recordz")...)
 		compactRefused(t, r.Root, "roadmap", "--fields", "nope")
 		// A value of the read's own flag is passed through, not taken as a
 		// projection option: this searches for the literal text.

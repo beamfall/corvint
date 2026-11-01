@@ -60,6 +60,10 @@ type Env struct {
 	// lazyClosed opts a read into the closed-ticket index (TCX-V0-982):
 	// only reads that never touch Store.Tickets set it.
 	lazyClosed bool
+	// showItems makes ticket list and search page items the ticket show
+	// items of their tickets (TCL-V0-862); only compactRead's wide rerun
+	// for a --fields key the list item lacks sets it.
+	showItems bool
 
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
@@ -208,9 +212,13 @@ func Run(env Env) int {
 		}
 		switch args[1] {
 		case "list":
-			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketList(env, a) }))
+			wide := env
+			wide.showItems = true
+			return emit(env.Stdout, compactRead([]string{"ticket", "list"}, args[2:], compactSpec{summary: listSummary, values: listValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketList(wide, a) }}, func(a []string) *wire.Result { return ticketList(env, a) }))
 		case "search":
-			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
+			wide := env
+			wide.showItems = true
+			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketSearch(wide, a) }}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
 			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
 		case "blockers":
@@ -338,7 +346,7 @@ func Run(env Env) int {
 		}
 		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status or snapshot"))
 	case "roadmap":
-		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: pageValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
+		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
 		return emit(env.Stdout, criticalPathCommand(env, args[1:]))
 	case "plan":
@@ -544,7 +552,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks ticket blockers <ticketId|local>",
 		"corvint-tasks ticket export [--offset N] [--limit N]",
 		"corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]",
-		"corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+		"corvint-tasks roadmap [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 		"corvint-tasks gate list",
 		"corvint-tasks gate show <gateId>",
 		"corvint-tasks archive export [--staging DIR]   (stream on stdout, envelope on stderr)",
@@ -553,7 +561,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 		"corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]   (optional payload localToken, e.g. BT-002, picks the queue-local ID; no --target)",
-		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks <command> --help   (usage and flags; add --verbose for notes, reason codes and preconditions)",
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
@@ -851,8 +859,8 @@ var (
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
-		"labels":  "list items omit labels; read them with ticket show <id> --fields record.labels, or ticket export for whole records",
-		"effects": "list items omit effects; read them with ticket show <id> --fields record.effects, or ticket export for whole records",
+		"labels":  "list items omit labels; pass --fields record.labels here (each item is then its ticket show item, TCL-V0-862), read ticket show <id> --fields record.labels, or ticket export for whole records",
+		"effects": "list items omit effects; pass --fields record.effects here (each item is then its ticket show item, TCL-V0-862), read ticket show <id> --fields record.effects, or ticket export for whole records",
 	}
 )
 
@@ -1146,7 +1154,7 @@ func ticketList(env Env, args []string) *wire.Result {
 			return err
 		}
 		items, pg, hoisted = listViews(rc, ids, p, ended)
-		return nil
+		return showPage(env, rc, ids[start:end], items)
 	})
 	if err != nil {
 		return failure(cmd, rc, err)
@@ -1316,6 +1324,9 @@ func (f searchFilter) matchesText(rec *ticket.Record) bool {
 func ticketSearch(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "search"}
 	env.lazyClosed = true
+	if queryFlagGiven(args) {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--query", "ticket search has no --query flag; filter by title or body text with --text T (TCL-V0-863)"))
+	}
 	fm, args, err := facetFlags(args, searchValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
@@ -1357,6 +1368,8 @@ func ticketSearch(env Env, args []string) *wire.Result {
 		}
 		if !fm.count {
 			items, pg, hoisted = listViews(rc, ids, p, nil)
+			start, end := p.window(len(ids))
+			return showPage(env, rc, ids[start:end], items)
 		}
 		return nil
 	})
@@ -1370,6 +1383,36 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	res.Warnings = append(res.Warnings, hoisted...)
 	fm.apply(res, summary, matched)
 	return res
+}
+
+// queryFlagGiven reports a --query in a flag position of search's args.
+func queryFlagGiven(args []string) bool {
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--query" || strings.HasPrefix(a, "--query="):
+			return true
+		case containsArg(searchValueFlags, a):
+			i++
+		}
+	}
+	return false
+}
+
+// showPage replaces each list item with its ticket's show item when the read
+// was asked for show items (TCL-V0-862); ids are the page's tickets in item
+// order.
+func showPage(env Env, rc *readCtx, ids []string, items []wire.Value) error {
+	if !env.showItems || len(items) == 0 {
+		return nil
+	}
+	sr, err := newShowReader(rc)
+	if err != nil {
+		return err
+	}
+	for i, id := range ids[:len(items)] {
+		items[i] = sr.item(id, true)
+	}
+	return nil
 }
 
 // ticketExport emits the full canonical records of one page of tickets in
@@ -1435,14 +1478,18 @@ func ticketExport(env Env, args []string) *wire.Result {
 func roadmap(env Env, args []string) *wire.Result {
 	cmd := []string{"roadmap"}
 	env.lazyClosed = true
-	fm, args, err := facetFlags(args, pageValueFlags)
+	fm, args, err := facetFlags(args, listValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("roadmap", args)
+	fl, p, err := pagedFlags("roadmap", args, "status")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	statuses, err := listStatuses(args, fl)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
@@ -1454,6 +1501,16 @@ func roadmap(env Env, args []string) *wire.Result {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		unmilestoned = openWithoutMilestone(rc.store.Inventory)
 		ids := rc.store.Inventory.Sorted()
+		if statuses != nil {
+			// TCL-V0-864: filtered from the summary, so no closed record is decoded.
+			kept := ids[:0:0]
+			for _, id := range ids {
+				if s, ok := rc.store.Inventory.Summary(id); ok && statuses[s.Status] {
+					kept = append(kept, id)
+				}
+			}
+			ids = kept
+		}
 		matched = len(ids)
 		if fm.facets || fm.count {
 			s := facetSummary(rc, ids)
@@ -1734,74 +1791,11 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			}
 			return nil
 		}
-		ctx, err := ticketContext(rc)
+		sr, err := newShowReader(rc)
 		if err != nil {
 			return err
 		}
-		attempts := map[string]*snapshot.Attempt{}
-		var in transaction.PlanInput
-		if !rc.journalAbsent {
-			var e error
-			in, _, e = planInput(rc)
-			if e != nil {
-				return e
-			}
-			attempts = in.Attempts
-			// CAL-V0-102: eligibility shows the derived loop hold.
-			rec, _ := rc.store.Inventory.Get(id)
-			ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
-		}
-		v, _ := rc.store.Inventory.View(id, ctx)
-		// ERG-V0-011: a read-only complete-manual offer when every required
-		// external review gate is a CURRENT PASS; never a write.
-		offers := completionOffers{rc: rc, in: in}
-		offers.offer(&v)
-		val := v.Value(includeRecord)
-		if includeRecord {
-			val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
-		}
-		val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
-		// ATR-V0-191: the ticket's live attempt, its holder and recovery.
-		observed := in
-		observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
-		switch current := transaction.CurrentAttempt(observed, id); {
-		case rc.journalAbsent:
-			val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
-		case current == nil:
-			val.Obj.Set("liveAttempt", wire.Null())
-		default:
-			val.Obj.Set("liveAttempt", current.Value())
-		}
-		// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
-		// with its retained output tail.
-		if rc.journalAbsent {
-			val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
-		} else {
-			val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
-		}
-		// V1-2038: the gate set complete enforces, policy-required gates included.
-		val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
-		// ATR-V0-273: every grant an APPROVAL_REQUIRED ticket still needs
-		// through completion, readable before any claim.
-		val.Obj.Set("missingGrants", wire.Strings(ticket.MissingGrants(v.Record)))
-		// CAL-V0-084: null without a journal, since nothing is observed.
-		val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
-		val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
-		// ATR-V0-216: ticket show's declared claim scope, null when the ticket
-		// declares no path and a claim takes its requested scope.
-		if includeRecord {
-			declaredScope := wire.Null()
-			if d := transaction.Declared(v.Record); len(d) > 0 {
-				declaredScope = wire.Strings(d)
-			}
-			val.Obj.Set("declaredScope", declaredScope)
-		}
-		if rc.journalAbsent {
-			val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
-		} else {
-			claimable, reason := transaction.RecordedClaimability(observed, v.Record) // PSR-V0-267: stall age at now
-			val.Obj.Set("claimable", claimable).Set("claimabilityReason", wire.String(reason))
-		}
+		val := sr.item(id, includeRecord)
 		item = &val
 		return nil
 	})
@@ -1823,6 +1817,95 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	res.Items = []wire.Value{*item}
 	res.Untrusted = true
 	return res
+}
+
+// showReader builds `ticket show` items over one read: the ticket context and
+// the plan input are computed once, so `ticket list` and `ticket search`
+// --fields naming a show-only key reuse it per page item (TCL-V0-862).
+type showReader struct {
+	rc       *readCtx
+	ctx      ticket.Context
+	in       transaction.PlanInput
+	attempts map[string]*snapshot.Attempt
+	observed transaction.PlanInput
+}
+
+func newShowReader(rc *readCtx) (*showReader, error) {
+	ctx, err := ticketContext(rc)
+	if err != nil {
+		return nil, err
+	}
+	sr := &showReader{rc: rc, ctx: ctx, attempts: map[string]*snapshot.Attempt{}}
+	if !rc.journalAbsent {
+		in, _, e := planInput(rc)
+		if e != nil {
+			return nil, e
+		}
+		sr.in, sr.attempts = in, in.Attempts
+	}
+	sr.observed = sr.in
+	sr.observed.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+	return sr, nil
+}
+
+// item is the show item of id, which must exist in the inventory.
+func (sr *showReader) item(id string, includeRecord bool) wire.Value {
+	rc, in, attempts, observed, ctx := sr.rc, sr.in, sr.attempts, sr.observed, sr.ctx
+	if !rc.journalAbsent {
+		// CAL-V0-102: eligibility shows the derived loop hold.
+		rec, _ := rc.store.Inventory.Get(id)
+		ctx.Loop = transaction.LoopHoldOf(attempts, rec, in.Policy)
+	}
+	v, _ := rc.store.Inventory.View(id, ctx)
+	// ERG-V0-011: a read-only complete-manual offer when every required
+	// external review gate is a CURRENT PASS; never a write.
+	offers := completionOffers{rc: rc, in: in}
+	offers.offer(&v)
+	val := v.Value(includeRecord)
+	if includeRecord {
+		val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
+	}
+	val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
+	// ATR-V0-191: the ticket's live attempt, its holder and recovery.
+	switch current := transaction.CurrentAttempt(observed, id); {
+	case rc.journalAbsent:
+		val.Obj.Set("liveAttempt", wire.String("NOT_OBSERVED"))
+	case current == nil:
+		val.Obj.Set("liveAttempt", wire.Null())
+	default:
+		val.Obj.Set("liveAttempt", current.Value())
+	}
+	// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
+	// with its retained output tail.
+	if rc.journalAbsent {
+		val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
+	} else {
+		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+	}
+	// V1-2038: the gate set complete enforces, policy-required gates included.
+	val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))
+	// ATR-V0-273: every grant an APPROVAL_REQUIRED ticket still needs
+	// through completion, readable before any claim.
+	val.Obj.Set("missingGrants", wire.Strings(ticket.MissingGrants(v.Record)))
+	// CAL-V0-084: null without a journal, since nothing is observed.
+	val.Obj.Set("nextStage", transaction.NextStage(attempts, v.Record))
+	val.Obj.Set("claimabilityScope", wire.String("RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN"))
+	// ATR-V0-216: ticket show's declared claim scope, null when the ticket
+	// declares no path and a claim takes its requested scope.
+	if includeRecord {
+		declaredScope := wire.Null()
+		if d := transaction.Declared(v.Record); len(d) > 0 {
+			declaredScope = wire.Strings(d)
+		}
+		val.Obj.Set("declaredScope", declaredScope)
+	}
+	if rc.journalAbsent {
+		val.Obj.Set("claimable", wire.Null()).Set("claimabilityReason", wire.String("NOT_OBSERVED"))
+	} else {
+		claimable, reason := transaction.RecordedClaimability(observed, v.Record) // PSR-V0-267: stall age at now
+		val.Obj.Set("claimable", claimable).Set("claimabilityReason", wire.String(reason))
+	}
+	return val
 }
 
 // journalAbsentNotFound is the CTS-V0-010 refusal: a journal-absent read
