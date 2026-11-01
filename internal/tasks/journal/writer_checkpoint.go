@@ -1325,6 +1325,12 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 		}
 	}
 	st := &chain{canonical: map[string]latest{}}
+	if r.through != 0 {
+		// A bounded audit restores elided liveness receipts as the complete
+		// walk does; only a walk that reaches the head applies Superseded
+		// (TCL-V0-820). The writer refresh keeps refusing them.
+		st.restore = &snapshot.ReceiptRestorer{}
+	}
 	bound := headSeq
 	if r.through != 0 {
 		if r.through > headSeq {
@@ -1347,6 +1353,9 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 		// again, so the current projection is not the state at the bound
 		// (TCL-V0-820); projectionAgreement stays NOT_OBSERVED.
 		return result, nil
+	}
+	if err := st.restore.Superseded(); err != nil {
+		return result, err
 	}
 	// Request afterimages are written once and evidence and pinned blobs are
 	// content-addressed, so their latest afterimage at H is still what a

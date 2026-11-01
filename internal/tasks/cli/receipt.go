@@ -45,7 +45,7 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	var stored []evidencestore.Entry
 	var listErr error
 	var verified, manual int
-	rc, err := withStore(env, func(rc *readCtx) error {
+	body := func(rc *readCtx) error {
 		observed = nil
 		verified, manual = 0, 0
 		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
@@ -60,7 +60,8 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		if err != nil {
 			return err
 		}
-		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
+		// A bounded read hashes no intent tree of its own (TCL-V0-820).
+		if audited.Identity.HeadSha256 != rc.snap.HeadSha256 || through == 0 && audited.Identity.IntentTreeSha256 != rc.snap.IntentTree {
 			return wire.Errorf(wire.CodeSnapshotMoved, "receipt audit", "journal and outer snapshot differ")
 		}
 		if err := receiptMaterialBindings(rc.repo, audited); err != nil {
@@ -89,7 +90,16 @@ func receiptAudit(env Env, args []string) *wire.Result {
 			stored, listErr = evidencestore.List(rc.repo.StateDir)
 		}
 		return nil
-	})
+	}
+	var rc *readCtx
+	var err error
+	if through != 0 {
+		if rc, err = boundedAuditCtx(env); err == nil {
+			err = body(rc)
+		}
+	} else {
+		rc, err = withStore(env, body)
+	}
 	if err != nil {
 		return failure(cmd, rc, err)
 	}
@@ -127,6 +137,33 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		receiptAuditWitnesses(result, item, scan, stored, listErr)
 	}
 	return result
+}
+
+// boundedAuditCtx is the read context of `receipt audit --through SEQ`
+// (TCL-V0-820): head.json is decoded, but the head receipt and every other
+// receipt after SEQ need not verify, so the outer snapshot check that
+// withStore applies is not taken; the bounded walk checks receipts 1..SEQ.
+func boundedAuditCtx(env Env) (*readCtx, error) {
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return nil, err
+	}
+	rc := &readCtx{repo: repo}
+	s, err := snapshot.Probe(repo.StateDir)
+	if s == nil || s.Head == nil {
+		return rc, err
+	}
+	rc.snap = s
+	if s.Head.PrimaryWorktree != repo.PrimaryWorktree {
+		return rc, wire.Errorf(wire.CodeUnsupportedFilesystem, repo.StateDir, "head.primaryWorktree %q differs from the resolved primary worktree %q (TRL-V0-001)", s.Head.PrimaryWorktree, repo.PrimaryWorktree)
+	}
+	if rc.store, err = intent.Load(repo.IntentRoot()); err != nil {
+		return rc, err
+	}
+	if rc.store.Queue.QueueID.Raw != s.Head.QueueID.Raw {
+		return rc, wire.Errorf(wire.CodeMalformed, repo.StateDir+"/head.json/queueId", "head queue %s differs from queue.json %s", s.Head.QueueID.Raw, rc.store.Queue.QueueID.Raw)
+	}
+	return rc, nil
 }
 
 // receiptCompact rewrites superseded liveness receipts as their elided

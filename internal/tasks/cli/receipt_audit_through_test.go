@@ -85,3 +85,44 @@ func TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt(t *testing.T) {
 		}
 	}
 }
+
+// TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt: the head receipt is
+// after SEQ, so a corrupt one refuses the complete audit but not
+// `receipt audit --through SEQ` below the head (TCL-V0-820).
+func TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt(t *testing.T) {
+	root, _ := leaseCLIStore(t, 2, time.Now().UTC().Truncate(time.Second))
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headRaw, err := os.ReadFile(filepath.Join(repo.StateDir, "head.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	head, err := snapshot.DecodeHead(headRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	headSeq := head.LastSeq.Uint64()
+	names, err := filepath.Glob(filepath.Join(repo.StateDir, "receipts", "*"))
+	if err != nil || uint64(len(names)) < headSeq {
+		t.Fatalf("receipts: %v %v", names, err)
+	}
+	sort.Strings(names)
+	if err := os.WriteFile(names[headSeq-1], []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, root, nil, "receipt", "audit"); x.code == 0 {
+		t.Fatalf("complete audit accepted a corrupted head receipt: %s", x.stdout)
+	}
+	seq := strconv.FormatUint(headSeq-1, 10)
+	x := atm(t, root, nil, "receipt", "audit", "--through", seq)
+	if x.code != 0 || len(x.res.Items) != 1 {
+		t.Fatalf("bounded audit: %s", x.stdout)
+	}
+	for key, want := range map[string]string{"throughSeq": seq, "headSeq": seq, "structuralConsistency": "CONSISTENT", "projectionAgreement": "NOT_OBSERVED"} {
+		if got := field(x.res.Items[0], key).Str; got != want {
+			t.Fatalf("%s = %q, want %q: %s", key, got, want, x.stdout)
+		}
+	}
+}
