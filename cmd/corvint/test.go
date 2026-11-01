@@ -98,6 +98,9 @@ manifest and every execution unit passed exactly once.
 Executes repository code with your authority; no containment is claimed.
 A narrowed PASS is not a gate PASS: make gate and the required CI checks
 stay binding. Exit: 0 PASS, 1 FAIL, 2 usage, 3 INCOMPLETE, 128+n signal.
+A --dry-run exits 0 when its plan can run complete (verdict PLANNED) and 3
+when it cannot (verdict INCOMPLETE, for example an unreadable
+.github/cishards/test-commands.json); 3 is never a test failure.
 `
 
 // testCommandExit maps a shard or fan-in result to the process status:
@@ -618,6 +621,19 @@ func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
 	for _, check := range m.Checks {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: still required, not run: %s\n", check)
 	}
+	if len(m.Incomplete) != 0 {
+		// STR-V0-120 (V1-3530): one verdict the dry-run JSON verdict matches.
+		_, _ = fmt.Fprintf(stderr, "corvint-test: VERDICT INCOMPLETE: scope %s is planned but cannot run complete (%s); exit 3 is INCOMPLETE, not FAIL\n", m.Scope, m.Incomplete[0])
+	}
+}
+
+// testPlanVerdict is the dry-run verdict: INCOMPLETE when the plan cannot
+// run complete, else PLANNED (STR-V0-120).
+func testPlanVerdict(m sessiontest.Manifest) string {
+	if len(m.Incomplete) != 0 {
+		return "INCOMPLETE"
+	}
+	return "PLANNED"
 }
 
 // testDryRun prints the shard's run set and argv and executes nothing but
@@ -638,6 +654,7 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 	document := map[string]any{
 		"checks": m.Checks, "incomplete": m.Incomplete, "invocations": planned, "manifestDigest": digest,
 		"noSuite": m.NoSuite, "placement": m.Placement, "reason": m.Reason, "scope": m.Scope, "shardCount": m.ShardCount, "shardIndex": options.shard,
+		"verdict": testPlanVerdict(m),
 	}
 	if options.manifest != "" {
 		encoded, err := sessiontest.Encode(m)

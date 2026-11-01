@@ -3608,7 +3608,9 @@
       ],
       "inputs": null,
       "outputs": null,
-      "exitCodesMentioned": [],
+      "exitCodesMentioned": [
+        0
+      ],
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
@@ -3624,10 +3626,6 @@
         {
           "field": "outputs",
           "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
-        },
-        {
-          "field": "exitCodesMentioned",
-          "reason": "the help text states no exit status"
         },
         {
           "field": "writes",
