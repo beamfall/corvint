@@ -86,7 +86,6 @@
         "internal/console/chain.go",
         "internal/console/chain_stable_test.go",
         "internal/console/chain_test.go",
-        "internal/liveverify/affected/replay_v12941_test.go",
         "script/dogfood-bin-reuse_test.sh",
         "script/dogfood-change_test.sh",
         "script/pre-push-dogfood-seal.sh",
