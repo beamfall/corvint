@@ -221,7 +221,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | secret-screening | `internal/secretscreen` | `internal/secretscreen/secretscreen_test.go:35@ac274de5`, `internal/secretscreen/secretscreen_test.go:200@c325b643` |
 | secret-screening | `internal/trace` | `internal/trace/record_test.go:283@382ada39` |
 | secret-screening | `internal/contextindex` | `internal/contextindex/history_test.go:144@b551779f` |
-| corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:206@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:180@f88f0dea` |
+| corrupted-derived-state | `internal/contextindex` | `internal/contextindex/pack_test.go:206@b2b8420d`, `internal/contextindex/blob_shards_test.go:84@b82cb217`, `internal/contextindex/termtable_test.go:170@263288af`, `internal/contextindex/analyzer_schema_test.go:236@f88f0dea` |
 | memory | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:15@e9500863` |
 | case-folds-context-index | `internal/contextindex` | `internal/contextindex/hostile_operations_test.go:43@4e6c4427` (skips, so NOT_RUN, on a case-sensitive filesystem) |
 | memory-resident | — | NOT_COVERED: no regression bounds whole-process resident memory or git child memory; the memory row bounds the Go heap one index build allocates |

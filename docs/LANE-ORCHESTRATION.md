@@ -141,6 +141,11 @@ over a second ssh connection and named in `heavy.sh: copied back PATH` lines (DC
 local edit made during the run touches one of them, nothing is copied and the wrapper exits 96
 asking for a local run. `script/heavy.sh --print-lock-dir` prints the slot lock directory a run
 would use (DCW-V0-357).
+When `corvint test --base SHA --dry-run --manifest M` selects packages whole (a dependency change
+such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prints one
+`HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
+each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
+`HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
 When the host is unreachable the offload is retried once after `HEAVY_REMOTE_RETRY` seconds
 (default 15), then the command runs locally and says so. Each local run of an offloadable command
 appends `UTC pwd=... reason=offload-unavailable|HEAVY_REMOTE=0|writes-files cmd=...` to
@@ -330,7 +335,10 @@ The charter or the lane's first step fixes every dogfood input before work start
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
 file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` line per taken ID;
-`ASD-V0-960`).
+`ASD-V0-960`). The new IDs go on their own definition lines inside the spec's `## Requirements`
+section, never into the frozen header `Intent status:` or Agent digest `Status:` line, which
+`make spec-requirements` refuses (`SRG-V0-980`, `SRG-V0-890`), nor after that section
+(`SRG-V0-891`).
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a

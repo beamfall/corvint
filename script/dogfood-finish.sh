@@ -74,6 +74,23 @@ if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
   /bin/rm -rf "$spec_tmp"
   trap - EXIT
 fi
+# IDX-SNAP-V0-891 (V1-2976): an analyzer input change whose golden output drifted from its pins is
+# refused here, before any build or bind, instead of at batch-precheck after the seal. The static
+# check notes a changed input; only then does the golden output test run.
+if [[ -f $repo/internal/contextindex/analyzer_schema_test.go && -x $repo/script/analyzer-schema.sh ]]; then
+  schema_note=$(cd "$repo" && script/analyzer-schema.sh check --base "$base" 2>&1)
+  schema_rc=$?
+  if ((schema_rc != 0)) || [[ $schema_note == *'analyzer schema: NOTE '* ]]; then
+    if ! schema_out=$(cd "$repo" && script/analyzer-schema.sh check --output --base "$base" 2>&1); then
+      printf 'dogfood-finish-lane: REFUSE analyzer-schema-stale
+%s
+' "$(grep '^analyzer schema:' <<< "$schema_out" | head -n 3)" >&2
+      printf 'fix: run script/analyzer-schema.sh bump --base %s, commit the rewritten pins, then rerun (nothing was built, prepared or bound)
+' "$base" >&2
+      exit 2
+    fi
+  fi
+fi
 # ASD-V0-087 (V1-3154): a CORVINT_BIN built before this change cannot run the change's own dogfood
 # tooling, and a matching VERSION does not prove otherwise. When the change touches that tooling, only
 # the lane-built tree binary may run the steps, so an override is refused before any build.

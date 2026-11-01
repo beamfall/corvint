@@ -12,6 +12,10 @@ export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
 pre=$script/batch-precheck.sh
 regen=$script/batch-regen.sh
+# ASD-V0-894 (V1-3387): the test strips a trailing slash from TMPDIR itself (macOS's default ends in
+# `/`), so every path the precheck and its steps derive from it matches the resolved scratch path.
+while [[ ${TMPDIR-} == ?*/ ]]; do TMPDIR=${TMPDIR%/}; done
+[[ -z ${TMPDIR-} ]] || export TMPDIR
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
   { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
 # batch-precheck resolves the step TMPDIR with `cd && pwd`; macOS TMPDIR ends in `/`, so the
@@ -290,8 +294,14 @@ receipt=$(git -C "$repo" rev-parse --path-format=absolute --git-path batch-prech
 # The caller's GOPROXY is unset so the stub make sees only what the precheck applies: release-gates
 # exports GOPROXY=off, which would mask the doc-gates env check below (V1-3055).
 run() { (unset GOPROXY; PATH=$bin:$PATH BATCH_PRECHECK_HEAVY='' drift=${drift:-"./pkg TestDriftOne
-./internal/g TestGoldenWriter"} fixture); }
+./internal/g TestGoldenWriter"} fixture "$@"); }
 
+# ASD-V0-894 (V1-3387): the step count comes from the fixture's own --list, so moving a step in or
+# out of the list changes no literal below; the table adds the repin row to the listed steps.
+run --list || fail "fixture --list: $(cat "$tmp/out")"
+nsteps=$(grep -c . "$tmp/out")
+((nsteps > 3)) || fail "fixture --list printed $nsteps steps: $(cat "$tmp/out")"
+rows=$((nsteps + 1))
 : > "$tmp/calls"
 STUB_FAIL=1 drift="./pkg TestDriftOne
 ./internal/g TestGoldenWriter
@@ -310,7 +320,7 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
-grep -q '^batch-precheck: 13 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((rows - 3)) passed, 3 failed in " "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
 # Parallel: the two 3-second steps overlap, so the wall time is below the summed time.
@@ -335,7 +345,7 @@ head=$(git -C "$repo" rev-parse HEAD)
 grep -q 'refused: no precheck receipt' "$tmp/out" || fail "no receipt: $(cat "$tmp/out")"
 run || fail "passing run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: receipt for $head written" "$tmp/out" || fail "receipt not written: $(cat "$tmp/out")"
-grep -qx 'steps 16' "$receipt" && grep -qx 'passed 16' "$receipt" || fail "receipt counts: $(cat "$receipt")"
+grep -qx "steps $rows" "$receipt" && grep -qx "passed $rows" "$receipt" || fail "receipt counts: $(cat "$receipt")"
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
@@ -469,9 +479,13 @@ lrun || fail "reuse run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "make step not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 16 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 15 of 15 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
-grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 16' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
+# ASD-V0-892 (V1-3572): the fixture's one print-only row (ai-trailers, skipped: no origin/main)
+# never goes through the ledger, so it reruns as a PASS and every other step reuses.
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | ai-trailers$' "$tmp/out" ||
+  fail "print-only row went through the ledger: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -719,7 +733,15 @@ full() {
 }
 run_full() { : > "$tmp/scalls"; srun "$@" || fail "full run failed: $(cat "$tmp/out")"; }
 plan '{"reason":"UNOWNED_DIRTY_PATH","detail":"notes/a.txt"}' golden
-run_full --base "$sbase"; full 'the plan has unknowns: UNOWNED_DIRTY_PATH notes/a.txt'
+run_full --base "$sbase"; full 'the plan has 1 unknowns, first: UNOWNED_DIRTY_PATH notes/a.txt; all in '
+# ASD-V0-893 (V1-3260): many unknowns print a count, the first and the retained file, not the list.
+many=$(for i in $(seq 1 300); do printf ',{"reason":"LANGUAGE_FRONTIER","detail":"typescript:path-alias-unresolved %s"}' "$i"; done)
+plan "$frontier$many" golden
+run_full --base "$sbase"; full 'the plan has 300 unknowns, first: LANGUAGE_FRONTIER typescript:path-alias-unresolved 1; all in '
+ufile=$(git -C "$srepo" rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt)
+[[ $(grep -c . "$ufile") == 300 ]] && grep -qx 'LANGUAGE_FRONTIER typescript:path-alias-unresolved 299' "$ufile" &&
+  grep -qF "all in $ufile)" "$tmp/out" || fail "unknowns file $ufile: $(head -c 300 "$ufile" 2>&1)"
+(($(awk '{ if (length > m) m = length } END { print m + 0 }' "$tmp/out") < 600)) || fail "an output line still carries the unknown list"
 plan "$frontier"',{"reason":"LANGUAGE_FRONTIER","detail":"go:cgo"}' golden
 run_full --base "$sbase"; full 'LANGUAGE_FRONTIER go:cgo'
 plan "$frontier" golden

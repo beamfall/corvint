@@ -1076,6 +1076,54 @@ would cut a one-file re-index's writes to about 2% but adds a per-read reassembl
 Traceability: `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps`,
 `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh`; evidence in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-ctxsnap-1021u-deterministic-snapshot.md`.
+- `IDX-SNAP-V0-890`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3574;
+  amends `IDX-SNAP-V0-017`, `IDX-SNAP-V0-060`, `IDX-SNAP-V0-061` and `IDX-SNAP-V0-107`) The analyzer
+  pins MUST be the schema number and the golden output only: `TestAnalyzerSchemaOutput` pins
+  `auditedSchema`, `auditedOutputSHA256` and `auditedShardSHA256`, and `TestAnalyzerSchemaInputs`
+  keeps discovering and reading every audited input (the same directories and files) and logs their
+  digest but pins none, so an edit to an audited input that leaves the golden output unchanged moves
+  no pin, and two branches that each make such an edit merge without a conflict on a pin line.
+  `script/analyzer-schema.sh check` MUST note, on stdout, each such change (`NOTE N analyzer
+  input(s) changed since MERGE_BASE, first PATH`) and keep the `IDX-SNAP-V0-061` collision refusal
+  on the number and the output pins; `bump` MUST run the output test and rewrite the pins only when
+  its digests differ from them, keeping REF's number when they equal REF's (`IDX-SNAP-V0-107`).
+  Design: since `IDX-SNAP-V0-107` the output digest already decides whether a number moves, so the
+  input pin only forced a mechanical one-line repin on every input edit, which every parallel lane
+  rewrote differently. Non-goals: a wider golden corpus. Failure modes: an output change the corpus
+  does not exercise keeps the number, as under `IDX-SNAP-V0-107`; an input edit that changes the
+  output is still refused by `TestAnalyzerSchemaOutput` and by `check --output` until it bumps.
+  Rollback: restore the input pin in `TestAnalyzerSchemaInputs` and the `audit_digest` comparison in
+  the script.
+- `IDX-SNAP-V0-891`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2976,
+  V1-3574) `script/analyzer-schema.sh check --output [--base REF]` MUST also run the output test and
+  refuse, naming `script/analyzer-schema.sh bump`, when its digests differ from the pins.
+  `script/dogfood-finish.sh` (`make dogfood-closeout`, `dogfood-finish`, `dogfood-inputs-check`)
+  MUST, when the static check notes a changed analyzer input or fails, run `check --output --base
+  BASE` before any build, prepare or bind and refuse as `REFUSE analyzer-schema-stale` with a `fix:`
+  line naming the bump; `script/dogfood-change.sh` MUST print, at change start, `dogfood-change:
+  NOTE analyzer-schema: N analyzer input(s) changed since BASE, first PATH: ...` from
+  `script/analyzer-inputs.sh BASE`, the one lister of changed audited inputs, which the static
+  check also uses and which runs no test, so `dogfood-change.sh` does not reach `script/heavy.sh`. `script/batch-regen.sh` bumps when
+  `check --output` fails. Non-goals: adding the analyzer tests to `corvint test` selection. Failure
+  mode: a repository without the analyzer schema files skips both steps.
+- `IDX-SNAP-V0-892`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2356) The
+  golden corpus MUST yield at least one marker (it yields `feature:seed-demo`), and
+  `TestAnalyzerSchemaOutput` MUST pin `auditedShardSHA256`, the SHA-256 over the blob-shard fact
+  payload (`blobShardPayload`, the bytes `writeBlobShards` stores) of every golden source in path
+  order under the fixed engine, each as `path NUL payload NUL`, so a shard-only output change moves
+  a pin even though shards (`IDX-SNAP-V0-016`) stay off by default. A base whose test has no shard
+  pin compares the pack digest only. `TestAnalyzerSchemaOutputCoversMarkersAndShards` MUST show that
+  a marker-only index change moves the output digest and not the shard digest, and that one changed
+  shard fact moves the shard digest. The default output command of `script/analyzer-schema.sh` MUST
+  run through `script/heavy.sh` when it is executable. Failure mode: a shard fact the corpus does
+  not exercise is not pinned.
+Traceability for `IDX-SNAP-V0-890` to `IDX-SNAP-V0-892`: `script/analyzer-schema_test.sh` (`make
+analyzer-schema-test`): two output-neutral `receipt.go` branches move no pin and merge cleanly, an
+output change fails `check --output` and bumps once, a shard-only change bumps, a peer collision is
+refused and rebumped, a base without the shard pin needs no bump, the default command runs through
+a stub `script/heavy.sh`; `TestAnalyzerSchemaOutput` and
+`TestAnalyzerSchemaOutputCoversMarkersAndShards` in `internal/contextindex`; the dogfood steps in
+`docs/build-log/2026-10-31-frictionfix-w4.md`.
 
 ## Non-goals and authority
 

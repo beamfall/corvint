@@ -4,6 +4,10 @@
 // repository path outside that package's directory and declared entries
 // (AFP-V0-023). The confined CI shard would deny that read with an error that
 // looks like a content failure; this check names the package and path first.
+// A literal that is only a fixture path, such as a path written into a
+// temporary repository, is exempt when its line ends with the comment
+// //corvint:fixture-path and no unmarked literal of the same file holds the
+// same token (ASD-V0-895).
 package main
 
 import (
@@ -732,10 +736,18 @@ func check(root string) ([]finding, []string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		marked, err := fixtureMarked(unit.Tests, bodies)
+		if err != nil {
+			return nil, nil, err
+		}
 		for index, file := range unit.Tests {
 			seen := map[string]bool{}
 			values := append(slices.Clone(tokens[index]), runs[index]...)
 			for position, value := range values {
+				// A token only //corvint:fixture-path literals hold is no read (ASD-V0-895).
+				if marked[index][value] {
+					continue
+				}
 				// A join run resolves against the package directory only: fixture
 				// repositories join the same segments onto temporary roots, so a
 				// run is no evidence of a repository-root read (V1-2117). Nor is a
@@ -865,8 +877,8 @@ func run(root string, stdout, stderr io.Writer) int {
 			// V1-3234: name the literal and the rule that resolve the token from the root.
 			rooted = fmt.Sprintf("; it is read from the repository root because %s, which locates the root (AFP-V0-021: such a literal in any test file makes the package's tokens root-relative; only a token whose every literal lies in a temp-root-only test function is exempt, AFP-V0-828)", found.rootedBy)
 		}
-		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read%s\n",
-			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath, rooted)
+		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read, or end the line of a fixture-only literal with %s (ASD-V0-895)%s\n",
+			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath, fixtureMarker, rooted)
 	}
 	if len(findings) > 0 {
 		return 1

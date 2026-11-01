@@ -397,3 +397,40 @@ func TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819(t *testing.T) {
 		t.Fatalf("code=%d output %q", code, stdout.String()+stderr.String())
 	}
 }
+
+// ASD-V0-895 (V1-3391): in a package whose tests locate the root, a literal on
+// a line that ends with //corvint:fixture-path names no read, while the same
+// path in an unmarked literal of that file is still refused.
+func TestFixtureMarkedLiteralNamesNoRead_V1_3391(t *testing.T) {
+	files := func(test string) map[string]string {
+		return map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"docs/specs/a.md":                "# a\n",
+			"p/p.go":                         "package p\n",
+			"p/root_test.go":                 "package p\n\nvar top = \"" + strings.Repeat(up, 1) + "\"\n",
+			"p/p_test.go":                    test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"p":[]}}`,
+		}
+	}
+	marker := "//" + "corvint:fixture-path"
+	for name, c := range map[string]struct {
+		test string
+		code int
+	}{
+		"marked":           {"package p\n\nvar fixture = \"docs/specs/a.md\" " + marker + "\n", 0},
+		"marked multi":     {"package p\n\nvar fixture = []string{\n\t\"docs/specs\", " + marker + "\n\t\"docs/specs/a.md\", " + marker + "\n}\n", 0},
+		"unmarked":         {"package p\n\nvar fixture = \"docs/specs/a.md\"\n", 1},
+		"also unmarked":    {"package p\n\nvar fixture = \"docs/specs/a.md\" " + marker + "\n\nvar read = \"docs/specs/a.md\"\n", 1},
+		"marker elsewhere": {"package p\n\n" + marker + "\nvar fixture = \"docs/specs/a.md\"\n", 1},
+	} {
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files(c.test)), &stdout, &stderr)
+		if code != c.code {
+			t.Errorf("%s: code=%d want %d; stderr %q", name, code, c.code, stderr.String())
+		}
+		if c.code == 1 && !strings.Contains(stderr.String(), "names docs/specs/a.md") ||
+			c.code == 1 && !strings.Contains(stderr.String(), "or end the line of a fixture-only literal with "+marker+" (ASD-V0-895)") {
+			t.Errorf("%s: refusal %q lacks the path or the marker hint", name, stderr.String())
+		}
+	}
+}
