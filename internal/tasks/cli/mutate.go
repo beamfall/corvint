@@ -295,6 +295,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o := wire.NewObject()
 	o.Set("operation", wire.String(operation))
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
+	o.Set("replay", wire.String("Repeating a mutation with its recorded --request-id and the same payload replays it: the result is OK with replayed true, receipt is empty because no receipt is written, and originalReceipt names the receipt that committed the original (TCL-V0-991)."))
 	o.Set("requestId", wire.String(fmt.Sprintf("--request-id is the idempotency key: at most %d bytes; a longer one is refused LIMIT_EXCEEDED naming the flag (TCT-V0-991)", wire.MaxRequestIDBytes)))
 	target := " [--target TICKET|LOCAL --expected-revision N]"
 	if operation == mutation.OpCreate {
@@ -339,6 +340,9 @@ func mutateResult(cmd []string, report *store.Report) *wire.Result {
 	o.Set("outcome", wire.String(report.Outcome.Outcome))
 	o.Set("receipt", wire.String(report.Receipt))
 	o.Set("replayed", wire.Bool(report.Outcome.Replayed))
+	if report.Outcome.Replayed && report.OriginalReceipt != "" {
+		o.Set("originalReceipt", wire.String(report.OriginalReceipt))
+	}
 	o.Set("ticketId", wire.String(report.Ticket))
 	o.Set("releaseId", wire.String(report.Release))
 	o.Set("resultingRevision", nullableCount(report.Outcome.ResultingRevision))

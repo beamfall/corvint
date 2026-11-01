@@ -66,6 +66,9 @@ type Report struct {
 	// Receipt is the published receipt entry name, empty when nothing was
 	// committed.
 	Receipt string
+	// OriginalReceipt names the receipt that committed a replayed
+	// mutation's original; a replay writes none (TCL-V0-991).
+	OriginalReceipt string
 	// Directories are the state-dir children this call created.
 	Directories []string
 	// Kind is the model's own result kind: Transaction, Replay, NoChange or

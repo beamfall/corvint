@@ -144,6 +144,11 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
 			report.Ticket = audit.TicketID
+			if seq := audit.Entry.Outcome.ReceiptSeq; seq != nil {
+				if name, err := snapshot.ReceiptName(seq.Uint64()); err == nil {
+					report.OriginalReceipt = name
+				}
+			}
 		}
 		return report, nil
 	}
