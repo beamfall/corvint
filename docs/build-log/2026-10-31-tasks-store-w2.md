@@ -106,6 +106,9 @@ go1.27.3, `/tmp` on btrfs. Load figures are the 1-minute load average. Commits a
 
 ## Not delivered
 
+(First round. The orchestrator decided the design forks of V1-0961, V1-2203, V1-0916, V1-2358 and
+V1-2621 on 2026-11-01, and the second round below reworks them.)
+
 - V1-2676 (BLOCKED, needs a CI-runner reproduction): 20/20 `-count=20` runs under load passed. The
   `corrupt` child's `open /: too many open files ... JOURNAL_FORKED` line is its designed passing
   output: it limits the process to zero spare descriptors with the watch open. Each mode already runs
@@ -145,6 +148,100 @@ go1.27.3, `/tmp` on btrfs. Load figures are the 1-minute load average. Commits a
 - V1-2539 and V1-2592 (BLOCKED): both acceptance criteria are WSL2 `TestCALV0263_LeaseGateLoad`
   before/after reports. This lane has no WSL2 host. Not attempted.
 
+## Second round (2026-11-01)
+
+The orchestrator decided the remaining forks on 2026-11-01. The installed `corvint`,
+`corvint-console`, `corvint-mcp`, `corvint-tasks`, `corvint-update` and `corvint-web-flows` were
+rebuilt from the lane head `f1680433b` (the old ones kept as `*.pre-r35.bak`), which cleared
+`self-binary-stale`. Load figures below come from a host shared with other lanes.
+
+### V1-0961: store package slices
+
+- Decision: the committed slice route (AFP-V0-041, `.github/cishards/test-slices.json`) already
+  runs the store package as four slices. Regenerating it needs one complete 8-shard CI log set,
+  which this host cannot fetch (no gh auth), so the slice file is unchanged. The catch-all slice is
+  trimmed instead.
+- The catch-all slice (every test added since the slice file was generated) first ran past 595 s.
+  Its sequential phase was 323 s, of which `TestLGLV0016_FaultAtEachPublishSyncStopsTheNextStep`
+  was 123 s: 27 subtests, each building its own store. The subtests now run in parallel under a
+  still-sequential parent. A per-store publish-fault seam (`publishFaults`) and a test-side router
+  hand each directory sync to the recorder whose store's worktree holds the directory. The baseline
+  write that counts the syncs runs alone in strict mode and must route every sync to its store, so
+  no sync leaves the matrix. The test takes about 9 s, race-clean.
+- Per-slice wall, each one `store.test` process with the committed patterns: before the trim,
+  395 / 404 / 225 / >595 s; after the trim, 545 s for the catch-all. With every second-round change,
+  538 s (load 6-8), 330 s (15-25), 207 s (12-22) and 523 s (7-18). Every slice is under 600 s. The
+  only failure is `TestPSRV0224_HeadFilesResolveAsGit` (old Git, V1-3568).
+
+### V1-2203: heartbeat floor (LGL-V0-890)
+
+- Finding: every writer called `authority.Qualify(repo.CommonDir)`, which costs 13 ms median here:
+  a fully synced probe file, a flock and a `.git` directory sync, before the gate.
+- Decision: `authority.QualifyReused` keeps a successful qualification per process while
+  `os.SameFile` holds on a fresh `Lstat`. A failure is never kept, and a replaced root is probed
+  again. Every published artifact keeps its file and directory syncs (LGL-V0-008), so crash safety
+  of an acknowledged heartbeat is unchanged. `TestLGLV0890_HeartbeatKeepsEveryArtifactSyncWith-
+  AReusedQualification` checks that the heartbeat's sync count is unchanged and that no probe file
+  is left. Group commit was not added: it cannot lower a single call's median.
+- `TestCALV0118_WriterHoldProfile` (880 tickets, 11 reps, load 2-5): heartbeat median 83.4 ->
+  73.4 ms at 13,500 receipts and 89.8 -> 75.1 ms at 40,000. NOT MET against 50 ms. The measured
+  floor is the lock hold of about 71 ms: four sequential sync rounds of about 34 ms on btrfs
+  (staged files, the receipts directory, the post directories, the head directory), observe of
+  19.5 -> 26.3 ms that grows with receipts, and about 8 ms of journal writes. Reaching 50 ms would
+  mean dropping one of LGL-V0-008's ordering edges.
+
+### V1-0916: incremental refresh (PSR-V0-891)
+
+- Spec: PSR-V0-891 in the pool-safe-reuse companion spec. It extends CAL-V0-265 and amends
+  CAL-V0-117 step 2, and CAL-V0-117 step 2 now points to it. The leases spec gains no requirement.
+- Decision: the scheduled refresh first resumes the complete validators from the bound checkpoint
+  (`AuditForWriter`) on an unsegmented store. `Result.IncrementalWriterCheckpoint` derives the
+  complete refresh's checkpoint from it: a new base, with `FullSeq` at the head. Any decline falls
+  back to the complete refresh. The complete refresh also runs whenever the head crosses a
+  multiple of 4,096 since `FullSeq`. There is no off-caller process.
+- Evidence: `TestPSRV0891_IncrementalRefreshMatchesTheCompleteRefresh` compares base and delta
+  byte for byte over six randomized create/heartbeat/renew sequences of 10 to 89 writes, longer
+  than the 64-receipt re-base. It passed 12/12 under 4 processes plus burners.
+  `TestPSRV0891_FullRefreshStaysTheBackstop` covers the schedule. The opt-in harness
+  `TestPSRV0891_RefreshBoundaryLatency` (13,000 x 880, 600 creates, load about 5-6) measured the
+  refresh write at 568-580 ms (2.38 s with the complete refresh), p99 758-775 ms, and every write
+  after the fixture's first complete-route write at or under 1.03 s.
+- Tests of what only the complete refresh detects pin their store to it (`completeRefreshOnly`):
+  CALV0116 prefix tamper, the CALV0117 invalidation cases and the read-checkpoint retention, and
+  JSGV0003 forged refresh. That carried-forward window up to the backstop is PSR-V0-891's stated
+  failure mode.
+
+### V1-2358: checkpoints outside the writer lock (JSG-V0-891)
+
+- Decision: a `deferredRetention` collector records, under the lock, only the audit and token a
+  writer decided to retain. After release it derives and stages the checkpoints and renames the
+  read checkpoint lock-free, because the checkpoint is bound to its own head identity. It renames
+  the writer base and writes the bounded delta under a lock re-acquisition of at most 2 s, gated by
+  the recorded token. This applies to Mutate (writer and complete route) and the lease writer route.
+  The refresh stages before its lock. The complete-route Mutate audit itself still runs under the
+  lock: moving it out would need the lease route's optimistic recheck machinery.
+- `TestJSGV0891_WritersRetainCheckpointsOutsideWriterLock`, 40 -> 400 tickets, bytes written
+  under the lock: the writer-route Mutate goes from 6.4 KB -> 53 KB before to 0 after. Refresh and
+  the complete-route Mutate go from 14.9 KB -> 114.7 KB before to only the writer delta, 645 -> 646
+  B. The read checkpoint (53 KB) and the base (61 KB) at 400 tickets are now staged outside the lock.
+  The verify compare that stays under the lock costs 0.75 ms -> 6.3 ms.
+  `TestJSGV0015_MovedClaimResumesOnTheWriterRoute` now requires 0 read-checkpoint bytes under the
+  lock.
+
+### V1-2621: base-at-S capture (LGL-V0-891)
+
+- Decision: `WriterCheckpoint.RebaseOnSealedBase` re-bases a complete audit's checkpoint onto the
+  bound checkpoint's sealed base at S through the seal's own `rebase`. `rebase` refuses unless
+  everything at or before S matches what the complete audit derived from receipt 1, and the base's
+  segment digests must be the manifest's. The lease complete route re-bases before its lock, so
+  the JSG-V0-015 staging still applies, and drops the re-base when its verify refutes the bound
+  checkpoint. The complete-route Mutate does the same in its deferred derivation.
+- Evidence: `TestLGLV0891_CompleteRouteWriteKeepsTheSealedBase` forces a Mutate onto the complete
+  route with the checkpoint still valid (test-only `mutateWriterOff`). `FullSeq` stays at S, and the
+  next pool release resumes (Resumed 1, 0 audits) with the complete route's report and bytes. With
+  the re-base disabled it fails. It passed 12/12 under load. The LGL-V0-011 47k real-disk harness
+  run is NOT_RUN.
+
 ## Friction
 
 - `TestCALV0095_PreparationQueueObservation*` (internal/tasks/authority) fails at the base on this
@@ -165,3 +262,13 @@ go1.27.3, `/tmp` on btrfs. Load figures are the 1-minute load average. Commits a
   once, by mis-estimate.
 - Loaded flake triage needs a whole-package, CI-like process. Running isolated tests under burners
   did not reproduce any of V1-2676, V1-2764 or V1-2773.
+- `make host-adapter-node-test` fails at the base in batch-precheck (base-present, not counted).
+- Before the rebuild, the installed `corvint` reported `DEGRADED self-binary-stale`, so
+  `corvint affected` ran on a stale binary. With `internal/tasks/wire` changed, its scope was
+  `UNKNOWN`.
+- The store slices can only be measured on a host shared with other lanes (load 6-25 during the
+  second round), so the same slice varied 395-538 s between runs. A per-slice figure from a shared
+  host is an upper bound.
+- `TestJSGV0891_WritersRetainCheckpointsOutsideWriterLock` and the JSG-V0-015 tests share the
+  package-global `derivedWritten` hook, so they cannot run in parallel and add to the sequential
+  phase of the catch-all slice.
