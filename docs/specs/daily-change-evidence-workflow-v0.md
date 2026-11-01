@@ -3420,6 +3420,30 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   precheck list mismatch is reported before the bind. Non-goals: running the drift tests twice.
   Evidence: `script/batch-precheck_test.sh` (the checkout's `BATCH_PRECHECK_SKIP_DRIFT=1 --list`
   holds both rows). Rollback: drop the assertion.
+- `DCW-V0-748`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4091; refines
+  `DCW-V0-967` and `DCW-V0-382`) When `corvint dogfood propose-citations` drafts a requirement's
+  stable BASE definition line as a hunk's anchor or as the `DCW-V0-967` refined
+  proposal, the row MUST cover the requirement's entry: the definition line and the indented
+  continuation lines after it, ending before the first blank, unindented or edited line, and
+  shortened until its text is under the citation byte bound and occurs exactly once at BASE and
+  after the change. An anchor whose widened span another row already cites is skipped, as its
+  definition line was (the `DCW-V0-382` dedupe); `DCW-V0-967` proposals may share their span. Measured
+  on lane plg-m17's mcp-server commit `3c672e467` (WSL): before, 12 rows cited
+  `mcp-server-2026-07-28-v0.md` `984:984` for the `MCPV0-115` entry; the governing-spec part of
+  the report (`source-documentation-draft-v0.md`, `GLOSSARY.md`) no longer reproduces at BASE, both
+  being refused by `DCW-V0-847`; the cite of an edited line is the `DCW-V0-980` re-pin of lane
+  cit-u18. Non-goals: widening path-naming anchors or other documents' lines. Evidence:
+  `TestProposeCitationsDCWV0748CitesTheWholeRequirementEntry` (a 4-line entry cited `5:8`, an
+  entry whose later line the change edits never reaches it, the plan passes the pre-flight) and
+  `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (`5:6`). Rollback: drop `entryEnd` and its two
+  calls.
+- `DCW-V0-749`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3955; refines
+  `DCW-V0-440` and `DCW-V0-967`) A code hunk naming a requirement ID that neither BASE nor the
+  change's own spec hunks define MUST stay `unknown`, while a hunk naming a requirement the change
+  adds is drafted as the `DCW-V0-967` proposal of the BASE requirement its entry refines. The
+  ticket's wish to cite the same-change requirement itself is not met by design: evidence is pinned
+  to BASE content (invariant 1) and `DCW-V0-440` keeps that bullet uncitable. Evidence:
+  `TestProposeCitationsDCWV0749UndefinedRequirementStaysUnknown`. Rollback: drop the test.
 
 ## Code vocabulary
 
@@ -3777,6 +3801,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-745` (experimental under the standing lane auto-accept; V1-3837) | `Makefile` `dogfood-closeout` phase lines; `script/batch-precheck.sh` base-present line; `script/dogfood-cache_test.sh`, `script/batch-precheck_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
 | `DCW-V0-746` (experimental under the standing lane auto-accept; V1-4072) | `script/dogfood-closeout-unwind.sh`; `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
 | `DCW-V0-747` (experimental under the standing lane auto-accept; V1-3334) | `script/batch-precheck_test.sh` skip-drift `--list` assertion | implemented; shell test PASS |
+| `DCW-V0-748` (experimental under the standing lane auto-accept; V1-4091) | `internal/dogfoodflow/propose_entryspan.go` `entryEnd`; `propose.go` `anchoredProposal`; `propose_samechange.go` `refinedProposal`; `TestProposeCitationsDCWV0748CitesTheWholeRequirementEntry` | implemented; focused tests PASS |
+| `DCW-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDCWV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

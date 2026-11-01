@@ -63,13 +63,15 @@ func (p *proposal) refinedProposal(hunk proposedHunk, ordinal, id string, edited
 		// one definition line, an exception to the span dedupe of DCW-V0-382;
 		// the uniform-plan rule (DCW-V0-048) still holds.
 		for _, candidate := range p.matches[definitionPattern(refined)] {
-			cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
 			if !p.stable(candidate.path, candidate.line, edited) {
 				continue
 			}
+			// The cite covers the refined requirement's entry (DCW-V0-748).
+			end := p.entryEnd(candidate.path, candidate.line, edited)
+			cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, end)
 			p.proposals[ordinal] = true
 			p.reasons[ordinal] = fmt.Sprintf("the BASE definition of %s, which the entry of the same-change requirement %s refines, amends or names; same-change intent is not BASE evidence (DCW-V0-440), so confirm %s is the contract the hunk depends on (DCW-V0-967)", refined, id, refined)
-			return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, proposalRelation(candidate.path)), cite
+			return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, end, proposalRelation(candidate.path)), cite
 		}
 	}
 	return "", ""

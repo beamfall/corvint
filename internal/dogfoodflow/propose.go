@@ -450,6 +450,13 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		}
 		if cite != "" {
 			used[cite] = true
+			// A widened entry span also uses its definition line, so the
+			// DCW-V0-382 dedupe still moves a later row off it (DCW-V0-748).
+			if rest, end, ok := cutLast(cite, ":"); ok {
+				if name, start, ok := cutLast(rest, ":"); ok && start != end {
+					used[name+":"+start+":"+start] = true
+				}
+			}
 			uniform = uniform && (lastCite == "" || lastCite == cite)
 			lastCite = cite
 			cited++
@@ -706,7 +713,18 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			}
 		}
 		relation := proposalRelation(candidate.path)
-		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
+		end := candidate.line
+		// A requirement's definition is cited over its whole entry; a span
+		// another row already cites is skipped as before (DCW-V0-748,
+		// DCW-V0-382).
+		if index < definitions && !p.basenames {
+			end = p.entryEnd(candidate.path, candidate.line, edited)
+			cite = fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, end)
+			if used[cite] {
+				continue
+			}
+		}
+		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, end, relation)
 		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
 			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
 		}
