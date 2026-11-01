@@ -195,6 +195,16 @@ func TestDocsCLIRefusalsAndHelp(t *testing.T) {
 	if code != 2 || !strings.Contains(err.String(), "unsupported-documentation-source") {
 		t.Fatalf("generated owner admitted: %d %s", code, err.String())
 	}
+	// SDD-V0-632: --page 1 is the default; a page past the count or a non-decimal page is refused.
+	if code, paged, stderr := runDocsFixture(t, root, "draft", "", "--page", "1"); code != 0 || paged != draft {
+		t.Fatalf("--page 1 changed the draft: %d %s", code, stderr)
+	}
+	for _, page := range []string{"2", "0", "01", "x"} {
+		code, out, stderr := runDocsFixture(t, root, "draft", "", "--page", page)
+		if code != 2 || out != "" || !strings.Contains(stderr, "page") {
+			t.Fatalf("--page %s admitted: %d %s", page, code, stderr)
+		}
+	}
 	for _, args := range [][]string{{"docs", "--help"}, {"help", "docs"}} {
 		out.Reset()
 		err.Reset()
@@ -551,6 +561,45 @@ func TestSDDV0019DocsCLIDryRunUntrackedAndInlineOwner(t *testing.T) {
 	} {
 		if code, _, stderr := run("", args...); code == 0 || !strings.Contains(stderr, "invalid-arguments") {
 			t.Fatalf("%v accepted: %d %s", args, code, stderr)
+		}
+	}
+}
+
+// SDD-V0-633: --owner-section drafts and consumes a named owner section; docs citations
+// check reports failures with exit 1 and a clean named file with exit 0.
+func TestSDDV0633DocsCLIOwnerSectionAndCitationsCheck(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	code, draft, stderr := runDocsFixture(t, root, "draft", "", "--owner-section", "Requirements")
+	if code != 0 || !strings.Contains(draft, "Owner section: `\"Requirements\"`") || !strings.Contains(draft, "Never promote drafts.") || strings.Contains(draft, "Claim: splits keys") {
+		t.Fatalf("owner-section draft: %d %s\n%s", code, stderr, draft)
+	}
+	if code, _, stderr := runDocsFixture(t, root, "consume", draft, "--owner-section", "Requirements", "--task", "Split"); code != 0 {
+		t.Fatalf("owner-section consume: %d %s", code, stderr)
+	}
+	if code, _, stderr := runDocsFixture(t, root, "consume", draft, "--task", "Split"); code != 2 || !strings.Contains(stderr, "documentation-") {
+		t.Fatalf("section draft consumed as the default owner: %d %s", code, stderr)
+	}
+	for name, text := range map[string]string{"cited.md": "Good `owner.md:1`; blank `owner.md:3`.\n", "clean.md": "See `owner.md:4`.\n"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(text), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	docsCommit(t, root)
+	run := func(paths ...string) (int, string, string) {
+		var out, err bytes.Buffer
+		code := runContext(context.Background(), append([]string{"--root", root, "docs", "citations", "check"}, paths...), strings.NewReader(""), &out, &err)
+		return code, out.String(), err.String()
+	}
+	if code, out, stderr := run("cited.md"); code != 1 || !strings.Contains(out, "cited.md:1  `owner.md:3`  trivial-span: ") || !strings.Contains(out, "2 citations in 1 documents, 1 failures") {
+		t.Fatalf("failing check: %d %q %s", code, out, stderr)
+	}
+	if code, out, stderr := run("clean.md"); code != 0 || out != "docs citations check: 1 citations in 1 documents, 0 failures\n" {
+		t.Fatalf("clean check: %d %q %s", code, out, stderr)
+	}
+	for _, paths := range [][]string{{"missing.md"}, {"../x.md"}, {"--bogus"}} {
+		if code, out, stderr := run(paths...); code != 2 || out != "" || stderr == "" {
+			t.Fatalf("check %v: %d %q", paths, code, out)
 		}
 	}
 }

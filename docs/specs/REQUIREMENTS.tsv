@@ -3604,6 +3604,7 @@ DCG-V0-842	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-920	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408	standing	2026-10-31; V1-3342; V1-3408
 DCG-V0-921	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3323)	standing	2026-10-31; V1-3323
 DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413
+DCG-V0-630	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3722; refines	standing	2026-11-01; V1-3722
 DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -3718,6 +3719,7 @@ DCI-V1-028	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-022`
 DCI-V1-029	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-009`, `DCI-V1-022` and `DCI-V1-023`.	unrecorded	-
 DCI-V1-030	docs/specs/documentation-corpus-inventory-v1.md	Derivation `11` (`DCX-V1-471`) names `DCI-V1-027..029`: an artifact of	unrecorded	-
 DCI-V1-230	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-005`. Every optional manifest list whose explicitly empty value	unrecorded	-
+DCI-V1-630	docs/specs/documentation-corpus-inventory-v1.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3762; refines	standing	2026-11-01; V1-3762
 DCS-V1-400	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-401	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-402	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
@@ -6459,6 +6461,11 @@ SDD-V0-015	docs/specs/source-documentation-draft-v0.md	The blinded maintainer ta
 SDD-V0-018	docs/specs/source-documentation-draft-v0.md	`docs draft`, `docs consume` and `corvint-docs-mcp` accept a module directory in	unrecorded	-
 SDD-V0-019	docs/specs/source-documentation-draft-v0.md	`docs draft --dry-run` and `corvint.docs_draft` with `dry_run: true` preview a f	unrecorded	-
 SDD-V0-700	docs/specs/source-documentation-draft-v0.md	(experimental under the standing lane auto-accept; V1-3706) `corvint.docs_draft`	standing	V1-3706
+SDD-V0-630	docs/specs/source-documentation-draft-v0.md	Every draft states whether its owner excerpt names the drafted package (V1-3719)	unrecorded	-
+SDD-V0-631	docs/specs/source-documentation-draft-v0.md	A Go declaration entry spans its doc comment and its full declaration surface, n	unrecorded	-
+SDD-V0-632	docs/specs/source-documentation-draft-v0.md	Declarations and importers are paged independently, 64 entries per list per page	unrecorded	-
+SDD-V0-633	docs/specs/source-documentation-draft-v0.md	Foreign repositories need no Corvint-specific heading (V1-3721). `docs draft`,	unrecorded	-
+SDD-V0-634	docs/specs/source-documentation-draft-v0.md	Maturity statements in Go help strings and package docs of the form	unrecorded	-
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-
@@ -7414,6 +7421,7 @@ UCV0-217	docs/specs/use-case-conformance-v0.md	(accepted 2026-10-21 under the ow
 UCV0-018	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-27); V1-2828)	standing	2026-10-27; V1-2828
 UCV0-019	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-29); V1-3124)	standing	2026-10-29; V1-3124
 UCV0-020	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3229)	standing	2026-10-30; V1-3229
+UCV0-630	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3722)	standing	2026-11-01; V1-3722
 VPO-V0-001	docs/specs/verification-planner-observer-v0.md	Every V0 JSON document MUST be one Change Frontier canonical JSON body followed	unrecorded	-
 VPO-V0-002	docs/specs/verification-planner-observer-v0.md	Every document MUST contain exactly its named `profile`. Unknown profiles fail	unrecorded	-
 VPO-V0-003	docs/specs/verification-planner-observer-v0.md	Content identities use	unrecorded	-

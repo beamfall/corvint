@@ -435,3 +435,83 @@ func TestUCV0020DigestRefusalNamesRecovery(t *testing.T) {
 		t.Fatalf("a non-digest refusal printed a recovery hint: %q", hint)
 	}
 }
+
+// TestUCV0630SpanAndSymbolSubjects: a subject may pin a line span or one Go declaration, so an
+// edit elsewhere in the file leaves the receipt current while an edit to the pinned bytes, or a
+// malformed pin, is refused.
+func TestUCV0630SpanAndSymbolSubjects(t *testing.T) {
+	src := "package demo\n\n// Cited is pinned.\nfunc Cited() int { return 1 }\n\nfunc (s *Store[T]) Get() {}\n\nfunc Other() {}\n"
+	pin := func(t *testing.T, key, value string, pinned []byte) *fixture {
+		f := newFixture(t)
+		r := f.receipt("implementation")
+		f.write("evidence/demo.go", []byte(src))
+		r["subjects"] = []any{map[string]any{"path": "evidence/demo.go", "sha256": digest(pinned), key: value}}
+		f.bind("implementation", r)
+		return f
+	}
+	for _, tc := range []struct{ key, value, pinned string }{
+		{"lines", "3-4", "// Cited is pinned.\nfunc Cited() int { return 1 }\n"},
+		{"symbol", "Cited", "// Cited is pinned.\nfunc Cited() int { return 1 }"},
+		{"symbol", "Store.Get", "func (s *Store[T]) Get() {}"},
+	} {
+		t.Run(tc.key+"="+tc.value, func(t *testing.T) {
+			f := pin(t, tc.key, tc.value, []byte(tc.pinned))
+			f.check()
+			f.write("evidence/demo.go", []byte(src+"\nfunc Added() {}\n"))
+			f.check()
+			f.write("evidence/demo.go", []byte(strings.Replace(src, "func Other", "func Renamed", 1)))
+			f.check()
+			f.write("evidence/demo.go", []byte(strings.Replace(src, "return 1", "return 2", 1)))
+			if tc.value == "Store.Get" {
+				f.write("evidence/demo.go", []byte(strings.Replace(src, "Get() {}", "Get() { _ = s }", 1)))
+			}
+			f.check("subject:0:subject-digest-mismatch")
+		})
+	}
+	for _, tc := range []struct{ key, value string }{{"lines", "4-3"}, {"lines", "0-1"}, {"lines", "7-99"}, {"lines", "3"}, {"symbol", "Missing"}, {"symbol", ""}} {
+		t.Run("refuse "+tc.key+"="+tc.value, func(t *testing.T) {
+			pin(t, tc.key, tc.value, []byte(src)).check("subject:0:invalid-subject-pin")
+		})
+	}
+	t.Run("both", func(t *testing.T) {
+		f := newFixture(t)
+		r := f.receipt("implementation")
+		f.write("evidence/demo.go", []byte(src))
+		r["subjects"] = []any{map[string]any{"path": "evidence/demo.go", "sha256": digest([]byte(src)), "lines": "1-1", "symbol": "Cited"}}
+		f.bind("implementation", r)
+		f.check("subject:0:invalid-subject-pin")
+	})
+	// Admission is by key presence, so a JSON-null selector is a refused pin, not a whole-file one.
+	for _, key := range []string{"lines", "symbol"} {
+		t.Run("refuse "+key+"=null", func(t *testing.T) {
+			f := newFixture(t)
+			r := f.receipt("implementation")
+			f.write("evidence/demo.go", []byte(src))
+			r["subjects"] = []any{map[string]any{"path": "evidence/demo.go", "sha256": digest([]byte(src)), key: nil}}
+			f.bind("implementation", r)
+			f.check("subject:0:invalid-subject-pin")
+		})
+	}
+	t.Run("symbol on a non-Go path", func(t *testing.T) {
+		f := newFixture(t)
+		r := f.receipt("implementation")
+		r["subjects"].([]any)[0].(map[string]any)["symbol"] = "Cited"
+		f.bind("implementation", r)
+		f.check("subject:0:invalid-subject-pin")
+	})
+	t.Run("subject-digest", func(t *testing.T) {
+		root := t.TempDir()
+		if err := os.WriteFile(filepath.Join(root, "demo.go"), []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		got, err := symbolSubjectDigest(root, "demo.go#Cited")
+		if err != nil || got != digest([]byte("// Cited is pinned.\nfunc Cited() int { return 1 }")) {
+			t.Fatalf("symbolSubjectDigest = %q, %v", got, err)
+		}
+		for _, bad := range []string{"demo.go", "../demo.go#Cited", "/demo.go#Cited", "demo.go#Missing"} {
+			if _, err := symbolSubjectDigest(root, bad); err == nil {
+				t.Fatalf("symbolSubjectDigest(%q) accepted", bad)
+			}
+		}
+	})
+}

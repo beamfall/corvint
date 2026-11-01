@@ -1296,7 +1296,8 @@
       "command": "corvint docs",
       "summary": "Experimental source documentation orientation",
       "usage": [
-        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
+        "corvint [--root PATH] docs citations check [PATH...]",
+        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
         "corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)",
         "corvint [--root PATH] docs corpus OPERATION [OPTIONS]",
         "corvint docs corpus OPERATION --help",
@@ -1359,8 +1360,8 @@
         "corvint [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
-        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
-        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
+        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
         "corvint [--root PATH] docs flows check ... (corvint help docs flows)",
         "corvint [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]",
@@ -1407,6 +1408,7 @@
         "--no-workspace",
         "--offset",
         "--output-dir",
+        "--owner-section",
         "--owner-stdin",
         "--package",
         "--page",
@@ -1453,8 +1455,43 @@
         "--workspace"
       ],
       "required": [],
-      "example": "corvint docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
+      "example": "corvint docs citations check",
       "help": "corvint docs --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations"
+      ],
+      "command": "corvint docs citations",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint docs citations check",
+      "help": "corvint docs citations --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations",
+        "check"
+      ],
+      "command": "corvint docs citations check",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint docs citations check",
+      "help": "corvint docs citations check --help"
     },
     {
       "path": [
@@ -1464,10 +1501,12 @@
       "command": "corvint docs consume",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md"
+        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md"
       ],
       "flags": [
+        "--owner-section",
         "--package",
+        "--page",
         "--root",
         "--source",
         "--task"
@@ -2796,14 +2835,16 @@
       "command": "corvint docs draft",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
-        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
+        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain"
       ],
       "flags": [
         "--dry-run",
+        "--owner-section",
         "--owner-stdin",
         "--package",
+        "--page",
         "--root",
         "--source"
       ],

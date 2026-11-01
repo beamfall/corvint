@@ -72,7 +72,9 @@ CHECK_LINE_CITATIONS_SELF=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)/${0##*/}
 export CHECK_LINE_CITATIONS_SELF
 cd "$root"
 
-perl - "$@" <<'PERL'
+# The program arrives on standard input, so the caller's standard input (the --show-changed
+# answers, DCG-V0-630) is passed on descriptor 3.
+perl - "$@" 3<&0 <<'PERL'
 use strict;
 use warnings;
 use Digest::SHA qw(sha256_hex);
@@ -287,6 +289,8 @@ my @repins;
 my ($repin_base, $repin_base_label, @suggestions);
 # DCG-V0-920/921: --repin --changed, and the files --selects REV names as changed.
 my ($repin_changed, %selects_changed);
+# DCG-V0-630: --repin --show-changed, and the changed spans it shows for a confirmation.
+my ($repin_show, @show_changed);
 # DCG-V0-921: the pinned citations into a file --selects REV names as changed.
 my @selected;
 # DCG-V0-920: the changed spans --repin --changed rewrote, printed for a read.
@@ -406,7 +410,12 @@ sub check {
                 return;
             }
             if (defined $repin_base) {
-                my $suggested = diff_suggestion($token, $path, $lines, $pin, $first, $last, @extra);
+                my ($suggested, $old_numbers, $new_numbers) = diff_suggestion($token, $path, $lines, $pin, $first, $last, @extra);
+                # DCG-V0-630: --show-changed asks, on the first pass only, before writing it.
+                if (defined $suggested && $repin_show && ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) eq '1') {
+                    push @show_changed, [$doc, $line_number, $token, $suggested, $token_at, $path, $lines, $old_numbers, $new_numbers];
+                    return;
+                }
                 # DCG-V0-920 (V1-3342, V1-3413): --repin --changed writes the diff's mapping and the
                 # new anchor too, each listed for a read; without --changed it is only suggested.
                 if (defined $suggested && $repin_changed) {
@@ -691,7 +700,7 @@ sub diff_suggestion {
     return undef if $deleted;
     return undef if grep { $_ < 1 || $_ > @$lines } @now;
     (my $suggested = $token) =~ s{:\d[\d,-]*\@[0-9a-f]+`\z}{":$span\@" . substr(anchor_of($lines, @now), 0, 8) . '`'}e;
-    return $suggested;
+    return wantarray ? ($suggested, \@numbers, \@now) : $suggested;
 }
 
 # DCG-V0-047: whether the text before a backticked `:N` names a citation's file: empty for a
@@ -733,7 +742,7 @@ sub shifted_token {
 
 # --hash prints one citation with its anchor appended, so an author can pin a citation
 # without computing the digest by hand.
-my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--changed] [--base <rev>]] | --selects <rev> | --hash <path:line[-line][,line]> ...\n";
+my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--changed | --show-changed] [--base <rev>]] | --selects <rev> | --hash <path:line[-line][,line]> ...\n";
 my ($repin, $verbose, $base_arg, $selects_base);
 my @original_argv = @ARGV;
 if (@ARGV && $ARGV[0] ne '--hash') {
@@ -744,11 +753,13 @@ if (@ARGV && $ARGV[0] ne '--hash') {
         elsif ($flag eq '--verbose') { $verbose = 1 }
         elsif ($flag eq '--base' && @flags) { $base_arg = shift @flags }
         elsif ($flag eq '--changed') { $repin_changed = 1 }
+        elsif ($flag eq '--show-changed') { $repin_show = 1 }
         elsif ($flag eq '--selects' && @flags) { $selects_base = shift @flags }
         else { die $usage }
     }
     die "--base needs --repin\n$usage" if defined $base_arg && !$repin;
     die "--changed needs --repin\n$usage" if $repin_changed && !$repin;
+    die "--show-changed needs --repin and excludes --changed\n$usage" if $repin_show && (!$repin || $repin_changed);
     die "--selects takes no other flag\n$usage" if defined $selects_base && ($repin || $verbose);
 }
 # DCG-V0-045: --repin proves moves against the diff from --base (default HEAD) to the index. An
@@ -917,6 +928,26 @@ if (defined $selects_base) {
 # transitive chain resolves in one call and the index-reading check passes with no manual staging.
 # DCG-V0-842: every other finding is printed with its reason and fails the run.
 if ($repin) {
+    # DCG-V0-630: show each changed span old (at the base) and new (in the index) and write the
+    # mapped token only on a `y` answer; any other answer leaves it as a DCG-V0-045 suggestion.
+    my $answers;
+    open $answers, '<&=', 3 or die "--show-changed: no answer input: $!\n" if @show_changed;
+    for my $shown (@show_changed) {
+        my ($doc, $line_number, $from, $to, $at, $path, $lines, $old, $new) = @$shown;
+        my $base = base_lines($path);
+        print "$doc:$line_number  $from changed since $repin_base_label; the diff maps it to $to\n";
+        print "  - $_: " . ($base->[$_ - 1] =~ s/\r?\n\z//r) . "\n" for @$old;
+        print "  + $_: " . ($lines->[$_ - 1] =~ s/\r?\n\z//r) . "\n" for @$new;
+        print "write $to? [y/N] ";
+        my $answer = <$answers> // '';
+        print "\n" unless length $answer;
+        if ($answer =~ /\A\s*y(?:es)?\s*\z/i) {
+            push @repins, [$doc, $line_number, $from, $to, $at];
+            push @changed_repins, [$doc, $line_number, $from, $to];
+        } else {
+            push @suggestions, [$doc, $line_number, $from, $to];
+        }
+    }
     my (%by_doc, @refused);
     push @{ $by_doc{$_->[0]} }, $_ for @repins;
     for my $doc (sort keys %by_doc) {
@@ -949,8 +980,8 @@ if ($repin) {
     close_index();
     for my $changed (@changed_repins) {
         my ($doc, $line_number, $from, $to) = @$changed;
-        print "$doc:$line_number  $from changed since $repin_base_label; --changed re-anchored it as $to (read those lines: "
-            . "the anchor now asserts this content)\n";
+        print "$doc:$line_number  $from changed since $repin_base_label; " . ($repin_show ? 'confirmed, written' : '--changed re-anchored it')
+            . " as $to (read those lines: the anchor now asserts this content)\n";
     }
     # DCG-V0-045: a changed span is never rewritten; the diff's mapping and the new anchor are
     # printed so the author reads those lines and pastes the token only if the sentence holds.

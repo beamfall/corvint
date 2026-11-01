@@ -312,6 +312,10 @@
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
     ],
+    "internal/docmaintain": [
+      "cmd/corvint/",
+      "docs/specs/INDEX.json"
+    ],
     "internal/docviews": [],
     "internal/dogfoodflow": [
       "docs/DOGFOOD.md",
