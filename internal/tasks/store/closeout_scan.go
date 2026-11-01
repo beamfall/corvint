@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -141,4 +142,56 @@ func CommitTime(root, commit string) (time.Time, error) {
 func subjectOf(message string) string {
 	para, _, _ := strings.Cut(strings.TrimLeft(message, "\n"), "\n\n")
 	return strings.Join(strings.Fields(strings.ReplaceAll(para, "\n", " ")), " ")
+}
+
+// MaxLaneHeads bounds the local branch and worktree heads LaneHeads returns.
+const MaxLaneHeads = 256
+
+// LaneHead is one local branch or detached worktree head (TLF-V0-887).
+type LaneHead struct{ Ref, Commit string }
+
+// LaneHeads lists the local branches and detached worktree heads of root,
+// each commit once, sorted by ref. More than MaxLaneHeads is refused
+// LIMIT_EXCEEDED rather than silently cut.
+func LaneHeads(root string) ([]LaneHead, error) {
+	out, err := gitOutput(root, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/")
+	if err != nil {
+		return nil, err
+	}
+	wt, err := gitOutput(root, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var heads []LaneHead
+	for _, line := range strings.Split(string(out), "\n") {
+		commit, ref, ok := strings.Cut(line, " ")
+		if ok && !seen[commit] {
+			seen[commit] = true
+			heads = append(heads, LaneHead{Ref: ref, Commit: commit})
+		}
+	}
+	for _, block := range strings.Split(string(wt), "\n\n") {
+		var path, commit string
+		detached := false
+		for _, line := range strings.Split(block, "\n") {
+			switch k, v, _ := strings.Cut(line, " "); k {
+			case "worktree":
+				path = v
+			case "HEAD":
+				commit = v
+			case "detached":
+				detached = true
+			}
+		}
+		if detached && commit != "" && !seen[commit] {
+			seen[commit] = true
+			heads = append(heads, LaneHead{Ref: "worktree:" + path, Commit: commit})
+		}
+	}
+	if len(heads) > MaxLaneHeads {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "git", "%d local heads exceed %d", len(heads), MaxLaneHeads)
+	}
+	sort.Slice(heads, func(i, j int) bool { return heads[i].Ref < heads[j].Ref })
+	return heads, nil
 }

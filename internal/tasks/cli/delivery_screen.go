@@ -35,6 +35,9 @@ const (
 
 	verdictInFlight  = "IN_FLIGHT"
 	verdictDelivered = "DELIVERED"
+	// verdictOnLane is a delivery cited only by a local branch or worktree
+	// head the screened ref does not contain (TLF-V0-887, --lane-refs).
+	verdictOnLane    = "DELIVERED_ON_LANE"
 	verdictTruncated = "TRUNCATED"
 	verdictCited     = "CITED"
 	verdictMentioned = "MENTIONED"
@@ -266,6 +269,7 @@ type screenRow struct {
 	ticketID, local, status, verdict string
 	created                          time.Time // zero when unreadable: never TRUNCATED
 	prs, commits                     []wire.Value
+	lanes                            []wire.Value // --lane-refs only
 	// holds and note are the store facts of TCD-V0-170: every hold with its
 	// holdId and reason, and the latest operator note.
 	holds []ticket.Hold
@@ -279,6 +283,8 @@ type screenRow struct {
 // row carries the ticket's holds and latest operator note (TCD-V0-170).
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
+	laneRefs := slices.Contains(args, "--lane-refs")
+	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--lane-refs" })
 	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
@@ -299,10 +305,11 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 		index  *closeoutIndex
 		rows   []screenRow
 		branch string
+		phases map[string]string
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
-		rows, branch = nil, rc.store.Queue.IntentBranch
+		rows, branch, phases = nil, rc.store.Queue.IntentBranch, map[string]string{}
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
 			index.add(rec)
@@ -319,6 +326,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			if !slices.ContainsFunc(rows, func(r screenRow) bool { return r.ticketID == id }) {
 				created, _ := time.Parse(time.RFC3339Nano, string(rec.CreatedAt))
 				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
+				phases[id] = rec.EffectivePhase()
 			}
 		}
 		return nil
@@ -339,6 +347,10 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	var windowStart time.Time
 	if err == nil && scan.Truncated && len(scan.Commits) > 0 {
 		windowStart, err = store.CommitTime(root, scan.Commits[len(scan.Commits)-1].Commit)
+	}
+	var lanes []laneScan
+	if err == nil && laneRefs {
+		lanes, err = scanLaneHeads(root, refCommit, limit)
 	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
@@ -369,6 +381,25 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 				o.Set("reference", wire.String(kind))
 				r.commits = append(r.commits, wire.ObjectValue(o))
 			}
+		}
+		onLane := false
+		for _, l := range lanes {
+			for _, c := range l.scan.Commits {
+				if index.commitReferences(c.Message)[r.ticketID] != refDelivered {
+					continue
+				}
+				onLane = true
+				if len(r.lanes) < maxScreenHits {
+					o := wire.NewObject()
+					o.Set("ref", wire.String(l.ref))
+					o.Set("commit", wire.String(c.Commit))
+					o.Set("subject", wire.String(truncateUTF8(c.Subject, maxCloseoutSubjectBytes)))
+					r.lanes = append(r.lanes, wire.ObjectValue(o))
+				}
+			}
+		}
+		if laneRefs && pastInProgress(phases[r.ticketID]) {
+			inFlight = true
 		}
 		order := make([]int, 0)
 		for j := range prs {
@@ -402,6 +433,8 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			r.verdict = verdictInFlight
 		case delivered:
 			r.verdict = verdictDelivered
+		case onLane:
+			r.verdict = verdictOnLane
 		case !windowStart.IsZero() && r.created.Before(windowStart.Add(time.Second)):
 			r.verdict = verdictTruncated
 		case cited:
@@ -422,7 +455,25 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	if !observed {
 		res.Warnings = append(res.Warnings, "no --prs export; open and merged PRs NOT_OBSERVED")
 	}
-	res.Items = []wire.Value{deliveryScreenValue(rows, ref, refCommit, observed, len(prs), len(scan.Commits), scan.Truncated)}
+	for _, l := range lanes {
+		if l.scan.Truncated {
+			res.Warnings = append(res.Warnings, "lane head "+prose(l.ref)+" scan stopped at --limit "+strconv.Itoa(limit)+"; older lane commits are not reported")
+		}
+	}
+	item := deliveryScreenValue(rows, ref, refCommit, observed, len(prs), len(scan.Commits), scan.Truncated)
+	if laneRefs {
+		scanned := make([]wire.Value, 0, len(lanes))
+		for _, l := range lanes {
+			scanned = append(scanned, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(l.ref)).Set("commit", wire.String(l.commit)).Set("commitsScanned", count(len(l.scan.Commits)))))
+		}
+		item.Obj.Set("laneHeads", wire.Array(scanned...))
+		if tickets, ok := item.Obj.Get("tickets"); ok {
+			for i, t := range tickets.Arr {
+				t.Obj.Set("laneCommits", wire.Array(rows[i].lanes...))
+			}
+		}
+	}
+	res.Items = []wire.Value{item}
 	res.Untrusted = true
 	if clear == len(rows) {
 		return res, 0
@@ -431,6 +482,44 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 }
 
 // deliveryScreenValue renders the taskman-delivery-screen/0 item (TCD-V0-161).
+// laneScan is one local head's commits that the screened ref lacks.
+type laneScan struct {
+	ref, commit string
+	scan        store.CommitScan
+}
+
+// scanLaneHeads reads, for every local branch and detached worktree head not
+// contained in refCommit, at most limit of its commits outside refCommit
+// (TLF-V0-887).
+func scanLaneHeads(root, refCommit string, limit int) ([]laneScan, error) {
+	heads, err := store.LaneHeads(root)
+	if err != nil {
+		return nil, err
+	}
+	var out []laneScan
+	for _, h := range heads {
+		if store.IsAncestor(root, h.Commit, refCommit) {
+			continue
+		}
+		scan, err := store.ScanCommits(root, h.Commit, refCommit, limit)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, laneScan{ref: h.Ref, commit: h.Commit, scan: scan})
+	}
+	return out, nil
+}
+
+// pastInProgress reports a progress phase that records delivered work not yet
+// closed out: on a branch, in review, in the merge queue or merged.
+func pastInProgress(phase string) bool {
+	switch phase {
+	case ticket.PhaseDeliveredOnBranch, ticket.PhaseInReview, ticket.PhaseInMergeQueue, ticket.PhaseMergedAwaitingCloseout:
+		return true
+	}
+	return false
+}
+
 func deliveryScreenValue(rows []screenRow, ref, refCommit string, observed bool, prCount, scanned int, truncated bool) wire.Value {
 	github := notObserved
 	if observed {
