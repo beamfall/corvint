@@ -1125,22 +1125,6 @@
     },
     {
       "path": [
-        "mcp"
-      ],
-      "command": "corvint-tasks mcp",
-      "summary": "",
-      "usage": [
-        "corvint-tasks mcp [--protocol-version 2026-07-28|2025-11-25]"
-      ],
-      "flags": [
-        "--protocol-version"
-      ],
-      "required": [],
-      "example": "corvint-tasks mcp",
-      "help": "corvint-tasks mcp --help"
-    },
-    {
-      "path": [
         "pause"
       ],
       "command": "corvint-tasks pause",

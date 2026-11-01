@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
+	"github.com/Beamfall/corvint/internal/mcp/tasksread"
 	"github.com/Beamfall/corvint/internal/mcp/testvaliditybridge"
 	"github.com/Beamfall/corvint/internal/mcp/toolgroup"
 )
@@ -58,6 +59,8 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 			group = unavailableGroup{(&testvaliditybridge.Registry{}).Tools, toolgroup.TestValidityErrorProfile, reason}
 		case toolProfileDocs:
 			group = unavailableGroup{(&docsbridge.Registry{}).Tools, toolgroup.DocsErrorProfile, reason}
+		case toolProfileTasks:
+			group = unavailableGroup{tasksread.Group{}.Tools, tasksread.ToolErrorProfile, reason}
 		default:
 			continue
 		}

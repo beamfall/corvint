@@ -49,6 +49,8 @@ const (
 	toolProfileTestValidity = "test-validity"
 	toolProfileDocs         = "docs"
 	toolProfileCorpus       = "corpus"
+	// toolProfileTasks adds the read-only Corvint Tasks group (TMR-V0-950).
+	toolProfileTasks = "tasks"
 
 	// untrustedDataPrefix and untrustedDataSuffix are the internal/repoenvelope
 	// envelope the host adapters apply to repository-authored free text.
@@ -74,7 +76,8 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +
 	"--workspace reads the corvint-workspace/0 declaration FILE and serves each alias as --root ALIAS=ROOT.\n" +
 	"--tool-profile LIST is a comma list of at most one of task-review, task-review-lsp, flows or import-graph\n" +
-	"and the groups test-validity, docs and corpus; corpus needs --corpus-artifact, a path relative to the root\n" +
+	"and the groups test-validity, docs, tasks and corpus; tasks runs the installed corvint-tasks read verbs\n" +
+	"read-only in the root; corpus needs --corpus-artifact, a path relative to the root\n" +
 	"(ALIAS=PATH with aliased roots). Without --tool-profile the default tools are listed.\n" +
 	"Example: corvint-mcp --root /absolute/repo --tool-profile import-graph"
 

@@ -301,7 +301,6 @@ var commandUsage = map[string]string{
 	"criterion-binding verify":  "corvint-tasks criterion-binding verify (canonical capture on stdin)",
 
 	"version":                 "corvint-tasks version (alias --version)",
-	"mcp":                     "corvint-tasks mcp [--protocol-version 2026-07-28|2025-11-25]   (read-only stdio MCP server over queue status, roadmap, ticket search, ticket show and receipt audit; example: corvint-tasks mcp --protocol-version 2025-11-25)",
 	"ticket list":             "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
