@@ -913,6 +913,14 @@ separate exact extension tuple remains governed by AHI-024.
   and budgets fail visibly` in `integrations/host-adapters.test.mjs`, run by
   `TestHostAdapterJavaScriptHosts`; at base it reports `corvint-prompt-echo` as a `systemMessage`.
   Rollback: restore the `corvint-prompt-echo` code and remove it from the expected set.
+- `AHI-953`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; extends
+  `AHI-249`) The `ADAPTER_VERSION` literal in `integrations/gemini-cli/hooks/corvint-hook.mjs`,
+  which the hook sends as `--adapter-version` and checks in every receipt, MUST be a gemini-cli
+  version location of `script/host-package-version.sh`, so `verify` names it when it drifts and
+  `bump` moves it with the manifests. At base a bump moved only the manifests and left the hook
+  sending the old version. Evidence: the gemini-cli drift case in
+  `script/host-package-version_test.sh` and the version `0.2.12` argv assertion in
+  `integrations/host-adapters.test.mjs`. Rollback: drop the location line and its test case.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2569,6 +2577,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
 | `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
 | `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
+| `AHI-953` | gemini-cli `locations` in `script/host-package-version.sh` | `script/host-package-version_test.sh` (gemini-cli drift case) |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
