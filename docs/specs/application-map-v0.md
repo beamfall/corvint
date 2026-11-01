@@ -2150,6 +2150,28 @@ but does not read it; only non-Go syntax impact does.
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
 
+- `AMAP-V0-810`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2770) `flows appmap coverage --map FILE`
+  MUST emit a deterministic `application-map-coverage/0` report computed from the map file alone;
+  it MUST NOT read the repository or any URL, and it is capped like AMAP-V0-063. A module is one
+  declared router file (`ALIAS:PATH` for a file in an aliased root): the file whose anchor declares
+  the screen. Each module row, in module order, carries `screens_total` (its resolved, non-abstract
+  screens, with `total_source` `declared-router`), `screens_reached` (those with at least one spec
+  attribution), `screens_unreached`, `reached_by` (the reached screens counted per attribution
+  basis: `import` for a page-object import chain, `goto` for a literal visit, `observed-binding` for
+  an observed trace binding) and the `unreached` screen IDs. Reached plus unreached equals the
+  total in each module, and the head totals are the module sums.
+- `AMAP-V0-811`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2770) A screen whose existence the map could not
+  establish (status `UNKNOWN`) MUST be counted only under `screens_unknown` and listed under the
+  module's `unknown` with its reason, never as reached or unreached; such a module reads status
+  `UNKNOWN`. Abstract screens are counted only under `screens_abstract`. A file that the
+  manifest's `router_globs` match but no router declaration names is a module with status `UNKNOWN`
+  and `null` counts, since the map read none of its screens. The head `status` is `UNKNOWN` when
+  any module is.
+- `AMAP-V0-812`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2770) The report exits 0 once written; a missing
+  `--map`, a stray argument or a bad budget refuses with exit 2 and no stdout. It measures the
+  declared static scope only: reached means a test is statically attributed to the screen, not
+  that a run visited it. An MCP view of the report is a follow-up, not this slice.
+
 ## Wire contract
 
 `corvint flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]...
@@ -2470,6 +2492,9 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
+| AMAP-V0-810 | `TestAMAPV0810ModuleCoverage` (a two-router fixture with partial coverage reads the expected per-module totals, reached counts by basis and unreached lists; the report is deterministic and reconciles); `TestFlowsAppmapCoverageCLI` |
+| AMAP-V0-811 | `TestAMAPV0810ModuleCoverage` (unknown and abstract screens are never counted as reached or unreached; an undeclared `router_globs` file is an `UNKNOWN` module with null counts) |
+| AMAP-V0-812 | `TestFlowsAppmapCoverageCLI` (exit 0 with the schema; a missing map, a stray argument and a bad budget exit 2 with no stdout) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
