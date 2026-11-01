@@ -240,9 +240,9 @@ requirement index. Nothing else imports or reads them, and no committed map chan
 | CEM2-V0-001, -016 | `internal/cem2proto` (label `cem/2.0-proto`, no importers) | `TestCEM2V0001PrototypeIsUnwired` |
 | CEM2-V0-003, -004, -008 | `internal/cem2proto/format.go` | `TestCEM2V0003HeaderIsClosed`, fixture round-trips |
 | CEM2-V0-005, -006 | `internal/cem2proto/project.go`, `gitsource.go` | `TestCEM2V0005FixtureRoundTrip`, `TestCEM2V0005CorpusRoundTrip`, `TestCEM2V0006HunkReorderPermutesClaims` |
-| CEM2-V0-007, -017, -018 | `internal/cem2proto/project.go` | `TestCEM2V0007*` refusal tests |
+| CEM2-V0-007, -017, -018 | `internal/cem2proto/project.go` | `TestCEM2V0007BodySha256Mismatch`, `TestCEM2V0007PatchSha256Mismatch`, `TestCEM2V0007HunkCountMismatch`, `TestCEM2V0007IndexOutOfRange`, `TestCEM2V0007CodeOutOfRange`, `TestCEM2V0007MalformedBody`, `TestCEM2V0007UnknownCriticalIsUnsupported`, `TestCEM2V0007ParentsAreUnsupported`, `TestCEM2V0007PinnedMismatch`, `TestCEM2V0007EvidenceUnresolved` |
 | CEM2-V0-010 | `internal/cem2proto/format.go` | `TestCEM2V0010BoundsRefusedBeforeGit` |
-| CEM2-V0-019 | `internal/cem2proto/format.go` | `TestCEM2V0019*` |
+| CEM2-V0-019 | `internal/cem2proto/format.go` | `TestCEM2V0019DerivedVectorsAreUnrepresentable`, `TestCEM2V0019AdmissibleClaimEdits` |
 | CEM2-V0-020 | `internal/cem2proto/encode.go` | `TestCEM2V0020EncoderAbstains` |
 | CEM2-V0-021, -022 | `internal/cem2proto/*_test.go` | `TestCEM2V0022CorpusMeasurements`, build log |
 | CEM2-V0-002, -009, -011 to -015 | intent only | owner decision pending |
