@@ -6102,6 +6102,7 @@ SOL-V0-010	docs/specs/self-observation-ledger-v0.md	The `codex` and `claude-code
 SOL-V0-011	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A `user-prompt` row whose receipt coverage carried a	unrecorded	-
 SOL-V0-012	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A degradation that an accepted decision fixes on eve	unrecorded	-
 SOL-V0-013	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) When retained adapter rows carry	unrecorded	-
+SOL-V0-120	docs/specs/self-observation-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3729; refines	standing	2026-11-01; V1-3729
 SOL-V0-014	docs/specs/self-observation-ledger-v0.md	(added 2026-10-28, V1-2992) Both private ledgers (`internal/observations` and	unrecorded	-
 SOL-V0-030	docs/specs/self-observation-ledger-v0.md	(added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`	unrecorded	-
 SEG-001	docs/specs/semantic-escalation-gate-v0.md	Corvint MUST complete deterministic inventory, syntax extraction, exact joins,	unrecorded	-

@@ -181,6 +181,17 @@ local append-only diagnostic proposal stream and `corvint observations` is its r
   after the cut and unmeasured lines, where `rows` sums the retained adapter rows with that code
   across hosts and events and `latest` is their latest hour window. The line is a setup diagnosis
   read from rows already written; triage still writes nothing and never indexes.
+- `SOL-V0-120`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3729; refines
+  `SOL-V0-010` and `SOL-V0-013`) A new adapter-degradation row MUST spell an admitted `dogfood event`
+  runtime rejection `corvint-event-rejected:dogfood-event-X` as
+  `corvint-event-rejected:harness-event-X`, since the ledger lives in adopters that never run
+  dogfood; `harness-event-X` is admitted exactly when `dogfood-event-X` is. Triage MUST map a
+  retained `dogfood-event-X` row to the same `harness-event-X` key, so old and new rows tally
+  together and `SOL-V0-013`'s `SETUP` line counts both. Non-goals (narrowed scope, recorded in
+  the cux-w25 build log): the host-facing hook degradation reason, the `dogfood event` command's
+  own error codes and the `invalid-*`/`unsupported-*` argument codes keep their spelling. Evidence:
+  `TestSOLV0120HarnessEventCodesAndLegacyRowsTallyTogether`. Rollback: drop `harnessEventCode`
+  and `canonicalAdapterCode`; retained `harness-event-*` rows then tally under their own key.
 - `SOL-V0-014`: (added 2026-10-28, V1-2992) Both private ledgers (`internal/observations` and
   `internal/unplannedread`) MUST reach `.corvint` through one shared validated directory handle
   (`internal/observations/ledgerdir.go`, `LedgerDirectory`). It opens the worktree root and then
@@ -260,6 +271,7 @@ new clause needs no count edit (V1-2153); it does not validate their runtime beh
 | SOL-V0-012 | `TestFixedFrontierDegradationIsReportedByDesign`; `TestRenderGoldenAndReadOnly`; `TestAdopterUserPromptReturnsAndRecordsProjectAuthority` |
 | SOL-V0-013 | `TestSetupLineNamesSnapshotRefresh` |
 | SOL-V0-014 | `TestSOLV0014AppendRefusesSwappedLedgerDirectory`; `TestSOLV0014LedgerDirectoryRefusesEveryOperationAfterSwap`; `TestURE004AppendRefusesSwappedLedgerDirectory`; `TestAppendRefusesSymlinkedLedgerDirectoryOrFile`; `TestSymlinkedLedgerIsRefused` |
+| SOL-V0-120 | `TestSOLV0120HarnessEventCodesAndLegacyRowsTallyTogether`; `TestRenderTalliesAdapterDegradations`; `TestSetupLineNamesSnapshotRefresh` |
 | SOL-V0-030 | `TestSOL030PostToolTargetAbstentionClasses` (resolved outside absolute and relative targets are exclusions, in-project absolute and relative targets are accepted; a symlink-escaping in-project target, a missing parent, a `..` through a missing component, a case-only spelling and a symlink alias of the root are never exclusions); `TestSOL030OutOfProjectPostToolIsExclusion` (triage prints `ADAPTER-EXCLUSION` for the exclusion code and `ADAPTER-DEGRADATION` for the unresolvable code); `TestAdapterSilentAbstentionsAreLedgered` (the out-of-project Write records `post-tool-path-outside-project`) |
 
 Rollback is deletion of the gitignored ledger and removal of its post-receipt best-effort call; no

@@ -554,7 +554,7 @@ func TestAdapterDegradationRecordedPastExpiredWorkDeadline(t *testing.T) {
 	var err error
 	for start := time.Now(); time.Since(start) < 30*time.Second; time.Sleep(10 * time.Millisecond) {
 		data, err = os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
-		if err == nil && bytes.Contains(data, []byte(`"adapterCodes":["corvint-event-rejected:dogfood-event-deadline"]`)) {
+		if err == nil && bytes.Contains(data, []byte(`"adapterCodes":["corvint-event-rejected:harness-event-deadline"]`)) {
 			return
 		}
 	}
