@@ -51,7 +51,7 @@ func TestContextSufficiency(t *testing.T) {
 				compiler := newTaskContextCompiler(index, test.task, "")
 				compiler.answerability = compiler.answer()
 				ranker := newSpanRanker(compiler, nil)
-				verdict := compiler.sufficiency(test.spans, ranker.lines)
+				verdict := compiler.sufficiency(nil, test.spans, ranker.lines)
 				packet := verdict.packet()
 				missing := make([]string, 0)
 				for _, name := range packet["missing"].([]any) {
@@ -74,4 +74,62 @@ func TestContextSufficiency(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975: a task
+// that names its governing spec path plus a code path reaches `satisfied`
+// under CORVINT_CONTEXT_SPANS=on, because the spec rides whole as a reserved
+// instruction row; the same path carried as any other row, or not carried,
+// keeps the span rule.
+func TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975(t *testing.T) {
+	files := map[string]string{"docs/specs/engine-v0.md": "# Engine\n\n- `ENG-V0-001`: the engine lives in `pkg/core/engine.go`.\n"}
+	for path, body := range spanFixtureFiles {
+		files[path] = body
+	}
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const task = "Why does `RunEngine` in pkg/core/engine.go return the wrong value? See docs/specs/engine-v0.md."
+	packet := spanPacket(t, index, "on", task)
+	sufficiency := contextCoverage(t, packet)["sufficiency"].(map[string]any)
+	if sufficiency["verdict"] != sufficiencySatisfied || sufficiency["missing_total"] != 0 {
+		t.Fatalf("sufficiency = %#v, want satisfied with nothing missing", sufficiency)
+	}
+	var spec map[string]any
+	for _, anchor := range sufficiency["anchors"].([]any) {
+		if row := anchor.(map[string]any); row["anchor"] == "docs/specs/engine-v0.md" {
+			spec = row
+		}
+	}
+	if spec == nil || !strings.HasPrefix(spec["detail"].(string), "carried whole as the reserved ") {
+		t.Fatalf("spec anchor = %#v, want carried by its reserved row", spec)
+	}
+
+	compiler := newTaskContextCompiler(index, task, "")
+	compiler.answerability = compiler.answer()
+	ranker := newSpanRanker(compiler, nil)
+	code := []contextSpan{{role: "core", path: "pkg/core/engine.go", start: 1, end: len(mustLines(t, ranker, "pkg/core/engine.go"))}}
+	for _, test := range []struct {
+		name    string
+		rows    []contextRow
+		verdict string
+	}{
+		{"not carried", nil, sufficiencyInsufficient},
+		{"carried as an ordinary row", []contextRow{{path: "docs/specs/engine-v0.md", kind: "mentioned"}}, sufficiencyInsufficient},
+		{"carried as a governing row", []contextRow{{path: "docs/specs/engine-v0.md", kind: governingRelation}}, sufficiencySatisfied},
+	} {
+		if verdict := compiler.sufficiency(test.rows, code, ranker.lines); verdict.verdict != test.verdict {
+			t.Fatalf("%s: verdict %q, want %q; anchors %#v", test.name, verdict.verdict, test.verdict, verdict.anchors)
+		}
+	}
+}
+
+func mustLines(t *testing.T, ranker *spanRanker, path string) []string {
+	t.Helper()
+	lines, ok := ranker.lines(path)
+	if !ok {
+		t.Fatalf("%s has no pinned lines", path)
+	}
+	return lines
 }

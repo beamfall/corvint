@@ -377,6 +377,8 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 			return link(binary, filepath.Join(root, "tools", "corvint"))
 		}},
 		{"unsafe-parent", "path has an unsafe parent component", func(string) string { return unsafe }},
+		// WQO-V0-910 (V1-3299): the refusal names the parent and its mode.
+		{"unsafe-parent-named", "path has an unsafe parent component: " + filepath.Dir(unsafe) + " has mode drwxrwxrwx (group- or world-writable without the sticky bit)", func(string) string { return unsafe }},
 		{"group-writable-0775", "executable must not be group- or world-writable", func(string) string { return groupWritable }},
 		{"world-writable-0777", "executable must not be group- or world-writable", func(string) string { return worldWritable }},
 		{"repository-local", "path is repository-controlled", repositoryLocal},
@@ -392,6 +394,30 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 				t.Fatalf("refused init wrote .corvint: %v", err)
 			}
 		})
+	}
+}
+
+// WQO-V0-910 (V1-3299): a sticky world-writable parent, as /tmp is, keeps the executable
+// qualified; only a non-sticky writable parent is unsafe.
+func TestWorkInitAdmitsAStickyParentWQOV0910(t *testing.T) {
+	binary := workBoundCorvint(t)
+	fixtureRoot, err := workFixtureRoot(t)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sticky := filepath.Join(fixtureRoot, "sticky")
+	executable := filepath.Join(sticky, "bin", "corvint")
+	workCopyExecutable(t, binary, executable)
+	if err := os.Chmod(sticky, 0o777|os.ModeSticky); err != nil {
+		t.Fatal(err)
+	}
+	if info, err := os.Stat(sticky); err != nil || info.Mode()&os.ModeSticky == 0 || info.Mode().Perm() != 0o777 {
+		t.Fatalf("fixture parent mode %v: %v", info.Mode(), err)
+	}
+	root := materializationFixture(t)
+	var stdout, stderr bytes.Buffer
+	if exit := run([]string{"--root", root, "work", "init", "--repository", "fixture", "--corvint-executable", executable}, strings.NewReader(""), &stdout, &stderr); exit != 0 {
+		t.Fatalf("init under a sticky parent exit=%d stderr=%s", exit, &stderr)
 	}
 }
 

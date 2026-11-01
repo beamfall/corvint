@@ -1274,6 +1274,18 @@ as withheld. This amendment reserves what the routed spec cites.
   turns `unsupported-conjunction`, or a spec-cited file with no core span. Tests:
   `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`,
   `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995`.
+- `TCP-V0-975`: (experimental under the owner's standing lane auto-accept, 2026-10-31; V1-3457)
+  With `CORVINT_CONTEXT_SPANS=on`, a TCP-V0-028 path anchor that the packet carries as one of the
+  three instruction reservations (`governing`, `spec-mentioned` or `instruction-routed`) is
+  `satisfied`, with the detail "carried whole as the reserved R row; instruction reservations take
+  no core span (TCP-V0-025)". Such a row hands the agent the whole pinned document as project
+  authority, so the anchor is carried even though TCP-V0-025 gives it no span. A path anchor
+  reaches this state only through the reserved row itself: an anchor the packet carries as any
+  other row, or does not carry, keeps TCP-V0-028's span rule, and name anchors are unchanged.
+  Falsifier: a task naming its governing spec path plus a code path whose spans read the code path
+  and carry every name turns `insufficient` because of the spec path, or a reserved-row anchor is
+  `satisfied` when the packet does not carry that row. Test:
+  `TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975`.
 - `TCP-V0-994`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
   A frozen `tools/retrieval-bench --arms context` run over the `v2_code2test`,
   `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code` releases MUST show no recall@20,
@@ -1505,6 +1517,9 @@ outside TCP-V0-008.
   is `unknown`, and a name the task quotes loosely may never match; the verdict is then `unknown`
   or `insufficient`, never `satisfied`. A path anchor is satisfied by any span on that path, even
   one that misses the relevant lines.
+- (TCP-V0-975) A reserved instruction row satisfies its path anchor without a span, so a
+  `satisfied` verdict can rest on a whole document the agent must still read; the anchor's detail
+  names the reserved relation instead of a line range.
 - (TCP-V0-035..038) A rebased or squashed history dates lines by the rewrite, so recency and
   blame read the rewrite as recent; a snapshot history (one commit) makes every recency 1 and
   every blame 0, so the flag reorders nothing. Both are reported, not corrected: the row reason
@@ -1835,5 +1850,6 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-163 (accepted, standing auto-accept, V1-2953) | `contextRelationOrder`, `orderBySlotWeight`, `corroborate`, `renderRow` | `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`, `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163` |
 | TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
 | TCP-V0-995 (experimental, standing lane auto-accept, V1-1269) | `relationRows`, `instructionReservation`, `spanRanker.coreSpans` | `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
+| TCP-V0-975 (experimental, standing lane auto-accept, V1-3457) | `taskContextCompiler.sufficiency`, `taskContextCompiler.pathAnchor` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiencyReservedInstructionAnchorIsCarried_TCPV0975`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
 | TCP-V0-270..275 (experimental, standing lane auto-accept, V1-1272) | `instructionLink`, `linkTarget`, `governingRows`, `withheld`, `unexamined`, `renderRow`, `localPromptCompiler.addGovernance` | `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`, `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`, `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`; `docs/build-log/2026-10-31-governance-symlink.md` |

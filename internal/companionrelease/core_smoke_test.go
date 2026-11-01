@@ -17,6 +17,11 @@ func testPUBV0024InstalledCoreDiscoveryWorkflows(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := t.TempDir()
+	// t.TempDir's directory takes the process umask; under umask 0002 it is group-writable and the
+	// installed binary's parent fails the work binding's unsafe-parent rule (V1-3299, WQO-V0-910).
+	if err := os.Chmod(root, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	binary := filepath.Join(root, "corvint")
 	goPath, err := goBinary()
 	if err != nil {
@@ -25,6 +30,10 @@ func testPUBV0024InstalledCoreDiscoveryWorkflows(t *testing.T) {
 	if _, stderr, err := runCaptured(context.Background(), repository, closedGoEnv(filepath.Join(root, "go-home"), ""), buildTimeout,
 		goPath, "build", "-trimpath", "-buildvcs=false", "-ldflags=-X main.build=1", "-o", binary, "./cmd/corvint"); err != nil {
 		t.Fatalf("build installed fixture: %v: %s", err, stderr)
+	}
+	// go build -o applies the same umask to the binary, which the binding refuses when writable.
+	if err := os.Chmod(binary, 0o755); err != nil {
+		t.Fatal(err)
 	}
 	steps, err := checkCoreDiscoveryWorkflows(context.Background(), binary, filepath.Join(root, "scratch"))
 	if err != nil {

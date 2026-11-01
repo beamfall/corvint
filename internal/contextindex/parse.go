@@ -16,14 +16,12 @@ import (
 )
 
 var (
-	recordStart       = regexp.MustCompile(`^  -[\t-\r \x1c-\x1f\x{0085}\p{Z}]+([A-Za-z][A-Za-z0-9]*):[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(.*)$`)
-	recordField       = regexp.MustCompile(`^    ([A-Za-z][A-Za-z0-9]*):[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(.*)$`)
-	goFuncPrefix      = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*func[\t-\r \x1c-\x1f\x{0085}\p{Z}]+(?:\([^)]*\)[\t-\r \x1c-\x1f\x{0085}\p{Z}]*)?`)
-	goTypePrefix      = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*type[\t-\r \x1c-\x1f\x{0085}\p{Z}]+`)
-	goValuePrefix     = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(?:var|const)[\t-\r \x1c-\x1f\x{0085}\p{Z}]+`)
-	documentReference = regexp.MustCompile(`(?:[A-Za-z0-9_.-]+/)+[A-Za-z0-9_.-]+`)
-	goImportQuoted    = regexp.MustCompile(`"([^"\n]+)"`)
-	genericImport     = regexp.MustCompile(`(?:from[\t-\r \x1c-\x1f\x{0085}\p{Z}]+|import[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(?:\([\t-\r \x1c-\x1f\x{0085}\p{Z}]*)?)[\x22\x27]([^\x22\x27]+)[\x22\x27]`)
+	recordStart    = regexp.MustCompile(`^  -[\t-\r \x1c-\x1f\x{0085}\p{Z}]+([A-Za-z][A-Za-z0-9]*):[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(.*)$`)
+	recordField    = regexp.MustCompile(`^    ([A-Za-z][A-Za-z0-9]*):[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(.*)$`)
+	goFuncPrefix   = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*func[\t-\r \x1c-\x1f\x{0085}\p{Z}]+(?:\([^)]*\)[\t-\r \x1c-\x1f\x{0085}\p{Z}]*)?`)
+	goTypePrefix   = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*type[\t-\r \x1c-\x1f\x{0085}\p{Z}]+`)
+	goValuePrefix  = regexp.MustCompile(`^[\t-\r \x1c-\x1f\x{0085}\p{Z}]*(?:var|const)[\t-\r \x1c-\x1f\x{0085}\p{Z}]+`)
+	goImportQuoted = regexp.MustCompile(`"([^"\n]+)"`)
 	// A document's status is a labelled field, and this repository writes that field
 	// four ways: bare (`Status: accepted`), as a list item (`- Status: accepted`),
 	// qualified by one word (`Intent status: accepted`), and packed among other
@@ -275,7 +273,7 @@ func documentRecord(source Source, text string, sources map[string]Source) (Reco
 		summary = truncateRunes(title, 500)
 	}
 	referencesSet := make(map[string]struct{})
-	for _, candidate := range documentReference.FindAllString(text, -1) {
+	for _, candidate := range documentReferences(text) {
 		if normalized := normalizedReference(source.Path, candidate, sources); normalized != "" && normalized != source.Path {
 			referencesSet[normalized] = struct{}{}
 		}
@@ -753,15 +751,7 @@ func sourceImports(sourcePath, text string) importExtraction {
 		// own opening shape, so a prose body whose "from" and "import" are
 		// never followed by a quoted string skips the NFA as well.
 		if mayHoldGenericImport(text) {
-			for _, match := range genericImport.FindAllStringSubmatchIndex(text, -1) {
-				if match[0] != 0 {
-					previous, _ := utf8.DecodeLastRuneInString(text[:match[0]])
-					if isPythonWordRune(previous) {
-						continue
-					}
-				}
-				result[text[match[2]:match[3]]] = struct{}{}
-			}
+			genericImportSpecifiers(text, result)
 		}
 		return importExtraction{imports: result, approximate: len(result) != 0}
 	}
@@ -797,23 +787,6 @@ func mayHoldGenericImport(text string) bool {
 		}
 	}
 	return false
-}
-
-// skipGenericImportSpaces advances past the runes genericImport's space class
-// [\t-\r \x1c-\x1f\x{0085}\p{Z}] matches, returning the next byte offset and
-// how many runes it skipped. An invalid byte decodes as U+FFFD, which the
-// class does not match, exactly as the regexp engine reads it.
-func skipGenericImportSpaces(text string, offset int) (int, int) {
-	count := 0
-	for offset < len(text) {
-		r, size := utf8.DecodeRuneInString(text[offset:])
-		if !(r >= '\t' && r <= '\r' || r == ' ' || r >= 0x1c && r <= 0x1f || r == 0x85 || unicode.Is(unicode.Z, r)) {
-			break
-		}
-		offset += size
-		count++
-	}
-	return offset, count
 }
 
 func stringsField(value any) []string {

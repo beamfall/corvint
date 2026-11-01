@@ -109,7 +109,9 @@ type SnapshotReceipt struct {
 	Bytes                int64
 	Tree, Commit, Engine string
 	Sources, Symbols     int
-	Evicted              int
+	// SourceBytes sums the admitted sources' bytes (IDX-SNAP-V0-911).
+	SourceBytes int64
+	Evicted     int
 	// SectionedPath and SectionedBytes name the experimental sectioned file
 	// written beside the gob snapshot under CORVINT_SNAPSHOT_FORMAT=sectioned.
 	SectionedPath  string
@@ -343,7 +345,7 @@ func WriteSnapshot(index *Index) (SnapshotReceipt, error) {
 	}
 	receipt := SnapshotReceipt{
 		Path: target, Bytes: written, Tree: index.Revision, Commit: index.CommitRevision, Engine: engineID,
-		Sources: len(index.Sources), Symbols: len(index.Symbols),
+		Sources: len(index.Sources), Symbols: len(index.Symbols), SourceBytes: sourceBytes(index),
 	}
 	if sectionedEnabled() {
 		sectionedTarget := sectionedPath(directory, index.ObjectFormat, index.Revision, engineID)
@@ -1101,4 +1103,14 @@ func snapshotDirectoryPresent(root string) (string, bool) {
 	}
 	_, err := os.Stat(directory)
 	return directory, err == nil
+}
+
+// sourceBytes sums the admitted sources' sizes for the receipt
+// (IDX-SNAP-V0-911). A source whose body is not loaded counts nothing.
+func sourceBytes(index *Index) int64 {
+	var total int64
+	for _, source := range index.Sources {
+		total += int64(len(source.Data))
+	}
+	return total
 }

@@ -370,6 +370,9 @@ func TestIssue502_InfraSessionKeepsTierAndResetsSuffix(t *testing.T) {
 	if e := d.ledger.Escalation[retryKey]; e.Streak != 3 {
 		t.Fatalf("streak = %d", e.Streak)
 	}
+	// V1-1555: the last Tick may launch another worker, which Close leaves running by design;
+	// its .model write raced t.TempDir cleanup ("directory not empty"). Let it end first.
+	waitEnded(t, d)
 }
 
 // Restart safety: a reservation proved never spawned is republished under

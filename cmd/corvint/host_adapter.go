@@ -116,8 +116,15 @@ func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments
 		ledger.settle(false)
 		if len(arguments) == 2 && arguments[0] == "claude-code" {
 			output := claudeDegradedOutput(arguments[1], "adapter-host-kill-deadline")
-			recordClaudeKillDeadline(ctx, arguments[1], output)
-			return output
+			repeated, root := recordClaudeKillDeadline(ctx, arguments[1], output)
+			if claudePromptContextEvent(output) {
+				return output
+			}
+			// AHI-911: any other event's banner is shown once per cause and hour, with its action.
+			if repeated {
+				return map[string]any{}
+			}
+			return claudeKillDeadlineBanner(output, root)
 		}
 		return degradedAdapterOutput("adapter-host-kill-deadline")
 	}
@@ -478,14 +485,57 @@ func waitAppend(ctx context.Context, done <-chan struct{}, bound time.Duration) 
 
 // recordClaudeKillDeadline records the watchdog's degradation under adapterDeadlineRecordBound.
 // Codex takes its root from the hook input the watchdog abandoned, so its deadline is not recorded.
-func recordClaudeKillDeadline(ctx context.Context, event string, output map[string]any) {
+// It reports repeated when the ledger already held this cause's row for the hour, and the root
+// it resolved ("" when none). A failed or late append is never a repeat (AHI-911).
+func recordClaudeKillDeadline(ctx context.Context, event string, output map[string]any) (repeated bool, root string) {
 	root, err := claudeAdapterRoot(ctx)
-	if err != nil {
-		return
+	if err != nil || !filepath.IsAbs(root) {
+		return false, ""
 	}
 	bounded, cancel := context.WithTimeout(context.Background(), adapterDeadlineRecordBound)
 	defer cancel()
-	recordAdapterDegradation(bounded, root, "claude-code", event, output)
+	row := observations.AdapterDegradationEvent("claude-code", event, adapterDegradationReason(output), version, time.Now())
+	done := make(chan struct{})
+	var written bool
+	var appendErr error
+	go func() {
+		defer close(done)
+		written, appendErr = observations.AppendNew(root, row)
+	}()
+	waitAppend(bounded, done, adapterDeadlineRecordBound)
+	select {
+	case <-done:
+		return !written && appendErr == nil, root
+	default:
+		return false, root
+	}
+}
+
+// claudePromptContextEvent reports whether output is the context of a SessionStart or
+// UserPromptSubmit event, whose fallback stays on every event (AHI-911).
+func claudePromptContextEvent(output map[string]any) bool {
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	name, _ := hook["hookEventName"].(string)
+	return name == "SessionStart" || name == "UserPromptSubmit"
+}
+
+// claudeKillDeadlineBanner adds AHI-911's action line to a visible kill-deadline banner.
+func claudeKillDeadlineBanner(output map[string]any, root string) map[string]any {
+	if root == "" {
+		return output
+	}
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	inspect, _ := json.Marshal([]string{"corvint", "--root", root, "observations"})
+	action := "\nThe hook ran past the host's time limit, usually on a stale index snapshot or a loaded host; this notice is shown once per hour. Refresh: " + string(refresh) + "; inspect repeats: " + string(inspect)
+	if message, ok := output["systemMessage"].(string); ok {
+		return map[string]any{"systemMessage": message + action}
+	}
+	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
+		if text, ok := hook["additionalContext"].(string); ok {
+			return claudeContextOutput(hook["hookEventName"].(string), text+action)
+		}
+	}
+	return output
 }
 
 // adapterStartSources maps a host session-start source to the closed Corvint
@@ -624,7 +674,9 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 	}
 	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
 	if projection == nil {
-		return map[string]any{}
+		// AHI-910: a successful hook with nothing to inject names its event, so it is not
+		// mistaken for a fault or a killed hook.
+		return map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": eventName}}
 	}
 	raw, _ := json.Marshal(withoutHostLoadedGovernance(projection, hostLoadedGovernance(host, root)))
 	if host == "claude-code" {

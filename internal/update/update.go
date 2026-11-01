@@ -900,6 +900,11 @@ func (e engine) relate(ctx context.Context, rel release, r *Result) {
 		}
 		r.RelationBasis = "version"
 		cmp = compareSemver(installed, available)
+		// UPD-V0-910: a development build of the release precedes it.
+		if base, dev := developmentBase(installed); dev && compareSemver(base, available) == 0 {
+			r.Relation, r.RelationReason = "UPDATE_AVAILABLE", "the installed build is a development build of this release; the published release supersedes it"
+			return
+		}
 	}
 	switch {
 	case cmp < 0:
@@ -973,6 +978,27 @@ var semverRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0
 
 // compareSemver orders two semantic versions by precedence, ignoring build
 // metadata: negative when a is lower, zero when equal, positive when higher.
+// developmentBase strips a final `dev` prerelease identifier, returning the
+// version it is a development build of: 1.0.0-rc.3.dev is a build of
+// 1.0.0-rc.3 and 1.0.0-dev one of 1.0.0 (UPD-V0-910). Identifiers are the
+// dot-separated parts of the prerelease, so `rc.3-dev` ends in `3-dev`, not
+// `dev`, and keeps ordinary precedence.
+func developmentBase(version string) (string, bool) {
+	core, _, _ := strings.Cut(version, "+")
+	release, prerelease, found := strings.Cut(core, "-")
+	if !found {
+		return "", false
+	}
+	identifiers := strings.Split(prerelease, ".")
+	if identifiers[len(identifiers)-1] != "dev" {
+		return "", false
+	}
+	if len(identifiers) == 1 {
+		return release, true
+	}
+	return release + "-" + strings.Join(identifiers[:len(identifiers)-1], "."), true
+}
+
 func compareSemver(a, b string) int {
 	a, _, _ = strings.Cut(a, "+")
 	b, _, _ = strings.Cut(b, "+")

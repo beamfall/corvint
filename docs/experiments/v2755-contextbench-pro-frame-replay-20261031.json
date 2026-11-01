@@ -1,0 +1,6293 @@
+{
+ "binary": "corvint built from claude/lane-indexcli-w5-1031 at ab785dd98 (adapter policy AHI-215/AHI-247 as of base 8daec98ce)",
+ "dataset": {
+  "not_replayed": {
+   "SWE-Bench-Pro__python__maintenance__bugfix__788af515": "problem_statement is null in the export"
+  },
+  "pro_rows": 143,
+  "replayed": 142,
+  "rows": "instance_id prefix SWE-Bench-Pro",
+  "source": "Contextbench/ContextBench data/full.parquet (V1-0415 export ~/bench/v0415/work/full/cb-full.jsonl)"
+ },
+ "date": "2026-10-31",
+ "method": "docs/experiments/v2755/frame_replay.py: per row a one-commit repository of the base tree, corvint index, the real harness event --host opencode --event user-prompt with the AHI-016 derived query (AHI-215 junk-stripped) for over-bound prompts, then frame-policy.js (namedExistingPaths, frameCandidates, corroborated, 5 rows) ported to Python. No model. rg-idf top 5 is the V1-0415 grep-ident arm of rows-merged.jsonl for the same row.",
+ "profile": "corvint-v2755-contextbench-pro-frame-replay/0",
+ "rows": [
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "errors/errors.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/utils/helpers.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/gitfs/gitfs.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/storage/fs/git/source.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/storage/fs/oci/source.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "build/testing/integration.go",
+    "cmd/flipt/bundle.go",
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "internal/cmd/grpc.go",
+    "internal/config/config.go",
+    "internal/config/storage.go",
+    "internal/config/testdata/storage/oci_invalid_unexpected_repo.yml",
+    "internal/config/testdata/storage/oci_provided.yml",
+    "internal/oci/file.go",
+    "internal/storage/fs/oci/source.go",
+    "internal/storage/fs/oci/source_test.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__05aad678",
+   "named_existing_paths": [],
+   "prompt_chars": 1531,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [
+    "internal/config/storage.go",
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "internal/config/testdata/advanced.yml",
+    "internal/config/testdata/storage/invalid_readonly.yml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "config/config.go"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "cmd/flipt/flipt.go",
+    "cmd/flipt/import.go",
+    "config/config.go",
+    "config/default.yml",
+    "config/testdata/config/advanced.yml",
+    "go.mod",
+    "go.sum",
+    "storage/db/db.go",
+    "storage/db/migrator.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__09f45300",
+   "named_existing_paths": [],
+   "prompt_chars": 2265,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/config/config.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/telemetry/telemetry.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "DEPRECATIONS.md",
+    "config/default.yml",
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "internal/cmd/grpc.go",
+    "internal/config/cache.go",
+    "internal/config/config.go",
+    "internal/config/config_test.go",
+    "internal/config/database.go",
+    "internal/config/deprecations.go",
+    "internal/config/testdata/advanced.yml",
+    "internal/config/testdata/deprecated/cache_memory_enabled.yml",
+    "internal/config/testdata/deprecated/cache_memory_items.yml",
+    "internal/config/testdata/deprecated/database_migrations_path.yml",
+    "internal/config/testdata/deprecated/database_migrations_path_legacy.yml",
+    "internal/config/testdata/deprecated/ui_disabled.yml",
+    "internal/config/tracing.go",
+    "internal/config/ui.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__1177cd53",
+   "named_existing_paths": [],
+   "prompt_chars": 1354,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/ext/importer.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/server/auth/method/oidc/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/components/NotificationProvider.tsx"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "build/testing/integration.go",
+    "build/testing/integration/readonly/testdata/seed.yaml",
+    "cmd/flipt/export.go",
+    "cmd/flipt/import.go",
+    "internal/ext/common.go",
+    "internal/ext/exporter.go",
+    "internal/ext/exporter_test.go",
+    "internal/ext/importer.go",
+    "internal/ext/importer_fuzz_test.go",
+    "internal/ext/importer_test.go",
+    "internal/ext/testdata/export.yml",
+    "internal/ext/testdata/import.yml",
+    "internal/ext/testdata/import_no_attachment.yml",
+    "internal/info/flipt.go",
+    "internal/storage/sql/migrator.go",
+    "internal/storage/storage.go",
+    "internal/telemetry/telemetry.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__153337fe",
+   "named_existing_paths": [],
+   "prompt_chars": 1189,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/config/authentication.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "examples/nextjs/hooks/flipt.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "cmd/flipt/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/app/console/Console.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/server/auth/method/token/server.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "build/hack/loadtest.go",
+    "build/testing/integration.go",
+    "build/testing/integration/api/api.go",
+    "build/testing/integration/readonly/testdata/default.yaml",
+    "config/default.yml",
+    "examples/redis/docker-compose.yml",
+    "internal/cache/cache.go",
+    "internal/cmd/auth.go",
+    "internal/cmd/grpc.go",
+    "internal/cmd/http.go",
+    "internal/config/cache.go",
+    "internal/config/config.go",
+    "internal/config/config_test.go",
+    "internal/config/deprecations.go",
+    "internal/config/testdata/cache/default.yml",
+    "internal/config/testdata/cache/memory.yml",
+    "internal/config/testdata/cache/redis.yml",
+    "internal/config/testdata/deprecated/cache_memory_enabled.yml",
+    "internal/config/testdata/deprecated/cache_memory_items.yml",
+    "internal/server/middleware/grpc/middleware.go",
+    "internal/storage/auth/cache/cache.go",
+    "internal/storage/cache/cache.go",
+    "internal/telemetry/telemetry.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__157932b6",
+   "named_existing_paths": [],
+   "prompt_chars": 1422,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/telemetry/telemetry.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "cmd/flipt/main.go",
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "config/local.yml",
+    "internal/config/config.go",
+    "internal/config/config_test.go",
+    "internal/config/errors.go",
+    "internal/ext/common.go",
+    "internal/ext/exporter.go",
+    "internal/ext/importer.go",
+    "internal/ext/importer_test.go",
+    "internal/ext/testdata/import.yml",
+    "test/cli.bats",
+    "test/flipt.yml"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__1c69a463",
+   "named_existing_paths": [],
+   "prompt_chars": 1323,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "report/tui.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "models/scanresults.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "config/config.go",
+    "models/scanresults.go",
+    "models/vulninfos.go",
+    "report/localfile.go",
+    "report/report.go",
+    "report/slack.go",
+    "report/tui.go",
+    "report/util.go",
+    "subcmds/report.go",
+    "subcmds/tui.go",
+    "wordpress/wordpress.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__28dd806d",
+   "named_existing_paths": [],
+   "prompt_chars": 742,
+   "rc": 0,
+   "repo": "future-architect/vuls",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "ui/src/common/SongDatagrid.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "server/subsonic/helpers.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "go.mod",
+    "go.sum",
+    "model/user.go",
+    "persistence/sql_base_repository.go",
+    "persistence/user_repository.go",
+    "resources/i18n/pt.json",
+    "server/app/app.go",
+    "server/app/auth.go",
+    "ui/src/authProvider.js",
+    "ui/src/dataProvider/httpClient.js",
+    "ui/src/dataProvider/wrapperDataProvider.js",
+    "ui/src/i18n/en.json",
+    "ui/src/layout/Login.js",
+    "ui/src/user/UserCreate.js",
+    "ui/src/user/UserEdit.js"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__2a939d7a",
+   "named_existing_paths": [],
+   "prompt_chars": 1581,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [
+    "server/subsonic/middlewares_test.go",
+    "model/user.go",
+    "persistence/user_repository_test.go",
+    "server/app/auth.go",
+    "server/app/auth_test.go"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "README.md",
+    "config/os.go",
+    "constant/constant.go",
+    "detector/cve_client.go",
+    "detector/detector.go",
+    "detector/detector_test.go",
+    "goreleaser.yml",
+    "models/cvecontents.go",
+    "models/utils.go",
+    "models/vulninfos.go",
+    "scanner/base.go",
+    "scanner/freebsd.go",
+    "scanner/scanner.go",
+    "server/server.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__2cef67df",
+   "named_existing_paths": [],
+   "prompt_chars": 965,
+   "rc": 0,
+   "repo": "future-architect/vuls",
+   "rg_idf_top5": [],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "core/auth/auth.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/playlist/PlaylistEdit.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "cmd/root.go",
+    "cmd/scan.go",
+    "cmd/wire_gen.go",
+    "conf/configuration.go",
+    "core/auth/auth.go",
+    "core/playlists.go",
+    "log/log.go",
+    "model/mediafile.go",
+    "model/playlist.go",
+    "scanner/playlist_importer.go",
+    "scanner/tag_scanner.go",
+    "scanner/walk_dir_tree.go",
+    "server/nativeapi/playlists.go",
+    "utils/files.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__3ddf60b3",
+   "named_existing_paths": [],
+   "prompt_chars": 820,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [
+    "tests/fixtures/lastfm.artist.getinfo.json"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/config/deprecations.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/ui.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "CHANGELOG.md",
+    "DEPRECATIONS.md",
+    "cmd/flipt/main.go",
+    "config/default.yml",
+    "internal/config/cache.go",
+    "internal/config/config.go",
+    "internal/config/config_test.go",
+    "internal/config/database.go",
+    "internal/config/deprecations.go",
+    "internal/config/testdata/advanced.yml",
+    "internal/config/testdata/deprecated/cache_memory_enabled.yml",
+    "internal/config/testdata/deprecated/database_migrations_path.yml",
+    "internal/config/ui.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__40a717e5",
+   "named_existing_paths": [],
+   "prompt_chars": 1561,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/server/auth/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/cmd/http.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/server/audit/logfile/logfile.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/server/audit/audit.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "go.mod",
+    "go.work.sum",
+    "internal/cmd/grpc.go",
+    "internal/config/audit.go",
+    "internal/server/audit/audit.go",
+    "internal/server/audit/checker.go",
+    "internal/server/audit/logfile/logfile.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__43d6d59b",
+   "named_existing_paths": [],
+   "prompt_chars": 1503,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [
+    "internal/server/audit/audit.go",
+    "internal/server/audit/README.md",
+    "internal/server/audit/audit_test.go",
+    "internal/server/audit/logfile/logfile.go",
+    "internal/server/middleware/grpc/support_test.go"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "config/config.go"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "config/config.go",
+    "models/scanresults.go",
+    "oval/debian.go",
+    "oval/util.go",
+    "report/util.go",
+    "scan/redhatbase.go",
+    "scan/serverapi.go",
+    "subcmds/scan.go",
+    "util/util.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__4c49a127",
+   "named_existing_paths": [],
+   "prompt_chars": 2450,
+   "rc": 0,
+   "repo": "future-architect/vuls",
+   "rg_idf_top5": [
+    "scan/freebsd.go",
+    "scan/freebsd_test.go",
+    "contrib/trivy/parser/parser_test.go",
+    "CHANGELOG.md",
+    "README.md"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "ui/src/dataProvider/httpClient.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/agents/listenbrainz/client.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "cmd/root.go",
+    "cmd/wire_gen.go",
+    "cmd/wire_injectors.go",
+    "conf/configuration.go",
+    "consts/consts.go",
+    "core/metrics/prometheus.go",
+    "scanner/scanner.go",
+    "server/auth.go",
+    "server/server.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__4df06349",
+   "named_existing_paths": [],
+   "prompt_chars": 779,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/config/tracing.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/database.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/cache.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/authentication.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "DEPRECATIONS.md",
+    "README.md",
+    "config/default.yml",
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "examples/authentication/dex/docker-compose.yml",
+    "examples/authentication/proxy/docker-compose.yml",
+    "examples/cockroachdb/docker-compose.yml",
+    "examples/mysql/docker-compose.yml",
+    "examples/openfeature/docker-compose.yml",
+    "examples/openfeature/main.go",
+    "examples/postgres/docker-compose.yml",
+    "examples/prometheus/docker-compose.yml",
+    "examples/redis/docker-compose.yml",
+    "examples/tracing/README.md",
+    "examples/tracing/jaeger/docker-compose.yml",
+    "examples/tracing/zipkin/docker-compose.yml",
+    "go.mod",
+    "go.sum",
+    "internal/cmd/grpc.go",
+    "internal/config/config.go",
+    "internal/config/deprecations.go",
+    "internal/config/testdata/tracing/zipkin.yml",
+    "internal/config/tracing.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__52d866b3",
+   "named_existing_paths": [],
+   "prompt_chars": 1493,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [
+    "CHANGELOG.md",
+    "examples/openfeature/README.md",
+    "README.md",
+    "DEPRECATIONS.md",
+    "examples/openfeature/main.go"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/storage/fs/cache.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/storage/storage.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/database.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/authentication.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "core/validation/flipt.json",
+    "examples/openfeature/main.go",
+    "go.mod",
+    "go.sum",
+    "internal/cmd/grpc.go",
+    "internal/config/audit.go",
+    "internal/config/authentication.go",
+    "internal/config/config.go",
+    "internal/config/database.go",
+    "internal/config/testdata/tracing/otlp.yml",
+    "internal/config/tracing.go",
+    "internal/config/ui.go",
+    "internal/server/evaluation/evaluation.go",
+    "internal/server/evaluator.go",
+    "internal/server/otel/attributes.go",
+    "internal/storage/sql/db.go",
+    "internal/tracing/tracing.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__6efcf999",
+   "named_existing_paths": [],
+   "prompt_chars": 1079,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [
+    "CHANGELOG.md",
+    "examples/openfeature/README.md",
+    "README.md",
+    "examples/tracing/README.md",
+    "examples/tracing/otlp/README.md"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "models/scanresults.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "models/packages.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "scanner/alpine.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "scanner/debian.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "scanner/freebsd.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "constant/constant.go",
+    "detector/detector.go",
+    "gost/debian.go",
+    "gost/gost.go",
+    "gost/microsoft.go",
+    "gost/pseudo.go",
+    "gost/redhat.go",
+    "gost/util.go",
+    "models/packages.go",
+    "models/scanresults.go",
+    "oval/debian.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__720b4d92",
+   "named_existing_paths": [],
+   "prompt_chars": 737,
+   "rc": 0,
+   "repo": "future-architect/vuls",
+   "rg_idf_top5": [
+    "models/scanresults.go",
+    "oval/debian.go",
+    "gost/debian.go",
+    "models/scanresults_test.go",
+    "reporter/util_test.go"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "scanner/metadata/metadata.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "utils/files.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/common/DurationField.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "db/migration/20210430212322_add_bpm_metadata.go",
+    "db/migration/migration.go",
+    "model/mediafile.go",
+    "scanner/mapping.go",
+    "scanner/metadata/ffmpeg/ffmpeg.go",
+    "scanner/metadata/metadata.go",
+    "scanner/metadata/taglib/taglib_wrapper.cpp",
+    "ui/src/album/AlbumSongs.js",
+    "ui/src/common/SongDetails.js",
+    "ui/src/i18n/en.json",
+    "ui/src/playlist/PlaylistSongs.js",
+    "ui/src/song/SongList.js"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__90f9cbd7",
+   "named_existing_paths": [],
+   "prompt_chars": 1179,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "config/config.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "cmd/flipt/flipt.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "server/server.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "CHANGELOG.md",
+    "Makefile",
+    "README.md",
+    "build/Dockerfile",
+    "build/build",
+    "cmd/flipt/flipt.go",
+    "config/config.go",
+    "github/workflows/benchmark.yml",
+    "github/workflows/codeql-analysis.yml",
+    "go.mod",
+    "go.sum",
+    "golangci.yml",
+    "goreleaser.yml"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__997c7afd",
+   "named_existing_paths": [],
+   "prompt_chars": 987,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "ui/src/album/AlbumList.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "server/subsonic/playlists.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/album/AlbumSongs.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/playlist/PlaylistSongs.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/share.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "cmd/wire_gen.go",
+    "conf/configuration.go",
+    "core/share.go",
+    "model/share.go",
+    "persistence/share_repository.go",
+    "server/nativeapi/native_api.go",
+    "server/public/encode_id.go",
+    "server/public/handle_shares.go",
+    "server/public/public_endpoints.go",
+    "server/serve_index.go",
+    "server/subsonic/api.go",
+    "server/subsonic/bookmarks.go",
+    "server/subsonic/helpers.go",
+    "server/subsonic/playlists.go",
+    "server/subsonic/responses/responses.go",
+    "ui/src/dialogs/ShareDialog.js",
+    "ui/src/share/ShareList.js"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__b0783224",
+   "named_existing_paths": [],
+   "prompt_chars": 757,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "persistence/playqueue_repository.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/common.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "conf/configuration.go",
+    "consts/consts.go",
+    "log/log.go",
+    "model/datastore.go",
+    "model/errors.go",
+    "model/user.go",
+    "persistence/user_repository.go",
+    "server/auth.go",
+    "server/initial_setup.go",
+    "server/initial_setup_test.go",
+    "server/subsonic/middlewares.go",
+    "tests/mock_user_repo.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__b5ad2c2c",
+   "named_existing_paths": [],
+   "prompt_chars": 833,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/storage/auth/bootstrap.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/config/authentication.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "config/flipt.schema.cue",
+    "config/flipt.schema.json",
+    "internal/cmd/auth.go",
+    "internal/config/authentication.go",
+    "internal/config/config_test.go",
+    "internal/server/auth/method/token/server.go",
+    "internal/storage/auth/auth.go",
+    "internal/storage/auth/bootstrap.go",
+    "internal/storage/auth/memory/store.go",
+    "internal/storage/auth/sql/store.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__b91d5788",
+   "named_existing_paths": [],
+   "prompt_chars": 847,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/auth/webauthn/user.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/auth/webauthn/register.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/auth/webauthn/login_mfa.go"
+    },
+    {
+     "authority": "non-binding-decision",
+     "path": "rfd/0040-webauthn-support.md"
+    },
+    {
+     "authority": "non-binding-decision",
+     "path": "rfd/0014-session-2FA.md"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "build.assets/macos/tsh/tsh.app/Contents/Info.plist",
+    "build.assets/macos/tshdev/tsh.app/Contents/Info.plist",
+    "lib/auth/touchid/api.go",
+    "lib/auth/touchid/api_darwin.go",
+    "lib/auth/touchid/api_other.go",
+    "lib/auth/touchid/attempt.go",
+    "lib/auth/touchid/register.m",
+    "lib/auth/webauthn/messages.go",
+    "lib/auth/webauthn/proto.go",
+    "lib/auth/webauthncli/api.go",
+    "lib/auth/webauthncli/u2f_register.go",
+    "tool/tsh/mfa.go",
+    "tool/tsh/touchid.go",
+    "tool/tsh/tsh.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__b9767445",
+   "named_existing_paths": [],
+   "prompt_chars": 800,
+   "rc": 0,
+   "repo": "gravitational/teleport",
+   "rg_idf_top5": [
+    "rfd/0040-webauthn-support.md",
+    "rfd/0054-passwordless-macos.md",
+    "docs/pages/access-controls/guides/webauthn.mdx",
+    "rfd/0052-passwordless.md",
+    "api/types/webauthn/webauthn.proto"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "utils/cache/file_caches.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/artwork/reader_playlist.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "persistence/helpers.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "log/log.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/artwork/reader_resized.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "core/artwork/artwork.go",
+    "core/artwork/artwork_internal_test.go",
+    "core/artwork/artwork_test.go",
+    "core/artwork/cache_warmer.go",
+    "core/artwork/reader_album.go",
+    "core/artwork/reader_artist.go",
+    "core/artwork/reader_emptyid.go",
+    "core/artwork/reader_mediafile.go",
+    "core/artwork/reader_playlist.go",
+    "core/artwork/reader_resized.go",
+    "core/artwork/sources.go",
+    "model/errors.go",
+    "server/public/handle_images.go",
+    "server/subsonic/media_retrieval.go",
+    "server/subsonic/media_retrieval_test.go",
+    "ui/src/playlist/PlaylistSongs.js"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__d3c56cc5",
+   "named_existing_paths": [],
+   "prompt_chars": 1023,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [
+    "tests/fixtures/lastfm.album.getinfo.json",
+    "tests/fixtures/lastfm.artist.getinfo.json"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "persistence/user_repository.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "persistence/sql_base_repository.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/agents/lastfm/auth_router.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/user/UserEdit.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "core/share.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "core/agents/lastfm/agent.go",
+    "core/agents/lastfm/agent_test.go",
+    "core/agents/lastfm/auth_router.go",
+    "db/migration/20200130083147_create_schema.go",
+    "db/migration/migration.go",
+    "model/datastore.go",
+    "model/properties.go",
+    "persistence/persistence.go",
+    "persistence/property_repository.go",
+    "persistence/property_repository_test.go",
+    "tests/mock_persistence.go",
+    "tests/mock_property_repo.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__d66a0254",
+   "named_existing_paths": [],
+   "prompt_chars": 1087,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "server/subsonic/album_lists.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "persistence/genre_repository.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "model/mediafile.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "persistence/album_repository.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "persistence/mediafile_repository.go"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "db/migration/20210715151153_add_genre_tables.go",
+    "model/album.go",
+    "model/annotation.go",
+    "model/artist.go",
+    "model/genres.go",
+    "model/mediafile.go",
+    "persistence/album_repository.go",
+    "persistence/album_repository_test.go",
+    "persistence/artist_repository.go",
+    "persistence/genre_repository.go",
+    "persistence/mediafile_repository.go",
+    "persistence/mediafile_repository_test.go",
+    "persistence/sql_annotations.go",
+    "persistence/sql_genres.go",
+    "persistence/sql_restful.go",
+    "scanner/mapping.go",
+    "server/subsonic/album_lists.go",
+    "server/subsonic/filter/filters.go",
+    "server/subsonic/helpers.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__e957d0a9",
+   "named_existing_paths": [],
+   "prompt_chars": 1476,
+   "rc": 0,
+   "repo": "navidrome/navidrome",
+   "rg_idf_top5": [
+    "persistence/mediafile_repository.go",
+    "model/mediafile.go",
+    "persistence/album_repository.go",
+    "persistence/mediafile_repository_test.go",
+    "server/subsonic/album_lists.go"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "internal/server/metadata/server.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "ui/src/data/api.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/common/store_mock.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/server/evaluation/data/evaluation_store_mock.go"
+    },
+    {
+     "authority": "syntax",
+     "path": "internal/storage/fs/object/store.go"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "go.work.sum",
+    "internal/common/store_mock.go",
+    "internal/ext/common.go",
+    "internal/server/evaluation/data/evaluation_store_mock.go",
+    "internal/server/evaluation/data/server.go",
+    "internal/server/middleware/http/middleware.go",
+    "internal/storage/fs/git/store.go",
+    "internal/storage/fs/local/store.go",
+    "internal/storage/fs/object/file.go",
+    "internal/storage/fs/object/fileinfo.go",
+    "internal/storage/fs/object/store.go",
+    "internal/storage/fs/oci/store.go",
+    "internal/storage/fs/snapshot.go",
+    "internal/storage/fs/store.go",
+    "internal/storage/storage.go"
+   ],
+   "id": "SWE-Bench-Pro__go__maintenance__bugfix__ebadd40b",
+   "named_existing_paths": [],
+   "prompt_chars": 2007,
+   "rc": 0,
+   "repo": "flipt-io/flipt",
+   "rg_idf_top5": [
+    "internal/storage/fs/object/fileinfo.go",
+    "internal/storage/fs/object/fileinfo_test.go",
+    "internal/gitfs/gitfs.go",
+    "internal/oci/file.go",
+    "internal/gitfs/gitfs_test.go"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/groups/user.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/cli/user.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/groups/membership.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/privileges/users.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/categories/create.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "install/data/defaults.json",
+    "public/language/en-GB/admin/settings/advanced.json",
+    "public/src/admin/settings.js",
+    "src/controllers/admin/settings.js",
+    "src/groups/membership.js",
+    "src/groups/update.js",
+    "src/meta/configs.js",
+    "src/middleware/maintenance.js",
+    "src/posts/queue.js",
+    "src/routes/admin.js",
+    "src/views/admin/partials/menu.tpl",
+    "src/views/admin/settings/advanced.tpl",
+    "src/views/admin/settings/post.tpl"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__0155d9d9",
+   "named_existing_paths": [],
+   "prompt_chars": 868,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [
+    "install/databases.js"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/utils/FontManager.ts"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "res/css/_components.pcss",
+    "res/css/components/views/settings/devices/_DeviceDetails.pcss",
+    "src/components/views/settings/DevicesPanelEntry.tsx",
+    "src/components/views/settings/devices/CurrentDeviceSection.tsx",
+    "src/components/views/settings/devices/DeviceDetails.tsx",
+    "src/components/views/settings/devices/DeviceTile.tsx",
+    "src/components/views/settings/devices/FilteredDeviceList.tsx",
+    "src/components/views/settings/devices/useOwnDevices.ts",
+    "src/components/views/settings/tabs/user/SessionManagerTab.tsx",
+    "src/contexts/MatrixClientContext.tsx",
+    "src/i18n/strings/en_EN.json"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__04a1672c",
+   "named_existing_paths": [],
+   "prompt_chars": 2017,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [
+    "src/ContentMessages.ts",
+    "docs/scrolling.md",
+    "res/css/_common.pcss",
+    "src/utils/FontManager.ts",
+    "src/components/structures/ScrollPanel.tsx"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "public/src/client/account/header.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/upgrades/3.7.0/change-category-sort-settings.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/cli/user.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/admin/manage/categories.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/user/follow.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "install/package.json",
+    "public/language/el/error.json",
+    "public/language/en-GB/admin/settings/user.json",
+    "public/language/en-GB/user.json",
+    "public/openapi/components/schemas/SettingsObj.yaml",
+    "public/src/client/account/settings.js",
+    "public/src/modules/autocomplete.js",
+    "src/controllers/accounts/settings.js",
+    "src/messaging/index.js",
+    "src/upgrades/4.3.0/normalize_thumbs_uploads.js",
+    "src/upgrades/4.3.0/topic_follower_counts.js",
+    "src/user/settings.js",
+    "src/views/admin/settings/user.tpl"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__09eb0d6d",
+   "named_existing_paths": [],
+   "prompt_chars": 1647,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [
+    "src/user/settings.js",
+    "test/messaging.js",
+    "src/views/admin/settings/user.tpl",
+    "public/openapi/components/schemas/SettingsObj.yaml",
+    "test/user.js"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "public/src/client/groups/details.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/chats/search.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/posts/user.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "install/data/defaults.json",
+    "public/language/en-GB/admin/settings/post.json",
+    "public/language/en-GB/topic.json",
+    "public/src/modules/helpers.js",
+    "src/posts/edit.js",
+    "src/topics/create.js",
+    "src/topics/events.js",
+    "src/topics/posts.js",
+    "src/views/admin/settings/post.tpl",
+    "test/topicEvents.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__14ef25ae",
+   "named_existing_paths": [],
+   "prompt_chars": 1048,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [
+    ".github/CONTRIBUTING.md",
+    ".github/SECURITY.md",
+    "src/cli/setup.js",
+    ".github/ISSUE_TEMPLATE.md",
+    ".github/dependabot.yml"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "res/css/components/views/settings/devices/_DeviceType.pcss",
+    "res/css/components/views/settings/devices/_FilteredDeviceList.pcss",
+    "res/css/components/views/settings/devices/_FilteredDeviceListHeader.pcss",
+    "res/css/views/elements/_AccessibleButton.pcss",
+    "src/components/views/elements/AccessibleButton.tsx",
+    "src/components/views/settings/devices/DeviceTile.tsx",
+    "src/components/views/settings/devices/DeviceType.tsx",
+    "src/components/views/settings/devices/FilteredDeviceList.tsx",
+    "src/components/views/settings/devices/FilteredDeviceListHeader.tsx",
+    "src/components/views/settings/devices/SelectableDeviceTile.tsx",
+    "src/components/views/settings/devices/deleteDevices.tsx",
+    "src/components/views/settings/devices/useOwnDevices.ts",
+    "src/components/views/settings/tabs/user/SessionManagerTab.tsx",
+    "src/i18n/strings/en_EN.json"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__2bfb5681",
+   "named_existing_paths": [],
+   "prompt_chars": 919,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/right_panel/UserInfo.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/DeviceListener.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/createRoom.ts"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "docs/icons.md",
+    "src/components/views/dialogs/devtools/AccountData.tsx",
+    "src/components/views/settings/devices/useOwnDevices.ts",
+    "src/i18n/strings/en_EN.json",
+    "src/utils/device/clientInformation.ts",
+    "src/voice-broadcast/models/VoiceBroadcastRecording.ts",
+    "src/voice-broadcast/utils/VoiceBroadcastResumer.ts",
+    "src/voice-broadcast/utils/checkVoiceBroadcastPreConditions.tsx"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__39a9746b",
+   "named_existing_paths": [],
+   "prompt_chars": 2750,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [
+    "src/components/views/settings/tabs/user/NotificationUserSettingsTab.tsx"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/api/users.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/admin/manage/users.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/upgrades/2.8.7/fix-email-sorted-sets.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/user/profile.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/chats/search.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "public/language/en-GB/admin/manage/users.json",
+    "public/language/en-GB/error.json",
+    "public/openapi/components/schemas/UserObject.yaml",
+    "src/controllers/admin/users.js",
+    "src/database/mongo/hash.js",
+    "src/database/mongo/main.js",
+    "src/database/postgres/hash.js",
+    "src/database/postgres/main.js",
+    "src/database/redis/hash.js",
+    "src/database/redis/main.js",
+    "src/socket.io/admin/user.js",
+    "src/user/delete.js",
+    "src/user/email.js",
+    "src/user/index.js",
+    "src/views/admin/manage/users.tpl",
+    "test/database/hash.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__4eb0e647",
+   "named_existing_paths": [],
+   "prompt_chars": 1330,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/hooks/useEventEmitter.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/hooks/useRoomNotificationState.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/stores/VoiceRecordingStore.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/audio/VoiceRecording.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/notifications/NotificationUtils.ts"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "src/components/views/rooms/MessageComposer.tsx",
+    "src/hooks/useEventEmitter.ts",
+    "src/models/Call.ts",
+    "src/stores/notifications/RoomNotificationStateStore.ts",
+    "src/stores/room-list/MessagePreviewStore.ts",
+    "src/stores/widgets/WidgetMessagingStore.ts",
+    "src/voice-broadcast/components/VoiceBroadcastBody.tsx",
+    "src/voice-broadcast/index.ts",
+    "src/voice-broadcast/utils/index.ts",
+    "src/voice-broadcast/utils/shouldDisplayAsVoiceBroadcastTile.ts"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__593287ea",
+   "named_existing_paths": [],
+   "prompt_chars": 1130,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [
+    "src/hooks/useEventEmitter.ts",
+    "src/models/Call.ts",
+    "src/stores/notifications/NotificationState.ts",
+    "res/css/voice-broadcast/molecules/_VoiceBroadcastRecordingBody.pcss",
+    "src/voice-broadcast/components/molecules/VoiceBroadcastRecordingBody.tsx"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/rooms/PinnedMessageBanner.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/components/views/rooms/ThreadSummary.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/TextForEvent.tsx"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "res/css/_components.pcss",
+    "res/css/views/rooms/_PinnedMessageBanner.pcss",
+    "src/components/views/rooms/EventTile.tsx",
+    "src/components/views/rooms/PinnedMessageBanner.tsx",
+    "src/components/views/rooms/ThreadSummary.tsx",
+    "src/i18n/strings/en_EN.json",
+    "src/i18n/strings/zh_Hans.json",
+    "src/i18n/strings/zh_Hant.json",
+    "src/stores/room-list/MessagePreviewStore.ts",
+    "src/stores/room-list/previews/MessageEventPreview.ts",
+    "src/stores/room-list/previews/PollStartEventPreview.ts",
+    "src/voice-broadcast/utils/textForVoiceBroadcastStoppedEventWithoutLink.ts"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__5c001746",
+   "named_existing_paths": [],
+   "prompt_chars": 1426,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/database/mongo/hash.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/posts.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/middleware/index.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/ajaxify.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "src/database/mongo/hash.js",
+    "src/database/mongo/helpers.js",
+    "src/database/mongo/sorted.js",
+    "src/database/postgres/hash.js",
+    "src/database/postgres/sorted.js",
+    "src/database/redis/hash.js",
+    "src/database/redis/sorted.js",
+    "src/notifications.js",
+    "src/plugins/hooks.js",
+    "src/posts/delete.js",
+    "src/topics/delete.js",
+    "src/user/delete.js",
+    "src/user/posts.js",
+    "test/database/hash.js",
+    "test/database/sorted.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__7b6185af",
+   "named_existing_paths": [],
+   "prompt_chars": 654,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/dialogs/UntrustedDeviceDialog.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/components/views/settings/tabs/user/SessionManagerTab.tsx"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "res/css/_components.pcss",
+    "res/css/views/context_menus/_IconizedContextMenu.pcss",
+    "src/components/structures/ContextMenu.tsx",
+    "src/components/structures/UserMenu.tsx",
+    "src/components/views/context_menus/IconizedContextMenu.tsx",
+    "src/components/views/settings/devices/CurrentDeviceSection.tsx",
+    "src/components/views/settings/devices/DeviceDetails.tsx",
+    "src/components/views/settings/devices/FilteredDeviceList.tsx",
+    "src/components/views/settings/tabs/user/SessionManagerTab.tsx",
+    "src/components/views/voip/CallView.tsx",
+    "src/i18n/strings/en_EN.json"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__82518720",
+   "named_existing_paths": [],
+   "prompt_chars": 2009,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "public/src/client/topic/threadTools.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/topic/move.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/index.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/topic/postTools.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/category.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "CHANGELOG.md",
+    "public/src/client/header/notifications.js",
+    "public/src/client/topic/fork.js",
+    "public/src/client/topic/move.js",
+    "public/src/client/unread.js",
+    "public/src/modules/categorySelector.js",
+    "public/src/modules/notifications.js",
+    "public/src/modules/search.js",
+    "src/database/mongo/hash.js",
+    "src/database/redis/hash.js",
+    "src/emailer.js",
+    "src/install.js",
+    "src/routes/index.js",
+    "src/views/admin/manage/users.tpl",
+    "src/views/modals/merge-topic.tpl",
+    "src/views/partials/category/selector-dropdown-content.tpl",
+    "src/views/partials/category/selector-dropdown-right.tpl",
+    "src/views/partials/chats/recent_room.tpl"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__93b583ae",
+   "named_existing_paths": [],
+   "prompt_chars": 910,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [
+    "public/scss/fontawesome/nodebb-shims.scss",
+    "CHANGELOG.md",
+    "README.md",
+    ".github/CONTRIBUTING.md",
+    "src/cli/index.js"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/settings/encryption/ResetIdentityPanel.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/components/views/settings/encryption/ChangeRecoveryKey.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/CreateCrossSigning.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/contexts/MatrixClientContext.tsx"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "res/css/views/settings/encryption/_ChangeRecoveryKey.pcss",
+    "res/css/views/settings/encryption/_EncryptionCard.pcss",
+    "res/css/views/settings/encryption/_RecoveryPanelOutOfSync.pcss",
+    "res/css/views/settings/encryption/_ResetIdentityPanel.pcss",
+    "src/components/views/settings/encryption/ChangeRecoveryKey.tsx",
+    "src/components/views/settings/encryption/EncryptionCard.tsx",
+    "src/components/views/settings/encryption/RecoveryPanelOutOfSync.tsx",
+    "src/components/views/settings/encryption/ResetIdentityPanel.tsx",
+    "src/components/views/settings/tabs/user/EncryptionUserSettingsTab.tsx"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__94356ef0",
+   "named_existing_paths": [],
+   "prompt_chars": 1379,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/user/profile.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "public/language/en-GB/user.json",
+    "public/openapi/components/schemas/UserObject.yaml",
+    "public/openapi/read/config.yaml",
+    "public/src/client/account/edit.js",
+    "public/src/modules/helpers.js",
+    "src/controllers/api.js",
+    "src/socket.io/user/picture.js",
+    "src/user/data.js",
+    "src/user/profile.js",
+    "src/views/admin/manage/admins-mods.tpl",
+    "src/views/emails/digest.tpl"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__99b38b09",
+   "named_existing_paths": [],
+   "prompt_chars": 432,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/rooms/wysiwyg_composer/components/PlainTextComposer.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/components/views/rooms/wysiwyg_composer/hooks/usePlainTextListeners.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/editor/deserialize.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/components/views/rooms/wysiwyg_composer/hooks/usePlainTextInitialization.ts"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "res/css/views/rooms/_BasicMessageComposer.pcss",
+    "res/css/views/rooms/wysiwyg_composer/components/_Editor.pcss",
+    "src/components/views/rooms/BasicMessageComposer.tsx",
+    "src/components/views/rooms/MessageComposer.tsx",
+    "src/components/views/rooms/SendMessageComposer.tsx",
+    "src/components/views/rooms/wysiwyg_composer/SendWysiwygComposer.tsx",
+    "src/components/views/rooms/wysiwyg_composer/components/Editor.tsx",
+    "src/components/views/rooms/wysiwyg_composer/components/PlainTextComposer.tsx",
+    "src/components/views/rooms/wysiwyg_composer/components/WysiwygComposer.tsx",
+    "src/components/views/rooms/wysiwyg_composer/hooks/usePlainTextListeners.ts",
+    "test/components/views/rooms/SendMessageComposer-test.tsx",
+    "test/components/views/rooms/wysiwyg_composer/SendWysiwygComposer-test.tsx"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__a6ee51da",
+   "named_existing_paths": [],
+   "prompt_chars": 488,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [
+    "src/utils/MediaEventHelper.ts"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/events.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/upgrades/1.13.3/fix_users_sorted_sets.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/posts.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/meta/tags.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/analytics.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "public/language/en-GB/error.json",
+    "public/src/client/chats/messages.js",
+    "public/src/client/flags/detail.js",
+    "src/api/chats.js",
+    "src/controllers/write/chats.js",
+    "src/messaging/data.js",
+    "src/messaging/edit.js",
+    "src/messaging/index.js",
+    "src/posts/index.js",
+    "src/routes/write/chats.js",
+    "src/socket.io/modules.js",
+    "src/topics/index.js",
+    "src/user/invite.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__ac8400d9",
+   "named_existing_paths": [],
+   "prompt_chars": 1684,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/routes/admin.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/routes/write/users.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/groups/create.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/user/bans.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/posts/user.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "public/openapi/write.yaml",
+    "public/openapi/write/groups/slug/invites.yaml",
+    "public/openapi/write/groups/slug/pending/uid.yaml",
+    "public/src/client/groups/details.js",
+    "src/api/groups.js",
+    "src/controllers/write/groups.js",
+    "src/groups/invite.js",
+    "src/routes/write/groups.js",
+    "src/socket.io/groups.js",
+    "test/groups.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__ad093510",
+   "named_existing_paths": [],
+   "prompt_chars": 1034,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/privileges/helpers.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/user/profile.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/teaser.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/users.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/account/profile.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "install/data/defaults.json",
+    "public/language/en-GB/admin/settings/email.json",
+    "public/src/modules/messages.js",
+    "src/controllers/write/users.js",
+    "src/middleware/header.js",
+    "src/socket.io/user.js",
+    "src/user/create.js",
+    "src/user/email.js",
+    "src/user/interstitials.js",
+    "src/views/admin/settings/email.tpl",
+    "src/views/admin/settings/user.tpl",
+    "test/user/emails.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__bc5ac89f",
+   "named_existing_paths": [],
+   "prompt_chars": 1281,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/components/views/settings/devices/DeviceTile.tsx"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/hooks/useAccountData.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/utils/WidgetUtils.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/utils/SortMembers.ts"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/TextForEvent.tsx"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "src/components/views/settings/DevicesPanel.tsx",
+    "src/components/views/settings/devices/DeviceTile.tsx",
+    "src/components/views/settings/devices/filter.ts",
+    "src/components/views/settings/devices/types.ts",
+    "src/components/views/settings/devices/useOwnDevices.ts",
+    "src/components/views/toasts/GenericToast.tsx",
+    "src/i18n/strings/en_EN.json",
+    "src/stores/SetupEncryptionStore.ts",
+    "src/toasts/UnverifiedSessionToast.ts",
+    "src/utils/device/parseUserAgent.ts"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__cfd080f8",
+   "named_existing_paths": [],
+   "prompt_chars": 981,
+   "rc": 0,
+   "repo": "element-hq/element-web",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "src/controllers/accounts/profile.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/scheduled.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/routes/admin.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "src/topics/create.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "public/src/client/topic/postTools.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "public/openapi/write/posts/pid.yaml",
+    "public/src/client/topic.js",
+    "public/src/client/topic/postTools.js",
+    "public/src/modules/topicThumbs.js",
+    "src/api/posts.js",
+    "src/controllers/write/posts.js",
+    "src/posts/index.js",
+    "src/posts/summary.js",
+    "src/routes/write/posts.js",
+    "src/socket.io/posts.js",
+    "test/posts.js"
+   ],
+   "id": "SWE-Bench-Pro__javascript__maintenance__bugfix__e31ec45c",
+   "named_existing_paths": [],
+   "prompt_chars": 1525,
+   "rc": 0,
+   "repo": "NodeBB/NodeBB",
+   "rg_idf_top5": [
+    "src/socket.io/posts.js",
+    "CHANGELOG.md",
+    "test/posts.js",
+    "public/src/client/topic.js",
+    "public/src/client/topic/postTools.js"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/vault/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/parsing/vault/__init__.py",
+    "lib/ansible/parsing/yaml/constructor.py",
+    "lib/ansible/parsing/yaml/objects.py",
+    "lib/ansible/playbook/helpers.py",
+    "lib/ansible/playbook/task.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__07bb383a",
+   "named_existing_paths": [],
+   "prompt_chars": 1977,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/parsing/vault/test_vault.py",
+    "lib/ansible/parsing/vault/__init__.py",
+    "test/units/parsing/test_dataloader.py",
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/playbook/helpers.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/statusbar/command.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/utilcmds.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/commands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/miscwidgets.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/completion/completionwidget.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/help/commands.asciidoc",
+    "qutebrowser/api/cmdutils.py",
+    "qutebrowser/browser/hints.py",
+    "qutebrowser/components/scrollcommands.py",
+    "qutebrowser/mainwindow/statusbar/command.py",
+    "qutebrowser/misc/utilcmds.py",
+    "scripts/dev/build_release.py",
+    "tests/unit/api/test_cmdutils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__091dae2f",
+   "named_existing_paths": [],
+   "prompt_chars": 1043,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/facts/compat.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/vault/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/compat/selinux.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "hacking/create-bulk-issues.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/facts/hardware/base.py",
+    "lib/ansible/module_utils/facts/hardware/linux.py",
+    "lib/ansible/module_utils/facts/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__0bac5789",
+   "named_existing_paths": [],
+   "prompt_chars": 952,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/gathering_facts/test_gathering_facts.yml",
+    "test/units/module_utils/facts/hardware/test_linux.py",
+    "test/units/module_utils/facts/hardware/test_linux_get_cpu_info.py",
+    "test/units/module_utils/facts/system/distribution/fixtures/clearlinux_26580.json",
+    "test/units/module_utils/facts/system/distribution/fixtures/clearlinux_28120.json"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_executor.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/psrp.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/data.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/plugins/__init__.py",
+    "lib/ansible/plugins/connection/psrp.py",
+    "test/units/plugins/connection/test_psrp.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__0c4f8d13",
+   "named_existing_paths": [],
+   "prompt_chars": 1441,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/connection/psrp.py",
+    "test/units/plugins/connection/test_psrp.py",
+    "test/units/errors/test_errors.py",
+    "test/units/plugins/connection/test_ssh.py",
+    "test/units/plugins/callback/test_callback.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/lookup/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/ssh.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/urls.py",
+    "lib/ansible/modules/get_url.py",
+    "lib/ansible/modules/uri.py",
+    "lib/ansible/plugins/lookup/url.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__10a41eff",
+   "named_existing_paths": [],
+   "prompt_chars": 1974,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/errors/test_errors.py",
+    "test/units/plugins/callback/test_callback.py",
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/galaxy/dependency_resolution/dataclasses.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/galaxy/collection/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "hacking/build-ansible.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_config.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/cli/galaxy.py",
+    "lib/ansible/galaxy/collection/__init__.py",
+    "lib/ansible/galaxy/collection/galaxy_api_proxy.py",
+    "lib/ansible/galaxy/dependency_resolution/__init__.py",
+    "lib/ansible/galaxy/dependency_resolution/dataclasses.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__120c6a17",
+   "named_existing_paths": [],
+   "prompt_chars": 3942,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/cli/galaxy/test_execute_list_collection.py",
+    "test/support/network-integration/collections/ansible_collections/vyos/vyos/plugins/module_utils/network/vyos/facts/facts.py",
+    "lib/ansible/config/base.yml",
+    "test/integration/targets/collections/collection_root_user/ansible_collections/testns/testcoll/plugins/modules/win_uses_optional.ps1",
+    "docs/docsite/rst/locales/ja/LC_MESSAGES/reference_appendices.po"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/included_file.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "examples/scripts/my_test_info.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/urls.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_executor.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/modules/async_status.py",
+    "lib/ansible/modules/async_wrapper.py",
+    "lib/ansible/plugins/action/__init__.py",
+    "test/units/modules/test_async_wrapper.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__183dd4c4",
+   "named_existing_paths": [],
+   "prompt_chars": 1639,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/executor/powershell/async_wrapper.ps1",
+    "lib/ansible/modules/async_wrapper.py",
+    "test/integration/targets/win_async_wrapper/tasks/main.yml",
+    "test/units/modules/test_async_wrapper.py",
+    "test/integration/targets/async/tasks/main.yml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/template/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/_internal/_templating/_jinja_bits.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/yaml/objects.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/data.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/group.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/_internal/_templating/_jinja_bits.py",
+    "lib/ansible/_internal/_templating/_jinja_plugins.py",
+    "lib/ansible/cli/__init__.py",
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/warnings.py",
+    "lib/ansible/parsing/yaml/objects.py",
+    "lib/ansible/plugins/test/core.py",
+    "lib/ansible/plugins/test/timedout.yml",
+    "lib/ansible/template/__init__.py",
+    "lib/ansible/utils/display.py",
+    "test/integration/targets/test_core/tasks/main.yml"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__18d7bbbc",
+   "named_existing_paths": [],
+   "prompt_chars": 3516,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/template/test_template.py",
+    "lib/ansible/template/__init__.py",
+    "lib/ansible/plugins/action/template.py",
+    "lib/ansible/parsing/yaml/objects.py",
+    "test/units/_internal/templating/test_jinja_bits.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/inventory/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/inventory.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/manager.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/plugins/doc_fragments/constructed.py",
+    "lib/ansible/plugins/inventory/__init__.py",
+    "lib/ansible/plugins/inventory/constructed.py",
+    "test/units/plugins/inventory/test_constructed.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__19a1fba2",
+   "named_existing_paths": [],
+   "prompt_chars": 2389,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/plugins/inventory/test_constructed.py",
+    "test/units/errors/test_errors.py",
+    "test/units/plugins/callback/test_callback.py",
+    "docs/docsite/rst/dev_guide/developing_inventory.rst",
+    "test/support/integration/plugins/inventory/aws_ec2.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/module_common.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/user.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/vault/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/git.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/porting_guides/porting_guide_2.11.rst",
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/file.py",
+    "test/units/module_utils/basic/test_atomic_move.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__1bb5c0b0",
+   "named_existing_paths": [],
+   "prompt_chars": 1132,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/module_utils/basic/test_atomic_move.py",
+    "lib/ansible/module_utils/basic.py",
+    "test/support/integration/plugins/module_utils/crypto.py",
+    "lib/ansible/module_utils/facts/default_collectors.py",
+    "test/integration/targets/module_utils/library/test.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": true,
+   "gold": [
+    "azure-pipelines/azure-pipelines.yml",
+    "changelogs/fragments/ansible-drop-python-3.7.yml",
+    "changelogs/fragments/listify.yml",
+    "changelogs/fragments/python-3.13.yml",
+    "changelogs/fragments/remove-deprecated-vars-syntax.yml",
+    "hacking/README.md",
+    "lib/ansible/cli/__init__.py",
+    "lib/ansible/galaxy/api.py",
+    "lib/ansible/galaxy/collection/__init__.py",
+    "lib/ansible/module_utils/six/__init__.py",
+    "lib/ansible/utils/collection_loader/_collection_finder.py",
+    "packaging/release.py",
+    "setup.cfg"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__1cae51cc",
+   "named_existing_paths": [],
+   "prompt_chars": 2010,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/utils/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/merge/merge_marc.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/match.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/add_book/match.py",
+    "openlibrary/catalog/add_book/tests/test_match.py",
+    "openlibrary/catalog/merge/merge_marc.py",
+    "openlibrary/catalog/merge/tests/test_merge_marc.py",
+    "openlibrary/catalog/utils/__init__.py",
+    "openlibrary/tests/catalog/test_utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__1cf3e889",
+   "named_existing_paths": [],
+   "prompt_chars": 1478,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/catalog/merge/tests/test_merge_marc.py",
+    "openlibrary/tests/catalog/test_utils.py",
+    "openlibrary/catalog/merge/merge_marc.py",
+    "openlibrary/catalog/add_book/tests/test_match.py",
+    "openlibrary/catalog/add_book/__init__.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "scripts/manage_imports.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/ia.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/api.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/data_provider.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/imports.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/imports.py",
+    "openlibrary/templates/history/comment.html",
+    "openlibrary/templates/history/sources.html",
+    "scripts/manage_imports.py",
+    "scripts/providers/isbndb.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__20dad82b",
+   "named_existing_paths": [],
+   "prompt_chars": 1080,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/manage_imports.py",
+    "openlibrary/i18n/de/messages.po",
+    "openlibrary/i18n/it/messages.po",
+    "openlibrary/i18n/fr/messages.po",
+    "openlibrary/i18n/hr/messages.po"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/standarddir.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/commands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/hints.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webengineinspector.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "qutebrowser/app.py",
+    "qutebrowser/config/configinit.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/utils/usertypes.py",
+    "qutebrowser/utils/utils.py",
+    "scripts/dev/check_coverage.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__20f502e0",
+   "named_existing_paths": [],
+   "prompt_chars": 1211,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "tests/unit/config/test_configinit.py",
+    "qutebrowser/config/configinit.py",
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/utils/yaml.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/_internal/_yaml/_loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/_internal/_json/_profiles/_legacy.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/_internal/_json/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/_internal/_datatag/_wrappers.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/_internal/_datatag/_tags.py",
+    "lib/ansible/_internal/_templating/_jinja_common.py",
+    "lib/ansible/_internal/_yaml/_constructor.py",
+    "lib/ansible/_internal/_yaml/_dumper.py",
+    "lib/ansible/_internal/_yaml/_loader.py",
+    "lib/ansible/module_utils/_internal/__init__.py",
+    "lib/ansible/module_utils/_internal/_datatag/__init__.py",
+    "lib/ansible/module_utils/common/yaml.py",
+    "lib/ansible/parsing/vault/__init__.py",
+    "lib/ansible/plugins/filter/core.py",
+    "lib/ansible/template/__init__.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__22a1484c",
+   "named_existing_paths": [],
+   "prompt_chars": 1699,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/filter/core.py",
+    "test/units/parsing/yaml/test_dumper.py",
+    "test/integration/targets/filter_core/tasks/main.yml",
+    "changelogs/fragments/templates_types_datatagging.yml",
+    "lib/ansible/plugins/filter/from_yaml_all.yml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/vmware_httpapi/VmwareRestModule.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/lookup/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/cloud/amazon/ec2_vpc_route_table.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/network/f5/bigiq_application_fasthttp.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/cloud/centurylink/clc_aa_policy.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/modules/network/nxos/nxos_vrf_af.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__2464eadb",
+   "named_existing_paths": [],
+   "prompt_chars": 1944,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/nxos_vrf_af/tests/common/sanity.yaml",
+    "test/units/modules/network/nxos/test_nxos_vrf_af.py",
+    "lib/ansible/modules/network/nxos/nxos_vrf_af.py",
+    "test/sanity/ignore.txt",
+    "test/integration/targets/nxos_vrf/tests/common/intent.yaml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/dnf.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/process/worker.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/uri.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/executor/process/worker.py",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/executor/task_queue_manager.py",
+    "lib/ansible/plugins/connection/__init__.py",
+    "lib/ansible/plugins/loader.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/utils/display.py",
+    "lib/ansible/utils/multiprocessing.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__31f13b61",
+   "named_existing_paths": [],
+   "prompt_chars": 1330,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/configtypes.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "qutebrowser/browser/webkit/webview.py",
+    "qutebrowser/config/config.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/mainwindow/statusbar/bar.py",
+    "qutebrowser/mainwindow/tabwidget.py",
+    "qutebrowser/misc/miscwidgets.py",
+    "qutebrowser/utils/jinja.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/utils/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__36b8c9ee",
+   "named_existing_paths": [],
+   "prompt_chars": 606,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/update_work.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/utils/bulkimport.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/dev_instance.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "scripts/solr_updater.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/solr/data_provider.py",
+    "openlibrary/solr/update_work.py",
+    "scripts/solr_updater.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__38dc8f4e",
+   "named_existing_paths": [],
+   "prompt_chars": 1241,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/solr/update_work.py",
+    "openlibrary/tests/solr/test_update_work.py",
+    "scripts/solr_updater.py",
+    "scripts/solr_builder/solr_builder/solr_builder.py",
+    "openlibrary/plugins/openlibrary/dev_instance.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/network/meraki/meraki.py",
+    "lib/ansible/plugins/doc_fragments/meraki.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__3a162f6f",
+   "named_existing_paths": [],
+   "prompt_chars": 1223,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/merge_authors.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/utils/ia.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "conf/openlibrary.yml",
+    "openlibrary/core/cache.py",
+    "openlibrary/core/observations.py",
+    "openlibrary/core/schema.sql",
+    "openlibrary/plugins/openlibrary/api.py",
+    "openlibrary/plugins/openlibrary/js/patron-metadata/index.js"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__3cfd9a02",
+   "named_existing_paths": [
+    "openlibrary/core/observations.py"
+   ],
+   "prompt_chars": 1493,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/core/observations.py",
+    "openlibrary/plugins/openlibrary/js/patron-metadata/index.js",
+    "openlibrary/plugins/openlibrary/api.py",
+    "openlibrary/macros/UserMetadata.html"
+   ],
+   "state": "READY",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/sessions.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webview.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webkit/webpage.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/objects.py"
+    },
+    {
+     "authority": "repository-spec",
+     "path": "misc/requirements/README.md"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "qutebrowser/utils/utils.py",
+    "qutebrowser/utils/version.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__3e3c6b22",
+   "named_existing_paths": [],
+   "prompt_chars": 1630,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "tests/unit/utils/test_version.py",
+    "tests/end2end/fixtures/quteprocess.py",
+    "tests/unit/config/test_config.py",
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc"
+   ],
+   "state": "READY",
+   "withheld": null
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/earlyinit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/qtutils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/extensions/loader.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "qutebrowser/misc/crashdialog.py",
+    "qutebrowser/misc/earlyinit.py",
+    "qutebrowser/tests/unit/utils/test_version.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/utils/utils.py",
+    "qutebrowser/utils/version.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__443aac32",
+   "named_existing_paths": [],
+   "prompt_chars": 1079,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "tests/unit/utils/test_version.py",
+    "qutebrowser/utils/version.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/browser/webengine/webengineinspector.py",
+    "qutebrowser/misc/earlyinit.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/facts/compat.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/lookup/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "hacking/build-ansible.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/csharp/Ansible.Process.cs"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/facts/hardware/freebsd.py",
+    "lib/ansible/module_utils/facts/hardware/netbsd.py",
+    "lib/ansible/module_utils/facts/hardware/openbsd.py",
+    "lib/ansible/module_utils/facts/sysctl.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__450d75e0",
+   "named_existing_paths": [],
+   "prompt_chars": 1031,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "docs/docsite/rst/user_guide/playbooks_vars_facts.rst",
+    "test/units/plugins/action/test_gather_facts.py",
+    "docs/docsite/rst/user_guide/complex_data_manipulation.rst",
+    "docs/docsite/rst/porting_guides/porting_guide_2.9.rst",
+    "test/integration/targets/user/tasks/main.yml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/winrm.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/junit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/scripts/ansible_connection_cli_stub.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_executor.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/plugins/connection/winrm.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__462b957d",
+   "named_existing_paths": [],
+   "prompt_chars": 996,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/connection/winrm.py",
+    "test/integration/targets/connection_winrm/tests.yml",
+    "test/units/plugins/connection/test_winrm.py",
+    "test/support/windows-integration/plugins/modules/win_reboot.py",
+    "lib/ansible/plugins/doc_fragments/url_windows.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/pull.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_config.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/connection.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/urls.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/plugins/connection/winrm.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__4c132bfd",
+   "named_existing_paths": [],
+   "prompt_chars": 2265,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/connection/winrm.py",
+    "test/units/plugins/connection/test_winrm.py",
+    "test/integration/targets/hostname/tasks/MacOSX.yml",
+    ".azure-pipelines/azure-pipelines.yml",
+    "lib/ansible/plugins/action/__init__.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/worksearch/code.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/bookshelves.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/api.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/add_book/load_book.py",
+    "openlibrary/plugins/importapi/code.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__509a20d9",
+   "named_existing_paths": [],
+   "prompt_chars": 2700,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/templates/books/edit/edition.html",
+    "openlibrary/catalog/add_book/tests/test_load_book.py",
+    "openlibrary/templates/type/edition/view.html",
+    "scripts/dev-instance/dev_db.pg_dump",
+    "openlibrary/catalog/add_book/load_book.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/doc.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/dev_guide/developing_modules_documenting.rst",
+    "lib/ansible/cli/__init__.py",
+    "lib/ansible/cli/doc.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__512d556b",
+   "named_existing_paths": [],
+   "prompt_chars": 1777,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "scripts/gh_scripts/new_pr_labeler.mjs"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "compose.production.yaml",
+    "docker/ol-monitoring-start.sh",
+    "scripts/monitoring/monitor.py",
+    "scripts/monitoring/requirements.txt",
+    "scripts/monitoring/tests/test_utils_py.py",
+    "scripts/monitoring/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__53ca6a30",
+   "named_existing_paths": [],
+   "prompt_chars": 887,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/process.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/service.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/hostname.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/role/definition.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/csharp/Ansible.Privilege.cs"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/porting_guides/porting_guide_2.10.rst",
+    "docs/docsite/rst/user_guide/playbooks_variables.rst",
+    "lib/ansible/module_utils/facts/hardware/linux.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__552343cd",
+   "named_existing_paths": [],
+   "prompt_chars": 1441,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/modules/yum.py",
+    "test/support/integration/plugins/modules/timezone.py",
+    "lib/ansible/module_utils/facts/system/distribution.py",
+    "lib/ansible/modules/cron.py",
+    "test/units/modules/test_iptables.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/strategy/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/play_iterator.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/handler.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/play.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/plugins/strategy/linear.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__58ff6ae6",
+   "named_existing_paths": [],
+   "prompt_chars": 1431,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/executor/test_play_iterator.py",
+    "test/units/plugins/strategy/test_linear.py",
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/plugins/strategy/linear.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/urls.py",
+    "lib/ansible/modules/get_url.py",
+    "lib/ansible/modules/uri.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__5b2cf9bb",
+   "named_existing_paths": [],
+   "prompt_chars": 1861,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/get_url/tasks/main.yml",
+    "test/integration/targets/uri/tasks/main.yml",
+    "lib/ansible/modules/uri.py",
+    "lib/ansible/modules/get_url.py",
+    "test/integration/targets/prepare_http_tests/tasks/default.yml"
+   ],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/network/onyx/onyx_linkagg.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/network/fortimanager/fmgr_device_group.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/network/nxos/config/l3_interfaces/l3_interfaces.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/remote_management/manageiq/manageiq_group.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/network/icx/icx.py",
+    "lib/ansible/modules/network/icx/icx_static_route.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__5ec14acf",
+   "named_existing_paths": [],
+   "prompt_chars": 809,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/network/icx/icx.py",
+    "lib/ansible/modules/network/ios/ios_ping.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__5fdd12f6",
+   "named_existing_paths": [],
+   "prompt_chars": 1544,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "scripts/promise_batch_imports.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/ia.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/edit.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/utils/edit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/records/functions.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/imports.py",
+    "openlibrary/core/vendors.py",
+    "openlibrary/i18n/messages.pot",
+    "openlibrary/plugins/importapi/code.py",
+    "openlibrary/templates/history/sources.html",
+    "openlibrary/utils/isbn.py",
+    "openlibrary/views/showmarc.py",
+    "scripts/affiliate_server.py",
+    "scripts/promise_batch_imports.py",
+    "scripts/providers/isbndb.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__607fc4ff",
+   "named_existing_paths": [],
+   "prompt_chars": 1965,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/promise_batch_imports.py",
+    "openlibrary/plugins/books/dynlinks.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/service.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/plugin_docs.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/galaxy/collection/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/executor/task_queue_manager.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/utils/display.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__62badbbf",
+   "named_existing_paths": [],
+   "prompt_chars": 1074,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": true,
+   "candidates": [],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/porting_guides/porting_guide_base_2.10.rst",
+    "docs/docsite/rst/porting_guides/porting_guide_base_2.11.rst",
+    "lib/ansible/cli/galaxy.py",
+    "lib/ansible/config/base.yml",
+    "lib/ansible/galaxy/api.py",
+    "lib/ansible/galaxy/login.py",
+    "test/units/cli/test_galaxy.py",
+    "test/units/galaxy/test_api.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__64469377",
+   "named_existing_paths": [],
+   "prompt_chars": 1549,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "docs/docsite/rst/community/github_admins.rst",
+    ".github/CONTRIBUTING.md",
+    ".github/ISSUE_TEMPLATE/documentation_report.md",
+    ".github/ISSUE_TEMPLATE/bug_report.md",
+    ".github/ISSUE_TEMPLATE/feature_request.md"
+   ],
+   "state": "OUT_OF_SCOPE",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/darkmode.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/sessions.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webview.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginesettings.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "qutebrowser/utils/utils.py",
+    "qutebrowser/utils/version.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__64fffdfa",
+   "named_existing_paths": [],
+   "prompt_chars": 1779,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "tests/unit/config/test_qtargs.py",
+    "doc/install.asciidoc"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "hacking/create_deprecation_bug_reports.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/_collections_compat.py",
+    "lib/ansible/module_utils/common/collections.py",
+    "lib/ansible/module_utils/common/dict_transformations.py",
+    "lib/ansible/module_utils/common/json.py",
+    "lib/ansible/module_utils/common/parameters.py",
+    "lib/ansible/module_utils/common/text/converters.py",
+    "lib/ansible/module_utils/compat/_selectors2.py",
+    "lib/ansible/module_utils/six/__init__.py",
+    "lib/ansible/modules/uri.py",
+    "lib/ansible/plugins/shell/__init__.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__65d3f730",
+   "named_existing_paths": [],
+   "prompt_chars": 1734,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/module_utils/basic.py",
+    "test/units/module_utils/conftest.py",
+    "lib/ansible/module_utils/common/parameters.py",
+    "lib/ansible/module_utils/common/text/converters.py",
+    "test/support/integration/plugins/module_utils/network/common/utils.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/commands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/components/misccommands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/api/cmdutils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/utilcmds.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/messageview.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/help/commands.asciidoc",
+    "qutebrowser/components/misccommands.py",
+    "qutebrowser/utils/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__66e05eaa",
+   "named_existing_paths": [],
+   "prompt_chars": 1114,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/action/synchronize.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/group.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/module_utils/network/common/utils.py",
+    "lib/ansible/module_utils/network/icx/icx.py",
+    "lib/ansible/modules/network/icx/icx_system.py",
+    "lib/ansible/modules/network/ios/ios_logging.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__6c2ff818",
+   "named_existing_paths": [],
+   "prompt_chars": 2744,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/earlyinit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/utils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/pdfjs.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/qtutils.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "qutebrowser/browser/webengine/darkmode.py",
+    "qutebrowser/browser/webengine/webenginesettings.py",
+    "qutebrowser/config/websettings.py",
+    "qutebrowser/utils/utils.py",
+    "qutebrowser/utils/version.py",
+    "scripts/dev/run_vulture.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__6e9e4336",
+   "named_existing_paths": [],
+   "prompt_chars": 1445,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "qutebrowser/browser/webengine/darkmode.py",
+    "tests/unit/browser/webengine/test_darkmode.py",
+    "tests/end2end/fixtures/quteprocess.py",
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/doc_fragments/files.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/filter/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/cli/doc.py",
+    "lib/ansible/config/manager.py",
+    "lib/ansible/modules/copy.py",
+    "lib/ansible/plugins/filter/strftime.yml",
+    "lib/ansible/plugins/loader.py",
+    "lib/ansible/utils/plugin_docs.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__6ebb54dc",
+   "named_existing_paths": [],
+   "prompt_chars": 1723,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/ansible-doc/roles/test_role1/meta/argument_specs.yml",
+    "test/integration/targets/include_import/roles/role_with_argspec/meta/argument_specs.yml",
+    "test/integration/targets/roles_arg_spec/collections/ansible_collections/foo/bar/roles/blah/meta/argument_specs.yml",
+    "test/integration/targets/roles_arg_spec/roles/a/meta/argument_specs.yml",
+    "test/integration/targets/roles_arg_spec/roles/b/meta/argument_specs.yaml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/darkmode.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/completion/completer.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginesettings.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webkit/webkitsettings.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/websettings.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/commands.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/browser/commands.py",
+    "qutebrowser/completion/models/miscmodels.py",
+    "qutebrowser/config/configdata.yml",
+    "tests/end2end/features/tabs.feature",
+    "tests/unit/completion/test_models.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__71253eae",
+   "named_existing_paths": [],
+   "prompt_chars": 1090,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/strategy/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/action/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/facts/compat.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/pip.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/playbook/block.py",
+    "lib/ansible/playbook/role/__init__.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/plugins/strategy/linear.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__739b23db",
+   "named_existing_paths": [],
+   "prompt_chars": 2220,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/plugins/action/test_gather_facts.py",
+    "lib/ansible/modules/gather_facts.py",
+    "test/integration/targets/tags/test_tags.yml",
+    "test/integration/targets/gathering_facts/test_gathering_facts.yml",
+    "test/integration/targets/group_by/test_group_by.yml"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/earlyinit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/elf.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginesettings.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "qutebrowser/qt/machinery.py",
+    "qutebrowser/utils/version.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7479b23c",
+   "named_existing_paths": [],
+   "prompt_chars": 1598,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/misc/backendproblem.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/configdata.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "pytest.ini",
+    "qutebrowser/browser/shared.py",
+    "qutebrowser/browser/webengine/webenginetab.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configfiles.py",
+    "qutebrowser/config/configinit.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/utils/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7b688a35",
+   "named_existing_paths": [],
+   "prompt_chars": 601,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/changelog.asciidoc",
+    "doc/install.asciidoc",
+    "tests/unit/config/test_websettings.py",
+    "pytest.ini",
+    "qutebrowser/browser/browsertab.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/dev_instance.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/table_of_contents.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/SearchBar.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/ol_infobase.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/i18n/messages.pot",
+    "openlibrary/macros/TableOfContents.html",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/table_of_contents.py",
+    "openlibrary/templates/books/edit/edition.html",
+    "static/css/page-user.less"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7c2efe8a",
+   "named_existing_paths": [],
+   "prompt_chars": 1533,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/plugins.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/cliconf/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/arg_spec.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/plugins/connection/ssh.py",
+    "lib/ansible/plugins/connection/winrm.py",
+    "lib/ansible/plugins/shell/powershell.py",
+    "test/units/plugins/shell/test_powershell.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7c4a11fb",
+   "named_existing_paths": [],
+   "prompt_chars": 1263,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/shell/powershell.py",
+    "lib/ansible/module_utils/powershell/Ansible.ModuleUtils.AddType.psm1",
+    "test/units/plugins/shell/test_powershell.py",
+    "lib/ansible/executor/powershell/module_manifest.py",
+    "lib/ansible/executor/powershell/module_wrapper.ps1"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_queue_manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/base.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/config/ansible_builtin_runtime.yml",
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/plugins/action/__init__.py",
+    "lib/ansible/plugins/loader.py",
+    "lib/ansible/template/__init__.py",
+    "lib/ansible/utils/collection_loader/_collection_finder.py",
+    "lib/ansible/utils/display.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7fe1dc23",
+   "named_existing_paths": [],
+   "prompt_chars": 2022,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/loader.py",
+    "lib/ansible/config/ansible_builtin_runtime.yml",
+    "lib/ansible/executor/module_common.py",
+    "lib/ansible/template/__init__.py",
+    "lib/ansible/utils/collection_loader/_collection_finder.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/strategy/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/play_iterator.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_result.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/handler.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/playbook_guide/playbooks_handlers.rst",
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/playbook/block.py",
+    "lib/ansible/playbook/handler.py",
+    "lib/ansible/playbook/helpers.py",
+    "lib/ansible/playbook/play.py",
+    "lib/ansible/playbook/task.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/plugins/strategy/free.py",
+    "lib/ansible/plugins/strategy/linear.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__7fe75022",
+   "named_existing_paths": [],
+   "prompt_chars": 1615,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/handlers/test_handlers_any_errors_fatal.yml",
+    "test/integration/targets/any_errors_fatal/always_block.yml",
+    "docs/docsite/rst/playbook_guide/playbooks_blocks.rst",
+    "test/integration/targets/any_errors_fatal/play_level.yml",
+    "test/integration/targets/any_errors_fatal/50897.yml"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/merge/merge_marc.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/ile/utils/ol.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/merge_authors.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/update_work.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/merge/names.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/add_book/match.py",
+    "openlibrary/catalog/add_book/tests/test_match.py",
+    "openlibrary/catalog/merge/merge.py",
+    "openlibrary/catalog/merge/merge_marc.py",
+    "openlibrary/catalog/merge/tests/test_merge_marc.py",
+    "openlibrary/catalog/utils/__init__.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__81c5c6fa",
+   "named_existing_paths": [],
+   "prompt_chars": 1311,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/merge/tests/test_merge_marc.py",
+    "openlibrary/catalog/add_book/match.py",
+    "openlibrary/catalog/merge/merge_marc.py",
+    "openlibrary/catalog/add_book/tests/test_match.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/vmware_tools.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/yaml.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/network/f5/bigip_command.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/cloud/vmware/vmware_guest.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/action/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/network/user_guide/platform_eos.rst",
+    "docs/docsite/rst/network/user_guide/platform_index.rst",
+    "github/BOTMETA.yml",
+    "lib/ansible/plugins/cliconf/__init__.py",
+    "lib/ansible/plugins/cliconf/exos.py",
+    "lib/ansible/plugins/connection/network_cli.py",
+    "lib/ansible/plugins/loader.py",
+    "lib/ansible/plugins/terminal/__init__.py",
+    "lib/ansible/plugins/terminal/exos.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__83c269c9",
+   "named_existing_paths": [],
+   "prompt_chars": 1037,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "docs/docsite/rst/network/user_guide/network_best_practices_2.5.rst",
+    "docs/docsite/rst/network/user_guide/platform_eos.rst",
+    "docs/docsite/rst/network/getting_started/first_inventory.rst",
+    "docs/docsite/rst/network/user_guide/platform_junos.rst",
+    "docs/docsite/rst/network/user_guide/platform_nxos.rst"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/parameters.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/helpers.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/galaxy/token.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/dict_transformations.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/dev_guide/developing_modules_best_practices.rst",
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/modules/uri.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__84fdadf0",
+   "named_existing_paths": [],
+   "prompt_chars": 1201,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/module_utils_Ansible.Basic/library/ansible_basic_tests.ps1",
+    "test/integration/targets/no_log/no_log_local.yml",
+    "lib/ansible/module_utils/basic.py",
+    "test/units/module_utils/common/parameters/test_list_no_log_values.py",
+    "lib/ansible/module_utils/csharp/Ansible.Basic.cs"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/shell/powershell.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/csharp/Ansible.Process.cs"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_executor.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/csharp/Ansible.Basic.cs"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/inventory/yaml.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/common/text/converters.py",
+    "lib/ansible/plugins/connection/ssh.py",
+    "lib/ansible/plugins/connection/winrm.py",
+    "lib/ansible/plugins/shell/powershell.py",
+    "test/support/windows-integration/plugins/modules/win_shell.ps1",
+    "test/units/plugins/shell/test_powershell.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__87bfb374",
+   "named_existing_paths": [],
+   "prompt_chars": 1285,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/plugins/shell/test_powershell.py",
+    "lib/ansible/plugins/connection/ssh.py",
+    "lib/ansible/plugins/connection/winrm.py",
+    "lib/ansible/plugins/shell/powershell.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/models.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/utils/isbn.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/vendors.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/api.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/utils/__init__.py",
+    "openlibrary/core/imports.py",
+    "openlibrary/core/models.py",
+    "openlibrary/core/vendors.py",
+    "openlibrary/plugins/books/dynlinks.py",
+    "openlibrary/plugins/openlibrary/code.py",
+    "openlibrary/utils/isbn.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__89226350",
+   "named_existing_paths": [
+    "openlibrary/core/models.py"
+   ],
+   "prompt_chars": 1378,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/upstream/tests/test_models.py",
+    "openlibrary/tests/core/test_models.py",
+    "openlibrary/plugins/openlibrary/api.py",
+    "openlibrary/plugins/upstream/models.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/tabwidget.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/utils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/downloads.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/tabbedbrowser.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/crashdialog.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "qutebrowser/browser/downloads.py",
+    "qutebrowser/mainwindow/tabbedbrowser.py",
+    "qutebrowser/utils/qtutils.py",
+    "qutebrowser/utils/utils.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__89932d58",
+   "named_existing_paths": [
+    "qutebrowser/utils/utils.py",
+    "qutebrowser/utils/qtutils.py"
+   ],
+   "prompt_chars": 912,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "qutebrowser/browser/downloads.py",
+    "tests/unit/utils/test_utils.py",
+    "tests/unit/utils/test_qtutils.py",
+    "qutebrowser/mainwindow/tabbedbrowser.py",
+    "qutebrowser/utils/utils.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/bookshelves.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/mybooks.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/views/loanstats.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lists/ListService.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/update_work.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "conf/solr/conf/managed-schema",
+    "openlibrary/core/bookshelves.py",
+    "openlibrary/core/ratings.py",
+    "openlibrary/plugins/openlibrary/api.py",
+    "openlibrary/solr/data_provider.py",
+    "openlibrary/solr/solr_types.py",
+    "openlibrary/solr/update_work.py",
+    "openlibrary/utils/__init__.py",
+    "scripts/solr_builder/Jenkinsfile",
+    "scripts/solr_builder/solr_builder/solr_builder.py",
+    "scripts/solr_builder/sql/create-dump-table.sql"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__8a52467b",
+   "named_existing_paths": [],
+   "prompt_chars": 1022,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/solr/update_work.py",
+    "openlibrary/solr/data_provider.py",
+    "openlibrary/solr/update_edition.py",
+    "openlibrary/tests/solr/test_update_work.py",
+    "openlibrary/plugins/worksearch/code.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/module_common.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/dnf.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/config/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "examples/scripts/my_test_info.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/async_wrapper.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "azure-pipelines/azure-pipelines.yml",
+    "lib/ansible/executor/module_common.py",
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/text/converters.py",
+    "lib/ansible/module_utils/facts/system/selinux.py",
+    "lib/ansible/module_utils/six.py",
+    "lib/ansible/module_utils/urls.py",
+    "lib/ansible/modules/apt.py",
+    "lib/ansible/modules/apt_repository.py",
+    "lib/ansible/modules/dnf.py",
+    "lib/ansible/modules/package_facts.py",
+    "lib/ansible/modules/yum.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__942d0b14",
+   "named_existing_paths": [],
+   "prompt_chars": 952,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/modules/apt_repository.py",
+    "test/sanity/ignore.txt",
+    "lib/ansible/module_utils/facts/default_collectors.py",
+    "test/integration/targets/module_utils/library/test.py",
+    "test/units/module_utils/basic/test_imports.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/lists/model.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lists/ShowcaseItem.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/lists.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "scripts/copydocs.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/accounts/model.py",
+    "openlibrary/core/helpers.py",
+    "openlibrary/core/lists/model.py",
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/plugins/upstream/models.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__95909e1d",
+   "named_existing_paths": [],
+   "prompt_chars": 1383,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/core/lists/model.py",
+    "openlibrary/accounts/model.py",
+    "openlibrary/templates/admin/people/view.html",
+    "openlibrary/plugins/admin/code.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lists/ListService.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/models.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/lists.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lists/ShowcaseItem.js"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/helpers.py",
+    "openlibrary/core/lists/model.py",
+    "openlibrary/macros/SearchResultsWork.html",
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/plugins/worksearch/code.py",
+    "openlibrary/solr/updater/list.py",
+    "openlibrary/templates/lists/feed_updates.html",
+    "openlibrary/templates/type/list/edit.html",
+    "openlibrary/templates/type/list/view_body.html",
+    "static/css/components/search-result-item.less"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__95b4abc1",
+   "named_existing_paths": [],
+   "prompt_chars": 1217,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/cache/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/errors.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/arg_spec.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/galaxy/api.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/dev_guide/developing_collections_distributing.rst",
+    "lib/ansible/galaxy/collection/__init__.py",
+    "lib/ansible/galaxy/collection/concrete_artifact_manager.py",
+    "lib/ansible/galaxy/data/collections_galaxy_meta.yml",
+    "lib/ansible/galaxy/data/default/collection/galaxy.yml.j2",
+    "lib/ansible/utils/sentinel.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__97799e2d",
+   "named_existing_paths": [],
+   "prompt_chars": 760,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "hacking/azp/incidental.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/doc.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/list.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "changelogs/fragments/81714-remove-deprecated-jinja2_native_warning.yml",
+    "changelogs/fragments/user-accept-yescrypt-hash.yml",
+    "lib/ansible/config/manager.py",
+    "lib/ansible/module_utils/facts/system/env.py",
+    "lib/ansible/module_utils/pycompat24.py",
+    "lib/ansible/module_utils/six/__init__.py",
+    "lib/ansible/plugins/lookup/env.py",
+    "lib/ansible/utils/display.py",
+    "lib/ansible/utils/py3compat.py",
+    "lib/ansible/vars/plugins.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__983f2896",
+   "named_existing_paths": [
+    "lib/ansible/plugins/lookup/env.py"
+   ],
+   "prompt_chars": 918,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/utils/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/books/readlinks.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/updater/author.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/add_book/load_book.py",
+    "openlibrary/catalog/add_book/tests/test_add_book.py",
+    "openlibrary/catalog/utils/__init__.py",
+    "openlibrary/mocks/mock_infobase.py",
+    "openlibrary/plugins/worksearch/autocomplete.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__9af74069",
+   "named_existing_paths": [],
+   "prompt_chars": 1156,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/dev-instance/dev_db.pg_dump"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/file.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/data.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/lookup/password.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/parsing/vault/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/errors.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/plugins/lookup/password.py",
+    "lib/ansible/utils/encrypt.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__9c878ad5",
+   "named_existing_paths": [],
+   "prompt_chars": 1740,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/support/network-integration/collections/ansible_collections/ansible/netcommon/plugins/module_utils/compat/ipaddress.py",
+    "lib/ansible/utils/collection_loader/_collection_finder.py",
+    "test/units/utils/collection_loader/test_collection_loader.py",
+    "lib/ansible/module_utils/urls.py",
+    "test/lib/ansible_test/_util/controller/sanity/validate-modules/validate_modules/schema.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/worksearch/code.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/api.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/book_providers.py",
+    "openlibrary/i18n/messages.pot",
+    "openlibrary/macros/RawQueryCarousel.html",
+    "openlibrary/plugins/worksearch/code.py",
+    "openlibrary/plugins/worksearch/schemes/works.py",
+    "openlibrary/solr/updater/edition.py",
+    "openlibrary/solr/updater/work.py",
+    "openlibrary/templates/book_providers/gutenberg_download_options.html",
+    "openlibrary/templates/book_providers/gutenberg_read_button.html",
+    "openlibrary/templates/book_providers/openstax_download_options.html",
+    "openlibrary/templates/book_providers/standard_ebooks_read_button.html"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__a0c2a105",
+   "named_existing_paths": [],
+   "prompt_chars": 775,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/imports.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/lists/model.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lists/ListService.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/parse.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/lists/model.py",
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/openlibrary/code.py",
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/plugins/worksearch/subjects.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__a4287775",
+   "named_existing_paths": [
+    "openlibrary/core/lists/model.py",
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/upstream/models.py"
+   ],
+   "prompt_chars": 1182,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/core/models.py",
+    "openlibrary/tests/accounts/test_models.py",
+    "openlibrary/core/lists/model.py",
+    "openlibrary/plugins/upstream/tests/test_models.py",
+    "openlibrary/tests/core/test_models.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/validation.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/service.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/lookup/password.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/urls.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/process.py",
+    "lib/ansible/module_utils/common/sys_info.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__a984b409",
+   "named_existing_paths": [],
+   "prompt_chars": 1959,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/modules/yum.py",
+    "lib/ansible/modules/unarchive.py",
+    "hacking/ticket_stubs/needs_locale_info.md",
+    "lib/ansible/modules/service.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/configinit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/websettings.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginesettings.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/configtypes.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "qutebrowser/config/config.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configinit.py",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/misc/consolewidget.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__aa07d0c3",
+   "named_existing_paths": [],
+   "prompt_chars": 1195,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/config/configdata.yml",
+    "tests/unit/config/test_configinit.py",
+    "doc/changelog.asciidoc"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/models.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/utils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/code.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/account.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/models.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/helpers.py",
+    "openlibrary/core/models.py",
+    "openlibrary/core/olmarkdown.py",
+    "openlibrary/plugins/upstream/account.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/templates/account.html",
+    "openlibrary/templates/account/privacy.html",
+    "openlibrary/templates/type/user/view.html"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__ab946da6",
+   "named_existing_paths": [
+    "openlibrary/plugins/upstream/models.py"
+   ],
+   "prompt_chars": 778,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/upstream/tests/test_models.py",
+    "openlibrary/tests/core/test_models.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/account.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/utils/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/add_book/load_book.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/parse.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/updater/edition.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/add_book/__init__.py",
+    "openlibrary/catalog/utils/__init__.py",
+    "openlibrary/core/imports.py",
+    "openlibrary/core/stats.py",
+    "openlibrary/plugins/importapi/code.py",
+    "openlibrary/plugins/importapi/import_edition_builder.py",
+    "openlibrary/plugins/importapi/import_validator.py",
+    "scripts/promise_batch_imports.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__b6eff698",
+   "named_existing_paths": [],
+   "prompt_chars": 1391,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/dev-instance/dev_db.pg_dump",
+    "openlibrary/catalog/marc/tests/test_data/bin_expect/ithaca_two_856u.json",
+    "openlibrary/catalog/marc/tests/test_data/bin_expect/warofrebellionco1473unit_meta.json",
+    "openlibrary/catalog/marc/tests/test_data/xml_expect/warofrebellionco1473unit.json",
+    "openlibrary/catalog/add_book/tests/test_add_book.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/galaxy.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/arguments/option_helpers.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/scripts/ansible_connection_cli_stub.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/dict_transformations.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/cli/config.py",
+    "lib/ansible/cli/galaxy.py",
+    "lib/ansible/config/base.yml",
+    "lib/ansible/config/manager.py",
+    "lib/ansible/constants.py",
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/plugins/lookup/vars.py",
+    "lib/ansible/plugins/test/uri.yml",
+    "test/units/galaxy/test_collection.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__b9f9961f",
+   "named_existing_paths": [],
+   "prompt_chars": 1387,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/cli/galaxy.py",
+    "test/units/galaxy/test_collection.py",
+    "lib/ansible/config/base.yml",
+    "test/integration/targets/ansible-galaxy-collection/templates/ansible.cfg.j2",
+    "test/units/galaxy/test_token.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/play_iterator.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/validation.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "changelogs/fragments/76009-validate-modules-choices-return-value.yml",
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/executor/task_queue_manager.py",
+    "lib/ansible/plugins/strategy/__init__.py",
+    "lib/ansible/plugins/strategy/linear.py",
+    "lib/ansible/utils/display.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__ba13492e",
+   "named_existing_paths": [],
+   "prompt_chars": 1788,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/executor/play_iterator.py",
+    "lib/ansible/plugins/strategy/linear.py",
+    "test/units/executor/test_play_iterator.py",
+    "test/lib/ansible_test/_internal/provisioning.py",
+    "test/lib/ansible_test/_internal/commands/integration/__init__.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/commands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginetab.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/backendproblem.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/pdfjs.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webview.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "qutebrowser/utils/version.py",
+    "tests/unit/config/test_qtargs.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__c1f435de",
+   "named_existing_paths": [],
+   "prompt_chars": 1175,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/misc/backendproblem.py",
+    "doc/install.asciidoc"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/galaxy/collection/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/collectionsearch.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/connection/ssh.py"
+    },
+    {
+     "authority": "syntax",
+     "path": ".azure-pipelines/scripts/publish-codecov.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/file.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/dev_guide/developing_collections_distributing.rst",
+    "lib/ansible/constants.py",
+    "lib/ansible/galaxy/__init__.py",
+    "lib/ansible/galaxy/collection/__init__.py",
+    "lib/ansible/galaxy/collection/concrete_artifact_manager.py",
+    "lib/ansible/galaxy/data/collections_galaxy_meta.yml"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__c6afe1c7",
+   "named_existing_paths": [
+    "MANIFEST.in"
+   ],
+   "prompt_chars": 1230,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/errors/test_errors.py",
+    "lib/ansible/galaxy/collection/__init__.py",
+    "test/units/plugins/callback/test_callback.py",
+    "docs/docsite/rst/dev_guide/developing_collections_distributing.rst",
+    "test/integration/targets/ansible-galaxy-collection-scm/tasks/setup_multi_collection_repo.yml"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/interpreter_discovery.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/manager.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/config/base.yml",
+    "lib/ansible/executor/interpreter_discovery.py",
+    "lib/ansible/executor/module_common.py",
+    "test/units/executor/module_common/test_module_common.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__cf01f471",
+   "named_existing_paths": [],
+   "prompt_chars": 2007,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "docs/docsite/rst/locales/ja/LC_MESSAGES/reference_appendices.po",
+    "docs/docsite/rst/reference_appendices/interpreter_discovery.rst",
+    "lib/ansible/config/base.yml",
+    "test/integration/targets/handler_race/inventory",
+    "test/integration/targets/includes_race/inventory"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/validation.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/errors.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/errors/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/file.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/copy.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/module_utils/basic.py",
+    "lib/ansible/module_utils/common/parameters.py",
+    "lib/ansible/module_utils/common/validation.py",
+    "lib/ansible/module_utils/common/warnings.py",
+    "lib/ansible/module_utils/csharp/Ansible.Basic.cs",
+    "lib/ansible/module_utils/errors.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__d131db7a",
+   "named_existing_paths": [],
+   "prompt_chars": 1347,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/module_utils/common/validation.py",
+    "lib/ansible/module_utils/basic.py",
+    "test/units/module_utils/common/validation/test_check_type_dict.py",
+    "test/units/module_utils/basic/test_argument_spec.py",
+    "lib/ansible/module_utils/common/parameters.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/shared.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/commands.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webview.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/qutescheme.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/backendproblem.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/browser/shared.py",
+    "qutebrowser/browser/webengine/webview.py",
+    "qutebrowser/browser/webkit/webpage.py",
+    "qutebrowser/config/configdata.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/utils/log.py",
+    "qutebrowser/utils/message.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__d2506f10",
+   "named_existing_paths": [],
+   "prompt_chars": 1525,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/help/settings.asciidoc",
+    "doc/changelog.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/browser/shared.py",
+    "tests/end2end/features/javascript.feature"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/table_of_contents.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "scripts/gh_scripts/issue_comment_bot.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/addbook.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/i18n/messages.pot",
+    "openlibrary/macros/TableOfContents.html",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/table_of_contents.py",
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+    "openlibrary/templates/books/edit/edition.html",
+    "static/css/page-user.less"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__d5827cb9",
+   "named_existing_paths": [],
+   "prompt_chars": 1996,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/plugins/upstream/tests/test_table_of_contents.py",
+    "openlibrary/plugins/upstream/table_of_contents.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/books/dynlinks.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/events.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/marc_xml.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/updater/edition.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/marc/parse.py",
+    "openlibrary/catalog/marc/tests/test_data/bin_expect/880_table_of_contents.json",
+    "openlibrary/catalog/marc/tests/test_data/xml_expect/zweibchersatir01horauoft.json",
+    "openlibrary/catalog/utils/edit.py",
+    "openlibrary/core/models.py",
+    "openlibrary/macros/TableOfContents.html",
+    "openlibrary/plugins/upstream/addbook.py",
+    "openlibrary/plugins/upstream/merge_authors.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/table_of_contents.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/templates/books/edit/edition.html",
+    "openlibrary/templates/type/edition/view.html",
+    "openlibrary/utils/bulkimport.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__d9d9c3a6",
+   "named_existing_paths": [],
+   "prompt_chars": 977,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/action/gather_facts.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_executor.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/task_include.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/playbook/playbook_include.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/playbook_executor.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/executor/process/worker.py",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/playbook/delegatable.py",
+    "lib/ansible/playbook/task.py",
+    "lib/ansible/vars/manager.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__dcc84d4c",
+   "named_existing_paths": [],
+   "prompt_chars": 1156,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/integration/targets/delegate_to/test_delegate_to.yml",
+    "lib/ansible/vars/manager.py",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/playbook/task.py",
+    "lib/ansible/plugins/strategy/__init__.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/facts/compat.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/service_facts.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/compat/selinux.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/pip.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/facts/network/base.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/config/base.yml",
+    "lib/ansible/executor/module_common.py",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/parsing/mod_args.py",
+    "lib/ansible/playbook/task.py",
+    "lib/ansible/plugins/action/__init__.py",
+    "lib/ansible/plugins/action/gather_facts.py",
+    "lib/ansible/plugins/action/package.py",
+    "lib/ansible/plugins/action/service.py",
+    "lib/ansible/plugins/loader.py",
+    "test/units/plugins/action/test_gather_facts.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__e2b70931",
+   "named_existing_paths": [],
+   "prompt_chars": 2153,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/plugins/action/test_gather_facts.py",
+    "docs/docsite/rst/network/getting_started/first_playbook.rst",
+    "lib/ansible/plugins/action/gather_facts.py",
+    "lib/ansible/keyword_desc.yml",
+    "test/integration/targets/module_defaults/test_defaults.yml"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_result.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/module_utils/common/dict_transformations.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/hostvars.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/strategy/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "docs/docsite/rst/user_guide/playbooks_filters.rst",
+    "lib/ansible/plugins/filter/mathstuff.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__e579f2f0",
+   "named_existing_paths": [],
+   "prompt_chars": 1024,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "docs/docsite/rst/user_guide/playbooks_vars_facts.rst",
+    "test/integration/targets/gathering_facts/test_gathering_facts.yml",
+    "test/units/errors/test_errors.py",
+    "test/units/module_utils/facts/hardware/linux_data.py",
+    "test/units/plugins/callback/test_callback.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/adhoc.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/template/__init__.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/vars/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/console.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/callback/__init__.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/cli/__init__.py",
+    "lib/ansible/cli/adhoc.py",
+    "lib/ansible/cli/arguments/option_helpers.py",
+    "lib/ansible/cli/console.py",
+    "lib/ansible/config/base.yml",
+    "lib/ansible/executor/task_executor.py",
+    "lib/ansible/playbook/base.py",
+    "lib/ansible/playbook/play_context.py",
+    "lib/ansible/playbook/task_include.py",
+    "lib/ansible/utils/vars.py",
+    "lib/ansible/vars/manager.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__e6efdd87",
+   "named_existing_paths": [],
+   "prompt_chars": 1580,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/playbook/task_include.py",
+    "lib/ansible/playbook/handler_task_include.py",
+    "lib/ansible/playbook/helpers.py",
+    "lib/ansible/playbook/block.py",
+    "test/units/errors/test_errors.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/upstream/models.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/lists/model.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/lazy-thing-preview.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/api.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/models.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/lists/model.py",
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/openlibrary/code.py",
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/tests/core/test_models.py",
+    "openlibrary/tests/core/test_processors.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__e9e02e89",
+   "named_existing_paths": [],
+   "prompt_chars": 992,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/core/models.py",
+    "openlibrary/plugins/openlibrary/lists.py",
+    "openlibrary/plugins/upstream/models.py",
+    "openlibrary/core/lists/model.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_finder.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/manager.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/modules/user.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/cli/galaxy.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/utils/collection_loader/_collection_config.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "lib/ansible/parsing/dataloader.py",
+    "lib/ansible/plugins/inventory/__init__.py",
+    "lib/ansible/plugins/inventory/auto.py",
+    "lib/ansible/plugins/inventory/yaml.py",
+    "lib/ansible/plugins/vars/host_group_vars.py",
+    "lib/ansible/vars/manager.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__eafb1f0b",
+   "named_existing_paths": [],
+   "prompt_chars": 2697,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "lib/ansible/plugins/connection/ssh.py",
+    "lib/ansible/plugins/connection/paramiko_ssh.py",
+    "lib/ansible/config/base.yml",
+    "lib/ansible/executor/module_common.py",
+    "test/integration/network-integration.cfg"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/statusbar/bar.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/statusbar/command.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/browsertab.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/inspector.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/mainwindow/statusbar/textbase.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/mainwindow/statusbar/bar.py",
+    "qutebrowser/mainwindow/statusbar/textbase.py",
+    "scripts/dev/src2asciidoc.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__ef8756b1",
+   "named_existing_paths": [],
+   "prompt_chars": 594,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/plugins/loader.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/inventory/group.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "docs/bin/find-plugin-refs.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "hacking/build_library/build_ansible/announce.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "lib/ansible/executor/task_result.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "lib/ansible/plugins/callback/__init__.py",
+    "lib/ansible/plugins/callback/default.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__f1ba3b67",
+   "named_existing_paths": [],
+   "prompt_chars": 1128,
+   "rc": 0,
+   "repo": "ansible/ansible",
+   "rg_idf_top5": [
+    "test/units/errors/test_errors.py",
+    "test/units/plugins/callback/test_callback.py",
+    "lib/ansible/errors/__init__.py",
+    "lib/ansible/galaxy/dependency_resolution/dataclasses.py",
+    "lib/ansible/modules/apt.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/get_ia.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/merge/names.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/marc_binary.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/lists/model.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/ol_infobase.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/catalog/marc/get_subjects.py",
+    "openlibrary/catalog/marc/marc_base.py",
+    "openlibrary/catalog/marc/marc_binary.py",
+    "openlibrary/catalog/marc/marc_xml.py",
+    "openlibrary/catalog/marc/parse.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__f29228c8",
+   "named_existing_paths": [],
+   "prompt_chars": 790,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/darkmode.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/version.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/webenginesettings.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/misc/earlyinit.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/hints.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/browser/shared.py",
+    "qutebrowser/browser/webengine/darkmode.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/qtargs.py",
+    "qutebrowser/misc/pakjoy.py",
+    "qutebrowser/utils/version.py",
+    "tests/unit/browser/webengine/test_darkmode.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__f2973ae1",
+   "named_existing_paths": [],
+   "prompt_chars": 999,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [
+    "doc/changelog.asciidoc",
+    "doc/help/settings.asciidoc",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/misc/backendproblem.py",
+    "doc/install.asciidoc"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/importapi/import_validator.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/importapi/code.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/core/models.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/autocomplete.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/api.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/core/ia.py",
+    "openlibrary/plugins/importapi/code.py",
+    "openlibrary/plugins/upstream/tests/test_utils.py",
+    "openlibrary/plugins/upstream/utils.py",
+    "openlibrary/utils/isbn.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__f6521a2a",
+   "named_existing_paths": [],
+   "prompt_chars": 1044,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/plugins/importapi/code.py",
+    "openlibrary/plugins/importapi/import_edition_builder.py",
+    "openlibrary/plugins/importapi/tests/test_code.py",
+    "openlibrary/plugins/importapi/tests/test_import_edition_builder.py",
+    "scripts/dev-instance/dev_db.pg_dump"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "scripts/solr_builder/solr_builder/index_subjects.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/utils/bulkimport.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/parse.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/plugins/openlibrary/js/ile/utils/ol.js"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/solr/update_work.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "openlibrary/solr/update_edition.py",
+    "openlibrary/solr/update_work.py",
+    "scripts/solr_builder/solr_builder/index_subjects.py",
+    "scripts/solr_builder/solr_builder/solr_builder.py",
+    "scripts/solr_updater.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__f87209f8",
+   "named_existing_paths": [
+    "openlibrary/solr/update_work.py",
+    "openlibrary/solr/update_edition.py",
+    "scripts/solr_builder/solr_builder/index_subjects.py"
+   ],
+   "prompt_chars": 1293,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "openlibrary/solr/update_work.py",
+    "scripts/solr_builder/solr_builder/index_subjects.py",
+    "openlibrary/tests/solr/test_update_work.py",
+    "Makefile",
+    "scripts/solr_updater.py"
+   ],
+   "state": "BUDGETED",
+   "withheld": "prompt-names-path"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "openlibrary/coverstore/archive.py"
+    }
+   ],
+   "derived_query": true,
+   "gold": [
+    "conf/coverstore.yml",
+    "openlibrary/coverstore/README.md",
+    "openlibrary/coverstore/archive.py",
+    "openlibrary/coverstore/code.py",
+    "openlibrary/coverstore/coverlib.py",
+    "openlibrary/coverstore/schema.sql",
+    "openlibrary/coverstore/server.py",
+    "openlibrary/coverstore/tests/test_code.py",
+    "openlibrary/coverstore/tests/test_coverstore.py",
+    "openlibrary/coverstore/tests/test_webapp.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__fcb506a5",
+   "named_existing_paths": [],
+   "prompt_chars": 2337,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/dev-instance/dev_db.pg_dump"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "scripts/solr_builder/solr_builder/fn_to_cli.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/parse.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "openlibrary/catalog/marc/marc_base.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "Makefile",
+    "conf/solr/conf/managed-schema.xml",
+    "docker/ol-solr-updater-start.sh",
+    "openlibrary/solr/solr_types.py",
+    "openlibrary/solr/update.py",
+    "openlibrary/solr/updater/work.py",
+    "pyproject.toml",
+    "scripts/copydocs.py",
+    "scripts/solr_builder/Jenkinsfile",
+    "scripts/solr_builder/index-type.sh",
+    "scripts/solr_builder/solr_builder/fn_to_cli.py",
+    "scripts/solr_builder/solr_builder/solr_builder.py",
+    "scripts/solr_builder/tests/test_fn_to_cli.py",
+    "scripts/solr_updater.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__fd2aaa2a",
+   "named_existing_paths": [],
+   "prompt_chars": 961,
+   "rc": 0,
+   "repo": "internetarchive/openlibrary",
+   "rg_idf_top5": [
+    "scripts/solr_builder/tests/test_fn_to_cli.py",
+    "scripts/solr_builder/solr_builder/fn_to_cli.py",
+    "openlibrary/solr/update.py",
+    "scripts/copydocs.py",
+    "scripts/import_open_textbook_library.py"
+   ],
+   "state": "READY",
+   "withheld": "prompt-context-syntax-only"
+  },
+  {
+   "abstention_active": false,
+   "candidates": [
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webengine/spell.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/completion/completer.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/utils/urlutils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/config/configutils.py"
+    },
+    {
+     "authority": "syntax",
+     "path": "qutebrowser/browser/webkit/mhtml.py"
+    }
+   ],
+   "derived_query": false,
+   "gold": [
+    "doc/help/settings.asciidoc",
+    "qutebrowser/completion/completer.py",
+    "qutebrowser/completion/models/completionmodel.py",
+    "qutebrowser/completion/models/histcategory.py",
+    "qutebrowser/completion/models/listcategory.py",
+    "qutebrowser/completion/models/urlmodel.py",
+    "qutebrowser/config/configdata.yml",
+    "qutebrowser/config/configtypes.py",
+    "qutebrowser/utils/urlutils.py",
+    "tests/unit/completion/test_models.py"
+   ],
+   "id": "SWE-Bench-Pro__python__maintenance__bugfix__ff79bafd",
+   "named_existing_paths": [],
+   "prompt_chars": 1321,
+   "rc": 0,
+   "repo": "qutebrowser/qutebrowser",
+   "rg_idf_top5": [],
+   "state": "BUDGETED",
+   "withheld": "prompt-context-withheld"
+  }
+ ],
+ "summary": {
+  "candidate_authorities": {
+   "non-binding-decision": 2,
+   "repository-spec": 1,
+   "syntax": 548
+  },
+  "candidates_ignoring_abstention": {
+   "p_at_2": 0.381,
+   "share_of_replayed": 0.472,
+   "tasks": 135,
+   "tasks_with_gold_absent_from_rg_idf_top5": 67
+  },
+  "frame_p_at_2": 0.0,
+  "frame_tasks_with_gold_absent_from_rg_idf_top5": 0,
+  "frames_emitted": 1,
+  "packet_state": {
+   "BUDGETED": 52,
+   "OUT_OF_SCOPE": 7,
+   "READY": 83
+  },
+  "rg_idf_p_at_2_same_tasks": 0.315,
+  "withheld": {
+   "None": 1,
+   "prompt-context-syntax-only": 77,
+   "prompt-context-withheld": 56,
+   "prompt-names-path": 8
+  },
+  "withheld_in_candidateFrame_order": {
+   "None": 1,
+   "prompt-context-syntax-only": 82,
+   "prompt-context-withheld": 59
+  },
+  "withheld_order_note": "`withheld` follows the delivered path: onPrompt checks prompt-names-path before any query (AHI-247, integrations/opencode/src/index.js:575), so a BUDGETED packet whose prompt names a path is prompt-names-path. withheld_in_candidateFrame_order applies candidateFrame's readiness-first order to the same rows; frames emitted and P@2 are identical under both."
+ },
+ "ticket": "V1-2755"
+}

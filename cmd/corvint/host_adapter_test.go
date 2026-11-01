@@ -944,6 +944,41 @@ func TestAHI017HostAdapterWatchdogDegradesBeforeHostKill(t *testing.T) {
 	}
 }
 
+// AHI-911 (V1-3423): a visible kill-deadline banner names its action and is shown once per cause
+// and hour; the repeat is quiet but still ledgered, and a quiet context event is unchanged.
+func TestAHI911KillDeadlineBannerOncePerCause(t *testing.T) {
+	t.Parallel()
+	root := cliRepository(t)
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(event string) string {
+		stdin, writer := io.Pipe()
+		defer writer.Close()
+		env := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+		ctx, cancel := context.WithTimeout(env, 300*time.Millisecond)
+		defer cancel()
+		var stdout bytes.Buffer
+		runHostAdapter(ctx, []string{"claude-code", event}, stdin, &stdout)
+		return stdout.String()
+	}
+	first := run("post-tool")
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	if !strings.Contains(first, "Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues") || !strings.Contains(first, "Refresh: "+strings.ReplaceAll(string(refresh), `"`, `\"`)) {
+		t.Fatalf("first banner = %q", first)
+	}
+	if again := run("post-tool"); strings.TrimSpace(again) != "{}" {
+		t.Fatalf("repeated banner = %q", again)
+	}
+	ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
+	if err != nil || bytes.Count(ledger, []byte("adapter-host-kill-deadline")) != 1 {
+		t.Fatalf("ledger = %q (%v)", ledger, err)
+	}
+	if prompt := run("user-prompt"); !strings.Contains(prompt, "Corvint FALLBACK degraded: adapter-host-kill-deadline") || strings.Contains(prompt, "Refresh: ") {
+		t.Fatalf("quiet context event changed: %q", prompt)
+	}
+}
+
 // panickingReader stands in for any adapter defect that panics mid-event.
 type panickingReader struct{}
 

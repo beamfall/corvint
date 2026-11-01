@@ -185,6 +185,7 @@ func runIndex(ctx context.Context, invocation indexInvocation, stdout, stderr io
 		"ok": true, "mutates": true, "command": "index", "profile": "corvint-index-snapshot/1",
 		"path": receipt.Path, "bytes": receipt.Bytes, "tree": receipt.Tree, "commit": receipt.Commit,
 		"engine": receipt.Engine, "sources": receipt.Sources, "symbols": receipt.Symbols, "evicted": receipt.Evicted,
+		"source_bytes": receipt.SourceBytes, "build_ms": buildCost.Milliseconds(),
 		"store": receipt.Store, "store_shared": receipt.StoreShared, "live_heads": receipt.LiveHeads,
 		"live_trees": receipt.LiveTrees, "evicted_snapshots": evictedSnapshotsPayload(receipt.EvictedSnapshots),
 	}
@@ -221,7 +222,9 @@ per worktree are kept, up to 64 and 1 GiB: the one just written, then this
 binary's of a tree checked out at a live worktree HEAD, then this binary's
 others, then another binary's live trees, then the rest, newest first.
 The receipt names the store ("store") and every file it removed
-("evicted_snapshots", each flagged "live_head" when its tree was checked out).
+("evicted_snapshots", each flagged "live_head" when its tree was checked out),
+and reports the admitted sources' total bytes ("source_bytes") and the build's
+elapsed milliseconds ("build_ms"). No aggregate size refuses a repository.
 A worktree's own .corvint/index, the store before the shared one, is then
 swept: its snapshots, companions, build-cost record and stale temporaries are
 removed ("legacy_removed"), and anything else is left and named ("legacy_left").

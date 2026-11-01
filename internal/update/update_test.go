@@ -1049,3 +1049,33 @@ func TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal(t *testing.T) {
 		t.Fatalf("rollback refused on the token option: %+v %v", r, err)
 	}
 }
+
+// UPD-V0-910 (V1-3301): a .dev build of an RC precedes the published RC, while
+// a .dev build still outranks an earlier release.
+func TestUPDV0910DevelopmentBuildPrecedesItsRelease(t *testing.T) {
+	e := fixtureEngine(t)
+	for _, c := range []struct{ label, tag, want string }{
+		{"1.0.0-rc.3.dev", "v1.0.0-rc.3", "UPDATE_AVAILABLE"},
+		{"1.0.0-rc.3.dev", "v1.0.0-rc.2", "LOCAL_NEWER"},
+		{"1.0.0-rc.3.dev", "v1.0.0-rc.4", "UPDATE_AVAILABLE"},
+		{"1.0.0-rc.3.dev", "v1.0.0", "UPDATE_AVAILABLE"},
+		{"1.0.0-dev", "v1.0.0", "UPDATE_AVAILABLE"},
+		{"1.0.0-rc.3", "v1.0.0-rc.3", "CURRENT"},
+		// `3-dev` is one identifier, not a trailing `dev`: ordinary precedence applies.
+		{"1.0.0-rc.3-dev", "v1.0.0-rc.3", "LOCAL_NEWER"},
+		{"1.0.0-rc.dev.1", "v1.0.0-rc", "LOCAL_NEWER"},
+	} {
+		label := filepath.Join(e.config.BinDir, "corvint")
+		if err := os.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint "+c.label+" (build 7, commit dbc1713779fc17ce0386fe95d3e0f6347f5f9aee)'\n"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		relationClient(&e, c.tag, map[string][]byte{"corvint_" + e.platform + ".tar.gz": nil})
+		r, err := e.run(context.Background(), "check")
+		if err != nil || r.Relation != c.want || r.RelationBasis != "version" {
+			t.Fatalf("%s against %s: %+v %v", c.label, c.tag, r, err)
+		}
+		if dev := c.label == "1.0.0-rc.3.dev" && c.tag == "v1.0.0-rc.3" || c.label == "1.0.0-dev"; dev != strings.Contains(r.RelationReason, "development build of this release") {
+			t.Fatalf("%s against %s reason: %q", c.label, c.tag, r.RelationReason)
+		}
+	}
+}

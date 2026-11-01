@@ -369,6 +369,8 @@ AHI-041	docs/specs/agent-harness-integration-v0.md	The terminal MUST show at mos
 AHI-042	docs/specs/agent-harness-integration-v0.md	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex	unrecorded	-
 AHI-043	docs/specs/agent-harness-integration-v0.md	For an unchanged committed tree, worktree state, hook input and session key, the	unrecorded	-
 AHI-044	docs/specs/agent-harness-integration-v0.md	Every shipped hook adapter MUST fail open under the faults a host or machine can	unrecorded	-
+AHI-910	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude	standing	2026-10-31; V1-3312
+AHI-911	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3423) When the	standing	2026-10-31; V1-3423
 AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) The Claude Code and Codex	owner	decision 0441; V1-0942
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939
@@ -1784,6 +1786,7 @@ PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabil
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
 PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
+PRS-V1-910	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint	standing	2026-10-31; V1-3313
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
 PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
@@ -3402,6 +3405,7 @@ DRC-V0-009	docs/specs/diagnostic-repair-contract-v0.md	The bounded repair loop M
 DRC-V0-010	docs/specs/diagnostic-repair-contract-v0.md	A non-zero exit or an `ok: false` envelope MUST NOT be reported as success at an	unrecorded	-
 DRC-V0-011	docs/specs/diagnostic-repair-contract-v0.md	A gate MUST enumerate every diagnostic-emitting site under `internal/` and `cmd/	unrecorded	-
 DRC-V0-012	docs/specs/diagnostic-repair-contract-v0.md	`message` MUST remain human-readable prose and MUST NOT be parsed by any Corvint	unrecorded	-
+DRC-V0-910	docs/specs/diagnostic-repair-contract-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2585) An uncod	standing	2026-10-31; V1-2585
 DCLI-V0-001	docs/specs/direct-native-cli-authority-v0.md	**One real host.** Root-protected candidate/completed records bind host=`codex`,	unrecorded	-
 DCLI-V0-002	docs/specs/direct-native-cli-authority-v0.md	**Smallest parent topology.** Consumer's immediate kernel parent must be that ex	unrecorded	-
 DCLI-V0-003	docs/specs/direct-native-cli-authority-v0.md	**Current immutable image and existing admission boundary.** Bind exact executab	unrecorded	-
@@ -3615,6 +3619,7 @@ DCS-V1-594	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V
 DCS-V1-595	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V1-3125) `recommend-tests` on a path returns the same owners and	unrecorded	-
 DCS-V1-596	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `navigation` takes a `query` instead of an `id`, never	unrecorded	-
 DCS-V1-597	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `docs_navigation` advertises an optional `query` (1 to	unrecorded	-
+DCS-V1-976	docs/specs/documentation-corpus-search-ranking-v1.md	A compile performs one full artifact encode, the digest's. The artifact's `sha25	unrecorded	-
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-
@@ -3909,6 +3914,7 @@ DCR-V1-556	docs/specs/documentation-corpus-verified-reads-v1.md	The fast query i
 DCR-V1-557	docs/specs/documentation-corpus-verified-reads-v1.md	The claim-audit gaps of a query map only the claims a current incorrect verdict	unrecorded	-
 DCR-V1-558	docs/specs/documentation-corpus-verified-reads-v1.md	The recorded-identity check of `DCR-V1-410` does not validate the manifest again	unrecorded	-
 DCR-V1-559	docs/specs/documentation-corpus-verified-reads-v1.md	A streamed decode whose boundary scan has more than one segment pre-scans each	unrecorded	-
+DCR-V1-975	docs/specs/documentation-corpus-verified-reads-v1.md	The pinned-revision verification resolves every pinned revision of one checkout	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-
@@ -4357,6 +4363,8 @@ GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26,
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
+GPK-V0-975	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s	standing	2026-10-31; V1-0179
+GPK-V0-976	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST	standing	2026-10-31; V1-0179
 GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
@@ -4561,6 +4569,7 @@ IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Public
 IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) `CORVINT_INDEX_AUTO_REFRESH=0`	owner	decision 0517
 IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Acceptance requires a real	owner	decision 0517
 IDX-SNAP-V0-515	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0607) A	standing	2026-10-11; V1-0607
+IDX-SNAP-V0-912	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3310;	standing	2026-10-11; V1-3310
 IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2130)) The	standing	2026-10-11; V1-2130
 IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1732))	standing	2026-10-11; V1-1732
 IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) When	standing	2026-10-11; V1-1640
@@ -4581,6 +4590,8 @@ IDX-SNAP-V0-955	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-890	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3574;	standing	2026-10-31; V1-3574
 IDX-SNAP-V0-891	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2976,	standing	2026-10-31; V1-2976
 IDX-SNAP-V0-892	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2356) The	standing	2026-10-31; V1-2356
+IDX-SNAP-V0-910	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
+IDX-SNAP-V0-911	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
@@ -5319,6 +5330,7 @@ UPD-V0-006	docs/specs/operator-update-v0.md	Owned executable probes MUST isolate
 UPD-V0-007	docs/specs/operator-update-v0.md	(accepted by decision 0440; V1-0929) The state directory MUST	owner	decision 0440; V1-0929
 UPD-V0-008	docs/specs/operator-update-v0.md	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest	unrecorded	-
 UPD-V0-009	docs/specs/operator-update-v0.md	(proposed (V1-0639)) Every `check` result that observes a release MUST state	unrecorded	-
+UPD-V0-910	docs/specs/operator-update-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3301) On basis	standing	2026-10-31; V1-3301
 UPD-V0-010	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An insta	standing	2026-10-11; V1-1364
 UPD-V0-011	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599)	standing	2026-10-11; V1-1599
 UPD-V0-012	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Each	standing	2026-10-11; V1-1599
@@ -6490,6 +6502,7 @@ TCP-V0-991	docs/specs/task-context-packet-v0.md	(experimental under the owner's 
 TCP-V0-992	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-993	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-995	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-975	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-3457)	standing	2026-10-31; V1-3457
 TCP-V0-994	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-270	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-271	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
@@ -7400,6 +7413,7 @@ WQO-V0-093	docs/specs/work-queue-observation-v0.md	(proposed; V1-2476, V1-2550) 
 WQO-V0-096	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work	standing	2026-10-28; V1-3063
 WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept; V1-2769) The remaining fixed	standing	V1-2769
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
+WQO-V0-910	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The	standing	2026-10-31; V1-3299
 WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-

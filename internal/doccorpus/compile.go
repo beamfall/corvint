@@ -498,10 +498,13 @@ func compileOnce(ctx context.Context, root string, m Manifest, reuse *incrementa
 		return nil, c.result(), err
 	}
 	a.SHA256 = digest
-	if _, err := Encode(a); err != nil {
-		// The digest field adds at most its own bytes and its member syntax.
+	// The digested encoding already holds `"sha256":""`, so setting the digest
+	// adds exactly its bytes: the bound applies to that length instead of a
+	// second encode (DCS-V1-976). The reported size keeps its old allowance so
+	// the DCS-V1-569 retry derives the same prefix.
+	if size+int64(len(digest)) > int64(encodingLimit(a)) {
 		c.outputBytes = size + int64(len(digest)) + 16
-		return nil, c.result(), err
+		return nil, c.result(), fail("output bound exceeded")
 	}
 	// Re-read immutable input identities after compilation; mutable object stores
 	// must not let a changing input be reported as a successful pinned build. A refusal

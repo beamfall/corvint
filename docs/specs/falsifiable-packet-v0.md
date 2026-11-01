@@ -112,7 +112,7 @@ above stands with that substitution.
   reader to emit identical bytes on a hit and a miss, so the implementation exposes the package-level
   `var loadSnapshot = contextindex.LoadSnapshot` and its deferred sibling `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:21-24@8984cf3b`), and the observed sibling `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:263-265@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:95-96@5959c784`). The
+  (`cmd/corvint/index_snapshot.go:266-268@097dbc58`, `LCP-V0-016`). The deferred seam's one call is `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:95-96@5959c784`). The
   snapshot seams' seven current production call sites are `snapshotIndex` (`cmd/corvint/index_snapshot.go:61-62@123f0830`) and batch (`cmd/corvint/batch.go:149@dbef447a`),
   answerability (`cmd/corvint/answerability.go:94-95@6278a445`) and surprise (`cmd/corvint/surprise.go:118-119@6278a445`),
   context lookup (`cmd/corvint/context_lookup.go:75-79@9f1de421`) and local completion events (`cmd/corvint/local_completion_event.go`, `localEventContext`),
@@ -430,7 +430,7 @@ above stands with that substitution.
   most 256 KiB: `task` (visible intent text); `obligations` (spec/requirement ids the caller names);
   `repository` `{object_format, base_commit, base_tree, dirty_paths_sha256}`; `handles`, at most
   256, each `{path, blob_hash, line?, kind?, id?, authority?, reason?}`, the shape `evidence`
-  emits (`internal/contextindex/impact.go:627-629@fd0a67cc`) minus `confidence`, plus the result's
+  emits (`internal/contextindex/impact.go:633-635@fd0a67cc`) minus `confidence`, plus the result's
   `kind`/`id`, as FPK-V0-002's rows carry; `critical`, at most 256, selectors of the same shape
   naming handles that MUST survive; `unknowns` and `failed_approaches`, free text; `verification`,
   `[{command, observed_status, provenance}]`; and `provenance` `{receiptId?, packet_sha256?}`.
@@ -457,7 +457,7 @@ above stands with that substitution.
   every `blob_hash` against that declared format's object-id shape, stated here rather than
   borrowed as a mechanism: exactly 40 lowercase hex digits under `sha1` and exactly 64 under
   `sha256`. That is the shape the index applies to Git's own output (`validObjectID`,
-  `internal/contextindex/git.go:541-554@f2d5aceb`, called at `internal/contextindex/git.go:480@842ac930`), cited as precedent only: the
+  `internal/contextindex/git.go:588-601@f2d5aceb`, called at `internal/contextindex/git.go:527@842ac930`), cited as precedent only: the
   predicate is unexported, and this clause requires no change to it or to any other code outside
   the checkpoint branch. A value of the wrong shape is `invalid-checkpoint-document`, refused
   before any handle is judged. `handles` MUST be total over its paths: two entries sharing a `path`
@@ -572,7 +572,7 @@ above stands with that substitution.
   (5) `blob-changed` — the current blob differs from `blob_hash`;
   (6) `unchanged` — the current blob equals `blob_hash`. Directories and gitlinks are decided at
   step (2) by mode: `git ls-tree --full-tree <tree> -- <path>` reports `040000` for a directory and
-  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:473-481@7e57b664`), so
+  `160000` for a gitlink, neither of which the index admits (`internal/contextindex/git.go:520-528@7e57b664`), so
   both MUST be `unsupported` whatever `cat-file` then returns — a tree object for the directory, a
   commit object or `missing` for the gitlink — and only `100644`, `100755`, and `120000` continue
   past step (2). `path-deleted` means the path is not present at the current tree, never that it
@@ -588,7 +588,7 @@ above stands with that substitution.
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
   `documentResult` uses: `Record.Kind == "instructions"` → `project-instructions`; `"decision"`
   → `accepted-decision`/`non-binding-decision`; else `repository-spec`/`accepted-spec`
-  (`internal/contextindex/impact.go:636-649@3c81c0ac`) — is instruction- or spec-authority; never keyed on
+  (`internal/contextindex/impact.go:642-655@3c81c0ac`) — is instruction- or spec-authority; never keyed on
   the checkpoint's own `authority?` field, per AGENTS.md invariant 3. When present, that field is
   echoed as `claimed_authority`; its absence does not change the flag, which is computed only from
   the live class).
@@ -635,19 +635,19 @@ above stands with that substitution.
   result constructors. It uses only eligible critical paths, never the stored task prose, and
   does not apply a query/impact receipt's result-count cap; constructor evidence bounds remain
   unchanged. Matching walks RESULTS, not rows: `kind` and `id` are members of the
-  enclosing result (`internal/contextindex/impact.go:246-249@4c91fa62`, `internal/contextindex/impact.go:295-301@b4e89879`, `internal/contextindex/impact.go:670-672@92896c26`), never of an evidence
+  enclosing result (`internal/contextindex/impact.go:252-255@4c91fa62`, `internal/contextindex/impact.go:301-307@b4e89879`, `internal/contextindex/impact.go:676-678@92896c26`), never of an evidence
   row, which carries exactly `path`, `line`, `blob_hash`, `reason`, `confidence`, and `authority`
-  (`evidence`, `internal/contextindex/impact.go:627-629@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
+  (`evidence`, `internal/contextindex/impact.go:633-635@fd0a67cc`). A selector carrying `kind` and `id` therefore selects the
   results whose `kind` and `id` equal its own, and within them the evidence rows at the selector's
   `path`; a selector carrying neither selects the evidence rows at that `path` in every result.
   Selecting by the result's identity and the row's `path` matters because a result's evidence rows
   need not sit at the result's own id — `documentResult` emits rows whose `path` is a referenced
-  file (`internal/contextindex/impact.go:666-668@25e804e8`). Identity does not single out one
+  file (`internal/contextindex/impact.go:672-674@25e804e8`). Identity does not single out one
   row — `impact` emits a reference row per changed path, so one result identity can supply a
-  row at the same `path` more than once (`internal/contextindex/impact.go:305-313@318d5d46`) — so a match
+  row at the same `path` more than once (`internal/contextindex/impact.go:311-319@318d5d46`) — so a match
   is the whole set of matching rows, never "the row". Byte-identical matched rows collapse to one,
   as FPK-V0-020's byte-identical `handles` entries do: `documentResult` emits one row per
-  `references` entry (`internal/contextindex/impact.go:661-668@2a45c822`), so a `references` list naming one path twice yields
+  `references` entry (`internal/contextindex/impact.go:667-674@2a45c822`), so a `references` list naming one path twice yields
   two rows equal in all six members, and they rehydrate as one row.
   All of them MUST be rehydrated, in the shape `query`/`impact` rows carry,
   ordered by ascending `line`, then lexicographic `reason`, then lexicographic `blob_hash`, then
@@ -711,8 +711,8 @@ above stands with that substitution.
   and then its immutable tree, before `readBoundedFile`, to settle this case ahead of the file read; (9) the tree
   cannot be listed at HEAD, or the `git ls-tree` output passes the same 64 MiB bound
   `readTreeEntries`
-  already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:30@0e8ce572`,
-  `internal/contextindex/git.go:454@33f5b343`)
+  already applies to a full-tree listing (`maxTreeBytes`, `internal/contextindex/git.go:31@8c6b184d`,
+  `internal/contextindex/git.go:501@33f5b343`)
   — `unsupported-prove-tree`, a code this requirement added because no earlier `prove` code named
   a tree-listing failure; the checkpoint compile function performs this bounded, whole-tree `git
   ls-tree -r -t -z --full-tree <tree>` read once (`readCheckpointTree`,
@@ -823,7 +823,7 @@ above stands with that substitution.
   The implementation exposes the package-level `var loadSnapshot = contextindex.LoadSnapshot` and
   `loadSnapshotDeferred = contextindex.LoadSnapshotDeferred`
   (`cmd/corvint/index_snapshot.go:21-24@8984cf3b`) and `loadSnapshotObserved = contextindex.LoadSnapshotObserved`
-  (`cmd/corvint/index_snapshot.go:263-265@097dbc58`), the dogfood event's zero-spawn seam
+  (`cmd/corvint/index_snapshot.go:266-268@097dbc58`), the dogfood event's zero-spawn seam
   (`LCP-V0-016`). The one call through the deferred seam is
   `deferredSnapshotIndex` (`cmd/corvint/index_snapshot.go:95-96@5959c784`). The seven current production calls through the snapshot seams are
   `snapshotIndex` (`cmd/corvint/index_snapshot.go:61-62@123f0830`), batch
@@ -843,8 +843,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:141-142@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:790-813@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
-  the snapshot (`internal/contextindex/snapshot.go:712-788@dec07644`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:792-815@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
+  the snapshot (`internal/contextindex/snapshot.go:714-790@dec07644`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot`, `LoadSnapshotDeferred` or `LoadSnapshotObserved` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,

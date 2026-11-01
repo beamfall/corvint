@@ -927,21 +927,6 @@ fi`, "unsupported-prove-drift"},
 		ctx := proveBoundsContext(func(bounds *proveBounds) { bounds.blobBytes = 1 })
 		checkpointRefusalContext(t, ctx, root, file, "unsupported-prove-history")
 	})
-	t.Run("coded Build error", func(t *testing.T) {
-		root := checkpointRepository(t)
-		file := writeCheckpoint(t, checkpointInput(t, root, "AGENTS.md"))
-		environment := checkpointGitWrapper(t, `case " $* " in *" ls-tree -r -l -z "*)
- i=0
- while [ "$i" -lt 270 ]; do
-  printf '100644 blob 0000000000000000000000000000000000000000 500000\tfile%s.go\000' "$i"
-  i=$((i + 1))
- done
- exit 0;; esac`)
-		stderr := checkpointRefusalEnvironment(t, environment, root, file, "unsupported-impact-repository")
-		if !strings.Contains(stderr, "repository index sources total 135000000 bytes in 270 files") {
-			t.Fatal(stderr)
-		}
-	})
 }
 
 func TestPlainProveCodelessBuildErrorStderrIsUnchanged(t *testing.T) {

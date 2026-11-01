@@ -72,7 +72,7 @@ func BuildForSnapshot(ctx context.Context, root string) (*Index, error) {
 func snapshotReuseEnabled() bool { return runtimeenv.Value("INDEX_REUSE") != "0" }
 
 func buildWithBlobShards(ctx context.Context, root string, opening *LoaderObservation, compile func(*Index)) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	engineID := analyzerEngine()
 	if engineID == "" {
@@ -121,9 +121,6 @@ func shardEvidence(ctx context.Context, root string, observation repositoryObser
 		return nil, err
 	}
 	exclusions, candidates, unsupported := admittedEntries(entries)
-	if err := validateBlobAdmission(candidates); err != nil {
-		return nil, err
-	}
 	if _, err := uniqueBlobEntries(candidates); err != nil {
 		return nil, err
 	}

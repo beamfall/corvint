@@ -77,15 +77,22 @@ func TestAHI046HookContextProjectionSilenceRule(t *testing.T) {
 	}
 }
 
-// AHI-046: silence reaches the host as empty output for both adapters, and an operator's kernel
-// opt-in still gets its own context.
+// AHI-046 and AHI-910: silence reaches the host as the event name with no context for both
+// adapters, and an operator's kernel opt-in still gets its own context.
 func TestAHI046SilentProjectionRendersNothing(t *testing.T) {
 	t.Parallel()
 	result := map[string]any{"degradations": []any{"frontier-authority-unavailable"}, "context": map[string]any{}}
 	for _, host := range []string{"claude-code", "codex"} {
-		if output := renderAdapterResult(host, "UserPromptSubmit", "user-prompt", "/repo", map[string]any{"sessionIdSha256": strings.Repeat("a", 64)}, result, false); len(output) != 0 {
+		output := renderAdapterResult(host, "UserPromptSubmit", "user-prompt", "/repo", map[string]any{"sessionIdSha256": strings.Repeat("a", 64)}, result, false)
+		if !emptyHookOutput(output, "UserPromptSubmit") || !emptyHookSuccess(output) {
 			t.Fatalf("%s rendered a silent projection: %v", host, output)
 		}
+		if output := withHookContextSuffix(output, "UserPromptSubmit", "\nkernel block"); !reflect.DeepEqual(output, claudeContextOutput("UserPromptSubmit", "kernel block")) {
+			t.Fatalf("%s: kernel opt-in lost on a silent prompt: %v", host, output)
+		}
+	}
+	if emptyHookSuccess(map[string]any{}) || emptyHookSuccess(degradedAdapterOutput("x")) || emptyHookSuccess(claudeContextOutput("UserPromptSubmit", "c")) {
+		t.Fatal("a fault, an empty output or a context counted as an empty success")
 	}
 	if output := withHookContextSuffix(map[string]any{}, "UserPromptSubmit", "\nkernel block"); !reflect.DeepEqual(output, claudeContextOutput("UserPromptSubmit", "kernel block")) {
 		t.Fatalf("kernel opt-in lost on a silent prompt: %v", output)
@@ -120,7 +127,8 @@ func TestAHI046CodexPromptSilenceAndProjection(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
 	ctx := lifecycleDeadlineContext()
-	if output := runCodexAdapter(ctx, map[string]any{"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": root, "prompt": "what about it"}); len(output) != 0 {
+	// AHI-910: nothing is injected, and the success names its event.
+	if output := runCodexAdapter(ctx, map[string]any{"hook_event_name": "UserPromptSubmit", "session_id": "s", "cwd": root, "prompt": "what about it"}); !emptyHookOutput(output, "UserPromptSubmit") {
 		t.Fatalf("anchorless codex prompt injected %v", output)
 	}
 	for _, payload := range []map[string]any{
@@ -255,4 +263,10 @@ func TestAHI230GuidanceOnlyForCorvintOrEnrolledRepository(t *testing.T) {
 	if claudeSessionGuidance(linked, "k", "session-start", false) != claudeGuidance(linked, "k") {
 		t.Fatal("an enrolled linked worktree lost the workflow argv")
 	}
+}
+
+// emptyHookOutput reports whether output is AHI-910's successful hook with
+// nothing to inject for event: exactly the host event name and no context.
+func emptyHookOutput(output map[string]any, event string) bool {
+	return reflect.DeepEqual(output, map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": event}})
 }

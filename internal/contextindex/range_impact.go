@@ -128,7 +128,7 @@ func compileRangeImpactMode(ctx context.Context, index *Index, base string, limi
 	if (index.Module == "" || !strings.Contains(index.Module, "/")) && !hasNonGoImpactSource(index) {
 		return nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module"}
 	}
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	verify := func() ([]string, error) {
 		if pinned {

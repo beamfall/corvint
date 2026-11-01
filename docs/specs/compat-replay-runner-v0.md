@@ -442,7 +442,7 @@ measurement-specific group cleanup but not this runner's observation/adjudicatio
     does NOT forbid `PASS`: fully observed instability with no undeclared effect is `PASS`. An
     undeclared effect therefore excludes `PASS` outright, so no case matches both an
     agreeing-versions row and the undeclared-effect row of (e). Effect statuses reuse
-    `PRODUCED`/`NOT_PRODUCED` (`internal/observations/observations.go:422@aa661490`,
+    `PRODUCED`/`NOT_PRODUCED` (`internal/observations/observations.go:433@aa661490`,
     `cmd/corvint/dogfood_observe.go:73`); `NOT_PRODUCED` covers two distinct causes this runner
     MUST distinguish rather than collapse: an effect *denied* per `CTR-V0-003`
     (`compat-trial-v0.md:37` — unreachable until the `E:99` host profile is qualified, since this

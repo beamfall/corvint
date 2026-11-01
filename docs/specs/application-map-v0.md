@@ -934,7 +934,7 @@ but does not read it; only non-Go syntax impact does.
   reason, when the edit may change the context index beyond the edited content:
   `index-admission-changed` when an edited path's blob crosses the per-source size bound, gains or
   loses a generated or LFS header (`contextindex.SourceAdmitted`), or grows while the revision
-  fails `contextindex.CheckRevisionAdmission` (the aggregate bound); `config-shaped-source` when
+  fails `contextindex.CheckRevisionAdmission` (the source-count bound and the duplicate-object check; the aggregate bound is withdrawn by `IDX-SNAP-V0-910`); `config-shaped-source` when
   an admitted non-`.json` source parses as JSON or JSONC on either side, since a config `extends`
   may read any indexed path; and `changed-input` when an edited blob exceeds the 64 MiB read
   bound. The same admission check applies to an AMAP-V0-240 flow edit. An edit in an aliased root

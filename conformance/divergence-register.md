@@ -3108,6 +3108,31 @@ code, contradicting `GPK-V0-095` and product invariant 2; the candidate satisfie
 under `conformance/` outside this register), so no expectation is rewritten; the external `zod`/`execa` evaluation
 repositories were not checked (NOT_RUN).
 
+### DR-0047 — `query` and `impact`: a document citing the task's named paths ranks first
+
+- **Status:** ADJUDICATED 2026-10-31 — `python-defect` / known-divergent under `GPK-V0-975` and
+  `GPK-V0-976` (`docs/specs/go-production-kernel-migration-v0.md`, ticket V1-0179). The focused Go
+  regressions are present; a `cli-parity-v0` discriminating row is **NOT_YET_AUTHORED**, so this
+  latent divergence cannot contribute to promotion (`GPK-V0-034`). No oracle was reconstructed
+  (`GOC-V0-002`); `src/` is absent and unrepaired.
+- **Command:** `query`, `eval`, and `harness event --event user-prompt` through `EvalQuery`'s
+  document ranking (`GPK-V0-975`); path `impact` row order (`GPK-V0-976`). **Discovered:**
+  2026-09-23 (V1-0146 fresh-agent leg, filed as V1-0179).
+
+**Divergence.** The oracle scored a document on the task words it shares, so a task naming two
+files ranked a lexically broad spec, a fixture or a decision above the spec whose references cite
+both. Under `GPK-V0-975` the candidate credits each named path a document cites, so that spec can
+outrank them. The oracle broke an impact score tie by path alone, so a referencing decision under
+`docs/decisions/` came before a referencing spec under `docs/specs/`; under `GPK-V0-976` the spec
+comes first, and a packet budget that keeps one keeps the spec.
+
+**Adjudication: python-defect (known-divergent, no repair).** Project-owned authority outranks
+history (product invariant 3), and a reference the index already records is stronger evidence of
+governance than shared path tokens. `TestGPKV0002ManifestReplay` passes unchanged with both
+requirements (umask 022), so no committed `conformance/` expectation names a task path a document
+cites or an impact tie between a referencing spec and decision; no expectation is rewritten. The
+external `zod`/`execa` evaluation repositories were not checked (NOT_RUN).
+
 ## Typed verification extension (issue 408, accepted 2026-09-30)
 
 `LTPM-V0-013`/`LTPM-V0-014` add repeatable `record --verify-argv-json` and a closed schema-2

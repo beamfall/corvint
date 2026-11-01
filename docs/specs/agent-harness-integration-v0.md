@@ -141,7 +141,7 @@ separate exact extension tuple remains governed by AHI-024.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:39,146,150@b3341e84`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:39,153,157@b3341e84`). These are faults under `AHI-021`.
   OpenCode and Gemini owned-process-group cleanup on a timeout, a cancellation or a normal leader
   exit, including which signal or probe answers confirm it and the visible degradation
   `corvint-process-cleanup-unconfirmed`, is governed by `AHI-050` (decision 0474), which supersedes
@@ -1373,6 +1373,27 @@ separate exact extension tuple remains governed by AHI-024.
   - Real hosts remain NOT_OBSERVED.
   Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
   plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
+- `AHI-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude Code
+  or Codex `SessionStart` or `UserPromptSubmit` hook that ran Corvint successfully but found nothing
+  actionable to inject MUST print `{"hookSpecificOutput":{"hookEventName":EVENT}}`, the host's own
+  event name with no `additionalContext`, instead of `{}`. Both hosts accept that shape and inject
+  nothing, while a host or qualification driver can tell the successful empty result apart from a
+  fault (a `FALLBACK degraded:` or `Corvint fallback:` message), a killed hook (no output) and the
+  outputs that stay `{}`: an event the adapter does not handle, a `cwd` outside a repository and
+  `SessionEnd`. Rollback: return `{}` again.
+- `AHI-911`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3423) When the
+  Claude Code adapter's watchdog ends any event other than `SessionStart` and `UserPromptSubmit`
+  (whose fallback explains that prompt's missing context) with `adapter-host-kill-deadline`, for
+  example `PostToolUse` after an unrelated Bash call, the banner (its `systemMessage` or
+  `additionalContext`) is shown once per cause: only when
+  its `SOL-V0-010` row is new for that host, event and UTC hour window (the ledger's existing
+  deduplication key). A repeat within the window prints `{}` and is still ledgered. A shown banner
+  keeps its `Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues` frame and adds
+  one line naming the action: refresh the index snapshot with the exact `corvint --root ROOT index
+  --if-stale` argv, and inspect repeats with `corvint --root ROOT observations`. When the ledger
+  cannot be written (not ignored, unwritable, or past its 50 ms bound) the banner is shown, so a
+  fault is never hidden. The ledger row decides only whether the banner repeats; it feeds no
+  ranking, evidence, authority or learning (invariant 4). Rollback: always show the banner.
 - `AHI-045`: (accepted by decision 0441; V1-0942) The Claude Code and Codex
   `corvint-dogfood-event/0` adapters MUST inject, inside the unchanged `AHI-004` envelope, the
   `corvint-hook-context/0` projection of the engine receipt rather than the whole receipt. The
@@ -2103,6 +2124,15 @@ isolated `CODEX_HOME`, branch-built binaries).
   0.7.29 emits 0 and abstains on all 10 (8 `prompt-context-syntax-only`, 2 `prompt-context-withheld`
   for `BUDGETED` packets); 5 of the 10 prompts also name an existing path. Recorded in
   `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-v2755-prompt-frame-abstains.md`.
+  Offline replay on the 142 replayable ContextBench SWE-bench-Pro rows (2026-10-31,
+  `docs/experiments/v2755/frame_replay.py`, results in
+  `docs/experiments/v2755-contextbench-pro-frame-replay-20261031.json`): the frame emits on 1 task
+  (P@2 0.0) and abstains on 141 (in the delivered order, where `AHI-247` checks named paths
+  before any query: 77 `prompt-context-syntax-only`, 56 `prompt-context-withheld`, 8
+  `prompt-names-path`; in `candidateFrame`'s readiness-first order: 82 and 59, none); the candidates it withholds would have had P@2 0.381 against 0.315 for the
+  idf-weighted identifier rg top 2 on the same 135 tasks, and on 67 of 142 tasks held a gold file
+  absent from the rg-idf top 5. That is measured evidence for revisiting the syntax-only rule, not
+  a change to it.
   Non-goals: no change to retrieval, ranking or Core abstention; no repository-wide declaration
   lookup for demotion; no change to other hosts, to `corvint_context`, or to the `AHI-016` twins
   and their conformance goldens; no model-tokenizer measurement.
@@ -2369,7 +2399,7 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1114@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1166@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
 | `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@8de67696` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
@@ -2383,8 +2413,8 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:73` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:378@b2bc66fa` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:686@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:337@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:738@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:344@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:433` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:179@3a35602c` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |

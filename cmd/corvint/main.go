@@ -163,6 +163,10 @@ func parse(arguments []string) (options, error) {
 	if index >= len(arguments) {
 		return result, argumentError("the following arguments are required: command")
 	}
+	if arguments[index] == "version" {
+		// PRS-V1-910: agents type `corvint version` by analogy with corvint-tasks.
+		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + "; to print the version, run corvint --version (or corvint --version --json)")
+	}
 	if arguments[index] != "harness" {
 		return result, invalidChoice("command", arguments[index], topLevelCommands)
 	}
@@ -1653,6 +1657,11 @@ func emitError(stderr io.Writer, err error) {
 		return
 	}
 	if errors.As(err, &contextError) {
+		if class := contextindex.GitStartErrorClass(err); class != "" {
+			// DRC-V0-910: the start class is additive; the error bytes are unchanged.
+			_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"git_start_error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()), pythonJSONString(class))
+			return
+		}
 		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()))
 		return
 	}
@@ -1767,7 +1776,7 @@ func pythonJSONString(value string) string {
 
 func main() {
 	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
-		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound))
+		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
 	}
 	// Startup-only owned-group verification precedes signal goroutines, Git
 	// resolution and every ordinary Core entrypoint.

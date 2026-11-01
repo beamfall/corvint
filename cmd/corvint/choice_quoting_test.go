@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"strings"
 	"testing"
@@ -37,5 +38,23 @@ func TestInvalidChoiceAndHelpTopicEscapeHostileValue(t *testing.T) {
 	}
 	if plain := message(unknownHelpTopic([]string{"nope"})); !strings.HasPrefix(plain, `unknown help topic: 'nope' (choose from 'init', `) {
 		t.Fatalf("plain help topic bytes changed: %q", plain)
+	}
+}
+
+// PRS-V1-910 (V1-3313): `corvint version` names --version; other unknown
+// commands keep the exact argparse text.
+func TestVersionCommandNamesTheVersionFlag_PRSV1910(t *testing.T) {
+	for _, test := range []struct {
+		arguments []string
+		suffix    bool
+	}{{[]string{"version"}, true}, {[]string{"versions"}, false}} {
+		var stdout, stderr bytes.Buffer
+		if code := run(test.arguments, strings.NewReader(""), &stdout, &stderr); code != 2 || stdout.Len() != 0 {
+			t.Fatalf("%v: exit %d stdout %q", test.arguments, code, stdout.String())
+		}
+		hint := "; to print the version, run corvint --version (or corvint --version --json)"
+		if got := strings.Contains(stderr.String(), hint); got != test.suffix || !strings.Contains(stderr.String(), `"code": "invalid-arguments"`) || !strings.Contains(stderr.String(), "argument command: invalid choice: '"+test.arguments[len(test.arguments)-1]+"' (choose from 'init'") {
+			t.Fatalf("%v: stderr %s", test.arguments, stderr.String())
+		}
 	}
 }

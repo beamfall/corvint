@@ -370,7 +370,7 @@ behind the explicit opt-in `CORVINT_SNAPSHOT_FORMAT=pack`.
   attempt and fall back to the ordinary full build. Missing records are ordinary cold inputs.
   JSON payloads are screened before typed decode: at most 250,000 tokens per record, depth 32,
   eight million tokens and 512 MiB encoded bytes per accelerated attempt. The writer skips facts
-  exceeding the representation bounds. Source and aggregate Git bounds still apply. At most four
+  exceeding the representation bounds. Source Git bounds still apply (the aggregate bound is withdrawn by `IDX-SNAP-V0-910`). At most four
   readers run concurrently; supported local platforms open confined no-follow paths nonblocking
   and validate regular-file mode after open, so a FIFO swap cannot block. Because `os.Root` follows
   a leaf symlink whose target stays inside the root, the opened file must also be the same file as
@@ -760,7 +760,8 @@ snapshots refreshed automatically without a manual warmup.
   or metadata writes; linked leaves, hardlinks and non-regular lock files are refused.
 - `IDX-SNAP-V0-033`: (accepted, decision 0517) The child owns a new session,
   redirects all standard streams to `/dev/null`, uses nice priority at least +10 and GOMAXPROCS=1,
-  cancels work at 55 seconds and kills its process group at a hard 60-second wall bound. It
+  cancels work at 55 seconds and kills its process group at a hard 60-second wall bound (both
+  bounds superseded by `IDX-SNAP-V0-912`: 55 CPU-seconds of work under a 10-minute wall). It
   refuses to build if lowering priority is denied; a started notice still acknowledges only spawn.
   Nice >= +10 covers every worker thread and inherited Git priority. On Linux a locked OS thread
   lowers its priority, then execs the same image once using an internal deadline/stage marker; fd 3 retains
@@ -810,6 +811,36 @@ snapshots refreshed automatically without a manual warmup.
   record without a parseable start names nothing. The read is at most 512 bytes of the lock the
   hook already holds. The record never feeds ranking, evidence or authority, and the priority,
   GOMAXPROCS, work and hard wall bounds of `IDX-SNAP-V0-033` are unchanged.
+- `IDX-SNAP-V0-912`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3310;
+  supersedes only the 55-second work and 60-second hard wall bounds of `IDX-SNAP-V0-033`) The
+  writer's work bound is CPU time, not wall time: it cancels its build once the worker and its
+  reaped Git children have used 55 CPU-seconds (user plus system, read with `getrusage` once a
+  second), and records `expired` as before. Its hard wall bound is 10 minutes: the work context
+  also ends 50 seconds before it, and the group is killed at it. Rationale: the bound protects the
+  host from a runaway writer, which CPU time measures, while a nice +10 writer under sustained
+  normal-priority load is starved, not runaway. With 36 nice-0 busy loops on 12 CPUs it receives
+  about 3.6% of one CPU, so a refresh that costs 8 CPU-seconds idle needs about 220 seconds of wall
+  time and could never finish inside 60 (V1-0607 evidence: every writer killed, 0 of 20 hooks got
+  context). A starved writer costs almost nothing while it waits and converges as CPU frees. While
+  it runs it holds the single-flight lock (`IDX-SNAP-V0-032`), so later hooks report `already
+  running` and start no other writer; a writer that exhausts its CPU budget needs that much work
+  on an idle host too. The writer's build does not apply the shared 30-second Git deadline of
+  `DCW-V0-075`: under the same load its evidence phase alone outlasts 30 seconds of wall time
+  (observed: `Git repository index exceeded its deadline` after 266 s with 12.7 CPU-seconds used),
+  so the writer's own CPU budget and wall bound govern its Git reads instead. The exemption is an
+  in-process context mark the worker sets on itself (`contextindex.WithWriterBounds`); no flag or
+  environment variable reaches it, and every other build and read keeps the 30-second deadline.
+  Priority, GOMAXPROCS=1, the session, stream redirection, lock, record and
+  publication rules of `IDX-SNAP-V0-031` to `IDX-SNAP-V0-036` and `IDX-SNAP-V0-515` are unchanged,
+  and the child stays one finite process group (invariant 7). The `IDX-SNAP-V0-515` notice names the
+  new limits: the 55-second CPU work limit for `expired`, the 10-minute hard limit for a record
+  left running. Falsifier: under the recorded load a writer killed before its CPU budget or wall
+  bound, or a second writer started while one runs. Rollback: restore the wall bounds
+  (`snapshotRefreshWallBound = time.Minute`, the work deadline at 55 s) and drop the CPU ticker.
+  Traceability: `TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912`,
+  `TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912`,
+  `TestSnapshotRefreshPreviousOutcome`; loaded qualification in
+  `docs/build-log/2026-10-31-indexcli-w5.md`.
 
 ### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
 
@@ -1146,6 +1177,38 @@ a stub `script/heavy.sh`; `TestAnalyzerSchemaOutput` and
 `TestAnalyzerSchemaOutputCoversMarkersAndShards` in `internal/contextindex`; the dogfood steps in
 `docs/build-log/2026-10-31-frictionfix-w4.md`.
 
+### Accepted (2026-10-31, V1-2881, owner direction 2026-10-27, standing auto-accept 2026-10-11): no aggregate admission wall
+
+Human intent (owner, 2026-10-27): the 128 MiB aggregate admission bound is a brick wall that would
+block larger projects; if speed is the worry, optimize how the index is built instead of refusing.
+
+- `IDX-SNAP-V0-910`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The
+  index, query, feature and impact builds MUST NOT refuse a committed tree for the total size of its
+  admitted sources. The aggregate refusal of decision 0424 (`unsupported-impact-repository`,
+  `unsupported-feature-repository` or `unsupported-query-repository` naming the 128 MiB bound) is
+  withdrawn. What still bounds a build: the per-source `maxSourceBytes` (1,000,000 bytes, larger
+  blobs are `source-unreadable` exclusions), the vendor/generated path exclusions of
+  `IDX-SNAP-V0-018`, the 64 MiB tree-listing read and the 200,000-entry source count (both
+  unchanged: the count bounds per-entry bookkeeping before any blob is read, and no observed
+  repository approaches it). Blob bodies are read in chunks: one `git cat-file --batch` call reads
+  at most 32 MiB of framed output, its exact length known from the tree sizes before the call, so
+  every reader stays bounded per call and no single read buffer scales with the repository. The
+  compiled index still holds every admitted source in memory, so peak memory grows with admitted
+  bytes; the build log records it on a 575 MB fixture. Output is unchanged for any tree the old
+  bound admitted: chunking changes how bytes are read, never which bytes.
+- `IDX-SNAP-V0-911`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The
+  `index` receipt reports, beside `sources`, `source_bytes` (the summed bytes of the admitted
+  sources) and `build_ms` (the build's elapsed wall time in whole milliseconds, the measurement
+  already recorded as the build cost). Both are report fields only: they enter no snapshot byte and
+  never feed ranking, evidence or authority.
+
+Falsifier: a tree whose admitted sources exceed 128 MiB refused for aggregate size, or a
+`cat-file --batch` read whose limit is derived from the whole candidate set. Rollback: restore
+`validateBlobAdmission` at its call sites and the single-batch `fetchBlobs`; the receipt fields
+can be dropped independently. Traceability: `TestFetchBlobsReadsBoundedChunks_IDXSNAPV0910`,
+`TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910`, `TestIndexReceiptReportsSourceBytes_IDXSNAPV0911`;
+measurements in `docs/build-log/2026-10-31-indexcli-w5.md`.
+
 ## Non-goals and authority
 
 Accepted, decision 0517 (V1-1128): the adapter-only writer/lock exception in
@@ -1183,6 +1246,10 @@ lasted. One 36-loop rerun finished in 35 s, so the outcome depends on scheduling
 itself at nice 15 the writer finished in 27 s. A writer at nice 0 still took 88 s under 36 loops.
 `IDX-SNAP-V0-515` makes the repeated expiry visible; recovering under such load needs either a
 lower-priority load (V1-2440) or an owner amendment to the `IDX-SNAP-V0-033` bounds.
+Measured, V1-3310 (2026-10-31, linux/amd64, 36 nice-0 loops pinned with the writer to 12 of 32
+CPUs, host load 42): under `IDX-SNAP-V0-912` the one writer published after 336.8 s with its lock
+record cleared, the hook during it reported `already running`, and the next hooks were no longer
+stale (they met the expected `dogfood-event-deadline` time bound of LCP-V0-008 under that load).
 
 - A rebuilt binary: the engine digest changes, every existing snapshot misses, `index` must be
   rerun. Development builds pay a build per binary.

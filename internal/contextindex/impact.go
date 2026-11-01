@@ -120,13 +120,19 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 		for _, document := range index.Documents {
 			references := stringsField(document.Fields["references"])
 			if document.Path == changedPath || stringIn(references, changedPath) {
-				relation := "is the changed document"
+				relation, order := "is the changed document", 1
 				if document.Path != changedPath {
 					relation = "explicitly references changed path " + changedPath
+					// A referencing spec governs the path; any other
+					// referencing document follows the rows of its score
+					// (GPK-V0-976).
+					if document.Kind != "spec" {
+						order = 2
+					}
 				}
 				result := documentResult(index, document, 825, relation)
 				noteEvidenceTruncated(result, 1+len(references)-maxEvidence)
-				ranked = append(ranked, rankedResult{score: 825, order: 1, key: document.Path, result: result})
+				ranked = append(ranked, rankedResult{score: 825, order: order, key: document.Path, result: result})
 			}
 		}
 		for key, markers := range index.Markers {
