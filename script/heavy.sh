@@ -52,8 +52,8 @@
 #   UTC offload host=H pack=Ns remote=Ns rc=N [receive=Ns wait=Ns prepare=Ns run=Ns worktree=W] ...
 #       each offload attempt; the bracketed fields are the remote's phase line when it printed one.
 #   UTC fallback host=H ...   an offload that stayed unavailable after its retry and ran locally.
-#   UTC local wait=Ns run=Ns rc=N ...   each local run, after the command exits: slot wait, run
-#       wall time, status.
+#   UTC local wait=Ns run=Ns rc=N loadwait=Ns load=L ...   each local run, after the command exits: slot wait, run
+#       wall time, status, the load wait and the starting 1-minute load (ASD-V0-970).
 #   UTC alert remote-unavailable streak=N host=H ...   when the last HEAVY_FALLBACK_ALERT (default
 #       3; 0 disables) fallbacks happened with no successful offload between them (an offload with
 #       any status other than 97 or ssh's 255 ends a streak); the same text goes to stderr.
@@ -271,15 +271,19 @@ my ($dir, $n, $nice, @cmd) = @ARGV;
 # HEAVY_RUN_TAG the suffix that line ends with; neither reaches the command.
 my $log = delete $ENV{HEAVY_RUN_LOG} // "";
 my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
+# ASD-V0-970: HEAVY_RUN_QUEUE is the load wait and starting load the log line carries.
+my $queue = delete $ENV{HEAVY_RUN_QUEUE} // "loadwait=0s load=unknown";
 my $t0 = time;
-my ($lock, $slot);
+my ($lock, $slot, $told);
 until ($lock) {
     for my $i (1 .. $n) {
         open(my $fh, ">>", "$dir/slot$i") or die "heavy.sh: REFUSE lock-open-failed $dir/slot$i: $!\n";
         if (flock($fh, LOCK_EX | LOCK_NB)) { ($lock, $slot) = ($fh, $i); last }
         close $fh;
     }
-    select(undef, undef, undef, 1) unless $lock;
+    next if $lock;
+    printf STDERR "heavy.sh: queued for a slot (%d/%d held)\n", $n, $n unless $told++;
+    select(undef, undef, undef, 1);
 }
 truncate($lock, 0);
 syswrite($lock, "$$\n");
@@ -312,8 +316,8 @@ if ($rc) {
     printf STDERR "heavy.sh: exit rc=%d cause=%s cmd=%s\n", $rc, $cause, $cmd[0] eq "timeout" ? $cmd[2] // "" : $cmd[0];
 }
 if (length $log) {
-    my $line = sprintf "%s local wait=%.1fs run=%.1fs rc=%d pwd=%s cmd=%s%s\n",
-        strftime("%Y-%m-%dT%H:%M:%SZ", gmtime), $t1 - $t0, time - $t1, $rc, $ENV{PWD} // Cwd::getcwd(), "@cmd", $tag;
+    my $line = sprintf "%s local wait=%.1fs run=%.1fs rc=%d %s pwd=%s cmd=%s%s\n",
+        strftime("%Y-%m-%dT%H:%M:%SZ", gmtime), $t1 - $t0, time - $t1, $rc, $queue, $ENV{PWD} // Cwd::getcwd(), "@cmd", $tag;
     if (open(my $fh, ">>", $log)) { print $fh $line; close $fh }
     else { print STDERR "heavy.sh: cannot append to $log\n" }
 }
@@ -1169,16 +1173,22 @@ load1() {
 }
 
 # load_wait: before a local run, wait while the load exceeds HEAVY_MAX_LOAD, for at most
-# HEAVY_LOAD_WAIT seconds (ASD-V0-030).
+# HEAVY_LOAD_WAIT seconds (ASD-V0-030). It says so when the wait starts and leaves the starting load
+# and the seconds waited in heavy_load and heavy_load_wait for the run's log line (ASD-V0-970).
 load_wait() {
   local max=${HEAVY_MAX_LOAD:-10} limit=${HEAVY_LOAD_WAIT:-120} t0=$SECONDS l
   [[ $max =~ ^[0-9]{1,6}$ ]] || refuse "invalid-max-load HEAVY_MAX_LOAD=$max (want 0..999999)"
   [[ $limit =~ ^[0-9]{1,5}$ ]] || refuse "invalid-load-wait HEAVY_LOAD_WAIT=$limit (want 0..99999 seconds)"
+  heavy_load=$(load1)
+  [[ $heavy_load =~ ^[0-9]+$ ]] || heavy_load=unknown
+  [[ $heavy_load != unknown ]] && ((heavy_load > max && limit > 0)) &&
+    printf 'heavy.sh: queued for host load %s > HEAVY_MAX_LOAD=%s (at most %ss)\n' "$heavy_load" "$max" "$limit" >&2
   while l=$(load1) && [[ $l =~ ^[0-9]+$ ]] && ((l > max && SECONDS - t0 < limit)); do
     # Never sleep past the bound (V1-3232): a 1-second bound waits 1 second, not one 5-second poll.
     sleep $((limit - (SECONDS - t0) < 5 ? limit - (SECONDS - t0) : 5))
   done
   ((SECONDS > t0)) && printf 'heavy.sh: waited %ss for host load %s (HEAVY_MAX_LOAD=%s)\n' "$((SECONDS - t0))" "$(load1)" "$max" >&2
+  heavy_load_wait=$((SECONDS - t0))
   return 0
 }
 
@@ -1302,7 +1312,7 @@ main() {
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" \
-    exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
+    HEAVY_RUN_QUEUE="loadwait=${heavy_load_wait:-0}s load=${heavy_load:-unknown}" exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
 }
 
 # heavy_exit RC: ASD-V0-940. The calling shell names the cause of a non-zero main; the remote half
