@@ -185,6 +185,7 @@ type Reader struct {
 	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
 	liveness        bool              // AuditForLiveness: list no intent directory; read only queue.json and policy.json (JSG-V0-001)
 	prefix          bool              // AuditWriterRefresh's prefix walk only
+	through         uint64            // AuditThrough: walk receipts 1..through only (TCL-V0-820)
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
 	resume          *ResumeBase       // AuditForResume only

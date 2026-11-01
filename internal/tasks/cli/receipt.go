@@ -2,6 +2,7 @@ package cli
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/evidencestore"
@@ -16,11 +17,28 @@ import (
 func receiptAudit(env Env, args []string) *wire.Result {
 	cmd := []string{"receipt", "audit"}
 	witnesses := false
-	for _, a := range args {
-		if a != "--witness-receipts" || witnesses {
-			return usage(cmd, "receipt audit accepts only --witness-receipts")
+	var through uint64
+	for i := 0; i < len(args); i++ {
+		switch a := args[i]; {
+		case a == "--witness-receipts" && !witnesses:
+			witnesses = true
+		case a == "--through" && through == 0:
+			// TCL-V0-820: a decimal receipt sequence of at least 1.
+			var n uint64
+			var err error
+			if i+1 < len(args) {
+				n, err = strconv.ParseUint(args[i+1], 10, 64)
+			}
+			if i+1 >= len(args) || err != nil || n == 0 || strconv.FormatUint(n, 10) != args[i+1] {
+				return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through needs a decimal receipt sequence of at least 1"))
+			}
+			through, i = n, i+1
+		default:
+			return usage(cmd, "receipt audit accepts only --witness-receipts or --through SEQ")
 		}
-		witnesses = true
+	}
+	if witnesses && through != 0 {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--through", "receipt audit --through cannot be combined with --witness-receipts"))
 	}
 	var observed *journal.Result
 	var scan *witnessReceiptScan
@@ -32,7 +50,13 @@ func receiptAudit(env Env, args []string) *wire.Result {
 		verified, manual = 0, 0
 		reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, IntentTree: rc.tree}
 		reader.ReceiptFold = func() func(*snapshot.Receipt, wire.Digest) error { return store.ReceiptBindingFold(rc.repo) }
-		audited, err := reader.Audit()
+		var audited *journal.Result
+		var err error
+		if through != 0 {
+			audited, err = reader.AuditThrough(through)
+		} else {
+			audited, err = reader.Audit()
+		}
 		if err != nil {
 			return err
 		}
@@ -80,6 +104,9 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	item.Set("liveness", wire.String(observed.Liveness))
 	item.Set("runtimeQualification", wire.String(observed.RuntimeQualification))
 	item.Set("stagingPresent", wire.Bool(observed.StagingPresent))
+	if through != 0 {
+		item.Set("throughSeq", wire.String(string(wire.SizeOf(through))))
+	}
 	// The audit root (JRT-V0-005): the seal's anchor S on a sealed store,
 	// whose receipts 1..S-1 the audit did not walk; 0 and 0 otherwise.
 	anchor, retired := observed.RetiredThrough(), uint64(0)

@@ -1896,7 +1896,7 @@
       "command": "corvint-tasks receipt",
       "summary": "",
       "usage": [
-        "corvint-tasks receipt audit [--witness-receipts]",
+        "corvint-tasks receipt audit [--witness-receipts | --through SEQ]",
         "corvint-tasks receipt compact [--dry-run]",
         "corvint-tasks receipt get SHA256",
         "corvint-tasks receipt path SHA256",
@@ -1910,6 +1910,7 @@
       "flags": [
         "--archive",
         "--dry-run",
+        "--through",
         "--witness-receipts"
       ],
       "required": [],
@@ -1924,9 +1925,10 @@
       "command": "corvint-tasks receipt audit",
       "summary": "",
       "usage": [
-        "corvint-tasks receipt audit [--witness-receipts]"
+        "corvint-tasks receipt audit [--witness-receipts | --through SEQ]"
       ],
       "flags": [
+        "--through",
         "--witness-receipts"
       ],
       "required": [],
