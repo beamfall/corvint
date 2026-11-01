@@ -69,7 +69,15 @@ cd "$repo"
 # expect_builds ACTION COUNT CASE runs one wrapper and checks how many builds it ran.
 expect_builds() {
   : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
-  bash "script/dogfood-$1.sh" "$base" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  # Each wrapper is named in full, so the shell plugin links it as a literal
+  # target rather than a constructed dogfood-*.sh name (TSP-V0-960, V1-3898).
+  local wrapper
+  case $1 in
+    change) wrapper=script/dogfood-change.sh ;;
+    check) wrapper=script/dogfood-check.sh ;;
+    *) printf "expect_builds: unknown action %s\n" "$1" >&2; exit 1 ;;
+  esac
+  bash "$wrapper" "$base" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
   local builds
   builds=$(wc -l < "$TEST_BUILD_LOG" | tr -d ' ')
   [[ $builds == "$2" ]] || { printf '%s: expected %s builds, got %s\n' "$3" "$2" "$builds" >&2; exit 1; }

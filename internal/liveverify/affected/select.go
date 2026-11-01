@@ -575,10 +575,13 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	// A plugin left out only by the terminal rule still names the entries
 	// that stand for a runtime edge from another plugin's code into its units,
 	// which no traversal can see, unless a declared runtime edge models the
-	// entry's site (AFP-V0-818, AFP-V0-819).
-	for name := range terminal {
-		for _, entry := range graph.crossLanguageEntries(name) {
-			reasons[entry] = true
+	// entry's site (AFP-V0-818, AFP-V0-819). A dirty set of declared data
+	// alone changes no plugin's code, so no such edge carries it (AFP-V0-987).
+	if changesCode(dirty, nonSource) {
+		for name := range terminal {
+			for _, entry := range graph.crossLanguageEntries(name) {
+				reasons[entry] = true
+			}
 		}
 	}
 	for _, name := range graph.languages {
@@ -629,6 +632,33 @@ func unownedFrontierHint(unowned []string) string {
 		more = fmt.Sprintf(" (and %d more UNOWNED_DIRTY_PATH)", len(unowned)-1)
 	}
 	return "bears only because no plugin owns the dirty path " + strconv.Quote(unowned[0]) + more + ": this plugin owns no dirty path and reaches no changed unit"
+}
+
+// changesCode reports whether a dirty path is not declared data: every path
+// outside the TASK_STORE_PROJECTION, DECLARED_DOCUMENTATION and
+// DECLARED_RUNTIME_READERS groups may be another plugin's code, which an
+// end-to-end runtime edge could carry into a terminal unit (AFP-V0-818). A
+// declared runtime-readers path is read only by the units the reader rules
+// select, by the repository's declaration (AFP-V0-602), and a task-state or
+// documentation path by no test, so a dirty set of such paths alone reaches
+// no runtime edge (AFP-V0-987). A Corvint declaration still changes what
+// the plugins model, so it counts as code here.
+func changesCode(dirty []string, nonSource []NonSource) bool {
+	data := make(map[string]bool)
+	for _, group := range nonSource {
+		switch group.Class {
+		case ClassTaskStoreProjection, ClassDeclaredDocumentation, ClassDeclaredRuntimeReaders:
+			for _, path := range group.Paths {
+				data[path] = true
+			}
+		}
+	}
+	for _, path := range dirty {
+		if !data[path] {
+			return true
+		}
+	}
+	return false
 }
 
 // frontierBears reports whether unit id's Frontier bears on a plan that

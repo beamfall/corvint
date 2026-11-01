@@ -14,14 +14,14 @@ exit 91
 SH
 chmod +x "$tmp/bin/git"
 export RUNTIME_ENV_MARKER="$tmp/marker"
-for helper in dogfood-change dogfood-check dogfood-bind-range; do
+for helper in dogfood-change.sh dogfood-check.sh dogfood-bind-range.sh; do
   for setting in current empty; do
     unset CORVINT_BIN
     case "$setting" in
       current) export CORVINT_BIN=tool;;
       empty) export CORVINT_BIN=;;
     esac
-    PATH="$tmp/bin:$PATH" bash "$root/script/$helper.sh" baseline target > "$tmp/out" 2>&1 && exit 1
+    PATH="$tmp/bin:$PATH" bash "$root/script/$helper" baseline target > "$tmp/out" 2>&1 && exit 1
     test -e "$tmp/marker"
     rm "$tmp/marker"
   done
