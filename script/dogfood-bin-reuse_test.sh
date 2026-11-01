@@ -86,7 +86,7 @@ tree_bin=.git/corvint/corvint
 
 expect_builds change 1 'first change'
 expect_builds change 0 'unchanged change'
-rg -q '^# test-version$' "$tree_bin" || exit 1
+grep -q '^# test-version$' "$tree_bin" || exit 1
 # The base verifier is keyed by the base commit's root tree; the tree verifier is already recorded.
 expect_builds check 1 'first check'
 expect_builds check 0 'unchanged check'
@@ -142,12 +142,12 @@ git checkout -q -- docs/notes.md
 printf 'package lib // edited\n' > internal/lib/lib.go
 expect_builds change 1 'modified input'
 expect_builds change 1 'modified input again'
-rg -q '^# package lib // edited$' "$tree_bin" || exit 1
+grep -q '^# package lib // edited$' "$tree_bin" || exit 1
 git add internal/lib/lib.go
 expect_builds change 1 'staged input'
 git reset -q && git checkout -q -- internal/lib/lib.go
 expect_builds change 0 'restored input'
-rg -qx '# package lib' "$tree_bin" || exit 1
+grep -qx '# package lib' "$tree_bin" || exit 1
 printf 'package lib\n' > internal/lib/extra.go
 expect_builds change 1 'untracked input'
 /bin/rm -f internal/lib/extra.go
@@ -166,13 +166,13 @@ expect_builds change 0 'committed input again'
 printf 'test-version-3\n' > VERSION
 git -c user.name=test -c user.email=test@example.invalid commit -qam version
 expect_builds change 1 'committed VERSION'
-rg -q '^# test-version-3$' "$tree_bin" && rg -q '^# package lib // committed$' "$tree_bin" || exit 1
+grep -q '^# test-version-3$' "$tree_bin" && grep -q '^# package lib // committed$' "$tree_bin" || exit 1
 expect_builds_with TEST_GOVERSION=go1.27.3 change 1 'new Go version'
-rg -q '^# go1.27.3$' "$tree_bin" || exit 1
+grep -q '^# go1.27.3$' "$tree_bin" || exit 1
 expect_builds_with TEST_GOVERSION=go1.27.3 change 0 'new Go version again'
 [[ -z ${TEST_GOVERSION+x} ]] || { printf 'TEST_GOVERSION leaked past its case\n' >&2; exit 1; }
 expect_builds change 0 'previous Go version'
-rg -q '^# go1.27.2$' "$tree_bin" || exit 1
+grep -q '^# go1.27.2$' "$tree_bin" || exit 1
 # A doc-only commit keeps the build inputs, so it reuses.
 printf 'more\n' >> docs/notes.md
 git -c user.name=test -c user.email=test@example.invalid commit -qam docs
