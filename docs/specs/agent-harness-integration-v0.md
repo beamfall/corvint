@@ -921,6 +921,17 @@ separate exact extension tuple remains governed by AHI-024.
   sending the old version. Evidence: the gemini-cli drift case in
   `script/host-package-version_test.sh` and the version `0.2.12` argv assertion in
   `integrations/host-adapters.test.mjs`. Rollback: drop the location line and its test case.
+- `AHI-954`: (experimental under the standing lane auto-accept (2026-10-31); V1-3409; amends
+  `AHI-020`) `README.md` is outside every host package's shipped set, the OpenCode and Pi sets
+  included although their published `files` lists name it, so a README-only edit needs no version
+  bump. A version-cached README changes no runtime behaviour, and those two packages' bump moves
+  every `AHI-173` location, including `cmd/corvint/pi_adapter.go` and the Pi tuple in
+  `docs/specs/pi-workflow-v0.md`, which a documentation edit should not rewrite. The other five
+  packages already excluded it. Non-goals: exempting any other file in a `files` list, or changing
+  what a bump moves. Failure mode: an installed OpenCode or Pi package keeps its old README until
+  the next shipped change bumps the version. Evidence: the OpenCode and Pi README-only cases in
+  `script/check-host-package-versions_test.sh`; at base both fail the gate. Rollback: restore the
+  two `README.md` pathspecs in `script/check-host-package-versions.sh`.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2578,6 +2589,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
 | `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
 | `AHI-953` | gemini-cli `locations` in `script/host-package-version.sh` | `script/host-package-version_test.sh` (gemini-cli drift case) |
+| `AHI-954` | `opencode` and `pi` shipped sets in `script/check-host-package-versions.sh` | `script/check-host-package-versions_test.sh` (OpenCode and Pi README-only cases) |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
