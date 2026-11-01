@@ -212,6 +212,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 	// changed file's residue passed testSourceAdditive.
 	added := make(map[string]bool)
 	additive := false
+	var moved []string
 	type ownFile struct {
 		name       string
 		head, base *ast.File
@@ -254,9 +255,20 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 			}
 		}
 		owned = append(owned, ownFile{name: own, head: files[index].file, base: baseFile})
+		// TSP-V0-941: compiled positions are observable (runtime.Caller, panic
+		// traces), so an unchanged function whose start line moved is seeded,
+		// and a moved method, init or var declaration runs the whole package.
+		headLines, headOther := testSourceCodeLines(files[index].file, fileSet)
+		baseLines, baseOther := testSourceCodeLines(baseFile, baseSet)
+		if !slices.Equal(headOther, baseOther) {
+			return whole(own + " shifts the line of a method, init or var declaration")
+		}
 		for name, text := range headFuncs {
 			if prior, ok := baseFuncs[name]; !ok || prior != text {
 				changed[name] = true
+			} else if headLines[name] != baseLines[name] {
+				changed[name] = true
+				moved = append(moved, name)
 			}
 		}
 		for name := range baseFuncs {
@@ -403,6 +415,10 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		what = "comments outside declarations"
 	}
 	changedIn := what + " changed in " + strings.Join(candidate.own, ", ")
+	if len(moved) != 0 {
+		slices.Sort(moved)
+		changedIn += " (" + strings.Join(moved, ", ") + " moved to another line)"
+	}
 	if len(candidate.tests) != 0 {
 		// TSP-V0-861: the changed test files' own STR-V0-063 slice, under its
 		// own proofs, joins the tests reaching the changed functions.
@@ -639,6 +655,32 @@ func testSourcePlainFunctions(file *ast.File, fileSet *token.FileSet, source []b
 	}
 	tokens(source[last:])
 	return rest.String(), functions
+}
+
+// testSourceCodeLines returns the start line of each receiver-less function
+// other than init, by name, and the start lines, in file order, of every
+// other declaration that compiles to code: methods, init functions and var
+// declarations. Const and type declarations carry no position into the
+// binary and are left out.
+func testSourceCodeLines(file *ast.File, fileSet *token.FileSet) (map[string]int, []int) {
+	plain := make(map[string]int)
+	var other []int
+	for _, decl := range file.Decls {
+		line := fileSet.Position(decl.Pos()).Line
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			if decl.Recv == nil && decl.Name.Name != "init" {
+				plain[decl.Name.Name] = line
+				continue
+			}
+			other = append(other, line)
+		case *ast.GenDecl:
+			if decl.Tok == token.VAR {
+				other = append(other, line)
+			}
+		}
+	}
+	return plain, other
 }
 
 // testSourceValueUse names a changed function the file writes other than as
