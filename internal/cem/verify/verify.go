@@ -283,6 +283,12 @@ func checkHunkCoverage(document *wire.Map, parsed *patch.Patch) error {
 			return cemcode.New(cemcode.UncitedHunk, "patch hunk %s is missing from the map", hunk.ID)
 		}
 	}
+	// CEM-V1-750: the map lists the patch hunks in patch order.
+	for i, mapped := range document.Hunks {
+		if mapped.ID != parsed.Hunks[i].ID {
+			return cemcode.New(cemcode.InvalidField, "map hunk %s is out of patch order at position %d", mapped.ID, i)
+		}
+	}
 	return nil
 }
 

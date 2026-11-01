@@ -918,7 +918,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
   requested span from `baseRevision` (`internal/cem/workflow/commands.go:489-506@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
-  (`internal/cem/verify/verify.go:422-482@166fa7f2`). A backlog entry that was the only recorded
+  (`internal/cem/verify/verify.go:428-488@166fa7f2`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
   invented citation, with an unknown `no-evidence` row. Its detail is the
   `removed-intent.<blob OID>.<start>-<end>` pin that the refused `cem cite` names (`CEM-CB-005`,

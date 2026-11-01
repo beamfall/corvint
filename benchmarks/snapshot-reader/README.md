@@ -38,6 +38,18 @@ a single lucky/unlucky sample can't stand in for the number. The full
 ticket allows for a tripled count -- so `symbolsPerFile`/`importsPerFile`/
 `markersPerFile` were left at the ticket's stated ~8/~5 counts.
 
+## CI coverage (recorded exclusion, V1-3774)
+
+No CI job runs this module's `go test` or `go vet`, FULL selection included, and that is
+deliberate. The module is a closed AT-04 reader-format experiment: no product package imports it,
+it ships in no binary, and its only third-party dependency (`modernc.org/sqlite`) exists for the
+comparison alone. A CI step would add a control-plane workflow edit, which forces FULL selection,
+for a module that no shipped path depends on. Its formatting is still checked by
+`script/check-go-format.sh`, which covers every module. Whoever changes this module runs the
+`go test` and `go vet` commands above and reruns the benchmarks whose numbers this README records.
+If the experiment is reopened, or production code starts to depend on it, a CI step modelled on the
+`interop/cem01-go` nested-module step replaces this exclusion.
+
 ## Machine
 
 - `uname -m`: `arm64`

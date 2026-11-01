@@ -2385,6 +2385,12 @@ func repository03(repo string) *cemError {
 	if os.Getenv("GIT_ALTERNATE_OBJECT_DIRECTORIES") != "" {
 		return operational("unsupported-object-alternates")
 	}
+	// A linked worktree has a .git file, so the alternates probe below would fail
+	// with ENOTDIR. It is outside this primary-only envelope, not an alternates
+	// store (V1-3800); verify-stable-canonical admits it.
+	if i, e := os.Lstat(filepath.Join(repo, ".git")); e != nil || !i.IsDir() {
+		return operational("unsupported-repository-envelope")
+	}
 	for _, name := range []string{"alternates", "http-alternates"} {
 		if _, e := os.Lstat(filepath.Join(repo, ".git", "objects", "info", name)); !errors.Is(e, os.ErrNotExist) {
 			return operational("unsupported-object-alternates")
@@ -3775,9 +3781,10 @@ func runStableExternal(ctx context.Context, repo string, raw []byte, base, targe
 		return failStable(&r, "verification", invalid("patch-hunk-count"), true)
 	}
 	seen := map[string]bool{}
-	for _, h := range m.Hunks {
+	for i, h := range m.Hunks {
 		p := ph[h.ID]
-		if p == nil || seen[h.ID] {
+		// CEM-V1-750: the map lists the patch hunks in patch order.
+		if p == nil || seen[h.ID] || h.ID != parsed.hunks[i].ID {
 			return failStable(&r, "verification", invalid("invalid-field"), true)
 		}
 		seen[h.ID] = true

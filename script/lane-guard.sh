@@ -112,7 +112,7 @@ sub shell_words {
         $out .= $c;
         $word_start = $c =~ /[\s;&|(){}]/ ? 1 : 0;
     }
-    $out =~ s/&&|\d*[<>]&(?:\d+|-)?|&>>?|\|&/ /g;
+    $out =~ s/&&|\d*[<>]&(?:\d+|-)?|&>>?|\|&/ /g; # bash32: allow
     return $out;
 }
 my $rib_value = ref $in->{tool_input} eq "HASH" ? $in->{tool_input}{run_in_background} : undef;
@@ -141,12 +141,12 @@ my $in_background = defined $rib_value && "$rib_value" ne "" && "$rib_value" ne 
             }
             $start = 0 if $start < 0;
         } else {
-            for ($start = $j; $start >= 0 && substr($words, $start, 1) !~ /[;\n|&(]/; $start--) {}
+            for ($start = $j; $start >= 0 && substr($words, $start, 1) !~ /[;\n|&(]/; $start--) {} # bash32: allow
             $start++;
         }
         $bg_step = substr($words, $start, $i - $start) =~ $step;
     }
-    while (!$bg_step && $words =~ /(?:^|[;|(&\s])(?:nohup|setsid)\s([^;\n|&)]*)/g) {
+    while (!$bg_step && $words =~ /(?:^|[;|(&\s])(?:nohup|setsid)\s([^;\n|&)]*)/g) { # bash32: allow
         $bg_step = " $1" =~ $step;
     }
     if ($bg_step) {
@@ -166,7 +166,7 @@ if ($flat =~ /(?:^|[;&|({\s])(?:until|while)\s.*sleep/ ||
     $flat =~ /tail\s+(?:-[^|]*\s)?-[A-Za-z]*[fF][^|]*\|[^;&]*grep\s.*-m/) {
     deny("Lane rule: no polling loops (until/while/for-seq with sleep, tail -f | grep -m). Run the command in the foreground under 600s, or end your turn and let the orchestrator wake you.");
 }
-if ($flat =~ /(?:^|[;&|(]|&&|\|\|)\s*(?:(?:[A-Za-z_]+=\S*|env|time|nice|command)\s+)*go\s+test(?:\s|$)/ &&
+if ($flat =~ /(?:^|[;&|(]|&&|\|\|)\s*(?:(?:[A-Za-z_]+=\S*|env|time|nice|command)\s+)*go\s+test(?:\s|$)/ && # bash32: allow
     $flat !~ /(?:^|[\s;&|(])\S*heavy\.sh(?:\s|$)/) {
     deny("Lane rule: run go test through $heavy (e.g. $heavy env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run <narrow> ./pkg/), one package per command.");
 }

@@ -925,9 +925,10 @@ func runStableCanonicalProfile(ctx context.Context, repo string, raw []byte, bas
 		return fail("verification", invalid("patch-hunk-count"), true)
 	}
 	seen := map[string]bool{}
-	for _, h := range m.Hunks {
+	for i, h := range m.Hunks {
 		p := ph[h.ID]
-		if p == nil || seen[h.ID] {
+		// CEM-V1-750: the map lists the patch hunks in patch order.
+		if p == nil || seen[h.ID] || h.ID != parsed.hunks[i].ID {
 			return fail("verification", invalid("invalid-field"), true)
 		}
 		seen[h.ID] = true

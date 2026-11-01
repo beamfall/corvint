@@ -117,7 +117,7 @@ var tamperMatrixVerdictDigests = map[string]string{
 	"hunk-dropped-evidence-kept":            "e420f1590f65af7de8693a0e9eedfd3688488bdcf3c401e6b2cbbf3695fe98db",
 	"hunk-id-forged":                        "c2025f9925b218ec03a34ef1366296375303a525c350d0089f3da6549ad13fd1",
 	"hunk-ranges-moved":                     "0d249142d4daad4163434f2632eb1876100f80820203f6c7782f7446417204a8",
-	"hunk-reorder":                          "76f4e615ab9d4e0d1a99ef6dbdb7e57cfa3290d4f39e80e47c2a8def54793931",
+	"hunk-reorder":                          "d7792b451c12e9d586931df0c0d94e8b315a4f90495032d6009a4cd0d2a31edb",
 	"mechanical-unproven":                   "0dacac16480905dda9cce12e4eca79a6f8c1280878c2e0388165e307b7424511",
 	"patch-digest-mismatch":                 "b52f8549e4d960c4673a558f57ce378e7ddfdafaf4dc4f06588f36593eb0f57e",
 	"producer-tier-field":                   "ab6351ab3602a74eea4a131dbd5a69044c39743c0ac83ce8c66b008329836a7a",

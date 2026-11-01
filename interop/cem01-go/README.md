@@ -25,6 +25,16 @@ $ go run . verify-stable-canonical --repository /absolute/repository \
 `cem-stable-verification/1` result. Verification proves change integrity and drift status, never
 semantic support or correctness.
 
+## Verdict ledger reader (experimental)
+
+`cem01-go read-verdict-ledger --repository /absolute/repository --commit REV` reads the note of
+REV under `refs/notes/corvint-verdicts`, the ledger the native `cem anchor --artifacts` writes. On
+exit 0 it prints one JSON line with the members and values of the native `cem provenance
+--verdicts` `verdicts` member: the same closed state and, only when the state is `verified`, the
+same records. A refusal exits 2 with `{"ok":false,"code":CODE}`, using the native codes
+(`invalid-arguments`, `repository-object-unavailable`). It writes nothing, carries no authority and
+is not read by any verify route (`CEM-V1-754`, V1-2023).
+
 ## Retired cem/0.x routes
 
 Decision 0525 retired the `cem/0.1` default `verify` route, `verify-03` and `ci` (V1-1278 S3,

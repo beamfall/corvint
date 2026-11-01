@@ -883,6 +883,58 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
   unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
   A label is a disclosure and changes no verdict.
+- `CEM-V1-750`: (experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`.
+  A map's `hunks` array MUST list the canonical patch's hunks in patch order: position `i` holds
+  the hunk whose `@@` header is the `i`-th in the canonical patch. Both the native verifier
+  (`internal/cem/verify`, on every route that checks hunk coverage) and the portable consumer's
+  stable routes (`verify-stable`, `verify-stable-canonical`) MUST refuse a map that names the
+  right set of hunks in another order, at the verification stage with the existing closed issue
+  code `invalid-field`, the code a hunk that disagrees with its derived identity already gets. No
+  new closed code is added. The matrix case `hunk-reorder` (class `HunkReorder`) is that REJECT.
+  The citation block is unchanged, because it sorts hunks by `id`.
+- `CEM-V1-751`: (experimental under the standing lane auto-accept (V1-3771)) A span edit whose
+  `spanSha256` and evidence ID are recomputed (matrix case `span-hash-recomputed`, class
+  `SpanRangeEdit`) and an evidence-ID swap between hunks (`evidence-ids-swapped`, `CEM-V1-229`) are
+  admissible re-productions, not tampers, and MUST ACCEPT. Each result is a different
+  self-consistent map whose every record is still a real, digest-bound span of the base. The
+  verifier binds bytes and identities, not which span a producer chose to cite. That choice cannot
+  be checked without an authority outside the map. The support tier reports it instead
+  (`CEM-V1-080`). No signature, citations plan or producer identity is read to tell the two maps
+  apart. A map edited without recomputing (`span-end-edited`, `span-hash-mismatch`) keeps its
+  REJECT.
+- `CEM-V1-752`: (experimental under the standing lane auto-accept (V1-3771)) The stable packet is
+  revised in place to revision r3 under its own rule. The r2 `ALGORITHMS.md` and `manifest.json`
+  bytes are kept unchanged under `protocol/cem-1.0/stable/revisions/r2/`. `ALGORITHMS.md` item 5
+  states the patch-order rule. The matrix `EXPECTED.json` pins `hunk-reorder` as exit 1, `REJECT`,
+  stage `verification`, issue code `invalid-field` and a null citation. The matrix README states
+  `CEM-V1-751`. `manifest.json` re-hashes every changed or added file. Every committed map under
+  `.corvint/changes/` MUST already list its hunks in patch order, which a scan over the committed
+  corpus shows before the rule lands. The producer (`internal/cem/workflow`) emits hunks in parse
+  order, which is patch order.
+- `CEM-V1-753`: (experimental under the standing lane auto-accept (V1-3800)) The portable legacy
+  `verify-stable` route keeps its `primary-clean-config-bounded/1` envelope, which refuses linked
+  worktrees (`ALGORITHMS.md`). It MUST name that refusal correctly. A repository whose `.git` is not a
+  directory (a linked worktree's `.git` file) is `UNSUPPORTED` at stage `repository` with
+  `unsupported-repository-envelope`, not `unsupported-object-alternates`. The same linked worktree
+  with no alternates file MUST ACCEPT on `verify-stable-canonical` (`canonical-repository-bounded/1`),
+  the route that admits it. A primary clone backed by `objects/info/alternates` keeps
+  `unsupported-object-alternates` on `verify-stable`.
+- `CEM-V1-754`: (experimental under the standing lane auto-accept (V1-2023)) The portable consumer
+  MUST read the verdict ledger with `cem01-go read-verdict-ledger --repository ABSOLUTE_PATH
+  --commit REV`. This narrows the `CEM-V1-271..279` non-goal to the writer. Its exit 0 line MUST
+  carry the members of the native `cem provenance --verdicts` `verdicts` member (`ref`, `trust`,
+  `authority`, `state`, `records`) with the same values: the `CEM-V1-276` state, in the same
+  precedence, and the `CEM-V1-272` records only when the state is `verified`. A refusal MUST exit 2
+  with `{"ok":false,"code":CODE}`, where CODE is the native reader's. A commit that does not resolve
+  is `repository-object-unavailable`. Missing, unknown or repeated flags, or a relative repository
+  path, are `invalid-arguments`. The repository MUST be admitted as the native reader admits it: a
+  path that is not a worktree root (a subdirectory or a bare repository) is
+  `repository-object-unavailable`, object alternates are `unsupported-object-alternates`, effective
+  `info/attributes` lines are `unsupported-repository-attributes`, and a reciprocal linked worktree
+  is read. Like the native reader, a `git notes list` output over 4 MiB or a note over 1 MiB MUST
+  refuse `git-output-exceeded`, and each bound admits its limit. The read MUST write no ref, note, object, index, config or worktree
+  file. Like the native ledger, it MUST carry no authority (`CEM-V1-278`): no verify route reads
+  it. Non-goals: no `--verdicts-tip` rollback read and no portable writer.
 
 ## Non-goals and failure modes
 
@@ -3110,6 +3162,11 @@ codes.
 | CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs every case listed in `EXPECTED.json` as a named subtest (the case count is that file's, not restated here) |
 | CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
 | CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
+| CEM-V1-750 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable`, `TestCEMV1750HunkOrder` | Subtest `hunk-reorder` pins REJECT `invalid-field` on both consumers; the native unit test refuses a swapped pair and accepts patch order |
+| CEM-V1-751 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `span-hash-recomputed` and `evidence-ids-swapped` pin ACCEPT; `span-end-edited` and `span-hash-mismatch` pin REJECT |
+| CEM-V1-752 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file and the preserved `revisions/r2/` files against the stable manifest; build log 2026-11-01-cemint-u10 retains the committed-corpus order scan |
+| CEM-V1-753 | `TestCEMV1753LegacyEnvelopeNamesLinkedWorktree` (`interop/cem01-go`) | A linked worktree refuses `unsupported-repository-envelope` on `verify-stable` and ACCEPTs on `verify-stable-canonical`; a `git clone --shared` clone refuses `unsupported-object-alternates` |
+| CEM-V1-754 | `TestCEMV1754PortableVerdictLedgerMatchesNative` (`internal/gitnotes`, which builds `interop/cem01-go`); `readVerdictLedger` in `interop/cem01-go/verdict_ledger.go` | Fourteen ledger cases (absent, two verified, six `malformed`, two `chain-broken`, two `scope-mismatch`, one `conflict`) give the native listing's exact members, and the repository is unchanged; an unresolvable commit refuses `repository-object-unavailable` on both; a relative repository refuses `invalid-arguments`; `TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative`: a subdirectory, a bare clone, an alternates-backed clone and effective `info/attributes` refuse with the native code, a linked worktree reads the native listing, a note of 1 MiB is `malformed` and one byte more refuses `git-output-exceeded`, and a notes listing of 51150 lines is read while 51151 lines refuse `git-output-exceeded`, on both readers |
 
 ## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
 
@@ -4142,8 +4199,8 @@ the optional `verdict` member and the provenance result the optional `verdicts` 
 map, `cem-stable-verification/1`, the anchor pointer profile and every provenance row are
 unchanged, so the change is additive.
 
-Non-goals: no portable writer and no portable reader of the ledger (the portable consumer agrees on
-`verdictSha256` by `CEM-V1-066`; only the native consumer writes); no retry of a lost race; no
+Non-goals: no portable writer of the ledger (the portable consumer agrees on `verdictSha256` by
+`CEM-V1-066`; only the native consumer writes; the portable reader is `CEM-V1-754`, V1-2023); no retry of a lost race; no
 `--notes-tip` rollback check for the ledger ref; no signing; no default-on recording; no automatic removal or migration of a conflicting record.
 
 Failure modes: a differing verdict for an anchored map blocks recording with

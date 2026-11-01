@@ -54,6 +54,8 @@ GATE_STEPS = \
   ai-coauthor-trailers-test \
   analyzer-schema-check \
   analyzer-schema-test \
+  bash32-check \
+  bash32-test \
   batch-precheck-test \
   binary-blobs-check \
   cem-base-retention-check \
@@ -624,6 +626,16 @@ documentation-paths-check:
 documentation-paths-test:
 	@script/gen-documentation-paths_test.sh
 
+# ASD-V0-750 (V1-3812): no Bash 4+ construct in a tracked shell script, since macOS /bin/bash is
+# 3.2 and the Linux lane hosts run Bash 5. A doc gate, so CI and batch-precheck both run it.
+.PHONY: bash32-check
+bash32-check:
+	@script/check-bash32.sh
+
+.PHONY: bash32-test
+bash32-test:
+	@script/check-bash32_test.sh
+
 # ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
 # root build output ignored. A doc gate, so CI and batch-precheck both run it.
 .PHONY: binary-blobs-check
@@ -1004,7 +1016,7 @@ shell-test-registration-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
@@ -1165,6 +1177,7 @@ shell-test: \
   agent-preflight-test \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
+  bash32-test \
   batch-precheck-test \
   cem-base-retention-test \
   ci-least-privilege-test \

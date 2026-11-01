@@ -64,6 +64,12 @@ Git's canonical full-index binary section beside a textual hunk. The r1
 `revisions/r1/`, and this manifest lists them. The shared parity case is
 `interop/cem01-go/testdata/binary-section/`.
 
+Revision r3 (V1-3771, CEM-V1-750..752) amends `ALGORITHMS.md` item 5: a map
+lists its hunks in canonical patch order, and a reordered map fails
+verification with `invalid-field`. The tamper matrix pins `hunk-reorder` as
+that REJECT. The r2 `ALGORITHMS.md` and `manifest.json` bytes are preserved
+unchanged under `revisions/r2/`, and this manifest lists them.
+
 Materialized `fixtures/repositories/**` Git administrative directories and
 `construction-history/**` are scratch-only, excluded from the proposed public
 payload. Public literal object bytes and hashes live in `fixtures/git-objects/`;

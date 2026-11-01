@@ -283,61 +283,17 @@
       "tamper": "HunkIdentity"
     },
     {
-      "citation": {
-        "annotationHunks": 0,
-        "concentratedHunks": 0,
-        "distinctEvidence": 2,
-        "evidenceFanOut": [
-          [
-            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
-            1
-          ],
-          [
-            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
-            1
-          ]
-        ],
-        "hunks": [
-          {
-            "anchors": [
-              "id",
-              "path"
-            ],
-            "annotation": false,
-            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
-            "tier": "anchored"
-          },
-          {
-            "anchors": [
-              "id",
-              "path"
-            ],
-            "annotation": false,
-            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
-            "tier": "anchored"
-          }
-        ],
-        "hunksByClass": {
-          "anchored": 2,
-          "cited": 0,
-          "held": 0,
-          "mechanical-proved": 0,
-          "unknown": 0
-        },
-        "invariant": false,
-        "maxFanOut": 1,
-        "profile": "cem-citation-support/0",
-        "samePathCitations": 0,
-        "specificity": 2
-      },
+      "citation": null,
       "code": null,
       "description": "the hunk array is reversed",
-      "exit": 0,
-      "issueCodes": [],
+      "exit": 1,
+      "issueCodes": [
+        "invalid-field"
+      ],
       "map": "cases/hunk-reorder.json",
       "name": "hunk-reorder",
-      "outcome": "ACCEPT",
-      "stage": "complete",
+      "outcome": "REJECT",
+      "stage": "verification",
       "tamper": "HunkReorder"
     },
     {
