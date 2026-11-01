@@ -480,11 +480,13 @@ grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-# ASD-V0-892 (V1-3572): the fixture's one print-only row (ai-trailers, skipped: no origin/main)
-# never goes through the ledger, so it reruns as a PASS and every other step reuses.
-[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 2 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | ai-trailers$' "$tmp/out" ||
-  fail "print-only row went through the ledger: $(cat "$tmp/out")"
-grep -q "^batch-precheck: $((nsteps - 1)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+# This fixture lists no print-only row since V1-3337 retired the ai-trailers step, so every listed
+# step reuses and only the repin row (never a listed step) reruns as a PASS (V1-3818). The
+# print-only row case (ASD-V0-892) runs on the selection fixture of group 7, whose skipped
+# capability-catalog-check is one.
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == 1 ]] && grep -q '^batch-precheck: | PASS | *[0-9]*s | repin (mechanical)$' "$tmp/out" ||
+  fail "a listed step reran under the ledger: $(cat "$tmp/out")"
+grep -q "^batch-precheck: $nsteps of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
@@ -697,6 +699,14 @@ grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input cha
 row_is PASS 'batch-drift (0 of 3 tests)'
 row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
+# ASD-V0-892 (V1-3572, V1-3818): the skipped catalog check is a print-only row, which never goes
+# through the ledger: on a rerun on identical inputs it is a PASS while the listed steps reuse.
+sledger() { CORVINT_GATE_LEDGER='' CORVINT_GATE_LEDGER_DIR=$tmp/sledger BATCH_PRECHECK_LEDGER=$tmp/gate-ledger srun "$@"; }
+sledger --base "$sbase" || fail "first selection ledger run failed: $(cat "$tmp/out")"
+sledger --base "$sbase" || fail "selection ledger rerun failed: $(cat "$tmp/out")"
+row_is PASS 'make capability-catalog-check'
+row_is REUSE 'sync-check'
+grep -q '^batch-precheck: | REUSE | *[0-9]*s | make capability-catalog-check$' "$tmp/out" && fail "print-only row went through the ledger: $(cat "$tmp/out")"
 # A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
 # real drift, introduced since the base.
 printf 'v2\n' > "$srepo/golden/testdata/want.txt"
