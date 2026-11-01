@@ -116,6 +116,7 @@ func replaceDerived(path string, raw []byte) error {
 	os.Remove(tmp)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
+		noteRetentionFailure(path)
 		return err
 	}
 	_, err = f.Write(raw)
@@ -128,6 +129,7 @@ func replaceDerived(path string, raw []byte) error {
 	}
 	if err != nil {
 		os.Remove(tmp)
+		noteRetentionFailure(path)
 	}
 	return err
 }

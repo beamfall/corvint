@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -680,7 +682,8 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	if shared && rc.proof != nil {
 		return rc.proof, nil
 	}
-	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, Checkpoint: readCheckpoint(rc.repo), IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
+	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
+	reader.Checkpoint, rc.checkpoint = readCheckpoint(rc.repo)
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return nil, err
@@ -692,18 +695,39 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	return proof, nil
 }
 
-// readCheckpoint returns the retained audit checkpoint, or nil when it is
-// absent or unreadable. The journal reader rebinds whatever this returns.
-func readCheckpoint(repo *intent.Repository) *journal.Checkpoint {
+// readCheckpoint returns the retained audit checkpoint, or nil and why:
+// ABSENT, UNREADABLE or MALFORMED (LGL-V0-803). The journal reader rebinds
+// whatever this returns.
+func readCheckpoint(repo *intent.Repository) (*journal.Checkpoint, string) {
 	raw, err := intent.ReadFile(journal.CheckpointPath(repo.StateDir), journal.MaxCheckpointBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, "ABSENT"
+	}
 	if err != nil {
-		return nil
+		return nil, "UNREADABLE"
 	}
 	cp, err := journal.DecodeCheckpoint(raw)
 	if err != nil {
-		return nil
+		return nil, "MALFORMED"
 	}
-	return cp
+	return cp, ""
+}
+
+// auditCheckpoint says what the shared audit made of the retained read
+// checkpoint (LGL-V0-803): USED when it resumed from it, ABSENT, UNREADABLE
+// or MALFORMED when a complete audit ran because none was valid to read,
+// NOT_APPLIED when one was read but did not bind the store as it is, and
+// NOT_OBSERVED when the command needed no journal audit. It reads nothing.
+func auditCheckpoint(rc *readCtx) string {
+	switch {
+	case rc.proof == nil:
+		return "NOT_OBSERVED"
+	case rc.proof.Mode == journal.ModeCheckpoint:
+		return "USED"
+	case rc.checkpoint != "":
+		return rc.checkpoint
+	}
+	return "NOT_APPLIED"
 }
 
 // auditMode names how the command's journal audit ran: FULL walked every
