@@ -429,6 +429,25 @@ No requirement below diverges from the implementation.
   (`requirement-definitions-check`) would. Non-goals: a second baseline; changing RDG-V0-021.
   Failure mode: a spec with no or several Requirements sections is left to doc-gates, as RDG-V0-021
   leaves it.
+- `SRG-V0-790`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3793; refines
+  SRG-V0-003) The SRG-V0-003 token MUST accept three or more digits after the prefix, and an ID
+  of four or more digits MUST be indexed only when its prefix (the ID without its digits) also
+  has a three-digit ID on a rank 0 line, so ticket IDs (`V1-0789`) and record IDs (`DR-0046`) in
+  table rows and prose stay text. Every generated ordering keyed by ID (`--lines`, ties of the
+  TSV order, the README range) MUST compare the prefix as text and the digits as a number, so
+  `CIN-V0-999` precedes `CIN-V0-1010`. Non-goals: a prefix that has only four-digit IDs; a
+  registry of prefixes. Failure mode: before this, `- **CIN-V0-1010:** x` produced no row and no
+  error, so a requirement past 999 silently left REQUIREMENTS.tsv and every check that reads it.
+  Rollback: restore `[0-9]{3}` and the text sorts.
+- `SRG-V0-791`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every
+  generator mode MUST refuse, before printing or writing anything, a definition-shaped line (a
+  definition boundary, not a wrapped continuation, whose bold `**ID:**`, `**ID.**` or backticked
+  `` `ID`: `` names an uppercase prefix ending in `-` followed by a digit) whose ID is not that
+  prefix followed by three or more digits only, when the prefix is one SRG-V0-790 knows, naming
+  `SPEC:LINE`, the ID and the repair. Non-goals: prose mentions; unknown prefixes, which stay
+  text; a lettered sub-requirement such as `VAF-009A` (three or more digits and one uppercase
+  letter), which stays unindexed under its parent row as before. Failure mode: before this,
+  `CIN-V0-01` or `CIN-V0-1010a` written as a definition produced no row and no error. Rollback: drop the refusal block.
 
 ## Non-goals and simpler baseline
 
@@ -548,6 +567,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
 | SRG-V0-890 | `script/gen-spec-requirements_test.sh` case 13: the Intent status refusal names line 3 of the fixture spec `frozen.md`, the frozen file and the Requirements section `(lines 10..13)`; the digest refusal names its line 8. |
 | SRG-V0-891 | `script/gen-spec-requirements_test.sh` case 14: a definition after the section is refused in the TSV and `--all` modes naming line 13 of the fixture spec `placed.md`, `PLC-V0-002` and the section `(lines 3..6)`; the inside and fenced definitions are not named; a baselined one and a spec without the section pass. |
+| SRG-V0-790 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-1010:** x` beside `CIN-V0-999` yields a `CIN-V0-1010` row after `CIN-V0-999` in the TSV and `--lines` modes, while `V1-0789` and `DR-0046` table rows of prefixes without a three-digit definition yield none; the case fails on the pre-change generator. The committed corpus regenerates unchanged |
+| SRG-V0-791 | `script/gen-spec-requirements_test.sh` case 15: `- **CIN-V0-01:** x` and `- **CIN-V0-1010a:** x` are refused in the TSV and `--all` modes naming `SPEC:LINE` and the ID, and `--all` writes nothing; a lettered `- **CIN-V0-999A:** x` passes; the case fails on the pre-change generator |
 
 ## Traceability
 
@@ -587,6 +608,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-981 | `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model; the SRG-V0-009 reader | `spec-requirements-test` |
 | SRG-V0-982 | the per-target `.PHONY:` lines in `Makefile`; the `.PHONY` check in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 | SRG-V0-983 | the replay case in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-790 | the token, `requirement_id` and `id_order` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-791 | the malformed-definition refusal in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
@@ -623,6 +646,9 @@ SRG-V0-890 rolls back by restoring the refusal text in `script/gen-spec-requirem
 
 SRG-V0-980..983 roll back as one revert of their commits: the frozen file and refusal go, the
 `.PHONY:` lines may be rejoined, and no generated file moves, since the freeze changed no header.
+
+SRG-V0-790 and SRG-V0-791 roll back as one revert of their commit; no generated file moves, since
+the committed corpus had no four-digit requirement ID when they landed.
 
 Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
 `decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,
