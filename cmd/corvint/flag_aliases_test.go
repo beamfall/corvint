@@ -20,9 +20,23 @@ func TestHeadAliasOnTargetVerbs_ACXV0858(t *testing.T) {
 		{[]string{"surprise", "--header", "H"}, []string{"surprise", "--header", "H"}},
 		{[]string{"--root"}, []string{"--root"}},
 	} {
-		if got := withHeadAlias(slices.Clone(c.in)); !slices.Equal(got, c.want) {
-			t.Errorf("withHeadAlias(%q) = %q, want %q", c.in, got, c.want)
+		if got, err := withHeadAlias(slices.Clone(c.in)); err != nil || !slices.Equal(got, c.want) {
+			t.Errorf("withHeadAlias(%q) = %q, %v; want %q", c.in, got, err, c.want)
 		}
+	}
+	// --head with --target, or --head twice, is refused before any verb
+	// parser could let the last value win; --target alone is the verb's own.
+	for _, in := range [][]string{
+		{"surprise", "--target", "A", "--head", "B"},
+		{"lrf", "--head=B", "--target=A"},
+		{"ocm", "verify", "--head", "A", "--head", "B"},
+	} {
+		if got, err := withHeadAlias(slices.Clone(in)); err == nil || got != nil || !strings.Contains(err.Error(), "give the range end once") {
+			t.Errorf("withHeadAlias(%q) = %q, %v; want the duplicate refusal", in, got, err)
+		}
+	}
+	if got, err := withHeadAlias([]string{"ocm", "--target", "A", "--target", "B"}); err != nil || len(got) != 5 {
+		t.Errorf("--target twice: %q, %v; want it left to the verb parser", got, err)
 	}
 	// Each verb answers --head exactly as it answers --target.
 	root := t.TempDir()
@@ -33,6 +47,10 @@ func TestHeadAliasOnTargetVerbs_ACXV0858(t *testing.T) {
 		targetCode, targetOut, targetErr := runCLI(t, append(append([]string{"--root", root}, args...), "--target", "zz")...)
 		if headCode != targetCode || headOut != targetOut || headErr != targetErr || strings.Contains(headErr, "--head") {
 			t.Errorf("%q: --head gave %d %q %q; --target gave %d %q %q", args, headCode, headOut, headErr, targetCode, targetOut, targetErr)
+		}
+		code, stdout, stderr := runCLI(t, append(append([]string{"--root", root}, args...), "--target", "A", "--head", "B")...)
+		if code != 2 || stdout != "" || !strings.Contains(stderr, `"code": "invalid-arguments"`) || !strings.Contains(stderr, "give the range end once") {
+			t.Errorf("%q --target A --head B: exit=%d stdout=%q stderr=%q", args, code, stdout, stderr)
 		}
 	}
 }
@@ -62,7 +80,9 @@ func TestDogfoodFlowBaseOption_ACXV0858(t *testing.T) {
 
 // ACX-V0-858: the range-end, base and output flags each verb's help names.
 // The vocabulary is still mixed (V1-3731); this table makes any change to it
-// a reviewed edit, and every --target verb here takes --head as well.
+// a reviewed edit. Help names the canonical --target only: --head on these
+// verbs is an undocumented compatibility alias (ACX-V0-858), so each --target
+// verb here takes --head as well while its help leaves it out.
 func TestRangeAndOutputFlagVocabulary_ACXV0858(t *testing.T) {
 	t.Parallel()
 	vocabulary := regexp.MustCompile(`--(head|target|revision|rev|base|format|json|summary)\b`)

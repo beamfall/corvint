@@ -27,8 +27,10 @@ DOC_GATE_GO_TEST = script/heavy.sh $(GO_TEST_COMMAND)
 .PHONY: build
 # help prints every target whose rule line carries a `## ` description, and the effective BASE.
 .PHONY: help
+# HELP_BASE carries BASE through the environment, so a quote in it cannot break the recipe.
+help: export HELP_BASE = $(BASE)
 help: ## List the documented targets and the effective BASE (the default goal; runs nothing)
-	@printf 'usage: make <target> [BASE=<rev>]  (BASE=%s)\n\n' '$(BASE)'
+	@printf 'usage: make <target> [BASE=<rev>]  (BASE=%s)\n\n' "$$HELP_BASE"
 	@awk -F ':.*## ' '/^[A-Za-z0-9_.\/-]+:.*## / {printf "  %-26s %s\n", $$1, $$2}' $(firstword $(MAKEFILE_LIST))
 
 build: go-version ## Build the corvint binaries

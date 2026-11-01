@@ -1038,7 +1038,8 @@ func TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed(t *testing.T) {
 	t.Run("AFP-V0-010 malformed or unknown base exits 2", func(t *testing.T) {
 		root := affectedFixtureRepository(t)
 		for _, tc := range []struct{ base, code string }{
-			{"main", "invalid-arguments"},
+			// ACX-V0-854: a revision such as main now resolves, so the unknown base is a missing ref.
+			{"no-such-ref", "invalid-arguments"},
 			{strings.Repeat("0", 40), "unsupported-affected-revision"},
 		} {
 			var stdout, stderr bytes.Buffer

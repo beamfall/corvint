@@ -11,10 +11,11 @@ var headAliasVerbs = map[string]bool{"prove": true, "surprise": true, "lrf": tru
 
 // withHeadAlias rewrites --head and --head=VALUE to --target after a
 // headAliasVerbs verb, which may follow the global --root option, so each
-// verb's own parser sees one spelling and keeps its duplicate refusal. Tokens
-// after a "--" terminator are left alone; any other invocation is returned
-// unchanged.
-func withHeadAlias(arguments []string) []string {
+// verb's own parser sees one spelling. Some of those parsers keep the last
+// value, so --head given with --target, or twice, is refused here rather than
+// letting one value silently replace the other. Tokens after a "--"
+// terminator are left alone; any other invocation is returned unchanged.
+func withHeadAlias(arguments []string) ([]string, error) {
 	verb := 0
 	if len(arguments) >= 2 && arguments[0] == "--root" {
 		verb = 2
@@ -22,24 +23,33 @@ func withHeadAlias(arguments []string) []string {
 		verb = 1
 	}
 	if verb >= len(arguments) || !headAliasVerbs[arguments[verb]] {
-		return arguments
+		return arguments, nil
 	}
 	var rewritten []string
+	targets := 0
 	for index := verb + 1; index < len(arguments); index++ {
 		token := arguments[index]
 		if token == "--" {
 			break
 		}
+		if token == "--target" || strings.HasPrefix(token, "--target=") {
+			targets++
+			continue
+		}
 		if token != "--head" && !strings.HasPrefix(token, "--head=") {
 			continue
 		}
+		targets++
 		if rewritten == nil {
 			rewritten = slices.Clone(arguments)
 		}
 		rewritten[index] = "--target" + strings.TrimPrefix(token, "--head")
 	}
 	if rewritten == nil {
-		return arguments
+		return arguments, nil
 	}
-	return rewritten
+	if targets > 1 {
+		return nil, argumentError("argument --target: --head is an alias of --target; give the range end once")
+	}
+	return rewritten, nil
 }

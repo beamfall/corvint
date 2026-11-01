@@ -614,4 +614,16 @@ func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
 			t.Errorf("help does not list %s:\n%s", target, got)
 		}
 	}
+	// BASE reaches the recipe through the environment, so a quote in it is
+	// printed as given rather than breaking the shell command (ACX-V0-857).
+	quoted := exec.Command("make", "-s", "-C", root, "-f", "Makefile", "--no-print-directory", "help", "BASE=feature/o'brien \"x\" $$HOME")
+	quoted.Env = command.Env
+	quoted.Stderr = &stderr
+	out, err = quoted.Output()
+	if err != nil {
+		t.Fatalf("make help with a quoted BASE: %v: %s", err, stderr.String())
+	}
+	if want := "usage: make <target> [BASE=<rev>]  (BASE=feature/o'brien \"x\" $HOME)\n"; !strings.HasPrefix(string(out), want) {
+		t.Fatalf("make help with a quoted BASE printed %q, want prefix %q", out, want)
+	}
 }
