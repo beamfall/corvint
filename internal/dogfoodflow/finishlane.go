@@ -297,14 +297,26 @@ func (l *finishLane) requireVerifyInput() {
 		// line with the absolute home directory.
 		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
 	}
-	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
+	// DCW-V0-722: the named line and the quoted detail are the same line. The
+	// whole-input check reports the first refused command in sorted order,
+	// which can be a later line than the first refused line in file order.
+	line, text := refusedVerifyLineOf(l.options.Change)
+	if line > 0 {
+		if err := validateVerify(verifyLineArguments(text)); err != nil && detail != "" {
+			detail = err.Error()
+		}
+	}
+	if line > 0 && detail != "" && l.options.Change.VerifyFile != "" {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
-	if _, text := refusedVerifyLineOf(l.options.Change); text != "" {
+	if text != "" {
 		if why := quotedRunRefusal(text); why != "" {
+			l.say("  refused: %s\n", why)
+		}
+		if why := caretRunRefusal(text); why != "" {
 			l.say("  refused: %s\n", why)
 		}
 	}
@@ -384,20 +396,9 @@ func (l *finishLane) requireOutcomeInputs() {
 	l.exit(2)
 }
 
-// verifyRefusalLine is the 1-based line of the verify file whose command
-// alone the same validator refuses, or 0 when no single line is refused, as
-// for a file over the command bound (DCW-V0-379).
-func verifyRefusalLine(path string) int {
-	data, err := readPrefix(path, maxVerifyFileBytes)
-	if path == "" || err != nil {
-		return 0
-	}
-	line, _ := refusedVerifyLine(data)
-	return line
-}
-
 // refusedVerifyLine returns the 1-based number and text of the first line of
-// data that the recorder refuses, or 0 and "" when every line is admitted.
+// data that the recorder refuses, or 0 and "" when every line is admitted, as
+// for a file over the command bound (DCW-V0-379).
 func refusedVerifyLine(data []byte) (int, string) {
 	for index, line := range strings.Split(string(data), "\n") {
 		if strings.TrimLeft(line, " \t\n\v\f\r") != "" && validateVerify(verifyLineArguments(line)) != nil {
