@@ -267,7 +267,7 @@ func Run(env Env) int {
 		if isOmitted("ticket " + args[1]) {
 			return emit(env.Stdout, notRun([]string{"ticket", args[1]}))
 		}
-		return emit(env.Stdout, usage([]string{"ticket"}, "unknown ticket verb"))
+		return emit(env.Stdout, unknownVerb([]string{"ticket"}, args[1]))
 	case "release":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"release"}, "release needs a verb"))
@@ -310,7 +310,10 @@ func Run(env Env) int {
 		if len(args) > 1 && (args[1] == "confirm-safe" || args[1] == "cleanup" || args[1] == "recover" || args[1] == "acquire" || args[1] == "release" || args[1] == "wait" || args[1] == "operate" || args[1] == "observe") {
 			return emit(env.Stdout, leaseCommand(env, "pool "+args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
+		if len(args) < 2 {
+			return emit(env.Stdout, usage([]string{"pool"}, "unknown pool verb"))
+		}
+		return emit(env.Stdout, unknownVerb([]string{"pool"}, args[1]))
 	case "slots":
 		// PSR-V0-032..037: shared-capacity slots of a declared resource.
 		if len(args) > 1 && (args[1] == "acquire" || args[1] == "release") {
@@ -374,7 +377,7 @@ func Run(env Env) int {
 		case "state":
 			return emit(env.Stdout, gateState(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"gate"}, "unknown gate verb"))
+		return emit(env.Stdout, unknownVerb([]string{"gate"}, args[1]))
 
 	case "reconcile":
 		if len(args) < 2 {
@@ -386,7 +389,7 @@ func Run(env Env) int {
 		case "intent":
 			return emit(env.Stdout, reconcileIntent(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"reconcile"}, "unknown reconcile verb"))
+		return emit(env.Stdout, unknownVerb([]string{"reconcile"}, args[1]))
 	case "receipt":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"receipt"}, "receipt needs a verb: audit [--witness-receipts], compact [--dry-run], retire --archive FILE [--dry-run], unretire --archive FILE, put FILE, get SHA256, path SHA256, prune [--dry-run], show <seq>, replay <seq>"))
@@ -409,7 +412,7 @@ func Run(env Env) int {
 		case "show", "replay":
 			return emit(env.Stdout, notRun([]string{"receipt", args[1]}))
 		}
-		return emit(env.Stdout, usage([]string{"receipt"}, "unknown receipt verb"))
+		return emit(env.Stdout, unknownVerb([]string{"receipt"}, args[1]))
 	case "journal":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"journal"}, "journal needs a verb: seal, unseal"))
@@ -418,7 +421,7 @@ func Run(env Env) int {
 		case "seal", "unseal":
 			return emit(env.Stdout, journalSeal(env, args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
+		return emit(env.Stdout, unknownVerb([]string{"journal"}, args[1]))
 	case "archive":
 		if len(args) < 2 {
 			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE], restore FILE"))
@@ -432,27 +435,12 @@ func Run(env Env) int {
 		case "restore":
 			return emit(env.Stdout, archiveRestore(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"archive"}, "unknown archive verb"))
+		return emit(env.Stdout, unknownVerb([]string{"archive"}, args[1]))
 	}
 	if isOmitted(args[0]) {
 		return emit(env.Stdout, notRun([]string{args[0]}))
 	}
-	return emit(env.Stdout, usage([]string{"help"}, unknownVerbHint(args[0])))
-}
-
-// unknownVerbHint names the implemented verbs whose last word is the unknown
-// first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`.
-func unknownVerbHint(word string) string {
-	var matches []string
-	for _, verb := range ReadVerbs {
-		if i := strings.LastIndexByte(verb, ' '); i >= 0 && verb[i+1:] == word {
-			matches = append(matches, "`corvint-tasks "+verb+" --help`")
-		}
-	}
-	if len(matches) == 0 {
-		return "unknown verb; run `corvint-tasks help`"
-	}
-	return "unknown verb; did you mean " + strings.Join(matches, " or ") + "? run `corvint-tasks help` for every verb"
+	return emit(env.Stdout, unknownVerb(nil, args[0]))
 }
 
 func isOmitted(verb string) bool {
