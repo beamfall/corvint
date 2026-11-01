@@ -121,6 +121,12 @@ func TestMCPV0950UnusableRootServesListAndRefusesCalls(t *testing.T) {
 	if err := os.Symlink(filepath.Join(repository, ".git"), filepath.Join(symlinked, ".git")); err != nil {
 		t.Skipf("symlink: %v", err)
 	}
+	// Launch outside any worktree, so the missing root is not replaced by the
+	// launch worktree (MCPV0-115) and keeps its MCPV0-950 outcome.
+	if _, inside := launchWorktreeCandidate(scratch); inside {
+		t.Skip("the temporary directory is inside a Git worktree")
+	}
+	t.Chdir(scratch)
 	profile := "test-validity,docs"
 	_, responses, _ := legacySession(t, []string{"--root", repository, "--tool-profile", profile}, map[string]any{"method": "tools/list", "params": map[string]any{}})
 	want := unavailableListed(t, responses[1])

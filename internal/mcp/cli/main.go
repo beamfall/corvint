@@ -158,13 +158,13 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		return 2
 	}
 	// MCPV0-115: a missing plain --root falls back to the launch worktree, visibly.
-	fallbackRoot, substituted, refusal := missingRootFallback(roots, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
-	if refusal != "" {
-		_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
-		return 2
-	}
+	fallbackRoot, substituted := missingRootFallback(roots, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
 	if substituted {
-		roots[0].root = fallbackRoot
+		// The launch worktree replaces the missing root's MCPV0-950 outcome: it is
+		// resolved as a direct --root would be, so an unusable candidate is served
+		// unavailable with its own reason.
+		toplevel, reason := rootbind.Resolve(fallbackRoot)
+		roots[0].root, roots[0].below, unavailable = cmp.Or(toplevel, fallbackRoot), belowToplevel(fallbackRoot, toplevel), reason
 	}
 	git, err := gitstatus.Pin()
 	if err != nil {

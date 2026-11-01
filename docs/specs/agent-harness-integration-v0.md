@@ -1838,7 +1838,7 @@ separate exact extension tuple remains governed by AHI-024.
   Amended by `MCPV0-115` (V1-3497): a `${CLAUDE_PROJECT_DIR}` that no longer exists, as in a Claude
   desktop spare-claimed session whose `~/.claude/spares/spare-*` directory was deleted, makes the
   server serve the Git worktree enclosing its launch directory, saying so on stderr and in a notice
-  block on every result, and refuse startup only when there is none. "Nowhere else" is unchanged: it
+  block on every result; when there is none it starts unavailable under `MCPV0-950`. "Nowhere else" is unchanged: it
   names where the server is declared, not where its root comes from, and the args stay as above.
 - `AHI-199`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) Heavy repository
   targets MUST run their children below interactive priority so hook adapters keep their CPU share

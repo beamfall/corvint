@@ -989,17 +989,17 @@ Each row cites the first emitting site and states only the condition checked the
   `.git` entry of any kind, or whose `.git` lookup fails other than not-exist, observed once at
   startup; the walk never passes such an entry to reach an outer repository. That candidate then
   passes every `MCPV0-001` check exactly as if it had been given as `--root`; one that fails (a
-  symlink `.git` marker, an unreadable entry) refuses `corvint-mcp: repository unavailable`, exit
-  2, with no substitution line, as a direct `--root` of it would. The substitution MUST be
+  symlink `.git` marker, an unreadable entry) gets, with no substitution line, the outcome a direct
+  `--root` of it would (under `MCPV0-950`, served unavailable with that root's reason). The substitution MUST be
   visible: once the candidate opens, one stderr line, `corvint-mcp: --root does not exist; serving the Git worktree enclosing the
   launch directory instead`, and on every routed tool result and tool error a second text content
   block in the `MMR-V0-009` notice schema (`corvint-mcp-worktree-notice/0`) with code
   `missing-root-launch-worktree`. The first block and `structuredContent` are those of a direct
   `--root` of that worktree, and neither the line nor the notice names a path; the `MMR-V0-009`
   launch-worktree notice cannot also apply, because the bound root is the launch worktree. With
-  no enclosing worktree, or a launch directory that cannot be observed, startup MUST refuse with
-  `corvint-mcp: repository unavailable: --root does not exist and the launch directory is not in
-  a Git worktree`, exit 2. Why: Claude desktop starts a spare-claimed session's plugin server with
+  no enclosing worktree, or a launch directory that cannot be observed, the missing root keeps its
+  `MCPV0-950` outcome: the server starts unavailable with the reason `--root does not exist`
+  (amended when `MCPV0-950` and this requirement merged; it replaced an exit-2 refusal). Why: Claude desktop starts a spare-claimed session's plugin server with
   the `${CLAUDE_PROJECT_DIR}` of a deleted `~/.claude/spares/spare-*` directory while the process
   runs in the claimed worktree, so the plain refusal left the server failed for the whole session,
   reconnects included (V1-3497). The hook adapter behaves differently and is not changed here: it
@@ -1166,7 +1166,7 @@ cleanup remain outside that receipt.
 | `MCPV0-953` | `internal/mcp/bridge` (`callHelp`, `helpTopicText`, `helpCommandNames`, `validHelpReceipt`, `helpDescriptor`, `WithOutputSchemas`), the `tools/list` surfaces of `internal/mcp/cli` and the three dedicated servers | `internal/mcp/bridge/help_test.go`'s `TestMCPV0100HelpToolReturnsTheEmbeddedCatalogAndGuide` (guide default, command slices, refusals, command-topic tamper); `internal/mcp/cli/help_test.go`'s `TestMCPV0100HelpToolAnswersOnEveryProfile` (default and slice under 32 KB on the wire) and `TestMCPV0953ToolsDeclareOutputSchema`; `cmd/corvint/help_catalog_test.go`'s `TestMCPV0100HelpToolMatchesTheCLI` and `TestMCPV0105CompanionHelpMatchesTheCLI` (slice equals `corvint help --json impact`); the three `MCPV0-101..103` wire tests; repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
 | `MCPV0-954` | `internal/mcp/server` (`legacyInitializeRefusal`), `internal/mcp/bridge` (`PathRule.Pattern`, `SubjectPathRule`, `impactPathRule`, `nestedObjectSchema`, `snapshotSchema`, the flows path schema), `internal/mcp/docsbridge` and `internal/mcp/testvaliditybridge` path schemas | `internal/mcp/server/server_test.go`'s `TestMCPV0954InitializeRefusalDistinguishesTheClient`; `internal/mcp/bridge/patterns_test.go`'s `TestMCPV0954PathPatternsAreRE2AndEquivalent` (every string of up to five characters over a 14-character adversarial alphabet, plus `.go` and `.tsx` suffixes, against the replaced rules) and `TestMCPV0954SchemasHaveOneRootSchemaKeywordAndRE2Patterns`; repinned `internal/mcp/cli/testdata/tools-list-*.golden.jsonl`; `conformance/mcp-2026-07-28` and `conformance/mcp-test-validity-v0` pass unchanged |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
-| `MCPV0-115` | `internal/mcp/cli` (`missingRootFallback`, `run`) | `missing_root_test.go`'s `TestMCPV0115MissingRootServesLaunchWorktree` (subdirectory and linked-worktree launches: served revision, first block and `structuredContent` equal to a direct `--root`, notice code, no path), `TestMCPV0115MissingRootOutsideWorktreeRefuses` (exact refusal; unobservable launch directory) and `TestMCPV0115FallbackIsNarrow` (five unchanged refusals); both built entry points observed end to end in `docs/build-log/2026-10-31-mcp-missing-root-fallback.md`; a real Claude desktop spare-claimed session `NOT_OBSERVED` |
+| `MCPV0-115` | `internal/mcp/cli` (`missingRootFallback`, `run`) | `missing_root_test.go`'s `TestMCPV0115MissingRootServesLaunchWorktree` (subdirectory and linked-worktree launches: served revision, first block and `structuredContent` equal to a direct `--root`, notice code, no path), `TestMCPV0115MissingRootOutsideWorktreeServesUnavailable` (exact `MCPV0-950` reason; unobservable launch directory) and `TestMCPV0115FallbackIsNarrow` (five unchanged refusals); both built entry points observed end to end in `docs/build-log/2026-10-31-mcp-missing-root-fallback.md`; a real Claude desktop spare-claimed session `NOT_OBSERVED` |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
