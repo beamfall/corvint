@@ -9,6 +9,7 @@ import (
 	"path"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -48,6 +49,15 @@ type ImpactUnknown struct {
 	// inferred (AMAP-V0-210).
 	Remedy *Remedy `json:"remedy,omitempty"`
 }
+
+// ImpactExempt is one changed path a declared exemption counts under ignored_paths (ANL-V0-810).
+type ImpactExempt struct {
+	Path     string `json:"path"`
+	Pattern  string `json:"pattern"`
+	Reason   string `json:"reason"`
+	Declared string `json:"declared_at"`
+}
+
 type ImpactReport struct {
 	Schema       string   `json:"schema"`
 	App          string   `json:"app"`
@@ -60,9 +70,10 @@ type ImpactReport struct {
 	Authority    string   `json:"authority"`
 	Verdict      string   `json:"verdict"`
 	Changed      int      `json:"changed_paths"`
-	// Ignored is reserved for paths an explicit declared exemption covers; the map declares none,
-	// so it reads 0 (ANL-V0-048).
-	Ignored int `json:"ignored_paths"`
+	// Ignored counts the changed non-UI paths a declared manifest exemption covers (ANL-V0-048,
+	// ANL-V0-810); Exempt lists each with its declaring manifest line.
+	Ignored int            `json:"ignored_paths"`
+	Exempt  []ImpactExempt `json:"exempt,omitempty"`
 	// RecordsRevision and RecordsDigest pin the observed-ui-records/0 document whose bindings
 	// Observed lists (OUE-V0-073); all three are absent when no records were supplied.
 	RecordsRevision string           `json:"records_revision,omitempty"`
@@ -161,6 +172,7 @@ func ImpactWithRecords(ctx context.Context, m *Map, l *EdgeLedger, rec *UIRecord
 	if err != nil {
 		return nil, err
 	}
+	exempt := impactExemptions(r, m)
 	for _, p := range changed {
 		placed := false
 		if p == m.Manifest.Path && m.Manifest.Repo == "" {
@@ -212,6 +224,7 @@ func ImpactWithRecords(ctx context.Context, m *Map, l *EdgeLedger, rec *UIRecord
 		case impactUIExtensions[strings.ToLower(path.Ext(p))]:
 			unplaced = append(unplaced, p)
 		case ep != nil && ep.place(p, touch, &rep.Unknown):
+		case exempt.covers(p, &rep):
 		default:
 			// A non-UI path (a server model, a worker, a config file) can still break any screen,
 			// and no declared exemption covers it, so it is unknown rather than ignored (ANL-V0-048).
@@ -899,4 +912,56 @@ func (ij *impactJoin) place(p string, touch func(id, p, basis string), unknown *
 		*unknown = append(*unknown, ImpactUnknown{Path: p, Reason: "endpoint-callers-incomplete", Detail: ij.incomplete})
 	}
 	return true
+}
+
+type impactExemptRule struct {
+	ImpactExemptEntry
+	declared string
+}
+
+type impactExemptRules []impactExemptRule
+
+// impactExemptions reads the exemptions the --root manifest declares at the map revision, with the
+// manifest line declaring each (ANL-V0-810). A manifest held by an aliased root, or one that is
+// unreadable at the map's blob, declares none here, so its non-UI paths stay unknown.
+func impactExemptions(r repo, m *Map) impactExemptRules {
+	if m.Manifest.Repo != "" || !safeRelative(m.Manifest.Path) {
+		return nil
+	}
+	e, raw, err := r.readOne(m.Revision, m.Manifest.Path, maxManifestBytes)
+	if err != nil || e.oid != m.Manifest.Blob {
+		return nil
+	}
+	man, err := decodeManifest(raw)
+	if err != nil {
+		return nil
+	}
+	key := bytes.Index(raw, []byte(`"impact_exempt"`))
+	out := impactExemptRules{}
+	for _, x := range man.ImpactExempt {
+		at := key
+		if enc, err := json.Marshal(x.Path); err == nil && key >= 0 {
+			if k := bytes.Index(raw[key:], enc); k >= 0 {
+				at = key + k
+			}
+		}
+		line := 1
+		if at > 0 {
+			line += bytes.Count(raw[:at], []byte{'\n'})
+		}
+		out = append(out, impactExemptRule{x, m.Manifest.Path + ":" + strconv.Itoa(line)})
+	}
+	return out
+}
+
+// covers counts p under ignored_paths when a declared exemption matches it (ANL-V0-810).
+func (rules impactExemptRules) covers(p string, rep *ImpactReport) bool {
+	for _, x := range rules {
+		if globRoute(x.Path, p) {
+			rep.Ignored++
+			rep.Exempt = append(rep.Exempt, ImpactExempt{Path: p, Pattern: x.Path, Reason: x.Reason, Declared: x.declared})
+			return true
+		}
+	}
+	return false
 }
