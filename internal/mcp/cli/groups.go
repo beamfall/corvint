@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -108,12 +109,18 @@ func bindCorpusArtifact(roots []rootDeclaration, groups []string, value string) 
 		}
 		root, path = roots[index].root, aliasedPath
 	}
+	relative := !filepath.IsAbs(path)
 	path, pathReason := toolgroup.RootRelativePath(root, path)
 	if pathReason != "" {
 		return "", "", "--corpus-artifact: " + pathReason
 	}
 	if rule := doccorpus.LocalInputPathRule(path); rule != "" {
 		return "", "", "--corpus-artifact: local input paths must be canonical and relative to --root (" + rule + ")"
+	}
+	// A relative path names a file below the declared root, which may lie below
+	// the toplevel the root resolved to (MCPV0-950).
+	if below := roots[slices.IndexFunc(roots, func(declared rootDeclaration) bool { return declared.root == root })].below; relative && below != "" {
+		path = below + "/" + path
 	}
 	return root, path, ""
 }

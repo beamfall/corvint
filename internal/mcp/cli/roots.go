@@ -23,7 +23,9 @@ const (
 
 // rootDeclaration is one --root value: a plain ABSOLUTE_ROOT, whose alias is
 // empty, or ALIAS=ABSOLUTE_ROOT (MMR-V0-001), read by rootalias.Split.
-type rootDeclaration struct{ alias, root string }
+// below is the root's slash path under the toplevel it resolved to (MCPV0-950),
+// "" before resolution and for a toplevel root.
+type rootDeclaration struct{ alias, root, below string }
 
 // openRepositories validates and pins every declared root at startup with the
 // single-root MCPV0-001 rules (MMR-V0-003). A root that fails is "repository

@@ -9,6 +9,7 @@ import (
 	"maps"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -125,8 +126,7 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 	}
 	profile, groups, _ := splitToolProfile(profile)
 	followRefs, bindReason := bindFollowSelectors(roots, followSelectors)
-	corpusRoot, corpusPath, corpusBindReason := bindCorpusArtifact(roots, groups, corpusArtifact)
-	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason, corpusBindReason); reason != "" { // MMR-V0-011: name the reason.
+	if reason := cmp.Or(followReason, corpusReason, workspaceReason, bindReason); reason != "" { // MMR-V0-011: name the reason.
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+reason)
 		return 2
 	}
@@ -140,11 +140,18 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		// root's reason is named. Only a plain root that neither follows a ref nor
 		// binds a corpus artifact starts unavailable instead of exiting.
 		toplevel, reason := rootbind.Resolve(declared.root)
-		if reason != "" && (!single || len(followRefs) != 0 || corpusRoot != "") {
+		if reason != "" && (!single || len(followRefs) != 0 || corpusArtifact != "") {
 			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable: "+reason)
 			return 2
 		}
-		roots[index].root, unavailable = cmp.Or(toplevel, declared.root), reason
+		roots[index].root, roots[index].below, unavailable = cmp.Or(toplevel, declared.root), belowToplevel(declared.root, toplevel), reason
+	}
+	// The corpus artifact binds the resolved toplevel, so a subdirectory root
+	// reads the same artifact its toplevel would (MCPV0-950, MMR-V0-014).
+	corpusRoot, corpusPath, corpusBindReason := bindCorpusArtifact(roots, groups, corpusArtifact)
+	if corpusBindReason != "" {
+		_, _ = fmt.Fprintln(stderr, "corvint-mcp: invalid arguments: "+corpusBindReason)
+		return 2
 	}
 	git, err := gitstatus.Pin()
 	if err != nil {
@@ -217,6 +224,23 @@ func runVersioned(ctx context.Context, version string, arguments []string, stdin
 		return 2
 	}
 	return 0
+}
+
+// belowToplevel is the slash path of a declared root below the toplevel
+// rootbind.Resolve bound, "" when the root is that toplevel.
+func belowToplevel(declared, toplevel string) string {
+	if toplevel == "" || toplevel == declared {
+		return ""
+	}
+	physical, err := filepath.EvalSymlinks(declared)
+	if err != nil {
+		return ""
+	}
+	below, err := filepath.Rel(toplevel, physical)
+	if err != nil || below == "." {
+		return ""
+	}
+	return filepath.ToSlash(below)
 }
 
 // profileRegistries binds each --tool-profile value; the empty value is the
