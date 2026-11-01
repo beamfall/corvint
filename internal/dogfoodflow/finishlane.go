@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
@@ -129,6 +131,7 @@ func (l *finishLane) recovery(step string) string {
 
 func (l *finishLane) run() int {
 	l.requireRoot()
+	l.requireTrustedAncestry()
 	l.gitDir = l.gitValue("rev-parse", "--absolute-git-dir")
 	// One operation lock spans every step; each nested pass shares it.
 	l.acquireOperation()
@@ -140,6 +143,7 @@ func (l *finishLane) run() int {
 		l.exit(2)
 	}
 	l.requireVerifyInput()
+	l.requireIntentsInput()
 	l.snapshotInputs()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another
 	// base or a dirty tree is refused rather than reported as done.
@@ -179,16 +183,22 @@ func (l *finishLane) run() int {
 		// A refused prepare stops with its map in place for the next pass to
 		// remove; the pre-flight leaves no map either way.
 		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
-		l.prepare()
+		l.removePreflight()
+		l.recordPreflight(l.prepare())
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}
 	if resume {
+		l.removePreflight()
 		l.line("prepare SKIP bind-commit=%s", l.target)
 		l.line("bind SKIP bind-commit=%s", l.target)
 		l.line("commit SKIP bind-commit=%s", l.target)
 	} else {
-		l.prepare()
+		// A passing inputs-check over the same inputs already ran this exact
+		// prepare pass (DCW-V0-887).
+		if !l.reusePreflight() {
+			l.prepare()
+		}
 		l.bind()
 		l.commitBind()
 	}
@@ -278,6 +288,11 @@ func (l *finishLane) requireVerifyInput() {
 		l.exit(2)
 		return
 	}
+	if fix := tildeFix(l.options.Change.VerifyFile); reason == "unsupported-verify-syntax" && fix != "" {
+		// DCW-V0-905: a ~ path is never expanded silently; the fix gives the
+		// line with the absolute home directory.
+		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+	}
 	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
@@ -292,8 +307,37 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are one quoted name such as -run '^TestA$' and the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
+	l.exit(2)
+}
+
+// requireIntentsInput refuses, before prepare runs any step, an --intents
+// manifest the bind's ocm-aggregate row would refuse for its grammar, naming
+// the first faulty line and, for an ordering fault, the sort that fixes it
+// (DCW-V0-882). Unset intents stay with the bind pass.
+func (l *finishLane) requireIntentsInput() {
+	source := l.options.Change.IntentsFile
+	if source == "" {
+		return
+	}
+	_, paths, reason, issue := readIntentManifest(source)
+	if reason == "" && len(paths) > maxAggregateScopes {
+		reason = "intent-scope-limit"
+	}
+	if reason == "" {
+		return
+	}
+	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	l.say("  input: --intents %s\n", source)
+	if issue != "" {
+		l.say("  %s\n", issue)
+	}
+	if strings.Contains(issue, "does not sort after") {
+		l.say("  fix: LC_ALL=C sort -u -o %s %s, then rerun corvint dogfood finish-lane --base %s\n", shellWord(source), shellWord(source), l.options.Change.Base)
+		l.exit(2)
+	}
+	l.say("  fix: %s, then rerun corvint dogfood finish-lane --base %s\n", intentScopeHint, l.options.Change.Base)
 	l.exit(2)
 }
 
@@ -530,19 +574,24 @@ func (l *finishLane) removeSidecar(name string) {
 // prepare is pass 0: it prepares the map whose hunk IDs the plan names. Only
 // a refusal or an unprepared map stops it; the rows it cannot produce without
 // a plan or a committed sidecar are the bind's to decide.
-func (l *finishLane) prepare() {
+func (l *finishLane) prepare() []string {
 	defer l.timed("prepare")()
 	if len(l.stageFiles) == 0 {
-		l.line("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
-		return
+		line := fmt.Sprintf("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
+		l.line("%s", line)
+		return []string{line}
 	}
 	// Each stage's plan is prechecked against a freshly prepared map, so a
 	// refused row of any stage stops before the first bind (DCW-V0-446).
+	lines := []string{}
 	for k, file := range l.stageFiles {
 		l.stage = fmt.Sprintf(" stage=%d/%d", k+1, len(l.stageFiles))
-		l.line("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+		line := fmt.Sprintf("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+		l.line("%s", line)
+		lines = append(lines, line)
 	}
 	l.stage = ""
+	return lines
 }
 
 // preparePass runs one prepare pass with citations and returns the prepared
@@ -759,6 +808,7 @@ func (l *finishLane) checkAndSeal() int {
 	case code == 0:
 		l.line("check PASS")
 		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		defer l.reportReview()
 	case checked:
 		l.line("check PASS")
 		l.line("seal FAIL exit=%d", code)
@@ -767,7 +817,37 @@ func (l *finishLane) checkAndSeal() int {
 	}
 	l.reportMissing()
 	_, _ = l.stdout.Write(verdict.Bytes())
+	l.reportRuns()
 	return code
+}
+
+// dogfoodChangeRuns is the run log script/dogfood-change.sh appends one line
+// to per invocation, under the Git directory's corvint evidence directory
+// (ASD-V0-907).
+const dogfoodChangeRuns = "dogfood-change-runs.tsv"
+
+// reportRuns prints how many times dogfood-change ran in this worktree, the
+// count the lane batch measures (ASD-V0-907, V1-1629), or NOT_OBSERVED when
+// the log is absent or unreadable.
+func (l *finishLane) reportRuns() {
+	count := "NOT_OBSERVED"
+	if data, err := readPrefix(filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns), 1<<20); err == nil {
+		count = strconv.Itoa(len(textLines(data)))
+	}
+	l.say("%s: RUNS dogfood-change=%s log=%s\n", l.prefix, count, filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns))
+}
+
+// reportReview names the exact reviewer report the seal bound and says that
+// its independent review and the native completion are still to come, so a
+// review is never implied as done (DCW-V0-908, V1-3188).
+func (l *finishLane) reportReview() {
+	report := filepath.Join(l.root, ".corvint", "dogfood-report.json")
+	digest := "NOT_OBSERVED"
+	if sum, ok := fileDigest(report); ok {
+		digest = fmt.Sprintf("%x", sum)
+	}
+	l.say("%s: REVIEW report=%s sha256=%s reviewed=NOT_OBSERVED\n", l.prefix, report, digest)
+	l.say("  next: an independent review of this exact report, then the native completion; finish-lane records neither (DCW-V0-908)\n")
 }
 
 // sealInterrupted unwinds an interrupted check and seal. An interruption after

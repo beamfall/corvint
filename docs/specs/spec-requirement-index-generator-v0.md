@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:292@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:316@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -412,6 +412,23 @@ No requirement below diverges from the implementation.
   controls it MUST show that the same amendments written as header segments, and the same targets
   appended to one shared `.PHONY:` line, do conflict, and that the generator refuses the new header
   segment under SRG-V0-980. Rollback: drop the case.
+- `SRG-V0-890`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3575; refines
+  SRG-V0-980) Each SRG-V0-980 ID refusal MUST name the frozen line as `SPEC:LINE` (the line of the
+  `Intent status:` header or of the Agent digest `- Status:`), say that the line is frozen by
+  `docs/specs/INTENT-STATUS-FROZEN.tsv`, and name where the new ID belongs: its own definition line
+  inside the spec's `## Requirements` section, with that section's line range when the spec has
+  exactly one. `docs/LANE-ORCHESTRATION.md`'s requirement-ID block paragraph MUST state the rule for
+  lane charters: a new range is never named in the frozen `Intent status:` or digest `Status:`
+  line. Non-goals: relaxing the freeze.
+- `SRG-V0-891`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3295) Every
+  generator mode MUST refuse, before printing or writing anything, an OCM-form definition
+  (`- `ID`: `, `- **ID:** `, `- **ID.** `) outside a fence after or before the one `## Requirements`
+  section of a spec that has exactly one, unless `script/requirement-definitions-outside-section.txt`
+  (the frozen RDG-V0-021 baseline, read from the Git index) lists `SPEC ID`, naming `SPEC:LINE`,
+  the ID and the section's line range, so `make spec-requirements` refuses what `make doc-gates`
+  (`requirement-definitions-check`) would. Non-goals: a second baseline; changing RDG-V0-021.
+  Failure mode: a spec with no or several Requirements sections is left to doc-gates, as RDG-V0-021
+  leaves it.
 - `SRG-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3660)
   `make spec-requirements` MUST run the SRG-V0-900 obligation-bound check
   (`TestSpecsStayWithinTheOCMObligationBound`) after it writes the generated files, so a spec whose
@@ -549,6 +566,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
 | SRG-V0-982 | `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
 | SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
+| SRG-V0-890 | `script/gen-spec-requirements_test.sh` case 13: the Intent status refusal names line 3 of the fixture spec `frozen.md`, the frozen file and the Requirements section `(lines 10..13)`; the digest refusal names its line 8. |
+| SRG-V0-891 | `script/gen-spec-requirements_test.sh` case 14: a definition after the section is refused in the TSV and `--all` modes naming line 13 of the fixture spec `placed.md`, `PLC-V0-002` and the section `(lines 3..6)`; the inside and fenced definitions are not named; a baselined one and a spec without the section pass. |
 
 ## Traceability
 
@@ -619,6 +638,8 @@ so no generated file moves.
 SRG-V0-547 and SRG-V0-548 roll back as one revert of their commit: the duplicate refusal goes away
 and the `AHI-246` and `DCI-V1-030` rows return to their wrapped citations after `make
 spec-requirements`.
+
+SRG-V0-890 rolls back by restoring the refusal text in `script/gen-spec-requirements.sh` and case 13; SRG-V0-891 by removing the outside-section block, the baseline read and case 14.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.

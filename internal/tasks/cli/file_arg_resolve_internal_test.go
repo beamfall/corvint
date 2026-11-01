@@ -14,16 +14,17 @@ import (
 
 // TestCALV0225_FileArgumentsResolveAgainstEnvCwd: a relative file argument
 // names a file under the command's working directory, not the process
-// directory, for the shared readers (V1-3643).
+// directory: commandPath feeds the shared readers, and archive verify opens
+// its argument through it (V1-3643).
 func TestCALV0225_FileArgumentsResolveAgainstEnvCwd(t *testing.T) {
 	cwd := t.TempDir()
 	if err := os.WriteFile(filepath.Join(cwd, "in.json"), []byte(`{"a":1}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if raw, err := readBoundedFile(cwd, "--review", "in.json", 64); err != nil || string(raw) != `{"a":1}` {
+	if raw, err := readBoundedFile("--review", commandPath(cwd, "in.json"), 64); err != nil || string(raw) != `{"a":1}` {
 		t.Fatalf("readBoundedFile = %q, %v", raw, err)
 	}
-	if raw, err := readPlanFile(cwd, "in.json", 64); err != nil || string(raw) != `{"a":1}` {
+	if raw, err := readPlanFile(commandPath(cwd, "in.json"), 64); err != nil || string(raw) != `{"a":1}` {
 		t.Fatalf("readPlanFile = %q, %v", raw, err)
 	}
 	res := archiveVerify(Env{Cwd: cwd, Stdin: bytes.NewReader(nil)}, []string{"absent.tar"})

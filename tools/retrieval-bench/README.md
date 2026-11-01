@@ -157,6 +157,12 @@ go build -o /tmp/corvint ./cmd/corvint
   --output benchmarks/results/agent-retrieval-bench-code2test.json
 ```
 
+`--data-root DIR` (default `$CORVINT_RETRIEVAL_BENCH_DATA`) names the directory the releases were
+extracted into, so `--samples benchmark/v2_code2test/code2test.jsonl --corpus corpus/v2_code2test`
+resolve under it; a data root that is not an existing directory is refused, naming that input
+(CEP-V0-961). The owner's held-out copy lives outside the repository on the benchmark host, and
+`retrieval-bench --help` prints this layout.
+
 `--snapshot OWNER/NAME@COMMIT=PATH` names a snapshot explicitly; `--task-type` and
 `--max-samples` bound a run; `--limit` is k (default 20, at most 50). `--arms` selects the arms
 (`corvint`, `context`, `grep`, `grep-ident`, `bm25`, `impact`, `affected`; comma-separated or

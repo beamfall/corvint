@@ -4,28 +4,28 @@
   "toolchains": [
     {
       "name": "openspec",
-      "version": "1.14.3",
+      "version": "1.16.0",
       "source": {
         "kind": "npm",
         "package": "@fission-ai/openspec",
-        "tarball": "https://registry.npmjs.org/@fission-ai/openspec/-/openspec-1.14.3.tgz"
+        "tarball": "https://registry.npmjs.org/@fission-ai/openspec/-/openspec-1.16.0.tgz"
       },
-      "tarballSha256": "f7a4eaf9199036713edf331f1a781abebc4ed9bd3fbf5a8aa549f482749e14c2",
-      "npmIntegrity": "sha512-ALFW1d5bSm6t27Kmcle93SDFuqUc8fLwy5ZdBfIiNffo0Yk9AEOJxw6xDqBv38eMM7l7TeOZBB/7C08luxYGfg==",
-      "checked": "2026-10-18"
+      "tarballSha256": "3d10a685a350bf46f2801452411617b8d46206c77a9d86ddc95c0ddba4d7480b",
+      "npmIntegrity": "sha512-WQVhZoIR5PoacH/H0qh84VKMcXFbKCIKuAI96arHS3KiKYhJStlRrjUKGxLqLYKLym0j+2hAAY5MZUrPE5qXIA==",
+      "checked": "2026-10-31"
     },
     {
       "name": "spec-kit",
-      "version": "1.2.1",
+      "version": "1.2.5",
       "source": {
         "kind": "git-tag",
         "repository": "github/spec-kit",
-        "tag": "v1.2.1",
-        "archive": "https://github.com/github/spec-kit/archive/9dca9bf42a031765ee5e5f2371137f2f26967e11.tar.gz"
+        "tag": "v1.2.5",
+        "archive": "https://github.com/github/spec-kit/archive/4572a67fe0e72a6837e2d7bb0fda875bc41482e5.tar.gz"
       },
-      "commit": "9dca9bf42a031765ee5e5f2371137f2f26967e11",
-      "archiveSha256": "c416d6ab6af39aa03af35d0704ed620b43d8927852a06fc3dd87e61e396ff07e",
-      "checked": "2026-10-18"
+      "commit": "4572a67fe0e72a6837e2d7bb0fda875bc41482e5",
+      "archiveSha256": "d90cead971d6a9f0cd47b4ee601456984b40ef2cc64b15805f9b754f5bf5fef8",
+      "checked": "2026-10-31"
     }
   ]
 }

@@ -87,6 +87,12 @@ including one added after the listing. Run one shard per command. Placement is n
 on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
 shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
 
+The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
+packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest
+completed whole-package `run=` seconds from the heavy.sh selection log and prints one group per
+line, to run as one `script/heavy.sh go test ... GROUP` each. A package with no recorded cost, or
+one over the budget alone, gets its own line and a stderr note; the latter needs `make test-shard`.
+
 The light-weight prototype this replaces (`mkdir` slots with a PID file and dead-owner reclaim)
 could remove a live owner's slot when two waiters reclaimed the same dead slot at once; the
 `flock` form has no reclaim step. Cut over all lanes of a host together, because the two forms do
@@ -135,6 +141,11 @@ over a second ssh connection and named in `heavy.sh: copied back PATH` lines (DC
 local edit made during the run touches one of them, nothing is copied and the wrapper exits 96
 asking for a local run. `script/heavy.sh --print-lock-dir` prints the slot lock directory a run
 would use (DCW-V0-357).
+When `corvint test --base SHA --dry-run --manifest M` selects packages whole (a dependency change
+such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prints one
+`HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
+each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
+`HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
 When the host is unreachable the offload is retried once after `HEAVY_REMOTE_RETRY` seconds
 (default 15), then the command runs locally and says so. Each local run of an offloadable command
 appends `UTC pwd=... reason=offload-unavailable|HEAVY_REMOTE=0|writes-files cmd=...` to
@@ -188,6 +199,15 @@ file sets `TMPDIR` on the home disk, and offloaded commands get the per-run dire
 none of them writes test temporaries to tmpfs. The hosted `ubuntu-24.04` runner's temporary
 filesystem has not been observed; a test that depends on filesystem type (rename atomicity,
 `O_DIRECT`, inode reuse, free space) must not assume either.
+
+Observation procedure (V1-2563 AC1). On a Linux host, `stat -f -c %T "${TMPDIR:-/tmp}"` prints the
+temporary filesystem type (`tmpfs`, `ext2/ext3` for ext4) and `findmnt -T "${TMPDIR:-/tmp}"` the
+mount; on macOS use `df "${TMPDIR:-/tmp}"` and `mount` (`stat -f` there means something else, and
+`findmnt` is absent); a hosted runner needs one step that prints both for `$RUNNER_TEMP`, and that is a
+`.github/` change for the orchestrator's own PR. NOT OBSERVED for the hosted runner as of this
+entry; the box side stays the declared difference above. The box divergence is declared where lanes
+and CI owners read it (AC2, second branch), so a box-only failure on a filesystem-dependent test is
+first checked against the Linux command above before it is filed as a product bug.
 
 ### CI guard and build offload (ASD-V0-040, ASD-V0-041)
 
@@ -280,6 +300,18 @@ a checkout whose script reads `heavy.env`; the old wrapper is kept as
 the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
 --print-lock-dir` prints the directory a run would use.
 
+Host check (V1-3605). `~/lanes/heavy.sh` delegates only when the lane's checkout carries a
+`script/heavy.sh` that knows `--print-lock-dir`; for any older checkout (and outside a checkout) it
+runs the old prototype, kept as `~/lanes/heavy.sh.bak-*-prototype`, which keeps its own `mkdir`
+slots and writes none of the `script/heavy.sh` log lines (the host line of the unmerged ASD-V0-920
+work of lane scripts-w5 never prints from it). A lane on an older base therefore sees the prototype
+even after the wrapper was updated. Check from the lane worktree: `~/lanes/heavy.sh --print-lock-dir`
+prints the lock directory when the delegated script runs, and fails or runs a command when it is the
+prototype.
+On the Unraid host the wrapper read on 2026-10-31 (read-only) is the delegating form, so the
+prototype seen by `scripts-w5` came from a checkout whose base predated `--print-lock-dir`. The
+orchestrator refreshes the lane base, or the host wrapper, between batches; no lane changes a host.
+
 ### Small packages run whole without a reason (ASD-V0-074, V1-3120)
 
 `corvint test --dry-run` plans a whole Go package for a small tool package, which `ASD-V0-030`
@@ -324,7 +356,10 @@ The charter or the lane's first step fixes every dogfood input before work start
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
 file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` line per taken ID;
-`ASD-V0-960`).
+`ASD-V0-960`). The new IDs go on their own definition lines inside the spec's `## Requirements`
+section, never into the frozen header `Intent status:` or Agent digest `Status:` line, which
+`make spec-requirements` refuses (`SRG-V0-980`, `SRG-V0-890`), nor after that section
+(`SRG-V0-891`).
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a
@@ -399,6 +434,13 @@ every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish
 `-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
 denied with this foreground recipe.
 
+The orchestrator's landing step is `script/pr-landing-watch.sh [--act] PR` (ASD-V0-833, V1-1735),
+run once per CI or merge-queue event, never in a loop. It prints one decision: a failed head run
+whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 times per head
+commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
+real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
+alerts file that the session's Monitor tails. Without `--act` it only reports.
+
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
 them unclassified Bash commands; the timeout target in section 7 was not yet met.
@@ -445,11 +487,11 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
   shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
   without `--depth`).
-- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
-  commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
-  worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
-  `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;
-  remove it with `git commit --amend` or a reword before the batch push. The dogfood
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-560, ASD-V0-831, V1-3227).
+  The commit-msg hook `lane-setup.sh` installs (`script/check-ai-coauthor-trailers.sh
+  --install-hook`, shared by every worktree of the clone) refuses one at commit time, and
+  `make batch-precheck` refuses any commit in `BASE..HEAD` (default `origin/main..HEAD`) that
+  carries one, naming the commit and the line, and prints the `--strip` rebase that removes it. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
@@ -643,6 +685,16 @@ a test that fails without the fix or justified as not applicable? Report each mi
 untested category as a finding." A case list does not replace review; it moves the cheap refusal
 cases ahead of it.
 
+Fail-without-fix runs (`ASD-V0-906`, V1-3259). Run the new test against the unfixed code with
+`-timeout 2m` or less, for example `script/heavy.sh env GOTOOLCHAIN=local go test -count=1
+-timeout 2m -run '^TestName$' ./internal/pkg`, never the 30-minute hang bound: unfixed code may
+block instead of failing, and a blocked run then holds the tool's whole 10-minute budget. A test
+that proves a file is read once through a FIFO must not block on the unfixed code's second read:
+the writer's first open is a plain `O_WRONLY` open, which waits for the reader and writes the
+content; every later open is `O_WRONLY|syscall.O_NONBLOCK` in a loop, closed at once, until the
+test closes a stop channel. A second read by unfixed code then gets end of file and the test fails
+fast (`internal/dogfoodflow/verify_quote_fix_unix_test.go` is the pattern).
+
 Measurement: over the next 6 lanes that carry the pass, the share of reviews returning CONCERNS
 against the 3 of 3 baseline and the repair rounds per lane, retained in the batch build-log entry.
 It is `NOT_PRODUCED` until those 6 lanes have run.
@@ -744,3 +796,96 @@ Under `CORVINT_TASKS_SNAPSHOT` only `ticket search`, `ticket show`, `ticket expo
 are verified first, and every result names the snapshot's host, primary worktree, `producedAt` and
 journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
 naming the owning store and the command to run there.
+
+## 13. Lane flow guide and refusal recovery map (V1-3239)
+
+One lane runs this flow, in order; each step names the command and the section that owns it.
+
+1. Orient: `corvint index --if-stale`, then `corvint affected --base FULL_SHA` and
+   `corvint context --task "..."`; retain the `query` and `impact` receipts (DOGFOOD section 1).
+   A wide or UNKNOWN selection means focused tests only.
+2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
+   development"). Check requirement IDs with `make requirement-ids-free`.
+3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
+   (section 2).
+4. Doc gates before the final commit: `make doc-gates`, `make line-citations-check`, `gofmt -l`.
+   Repins are mechanical: `make repin` (line citations and the analyzer-schema pin) and
+   `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
+5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
+   `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
+   INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
+   After the last commit, run `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=..
+   INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
+   finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
+   passing `dogfood-inputs-check` and reports the input file paths.
+6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
+
+Common refusals and their recovery:
+
+| Refusal | Recovery |
+|---|---|
+| `heavy.sh: REFUSED local-reason-missing` | run on the offload host, or set `HEAVY_LOCAL_REASON='darwin-only: <why>'` for a command that needs this OS |
+| `heavy.sh: REFUSED whole-reason-missing` | use a selective `-run '<selected>'` from `corvint test --base SHA --dry-run`, or set `HEAVY_WHOLE_REASON` with the evidence (Corvint selected the package whole, or UNKNOWN/FALLBACK); `-short` does not clear it |
+| `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
+| `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
+| `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
+| `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
+| `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
+| `bootstrap-intent-not-unknown` | give the intent spec this change creates no row, or an `unknown` row |
+| line-citation or use-case receipt drift after an edit | `make repin`; `script/repin-use-case-receipts.sh` |
+| `sealed-cem-in-change` | drop the seal from the diff, or for a batch of sealed leaves follow DOGFOOD "Integrating sealed branches" |
+| `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
+| `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
+
+Drift. A refusal named here that the product renames is a docs defect; the map is checked against
+the real CLI by the guide-drift test of V1-3239 AC2 (NOT DELIVERED in this lane: it is a Go test
+under `internal/`, outside this docs lane's scope). The refusal audit and the check that a new
+refusal code carries a recovery hint (AC3, AC4) are likewise NOT DELIVERED here and stay open on
+V1-3239.
+
+Lane notes (V1-3610). A lane starts with no seeded sibling hand-over by design: its inputs are the
+charter, the open-friction digest (section 12) and `~/lane-inputs`. The orchestrator names an
+in-flight sibling and the files it owns in the charter's "other lanes in flight" paragraph, which is
+the only sibling summary; a lane that needs a sibling's result asks the orchestrator and never reads
+another lane's checkout (Roles above).
+
+## 14. Remote (SSH) lane hosts: inputs and closeout channel
+
+An SSH lane host (WSL, Unraid) has no `gh` login (Unraid) or no `gh` at all (WSL), no Tasks journal
+and no route to the orchestrator session. SendMessage fails there with `session not visible from
+the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the lane starts:
+
+- `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
+  assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
+  (`CORVINT_TASKS_SNAPSHOT`, section 12); without either, `ticket show` there refuses
+  `journal-absent` (V1-3262). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
+  is not a ticket body.
+- `~/lane-inputs/gh-issues-<lane>/<N>.md`: the body of every GitHub issue a ticket cites
+  (`gh issue view N --repo beamfall/corvint --json title,body`, run on the Mac) (V1-3252). The route
+  is staged files; the lane never needs `gh`.
+- the charter, requirement-ID block and digest files, as for a local lane.
+
+Closeout channel. A remote lane writes its final report and the full numbered Friction list
+(section 11 format) to `~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md`
+before wrap_up, and names both paths in its last message. The orchestrator fetches them with
+`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted so the remote shell expands `$HOME`; or `scp`) in the round the lane ends and treats the
+files as the section 11 message. NOT DELIVERED: AC2 of V1-3620, a delivered test message from a live
+SSH lane; it needs a lane host and an orchestrator session, and this lane changes no host. The
+orchestrator verifies the route with the first remote lane of the next batch.
+
+## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
+
+Shared worktree. Subagents of one lane share the lane's worktree, so a package one subagent has
+half-edited fails to build for every sibling's Go test. Rule: at most one subagent writes to a Go
+package at a time; subagents that must touch the same package run one after the other, or each in
+its own `git worktree add` off the lane branch and the lane merges the results. Read-only subagents
+share freely. A lane charter template carries this line verbatim: "In-lane subagents never edit the
+same package concurrently; a sibling's build failure in a package you did not edit is a sibling's
+half-edit, so wait and rerun, do not repair it."
+
+Fail-without-fix runs. A test run against the pre-fix code to prove it fails must carry
+`-timeout 2m` at most (`script/heavy.sh go test -timeout 2m -run '^TestX$' ./pkg`), because a
+test that blocks on the old code otherwise hangs for the full 10-minute tool timeout. A read-once
+test that races a FIFO opens the writer non-blocking so a missing reader fails fast:
+`syscall.Open(path, O_WRONLY|O_NONBLOCK, 0)` in a retry loop bounded by a deadline (ENXIO means no
+reader yet), never a plain `os.OpenFile(path, O_WRONLY, 0)`, which blocks forever against old code.

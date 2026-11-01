@@ -84,6 +84,9 @@ type preparedLease struct {
 	// writerToken the invalidation token read before that audit.
 	writer      *journal.WriterCheckpoint
 	writerToken writerToken
+	// writerComplete is writer before it was re-based on the sealed base
+	// (LGL-V0-891); nil when it was not.
+	writerComplete *journal.WriterCheckpoint
 	// writerProof and writerPhys are that complete audit and the bytes it
 	// read, which verify the retained checkpoint at commit (JSG-V0-003).
 	writerProof *journal.Result
@@ -354,6 +357,9 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 			}
 			supplied = proof
 			p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			if rebased := sealedBaseRebase(repo, proof, observation.Files, p.writerToken); p.writer != nil && rebased != nil {
+				p.writerComplete, p.writer = p.writer, rebased
+			}
 			p.writerProof, p.writerPhys = proof, observation.Files
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.
@@ -521,7 +527,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	if _, err := transaction.Digest(request); err != nil {
 		return report, nil, err
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, nil, err
 	}
 	// The preparation gate serializes cooperating lease writers' bounded
@@ -834,9 +840,15 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	staged.publish()
 	at = writerStage(ctx, "complete.readCheckpoint", at)
 	if p.writerProof != nil {
+		read := p.writerToken
 		p.writerToken = verifyWriterCheckpoint(ctx, repo, p.writerToken, func(old *journal.WriterCheckpoint) (bool, error) {
 			return p.writerProof.VerifyWriterCheckpoint(old, p.writerPhys)
 		})
+		if p.writerToken != read && p.writerComplete != nil {
+			// The verify refuted the checkpoint whose sealed base writer
+			// was re-based on: retain the complete audit's own (LGL-V0-891).
+			p.writer = p.writerComplete
+		}
 	}
 	at = writerStage(ctx, "complete.verifyWriter", at)
 	retainStagedWriterCheckpoint(repo, p.writer, p.writerToken, stagedWriter)

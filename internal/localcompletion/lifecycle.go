@@ -587,6 +587,13 @@ func Cancel(ctx context.Context, root, key, reason string) (Evaluation, error) {
 	if saved.Lifecycle == "active" && reason == "" {
 		return Evaluation{}, &CancelReasonError{Checks: len(saved.Plan.Checks), Observations: len(saved.Observations)}
 	}
+	// A coordinator's preservation hold keeps the ACTIVE state; only its
+	// release, which records the authorization, admits the cancel (LCP-V0-880).
+	if held, holdErr := repo.readHold(); holdErr != nil {
+		return Evaluation{}, holdErr
+	} else if held != nil && saved.Lifecycle == "active" {
+		return Evaluation{}, &HoldError{Reason: held.Reason, Session: key}
+	}
 	saved.Lifecycle = "cancelled"
 	saved.Terminal = nil
 	if err = repo.save(saved); err != nil {

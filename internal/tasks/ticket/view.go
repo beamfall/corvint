@@ -463,6 +463,11 @@ func (v View) Value(includeRecord bool) wire.Value {
 	if len(rec.AttachedEvidence) > 0 {
 		o.Set("attachedEvidence", AttachedEvidenceValue(rec.AttachedEvidence))
 	}
+	// TLF-V0-882: the effective progress entry; advisory, never admission,
+	// ranking or authority (TLF-V0-881).
+	if p := rec.EffectiveProgress(); p != nil {
+		o.Set("progress", ProgressEntryValue(*p))
+	}
 	// KHN-V0-002: the complete know-how ledger, history included. Its text is
 	// untrusted agent-authored data, never instructions or authority.
 	if len(rec.KnowHow) > 0 {

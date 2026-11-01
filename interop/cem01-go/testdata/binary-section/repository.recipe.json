@@ -1,0 +1,30 @@
+{
+  "profile": "cem-stable-neutral-repository/1",
+  "objectFormat": "sha1",
+  "note": "Flat-tree recipe built like ../non-regular. Each .bin file holds a NUL byte, so Git reports it with the canonical full-index binary section. The target edits text.txt, modifies image.bin, adds added.bin and deletes removed.bin (cem-stable-v1, CEM-V1-934 to CEM-V1-936).",
+  "identity": {
+    "name": "Fixture",
+    "email": "fixture@invalid",
+    "date": "2026-10-01T00:00:00Z"
+  },
+  "commits": [
+    {
+      "name": "base",
+      "message": "base",
+      "files": {
+        "image.bin": "\u0000\u0001base image\n",
+        "removed.bin": "\u0000removed\n",
+        "text.txt": "alpha\nbeta\ngamma\n"
+      }
+    },
+    {
+      "name": "target",
+      "message": "target: edit text.txt, modify image.bin, add added.bin, delete removed.bin",
+      "files": {
+        "added.bin": "\u0000added\n",
+        "image.bin": "\u0000\u0002target image\n",
+        "text.txt": "alpha\nBETA\ngamma\n"
+      }
+    }
+  ]
+}

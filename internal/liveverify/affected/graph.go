@@ -61,6 +61,8 @@ type Graph struct {
 	// documentation is the repository's declared documentation entries
 	// (AFP-V0-160), sorted; it is part of the digest when present.
 	documentation []string
+	// runtimeEdges is the repository's declared runtime edges (AFP-V0-819).
+	runtimeEdges []RuntimeEdge
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
@@ -111,6 +113,9 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// RuntimeEdges appears only when the repository declares runtime edges
+	// (AFP-V0-819).
+	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
 	// Unobserved appears only when a plugin reports a directory it owns but
 	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
 	Unobserved []string `json:"unobserved,omitempty"`
@@ -125,7 +130,8 @@ type digestBody struct {
 // advisory and route-dispatch edges, which appear only for a unit that has
 // one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), the literal globs
 // (AFP-V0-401), the exact embed targets (AFP-V0-600), the file-name
-// placement certificate (AFP-V0-400) and the
+// placement certificate (AFP-V0-400), the declared binary consumers
+// (AFP-V0-762) and the
 // frontier's bearing condition (AFP-V0-581), so that graphs
 // without them keep their digest.
 type digestUnit struct {
@@ -150,6 +156,7 @@ type digestUnit struct {
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears,omitempty"`
 	Callers              []string `json:"callers,omitempty"`
+	ExecConsumers        []string `json:"execConsumers,omitempty"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -170,7 +177,7 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 		return nil, ErrInvalidLanguage
 	}
 	reader := FSSource(source)
-	return build(context.Background(), languages, declarationsOf(reader), func(language Language) (Result, error) {
+	return build(context.Background(), languages, declarationsOf(reader, false), func(language Language) (Result, error) {
 		explicit, ok := language.(SourceLanguage)
 		if !ok {
 			return Result{}, fmt.Errorf("%w: no source reader for %s", ErrInvalidLanguage, language.Name())
@@ -184,17 +191,28 @@ func BuildFS(source fs.FS, languages ...Language) (*Graph, error) {
 }
 
 func Build(ctx context.Context, root string, languages ...Language) (*Graph, error) {
-	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages)
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages, false)
+	return graph, err
+}
+
+// BuildPartial is Build for a caller that observes only some of the
+// repository's plugins, such as the Playwright graph or a Go-only checker. It
+// cannot tell a stale runtime edge from one whose other side an absent plugin
+// observes, so it applies only the edges whose runs unit and a tests test file
+// it holds and skips the rest; it still refuses an invalid declaration
+// (AFP-V0-819).
+func BuildPartial(ctx context.Context, root string, languages ...Language) (*Graph, error) {
+	graph, _, err := buildDisk(ctx, DiskSourceContext(ctx, root), languages, true)
 	return graph, err
 }
 
 // buildDisk is Build over an explicit disk reader, which may record what the
 // observation read (AFP-V0-391). It also returns each plugin's result in
 // language order, the input a cached graph is restored from.
-func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Graph, []Result, error) {
+func buildDisk(ctx context.Context, reader *Source, languages []Language, partial bool) (*Graph, []Result, error) {
 	root := reader.root
 	results := make([]Result, 0, len(languages))
-	graph, err := build(ctx, languages, declarationsOf(reader), func(language Language) (Result, error) {
+	graph, err := build(ctx, languages, declarationsOf(reader, partial), func(language Language) (Result, error) {
 		if err := ctx.Err(); err != nil {
 			return Result{}, err
 		}
@@ -227,10 +245,14 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Grap
 type declarations struct {
 	documentation  []string
 	runtimeReaders []RuntimeReader
+	runtimeEdges   []RuntimeEdge
+	// partial marks a graph built from a subset of the plugins, which skips
+	// the runtime edges it does not hold instead of refusing them (AFP-V0-819).
+	partial bool
 }
 
 // declarationsOf reads both declarations through reader.
-func declarationsOf(reader *Source) func() (declarations, error) {
+func declarationsOf(reader *Source, partial bool) func() (declarations, error) {
 	return func() (declarations, error) {
 		documentation, err := readDocumentationPaths(reader)
 		if err != nil {
@@ -240,7 +262,11 @@ func declarationsOf(reader *Source) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders}, nil
+		runtimeEdges, err := readRuntimeEdges(reader)
+		if err != nil {
+			return declarations{}, err
+		}
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges, partial: partial}, nil
 	}
 }
 
@@ -297,6 +323,10 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.runtimeEdges = repository.runtimeEdges
+	if err := graph.applyRuntimeEdges(repository.partial); err != nil {
+		return nil, err
+	}
 	graph.finish()
 	digest, err := graph.computeDigest()
 	if err != nil {
@@ -612,6 +642,7 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Units:          units,
 		Documentation:  graph.documentation,
 		RuntimeReaders: graph.runtimeReaders,
+		RuntimeEdges:   graph.runtimeEdges,
 		Unobserved:     namespacedEntries(graph.unobserved),
 		Runnable:       namespacedEntries(graph.runnable),
 	}, json.Deterministic(true))
@@ -654,6 +685,7 @@ func projectUnit(unit Unit) digestUnit {
 		Frontier:             unit.Frontier,
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,
+		ExecConsumers:        unit.ExecConsumers,
 	}
 }
 
@@ -670,7 +702,7 @@ func sortedKeys(set map[string]bool) []string {
 // units with no tests. Keep this walk aligned with Select; witness chains alone
 // enumerate only one path and cannot establish the denominator of a diamond.
 func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
 	ids := make([]string, 0, len(reached))
 	for id := range reached {
 		ids = append(ids, id)
@@ -688,7 +720,7 @@ func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
 // paths are added, so a unit absent here is absent from Select on any subset
 // of the dirty paths too (STR-V0-072).
 func (graph *Graph) ReachedBeyondOwnTests(dirty []string) map[string]Witness {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), false)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), false)
 	// The walk holds chains by reference (V1-2979); copy them into Via as
 	// MaterializeVia does, so each witness equals Select's.
 	for id, witness := range reached {
@@ -706,7 +738,7 @@ func (graph *Graph) ReachedBeyondOwnTests(dirty []string) map[string]Witness {
 // check covers (AFP-V0-468). A unit reached only as a reader of the dirty path
 // is left out: its own code did not change and nothing it imports did.
 func (graph *Graph) UntestedCodeReached(dirty []string) []string {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
 	var ids []string
 	for id, witness := range reached {
 		if witness.Kind != WitnessDirectSource && witness.Kind != WitnessDependency {

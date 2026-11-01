@@ -152,7 +152,7 @@ func testCALV0027_NonfixtureReleaseReadinessRefusals(t *testing.T) {
 			}
 			rev, digest, _ := publicReleaseCandidate(t, r.Root, "v1")
 			if mode == "failed-gate" {
-				payload := fmt.Sprintf(`{"attestation":{"actor":"ci","attestationId":"failed","candidateSha256":%q,"criteria":["0"],"evidence":[%q],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"FAIL","sourceIdentity":"ci"}}`, digest, wire.Sum([]byte("failed")))
+				payload := fmt.Sprintf(`{"attestation":{"actor":"ci","argv":["make","verify"],"attestationId":"failed","candidateSha256":%q,"criteria":["0"],"evidence":[%q],"gateId":"verify","profile":"taskman-release-attestation/0","provenance":"EXTERNAL_ATTESTATION","recordedAt":"2026-09-20T12:04:00Z","result":"FAIL","sourceIdentity":"ci"}}`, digest, wire.Sum([]byte("failed")))
 				if x := atm(t, r.Root, nil, "release", "record-gate", "--request-id", "failed", "--target", "v1", "--expected-revision", rev, "--payload", payload); x.res.Outcome != wire.OutcomeOK {
 					t.Fatal(x.res)
 				}

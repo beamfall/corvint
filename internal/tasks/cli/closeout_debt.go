@@ -4,6 +4,7 @@ import (
 	"container/heap"
 	"errors"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -29,6 +30,9 @@ const (
 	citeDirect   = "direct-id"
 	citeIssue    = "issue-link"
 	citeUmbrella = "umbrella"
+	// citeProgressHead marks a row whose OPEN ticket's effective progress
+	// names a scanned commit as its head (TLF-V0-883).
+	citeProgressHead = "progress-head"
 
 	stepNoAttempt       = "NO_ATTEMPT"
 	stepAttemptEnded    = "ATTEMPT_ENDED"
@@ -36,6 +40,11 @@ const (
 	stepGatesPending    = "SUBMITTED_GATES_PENDING"
 	stepGateFailed      = "GATE_FAILED"
 	stepCompletePending = "GATES_PASSED_COMPLETE_PENDING"
+
+	// Proposals under --prs (TCD-V0-871), strongest first.
+	proposeBatchClose = "BATCH_CLOSE"
+	proposeCommit     = "COMMIT_DELIVERED"
+	proposeReview     = "REVIEW"
 )
 
 var (
@@ -152,13 +161,19 @@ func (x *closeoutIndex) cites(message string) []closeoutCite {
 // closeoutRow is one candidate (TCD-V0-007).
 type closeoutRow struct {
 	ticketID, local, commit, subject, kind, issue, step, gate string
+	// delivers is set under --prs when the commit delivers the ticket
+	// under TCD-V0-167 (TCD-V0-871).
+	delivers bool
 }
 
 func closeoutRowLess(a, b closeoutRow) bool {
 	if a.ticketID != b.ticketID {
 		return a.ticketID < b.ticketID
 	}
-	return a.commit < b.commit
+	if a.commit != b.commit {
+		return a.commit < b.commit
+	}
+	return a.kind < b.kind
 }
 
 // closeoutRowHeap is a max-heap in row order: its root is the last row kept.
@@ -296,7 +311,7 @@ func truncateUTF8(s string, n int) string {
 // candidate count to the TCD-V0-009 exit status.
 func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "closeout-debt"}
-	fl, pos, err := flags(args, "ref", "since", "limit")
+	fl, pos, err := flags(args, "ref", "since", "limit", "prs")
 	if err == nil && len(pos) != 0 {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket closeout-debt takes no positional argument")
 	}
@@ -304,23 +319,32 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil {
 		limit, err = parseScanLimit(fl)
 	}
+	prsFile, prsGiven := fl["prs"]
+	var prs []ghPR
+	if err == nil && prsGiven {
+		err = readGitHubExportArg(env, "--prs", prsFile, &prs)
+	}
 	if err != nil {
 		return failure(cmd, nil, err), 0
 	}
 	var (
 		index    *closeoutIndex
 		locals   map[string]string            // OPEN tickets only
+		heads    map[string][]string          // progress head -> OPEN ticket IDs
 		attempts map[string]*snapshot.Attempt // nil = NOT_OBSERVED
 		branch   string
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, origin: store.OriginSlug(rc.repo.PrimaryWorktree)}
-		locals, attempts, branch = map[string]string{}, nil, rc.store.Queue.IntentBranch
+		locals, heads, attempts, branch = map[string]string{}, map[string][]string{}, nil, rc.store.Queue.IntentBranch
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
 			index.add(rec)
 			if rec.Status == ticket.StatusOpen {
 				locals[id] = rec.TicketID.Local
+				if p := rec.EffectiveProgress(); p != nil && p.Head != nil {
+					heads[*p.Head] = append(heads[*p.Head], id)
+				}
 			}
 		}
 		if rc.journalAbsent {
@@ -360,10 +384,18 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	collected := closeoutRows{max: maxCloseoutRows}
 	for _, c := range scan.Commits {
 		subject := truncateUTF8(c.Subject, maxCloseoutSubjectBytes)
+		var refs map[string]string
 		for _, cite := range index.cites(c.Message) {
 			if local, open := locals[cite.ticketID]; open {
-				collected.add(closeoutRow{ticketID: cite.ticketID, local: local, commit: c.Commit, subject: subject, kind: cite.kind, issue: cite.issue})
+				if prsGiven && refs == nil {
+					refs = index.commitReferences(c.Message)
+				}
+				collected.add(closeoutRow{ticketID: cite.ticketID, local: local, commit: c.Commit, subject: subject, kind: cite.kind, issue: cite.issue,
+					delivers: refs[cite.ticketID] == refDelivered})
 			}
+		}
+		for _, id := range heads[c.Commit] {
+			collected.add(closeoutRow{ticketID: id, local: locals[id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
 	}
 	type stepOf struct{ step, gate string }
@@ -385,9 +417,136 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	if scan.Truncated {
 		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older citations are not reported")
 	}
-	res.Items = []wire.Value{closeoutValue(rows, total, ref, refCommit, since, limit, len(scan.Commits), scan.Truncated, index.origin)}
+	item := closeoutValue(rows, total, ref, refCommit, since, limit, len(scan.Commits), scan.Truncated, index.origin)
+	debt := total
+	if prsGiven {
+		name := prsFile
+		if name == "-" {
+			name = "FILE"
+		}
+		p := closeoutProposals(root, index, prs, scan.Commits, locals, rows)
+		p.render(item, rows, len(prs), name)
+		debt += len(p.byPR)
+	}
+	res.Items = []wire.Value{item}
 	res.Untrusted = true
-	return res, total
+	return res, debt
+}
+
+// closeoutPlan is the TCD-V0-871 proposal set.
+type closeoutPlan struct {
+	byPR    []closeoutPRProposal
+	ticket  map[string]string  // ticket ID -> proposal
+	prOf    map[string]int64   // ticket ID -> proposing PR
+	prsOf   map[string][]int64 // ticket ID -> every delivering PR, ascending (TCD-V0-874)
+	reviews []string           // locals, sorted
+}
+
+type closeoutPRProposal struct {
+	number  int64
+	merge   string
+	tickets []string // locals, sorted
+}
+
+// closeoutProposals derives the TCD-V0-871 proposals: each exported MERGED
+// PR whose merge commit was scanned proposes batch-close for the OPEN
+// tickets its batch-delivered set delivers; other candidate rows propose
+// COMMIT_DELIVERED or REVIEW. It writes nothing.
+func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []store.ScannedCommit, locals map[string]string, rows []closeoutRow) *closeoutPlan {
+	scanned := make(map[string]bool, len(commits))
+	for _, c := range commits {
+		scanned[c.Commit] = true
+	}
+	byNumber := make(map[int64]*ghPR, len(prs))
+	for i := range prs {
+		byNumber[prs[i].Number] = &prs[i]
+	}
+	numbers := make([]int64, 0, len(prs))
+	for n, p := range byNumber {
+		if p.State == "MERGED" && scanned[p.mergeOid()] {
+			numbers = append(numbers, n)
+		}
+	}
+	slices.Sort(numbers)
+	plan := &closeoutPlan{ticket: map[string]string{}, prOf: map[string]int64{}, prsOf: map[string][]int64{}}
+	for _, n := range numbers {
+		in := &batchInput{number: n, batch: byNumber[n], byNumber: byNumber}
+		in.deriveLanes(root)
+		delivered, _ := in.hits(index)
+		pp := closeoutPRProposal{number: n, merge: in.batch.mergeOid()}
+		for _, h := range delivered {
+			local, open := locals[h.ticketID]
+			if !open {
+				continue
+			}
+			plan.prsOf[h.ticketID] = append(plan.prsOf[h.ticketID], n)
+			// A ticket an earlier PR already proposes is listed there only
+			// (TCD-V0-874).
+			if _, ok := plan.prOf[h.ticketID]; !ok {
+				pp.tickets = append(pp.tickets, local)
+				plan.ticket[h.ticketID], plan.prOf[h.ticketID] = proposeBatchClose, n
+			}
+		}
+		if len(pp.tickets) != 0 {
+			sort.Strings(pp.tickets)
+			plan.byPR = append(plan.byPR, pp)
+		}
+	}
+	reviews := map[string]bool{}
+	for _, r := range rows {
+		switch {
+		case plan.ticket[r.ticketID] == proposeBatchClose:
+		case r.kind == citeDirect && r.delivers:
+			plan.ticket[r.ticketID] = proposeCommit
+		case plan.ticket[r.ticketID] == "":
+			plan.ticket[r.ticketID] = proposeReview
+		}
+		if plan.ticket[r.ticketID] != proposeBatchClose && !reviews[r.local] {
+			reviews[r.local] = true
+			plan.reviews = append(plan.reviews, r.local)
+		}
+	}
+	sort.Strings(plan.reviews)
+	return plan
+}
+
+// render adds the TCD-V0-871 members to the closeout-debt item.
+func (p *closeoutPlan) render(item wire.Value, rows []closeoutRow, exported int, prsName string) {
+	cands, _ := item.Obj.Get("candidates")
+	for i, r := range rows {
+		c := cands.Arr[i]
+		c.Obj.Set("proposal", wire.String(p.ticket[r.ticketID]))
+		if n, ok := p.prOf[r.ticketID]; ok {
+			c.Obj.Set("pr", wire.String(strconv.FormatInt(n, 10)))
+		} else {
+			c.Obj.Set("pr", wire.Null())
+		}
+		prs := make([]string, 0, len(p.prsOf[r.ticketID]))
+		for _, n := range p.prsOf[r.ticketID] {
+			prs = append(prs, strconv.FormatInt(n, 10))
+		}
+		c.Obj.Set("prs", wire.Strings(prs))
+	}
+	hv, _ := item.Obj.Get("human")
+	human := slices.Clone(hv.Arr)
+	out := make([]wire.Value, 0, len(p.byPR))
+	for _, pp := range p.byPR {
+		n := strconv.FormatInt(pp.number, 10)
+		command := "corvint-tasks ticket batch-close --pr " + n + " --prs " + prsName + " --runs RUNS"
+		out = append(out, wire.ObjectValue(wire.NewObject().
+			Set("pr", wire.String(n)).
+			Set("mergeCommit", wire.String(pp.merge)).
+			Set("tickets", wire.Strings(pp.tickets)).
+			Set("command", wire.String(command))))
+		human = append(human, wire.String("proposal "+proposeBatchClose+" #"+n+": "+strings.Join(pp.tickets, " ")+" -> "+command))
+	}
+	if len(p.reviews) != 0 {
+		human = append(human, wire.String("review: "+strings.Join(p.reviews, " ")))
+	}
+	item.Obj.Set("prsExported", count(exported))
+	item.Obj.Set("proposals", wire.Array(out...))
+	item.Obj.Set("reviewTickets", wire.Strings(p.reviews))
+	item.Obj.Set("human", wire.Array(human...))
 }
 
 func orNull(s string) wire.Value {

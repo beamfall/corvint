@@ -29,11 +29,16 @@ type Inventory struct {
 	Tools      []string        // corvint.* MCP tool name literals
 	// Experimental holds the verbs the grouped root help lists under the Experimental header (CAP-V0-008).
 	Experimental map[string]bool
-	// Subcommands maps a verb to the subcommands its code-declared table names (CAP-V0-007).
+	// Subcommands maps a verb to the subcommands its code-declared table names (CAP-V0-007) and,
+	// after MergeSubcommands, its two-word command-tree nodes (CAP-V0-960).
 	Subcommands map[string][]string
-	// Words holds every word of every string literal in non-test Go source under cmd/ and
-	// internal/; a listed refusal code must be one of them (CAP-V0-009). Nil skips that check.
-	Words map[string]bool
+	// TreeVerbs holds the verbs with a node in the corvint command tree; only their rows are
+	// checked for stale subcommands (CAP-V0-961).
+	TreeVerbs map[string]bool
+	// Literals holds the whole value of every string literal in non-test Go source under cmd/
+	// and internal/; a listed refusal code must equal one of them (CAP-V0-009, CAP-V0-962). Nil
+	// skips that check.
+	Literals map[string]bool
 }
 
 // Finding is one disagreement between the catalog or README and the code (CAP-V0-003, CAP-V0-004).
@@ -244,13 +249,13 @@ func stringLit(expr ast.Expr) (string, bool) {
 	return value, err == nil
 }
 
-// literalWord splits string literal text into the words a refusal code is matched against.
+// literalWord splits backticked catalog text into the words a subcommand is matched against.
 var literalWord = regexp.MustCompile(`[A-Za-z0-9_-]+`)
 
-// ScanWords returns every word of every string literal in non-test Go source under dirs,
-// skipping testdata trees (CAP-V0-009).
-func ScanWords(dirs []string) (map[string]bool, error) {
-	words := map[string]bool{}
+// ScanLiterals returns the unquoted value of every string literal in non-test Go source under
+// dirs, skipping testdata trees (CAP-V0-009, CAP-V0-962).
+func ScanLiterals(dirs []string) (map[string]bool, error) {
+	literals := map[string]bool{}
 	for _, dir := range dirs {
 		err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
@@ -278,8 +283,8 @@ func ScanWords(dirs []string) (map[string]bool, error) {
 					break
 				}
 				if tok == token.STRING {
-					for _, w := range literalWord.FindAllString(lit, -1) {
-						words[w] = true
+					if value, err := strconv.Unquote(lit); err == nil {
+						literals[value] = true
 					}
 				}
 			}
@@ -289,7 +294,7 @@ func ScanWords(dirs []string) (map[string]bool, error) {
 			return nil, err
 		}
 	}
-	return words, nil
+	return literals, nil
 }
 
 // parseDispatched reads the topLevelCommands literal, which names every top-level verb
@@ -511,6 +516,7 @@ type row struct {
 	Line     int
 	Spans    []string // every backticked span in the row
 	Refusals []string // backticked spans in the "Abstains or refuses on" cell, when the table has one
+	Cells    []string // the row's cells, split as splitCells does
 }
 
 // parseRows returns the rows of every region between <!-- capability-gate:SECTION --> and
@@ -569,7 +575,7 @@ func parseRows(doc []byte, section string) ([]row, error) {
 		if m == nil {
 			return nil, fmt.Errorf("line %d: %s row has no backticked name", n, section)
 		}
-		r := row{Name: m[1], Line: n}
+		r := row{Name: m[1], Line: n, Cells: cells}
 		if maturityCol < len(cells) {
 			r.Maturity = cells[maturityCol]
 		}
@@ -706,9 +712,10 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 			}
 		}
 		catalogRows[sec.name] = byName
-		findings = append(findings, checkRefusals(sec.name, rows, inv.Words)...)
+		findings = append(findings, checkRefusals(sec.name, rows, inv.Literals)...)
 	}
 	findings = append(findings, checkSubcommands(catalogRows[sectionCommands], inv.Subcommands)...)
+	findings = append(findings, checkStaleSubcommands(catalogRows[sectionCommands], inv.Subcommands, inv.TreeVerbs)...)
 	if readme != nil {
 		findings = append(findings, checkReadme(readme, inv, catalogRows)...)
 	}
@@ -748,21 +755,80 @@ func checkSubcommands(rows map[string]row, subcommands map[string][]string) []Fi
 	return findings
 }
 
+// checkStaleSubcommands reports each subcommand a row's Subcommands sentence names that neither
+// the command tree nor a declared table holds for the verb (CAP-V0-961). Only verbs with a tree
+// node are checked, so the tree stays the authority.
+func checkStaleSubcommands(rows map[string]row, subcommands map[string][]string, treeVerbs map[string]bool) []Finding {
+	var findings []Finding
+	for name, r := range rows {
+		verb := strings.Fields(name)[0]
+		if !treeVerbs[verb] {
+			continue
+		}
+		for _, sub := range documentedSubcommands(r.Cells) {
+			if !slices.Contains(subcommands[verb], sub) {
+				findings = append(findings, Finding{"subcommand-stale", sectionCommands, verb + " " + sub,
+					fmt.Sprintf("row at line %d lists it as a subcommand but neither the corvint command tree nor a declared table has it", r.Line)})
+			}
+		}
+	}
+	return findings
+}
+
+// documentedSubcommands returns the first word of each backticked span at parenthesis depth zero
+// in a cell's Subcommands sentence, which runs from the word "Subcommands" to the first ". " at
+// depth zero or the cell end. A span starting with "-" is an option, not a subcommand.
+func documentedSubcommands(cells []string) []string {
+	var out []string
+	for _, cell := range cells {
+		at := strings.Index(cell, "Subcommands")
+		if at < 0 {
+			continue
+		}
+		depth, code := 0, false
+		var span strings.Builder
+		text := cell[at:]
+	scan:
+		for i := 0; i < len(text); i++ {
+			c := text[i]
+			switch {
+			case c == '`':
+				if code && depth == 0 {
+					if word := literalWord.FindString(span.String()); word != "" && !strings.HasPrefix(span.String(), "-") {
+						out = append(out, word)
+					}
+				}
+				code = !code
+				span.Reset()
+			case code:
+				span.WriteByte(c)
+			case c == '(':
+				depth++
+			case c == ')' && depth > 0:
+				depth--
+			case c == '.' && depth == 0 && (i+1 == len(text) || text[i+1] == ' '):
+				break scan
+			}
+		}
+	}
+	return out
+}
+
 // refusalCode matches a backticked refusal or abstention code: kebab-case or SCREAMING_SNAKE_CASE
 // with at least two parts.
 var refusalCode = regexp.MustCompile(`^(?:[a-z][a-z0-9]*(?:-[a-z0-9]+)+|[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+)$`)
 
-// checkRefusals requires each refusal code a row lists to be a word of some string literal in
-// the scanned source (CAP-V0-009). Nil words skips the check.
-func checkRefusals(section string, rows []row, words map[string]bool) []Finding {
-	if words == nil {
+// checkRefusals requires each refusal code a row lists to equal the whole value of some string
+// literal in the scanned source (CAP-V0-009, CAP-V0-962). Nil literals skips the check.
+func checkRefusals(section string, rows []row, literals map[string]bool) []Finding {
+	if literals == nil {
 		return nil
 	}
 	var findings []Finding
 	for _, r := range rows {
 		for _, code := range r.Refusals {
-			if refusalCode.MatchString(code) && !words[code] {
-				findings = append(findings, Finding{"refusal-unknown", section, r.Name, fmt.Sprintf("row at line %d lists %q, which no non-test Go string literal under cmd/ or internal/ contains", r.Line, code)})
+			if refusalCode.MatchString(code) && !literals[code] {
+				findings = append(findings, Finding{"refusal-unknown", section, r.Name, fmt.Sprintf("row at line %d lists %q, which no non-test Go string literal under cmd/ or internal/ equals", r.Line, code)})
 			}
 		}
 	}

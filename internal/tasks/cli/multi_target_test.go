@@ -105,14 +105,14 @@ func TestTCDV0173_HoldSeveralTicketsReadsRevisions(t *testing.T) {
 	}
 }
 
-// TestCALV0967_InterruptedMultiTargetWriteResumes covers V1-3646: a
+// TestTCDV0967_InterruptedMultiTargetWriteResumes covers V1-3646: a
 // two-ticket change interrupted after its first target landed resumes by
 // rerunning the same write; the landed target replays its receipt, the other
 // applies once, and a further rerun writes nothing: a replay reports the same
 // resultingRevision and no new receipt. The base request id is
 // long enough that every derived id takes the 64-byte digest form
-// (CAL-V0-967).
-func TestCALV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
+// (TCD-V0-967).
+func TestTCDV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, a := tcdTicket(t, root, "alpha", "")

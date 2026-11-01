@@ -190,6 +190,8 @@ func (s *GuidanceSnapshot) CurrentRef(ctx context.Context) (string, error) {
 	return strings.TrimSpace(string(raw)), err
 }
 
+// MergeBase is safe unguarded (EEP-V0-771): OpenGuidanceSnapshot and Check refuse a common Git
+// directory holding info/grafts or shallow, the same files gitancestry.RewrittenAt reads.
 func (s *GuidanceSnapshot) MergeBase(ctx context.Context, a, b string) (string, error) {
 	raw, err := s.run(ctx, 129, "merge-base", a, b)
 	return strings.TrimSpace(string(raw)), err

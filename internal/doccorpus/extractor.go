@@ -201,6 +201,14 @@ func (p *extractorProducer) bound(what string, count int, extractor, path string
 	if p.schema == ProviderSchema {
 		message += fmt.Sprintf("; --schema 2 emits an adoption provider record for a manifest /2, which admits %d", MaxCorpusRecords)
 	}
+	// DCX-V1-812: a profile whose globs match too many files can also be scoped (V1-2561).
+	if what == "matched files" {
+		or := ""
+		if p.schema == ProviderSchema {
+			or = "or "
+		}
+		message += fmt.Sprintf("; %snarrow extractor %q files globs to at most %d files", or, extractor, p.limit)
+	}
 	return fail(message)
 }
 

@@ -25,6 +25,11 @@ dogfood_require_full_history dogfood-change || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 evidence="$git_dir/corvint"
 mkdir -p "$evidence" || exit 2
+# ASD-V0-907 (V1-1629): one line per run, the newest 1000 kept, so the lane's dogfood-change count is
+# retained for the batch measurement; a write that fails never stops the run.
+runs="$evidence/dogfood-change-runs.tsv"
+{ printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$base_arg" "$(git -C "$repo" rev-parse -q --verify 'HEAD^{commit}')" >> "$runs" &&
+  tail -n 1000 "$runs" > "$runs.tmp" && /bin/mv -f "$runs.tmp" "$runs"; } 2> /dev/null || true
 expected_version=$(cat "$repo/VERSION")
 if [[ -z $expected_version ]]; then
   printf 'dogfood-change: REFUSE project-version-unavailable\n' >&2
@@ -60,5 +65,12 @@ if [[ $PWD != "$repo" ]]; then
     [[ -z $value || $value == /* ]] || export "$name=$PWD/$value"
   done
   cd "$repo" || exit 2
+fi
+# IDX-SNAP-V0-891 (V1-3574): name an analyzer input change and its check at change start, before
+# any focused test selection can leave TestAnalyzerSchemaOutput out.
+if [[ -f internal/contextindex/analyzer_schema_test.go && -x script/analyzer-inputs.sh ]] &&
+  analyzer_inputs=$(script/analyzer-inputs.sh "$base_arg" 2> /dev/null) && [[ -n $analyzer_inputs ]]; then
+  printf 'dogfood-change: NOTE analyzer-schema: %s analyzer input(s) changed since %s, first %s: script/analyzer-schema.sh check --output decides whether a bump is needed, and dogfood-finish runs it before the bind\n' \
+    "$(grep -c . <<< "$analyzer_inputs")" "$base_arg" "${analyzer_inputs%%$'\n'*}"
 fi
 exec "$corvint_bin" dogfood change --corvint-bin "$corvint_bin" "$base_arg"

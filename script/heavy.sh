@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: script/heavy.sh COMMAND [ARG...]
+# usage: script/heavy.sh [NAME=VALUE...] COMMAND [ARG...]
 #        script/heavy.sh --print-lock-dir
 #
 # --print-lock-dir prints the slot lock directory a run would use (HEAVY_LOCK_DIR, else HEAVY_CONFIG,
@@ -32,6 +32,10 @@
 #                        `whole reason=small-package:NB` (ASD-V0-074, V1-3120); default 49152. On
 #                        2026-10-30 the six such packages measured (4-45 KB of tests) each ran whole
 #                        in 0.6-16 s; cmd/ and internal/ packages are never exempt. 0 disables it.
+#   HEAVY_SELECTION      a `corvint test --base SHA --dry-run --manifest M` manifest of HEAD; a
+#                        whole-package go test whose every ./REL package M selects whole needs no
+#                        HEAVY_WHOLE_REASON, logged `whole reason=corvint-selection:HEX12` (ASD-V0-891).
+#                        `script/heavy.sh --plan M` prints one such command per unit of M, runs none.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -72,6 +76,10 @@
 #   HEAVY_REMOTE_CLONE    remote clone of this repository's origin; default $HOME/corvint.
 #   HEAVY_REMOTE_ROOT     remote scratch and lock root; default $HOME/.cache/corvint-heavy.
 #   HEAVY_REMOTE_SLOTS    remote concurrent commands; default max(1, remote CPUs/4).
+#   HEAVY_REMOTE_GOMAXPROCS  GOMAXPROCS the remote command runs with, so each slot's test binaries
+#                         stay within their share of the remote CPUs (V1-1628); default the remote
+#                         -p, max(1, remote CPUs/slots); 0 sets none. A GOMAXPROCS the remote
+#                         environment file sets, or a leading GOMAXPROCS=N word, still wins.
 #   HEAVY_REMOTE_ENV      remote file sourced first (for example one putting the pinned go on PATH).
 #   HEAVY_REMOTE_TIMEOUT  bound on the remote command's run once it holds a remote slot, enforced with
 #                         timeout(1), which the remote must have; the slot wait is not bounded; default 40m.
@@ -131,7 +139,8 @@
 # 143, 130 or 129; the remote command keeps running until it ends or HEAVY_REMOTE_TIMEOUT stops it.
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
 # appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
-# set test environment with `env K=V` inside the command. GOCACHE/GOMODCACHE assignments are
+# set test environment with `env K=V` inside the command, or as leading K=V words, which become
+# `env K=V ...` (ASD-V0-830). GOCACHE/GOMODCACHE assignments are
 # dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
 # profiles, -trace, -test.*), as an argument, in a GOFLAGS= argument or in the exported GOFLAGS,
 # always runs locally, because its files would stay on the remote.
@@ -423,7 +432,7 @@ offload() {
     printf 'TREE=%q\nDIRTY=%q\nBACK=%q\n' "$heavy_tree" "$heavy_dirty" "$back"
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
-    printf 'BUSY=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}"
+    printf 'BUSY=%q\nGMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -650,6 +659,10 @@ serve() {
   export CORVINT_GOCACHE GOCACHE
   mkdir -p "$GOCACHE" || infra "go cache $GOCACHE unavailable"
   bound_parallelism "$par"
+  # V1-1628: -p bounds how many packages build or test at once, not the threads inside one test
+  # binary, so a whole-package run on every slot would still contend for all the CPUs.
+  if [[ -z ${GOMAXPROCS-} ]] && ((${GMP:-$par} > 0)); then export GOMAXPROCS=${GMP:-$par}; fi
+  printf 'heavy.sh: remote bound -p=%s GOMAXPROCS=%s\n' "$par" "${GOMAXPROCS:-unset}" >&2
   printf 'heavy.sh: running on %s %s/%s %s at %s%s tree=%s dirty=%s\n' "$(hostname)" "$(go env GOOS 2> /dev/null)" \
     "$(go env GOARCH 2> /dev/null)" "$(go env GOVERSION 2> /dev/null)" "$HEAD" "${WIP:+ +wip}" "$TREE" "$DIRTY" >&2
   if [[ -n ${BUILD-} ]]; then
@@ -1024,6 +1037,88 @@ run_selects_all() {
   return 1
 }
 
+# manifest_perl: reads a corvint-test-manifest/0 (ARGV[0]) for manifest_admits and print_plan
+# (ASD-V0-891). Mode "admit" (ARGV[1]) succeeds, printing the planDigest's first 12 hex digits, when
+# source.head is ARGV[2] and every remaining package (an import path) is a unit with slice "whole",
+# or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern.
+# Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
+# -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line.
+manifest_perl='
+use strict; use warnings; use JSON::PP;
+my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
+open(my $fh, "<", $path) or do { print STDERR "heavy.sh: REFUSE manifest-unreadable $path\n"; exit 2 };
+my $m = eval { local $/; JSON::PP->new->decode(<$fh>) };
+ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" && ref $m->{units} eq "ARRAY"
+  or do { print STDERR "heavy.sh: REFUSE manifest-invalid $path (want corvint-test-manifest/0)\n"; exit 2 };
+my $digest = ($m->{planDigest} // "") =~ /^sha256:([0-9a-f]{12})/ ? $1 : "unknown";
+if ($mode eq "admit") {
+  exit 1 unless ref $m->{source} eq "HASH" && ($m->{source}{head} // "") eq $key && @pkgs;
+  my %admit = map { ($_->{unit} // "") => 1 } grep {
+    $skip eq "" ? ($_->{slice} // "") eq "whole" : ($_->{flag} // "") eq "-skip" && ($_->{pattern} // "") eq $skip
+  } @{ $m->{units} };
+  $admit{"go:$_"} or exit 1 for @pkgs;
+  print "$digest\n"; exit 0;
+}
+sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
+my $n = 0;
+for my $u (@{ $m->{units} }) {
+  my $unit = $u->{unit} // "";
+  next unless $unit =~ /^go:(.+)$/;
+  my $ip = $1;
+  my $rel = $ip eq $key ? "." : index($ip, "$key/") == 0 ? "./" . substr($ip, length($key) + 1) : undef;
+  if (!defined $rel) { print "# skipped $unit: outside $key\n"; next }
+  my ($slice, $flag, $pattern, $sel) = ($u->{slice} // "", $u->{flag} // "", $u->{pattern} // "", "");
+  if ($slice ne "whole") {
+    if (($flag ne "-run" && $flag ne "-skip") || $pattern eq "") { print "# skipped $unit: slice $slice has no -run/-skip pattern\n"; next }
+    $sel = " $flag " . sq($pattern);
+  }
+  print "HEAVY_SELECTION=", sq($path), " script/heavy.sh go test -count=1 -timeout 30m$sel $rel\n"; $n++;
+}
+print STDERR "heavy.sh: plan $n units from $path (planDigest $digest)\n";
+'
+
+# module_path: the module path in ./go.mod, or nothing.
+module_path() {
+  awk '$1 == "module" { gsub(/"/, "", $2); print $2; exit }' go.mod 2> /dev/null
+}
+
+# manifest_admits COMMAND...: ASD-V0-891. Succeeds, printing the manifest's planDigest prefix, when
+# HEAVY_SELECTION is a manifest of HEAD that selects every package argument whole, or, with one
+# -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
+# or -C. Other flags are skipped as in small_package_bytes.
+manifest_admits() {
+  local seen=0 skip=0 prev_go=0 arg dir mod head pkgs=() skips=()
+  mod=$(module_path) && [[ -n $mod ]] || return 1
+  head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then ((skip == 2)) && skips+=("$arg"); skip=0; continue; fi
+    case $arg in
+      -skip) skip=2 ;;
+      -skip=*) skips+=("${arg#-skip=}") ;;
+      -run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -C | -C=*) return 1 ;;
+      -*) ;;
+      .) pkgs+=("$mod") ;;
+      *)
+        dir=${arg#./}
+        dir=${dir%/}
+        [[ $arg == ./* && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        pkgs+=("$mod/$dir")
+        ;;
+    esac
+  done
+  ((${#pkgs[@]})) && ((${#skips[@]} < 2)) || return 1
+  perl -e "$manifest_perl" "$HEAVY_SELECTION" admit "$head" "${skips[0]-}" "${pkgs[@]}" 2> /dev/null
+}
+
+# print_plan MANIFEST: ASD-V0-891 --plan; prints the per-package heavy.sh commands, runs nothing.
+print_plan() {
+  local mod
+  mod=$(module_path) && [[ -n $mod ]] || refuse "no-module ./go.mod names no module; run --plan from the module root"
+  perl -e "$manifest_perl" "$1" plan "$mod"
+}
+
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
 # that matches every test) without HEAVY_WHOLE_REASON (ASD-V0-030, ASD-V0-860). Returns 1 on refusal.
 selection_policy() {
@@ -1038,14 +1133,17 @@ selection_policy() {
       fi
       ;;
   esac
-  local small
+  local small digest
   if [[ -z ${HEAVY_WHOLE_REASON-} ]] && small=$(small_package_bytes "$@"); then
     selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
     return 0
   fi
+  if [[ -z ${HEAVY_WHOLE_REASON-} && -n ${HEAVY_SELECTION-} ]] && digest=$(manifest_admits "$@"); then
+    selection_log "$now whole reason=corvint-selection:$digest pwd=$PWD cmd=$*"
+    return 0
+  fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run, then go test -run '<selected>' ./<pkg>. If Corvint selected the package whole or reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
-    printf 'heavy.sh: REFUSED whole-reason-missing (exit 2)\n' # stdout marker (V1-3213)
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
@@ -1058,7 +1156,6 @@ local_policy() {
   [[ ${HEAVY_REMOTE:-1} == 0 ]] && offloadable "$@" || return 0
   [[ -n ${HEAVY_LOCAL_REASON-} ]] && return 0
   printf '%s\n' "heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON. Drop HEAVY_REMOTE=0 so the run offloads (flake reruns and -count=N included). Only a test that needs this host may run locally: rerun with HEAVY_LOCAL_REASON='<why it needs this host>'." >&2
-  printf 'heavy.sh: REFUSED local-reason-missing (exit 2)\n' # stdout marker (V1-3213)
   fallback_log refused-local "$@"
   return 1
 }
@@ -1132,18 +1229,35 @@ main() {
   load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
+  if [[ $1 == --plan ]]; then
+    [[ $# -eq 2 ]] || refuse "invalid-arguments --plan takes one manifest path"
+    print_plan "$2"
+    return
+  fi
   if [[ $1 == --print-lock-dir ]]; then
     [[ $# -eq 1 ]] || refuse "invalid-arguments --print-lock-dir takes no command"
     printf '%s\n' "$lock_dir"
     return 0
   fi
+  # ASD-V0-830 (V1-3256): leading NAME=VALUE words are environment, as for env(1), so
+  # `heavy.sh GOTOOLCHAIN=local go test ...` runs `env GOTOOLCHAIN=local go test ...` locally and
+  # remotely instead of failing with `cannot run` after the load wait.
+  [[ $1 =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && set -- env "$@"
   heavy_script=$(script_hash "${BASH_SOURCE[0]}")
   printf 'heavy.sh: script sha256=%s %s\n' "$heavy_script" "${BASH_SOURCE[0]}" >&2
   cpus=$(cpu_count)
   slot_limits "$cpus"
   mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
-  selection_policy "$@" || { heavy_cause=refused; return 2; }
-  local_policy "$@" || { heavy_cause=refused; return 2; }
+  # ASD-V0-890 (V1-3506): evaluate both reason rules, then refuse once naming every missing reason.
+  local missing=()
+  selection_policy "$@" || missing+=(whole-reason-missing)
+  local_policy "$@" || missing+=(local-reason-missing)
+  if ((${#missing[@]})); then
+    ((${#missing[@]} > 1)) && printf 'heavy.sh: refused: set both HEAVY_WHOLE_REASON and HEAVY_LOCAL_REASON\n' >&2
+    printf 'heavy.sh: REFUSED %s (exit 2)\n' "$(IFS=+; printf '%s' "${missing[*]}")" # stdout marker (V1-3213)
+    heavy_cause=refused
+    return 2
+  fi
   if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
     if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
       fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
@@ -1156,6 +1270,7 @@ main() {
       [[ $retry =~ ^[0-9]{1,3}$ ]] || refuse "invalid-retry HEAVY_REMOTE_RETRY=$retry (want 0..999 seconds)"
       fallback_limit=${HEAVY_FALLBACK_ALERT:-3}
       [[ $fallback_limit =~ ^[0-9]{1,3}$ ]] && ((10#$fallback_limit <= 100)) || refuse "invalid-fallback-alert HEAVY_FALLBACK_ALERT=$fallback_limit (want 0..100)"
+      [[ ${HEAVY_REMOTE_GOMAXPROCS:-0} =~ ^(0|[1-9][0-9]{0,3})$ ]] || refuse "invalid-remote-gomaxprocs HEAVY_REMOTE_GOMAXPROCS=$HEAVY_REMOTE_GOMAXPROCS (want 0..9999)"
       darwin_notice "$@"
       offload_traps
       try_offload "$@"

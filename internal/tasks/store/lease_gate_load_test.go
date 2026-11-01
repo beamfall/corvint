@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -77,7 +78,12 @@ type gateLoadSample struct {
 // cache cleared before every call, as a fresh CLI process would be, for
 // CORVINT_TASKS_LEASE_GATE_LOAD_SECONDS. Writer 0
 // reaps, writers 1 and 2 widen, and the rest claim and then alternate
-// heartbeat and renew; each releases at the end. Every call records its
+// heartbeat and renew; each releases at the end. With
+// CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS set to N (default 0), N more
+// processes take no lease and cycle through creating a ticket, refining it,
+// completing it by hand and setting a note on their own ticket through
+// Mutate (LGL-V0-801; V1-0757), so lease and
+// non-lease writers share the writer lock. Every call records its
 // preparation-gate wait and hold (WithPreparationObserver), writer-lock hold
 // and error code. The report at CORVINT_TASKS_LEASE_GATE_LOAD keeps raw
 // samples and per-verb percentiles, including the LOCK_TIMEOUT count.
@@ -136,7 +142,8 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	}
 	receipts, writers := envInt("CORVINT_TASKS_LEASE_GATE_LOAD_RECEIPTS", 40000), envInt("CORVINT_TASKS_LEASE_GATE_LOAD_WRITERS", 15)
 	seconds, think := envInt("CORVINT_TASKS_LEASE_GATE_LOAD_SECONDS", 120), envInt("CORVINT_TASKS_LEASE_GATE_LOAD_THINK_MS", 10000)
-	tickets := gateLoadTickets(envInt("CORVINT_TASKS_LEASE_GATE_LOAD_TICKETS", 0), writers)
+	mutators := envInt("CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS", 0)
+	tickets := gateLoadTickets(envInt("CORVINT_TASKS_LEASE_GATE_LOAD_TICKETS", 0), writers+mutators)
 	setup := time.Now()
 	base, err := os.MkdirTemp("", "atm-gate-load-")
 	if err != nil {
@@ -158,7 +165,7 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	holdGit(t, root, "init", "-q", "-b", "main")
 	holdGit(t, root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
 	entries, err := os.ReadDir(filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets"))
-	if err != nil || len(entries) < writers+1 {
+	if err != nil || len(entries) < writers+mutators+1 {
 		t.Fatalf("tickets %d %v", len(entries), err)
 	}
 	// One warm-up claim and release, as a store in use has already had.
@@ -173,18 +180,22 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	loadBefore := hostLoad()
 	start := time.Now()
 	deadline := start.Add(time.Duration(seconds) * time.Second)
-	procs := make([]*exec.Cmd, writers)
-	outs := make([]string, writers)
+	procs := make([]*exec.Cmd, writers+mutators)
+	outs := make([]string, writers+mutators)
+	// The warm-up ticket entries[writers] is skipped, so a mutator never
+	// notes a ticket a lease writer claimed.
 	for i := range procs {
-		role := "liveness"
+		role, ticket := "liveness", entries[i]
 		switch {
+		case i >= writers:
+			role, ticket = "mutate", entries[i+1]
 		case i == 0:
 			role = "reap"
 		case i <= 2:
 			role = "widen"
 		}
 		outs[i] = filepath.Join(real, fmt.Sprintf("worker-%d.jsonl", i))
-		spec, _ := json.Marshal(gateLoadWorker{Repo: repo.PrimaryWorktree, Root: root, Role: role, Ticket: strings.TrimSuffix(entries[i].Name(), ".json"), Out: outs[i], TracePrefix: strings.TrimSuffix(output, ".json") + fmt.Sprintf(".w%d", i), Index: i, ThinkMS: think, Start: start.UnixMilli(), Deadline: deadline.UnixMilli()})
+		spec, _ := json.Marshal(gateLoadWorker{Repo: repo.PrimaryWorktree, Root: root, Role: role, Ticket: strings.TrimSuffix(ticket.Name(), ".json"), Out: outs[i], TracePrefix: strings.TrimSuffix(output, ".json") + fmt.Sprintf(".w%d", i), Index: i, ThinkMS: think, Start: start.UnixMilli(), Deadline: deadline.UnixMilli()})
 		cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0263_LeaseGateLoadWorker$", "-test.count=1", "-test.timeout=0")
 		cmd.Env = append(os.Environ(), "CORVINT_TASKS_LEASE_GATE_LOAD=", "CORVINT_TASKS_LEASE_GATE_LOAD_WORKER="+string(spec))
 		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
@@ -202,6 +213,20 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	}
 	elapsed := time.Since(start)
 	loadAfter := hostLoad()
+	// The complete audit after the run (LGL-V0-801): lease and non-lease
+	// writers sharing the store left it consistent.
+	q, err := wire.ParseQueueID("queueId", fixture.QueueID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	proof, err := (journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: q, PrimaryWorktree: repo.PrimaryWorktree}).Audit()
+	audit := fmt.Sprint(err)
+	if err == nil {
+		audit = proof.StructuralConsistency + " " + proof.ProjectionAgreement
+	}
+	if audit != "CONSISTENT AGREES" {
+		t.Errorf("audit after the run: %s", audit)
+	}
 
 	var samples []gateLoadSample
 	for _, path := range outs {
@@ -284,7 +309,7 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 		"fixture":      fmt.Sprintf("historyStoreAt with %d tickets and %d receipts (one request plus one ~%d-byte ticket afterimage per padding receipt); policy capacity %d; one warm-up claim and release", tickets, receipts, historyBodySize, writers+8),
 		"workers":      fmt.Sprintf("%d processes re-executing this test binary: worker 0 reaps, each other worker claims a disjoint scope, workers 1-2 then widen it and the rest alternate heartbeat and renew; %d ms think time; each releases at the deadline; in-process lease audit cache cleared before every call", writers, think),
 		"statistic":    "per-verb nearest-rank percentiles over all calls; gate percentiles only over calls that entered the preparation gate; Code is wire.CodeOf of a failed call; WallMS is the whole Lease call",
-		"publishSyncs": gateLoadSyncMode(), "receipts": receipts, "tickets": tickets, "writers": writers, "seconds": seconds, "elapsedMS": ms(elapsed), "setupMS": setupMS,
+		"publishSyncs": gateLoadSyncMode(), "receipts": receipts, "tickets": tickets, "writers": writers, "mutators": mutators, "audit": audit, "seconds": seconds, "elapsedMS": ms(elapsed), "setupMS": setupMS,
 		"finalLastSeq": head.LastSeq.Uint64(), "workerFailures": failed,
 		"lockTimeoutsPerHour": float64(all.LockTimeouts) / elapsed.Hours(),
 		"cpuCount":            runtime.NumCPU(), "goVersion": runtime.Version(), "goos": runtime.GOOS,
@@ -303,7 +328,7 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("receipts=%d tickets=%d writers=%d elapsed=%s lastSeq=%s LOCK_TIMEOUT=%d", receipts, tickets, writers, elapsed, head.LastSeq, all.LockTimeouts)
-	for _, verb := range []string{"claim", "heartbeat", "renew", "widen", "reap", "release", "all"} {
+	for _, verb := range []string{"claim", "heartbeat", "renew", "widen", "reap", "release", "create", "refine", "complete-manual", "note", "all"} {
 		if v := verbs[verb]; v != nil {
 			t.Logf("%-9s calls=%d gated=%d timeouts=%d codes=%v wall p50/p99=%.0f/%.0f ms gate wait p99=%.0f hold p50/p99/max=%.0f/%.0f/%.0f ms outside-gate p50/p99/max=%.0f/%.0f/%.0f ms", verb, v.Calls, v.Gated, v.LockTimeouts, v.Codes, v.WallP50, v.WallP99, v.GateWaitP99, v.GateHoldP50, v.GateHoldP99, v.GateHoldMax, v.OutsideGateP50, v.OutsideGateP99, v.OutsideGateMax)
 		}
@@ -344,9 +369,33 @@ func TestCALV0263_LeaseGateLoadWorker(t *testing.T) {
 	pause := func() {
 		time.Sleep(time.Duration(w.ThinkMS/2+(w.Index*37)%max(1, w.ThinkMS)) * time.Millisecond)
 	}
-	attempt, generation, widened := "", wire.Size(""), 0
+	attempt, generation, widened, notes := "", wire.Size(""), 0, 0
+	// A mutator's cycle: create a ticket, refine it, complete it by hand,
+	// then set a note on its own fixture ticket; a failed step restarts it.
+	created, step := "", 0
 	for time.Now().Before(deadline) {
 		switch {
+		case w.Role == "mutate":
+			id := fmt.Sprintf("gate-load-m%d-%d", w.Index, run.calls)
+			ok := false
+			switch step {
+			case 0:
+				var report *Report
+				if report, ok = run.mutate("create", historyCreate(id, "mutator "+id)); ok {
+					created = report.Ticket
+				}
+			case 1:
+				_, ok = run.mutate("refine", gateLoadEnvelope(id, mutation.OpRefine, created, "1", historyObject("title", wire.String("refined "+id))))
+			case 2:
+				_, ok = run.mutate("complete-manual", gateLoadEnvelope(id, mutation.OpCompleteManual, created, "2", historyObject("evidence", wire.Array(), "reason", wire.String("Load harness."))))
+			default:
+				if _, ok = run.mutate("note", writerNoteEnvelope(id, fixture.TicketID(w.Ticket), strconv.Itoa(notes), fmt.Sprintf("Note %d.", notes))); ok {
+					notes++
+				}
+			}
+			if step = (step + 1) % 4; !ok {
+				step = 0
+			}
 		case w.Role == "reap":
 			run.lease("reap", transaction.LeaseRequest{Verb: transaction.LeaseReap})
 		case attempt == "":
@@ -497,6 +546,67 @@ func (r *gateLoadRun) call(verb string, req transaction.LeaseRequest) *Report {
 		return nil
 	}
 	return report
+}
+
+// mutate issues one non-lease write through Mutate (LGL-V0-801) and
+// records it as a sample with the writer lock hold, stages and code; the
+// lease-only fields stay zero. It returns the report of a completed write.
+func (r *gateLoadRun) mutate(verb string, raw []byte) (*Report, bool) {
+	r.calls++
+	s := gateLoadSample{Worker: r.worker, Verb: verb}
+	ctx := authority.WithLockObserver(WithClock(context.Background(), WallClock), func(d time.Duration) { s.LockHoldMS += ms(d) })
+	ctx = context.WithValue(ctx, mutationStageKey{}, func(stage string) {
+		if why, ok := strings.CutPrefix(stage, "fast.declined: "); ok {
+			s.Declines = append(s.Declines, why)
+			return
+		}
+		if name, raw, ok := strings.Cut(strings.TrimPrefix(stage, "fast."), "="); ok {
+			if d, err := time.ParseDuration(raw); err == nil {
+				if s.Stages == nil {
+					s.Stages = map[string]float64{}
+				}
+				s.Stages[name] += ms(d)
+			}
+		}
+	})
+	forgetLeaseAudits()
+	before := probeProcess()
+	started := time.Now()
+	report, err := Mutate(ctx, r.repo, historyActor, raw, WallClock())
+	s.WallMS = ms(time.Since(started))
+	s.Process = before.to(probeProcess())
+	s.OutsideGateMS = s.WallMS
+	if !r.epoch.IsZero() {
+		s.StartMS = ms(started.Sub(r.epoch))
+	}
+	switch {
+	case err != nil:
+		s.Code = string(wire.CodeOf(err))
+		if s.Code == "" {
+			s.Code = "ERROR"
+		}
+	case report.Outcome.Outcome != mutation.OutcomeCompleted:
+		s.Code = "OUTCOME_" + string(report.Outcome.Outcome)
+	}
+	r.samples = append(r.samples, s)
+	return report, s.Code == ""
+}
+
+// gateLoadEnvelope is a non-CREATE mutation of target at revision expected
+// by the history actor (LGL-V0-801).
+func gateLoadEnvelope(id, op, target, expected string, payload wire.Value) []byte {
+	s := wire.String
+	return wire.EncodeFile(historyObject(
+		"profile", s(mutation.Profile),
+		"requestId", s(id),
+		"actor", historyObject("id", s(historyActor.ID), "role", s(historyActor.Role)),
+		"queueId", s(fixture.QueueID),
+		"targetId", s(target),
+		"expectedRevision", s(expected),
+		"operation", s(op),
+		"payload", payload,
+		"issuedAt", s("2026-09-07T12:00:00Z"),
+	))
 }
 
 // gateLoadPolicy widens the fixture policy to capacity attempts with no

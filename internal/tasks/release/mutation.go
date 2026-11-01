@@ -270,6 +270,9 @@ func Apply(env *Envelope, binding Actor, current *Record, queue wire.QueueID, co
 		} else {
 			a.Provenance = External
 		}
+		if why := AttestationArgvRefusal(a, gates); why != "" {
+			return nil, wire.Errorf(wire.CodeMalformed, "attestation/argv", "%s", why)
+		}
 		out.Attestations = append(out.Attestations, a)
 		sort.Slice(out.Attestations, func(i, j int) bool {
 			return bytes.Compare(wire.EncodeFile(attestationValue(out.Attestations[i])), wire.EncodeFile(attestationValue(out.Attestations[j]))) < 0

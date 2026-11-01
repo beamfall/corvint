@@ -1,6 +1,8 @@
 package cemcode
 
 import (
+	"errors"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -52,5 +54,25 @@ func TestRegisteredListsEveryCode(t *testing.T) {
 	slices.Sort(sorted)
 	if !slices.Equal(sorted, slices.Compact(slices.Clone(sorted))) || len(sorted) != len(declared) {
 		t.Errorf("registered lists %d codes for %d declared constants, or lists one twice", len(listed), len(declared))
+	}
+}
+
+// TestCodeOfWalksJoinedErrors: a registered code inside an errors.Join tree,
+// or behind a multi-%w wrap, is still found (V1-3415).
+func TestCodeOfWalksJoinedErrors(t *testing.T) {
+	registered := &Error{Code: PatchDigestMismatch, Message: "digest differs"}
+	joined := errors.Join(errors.New("other failure"), registered)
+	if got := CodeOf(joined); got != PatchDigestMismatch {
+		t.Fatalf("CodeOf(errors.Join) = %q, want %q", got, PatchDigestMismatch)
+	}
+	if got := MessageOf(joined); got != "digest differs" {
+		t.Fatalf("MessageOf(errors.Join) = %q", got)
+	}
+	multi := fmt.Errorf("context: %w; %w", errors.New("first"), registered)
+	if got := CodeOf(multi); got != PatchDigestMismatch {
+		t.Fatalf("CodeOf(multi %%w) = %q, want %q", got, PatchDigestMismatch)
+	}
+	if got := CodeOf(errors.Join(errors.New("a"), errors.New("b"))); got != "" {
+		t.Fatalf("CodeOf(no registered error) = %q, want empty", got)
 	}
 }

@@ -213,7 +213,7 @@ func observePool(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	choice.RequestID = poolChildID(choice.RequestID, "observe")
 	choice.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolObserve, Member: en.MemberID, Allocation: string(en.AllocationID)}
 	choice.pool.Observation = raw
-	return leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+	return leaseOnce(WithClock(ctx, storeClock(repo)), repo, actor, choice, storeClock(repo)())
 }
 
 // poolPreparedFault, when set by a package test, fails PoolCommand right after
@@ -266,7 +266,7 @@ func poolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 	if def == nil {
 		return &Report{}, wire.Errorf(wire.CodeUnsupported, "pool command", "no configured command")
 	}
-	report, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+	report, e := leaseOnce(WithClock(ctx, storeClock(repo)), repo, actor, choice, storeClock(repo)())
 	if report.Receipt != "" {
 		// The receipt may commit before a post/head write fails (CAL-V0-215).
 		report.Unretryable = true
@@ -309,7 +309,7 @@ var healthPrepareHook func(member string)
 
 func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
 	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) {
-		return leaseOnce(WithClock(ctx, poolClock), repo, actor, c, poolClock())
+		return leaseOnce(WithClock(ctx, storeClock(repo)), repo, actor, c, storeClock(repo)())
 	})
 }
 func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (result *Report, err error) {
@@ -388,7 +388,7 @@ func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutatio
 		if healthPrepareHook != nil {
 			healthPrepareHook(member)
 		}
-		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
+		prepared, e := leaseOnce(WithClock(ctx, storeClock(repo)), repo, actor, prep, storeClock(repo)())
 		// Replay cannot finish automatic health after its receipt commits.
 		// Preserve that prohibition across all later reports (CAL-V0-215).
 		unretryable = unretryable || prepared.Unretryable || prepared.Receipt != ""

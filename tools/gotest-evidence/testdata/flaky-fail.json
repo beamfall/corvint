@@ -1,0 +1,31 @@
+{"Time":"2026-10-31T21:15:54.041243961Z","Action":"start","Package":"example.com/flaky"}
+{"Time":"2026-10-31T21:15:54.049241595Z","Action":"run","Package":"example.com/flaky","Test":"TestPass"}
+{"Time":"2026-10-31T21:15:54.049301163Z","Action":"output","Package":"example.com/flaky","Test":"TestPass","Output":"=== RUN   TestPass\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049349945Z","Action":"output","Package":"example.com/flaky","Test":"TestPass","Output":"--- PASS: TestPass (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049363737Z","Action":"pass","Package":"example.com/flaky","Test":"TestPass","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049378009Z","Action":"run","Package":"example.com/flaky","Test":"TestFail"}
+{"Time":"2026-10-31T21:15:54.049387611Z","Action":"output","Package":"example.com/flaky","Test":"TestFail","Output":"=== RUN   TestFail\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.04939801Z","Action":"output","Package":"example.com/flaky","Test":"TestFail","Output":"    flaky_test.go:10: deliberate failure\n","OutputType":"error"}
+{"Time":"2026-10-31T21:15:54.049411025Z","Action":"output","Package":"example.com/flaky","Test":"TestFail","Output":"--- FAIL: TestFail (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049421476Z","Action":"fail","Package":"example.com/flaky","Test":"TestFail","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049431236Z","Action":"run","Package":"example.com/flaky","Test":"TestSkip"}
+{"Time":"2026-10-31T21:15:54.049440305Z","Action":"output","Package":"example.com/flaky","Test":"TestSkip","Output":"=== RUN   TestSkip\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049450204Z","Action":"output","Package":"example.com/flaky","Test":"TestSkip","Output":"    flaky_test.go:12: deliberate skip\n"}
+{"Time":"2026-10-31T21:15:54.049460858Z","Action":"output","Package":"example.com/flaky","Test":"TestSkip","Output":"--- SKIP: TestSkip (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049470926Z","Action":"skip","Package":"example.com/flaky","Test":"TestSkip","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049480429Z","Action":"run","Package":"example.com/flaky","Test":"TestTable"}
+{"Time":"2026-10-31T21:15:54.049489244Z","Action":"output","Package":"example.com/flaky","Test":"TestTable","Output":"=== RUN   TestTable\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049499231Z","Action":"run","Package":"example.com/flaky","Test":"TestTable/one"}
+{"Time":"2026-10-31T21:15:54.049508831Z","Action":"output","Package":"example.com/flaky","Test":"TestTable/one","Output":"=== RUN   TestTable/one\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049520184Z","Action":"output","Package":"example.com/flaky","Test":"TestTable/one","Output":"--- PASS: TestTable/one (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049530376Z","Action":"pass","Package":"example.com/flaky","Test":"TestTable/one","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049539841Z","Action":"run","Package":"example.com/flaky","Test":"TestTable/two/nested"}
+{"Time":"2026-10-31T21:15:54.049548747Z","Action":"output","Package":"example.com/flaky","Test":"TestTable/two/nested","Output":"=== RUN   TestTable/two/nested\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049558737Z","Action":"output","Package":"example.com/flaky","Test":"TestTable/two/nested","Output":"    flaky_test.go:18: flaky\n","OutputType":"error"}
+{"Time":"2026-10-31T21:15:54.049570031Z","Action":"output","Package":"example.com/flaky","Test":"TestTable/two/nested","Output":"--- FAIL: TestTable/two/nested (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049581875Z","Action":"fail","Package":"example.com/flaky","Test":"TestTable/two/nested","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049593185Z","Action":"output","Package":"example.com/flaky","Test":"TestTable","Output":"--- FAIL: TestTable (0.00s)\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.049603881Z","Action":"fail","Package":"example.com/flaky","Test":"TestTable","Elapsed":0}
+{"Time":"2026-10-31T21:15:54.049613201Z","Action":"output","Package":"example.com/flaky","Output":"FAIL\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.050836258Z","Action":"output","Package":"example.com/flaky","Output":"FAIL\texample.com/flaky\t0.009s\n","OutputType":"frame"}
+{"Time":"2026-10-31T21:15:54.050869222Z","Action":"fail","Package":"example.com/flaky","Elapsed":0.01}

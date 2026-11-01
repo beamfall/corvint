@@ -672,6 +672,19 @@ is authorized by this profile. Roll back `NGI-V0-306` to `NGI-V0-308` alone by r
 and `type-import` bytes are unchanged by them. Local fixture evidence does not qualify
 runtime completeness.
 
+### Controller request specs by convention (NGI-V0-761; V1-1851)
+
+- `NGI-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1851)
+  The Ruby autoload reading of `impact` SHALL list, for a changed `app/controllers/<name>_controller.rb`
+  (namespaced `<name>` included, never `application`), the tracked `spec/requests/<name>_spec.rb` as
+  an advisory `test` row scored 440, below every constant reference, with one `syntax` evidence row of
+  `low` confidence whose reason names the convention and that route dispatch is not read. A
+  controller with no such tracked spec, or one a constant reference already reached, adds nothing:
+  the reading abstains rather than guess a route, and `config/routes.rb` is not read. The
+  `request-spec` and `controller-spec` rows of `conformance/ruby-profile-v0/rows.json` now list
+  `spec/requests/users_spec.rb`. Non-goals: no route-file reading, no `test/integration` or
+  `test/controllers` mapping. Rollback: remove `requestSpec`, its call, and the two row entries.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -778,6 +791,7 @@ Observed execution and independent findings are retained in
 | `NGI-V0-306` | `angularResourceEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphAngularResources` |
 | `NGI-V0-307` | `rubyConstantEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphRubyConstants`, `TestImportGraphRubyIncompleteResolution` |
 | `NGI-V0-308` | `ImportGraphKinds`, `writeGraphEdge`; `importGraphKindsPattern` (`internal/mcp/bridge/import_graph.go`) | `TestImportGraphKindsClosedSet`, `TestImportGraphAngularResources`, `TestImportGraphRubyConstants` |
+| `NGI-V0-761` | `requestSpec` and `rubyRequestSpecConventionScore` in `internal/contextindex/ruby_autoload.go`; `conformance/ruby-profile-v0/rows.json` | `TestRubyControllerReachesItsRequestSpecByConvention_NGIV0761`; `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` (`request-spec`, `controller-spec`) |
 
 ## Non-goals, rollout and rollback
 

@@ -113,13 +113,21 @@ func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repo
 	var timing LeaseTiming
 	ctx := WithLeaseTiming(context.Background(), &timing)
 	if move {
+		// The outside edit replaces the ticket by renaming a new file over
+		// it, a directory event every platform's locked CheckEvents reports.
+		// An in-place rewrite is reported on Linux but, on macOS, not for a
+		// file beyond the vnode descriptor budget until a sweep (PSR-V0-223,
+		// CAL-V0-026), so the claim then took one round there (V1-3596).
 		ticket := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", entries[1].Name())
 		ctx = context.WithValue(ctx, mutationStageKey{}, at("fast.complete.guards", func() {
 			raw, err := os.ReadFile(ticket)
 			if err != nil {
 				t.Fatal(err)
 			}
-			historyWrite(t, ticket, raw)
+			historyWrite(t, ticket+".moved", raw)
+			if err := os.Rename(ticket+".moved", ticket); err != nil {
+				t.Fatal(err)
+			}
 		}))
 	}
 	report, err := Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("staged-claim-%d", tickets), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: fixture.TicketID(local), Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
@@ -200,16 +208,15 @@ func TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock(t *testing.T) {
 	}
 }
 
-// V1-2638: the route by which a complete-route claim writes the read
-// checkpoint under the writer lock and no writer delta. An outside edit under
-// the first commit's lock moves the snapshot; the second round resumes from
-// the first round's audit on the writer route, which retains the read
-// checkpoint under the lock (CAL-V0-119), after the first round had already
-// staged it, and publishes no writer delta.
+// V1-2638, V1-2358: an outside edit under the first commit's lock moves the
+// snapshot; the second round resumes from the first round's audit on the
+// writer route, which once retained the read checkpoint under the lock
+// (CAL-V0-119). It now encodes and writes it after the lock is released
+// (JSG-V0-891), so no read checkpoint byte is written under the lock.
 func TestJSGV0015_MovedClaimResumesOnTheWriterRoute(t *testing.T) {
 	_, got, timing := completeRouteClaimMoved(t, 40, true)
 	cp := filepath.Base(journal.CheckpointPath("taskman"))
-	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] == 0 || got.unlocked[cp] == 0 {
+	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] != 0 || got.unlocked[cp] == 0 {
 		t.Fatalf("moved claim: rounds %d resumed %d, locked %v, staged %v", timing.Rounds, timing.Resumed, got.locked, got.unlocked)
 	}
 }

@@ -115,6 +115,10 @@ func groupOldBytes(group *patch.Group, source BlobSource) ([]byte, error) {
 		return nil, cemcode.New(cemcode.DiffMetadataMismatch,
 			"deleted file mode %s disagrees with base mode %s of %q", group.Mode, mode, *group.OldPath)
 	}
+	if group.OldMode != "" && mode != group.OldMode { // CEM-V1-931
+		return nil, cemcode.New(cemcode.DiffMetadataMismatch,
+			"old mode %s disagrees with base mode %s of %q", group.OldMode, mode, *group.OldPath)
+	}
 	return data, nil
 }
 

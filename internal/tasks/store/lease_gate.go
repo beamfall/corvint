@@ -44,7 +44,11 @@ var gateObserveFault func()
 // gateRun is one finished gate run: its encoded result and captured output,
 // or a reuse: the rebound record and the source result it names, with no
 // output (CAL-V0-240).
-type gateRun struct{ record, output, source []byte }
+type gateRun struct {
+	record, output, source []byte
+	// pending is a descendant PASS awaiting integration (TCD-V0-806).
+	pending *GateReuse
+}
 
 // GateRun runs one policy command gate in worktree at the attempt's
 // candidate tree, then records it (CAL-V0-016). The gate runs before the
@@ -57,6 +61,7 @@ type gateRun struct{ record, output, source []byte }
 func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, worktree string, clock func() time.Time) (report *Report, err error) {
 	// Once the program has started, every return reports it (CAL-V0-078).
 	executed, interrupted := false, false
+	var pending *GateReuse
 	defer func() {
 		if executed {
 			if report == nil {
@@ -98,6 +103,7 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 			return &Report{}, err
 		}
 		run, reused, err := reusableRun(repo, leaseRoot(repo, choice), proof, policy, def, a, argv, substituted)
+		pending = run.pending
 		if err != nil {
 			return &Report{}, err
 		}
@@ -134,6 +140,9 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	report, err = Lease(ctx, repo, actor, choice, now)
 	if report != nil {
 		report.Redone = report.Redone || redone
+		if report.GateReusedFrom == nil && pending != nil && err == nil {
+			report.GateReusePending = pending
+		}
 		switch {
 		case err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted:
 		case report.Kind == "Transaction" && choice.gate != nil && choice.gate.source != nil:
@@ -160,6 +169,10 @@ type GateReuse struct {
 	Result    wire.Digest
 	AttemptID string
 	CIRunID   string
+	// Tree, Gate and Branch are set only on Report.GateReusePending: the
+	// pending result's tree, its gate and the protected intent branch it is
+	// not yet on (TCD-V0-806).
+	Tree, Gate, Branch string
 }
 
 func gateReuseOf(source []byte) *GateReuse {
@@ -275,14 +288,15 @@ func reusableRun(repo *intent.Repository, root string, proof *journal.Result, po
 			best, source, chosen = wire.Digest(d), raw, g
 		}
 	}
+	var pending *GateReuse
 	if source == nil && len(elsewhere) > 0 {
 		var err error
-		if best, source, chosen, err = descendantSource(root, intentBranch(proof), candidate, elsewhere); err != nil {
+		if best, source, chosen, pending, err = descendantSource(root, intentBranch(proof), candidate, elsewhere); err != nil {
 			return gateRun{}, false, err
 		}
 	}
 	if source == nil {
-		return gateRun{}, false, nil
+		return gateRun{pending: pending}, false, nil
 	}
 	g := transaction.ReusedGateResult(chosen, best, a)
 	record, err := g.Encode()
@@ -291,8 +305,9 @@ func reusableRun(repo *intent.Repository, root string, proof *journal.Result, po
 
 // descendantSource is the lowest-digest result among results at other trees
 // whose tree is on the protected intent branch as a descendant of candidate
-// (TCD-V0-151), or none.
-func descendantSource(root, branch, candidate string, results map[wire.Digest][]byte) (wire.Digest, []byte, *snapshot.GateResult, error) {
+// (TCD-V0-151), or none. With none, pending names the lowest-digest result
+// refused only because its tree is not yet on that branch (TCD-V0-806).
+func descendantSource(root, branch, candidate string, results map[wire.Digest][]byte) (wire.Digest, []byte, *snapshot.GateResult, *GateReuse, error) {
 	digests := make([]wire.Digest, 0, len(results))
 	for d := range results {
 		digests = append(digests, d)
@@ -300,8 +315,9 @@ func descendantSource(root, branch, candidate string, results map[wire.Digest][]
 	slices.Sort(digests)
 	h, err := loadProtectedHistory(root, branch)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, nil, err
 	}
+	var pending *GateReuse
 	for _, d := range digests {
 		g, err := snapshot.DecodeGateResult(results[d])
 		if err != nil {
@@ -309,13 +325,16 @@ func descendantSource(root, branch, candidate string, results map[wire.Digest][]
 		}
 		why, err := h.descent(candidate, g.CandidateTreeOid)
 		if err != nil {
-			return "", nil, nil, err
+			return "", nil, nil, nil, err
 		}
 		if why == "" {
-			return d, results[d], g, nil
+			return d, results[d], g, nil, nil
+		}
+		if pending == nil && len(h.trees[g.CandidateTreeOid]) == 0 {
+			pending = &GateReuse{Result: d, AttemptID: g.AttemptID, Tree: g.CandidateTreeOid, Gate: g.GateID, Branch: branch}
 		}
 	}
-	return "", nil, nil, nil
+	return "", nil, nil, pending, nil
 }
 
 // gateInputs digests the candidate tree, the (empty) declared inputs and,

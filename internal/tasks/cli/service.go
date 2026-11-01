@@ -137,7 +137,7 @@ func serviceOpen(env Env) func(string, *dispatch.Config, dispatch.LaunchControl,
 	return func(p string, c *dispatch.Config, control dispatch.LaunchControl, out io.Writer) (service.Controller, error) {
 		queueEnv := env
 		queueEnv.Cwd = c.WorkRoot
-		d, err := dispatch.OpenControlled(p, c, newDispatchQueue(queueEnv, c), out, control)
+		d, err := dispatch.OpenControlled(p, c, newDispatchQueue(queueEnv, func() *dispatch.Config { return c }), out, control)
 		if err != nil {
 			return nil, err
 		}

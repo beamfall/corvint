@@ -182,7 +182,8 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 		*dest = rest[i]
 	}
 	if f.acceptance != "" {
-		if err := acceptanceFlags(env.Cwd, &f); err != nil {
+		f.acceptance = commandPath(env.Cwd, f.acceptance)
+		if err := acceptanceFlags(&f); err != nil {
 			return errorResult(cmd, err)
 		}
 	}
@@ -228,8 +229,8 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 // file that is not such a report, or a conflicting --verdict or
 // --candidate-evidence, is malformed. The writer re-applies the mapping to
 // the retained artifact, so this composition is not authority.
-func acceptanceFlags(cwd string, f *reviewFlags) error {
-	raw, err := intent.ReadFile(commandPath(cwd, f.acceptance), wire.MaxGateOutputBytes)
+func acceptanceFlags(f *reviewFlags) error {
+	raw, err := intent.ReadFile(f.acceptance, wire.MaxGateOutputBytes)
 	if err != nil {
 		return err
 	}

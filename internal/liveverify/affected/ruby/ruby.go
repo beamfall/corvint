@@ -90,9 +90,15 @@ func New() Language { return Language{} }
 // Name is the plugin namespace.
 func (Language) Name() string { return "ruby" }
 
-// Owns reports whether a path is Ruby source text. Neutral Gherkin and YAML
-// assets deliberately remain unclaimed.
-func (Language) Owns(relative string) bool { return strings.HasSuffix(relative, ".rb") }
+// Owns reports whether a path is Ruby source text or a template below the
+// root application's app/views (RUBY-AFFECTED-V0-761). Neutral Gherkin and
+// YAML assets, and templates anywhere else, deliberately remain unclaimed.
+func (Language) Owns(relative string) bool {
+	return strings.HasSuffix(relative, ".rb") || isView(relative)
+}
+
+// isView reports a file below the root app/views directory.
+func isView(relative string) bool { return strings.HasPrefix(relative, "app/views/") }
 
 type observation struct {
 	relative string
@@ -133,6 +139,18 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	})
 	if err != nil {
 		return affected.Result{}, err
+	}
+	everything, err := root.Files(func(string) bool { return true })
+	if err != nil {
+		return affected.Result{}, err
+	}
+	// A view template is a source unit of its own, never scanned as Ruby
+	// (RUBY-AFFECTED-V0-761); a .rb file below app/views stays a Ruby file.
+	var views []string
+	for _, relative := range everything {
+		if isView(relative) && !strings.HasSuffix(relative, ".rb") {
+			views = append(views, relative)
+		}
 	}
 	if goModuleRoot(root) {
 		files, features = withoutTestdata(files), withoutTestdata(features)
@@ -270,6 +288,14 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 				for id := range boot {
 					edges[id] = true
 				}
+				// A route-dispatched test renders the views its controllers
+				// select by name, which no constant names, so every view is a
+				// route-dispatch edge like a controller (RUBY-AFFECTED-V0-761).
+				if routeDispatched(item) {
+					for _, view := range views {
+						routed[viewUnitID(view)] = true
+					}
+				}
 				routes[item.id] = routed
 			}
 			advisory[item.id] = edges
@@ -310,6 +336,9 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		siteSets = append(siteSets, item.frontier)
 		units = append(units, unit)
 	}
+	for _, view := range views {
+		units = append(units, affected.Unit{ID: viewUnitID(view), Sources: []string{view}})
+	}
 	// A declared entry that resolves no observed site is stale and stays
 	// visible as a plugin-wide site (RUBY-AFFECTED-V0-960).
 	for _, stale := range staleDeclarations(declared, append(siteSets, frontier)) {
@@ -318,6 +347,10 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: undeclared(frontier, declared)}, nil
 }
+
+// viewUnitID is the unit identity of an app/views template
+// (RUBY-AFFECTED-V0-761).
+func viewUnitID(relative string) string { return "ruby:view:" + relative }
 
 // goModuleRoot reports a repository whose root declares a Go module. There a
 // testdata directory is fixture data by the go tool's convention, never a

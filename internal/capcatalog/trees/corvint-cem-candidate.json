@@ -1,0 +1,85 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-cem-candidate",
+  "helpJson": "corvint-cem-candidate help --json",
+  "source": "cmd/corvint-cem-candidate usageText",
+  "dispatchSources": [
+    "cmd/corvint-cem-candidate"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "assemble"
+      ],
+      "command": "corvint-cem-candidate assemble",
+      "summary": "Check a closed candidate assembly request; retired and cem/1.0 sources refuse without writing",
+      "usage": [
+        "corvint-cem-candidate assemble --experimental --request FILE --out-dir DIR"
+      ],
+      "flags": [
+        "--experimental",
+        "--out-dir",
+        "--request"
+      ],
+      "required": [
+        "--experimental",
+        "--request FILE",
+        "--out-dir DIR"
+      ],
+      "example": "corvint-cem-candidate assemble --experimental --request FILE --out-dir DIR",
+      "help": "corvint-cem-candidate assemble --help"
+    },
+    {
+      "path": [
+        "assemble-stable"
+      ],
+      "command": "corvint-cem-candidate assemble-stable",
+      "summary": "Assemble a cem/1.0 stable bundle from a plain or Tasks-bound request and print its re-verify argv",
+      "usage": [
+        "corvint-cem-candidate assemble-stable --experimental --request FILE --out-dir DIR"
+      ],
+      "flags": [
+        "--experimental",
+        "--out-dir",
+        "--request"
+      ],
+      "required": [
+        "--experimental",
+        "--request FILE",
+        "--out-dir DIR"
+      ],
+      "example": "corvint-cem-candidate assemble-stable --experimental --request FILE --out-dir DIR",
+      "help": "corvint-cem-candidate assemble-stable --help"
+    },
+    {
+      "path": [
+        "verify"
+      ],
+      "command": "corvint-cem-candidate verify",
+      "summary": "Verify a cem/1.0-experimental.1 candidate map against independently supplied revisions",
+      "usage": [
+        "corvint-cem-candidate verify --experimental --repository REPO --map FILE --expected-base OID --target OID --artifacts DIR"
+      ],
+      "flags": [
+        "--artifacts",
+        "--expected-base",
+        "--experimental",
+        "--map",
+        "--repository",
+        "--target"
+      ],
+      "required": [
+        "--experimental",
+        "--repository REPO",
+        "--map FILE",
+        "--expected-base OID",
+        "--target OID",
+        "--artifacts DIR"
+      ],
+      "example": "corvint-cem-candidate verify --experimental --repository REPO --map FILE --expected-base OID --target OID --artifacts DIR",
+      "help": "corvint-cem-candidate verify --help"
+    }
+  ]
+}

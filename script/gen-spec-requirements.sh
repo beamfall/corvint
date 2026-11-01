@@ -112,7 +112,7 @@ sub index_blobs {
 my @specs;
 my %tracked;
 {
-    open my $paths, '-|', 'git', 'ls-files', '-z', '--', 'docs/specs'
+    open my $paths, '-|', 'git', 'ls-files', '-z', '--', 'docs/specs', 'script/requirement-definitions-outside-section.txt'
         or die "git ls-files: $!\n";
     local $/ = "\0";
     while (my $path = <$paths>) {
@@ -240,14 +240,22 @@ sub digest_values {
     return \%values;
 }
 
-my @reads = ((sort @specs), grep { $tracked{$_} } 'docs/specs/INTENT-STATUS-FROZEN.tsv');
+my @reads = ((sort @specs), grep { $tracked{$_} } 'docs/specs/INTENT-STATUS-FROZEN.tsv',
+    'script/requirement-definitions-outside-section.txt');
 push @reads, 'docs/specs/INDEX.json'
     if ($mode eq 'index' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
 push @reads, 'docs/specs/README.md'
     if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
 my $blobs = index_blobs(@reads);
 
-my (%best, %header, %definitions);
+# line_of BLOB REGEX: the 1-based line of REGEX's first match in BLOB, or 0.
+sub line_of {
+    my ($blob, $regex) = @_;
+    return 0 unless $blob =~ $regex;
+    return 1 + (substr($blob, 0, $-[0]) =~ tr/\n//);
+}
+
+my (%best, %header, %definitions, %section, @outside_section);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
     # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
@@ -261,7 +269,16 @@ for my $file (sort @specs) {
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
         claim => digest_values($blob)->{Claim}, status => digest_values($blob)->{Status},
+        intent_line => line_of($blob, qr/^[^\S\n]*(?:- )?[^\S\n]*(?:\QIntent status:\E|\Q**Intent status:**\E)/m),
+        status_line => $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*\n/mg
+            ? do { my $at = pos $blob; my $rest = substr($blob, $at); $rest =~ /^[^\S\n]*- Status: /m
+                ? 1 + (substr($blob, 0, $at + $-[0]) =~ tr/\n//) : 0 } : 0,
     };
+    # SRG-V0-891 (V1-3295): the ## Requirements section's line range, tracked as
+    # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
+    # OCM-form definition after that section before doc-gates does.
+    my ($in_section, $sections, $section_fence, @outside) = (0, 0, '');
+    my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
     my $rollback = 0;
@@ -288,6 +305,17 @@ for my $file (sort @specs) {
         # SRG-V0-966 (V1-3660): a rollback section restates IDs (`ID: revert ...`) without
         # defining them, so its lines never rank 0; the next heading ends the section.
         $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
+        if ($fence eq '' && $run eq '') {
+            if ($line =~ /^## Requirements\r?\n?\z/) {
+                ($in_section, $sections) = (1, $sections + 1);
+                $section{$file} = [$line_number, 0];
+            } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
+                $section{$file}[1] = $line_number - 1 if $in_section;
+                $in_section = 0;
+            } elsif (!$in_section && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+                push @outside, [$1 // $2, $line_number];
+            }
+        }
 
         while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
             my $id = $1;
@@ -334,6 +362,20 @@ for my $file (sort @specs) {
             };
         }
     }
+    $section{$file}[1] ||= $line_number if $in_section;
+    if ($sections == 1) {
+        push @outside_section, [$file, @$_] for @outside;
+    } else {
+        delete $section{$file};
+    }
+}
+
+# where_requirements FILE: where a new requirement of FILE is defined, for the refusals below.
+sub where_requirements {
+    my ($file) = @_;
+    my $range = $section{$file};
+    return $range ? "its own definition line inside ${file}'s ## Requirements section (lines $range->[0]..$range->[1])"
+        : "its own definition line in ${file}'s ## Requirements section";
 }
 
 # SRG-V0-015: the committed index carries no line number and orders its rows by file, then by
@@ -389,7 +431,8 @@ sub status_ids {
             my ($name, $value) = @$field;
             next unless defined $value;
             my %seen;
-            push @refused, "$file: its $name names $_, which its frozen header text does not"
+            my $at = $name eq 'Intent status' ? $header{$file}{intent_line} : $header{$file}{status_line};
+            push @refused, "$file:$at: its $name names $_, which its frozen header text does not; this line is frozen (docs/specs/INTENT-STATUS-FROZEN.tsv), so $_ belongs on " . where_requirements($file)
                 for grep { !$row->{ids}{$_} && !$seen{$_}++ } status_ids($value);
         }
         next unless defined(my $intent = $header{$file}{intent});
@@ -407,6 +450,23 @@ sub status_ids {
             . "build-log entry (SRG-V0-009, SRG-V0-981), then remove the new header text and rerun "
             . "make spec-requirements; a renamed spec moves its INTENT-STATUS-FROZEN.tsv row to the new "
             . "path; see docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-980)\n";
+    }
+}
+# SRG-V0-891 (V1-3295): an OCM-form definition after a spec's one ## Requirements section is refused
+# in every mode, naming the line and the section range, unless the frozen RDG-V0-021 baseline
+# script/requirement-definitions-outside-section.txt lists it.
+{
+    my %baseline;
+    for my $row (split /\n/, $blobs->{'script/requirement-definitions-outside-section.txt'} // '') {
+        next if $row =~ /^\s*(?:#|\z)/;
+        $baseline{$row} = 1;
+    }
+    my @misplaced = grep { !$baseline{"$_->[0] $_->[1]"} } @outside_section;
+    if (@misplaced) {
+        print STDERR "$_->[0]:$_->[2]: $_->[1] is defined outside the ## Requirements section (lines "
+            . "$section{$_->[0]}[0]..$section{$_->[0]}[1])\n" for @misplaced;
+        die "a requirement is defined inside its spec's ## Requirements section, which OCM enumerates; "
+            . "move each definition there, then rerun make spec-requirements (SRG-V0-891, RDG-V0-021)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or

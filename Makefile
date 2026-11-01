@@ -330,9 +330,10 @@ decision-numbers-check: analyzer-schema-check
 decision-numbers-test:
 	@script/check-decision-numbers_test.sh
 
-# analyzer-schema-check refuses a stale analyzer audit digest and a branch that changed the
-# analyzer pins while keeping a schema number origin/main already uses; `script/analyzer-schema.sh
-# bump` is the one-command recovery for both (V1-2130, V1-1732, IDX-SNAP-V0-060/061).
+# analyzer-schema-check refuses a branch that changed the analyzer pins while keeping a schema
+# number origin/main already uses, and notes a changed analyzer input; `script/analyzer-schema.sh
+# check --output` also runs the golden output test, and `bump` is the one-command recovery
+# (V1-2130, V1-1732, IDX-SNAP-V0-060/061, IDX-SNAP-V0-890/891).
 .PHONY: analyzer-schema-check
 analyzer-schema-check:
 	@script/analyzer-schema.sh check
@@ -475,6 +476,8 @@ capabilities-check:
 capability-catalog:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --tree > internal/capcatalog/trees/corvint.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-candidate help --json > internal/capcatalog/trees/corvint-cem-candidate.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-experiments help --json > internal/capcatalog/trees/corvint-cem-experiments.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
 
@@ -828,6 +831,13 @@ dogfood-change:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
+# Record the agent pre-change receipts at BASE before the first edit (DCW-V0-880): TASK is the task
+# text, PATHS the tracked files the change intends to touch.
+.PHONY: dogfood-prechange
+dogfood-prechange:
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_TASK="$(TASK)" $(HEAVY_NICE_PREFIX) script/dogfood-prechange.sh "$(DOGFOOD_BASE)" $(PATHS)
+
 # Without BASE, dogfood-check takes the base of the CEM committed at HEAD, and the script refuses
 # naming BASE when none is bound (ASD-V0-085, V1-3172).
 .PHONY: dogfood-check
@@ -884,14 +894,17 @@ doc-gates:
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
 # receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
-# failing step.
+# failing step. The first precheck leaves out the batch-drift go tests, which read the CEM the seal
+# adds, so each runs once, on the sealed head (ASD-V0-837, V1-3550).
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
+# ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
 dogfood-closeout: export LANE = 1
+dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@$(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck
 
@@ -985,6 +998,13 @@ tasks-build: go-version
 tasks-test: go-version
 	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
+
+# tasks-reconcile is the post-merge closeout reconcile (TCD-V0-872, V1-3496): closeout-debt over the
+# merged-PR export, retained under <git-common-dir>/corvint/reconcile/<refCommit>/, proposing the
+# batch-close for each merged PR. It applies nothing unless RECONCILE_APPLY=dry-run|manual|gated.
+.PHONY: tasks-reconcile
+tasks-reconcile:
+	CORVINT_TASKS=$(CORVINT_TASKS_BIN) script/tasks-reconcile.sh
 
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every

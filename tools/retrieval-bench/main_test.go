@@ -887,3 +887,44 @@ func TestBootstrapIntervalTailsAreEqual(t *testing.T) {
 		t.Fatalf("interval [%v, %v] mirrored to [%v, %v]; the tails drop unequal resample counts", low, high, negatedLow, negatedHigh)
 	}
 }
+
+// CEP-V0-961 (V1-3453): --data-root (or its environment default) resolves relative inputs under
+// the extracted release layout, a missing root refuses naming the input, and --help names it.
+func TestDataRootResolvesAndRefuses(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv(dataRootEnv, "")
+	configuration, err := parseOptions([]string{"--data-root", root, "--samples", "benchmark/v2_code2test/code2test.jsonl", "--corpus", "corpus/v2_code2test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if configuration.samples != filepath.Join(root, "benchmark", "v2_code2test", "code2test.jsonl") || configuration.corpus != filepath.Join(root, "corpus", "v2_code2test") {
+		t.Fatalf("resolved samples %q corpus %q", configuration.samples, configuration.corpus)
+	}
+	absolute := filepath.Join(t.TempDir(), "rows.jsonl")
+	if configuration, err = parseOptions([]string{"--data-root", root, "--samples", absolute, "--corpus", "c"}); err != nil || configuration.samples != absolute {
+		t.Fatalf("absolute samples %q, err %v", configuration.samples, err)
+	}
+	t.Setenv(dataRootEnv, root)
+	if configuration, err = parseOptions([]string{"--samples", "s.jsonl", "--corpus", "c"}); err != nil || configuration.samples != filepath.Join(root, "s.jsonl") {
+		t.Fatalf("environment default: samples %q, err %v", configuration.samples, err)
+	}
+	missing := filepath.Join(root, "absent")
+	for _, arguments := range [][]string{{"--data-root", missing, "--samples", "s.jsonl", "--corpus", "c"}} {
+		if _, err := parseOptions(arguments); err == nil || !strings.Contains(err.Error(), "--data-root") || !strings.Contains(err.Error(), dataRootEnv) {
+			t.Fatalf("missing data root: err = %v", err)
+		}
+	}
+	t.Setenv(dataRootEnv, missing)
+	if _, err := parseOptions([]string{"--samples", "s.jsonl", "--corpus", "c"}); err == nil || !strings.Contains(err.Error(), dataRootEnv) {
+		t.Fatalf("missing environment data root: err = %v", err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(context.Background(), []string{"--help"}, &stdout, &stderr); code != 0 {
+		t.Fatalf("--help exit %d: %s", code, stderr.String())
+	}
+	for _, want := range []string{"--data-root DIR", dataRootEnv, "benchmark/<release>/", "corpus/<release>/", "--samples FILE", "Example:"} {
+		if !strings.Contains(stdout.String(), want) {
+			t.Errorf("--help lacks %q", want)
+		}
+	}
+}

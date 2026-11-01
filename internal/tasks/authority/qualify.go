@@ -125,9 +125,9 @@ func Qualify(root string) (*Qualification, error) {
 	}
 	if err := syncDirectory(dir); err != nil {
 		if isFullSyncUnsupported(err) {
-			return q, fsErr(root, "directory sync is unsupported here: %v", err)
+			return q, fsErr(root, "directory sync is unsupported here: %w", err)
 		}
-		return q, fsErr(root, "directory sync failed: %v", err)
+		return q, fsErr(root, "directory sync failed: %w", err)
 	}
 	q.DirSync = true
 	return q, nil
@@ -145,9 +145,9 @@ func probe(q *Qualification, f *os.File, where string) error {
 	}
 	if err := syncFile(f); err != nil {
 		if isFullSyncUnsupported(err) {
-			return fsErr(where, "full sync is unsupported on this filesystem: %v", err)
+			return fsErr(where, "full sync is unsupported on this filesystem: %w", err)
 		}
-		return fsErr(where, "full sync failed: %v", err)
+		return fsErr(where, "full sync failed: %w", err)
 	}
 	q.FullSync = true
 	if err := withFD(f, flockNB); err != nil {

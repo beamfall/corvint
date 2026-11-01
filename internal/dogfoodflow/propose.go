@@ -90,6 +90,14 @@ type proposal struct {
 	inventoryRead bool
 	// reasons holds, by row key, why a drafted proposal was chosen.
 	reasons map[string]string
+	// governing holds the change's governing specs, which path anchors
+	// prefer; weak holds the low-confidence note of each row whose anchor is
+	// a bare mention outside them (DCW-V0-886).
+	governing map[string]bool
+	weak      []string
+	// modifiedOwners holds, by pattern, the specs this change modifies whose
+	// BASE lines name it: never cited, but counted as governing specs.
+	modifiedOwners map[string][]string
 }
 
 // spanLine is one line of a BASE file.
@@ -125,10 +133,15 @@ func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stder
 
 func (p *proposal) run() int {
 	p.requireRoot()
+	p.requireTrustedAncestry()
 	p.readRefreshPlan()
+	// An abbreviated BASE resolves to its full ID; one that names no commit,
+	// or more than one, is refused by name with its fix (DCW-V0-901).
 	base, status := p.git(true, "rev-parse", "--verify", "-q", p.options.Base+"^{commit}")
 	if status != 0 {
-		p.refuse("base-unavailable")
+		p.say("%s: REFUSE base-unavailable BASE=%s\n", p.prefix, p.options.Base)
+		p.say("  fix: pass BASE as a commit of this repository, preferably the full origin/main ID (git rev-parse --verify %s^{commit} names it, or says the prefix is unknown or ambiguous), then rerun corvint dogfood propose-citations BASE (DCW-V0-901)\n", p.options.Base)
+		p.exit(2)
 	}
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
@@ -295,7 +308,9 @@ func (p *proposal) refusePatchUnavailable(reason, detail string) {
 	case cemcode.GitOutputExceeded:
 		p.say("  fix: cem prepare refuses a patch this large as well, so dogfood change cannot run first; split the change into smaller commits on separate branches, then rerun corvint dogfood propose-citations %s\n", base)
 	default:
-		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; make every changed path a regular file with a textual hunk (give an empty file content, revert a mode-only change, drop a binary file or symbolic link), commit, then rerun corvint dogfood propose-citations %s\n", base)
+		// A binary file beside a textual hunk binds since CEM-V1-980; only the
+		// shapes cem prepare still refuses are named (DCW-V0-902).
+		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; give an empty file content, revert a mode-only change and drop a symbolic link; a binary file beside a textual hunk binds (CEM-V1-980), so change only a binary-only patch (add a textual hunk), a binary rename or copy (commit it as a delete and an add), a binary mode change or a GIT binary patch body or abbreviated object IDs (a git diff.binary or diff.noprefix setting); commit, then rerun corvint dogfood propose-citations %s\n", base)
 	}
 	p.say("  prerequisite: propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME (DCW-V0-350)\n")
 	p.say("  next: write the reviewed draft to plan.tsv, then make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked, then make dogfood-finish with the same inputs (docs/DOGFOOD.md §4 first-run order)\n", base)
@@ -366,6 +381,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		p.matches = map[string][]spanLine{}
 		p.changed[sealContract] = true
 	}
+	p.governing = p.governingSpecs(owed)
 	used := map[string]bool{}
 	p.carry(owed, used)
 	rows, notes := []string{}, append([]string{}, p.carryNotes...)
@@ -401,6 +417,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		delete(p.proposals, ordinal)
 		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
+	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
 	}
@@ -433,6 +450,13 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// rows, has no BASE contract either; a path anchor would cite another
 	// requirement's decision (DCW-V0-809).
 	if id := p.addedRequirementRows(p.derivedHunk(hunk)); id != "" {
+		// The BASE requirement the new entry refines, amends or names is a
+		// drafted proposal; unknown only without one (DCW-V0-906).
+		for _, defined := range append(p.definedRequirements(hunk), id) {
+			if row, cite := p.refinedProposal(hunk, ordinal, defined, edited, used); row != "" {
+				return row, cite, ""
+			}
+		}
 		return p.unknownProposal(hunk, ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
 	}
@@ -544,7 +568,13 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 	}
 	definitions := len(candidates)
 	families := p.hunkFamilies(derived)
-	candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	if p.basenames {
+		candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	} else {
+		// A draft prefers the change's governing spec (DCW-V0-886); the
+		// check's anchor search keeps its order.
+		candidates = append(candidates, p.rankAnchors(p.matches[anchorPath(derived)])...)
+	}
 	if name := anchorBasename(derived); p.basenames && name != "" {
 		candidates = append(candidates, p.matches[name]...)
 	}
@@ -577,7 +607,11 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			continue
 		}
 		relation := proposalRelation(candidate.path)
-		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation), cite
+		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
+		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
+			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
+		}
+		return row, cite
 	}
 	return "", ""
 }
@@ -672,6 +706,7 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
+	p.modifiedOwners = map[string][]string{}
 	complete := false
 	patched := map[string]bool{}
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
@@ -762,10 +797,24 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		// DCW-V0-966 (amending DCW-V0-393): a modified file's BASE line is kept
 		// as a candidate; stable drops every line a hunk edits or the change
 		// repeats, so the draft never cites the change's own text.
-		// A path git lists as changed that the patch holds no hunk for (a
-		// mode-only change) is still never cited.
-		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && (dataPath(name) || p.changed[name] && !patched[name]) {
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && dataPath(name) {
 			continue
+		}
+		if !p.basenames && p.changed[name] {
+			// A spec the change modifies may be the change's governing spec
+			// (DCW-V0-886).
+			if documentRank(name) == 0 && requirementToken.Match(p.lineText(spanLine{name, line})) {
+				for _, pattern := range sorted {
+					if strings.Contains(text, pattern) {
+						p.modifiedOwners[pattern] = append(p.modifiedOwners[pattern], name)
+					}
+				}
+			}
+			// A path git lists as changed that the patch holds no hunk for (a
+			// mode-only change) is still never cited (DCW-V0-966).
+			if !patched[name] {
+				continue
+			}
 		}
 		for _, pattern := range sorted {
 			if strings.Contains(text, pattern) {

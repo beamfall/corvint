@@ -5,6 +5,8 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -141,4 +143,66 @@ func CommitTime(root, commit string) (time.Time, error) {
 func subjectOf(message string) string {
 	para, _, _ := strings.Cut(strings.TrimLeft(message, "\n"), "\n\n")
 	return strings.Join(strings.Fields(strings.ReplaceAll(para, "\n", " ")), " ")
+}
+
+// MaxLaneHeads bounds the local branch and worktree heads LaneHeads returns.
+const MaxLaneHeads = 256
+
+// LaneHead is one local branch or detached worktree head (TLF-V0-887).
+type LaneHead struct{ Ref, Commit string }
+
+// LaneHeads lists the local branches and detached worktree heads of root
+// that base does not contain and that share a root commit with base, each
+// commit once, sorted by ref; an unrelated lineage is no lane of base. More
+// than MaxLaneHeads is refused LIMIT_EXCEEDED rather than silently cut.
+func LaneHeads(root, base string) ([]LaneHead, error) {
+	rootsOut, err := gitOutput(root, "rev-list", "--max-parents=0", "--end-of-options", base)
+	if err != nil {
+		return nil, err
+	}
+	roots := strings.Fields(string(rootsOut))
+	args := []string{"for-each-ref", "--format=%(objectname) %(refname)", "--no-merged=" + base}
+	for _, r := range roots {
+		args = append(args, "--contains="+r)
+	}
+	out, err := gitOutput(root, append(args, "refs/heads/")...)
+	if err != nil {
+		return nil, err
+	}
+	wt, err := gitOutput(root, "worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	seen := map[string]bool{}
+	var heads []LaneHead
+	for _, line := range strings.Split(string(out), "\n") {
+		commit, ref, ok := strings.Cut(line, " ")
+		if ok && !seen[commit] {
+			seen[commit] = true
+			heads = append(heads, LaneHead{Ref: ref, Commit: commit})
+		}
+	}
+	for _, block := range strings.Split(string(wt), "\n\n") {
+		var path, commit string
+		detached := false
+		for _, line := range strings.Split(block, "\n") {
+			switch k, v, _ := strings.Cut(line, " "); k {
+			case "worktree":
+				path = v
+			case "HEAD":
+				commit = v
+			case "detached":
+				detached = true
+			}
+		}
+		if detached && commit != "" && !seen[commit] && !IsAncestor(root, commit, base) && slices.ContainsFunc(roots, func(r string) bool { return IsAncestor(root, r, commit) }) {
+			seen[commit] = true
+			heads = append(heads, LaneHead{Ref: "worktree:" + path, Commit: commit})
+		}
+	}
+	if len(heads) > MaxLaneHeads {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "git", "%d local heads exceed %d", len(heads), MaxLaneHeads)
+	}
+	sort.Slice(heads, func(i, j int) bool { return heads[i].Ref < heads[j].Ref })
+	return heads, nil
 }

@@ -13,8 +13,8 @@ Corvint Tasks contract TCP-00 (`TM-V0-007`, `TM-V0-009`), `docs/specs/corvint-ta
 ## Agent digest
 - Claim: A moved or copied task store is bound to a new primary worktree only by an explicit `relocate` that commits one receipt naming both paths.
 - Status: accepted (owner standing auto-accept 2026-10-11); experimental. TRL-V0-001 through TRL-V0-006 are implemented and tested in tree; live qualification on an operator store is NOT_RUN.
-- Exists: the `relocate` verb, the `taskman-relocate/0` pinned descriptor, chain primary tracking in the journal walk, relocate redo, the optional dispatcher-lock hold, and the consistent-snapshot refusal text.
-- Blocked on: archive restore into a fresh store at a new path (`archive` restore is NOT_RUN in the CLI).
+- Exists: the `relocate` verb, the `taskman-relocate/0` pinned descriptor, chain primary tracking in the journal walk, relocate redo, the optional dispatcher-lock hold, the consistent-snapshot refusal text, and `archive restore` into an absent state dir.
+- Blocked on: live qualification on an operator store.
 - Read next: Requirements; Failure modes; Traceability.
 
 ## User and boundary
@@ -65,14 +65,37 @@ to run.
   attempt holds the store; a torn copy refuses `JOURNAL_FORKED` and the refusal names that
   quiesce requirement. Relocating a copy forks local history under the same queue id; keeping only
   one copy writable is the operator's responsibility.
+- `TRL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3554) `corvint-tasks archive restore FILE` restores a `taskman-archive/0` stream (`TM-V0-022`) only after
+  `archive verify` accepts the whole file, and refuses with that verify code (`MALFORMED`,
+  `JOURNAL_FORKED`, `LIMIT_EXCEEDED` or `UNSUPPORTED_VERSION`) a tampered or truncated stream. It
+  refuses `UNSUPPORTED` when the state dir exists or the archived head binds journal segments, and
+  `INTENT_DIVERGED` when the intent root's `queue.json` names another queue, or an intent file
+  present at the intent root differs from the archive's bytes or is not in the archive. An intent
+  file present is compared by its size against the manifest's `bytes` before any read, and is read
+  no further than that size, so an oversized file refuses `INTENT_DIVERGED` without being loaded. Every
+  refusal is decided before the writer lock is taken and writes nothing: no state dir, no intent
+  file and no lock file.
+- `TRL-V0-871`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3554) A completed restore writes every archived state file byte-identically at its path, the genesis
+  directories, and every archived intent file absent from the intent root, under the writer lock.
+  The intent files are written first and the state dir is published by one rename of a synced
+  staging directory beside it, so an interruption leaves no state dir (an identical rerun
+  completes) or the whole store; a failed write removes the intent files it created. Each intent
+  file is written to a `<name>.tmp-restore-<random>` temp beside it, full-synced and linked into
+  place without replacing anything, so an intent file is absent or complete; a rerun skips such
+  temps when deciding and removes them under the writer lock. Every directory holding or created
+  for an intent file is synced before the state rename. The second, staging read of the archive
+  refuses `MALFORMED` unless every manifest member appears exactly once at its manifest size. A re-export
+  of the restored store is byte-identical to the archive. An archive whose head names another
+  primary worktree is restored with a warning naming `relocate --from <recorded>`, which binds it
+  (`TRL-V0-001`, `TRL-V0-006`).
 
 ## Non-goals and simpler baseline
 
 The simpler baseline is the prior contract: relocation unsupported, move the checkout back. It was
 rejected because #1557 and V1-1461 show operators with no supported path. Not part of V0: inferring
 a relocation from the current path, accepting symlinked store or config paths, a store-copy or
-snapshot verb that quiesces writers itself, and archive restore into a fresh store at a new path
-(the archive restore command is NOT_RUN in this build; an export/restore round trip stays open).
+snapshot verb that quiesces writers itself, restore over an existing state dir, merging an archive
+into a live store, and restoring a segmented journal.
 
 ## Failure modes
 
@@ -89,13 +112,18 @@ snapshot verb that quiesces writers itself, and archive restore into a fresh sto
 | `head.json` edited to a new path without a receipt, or moved back after a relocation | `JOURNAL_FORKED` on audit and reads (`TRL-V0-002`). |
 | Copy taken during writes | `JOURNAL_FORKED` naming the consistent-snapshot requirement (`TRL-V0-006`). |
 | Symlink at the old path | Unchanged symlink refusal (`TRL-V0-005`). |
+| `archive restore` of a tampered or truncated stream | The verify code; nothing written (`TRL-V0-870`). |
+| `archive restore` with a state dir present, or of a segmented head | `UNSUPPORTED`; nothing written (`TRL-V0-870`). |
+| `archive restore` whose intent differs from the intent root | `INTENT_DIVERGED`; nothing written (`TRL-V0-870`). |
+| `archive restore` interrupted | No state dir and a rerun completes, or the whole store (`TRL-V0-871`). |
 | Windows | The dispatcher lock hold is unsupported and `--dispatch-config` refuses; the reservation check still applies (`TRL-V0-003`). |
 
 ## Acceptance evidence
 
 Focused tests in `internal/tasks/cli`, `internal/tasks/snapshot`, `internal/tasks/transaction`,
-`internal/tasks/journal` and `internal/tasks/store`. Live relocation of an operator store, process
-kill during the write, and archive round trip are NOT_RUN.
+`internal/tasks/journal` and `internal/tasks/store`. The archive round trip runs on fixture stores
+(`TRL-V0-870`, `TRL-V0-871`). Live relocation of an operator store and process kill during the
+write are NOT_RUN.
 
 ## Rollback
 
@@ -113,7 +141,11 @@ before relocation, to be read; stores that never relocated are unaffected.
 | `TRL-V0-004` | `TestTRLV0004_RelocateRedoRepinsHead`, `TestTRLV0001_RelocateMovedRepository` |
 | `TRL-V0-005` | `TestTRLV0005_HoldIdleRefusesSymlinkedStateDir` for the dispatch `stateDir`; otherwise a documentation requirement (`docs/TASKS-SUPERVISION.md`). |
 | `TRL-V0-006` | `TestTRLV0006_RelocateCopiedStore` |
+| `TRL-V0-870` | `TestTRLV0870_RestoreRefusalsWriteNothing`, `TestTRLV0870_OversizedIntentFileRefusesUnread` |
+| `TRL-V0-871` | `TestTRLV0871_RestoreRoundTripsByteIdentically`, `TestTRLV0871_RestoreAtANewPathThenRelocate`, `TestTRLV0871_FailedIntentWriteLeavesARetryableRoot`, `TestTRLV0871_DuplicateStagedMemberRefuses`, `TestTRLV0871_RestoreSyncsIntentDirectories` |
 
 ## Unresolved decisions
 
-- Archive restore into a fresh store at a new path, as the alternative #1557 names, is not built.
+- Restore over an existing or partially written state dir is refused rather than merged; the
+  operator removes it first. A crashed restore leaves at most a `.taskman-restore-*` staging
+  directory beside the state dir, which the next restore does not reuse.

@@ -196,7 +196,7 @@ func batchResult(cmd []string, requestID string, issued wire.Timestamp, targets 
 			replayed = e.Report.Outcome.Replayed
 			revision = nullableCount(e.Report.Outcome.ResultingRevision)
 			if outcome != mutation.OutcomeCompleted {
-				entryCodes = append(entryCodes, e.Report.Outcome.Codes...)
+				entryCodes = append(entryCodes, refusalCodes(e.Report.Outcome)...)
 				if res.Outcome == wire.OutcomeOK {
 					res.Outcome = wire.OutcomeRefused
 				}

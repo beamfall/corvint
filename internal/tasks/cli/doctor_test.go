@@ -347,10 +347,10 @@ func TestTQDV0010_PluginFindings(t *testing.T) {
 	write("b-exit", "#!/bin/sh\nexit 3\n", 0o755)
 	write("c-junk", "#!/bin/sh\necho not json\n", 0o755)
 	write("d-unknown-key", "#!/bin/sh\necho '[{\"kind\":\"X\",\"who\":\"w\",\"detail\":\"d\",\"extra\":1}]'\n", 0o755)
-	write("e-slow", "#!/bin/sh\nexec /bin/sleep 20\n", 0o755)
 	write("notes.txt", "not executable", 0o644)
-	restore := cli.SetDoctorPluginTimeout(500 * time.Millisecond)
-	defer restore()
+	// The production per-plugin timeout applies here, so a slow fork under
+	// host load cannot turn a good plugin into PLUGIN_FAILED (V1-1212); the
+	// timeout itself is witnessed below with a plugin that never finishes.
 	x, item := doctorOK(t, root, "--plugins", dir)
 	if !x.res.Untrusted {
 		t.Fatalf("plugin output not marked untrusted: %s", x.stdout)
@@ -363,13 +363,24 @@ func TestTQDV0010_PluginFindings(t *testing.T) {
 	for _, f := range findingsOf(item, "PLUGIN_FAILED") {
 		failed[field(f, "who").Str] = true
 	}
-	for _, name := range []string{"b-exit", "c-junk", "d-unknown-key", "e-slow"} {
+	for _, name := range []string{"b-exit", "c-junk", "d-unknown-key"} {
 		if !failed[name] {
 			t.Fatalf("%s not reported failed: %s", name, wire.Encode(item))
 		}
 	}
-	if len(failed) != 4 || len(findingsOf(item, "NO_PROGRESS_HANDOFF")) != 1 {
+	if len(failed) != 3 || len(findingsOf(item, "NO_PROGRESS_HANDOFF")) != 1 {
 		t.Fatalf("findings: %s", wire.Encode(item))
+	}
+	slow := t.TempDir()
+	if err := os.WriteFile(filepath.Join(slow, "e-slow"), []byte("#!/bin/sh\nexec /bin/sleep 600\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	restore := cli.SetDoctorPluginTimeout(200 * time.Millisecond)
+	_, item = doctorOK(t, root, "--plugins", slow)
+	restore()
+	if timedOut := findingsOf(item, "PLUGIN_FAILED"); len(timedOut) != 1 || field(timedOut[0], "who").Str != "e-slow" ||
+		!strings.Contains(field(timedOut[0], "detail").Str, "timed out") {
+		t.Fatalf("slow plugin: %s", wire.Encode(item))
 	}
 	if x := atm(t, root, nil, "doctor", "--plugins", filepath.Join(dir, "missing")); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("missing plugin dir accepted: %s", x.stdout)

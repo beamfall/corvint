@@ -104,6 +104,60 @@ func TestTRMV0006_ResumedClaimRestoresWidenedScope(t *testing.T) {
 	t.Logf("TRM-V0-006 resume path: %d mutations before, %d after", before, after)
 }
 
+// TRM-V0-800 to TRM-V0-802 (V1-3191): under an OPERATOR admission barrier
+// one named ticket is claimed and its attempt widened with the explicit,
+// request-bound --admit-under-barrier, the barrier record stays as it was,
+// and every other admission stays refused PAUSED.
+func TestTRMV0800_AdmitUnderBarrierNamesOneTicket(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	named := planTicket(t, root, "named", "P1", `["src/named/"]`)
+	other := planTicket(t, root, "other", "P1", `["src/other/"]`)
+	if x := handoffCLI(t, root, "pause", "--request-id", "pause", "--role", "OPERATOR"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("pause: %s", x.stdout)
+	}
+	barrier := func() wire.BarrierRef {
+		t.Helper()
+		b := handoffCLI(t, root, "queue", "status").res.Snapshot.Barrier
+		if b == nil {
+			t.Fatal("barrier lifted")
+		}
+		return *b
+	}
+	before := barrier()
+	plain := handoffCLI(t, root, "claim", named, "--holder", "builder", "--request-id", "plain")
+	if !hasCode(plain.res, wire.CodePaused) || !strings.Contains(string(plain.stdout), "claim --admit-under-barrier") {
+		t.Fatalf("plain claim under barrier: want PAUSED naming the route: %s", plain.stdout)
+	}
+	if next := handoffCLI(t, root, "claim", "--next", "--holder", "builder", "--request-id", "next-admit", "--admit-under-barrier"); !hasCode(next.res, wire.CodeMalformed) {
+		t.Fatalf("claim --next --admit-under-barrier: want MALFORMED: %s", next.stdout)
+	}
+	attempt, generation := claimed(t, handoffCLI(t, root, "claim", named, "--holder", "builder", "--request-id", "admit", "--admit-under-barrier"))
+	if x := handoffCLI(t, root, "claim", named, "--holder", "builder", "--request-id", "admit"); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("replay without the flag reused the exempted request: %s", x.stdout)
+	}
+	w := handoffCLI(t, root, "widen", "--attempt", attempt, "--generation", generation, "--request-id", "widen-plain", "--scope", "extra/x.go")
+	if !hasCode(w.res, wire.CodePaused) || !strings.Contains(string(w.stdout), "--admit-under-barrier") {
+		t.Fatalf("plain widen under barrier: want PAUSED naming the route: %s", w.stdout)
+	}
+	if x := handoffCLI(t, root, "widen", "--attempt", attempt, "--generation", generation, "--request-id", "widen-admit", "--scope", "extra/x.go", "--admit-under-barrier"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("exempted widen: %s", x.stdout)
+	}
+	if got := scopePaths(t, root, attempt); !slices.Contains(got, "PATH:extra/x.go") {
+		t.Fatalf("exempted widen scope %v", got)
+	}
+	for _, args := range [][]string{{"claim", other, "--holder", "builder", "--request-id", "other"}, {"claim", "--next", "--holder", "builder", "--request-id", "next"}} {
+		if x := handoffCLI(t, root, args...); !hasCode(x.res, wire.CodePaused) {
+			t.Fatalf("%v during the exemption: want PAUSED: %s", args, x.stdout)
+		}
+	}
+	if after := barrier(); after != before {
+		t.Fatalf("barrier changed: %+v, was %+v", after, before)
+	}
+	if x := handoffCLI(t, root, "receipt", "audit"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("receipt audit: %s", x.stdout)
+	}
+}
+
 func claimed(t *testing.T, x run) (attempt, generation string) {
 	t.Helper()
 	if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 {

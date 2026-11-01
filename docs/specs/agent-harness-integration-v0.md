@@ -892,6 +892,8 @@ separate exact extension tuple remains governed by AHI-024.
   `TestAHI373PluginCommandsShipInCoreRelease`, the `AHI-198` and `AHI-207` tests, and the live
   `claude mcp list` receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md`. Rollback: revert
   the plugin `.mcp.json` files to `corvint-mcp` under new plugin versions and remove the verb.
+  Amended by `MCPV0-115` (V1-3497): both commands share the missing-root fallback, so a plugin that
+  still launches `corvint-mcp` gets it with no plugin change.
 - `AHI-173`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One command
   MUST bump or verify every version location of a host package together:
   `script/host-package-version.sh bump PKG [X.Y.Z]` (`make host-package-version-bump PKG=...`) and
@@ -1720,6 +1722,11 @@ separate exact extension tuple remains governed by AHI-024.
   `corvint.help` call recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-claude-code-integration-matrix.md`.
   Rollback: delete `.mcp.json` and restore `surfaces.mcp: UNAVAILABLE` under a new plugin version.
   Amended by `AHI-373`: the command is now `corvint` with leading arg `mcp`, served by the core binary.
+  Amended by `MCPV0-115` (V1-3497): a `${CLAUDE_PROJECT_DIR}` that no longer exists, as in a Claude
+  desktop spare-claimed session whose `~/.claude/spares/spare-*` directory was deleted, makes the
+  server serve the Git worktree enclosing its launch directory, saying so on stderr and in a notice
+  block on every result, and refuse startup only when there is none. "Nowhere else" is unchanged: it
+  names where the server is declared, not where its root comes from, and the args stay as above.
 - `AHI-199`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) Heavy repository
   targets MUST run their children below interactive priority so hook adapters keep their CPU share
   under lane test load: `script/heavy.sh` runs its command at `HEAVY_NICE` (default 10, `0` keeps

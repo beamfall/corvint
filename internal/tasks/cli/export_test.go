@@ -561,3 +561,11 @@ func SetRunWriteBudget(d time.Duration) func() {
 	runWriteBudget = d
 	return func() { runWriteBudget = was }
 }
+
+// SetSplitAfterStep installs a hook that runs after each completed `ticket
+// split` step and returns the restore function.
+func SetSplitAfterStep(f func(step string) error) func() {
+	was := splitAfterStep
+	splitAfterStep = f
+	return func() { splitAfterStep = was }
+}

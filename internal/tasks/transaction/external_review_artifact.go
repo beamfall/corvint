@@ -31,6 +31,10 @@ type ExternalArtifact struct {
 // refuses an EVIDENCE candidate, it never grants one. Only gate results this
 // receipt posts fresh are read, so the cost is O(posts + fresh results).
 func ExternalArtifactPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) []ExternalArtifact {
+	return externalArtifactPosts(rc, blob, nil)
+}
+
+func externalArtifactPosts(rc *snapshot.Receipt, blob ExternalReviewBlob, memo *TicketPosts) []ExternalArtifact {
 	fresh := map[wire.Digest]bool{}
 	for _, p := range rc.Post {
 		if strings.HasPrefix(p.Path, "evidence/") && p.Sha256 != nil && p.Path == "evidence/"+string(*p.Sha256) {
@@ -41,16 +45,13 @@ func ExternalArtifactPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) []Exte
 		return nil
 	}
 	var out []ExternalArtifact
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if !strings.HasPrefix(p.Path, "attempts/") || p.Sha256 == nil {
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			continue
-		}
-		a, err := snapshot.DecodeAttempt(raw)
-		if err != nil || a.CandidateTreeOid == nil {
+		post := memo.attempt(rc, i, blob)
+		a := post.at
+		if post.rawErr != nil || post.decErr != nil || a.CandidateTreeOid == nil {
 			continue
 		}
 		for _, d := range a.GateResults {

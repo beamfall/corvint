@@ -1536,6 +1536,68 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   build or precheck step (`DCW-V0-380`, `ASD-V0-045`). Cost: one more precheck run per closeout.
   Failure mode: before this, the agent-leases spec pushed past the OCM bound was found only
   after the seal. Rollback: drop the first two steps.
+- `DCW-V0-901`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3335; refines
+  `DCW-V0-150`) `corvint dogfood propose-citations BASE` MUST resolve an abbreviated `BASE` that
+  names one commit to its full ID, which the `PROPOSED` line prints, and MUST refuse a `BASE` that
+  names no commit or an ambiguous prefix on stderr, exit 2, as `REFUSE base-unavailable BASE=<as
+  given>` followed by a `fix:` line naming `git rev-parse --verify BASE^{commit}` and the full
+  origin/main ID; it never exits 2 without a refusal line. Evidence:
+  `TestProposeCitationsDCWV0901ResolvesAnAbbreviatedBase`. Rollback: drop the fix line.
+- `DCW-V0-902`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3444; amends
+  `DCW-V0-802`) The `patch-unavailable` fix line of `propose-citations` and `docs/DOGFOOD.md`'s
+  first-run order MUST name only the binary shapes `cem prepare` still refuses after
+  `CEM-V1-980`..`CEM-V1-986`: a binary-only patch (no textual hunk), a `GIT binary patch` body, a
+  binary rename or copy, a mode change and abbreviated object IDs; a binary file beside a textual
+  hunk binds as a hunk-less group and is not to be dropped. Evidence:
+  `TestProposeCitationsDCWV0902NamesOnlyRefusedBinaryShapes`. Rollback: restore the earlier text.
+- `DCW-V0-903`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3447; refines
+  `DCW-V0-343`) The `dogfood-check` `unbound-commits` and `retroactive-bound-commits` NOTE lines
+  MUST carry `window-start=cem-base-of:<commit>` right after `window=START..BASE`, naming the
+  previous binding whose CEM base starts the window (the CEM committed at BASE, else the bind
+  commit under the newest seal reachable from BASE), so a window that starts before a rebased
+  lane's BASE is explained. The window itself is unchanged. Evidence:
+  `TestDCWV0903UnboundCommitsNoteNamesTheWindowStart` (a lane rebased onto a newer BASE whose
+  previous binding has an older base). Rollback: drop the field.
+- `DCW-V0-904`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3410; amends
+  `DCW-V0-384` and `DCW-V0-801`) The quoted `-run` word of a verify line MUST also admit one plain
+  test name (`-run 'TestA'`, `-run '.'`), one anchored name (`-run '^TestA$'`) and the
+  match-everything `-run '.*'`, in single or double quotes or attached with `=`, each recorded as
+  one argv word, so a single anchored test and a whole-package run (listed with
+  `HEAVY_WHOLE_REASON='...'` before `script/heavy.sh`, `DCW-V0-804`) can be verify lines. Other
+  quoted regex syntax stays refused. Evidence: `TestDCWV0904VerifyAdmitsSingleAndWholeRunForms`.
+  Rollback: drop the three alternatives.
+- `DCW-V0-905`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3468; refines
+  `DCW-V0-170`) A verify line that the grammar refuses because a word starts with `~` MUST be
+  refused with a `fix:` line giving the line with each leading `~` or `~/` replaced by the
+  absolute `$HOME` path; the recorded command is never expanded silently. `docs/DOGFOOD.md` MUST
+  say verify lines take absolute paths. Evidence: `TestDCWV0905TildeVerifyLineNamesTheAbsolutePath`.
+  Rollback: drop the hint.
+- `DCW-V0-906`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3483; amends
+  `DCW-V0-809` and refines `DCW-V0-967`) A hunk of the defining spec that adds a same-change
+  requirement, or only rows naming one, MUST be drafted as the `DCW-V0-967` proposal of the BASE
+  requirement that requirement's entry refines, amends or names, labelled a drafted proposal; it
+  stays `unknown` only when the entry names no BASE requirement with a stable definition line.
+  Measured on dffric-w1 (base 3555875f9, head a7a0630b2^^): 13 of 65 rows unknown before, 11
+  after; the 11 are a bookkeeping record and ASD-V0-960 rows, whose entry names no other
+  requirement. Evidence: `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`.
+  Rollback: drop the refined attempt in the `DCW-V0-809` branch.
+- `DCW-V0-907`: (experimental under the standing lane auto-accept, 2026-10-31; V1-1629, V1-3361,
+  V1-3475; refines `DCW-V0-022`) When `CheckOptions.ConcurrentVerifiers` is set (the
+  `corvint dogfood check`, `seal` and `finish-lane` commands set it), the check MUST run the base
+  and tree verifiers' `cem status` commands concurrently, each into its own buffers, and compare
+  them exactly as before; the override and the tree rerun of `verifyDeclared` follow. `impact` and
+  query abstention commands stay sequential, because `impact` takes the non-blocking
+  `contextindex` snapshot-refresh lock, so two at once could disagree. An interruption cancels
+  both through the shared context. The aggregate-enrolled path stays sequential. Evidence:
+  `TestDCWV0907CheckRunsTheVerifierPairConcurrently` (both fakes must start before either returns).
+  Rollback: clear the option.
+- `DCW-V0-908`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3188; refines
+  `DCW-V0-060`) After a successful seal, `finish-lane` MUST print on stderr `dogfood-finish-lane: REVIEW
+  report=<path> sha256=<digest> reviewed=NOT_OBSERVED` naming the exact reviewer report it bound,
+  with a line saying the independent review of that report and the native completion are the
+  next authority steps and that finish-lane records neither, so a review is never implied as
+  done. A report it cannot read prints `sha256=NOT_OBSERVED`. Evidence:
+  `TestFinishLaneDCWV0908NamesTheReportToReview`. Rollback: drop the lines.
 - `DCW-V0-350`: (experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)
   When `.corvint/change.cem.json` does not exist, `corvint dogfood propose-citations BASE` MUST
   draft the plan from the canonical `BASE..HEAD` patch that `cem prepare` derives the map from,
@@ -2696,6 +2758,145 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   commit, a retroactive `-s ours` binding; a later BASE drops earlier commits; reversed arguments
   exit 2; an altered-bytes seal stays `UNBOUND`; a clean merge of a bound side is `merged:`, a merge
   carrying its own resolution edit is `UNBOUND:resolution`). Rollback: delete the script.
+- `DCW-V0-880`: (experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`)
+  `corvint dogfood prechange [--task TEXT] BASE [PATH...]` is the supported recorder for the agent
+  pre-change receipts. It MUST refuse, exit 2 and write nothing, `prechange-after-change` when
+  `HEAD`'s tree is not BASE's tree or a tracked file differs from `HEAD`, so no receipt is ever
+  written after the change began, and `prechange-receipt-exists` when `prechange-context.json`,
+  `prechange-query.json` or `prechange-impact.json` exists under `<git-dir>/corvint/` and the
+  binding this recorder wrote does not name its digest: an agent-written receipt is never
+  overwritten. Otherwise it runs, as its own executable, `index --if-stale`, then `context --task
+  TEXT --limit 20` into `prechange-context.json`, `query --task TEXT --limit 1` into
+  `prechange-query.json` and, when PATH is given, `impact PATH... --limit 10` into
+  `prechange-impact.json`; TEXT defaults to `DOGFOOD_TASK`, else `Dogfood change from BASE12 to
+  HEAD`. A command that fails leaves no receipt for its slot; an evidence directory or binding it
+  cannot write refuses `prechange-evidence-unwritable`. It then writes
+  `<git-dir>/corvint/prechange-binding.json` (profile `corvint-dogfood-prechange/0`) naming BASE,
+  BASE's tree, the absolute Git directory, the task, the executable's SHA-256 and, per slot, the
+  command that satisfies it, its argv, its status and the receipt's SHA-256. The context receipt is
+  `orientation`: it satisfies neither slot. It prints one line per slot, `dogfood-prechange: RECORD
+  NAME sha256=SHA command=COMMAND` or `dogfood-prechange: NOT_PRODUCED NAME REASON`
+  (`prechange-impact-paths-absent` without PATH, else the command's refusal code), and exits 0 only
+  when both `prechange-query` and `prechange-impact` were recorded, 1 otherwise. It writes nothing
+  outside `<git-dir>/corvint/` except the snapshot `index --if-stale` itself writes; the read
+  commands it runs stay read-only. `make dogfood-prechange BASE=SHA TASK=TEXT PATHS=...` wraps it.
+  Non-goals: capturing a read the agent ran itself (that receipt stays as written and unbound);
+  making a receipt blocking (`DCW-V0-031` notes stay non-blocking). Failure modes: a receipt
+  recorded at BASE and then edited by hand fails its digest under `DCW-V0-881`. Evidence:
+  `TestDCWV0880PrechangeRecordsBoundReceipts` (records three receipts and the binding at BASE;
+  refuses after a commit and with a dirty tracked file, writing nothing; refuses an agent receipt
+  it did not write; reruns over its own receipts; no PATH leaves the impact slot NOT_PRODUCED).
+  Rollback: delete `internal/dogfoodflow/prechange.go`, its subverb and make target.
+- `DCW-V0-881`: (experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`
+  and `DCW-V0-032`) For each `DCW-V0-031` receipt that decodes, `dogfood change` MUST first print
+  `dogfood-change: NOTE NAME NOT_OBSERVED agent-receipt-unsupported tool=TOOL` when its top-level
+  `tool` is present and is not the slot's (`query` for `prechange-query`, `impact` for
+  `prechange-impact`), so a context receipt never substitutes for a query receipt. For a receipt
+  at BASE's tree it MUST then read `prechange-binding.json`: with no binding it prints nothing, as
+  before; a binding that does not decode as profile `corvint-dogfood-prechange/0` (internally
+  `prechange-binding-malformed`) prints `NOT_OBSERVED agent-receipt-binding-malformed`; a binding for another BASE prints `STALE
+  agent-receipt-binding-other-base base=BASE`; one recorded in another Git directory prints
+  `NOT_OBSERVED agent-receipt-wrong-worktree`; one whose slot digest differs from the receipt's
+  prints `NOT_OBSERVED agent-receipt-binding-mismatch`; and a matching binding prints `OBSERVED
+  bound sha256=SHA command=COMMAND`. When `prechange-query.json` is absent and
+  `prechange-context.json` exists it also prints `dogfood-change: NOTE prechange-context
+  orientation-only satisfies-no-slot`. These lines, like the `DCW-V0-031` notes, MUST NOT change
+  the report, its rows, `"complete"` or the exit status; the report stays reproducible by `dogfood
+  check` from a clean worktree, which has no private receipts. Every `finish-lane` change pass
+  prints them, so `make dogfood-closeout` shows the bound receipts with no file forwarding.
+  Evidence: `TestDCWV0881ChangeVerifiesPrechangeBinding` (bound receipts are OBSERVED; a context
+  receipt as query, an edited receipt, another BASE, another Git directory and a malformed binding
+  each print their note; the run's exit status and report are unchanged).
+  Rollback: drop `noteBoundReceipt`; the `DCW-V0-031` notes remain.
+- `DCW-V0-882`: (experimental under the standing lane auto-accept; V1-3290; refines `DCW-V0-387`
+  and `DCW-V0-379`) `dogfood finish-lane` and `dogfood inputs-check` MUST check the grammar of a
+  supplied `--intents` manifest (`DOGFOOD_INTENTS_FILE`) before any step runs, right after the
+  verify input check: a manifest `ocm-aggregate` would refuse for its bytes alone
+  (`missing-intent-scope`, `intent-manifest-over-bound`, `intent-scope-limit`) refuses, exit 2 and
+  no step run, with `PREFIX: REFUSE REASON`, `  input: --intents FILE`, the `DCW-V0-387` fault line
+  when there is one, and a `fix:` line: for an ordering or duplicate fault `LC_ALL=C sort -u -o FILE
+  FILE`, else the manifest grammar. An unset manifest and the checks that need the change (a record
+  intent, a bootstrap intent) stay with the bind pass. Design: the manifest was refused only by the
+  prepare pass, after `cem prepare` ran, or at `ocm-aggregate` after the bind. Evidence:
+  `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst` (unsorted, duplicate and non-canonical
+  manifests refuse with no step call; a sorted one reaches the steps). Rollback: drop
+  `requireIntentsInput`; the prepare pass refuses as before.
+- `DCW-V0-883`: (experimental under the standing lane auto-accept; V1-3285; refines `DCW-V0-048`
+  and `DCW-V0-037`) The `DCW-V0-048` uniformity refusal MUST also cover a staged plan: a
+  `DOGFOOD_CITATIONS` plan whose rows all cite one canonical span, with no unknown row, over a map
+  of more than one hunk where every hunk the plan does not name already carries a basis whose every
+  evidence entry is that same span, and at least one such hunk exists, is refused
+  `citation-plan-uniform` before any cite, with the `DCW-V0-048` fix line naming the map's hunk
+  count and the span. The chore and record exemptions are unchanged. Design: each staged plan names
+  only a subset of the hunks, so the per-plan check never saw every hunk; the reproduction was the
+  accepted `DCW-V0-037` fixture itself, whose two stages cited `intent.md:5:5` for all 279 hunks
+  and bound. That fixture now cites two spans. Non-goals: a refusal across separately sealed
+  changes. Evidence: `TestChangeDCWV0883RefusesUniformStagedPlan` (a stage completing one span is
+  refused with no cite; a second span, carried evidence on another or a second span, and a kept
+  unknown hunk are cited); `TestDogfoodSingleCommitStagedCitationPlans`. Rollback: drop
+  `carriedUniform`.
+- `DCW-V0-884`: (experimental under the standing lane auto-accept; V1-3289; refines `DCW-V0-442`)
+  When `propose-citations --refresh` re-keys an unknown row to another hunk ID, it MUST carry the
+  row with its NOTE prefixed `[stale: re-keyed from OLD_ID, review] `, replacing any earlier such
+  prefix rather than stacking it, and print `refresh row N note marked stale: it was written for
+  OLD_ID; review it for NEW_ID` on stderr. The REASON is kept; a row carried under its own current
+  ID, and a re-keyed cite row, are unchanged. Design: the NOTE was the author's account of the old
+  hunk and stayed silently attached to the new one. Non-goals: regenerating the author's NOTE.
+  Evidence: `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile` (the re-keyed unknown
+  row's NOTE carries the mark, the refreshed plan passes the pre-flight),
+  `TestDCWV0884StaleNoteMarkIsReplaced`. Rollback: drop the mark in `carry`.
+- `DCW-V0-885`: (experimental under the standing lane auto-accept; V1-3293; refines `DCW-V0-442`)
+  When no citation-plan binding records a `--refresh` plan's digest, `propose-citations` MUST
+  resolve its ordinal rows through a sealed CEM: of the (at most 16, latest) `.corvint/changes/
+  COMMIT.cem.json` files `BASE..HEAD` adds, the one whose hunk at each ordinal row's ordinal holds
+  that row (a cite row's canonical span among its basis evidence; an unknown row's disposition
+  `unknown` with the same reason) supplies the hunk IDs, noted `refresh ordinals resolved through
+  the sealed CEM PATH`. The rows then carry or re-key as under `DCW-V0-442`, and every row they
+  cannot map is dropped with its note, so only those rows need review. No match, or more than one
+  matching sealed CEM, leaves the ordinals unresolved as before. Design: a seal moves the map out of
+  the shared path and a later reseal renumbers the hunks, so a hand-reviewed ordinal plan had to be
+  remapped by script. Non-goals: matching by path and BASE line without a sealed CEM. Evidence:
+  `TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM` (one matching seal carries
+  the cite rows to their hunks at new ordinals and drops only the vanished unknown hunk's row; a
+  seal citing another span, or two matching seals, carry nothing). Rollback: drop
+  `sealedOrdinalIDs`.
+- `DCW-V0-886`: (experimental under the standing lane auto-accept; V1-3283; refines `DCW-V0-161`
+  and `DCW-V0-404`) A draft MUST rank the BASE lines naming a hunk's path, after the lines defining
+  a requirement ID the hunk adds: first a requirement-bearing line (one carrying a requirement ID) of
+  a governing spec, then any line of a governing spec, then a requirement-bearing line of another
+  document, then a bare mention, keeping the earlier order (`DCW-V0-966`: untouched files first)
+  within a rank. The governing specs are the specifications whose requirement-bearing BASE lines
+  name the most distinct owed paths; when a spec the change modifies names an owed path, only
+  modified specs compete, since an amended spec is the change's own contract, and its stable lines
+  are cited like an untouched spec's (`DCW-V0-966`), never a line the change edits; with several
+  owed paths a spec must name at least two. When a governing spec exists and the drafted cite lies outside every
+  governing spec, the draft MUST keep the row and print `row KEY cited low-confidence (DCW-V0-886):
+  PATH:LINE names HUNK_PATH outside the change's governing spec SPEC, ...; review the cite, or keep
+  the row unknown`. The `dogfood check` anchor search is unchanged. Design: the drafter cited the
+  first stable line mentioning the path, so an unrelated spec sorting first won over the spec that
+  governs the change, and `inputs-check` admitted it. Evidence:
+  `TestProposeCitationsDCWV0886PrefersTheGoverningSpec` (five paths each mentioned first by an
+  unrelated spec: four rows cite the governing spec's requirement lines, the fifth, named only by
+  the unrelated spec, is marked low-confidence; fails on BASE with all five citing the unrelated
+  spec); `TestDCWV0886AModifiedSpecGovernsTheChange` (an amended spec naming two paths governs
+  over an untouched spec naming three, whose cites are kept and marked); the dogfood-w6 change
+  (`840f7b6` from `c5d5f08`) and this lane's own change now name their governing spec
+  `daily-change-evidence-workflow-v0.md` (modified by each) and mark their two remaining cites
+  low-confidence. Rollback: drop `rankAnchors` and the note.
+- `DCW-V0-887`: (experimental under the standing lane auto-accept; V1-2978; refines `DCW-V0-380`)
+  A passing `dogfood inputs-check` MUST leave `<git-dir>/corvint/inputs-check-pass` holding a key
+  and the prepare lines it printed. The key is the SHA-256 over BASE, HEAD, HEAD's tree, the
+  outcome, the staged plan count, the step executable's SHA-256 and each supplied input file's path,
+  presence and content digest. A following `dogfood finish-lane` that is not resuming from a bind
+  commit MUST consume the receipt, and, when its own key matches, replay those lines with the
+  suffix ` reused=inputs-check` instead of running the prepare pass, so `make dogfood-closeout` runs
+  `cem prepare` once for an unchanged base and target before the bind pass. Any other receipt is
+  removed and the prepare pass runs; a refused pre-flight, or one with an unhashable executable,
+  leaves none. The bind pass still prepares its own map. Non-goals: reusing a map across bind
+  passes. Failure modes: the prepare pass's NOTE lines appear in the inputs-check output only.
+  Evidence: `TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare` (the same inputs reuse it and
+  the timings table shows no prepare-step `cem prepare`; a plan changed in between prepares afresh;
+  the receipt is consumed either way). Rollback: drop `finishlane_reuse.go` and its calls.
 - `DCW-V0-844`: (experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`
   and `DCW-V0-406`) The `reused-worktree-state` refusal MUST name, besides an earlier lane and an
   amended or rebased commit, the case of this lane's own bind/seal commits reset away before push,
@@ -3205,6 +3406,14 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
 | `DCW-V0-900` (tasks-w1 friction) | `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` (recipe order and the ASD-V0-045 missing-input refusal before any precheck) | recipe-order regression; live closeout NOT_RUN in this change |
+| `DCW-V0-901` (V1-3335) | `internal/dogfoodflow/propose.go` `run`; `TestProposeCitationsDCWV0901ResolvesAnAbbreviatedBase` | unit |
+| `DCW-V0-902` (V1-3444) | `internal/dogfoodflow/propose.go` `refusePatchUnavailable`; `docs/DOGFOOD.md` first-run order; `TestProposeCitationsDCWV0902NamesOnlyRefusedBinaryShapes` | unit |
+| `DCW-V0-903` (V1-3447) | `internal/dogfoodflow/check.go` `windowNote`; `TestDCWV0903UnboundCommitsNoteNamesTheWindowStart` | unit |
+| `DCW-V0-904` (V1-3410) | `internal/dogfoodflow/verify_argv.go` `runAlternation`; `TestDCWV0904VerifyAdmitsSingleAndWholeRunForms` | unit |
+| `DCW-V0-905` (V1-3468) | `internal/dogfoodflow/finishlane.go` `requireVerifyInput`, `tildeFix`; `TestDCWV0905TildeVerifyLineNamesTheAbsolutePath` | unit |
+| `DCW-V0-906` (V1-3483) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`; dffric-w1 replay 13 -> 11 unknown of 65 | unit and replay |
+| `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
+| `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
@@ -3282,6 +3491,14 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |
 | `DCW-V0-831` (experimental under the standing lane auto-accept; V1-3372) | `script/dogfood-bind-coverage.sh`; `script/dogfood-bind-range_test.sh` DCW-V0-831 case | implemented; shell test PASS |
+| `DCW-V0-880` (experimental under the standing lane auto-accept; V1-3183) | `internal/dogfoodflow/prechange.go` `Prechange`; `cmd/corvint/dogfood_flow.go`; `make dogfood-prechange`; `TestDCWV0880PrechangeRecordsBoundReceipts` | implemented; focused tests PASS |
+| `DCW-V0-881` (experimental under the standing lane auto-accept; V1-3183) | `internal/dogfoodflow/change.go` `noteAgentReceipt`; `internal/dogfoodflow/prechange.go` `noteBoundReceipt`; `TestDCWV0881ChangeVerifiesPrechangeBinding` | implemented; focused tests PASS |
+| `DCW-V0-882` (experimental under the standing lane auto-accept; V1-3290) | `internal/dogfoodflow/finishlane.go` `requireIntentsInput`; `internal/dogfoodflow/change.go` `readIntentManifest`; `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst` | implemented; focused tests PASS |
+| `DCW-V0-883` (experimental under the standing lane auto-accept; V1-3285) | `internal/dogfoodflow/change.go` `uniformPlan`, `carriedUniform`; `TestChangeDCWV0883RefusesUniformStagedPlan`, `TestDogfoodSingleCommitStagedCitationPlans` | implemented; focused tests PASS |
+| `DCW-V0-884` (experimental under the standing lane auto-accept; V1-3289) | `internal/dogfoodflow/propose_refresh.go` `carry`, `staleNotePrefix`; `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile`, `TestDCWV0884StaleNoteMarkIsReplaced` | implemented; focused tests PASS |
+| `DCW-V0-885` (experimental under the standing lane auto-accept; V1-3293) | `internal/dogfoodflow/propose_refresh.go` `sealedOrdinalIDs`, `sealedHolds`; `TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM` | implemented; focused tests PASS |
+| `DCW-V0-886` (experimental under the standing lane auto-accept; V1-3283) | `internal/dogfoodflow/propose_owner.go` `governingSpecs`, `rankAnchors`, `weakAnchorNote`; `internal/dogfoodflow/propose.go` `anchoredProposal`, `prepareAnchors`; `TestProposeCitationsDCWV0886PrefersTheGoverningSpec`, `TestDCWV0886AModifiedSpecGovernsTheChange` | implemented; focused tests PASS |
+| `DCW-V0-887` (experimental under the standing lane auto-accept; V1-2978) | `internal/dogfoodflow/finishlane_reuse.go` `preflightKey`, `recordPreflight`, `reusePreflight`; `TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare` | implemented; focused tests PASS |
 | `DCW-V0-844` (experimental under the standing lane auto-accept; V1-3318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` | implemented; focused tests PASS |
 | `DCW-V0-845` (experimental under the standing lane auto-accept; V1-3302) | `internal/dogfoodflow/propose.go` `run`, `template`; `internal/dogfoodflow/change.go` `fixHints`, `citeSpanUnalignedHint`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal`, `TestChangeDCWV0063NamesUnalignedCiteSpanCause`, `script/dogfood-change_test.sh` | implemented; focused Go tests PASS |
 | `DCW-V0-846` (experimental under the standing lane auto-accept; V1-1724) | `internal/dogfoodflow/propose.go` `propose`, `printDraft`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal` | implemented; amended by `DCW-V0-962`; focused tests PASS |

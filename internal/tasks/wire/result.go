@@ -166,7 +166,7 @@ func (r *Result) Value() Value {
 	return ObjectValue(o)
 }
 
-// HasCode reports whether r carries code (CAL-V0-965). A nil result
+// HasCode reports whether r carries code (TCD-V0-965). A nil result
 // carries none.
 func HasCode(r *Result, code string) bool {
 	return r != nil && slices.Contains(r.Codes, code)
@@ -176,7 +176,7 @@ func HasCode(r *Result, code string) bool {
 // bounds and returns the on-disk/transport bytes (canonical body plus LF).
 // It is the one encoder and returns bytes because every writer emits bytes;
 // a caller comparing envelope text converts the result once with string()
-// rather than through a second string-returning encoder (CAL-V0-965).
+// rather than through a second string-returning encoder (TCD-V0-965).
 func (r *Result) Encode() ([]byte, error) {
 	if r.MaxNodes > MaxResultNodes {
 		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d above %d", r.MaxNodes, MaxResultNodes)

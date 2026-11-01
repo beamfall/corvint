@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"math"
 	"path"
 	"regexp"
@@ -82,7 +83,13 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 // contextRow is one admitted file with the relation that admitted it.
 type contextRow struct {
 	kind, path, summary, reason, confidence, authority, downgrade string
-	score, line                                                   int
+	// link is the tracked symlink a governing row was admitted through
+	// (TCP-V0-271); path is then its pinned regular-file target. links is
+	// every tracked symlink that reached this row, link first, so a later
+	// link that TCP-V0-273 folded into it is still screened.
+	link        string
+	links       []string
+	score, line int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
 }
@@ -122,6 +129,9 @@ type taskContextCompiler struct {
 	// promoted maps a path a reserved row took over to the relation of the
 	// ordinary row it removed (TCP-V0-003's promote-in-place rule).
 	promoted map[string]string
+	// linked maps an admitted governing symlink to its target, and
+	// linkRefusals a refused one to its typed reason (TCP-V0-270..275).
+	linked, linkRefusals map[string]string
 	// answerability is TCP-V0-016's conjunction verdict, computed after the
 	// slots so it can withhold every row they admitted.
 	answerability               answerability
@@ -347,6 +357,8 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		candidates:    map[string][]string{},
 		relationState: map[string]string{},
 		promoted:      map[string]string{},
+		linked:        map[string]string{},
+		linkRefusals:  map[string]string{},
 	}))))
 }
 
@@ -1904,16 +1916,38 @@ func (compiler *taskContextCompiler) governingRows() []contextRow {
 			}
 			break
 		}
-		if !compiler.readable(governing) {
+		target, refusal := compiler.instructionLink(governing)
+		if refusal != "" {
+			compiler.linkRefusals[governing] = refusal
 			compiler.relationState[governingRelation] = "capped"
+			continue
+		}
+		if !compiler.readable(target) {
+			compiler.relationState[governingRelation] = "capped"
+			continue
+		}
+		if target != governing {
+			compiler.linked[governing] = target
+		}
+		if seen := slices.IndexFunc(rows, func(row contextRow) bool { return row.path == target }); seen >= 0 {
+			// TCP-V0-273: a target reached twice reserves one row; the
+			// later link still binds its screen (TCP-V0-271).
+			if target != governing {
+				rows[seen].links = append(rows[seen].links, governing)
+			}
 			continue
 		}
 		reason := "the highest-precedence tracked instruction file"
 		if scoped && (len(candidates) > 1 || path.Dir(governing) != ".") {
 			reason = "tracked instructions for subject ancestor " + path.Dir(governing) + "; closest directory first"
 		}
+		link, links := "", []string(nil)
+		if target != governing {
+			link, links = governing, []string{governing}
+			reason += "; admitted through the tracked symlink " + governing
+		}
 		rows = append(rows, contextRow{
-			kind: governingRelation, path: governing, score: 1000, line: 1,
+			kind: governingRelation, path: target, link: link, links: links, score: 1000, line: 1,
 			summary: "this project's standing instructions", reason: reason,
 			confidence: "high", authority: "project-instructions",
 		})
@@ -2120,6 +2154,99 @@ func instructionRank(candidate string) (int, bool) {
 		return len(contextInstructionPrecedence), true
 	}
 	return 0, false
+}
+
+// Typed refusals for a governing candidate that is a tracked symlink
+// (TCP-V0-272). Untracked and dangling targets share one reason: both are
+// absent from the pinned tree, which is the only thing the resolver reads.
+const (
+	linkTargetInvalid    = "symlink-target-invalid"
+	linkTargetOutside    = "symlink-target-outside-tree"
+	linkTargetNotInTree  = "symlink-target-not-in-tree"
+	linkTargetNotRegular = "symlink-target-not-regular-file"
+	linkTargetIsSubject  = "symlink-target-is-subject"
+	linkChain            = "symlink-chain"
+	linkCycle            = "symlink-cycle"
+)
+
+// instructionLink returns the path a governing candidate stands for: the
+// candidate itself, or, for a tracked symlink, its one-hop target resolved
+// lexically against the pinned Git tree (TCP-V0-270..272). It never reads
+// the working tree, so a link is bound to the target blob the index pinned.
+func (compiler *taskContextCompiler) instructionLink(candidate string) (target, refusal string) {
+	source, ok := compiler.index.Sources[candidate]
+	if !ok || source.Mode != "120000" {
+		return candidate, ""
+	}
+	target, refusal = compiler.linkTarget(candidate, source)
+	if refusal != "" {
+		return "", refusal
+	}
+	if target == candidate {
+		return "", linkCycle
+	}
+	if target == compiler.subject {
+		return "", linkTargetIsSubject
+	}
+	resolved, ok := compiler.index.Sources[target]
+	switch {
+	case ok && resolved.Mode == "120000":
+		// One hop only: a second link is a chain, or a cycle when it
+		// leads back to the candidate or to itself.
+		if next, failed := compiler.linkTarget(target, resolved); failed == "" && (next == candidate || next == target) {
+			return "", linkCycle
+		}
+		return "", linkChain
+	case ok && resolved.Mode != "100644" && resolved.Mode != "100755":
+		return "", linkTargetNotRegular
+	case ok:
+		return target, ""
+	}
+	if _, skipped := compiler.index.Skipped[target]; skipped {
+		return "", linkTargetNotRegular
+	}
+	tracked := compiler.trackedPaths()
+	if _, present := tracked[target]; present {
+		// Tracked but not pinned: readable() reports it as unread.
+		return target, ""
+	}
+	for candidatePath := range tracked {
+		if strings.HasPrefix(candidatePath, target+"/") {
+			return "", linkTargetNotRegular
+		}
+	}
+	return "", linkTargetNotInTree
+}
+
+// linkTarget resolves one link blob to a cleaned tree path. Any `..` that
+// leaves the root, an absolute or Windows-shaped target, and a target whose
+// intermediate component is itself a tracked entry (a symlinked directory,
+// which lexical cleaning would silently bypass) are refused.
+func (compiler *taskContextCompiler) linkTarget(link string, source Source) (string, string) {
+	text, ok := sourceTextBounded(source)
+	if !ok || text == "" || strings.ContainsAny(text, "\x00\n\r\\") || strings.Contains(text, ":") {
+		return "", linkTargetInvalid
+	}
+	if strings.HasPrefix(text, "/") {
+		return "", linkTargetOutside
+	}
+	parts := strings.Split(path.Join(path.Dir(link), text), "/")
+	if parts[0] == ".." {
+		return "", linkTargetOutside
+	}
+	raw := strings.Split(text, "/")
+	prefix := path.Dir(link)
+	tracked := compiler.trackedPaths()
+	for _, component := range raw[:len(raw)-1] {
+		prefix = path.Join(prefix, component)
+		if prefix == ".." || strings.HasPrefix(prefix, "../") {
+			return "", linkTargetOutside
+		}
+		if _, entry := tracked[prefix]; entry {
+			return "", linkChain
+		}
+	}
+	return path.Join(path.Dir(link), text), ""
 }
 
 // readable reports whether the index took a tracked path in and can hand back
@@ -2396,11 +2523,25 @@ func (compiler *taskContextCompiler) unexamined() []any {
 		if state == "" {
 			state = "not-applicable"
 		}
-		report = append(report, map[string]any{
+		entry := map[string]any{
 			"relation": relation, "state": state, "withheld": compiler.withheld(relation, state),
-		})
+		}
+		if relation == governingRelation && len(compiler.linkRefusals) != 0 {
+			entry["link_refusals"] = compiler.linkRefusalList()
+		}
+		report = append(report, entry)
 	}
 	return report
+}
+
+// linkRefusalList is TCP-V0-272's disclosure, in path order.
+func (compiler *taskContextCompiler) linkRefusalList() []any {
+	links := slices.Sorted(maps.Keys(compiler.linkRefusals))
+	list := make([]any, 0, len(links))
+	for _, link := range links {
+		list = append(list, map[string]any{"path": link, "reason": compiler.linkRefusals[link]})
+	}
+	return list
 }
 
 func (compiler *taskContextCompiler) withheld(relation, state string) any {
@@ -2430,6 +2571,11 @@ func (compiler *taskContextCompiler) withheld(relation, state string) any {
 		}
 		if _, admitted := reserved[candidate]; admitted {
 			continue
+		}
+		if target, linked := compiler.linked[candidate]; linked {
+			if _, admitted := reserved[target]; admitted {
+				continue
+			}
 		}
 		count++
 	}
@@ -2595,6 +2741,10 @@ func (compiler *taskContextCompiler) renderRow(row contextRow) map[string]any {
 	source, pinned := compiler.index.Sources[row.path]
 	entry := evidence(row.path, row.line, source.BlobHash, row.reason, row.confidence, row.authority)
 	entry["trust"] = TrustClass(row.authority)
+	if row.link != "" {
+		entry["link_path"] = row.link
+		entry["link_blob_hash"] = compiler.index.Sources[row.link].BlobHash
+	}
 	if !pinned {
 		// An empty blob_hash alone does not disclose that the row is
 		// unpinned (AGENTS.md invariant 2): downgrade the confidence the

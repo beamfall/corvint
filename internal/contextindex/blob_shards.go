@@ -343,21 +343,11 @@ func writeBlobShards(index *Index, store snapshotStore, engineID string) error {
 		if fact, err := readBlobFact(base, directory, index.ObjectFormat, engineID, entry, nil); err == nil && fact != nil {
 			continue
 		}
-		local := &Index{Sources: map[string]Source{path: source}}
-		var chunk compiledSources
-		chunk.collect(local, []string{path}, nil)
-		terms := tokeniseSource(path, source, tokeniser)
-		fact := blobFacts{Version: blobShardVersion, Engine: engineID, ObjectFormat: index.ObjectFormat, Source: source,
-			Terms: terms.terms, Words: terms.words, Symbols: chunk.symbols, Fields: chunk.fields, Markers: chunk.markers,
-			Imports: chunk.imports[path], Unparsed: chunk.unparsed, Notes: chunk.notes, ApproximateImports: chunk.approximateImports}
-		payload, err := json.Marshal(fact)
+		payload, ok, err := blobShardPayload(index.ObjectFormat, engineID, path, source, tokeniser)
 		if err != nil {
 			return err
 		}
-		if len(payload)+sha256.Size > maxBlobShardBytes {
-			continue
-		}
-		if _, err := countBlobFactTokens(payload); err != nil {
+		if !ok {
 			continue
 		}
 		digest := sha256.Sum256(payload)
@@ -367,6 +357,30 @@ func writeBlobShards(index *Index, store snapshotStore, engineID string) error {
 		}
 	}
 	return nil
+}
+
+// blobShardPayload is the JSON fact one shard stores for path, and false when
+// the fact is too large to shard. TestAnalyzerSchemaOutput hashes these
+// payloads for the golden corpus (IDX-SNAP-V0-892).
+func blobShardPayload(objectFormat, engineID, path string, source Source, tokeniser *tokeniser) ([]byte, bool, error) {
+	local := &Index{Sources: map[string]Source{path: source}}
+	var chunk compiledSources
+	chunk.collect(local, []string{path}, nil)
+	terms := tokeniseSource(path, source, tokeniser)
+	fact := blobFacts{Version: blobShardVersion, Engine: engineID, ObjectFormat: objectFormat, Source: source,
+		Terms: terms.terms, Words: terms.words, Symbols: chunk.symbols, Fields: chunk.fields, Markers: chunk.markers,
+		Imports: chunk.imports[path], Unparsed: chunk.unparsed, Notes: chunk.notes, ApproximateImports: chunk.approximateImports}
+	payload, err := json.Marshal(fact)
+	if err != nil {
+		return nil, false, err
+	}
+	if len(payload)+sha256.Size > maxBlobShardBytes {
+		return nil, false, nil
+	}
+	if _, err := countBlobFactTokens(payload); err != nil {
+		return nil, false, nil
+	}
+	return payload, true, nil
 }
 
 func blobSourcePaths(sources map[string]Source) []string {

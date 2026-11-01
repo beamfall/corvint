@@ -5,12 +5,12 @@
 # `git -C SHARED worktree add -b BRANCH DIR REF` (REF default origin/main). Before anything it
 # refuses a shallow SHARED clone with the `git fetch --unshallow` recovery (ASD-V0-072, V1-3230),
 # since merge-base, `corvint affected` and the dogfood ranges all need the full history, and a
-# missing REF or an existing DIR. After the worktree is added it installs the shared commit-msg
-# hook that refuses AI co-author and "Generated with" trailers (ASD-V0-071, V1-3227); a hook it
-# cannot install is named and exits 1 (the lane is still created). It also turns rerere off in the
-# lane worktree's own config, since every linked worktree shares rr-cache and MERGE_RR.lock
-# (ASD-V0-965, V1-3651); a config write it cannot make likewise exits 1. Exit 2 on any refusal. Relative
-# SHARED and DIR resolve against the caller's working directory.
+# missing REF or an existing DIR. After the worktree is added it installs the commit-msg hook that
+# refuses AI co-author and "Generated with" trailers (check-ai-coauthor-trailers.sh --install-hook,
+# ASD-V0-831, V1-3337); a hook it cannot install is named and exits 1 (the lane is still created).
+# It also turns rerere off in the lane worktree's own config, since every linked worktree shares
+# rr-cache and MERGE_RR.lock (ASD-V0-965, V1-3651); a config write it cannot make likewise exits 1.
+# Exit 2 on any refusal. Relative SHARED and DIR resolve against the caller's working directory.
 set -uo pipefail
 export LC_ALL=C
 refuse() { printf 'lane-setup: REFUSE %s\n' "$*" >&2; exit 2; }
@@ -39,9 +39,9 @@ if ! git -C "$repo" config extensions.worktreeConfig true || ! git -C "$dir" con
   printf 'lane-setup: %s was created, but rerere was not disabled in its worktree config; run git -C %s config extensions.worktreeConfig true and git -C %s config --worktree rerere.enabled false\n' "$dir" "$repo" "$dir" >&2
   exit 1
 fi
-guard=$dir/script/check-ai-trailers.sh
-[[ -x $guard ]] || guard=$here/check-ai-trailers.sh
-if ! (cd "$dir" && "$guard" --install); then
+guard=$dir/script/check-ai-coauthor-trailers.sh
+[[ -x $guard ]] || guard=$here/check-ai-coauthor-trailers.sh
+if ! (cd "$dir" && "$guard" --install-hook); then
   printf 'lane-setup: %s was created, but the ai-trailer commit-msg hook was not installed; see above\n' "$dir" >&2
   exit 1
 fi

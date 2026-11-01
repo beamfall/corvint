@@ -14,7 +14,7 @@ import (
 // TJAA-V0-122 (GitHub #1885, V1-2786): a bare specifier installed in a node_modules directory of
 // the importing file or an ancestor inside the root resolves as an external dependency, also when
 // node_modules is a symlink to a store outside the root, so the runner import is no
-// path-alias-unresolved frontier. A specifier installed nowhere stays a frontier.
+// bare-import-undeclared frontier (TJAA-V0-771). A specifier installed nowhere stays a frontier.
 func TestPlaywrightSymlinkedNodeModules_GH1885(t *testing.T) {
 	for _, installed := range []bool{true, false} {
 		store := t.TempDir()
@@ -44,7 +44,7 @@ test("other", async () => {})
 		}
 		alias := false
 		for _, unknown := range append(append([]PlaywrightUnknown{}, plan.Unknown...), plan.Informational...) {
-			if unknown.Reason == FrontierPathAlias || strings.Contains(unknown.Detail, FrontierPathAlias) {
+			if unknown.Reason == FrontierBareImportUndeclared || strings.Contains(unknown.Detail, FrontierBareImportUndeclared) {
 				alias = true
 			}
 		}
@@ -91,10 +91,10 @@ func TestInstalledPackageLinkIntoRepositorySource_GH1885(t *testing.T) {
 			t.Fatal(err)
 		}
 		plan := affected.Select(graph, []string{"src/lib/logic.js"})
-		if layout == "workspace-link" && (plan.FrontierSites[FrontierPathAlias] == 0 || plan.Scope == affected.ScopeBounded && !slices.Contains(selectedTests(plan), "test/alias.test.js")) {
+		if layout == "workspace-link" && (plan.FrontierSites[FrontierBareImportUndeclared] == 0 || plan.Scope == affected.ScopeBounded && !slices.Contains(selectedTests(plan), "test/alias.test.js")) {
 			t.Fatalf("%s: scope=%s selected=%v unknown=%+v frontier=%v", layout, plan.Scope, selectedTests(plan), plan.Unknown, plan.FrontierSites)
 		}
-		if layout == "pnpm-store" && plan.FrontierSites[FrontierPathAlias] != 0 {
+		if layout == "pnpm-store" && plan.FrontierSites[FrontierBareImportUndeclared] != 0 {
 			t.Fatalf("%s: installed store link raised the alias frontier: %v", layout, plan.FrontierSites)
 		}
 		if tree := affected.FSSource(os.DirFS(root)); installedPackage(tree, "test/alias.test.js", "alias") {

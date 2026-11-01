@@ -8,10 +8,10 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0966_SearchAllListsEveryTicket covers V1-3645: --all lists every
+// TestTCDV0966_SearchAllListsEveryTicket covers V1-3645: --all lists every
 // ticket in pages of --limit, refuses a filter or a repeat, and a search with
-// no filter names --all in its refusal (CAL-V0-966).
-func TestCALV0966_SearchAllListsEveryTicket(t *testing.T) {
+// no filter names --all in its refusal (TCD-V0-966).
+func TestTCDV0966_SearchAllListsEveryTicket(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	for _, title := range []string{"alpha", "bravo", "charlie"} {

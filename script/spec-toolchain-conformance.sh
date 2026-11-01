@@ -4,7 +4,7 @@
 # STA-V0-011 (docs/specs/spec-toolchain-adapters-v0.md): check Corvint's OpenSpec and Spec Kit
 # intent forms against the pinned upstream CLIs. `make spec-toolchain-conformance` and the CI job
 # of the same name both run this script. It needs the network for the npm registry, GitHub and
-# PyPI, and Node >= 20.19, npm, Python >= 3.11, jq, git and (unless CORVINT_BIN is set) Go.
+# PyPI, and Node >= 22.12, npm, Python >= 3.11, jq, git and (unless CORVINT_BIN is set) Go.
 #
 #   1. Install the STA-V0-001 versions with checksum verification: OpenSpec with `npm ci` from the
 #      committed lockfile, whose integrity must equal interop/spec-toolchains/versions.json, and
@@ -74,8 +74,8 @@ if command -v sha256sum >/dev/null 2>&1; then
 else
     sha256() { shasum -a 256 | cut -d' ' -f1; }
 fi
-node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>20||(a===20&&b>=19)?0:1)' ||
-    die "node $(node --version) is older than OpenSpec 1.14.3's engines.node >=20.19.0"
+node -e 'const [a,b]=process.versions.node.split(".").map(Number); process.exit(a>22||(a===22&&b>=12)?0:1)' ||
+    die "node $(node --version) is older than OpenSpec 1.16.0's engines.node >=22.12.0"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/spec-toolchain-conformance.XXXXXX")
 cleanup() { rm -rf -- "$work"; }

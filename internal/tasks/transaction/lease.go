@@ -99,6 +99,9 @@ type LeaseRequest struct {
 	// resolved to (TCD-V0-174), so a replay that names another tree under
 	// the same request id refuses (TCD-V0-181); empty otherwise.
 	ScopeFromDiff string
+	// AdmitUnderBarrier is a named CLAIM's or a WIDEN's explicit request to
+	// pass an OPERATOR admission barrier for this one ticket (TRM-V0-800).
+	AdmitUnderBarrier bool
 }
 
 // LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
@@ -161,6 +164,7 @@ const (
 	fieldWait
 	fieldOperation
 	fieldScopeFromDiff
+	fieldAdmitUnderBarrier
 )
 
 type leaseShape struct{ required, allowed int }
@@ -178,13 +182,13 @@ var leaseShapes = map[string]leaseShape{
 	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
 	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
 	LeasePoolSafe:        {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
-	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors | fieldShare | fieldScopeFromDiff},
+	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors | fieldShare | fieldScopeFromDiff | fieldAdmitUnderBarrier},
 	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
 	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
 	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
 	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched | fieldHandoff},
 	LeaseReap:            {0, fieldAttempt | fieldGeneration | fieldExpiry},
-	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole | fieldAdmitUnderBarrier},
 	LeaseSubmit:          {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
 	LeaseGateRun:         {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
 	LeaseComplete:        {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
@@ -202,7 +206,7 @@ var leaseShapes = map[string]leaseShape{
 }
 
 func (l *LeaseRequest) present() int {
-	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != "", fieldScopeFromDiff: l.ScopeFromDiff != ""}
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != "", fieldScopeFromDiff: l.ScopeFromDiff != "", fieldAdmitUnderBarrier: l.AdmitUnderBarrier}
 	bits := 0
 	for bit, set := range flags {
 		if set {
@@ -543,6 +547,11 @@ func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
 	// digest; present, a replay naming another tree conflicts.
 	if l.ScopeFromDiff != "" {
 		v.Obj.Set("scopeFromDiff", s(l.ScopeFromDiff))
+	}
+	// TRM-V0-801: omitted when absent, so every earlier CLAIM and WIDEN
+	// keeps its digest; present, the receipt's request entry binds it.
+	if l.AdmitUnderBarrier {
+		v.Obj.Set("admitUnderBarrier", wire.Bool(true))
 	}
 	// PSR-V0-130: joins only the POOL_WAIT preimage.
 	if l.WaitSeconds != "" {

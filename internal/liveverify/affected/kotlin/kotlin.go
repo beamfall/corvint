@@ -11,6 +11,8 @@ package kotlin
 import (
 	"context"
 	"path"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -30,6 +32,13 @@ const (
 	FrontierAmbiguousDeclaration = "kotlin:ambiguous-declaration"
 	FrontierScriptContext        = "kotlin:script-context-unresolved"
 	FrontierJavaDependent        = "kotlin:java-dependent"
+	// FrontierAndroidTestModule reports a test in a com.android.test module,
+	// whose connected task the build's variants define (KAT-V0-762).
+	FrontierAndroidTestModule = "kotlin:android-test-module"
+	// FrontierCrossRepositoryBuild prefixes the frontier of a Gradle
+	// includeBuild outside the repository root, suffixed with the included
+	// path as the settings file names it (V1-2055).
+	FrontierCrossRepositoryBuild = "kotlin:cross-repository-build"
 )
 
 // Framework names returned by detectFrameworks. MockK is deliberately an
@@ -58,7 +67,12 @@ func (Language) Name() string { return "kotlin" }
 // Owns reports whether a path is Kotlin source text. Cross-language Maestro
 // YAML and Gherkin feature files intentionally remain unclaimed.
 func (Language) Owns(relative string) bool {
-	return strings.HasSuffix(relative, ".kt") || strings.HasSuffix(relative, ".kts")
+	return strings.HasSuffix(relative, ".kt") || strings.HasSuffix(relative, ".kts") || isVersionCatalog(relative)
+}
+
+// isVersionCatalog reports a Gradle default version catalog (KAT-V0-761).
+func isVersionCatalog(relative string) bool {
+	return path.Base(relative) == "libs.versions.toml" && path.Base(path.Dir(relative)) == "gradle"
 }
 
 type importRef struct {
@@ -91,7 +105,15 @@ type buildLayout struct {
 	maven         bool
 	projectMapped bool
 	composite     bool
+	// androidTest holds each com.android.test module directory (KAT-V0-762).
+	androidTest map[string]bool
+	// crossBuilds holds each includeBuild path outside the root (KAT-V0-763).
+	crossBuilds []string
 }
+
+// includeBuildPattern matches a literal includeBuild path, in the Kotlin
+// call or the Groovy command form.
+var includeBuildPattern = regexp.MustCompile(`includeBuild\s*\(?\s*["']([^"'\n]+)["']`)
 
 // Units observes every Kotlin source and resolves static first-party imports.
 func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
@@ -100,17 +122,27 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
+	// Files offers base names, so a catalog name is admitted here and its
+	// directory checked below.
 	files, err := root.Files(func(name string) bool {
-		return language.Owns(name) || strings.HasSuffix(name, ".java")
+		return language.Owns(name) || name == "libs.versions.toml" || strings.HasSuffix(name, ".java")
 	})
 	if err != nil {
 		return affected.Result{}, err
 	}
+	files = slices.DeleteFunc(files, func(relative string) bool {
+		return path.Base(relative) == "libs.versions.toml" && !isVersionCatalog(relative)
+	})
 	layout, err := observeBuildLayout(root)
 	if err != nil {
 		return affected.Result{}, err
 	}
 	frontier := map[string]bool{}
+	// A build included from outside the root is another repository: its
+	// changes and its units are absent from this graph (KAT-V0-763).
+	for _, included := range layout.crossBuilds {
+		frontier[FrontierCrossRepositoryBuild+":"+included] = true
+	}
 	observations := make([]sourceObservation, 0, len(files))
 	seenIDs := make(map[string]bool, len(files))
 	java := make([]javaReferrer, 0)
@@ -127,6 +159,10 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 		if readErr != nil {
 			frontier[FrontierUnparsedSource] = true
+			continue
+		}
+		if isVersionCatalog(relative) {
+			observations = append(observations, sourceObservation{relative: relative, config: true, unit: affected.Unit{ID: "kotlin:config:" + relative, Sources: []string{relative}}})
 			continue
 		}
 		texts[relative] = string(body)
@@ -166,7 +202,19 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 	if err != nil {
 		return buildLayout{}, err
 	}
-	layout := buildLayout{}
+	layout := buildLayout{androidTest: map[string]bool{}}
+	catalogs, err := root.Files(func(name string) bool { return name == "libs.versions.toml" })
+	if err != nil {
+		return buildLayout{}, err
+	}
+	catalogs = slices.DeleteFunc(catalogs, func(relative string) bool { return !isVersionCatalog(relative) })
+	// Each build root's catalog plugin aliases that name com.android.test.
+	testAliases := map[string]map[string]bool{}
+	for _, catalog := range catalogs {
+		if body, readErr := root.Read(catalog); readErr == nil {
+			testAliases[path.Dir(path.Dir(catalog))] = androidTestAliases(string(body))
+		}
+	}
 	for _, manifest := range manifests {
 		name := path.Base(manifest)
 		layout.gradle = layout.gradle || strings.HasSuffix(name, ".gradle") || strings.HasSuffix(name, ".gradle.kts")
@@ -177,10 +225,60 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 			continue
 		}
 		text := string(body)
+		if (name == "build.gradle" || name == "build.gradle.kts") && appliesAndroidTest(text, testAliases, path.Dir(manifest)) {
+			layout.androidTest[path.Dir(manifest)] = true
+		}
 		layout.projectMapped = layout.projectMapped || remapsProjectDirectory(text)
 		layout.composite = layout.composite || strings.Contains(text, "includeBuild(") || strings.Contains(text, "includeBuild ")
+		for _, match := range includeBuildPattern.FindAllStringSubmatch(text, -1) {
+			if included := path.Join(path.Dir(manifest), match[1]); path.IsAbs(match[1]) || included == ".." || strings.HasPrefix(included, "../") {
+				layout.crossBuilds = append(layout.crossBuilds, match[1])
+			}
+		}
 	}
 	return layout, nil
+}
+
+// androidTestAliases returns the accessor names (`libs.plugins.NAME`, with
+// `-` and `_` read as `.`) of the catalog's [plugins] entries whose id is
+// com.android.test (KAT-V0-762).
+func androidTestAliases(text string) map[string]bool {
+	aliases := map[string]bool{}
+	section := ""
+	for _, line := range strings.Split(text, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "[") {
+			section = strings.Trim(line, "[] \t")
+			continue
+		}
+		name, value, found := strings.Cut(line, "=")
+		if section != "plugins" || !found || !strings.Contains(value, `"com.android.test`) {
+			continue
+		}
+		name = strings.Trim(strings.TrimSpace(name), `"`)
+		aliases[strings.NewReplacer("-", ".", "_", ".").Replace(name)] = true
+	}
+	return aliases
+}
+
+// appliesAndroidTest reports whether a module build script applies the
+// com.android.test plugin by id or by a catalog alias of the build root at or
+// above its directory (KAT-V0-762).
+func appliesAndroidTest(text string, aliases map[string]map[string]bool, directory string) bool {
+	if strings.Contains(text, `"com.android.test"`) || strings.Contains(text, `'com.android.test'`) {
+		return true
+	}
+	for {
+		for alias := range aliases[directory] {
+			if strings.Contains(text, "libs.plugins."+alias+")") {
+				return true
+			}
+		}
+		if directory == "." {
+			return false
+		}
+		directory = path.Dir(directory)
+	}
 }
 
 // remapsProjectDirectory reports whether a Gradle manifest may assign a project
@@ -298,9 +396,14 @@ func testTarget(relative string, layout buildLayout, frameworks map[string]bool,
 		return "unknown", ".", "unknown"
 	}
 	lower := strings.ToLower(sourceSet)
-	instrumented := strings.HasPrefix(lower, "androidtest")
+	// A com.android.test module's src/main is its instrumentation partition
+	// (KAT-V0-762).
+	androidTest := layout.gradle && layout.androidTest[module] && sourceSet == "main"
+	instrumented := strings.HasPrefix(lower, "androidtest") || androidTest
 	kind := "jvm"
-	if instrumented {
+	if androidTest {
+		kind = "android-test"
+	} else if instrumented {
 		kind = "instrumentation"
 	} else if sourceSet != "test" && sourceSet != "jvmTest" && !strings.HasPrefix(sourceSet, "test") {
 		kind = "unknown"
@@ -320,6 +423,10 @@ func testTarget(relative string, layout buildLayout, frameworks map[string]bool,
 	}
 	if !instrumented && frameworks[frameworkEspresso] && !frameworks[frameworkRobolectric] {
 		frontier[FrontierRunnerMismatch] = true
+	}
+	if androidTest {
+		frontier[FrontierAndroidTestModule] = true
+		return kind, module, "unknown"
 	}
 	if layout.gradle {
 		if instrumented {
@@ -927,6 +1034,11 @@ func isBuildConfiguration(relative string) bool {
 func configApplies(config, source string) bool {
 	name := path.Base(config)
 	directory := path.Dir(config)
+	if isVersionCatalog(config) {
+		// KAT-V0-761: a catalog reaches every unit of its build.
+		build := path.Dir(directory)
+		return build == "." || strings.HasPrefix(source, build+"/")
+	}
 	if strings.HasPrefix(config, "buildSrc/") || strings.HasPrefix(config, "build-logic/") || strings.Contains(config, "/build-logic/") {
 		return true
 	}

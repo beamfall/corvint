@@ -469,3 +469,62 @@ func testingType(expression ast.Expr, alias string) bool {
 	}
 	return false
 }
+
+// fixtureMarker is the per-literal marker (ASD-V0-895, V1-3391): a string
+// literal that starts or ends on a line carrying this comment is a fixture
+// path, such as a path written into a temporary repository, and names no read.
+const fixtureMarker = "//corvint:fixture-path"
+
+// fixtureMarked maps, per test file, each AFP-V0-021 token that only marked
+// literals of that file hold; a token any unmarked literal also holds is
+// never exempt, so a marker cannot hide a real read the same file makes.
+func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
+	marked := make([]map[string]bool, len(files))
+	scan := tempRootScan{tokens: map[string][]string{}}
+	for index, name := range files {
+		marked[index] = map[string]bool{}
+		fileSet := token.NewFileSet()
+		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution|parser.ParseComments)
+		if err != nil {
+			return nil, err
+		}
+		lines := map[int]bool{}
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				if strings.TrimSpace(comment.Text) == fixtureMarker {
+					lines[fileSet.Position(comment.Pos()).Line] = true
+				}
+			}
+		}
+		if len(lines) == 0 {
+			continue
+		}
+		blocked := map[string]bool{}
+		ast.Inspect(file, func(node ast.Node) bool {
+			literal, ok := node.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING || err != nil {
+				return err == nil
+			}
+			var values []string
+			if values, err = scan.literalTokens(literal.Value); err != nil {
+				return false
+			}
+			fixture := lines[fileSet.Position(literal.Pos()).Line] || lines[fileSet.Position(literal.End()).Line]
+			for _, value := range values {
+				if fixture {
+					marked[index][value] = true
+				} else {
+					blocked[value] = true
+				}
+			}
+			return true
+		})
+		if err != nil {
+			return nil, err
+		}
+		for value := range blocked {
+			delete(marked[index], value)
+		}
+	}
+	return marked, nil
+}
