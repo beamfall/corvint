@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -569,5 +570,41 @@ func TestSDDV0019ReadDryRunOwnerIsConfined(t *testing.T) {
 		if _, err := ReadDryRunOwner(root, name); !errors.As(err, &problem) || problem.Code != code {
 			t.Fatalf("%s: %v, want %s", name, err, code)
 		}
+	}
+}
+
+// SDD-V0-630 (V1-3719): an owner whose excerpt does not name the package is
+// labelled OWNER_UNRELATED; naming it as a whole path token is NAMES_PACKAGE.
+func TestSDDV0630OwnerRelationLabelsUnrelatedOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name, digest, want string
+	}{
+		{"unrelated", "- Claim: drafts for internal/docviews", OwnerUnrelated},
+		{"prefix-only", "- Implementation: `compilerx/api.go`", OwnerUnrelated},
+		{"suffix-of-longer-path", "- Implementation: `internal/compiler/api.go`", OwnerUnrelated},
+		{"file-under-package", "- Implementation: `compiler/api.go`", OwnerNamesPackage},
+		{"bare-directory", "- Package: compiler.", OwnerNamesPackage},
+		{"sibling-file", "- Implementation: `compiler.go`", OwnerUnrelated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			index := draftFixture()
+			source := index.Sources["docs/owner.md"]
+			source.Data = []byte("# Owner\n\n## Agent digest\n" + tc.digest + "\n")
+			index.Sources[source.Path] = source
+			draft, err := DraftSources(index, source.Path, "compiler")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if draft.OwnerRelation != tc.want {
+				t.Fatalf("relation = %q, want %q", draft.OwnerRelation, tc.want)
+			}
+			if !strings.Contains(string(draft.Markdown), "\nOwner relation: "+tc.want+"\n") {
+				t.Fatalf("draft missing relation line:\n%s", draft.Markdown)
+			}
+			labelled := slices.Contains(draft.Limitations, ownerUnrelatedLimitation)
+			if labelled != (tc.want == OwnerUnrelated) {
+				t.Fatalf("unrelated limitation present = %t for %s", labelled, tc.want)
+			}
+		})
 	}
 }

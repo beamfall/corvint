@@ -302,7 +302,8 @@ unaffected. Status: experimental under the standing lane auto-accept (V1-3081).
 - `SDD-V0-630`: Every draft states whether its owner excerpt names the drafted package (V1-3719).
 The relation is `NAMES_PACKAGE` when the owner excerpt contains the package directory as a whole
 path token: the directory string not preceded by a letter, digit, `_`, `-`, `.` or `/` and followed
-by end of text, `/`, or a character other than a letter, digit, `_`, `-` or `.`. Otherwise it is
+by end of text, `/`, a character other than a letter, digit, `_`, `-` or `.`, or a `.` that is
+itself not followed by a letter, digit, `_` or `-` (prose punctuation). Otherwise it is
 `OWNER_UNRELATED`. The header carries `Owner relation: NAMES_PACKAGE|OWNER_UNRELATED`; an unrelated
 draft also leads its limitations with `OWNER_UNRELATED: the owner excerpt does not name this
 package; its prose may describe a different capability and governs nothing here.` The label is
