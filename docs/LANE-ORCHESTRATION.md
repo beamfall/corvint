@@ -329,7 +329,10 @@ The charter or the lane's first step fixes every dogfood input before work start
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
 file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` line per taken ID;
-`ASD-V0-960`).
+`ASD-V0-960`). The new IDs go on their own definition lines inside the spec's `## Requirements`
+section, never into the frozen header `Intent status:` or Agent digest `Status:` line, which
+`make spec-requirements` refuses (`SRG-V0-980`, `SRG-V0-890`), nor after that section
+(`SRG-V0-891`).
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a
