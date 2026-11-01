@@ -47,10 +47,28 @@ var notPlanner = map[string]string{
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",
 }
 
-// dogfoodMap reports the change-evidence and change-outcome maps a dogfood run
-// writes between its bind and its seal, which no planner reads as a declaration.
-func dogfoodMap(name string) bool {
-	return name == ".corvint/change.cem.json" || strings.HasPrefix(name, ".corvint/change.ocm.") && strings.HasSuffix(name, ".json")
+// changeEvidence is the change-evidence map a dogfood run tracks between its
+// bind and its seal; no planner reads it as a declaration.
+const changeEvidence = ".corvint/change.cem.json"
+
+// tracked lists the .corvint/*.json files Git tracks directly under .corvint:
+// what a pinned planner reads in CI. A dogfood run's ignored local outputs are
+// never candidates.
+func tracked(root string) ([]string, error) {
+	out, err := exec.Command("git", "-C", root, "ls-files", "-z", "--", ".corvint").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git ls-files .corvint: %w", err)
+	}
+	var names []string
+	for _, name := range strings.Split(strings.TrimSuffix(string(out), "\x00"), "\x00") {
+		if strings.HasPrefix(name, ".corvint/") && !strings.Contains(strings.TrimPrefix(name, ".corvint/"), "/") && strings.HasSuffix(name, ".json") {
+			if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(name))); err == nil {
+				names = append(names, name)
+			}
+		}
+	}
+	sort.Strings(names)
+	return names, nil
 }
 
 var pinPattern = regexp.MustCompile(`(?m)^\s+(CORVINT_PR_TOOL_SOURCE|CORVINT_TEST_SHADOW_SOURCE): "([0-9a-f]{40})"`)
@@ -155,14 +173,14 @@ func check(root, workflowPath string) ([]string, error) {
 		return nil, err
 	}
 	pinned := pins(workflow)
-	names, err := filepath.Glob(filepath.Join(root, ".corvint", "*.json"))
+	names, err := tracked(root)
 	if err != nil {
 		return nil, err
 	}
 	var findings []string
-	for _, absolute := range names {
-		name := ".corvint/" + filepath.Base(absolute)
-		if _, ok := notPlanner[name]; ok || dogfoodMap(name) {
+	for _, name := range names {
+		absolute := filepath.Join(root, filepath.FromSlash(name))
+		if _, ok := notPlanner[name]; ok || name == changeEvidence {
 			continue
 		}
 		positions, ok := closed[name]

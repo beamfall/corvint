@@ -73,12 +73,14 @@ func TestClosedDeclarationMemberAgainstPin_V13600(t *testing.T) {
 	}
 
 	writeFile(t, root, ".corvint/new-declaration.json", `{"profile":"x/0"}`)
+	if code, out := result(); code != 0 {
+		t.Fatalf("an untracked declaration is no CI input: code %d\n%s", code, out)
+	}
+	git(t, root, "add", ".corvint/new-declaration.json")
 	if code, out := result(); code != 1 || !strings.Contains(out, ".corvint/new-declaration.json is neither a closed planner declaration") {
 		t.Fatalf("an unclassified declaration: code %d\n%s", code, out)
 	}
-	if err := os.Remove(filepath.Join(root, ".corvint/new-declaration.json")); err != nil {
-		t.Fatal(err)
-	}
+	git(t, root, "rm", "-q", "-f", ".corvint/new-declaration.json")
 
 	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+strings.Repeat("e", 40)+"\"\n")
 	if code, out := result(); code != 1 || !strings.Contains(out, "is not in this clone; fetch it") {
@@ -86,8 +88,9 @@ func TestClosedDeclarationMemberAgainstPin_V13600(t *testing.T) {
 	}
 }
 
-// AFP-V0-710 (Codex P2): the change-evidence and change-outcome maps a dogfood run writes between
-// bind and seal are no planner input, so an active CEM and OCM leave the check passing.
+// AFP-V0-710 (Codex P2): the change-evidence map a dogfood run tracks between bind and seal, and
+// the ignored change-outcome maps, status and report it leaves, are no planner input, so an active
+// CEM and OCM leave the check passing; a tracked look-alike still fails.
 func TestDogfoodMapsAreNoPlannerInput_V13600(t *testing.T) {
 	root := t.TempDir()
 	git(t, root, "init", "-q")
@@ -98,12 +101,16 @@ func TestDogfoodMapsAreNoPlannerInput_V13600(t *testing.T) {
 	pinned := git(t, root, "rev-parse", "HEAD")
 	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+pinned+"\"\n")
 	writeFile(t, root, ".corvint/change.cem.json", `{"schema":"cem","hunks":[]}`)
-	writeFile(t, root, ".corvint/change.ocm.local.json", `{"schema":"ocm"}`)
+	git(t, root, "add", ".corvint/change.cem.json")
+	writeFile(t, root, ".corvint/change.ocm.001.json", `{"schema":"ocm"}`)
+	writeFile(t, root, ".corvint/change.ocm-status.json", `{"status":"ready"}`)
+	writeFile(t, root, ".corvint/dogfood-report.json", `{"profile":"r"}`)
 	var stdout, stderr bytes.Buffer
 	if code := run(root, ".github/workflows/ci.yml", &stdout, &stderr); code != 0 {
 		t.Fatalf("an active CEM and OCM: code %d\n%s%s", code, stdout.String(), stderr.String())
 	}
 	writeFile(t, root, ".corvint/change.other.json", `{}`)
+	git(t, root, "add", ".corvint/change.other.json")
 	stdout.Reset()
 	stderr.Reset()
 	if code := run(root, ".github/workflows/ci.yml", &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), ".corvint/change.other.json is neither") {
