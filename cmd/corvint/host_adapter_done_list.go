@@ -50,11 +50,14 @@ func init() {
 }
 
 // runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set:
-// subagent-start, which reuses the user-prompt path (AHI-804), and stop-done-list, which owes no
+// subagent-start and pre-tool, which reuse the user-prompt path (AHI-804, AHI-805), and stop-done-list, which owes no
 // lifecycle record and so skips normalization and degradation recording.
 func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[string]any) map[string]any {
 	if event == "subagent-start" {
 		return runClaudeSubagentStart(ctx, payload)
+	}
+	if event == "pre-tool" {
+		return runClaudePreToolRead(ctx, payload)
 	}
 	if event != "stop-done-list" {
 		return degradedAdapterOutput("unsupported-hook-event")
