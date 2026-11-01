@@ -6,13 +6,20 @@
 # with gh and jq only; it downloads small artifacts and runs no tested code.
 # Environment: GH_TOKEN, REPO, RUN_ID, HEAD_SHA, FORWARD_EPOCH, RUNNER_TEMP,
 # GITHUB_OUTPUT and GITHUB_STEP_SUMMARY. Writes $RUNNER_TEMP/main-miss/miss.json and
-# the step output `name` only when the run names a miss; otherwise it says why not.
+# the step output `name` only when the run names a miss; otherwise it says why not. A pull
+# request whose run or narrowing records cannot be read could have skipped a failed package, so
+# any such gap abstains: no row, with every unavailable input named.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 dir="$RUNNER_TEMP/main-miss"
 mkdir -p "$dir/failed" "$dir/prs"
 say() { printf '%s\n' "$1" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"; }
 fetch() { gh run download "$1" --repo "$REPO" --pattern "$2" --dir "$3" > /dev/null 2>&1; }
+names() { gh api "repos/$REPO/actions/runs/$1/artifacts?per_page=100" --jq '.artifacts[] | select(.expired | not) | .name'; }
+unavailable=""
+gap() {
+  unavailable="$unavailable${unavailable:+; }$1"
+}
 hex40() { printf '%s' "$1" | grep -Eqx '[0-9a-f]{40}'; }
 digits() { printf '%s' "$1" | grep -Eqx '[0-9]+'; }
 MAX_COMMITS=100
@@ -50,7 +57,7 @@ esac
 for c in $commits; do
   hex40 "$c" || continue
   gh api "repos/$REPO/commits/$c/pulls" --jq '.[] | select(.merged_at != null and .base.ref == "main") | "\(.number) \(.head.sha)"' \
-    >> "$dir/pulls" 2> /dev/null || say "main miss: the pull requests of commit $c are unreadable"
+    >> "$dir/pulls" 2> /dev/null || gap "the pull requests of commit $c are unreadable"
 done
 sort -u "$dir/pulls" > "$dir/pulls.sorted"
 if [ "$(wc -l < "$dir/pulls.sorted" | tr -d ' ')" -gt "$MAX_PRS" ]; then
@@ -62,14 +69,30 @@ while read -r pr head; do
   digits "$pr" && hex40 "$head" || continue
   run=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20" \
     --jq '[.workflow_runs[] | .id] | max // empty' 2> /dev/null) || run=""
+  if ! digits "$run"; then
+    gap "no pull_request run of #$pr at $head is readable"
+    continue
+  fi
+  if ! run_names=$(names "$run" 2> /dev/null); then
+    gap "the artifacts of run $run of #$pr are unreadable"
+    continue
+  fi
+  # A run that kept no narrowing record ran every shard in full: it skipped nothing.
+  printf '%s\n' "$run_names" | grep -q '^ci-narrowing-' || continue
   records="$dir/prs/$pr"
   mkdir -p "$records"
-  if digits "$run" && fetch "$run" 'ci-narrowing-*' "$records"; then
-    find "$records" -name narrowing.json -type f -exec cat {} + 2> /dev/null |
-      jq -s -c --arg pr "$pr" --arg head "$head" '{pr: ($pr | tonumber), head: $head, records: .}' >> "$dir/prs.jsonl" 2> /dev/null ||
-      say "main miss: the ci-narrowing records of pull request #$pr are unreadable"
+  if ! fetch "$run" 'ci-narrowing-*' "$records"; then
+    gap "the ci-narrowing records of run $run of #$pr could not be downloaded"
+    continue
   fi
+  find "$records" -name narrowing.json -type f -exec cat {} + 2> /dev/null |
+    jq -s -c --arg pr "$pr" --arg head "$head" '{pr: ($pr | tonumber), head: $head, records: .}' >> "$dir/prs.jsonl" 2> /dev/null ||
+    gap "the ci-narrowing records of run $run of #$pr are unreadable"
 done < "$dir/pulls.sorted"
+if [ -n "$unavailable" ]; then
+  say "main miss: abstained for run $RUN_ID, so no row: $unavailable"
+  exit 0
+fi
 if ! jq -n -c --slurpfile failed "$dir/failed.jsonl" --slurpfile prs "$dir/prs.jsonl" \
   --arg runId "$RUN_ID" --arg sha "$HEAD_SHA" --arg epoch "$FORWARD_EPOCH" -f "$here/mainmiss.jq" > "$dir/miss.json" 2> "$dir/miss.err"; then
   say "main miss: the miss classification failed: $(head -c 200 "$dir/miss.err"); no row"
