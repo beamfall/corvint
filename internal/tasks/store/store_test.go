@@ -142,8 +142,11 @@ func TestTMV0008_AS07_InitRequiresTheOperatorsIntentStore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
 	}
-	if _, err = store.Init(context.Background(), resolved, operator(), "req", now(t)); err == nil {
-		t.Fatal("init succeeded with no intent store")
+	// A missing queue or policy is refused UNINITIALIZED with nothing
+	// written (CTS-V0-990).
+	report, err := store.Init(context.Background(), resolved, operator(), "req", now(t))
+	if err != nil || report.Receipt != "" || len(report.Outcome.Codes) != 1 || report.Outcome.Codes[0] != wire.CodeUninitialized {
+		t.Fatalf("init with no intent store: %+v, %v", report, err)
 	}
 	if _, err = os.Stat(resolved.StateDir); err == nil {
 		t.Error("the state dir was created before the operator's input was validated")

@@ -695,6 +695,17 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 		report.Outcome = mutation.Outcome{RequestID: requestID, Outcome: mutation.OutcomeBlocked, Codes: []string{wire.CodeIntentDiverged}}
 		return report, nil
 	}
+	// The operator authors queue.json and policy.json; init never invents
+	// them. Name the missing file and the step that creates it instead of
+	// failing on the first read (CTS-V0-990).
+	if missing, err := missingIntentFile(repo.IntentRoot()); err != nil {
+		return guardFailure(report, requestID, err)
+	} else if missing != "" {
+		report.Kind = "Refused"
+		report.Detail = "the intent store has no " + missing + "; copy the canonical template from internal/tasks/cli/testdata/external-agents/ in a Corvint source checkout (or templates/ in the binary archive) and customize it before init, as docs/TASKS-EXTERNAL-AGENTS.md describes"
+		report.Outcome = mutation.Outcome{RequestID: requestID, Outcome: mutation.OutcomeBlocked, Codes: []string{wire.CodeUninitialized}}
+		return report, nil
+	}
 	if _, err := authority.Qualify(repo.CommonDir); err != nil {
 		return guardFailure(report, requestID, err)
 	}
@@ -795,6 +806,21 @@ func existingRecord(root string) (string, error) {
 		}
 		if name != "" {
 			return dir + "/" + name, nil
+		}
+	}
+	return "", nil
+}
+
+// missingIntentFile returns the first of queue.json and policy.json that is
+// absent from the intent store under root, as a path relative to root, or ""
+// when both exist (CTS-V0-990).
+func missingIntentFile(root string) (string, error) {
+	for _, name := range []string{intent.QueueFile, intent.PolicyFile} {
+		rel := filepath.Join(intent.Dir, name)
+		if _, err := os.Lstat(filepath.Join(root, rel)); errors.Is(err, fs.ErrNotExist) {
+			return rel, nil
+		} else if err != nil {
+			return "", err
 		}
 	}
 	return "", nil

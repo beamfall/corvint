@@ -198,3 +198,38 @@ func TestCTSV0001_InitRefusesOverCommittedTickets(t *testing.T) {
 		t.Fatalf("init over an empty intent store: %+v", x.res)
 	}
 }
+
+// TestCTSV0990_InitNamesMissingQueueAndPolicy: init on a fresh repository
+// without the operator-authored queue or policy refuses UNINITIALIZED, names
+// the missing file and the template step, and creates nothing (CTS-V0-990).
+func TestCTSV0990_InitNamesMissingQueueAndPolicy(t *testing.T) {
+	r := fixture.TempRepo(t)
+	for _, step := range []struct{ write, missing string }{{"", "queue.json"}, {"queue.json", "policy.json"}} {
+		if step.write != "" {
+			fixture.Write(t, filepath.Join(r.IntentDir, step.write), fixture.QueueBytes())
+		}
+		refused := atm(t, r.Root, nil, "init")
+		warnings := strings.Join(refused.res.Warnings, "\n")
+		if refused.res.Outcome != wire.OutcomeRefused || !hasCode(refused.res, wire.CodeUninitialized) {
+			t.Fatalf("init without %s: %+v", step.missing, refused.res)
+		}
+		for _, want := range []string{filepath.Join(".taskman", step.missing), "internal/tasks/cli/testdata/external-agents/", "docs/TASKS-EXTERNAL-AGENTS.md"} {
+			if !strings.Contains(warnings, want) {
+				t.Errorf("init without %s: refusal does not name %q: %v", step.missing, want, warnings)
+			}
+		}
+		if strings.Contains(warnings, "lstat") {
+			t.Errorf("refusal still carries the bare lstat error: %v", warnings)
+		}
+		if _, err := os.Lstat(r.StateDir); !os.IsNotExist(err) {
+			t.Fatalf("a refused init created the state dir: %v", err)
+		}
+		if _, err := os.Lstat(filepath.Join(r.IntentDir, step.missing)); !os.IsNotExist(err) {
+			t.Fatalf("a refused init created %s: %v", step.missing, err)
+		}
+	}
+	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
+	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("init with queue and policy: %+v", x.res)
+	}
+}
