@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/dogfoodocm"
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
@@ -33,7 +34,10 @@ type CheckOptions struct {
 	BaseVerifier      Runner
 	TreeVerifier      Runner
 	Override          *Runner
-	Exception         string
+	// ConcurrentVerifiers runs the base and tree verifiers' cem status
+	// commands at once (DCW-V0-907); the dogfood commands set it.
+	ConcurrentVerifiers bool
+	Exception           string
 	// Verbose prints the full CEM and OCM status JSON on PASS, the output
 	// DCW-V0-020 fixed before DCW-V0-033 (DOGFOOD_VERBOSE=1).
 	Verbose bool
@@ -568,10 +572,39 @@ func (c *check) verify(runner Runner, args ...string) verification {
 		c.checkpoint()
 		return result
 	}
-	var stdout, stderr bytes.Buffer
-	status := runner.Run(c.ctx, c.root, args, &stdout, &stderr)
+	result := runPlain(c.ctx, c.root, runner, args)
 	c.checkpoint()
+	return result
+}
+
+// runPlain runs one verifier command into its own buffers.
+func runPlain(ctx context.Context, root string, runner Runner, args []string) verification {
+	var stdout, stderr bytes.Buffer
+	status := runner.Run(ctx, root, args, &stdout, &stderr)
 	return verification{status, stdout.Bytes(), stderr.Bytes()}
+}
+
+// verifyPair runs args with the base and the tree verifier. With
+// ConcurrentVerifiers set and no aggregate enrollment the two run at once,
+// each into its own buffers, and one checkpoint follows both; the results are
+// compared exactly as when they run one after the other (DCW-V0-907). Only
+// cem status commands come here: impact takes the non-blocking contextindex
+// snapshot-refresh lock, so its pair stays sequential.
+func (c *check) verifyPair(args ...string) (verification, verification) {
+	if !c.options.ConcurrentVerifiers || c.aggregate != nil {
+		return c.verify(c.options.BaseVerifier, args...), c.verify(c.options.TreeVerifier, args...)
+	}
+	var base verification
+	var wait sync.WaitGroup
+	wait.Add(1)
+	go func() {
+		defer wait.Done()
+		base = runPlain(c.ctx, c.root, c.options.BaseVerifier, args)
+	}()
+	tree := runPlain(c.ctx, c.root, c.options.TreeVerifier, args)
+	wait.Wait()
+	c.checkpoint()
+	return base, tree
 }
 
 func agree(left, right verification) bool {
@@ -589,8 +622,7 @@ func agreeImpact(left, right verification) bool {
 // verifyAll runs args with the base and tree verifiers and the optional
 // override, and reports the tree result and whether all of them agree.
 func (c *check) verifyAll(args ...string) (verification, bool) {
-	base := c.verify(c.options.BaseVerifier, args...)
-	tree := c.verify(c.options.TreeVerifier, args...)
+	base, tree := c.verifyPair(args...)
 	if !agree(base, tree) {
 		return tree, false
 	}
@@ -704,8 +736,7 @@ func (c *check) verifyStatusOnce(args ...string) (verification, bool) {
 // base verifier still runs, the tree verifier fills both roles, and it must
 // agree with itself and with any override (DCW-V0-047).
 func (c *check) verifyDeclared(args ...string) (verification, verification, bool) {
-	base := c.verify(c.options.BaseVerifier, args...)
-	tree := c.verify(c.options.TreeVerifier, args...)
+	base, tree := c.verifyPair(args...)
 	if !agree(tree, c.verify(c.options.TreeVerifier, args...)) {
 		return base, tree, false
 	}

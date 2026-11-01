@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/workflow"
@@ -759,6 +761,7 @@ func (l *finishLane) checkAndSeal() int {
 	case code == 0:
 		l.line("check PASS")
 		l.line("seal PASS seal=%s", l.gitValue("rev-parse", "HEAD^{commit}"))
+		defer l.reportReview()
 	case checked:
 		l.line("check PASS")
 		l.line("seal FAIL exit=%d", code)
@@ -767,7 +770,37 @@ func (l *finishLane) checkAndSeal() int {
 	}
 	l.reportMissing()
 	_, _ = l.stdout.Write(verdict.Bytes())
+	l.reportRuns()
 	return code
+}
+
+// dogfoodChangeRuns is the run log script/dogfood-change.sh appends one line
+// to per invocation, under the Git directory's corvint evidence directory
+// (ASD-V0-907).
+const dogfoodChangeRuns = "dogfood-change-runs.tsv"
+
+// reportRuns prints how many times dogfood-change ran in this worktree, the
+// count the lane batch measures (ASD-V0-907, V1-1629), or NOT_OBSERVED when
+// the log is absent or unreadable.
+func (l *finishLane) reportRuns() {
+	count := "NOT_OBSERVED"
+	if data, err := readPrefix(filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns), 1<<20); err == nil {
+		count = strconv.Itoa(len(textLines(data)))
+	}
+	l.say("%s: RUNS dogfood-change=%s log=%s\n", l.prefix, count, filepath.Join(l.gitDir, "corvint", dogfoodChangeRuns))
+}
+
+// reportReview names the exact reviewer report the seal bound and says that
+// its independent review and the native completion are still to come, so a
+// review is never implied as done (DCW-V0-908, V1-3188).
+func (l *finishLane) reportReview() {
+	report := filepath.Join(l.root, ".corvint", "dogfood-report.json")
+	digest := "NOT_OBSERVED"
+	if sum, ok := fileDigest(report); ok {
+		digest = fmt.Sprintf("%x", sum)
+	}
+	l.say("%s: REVIEW report=%s sha256=%s reviewed=NOT_OBSERVED\n", l.prefix, report, digest)
+	l.say("  next: an independent review of this exact report, then the native completion; finish-lane records neither (DCW-V0-908)\n")
 }
 
 // sealInterrupted unwinds an interrupted check and seal. An interruption after
