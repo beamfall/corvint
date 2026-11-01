@@ -319,6 +319,28 @@ claim, and mutation ordering deltas below.
   consumer parsing the old member names reads nothing, never a wrong count. Evidence:
   `TestOCMV0920SummaryNamesTheChangePopulation`. Rollback: restore the three old member names
   and the `unlinked-requirements` note.
+- `OCM-V0-940`: (experimental under the standing lane auto-accept; V1-0585) `ocm link` has an
+  explicit replace-or-accumulate contract for one requirement's claims. Without `--accumulate` a
+  link replaces the obligation's `hunkIds` and `claimIds` as before (compatibility), except that
+  when the row is already `linked` and holds a claim whose `path` differs from `--test-path`, the
+  link MUST refuse `link-would-drop-claims` (exit 2, no write) naming the retained paths and
+  `--accumulate`; a re-link on the same single path still replaces. With `--accumulate` the row
+  keeps its earlier hunk and claim IDs and adds the new ones (sorted, de-duplicated, within the
+  existing reference bounds), so one requirement can retain meaningful assertions from several
+  test files. To drop earlier support deliberately the operator marks the row `unknown` with
+  `ocm mark` and links again. Every accumulated claim keeps its own immutable path, blob,
+  selector and span; the candidate map passes the same `OCM-V0-005` exact-ID re-extraction and
+  `OCM-V0-006` closure before publication, and a selected claim from an unrelated path is never
+  admitted by being accumulated. The link result reports the row's resulting hunk and claim IDs.
+  A `DOGFOOD_OCM_LINKS` plan whose later row names the same scope and obligation as an earlier
+  row applies that later row with `--accumulate`, so a multi-file plan keeps every row's claims.
+  Structural linkage is not assertion coverage: an accumulated row says each named test anchors
+  the exact requirement ID at the target revision, not that the tests together establish it.
+  Non-goals: inferring claims, a multi-path `--test-path`, or changing the wire profile. Failure
+  modes: a stale accumulated claim fails re-extraction like any claim; a plan that relied on a
+  later row silently replacing an earlier different-path row now keeps both. Evidence:
+  `TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles`. Rollback: drop `--accumulate`, the refusal
+  and the plan's per-obligation flag.
 
 ## Wire profile
 
@@ -623,6 +645,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-026 | `internal/cem/gitrun/gitrun.go` (`exhausted`, `exceededError`), `internal/cem/verify/stable.go` (`LimitCause`), `internal/lrfrepo/ocm_read.go` (`stableOCMRefusal`), `internal/lrfrepo/adapter.go` | `internal/lrfrepo/ocm_stable_refusal_test.go:TestOCMV0026PrepareRefusalNamesTheBoundThatFired`, `internal/cem/verify/stable_drift_resource_limit_test.go:TestCEMV1260DriftResourceLimitNative`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedOutputBound`, `internal/cem/gitrun/gitrun_unix_test.go:TestTypedBudgetExhaustion` |
 | OCM-V0-027 | `internal/lrfrepo/stable_reuse.go` (`StableReuse`, `acceptedStableReused`, `verifierIdentity`), `internal/lrfrepo/stable_reuse_change_darwin.go` (`fileChangedBefore`), `internal/lrfrepo/ocm_read.go` (`verifyStableOCMCEM`), `internal/cem/verify/stable_artifacts.go` (`RecheckStableArtifacts`), `internal/dogfoodocm/aggregate.go` (`Status`), `internal/dogfoodflow/flow.go` (`childEnvironment`) | `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027RunVerifiesUnchangedCEMOnce`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ChangedDigestForcesReverification`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReuseMissesOnVerifierOrArtifactChange`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReplacedExecutableHasNoIdentity`, `internal/dogfoodflow/stable_reuse_test.go:TestOCMV0027ChildrenShareOnlyTheirRunStore` |
 | OCM-V0-028 | `internal/dogfoodflow/obligation_precheck.go` (`precheckIntentObligations`, `manifestIntents`), `internal/lrfrepo/ocm_obligation_count.go` (`IntentObligationCounts`), `internal/dogfoodflow/change.go` (`fitHint`) | `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028OverBoundIntentsRefuseBeforeAnyStep`, `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028DerivedBoundAdmitsSummedScopes` |
+| OCM-V0-940 | `internal/lrfrepo/ocm_write.go` (`LinkOCM`, `linkObligation`, `retainedOtherPaths`), `cmd/corvint/ocm.go` (`parseOCMLinkFlags`), `internal/dogfoodflow/change.go` (`runOCMLinks`) | `internal/lrfrepo/ocm_accumulate_test.go:TestOCMV0940LinkAccumulatesClaimsFromTwoTestFiles` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
