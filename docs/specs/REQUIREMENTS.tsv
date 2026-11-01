@@ -4810,6 +4810,7 @@ LCP-V0-882	docs/specs/local-completion-policy-v0.md	(experimental under the stan
 LCP-V0-883	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-884	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-885	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580) Import MUST relocate	standing	V1-0580
+LCP-V0-960	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3634; refines	standing	2026-10-31; V1-3634
 LCP-V0-039	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-2762) Amending	standing	V1-2762
 LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change	unrecorded	-
 LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
