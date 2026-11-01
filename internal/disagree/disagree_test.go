@@ -385,6 +385,23 @@ func TestIdentifierTokensDropProse(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("identifierTokens() = %v, want %v", got, want)
 	}
+	// Codex P2 (RDS-V0-962): an underscore anywhere marks code, including a
+	// leading, trailing or surrounding one, so Python's `_refresh`, `cache_` and
+	// `__init__` keep their structural vote.
+	for _, token := range []string{"_refresh", "cache_", "__init__"} {
+		if got := identifierTokens("fix " + token + " handling"); !reflect.DeepEqual(got, map[string]struct{}{token: {}}) {
+			t.Fatalf("identifierTokens(%q) = %v, want it kept", token, got)
+		}
+	}
+	python := &contextindex.Index{
+		Symbols: []contextindex.Symbol{{Name: "_refresh", Path: "pkg/cache.py"}, {Name: "__init__", Path: "pkg/model.py"}},
+		Sources: map[string]contextindex.Source{"pkg/cache.py": {Path: "pkg/cache.py"}, "pkg/model.py": {Path: "pkg/model.py"}},
+	}
+	for task, declarer := range map[string]string{"why does _refresh skip": "pkg/cache.py", "the __init__ order": "pkg/model.py"} {
+		if rows := structuralChannel(python, task, "", 10); len(rows) == 0 || rows[0].path != declarer {
+			t.Fatalf("%q: structural channel %v, want %s seeded first", task, rows, declarer)
+		}
+	}
 	index := &contextindex.Index{Symbols: []contextindex.Symbol{
 		{Name: "signal", Path: "a.go"}, {Name: "where", Path: "b.go"}, {Name: "CEM", Path: "c.go"},
 	}}

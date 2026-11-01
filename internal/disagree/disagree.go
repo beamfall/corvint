@@ -342,10 +342,10 @@ func declaredIdentifiers(index *contextindex.Index, task string) map[string]stru
 
 // identifierTokens splits task on every non-`[A-Za-z0-9_]` rune and keeps the
 // tokens shaped like code rather than prose: any token quoted in backticks,
-// and otherwise one holding an underscore, or an upper-case letter with a
-// lower-case letter elsewhere (`EvalQuery`, `rankLinks`, `Fetch`). An
-// all-lower-case word (`signal`, `where`) and an all-upper-case acronym (`CEM`,
-// `PR`) are prose unless quoted.
+// and otherwise one holding an underscore anywhere (`rank_links`, `_refresh`,
+// `__init__`), or an upper-case letter with a lower-case letter elsewhere
+// (`EvalQuery`, `rankLinks`, `Fetch`). An all-lower-case word (`signal`,
+// `where`) and an all-upper-case acronym (`CEM`, `PR`) are prose unless quoted.
 func identifierTokens(task string) map[string]struct{} {
 	tokens := map[string]struct{}{}
 	for index, quoted := range strings.Split(task, "`") {
@@ -362,7 +362,7 @@ func identifierTokens(task string) map[string]struct{} {
 }
 
 func identifierShaped(token string) bool {
-	if strings.Contains(strings.Trim(token, "_"), "_") {
+	if strings.Contains(token, "_") {
 		return true
 	}
 	upper, lower := strings.ContainsAny(token, "ABCDEFGHIJKLMNOPQRSTUVWXYZ"), strings.ContainsAny(token, "abcdefghijklmnopqrstuvwxyz")
