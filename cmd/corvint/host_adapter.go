@@ -117,7 +117,7 @@ func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments
 		if len(arguments) == 2 && arguments[0] == "claude-code" {
 			output := claudeDegradedOutput(arguments[1], "adapter-host-kill-deadline")
 			repeated, root := recordClaudeKillDeadline(ctx, arguments[1], output)
-			if arguments[1] == "session-start" || arguments[1] == "user-prompt" {
+			if claudePromptContextEvent(output) {
 				return output
 			}
 			// AHI-911: any other event's banner is shown once per cause and hour, with its action.
@@ -509,6 +509,14 @@ func recordClaudeKillDeadline(ctx context.Context, event string, output map[stri
 	default:
 		return false, root
 	}
+}
+
+// claudePromptContextEvent reports whether output is the context of a SessionStart or
+// UserPromptSubmit event, whose fallback stays on every event (AHI-911).
+func claudePromptContextEvent(output map[string]any) bool {
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	name, _ := hook["hookEventName"].(string)
+	return name == "SessionStart" || name == "UserPromptSubmit"
 }
 
 // claudeKillDeadlineBanner adds AHI-911's action line to a visible kill-deadline banner.

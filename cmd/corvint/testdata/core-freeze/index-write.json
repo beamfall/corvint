@@ -1,4 +1,5 @@
 {
+  "build_ms": "<varies:number>",
   "bytes": 6447,
   "command": "index",
   "commit": "<varies:string>",
@@ -11,6 +12,7 @@
   "ok": true,
   "path": "<varies:string>",
   "profile": "corvint-index-snapshot/1",
+  "source_bytes": 454,
   "sources": 6,
   "store": "<varies:string>",
   "store_shared": true,

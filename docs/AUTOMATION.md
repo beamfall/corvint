@@ -246,7 +246,7 @@ CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harne
 (`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
 is complete. The code is also admitted by the observations ledger and host adapter vocabularies
 (`internal/observations/observations.go:50-57@493847da`,
-`cmd/corvint/host_adapter.go:777-786@c1243f78`). Repeated appearances are not evidence of repeated
+`cmd/corvint/host_adapter.go:785-794@c1243f78`). Repeated appearances are not evidence of repeated
 failures, and adding artifacts does not remove this message.
 
 ### What the artifacts enable, and what remains unavailable
@@ -303,7 +303,7 @@ review queue, the minimum inputs and steps are:
 | Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
 
 The Claude routine receipt path preserves the degradation codes in additionalContext
-(`cmd/corvint/host_adapter.go:762-774@78ff0af5`). Presentation differs by host and event; quieting a
+(`cmd/corvint/host_adapter.go:770-782@78ff0af5`). Presentation differs by host and event; quieting a
 notice is not removing the degradation or acquiring authority.
 
 ### Not delivered by this guidance
