@@ -260,6 +260,25 @@ const ShellForeignCallersPath = ".corvint/shell-foreign-callers.json"
 // paths hold ShellForeignCallersPath (TSP-V0-005).
 const FrontierForeignCallersChanged = "shell:foreign-callers-changed"
 
+// ShellReadScopesPath is the repository's declaration of the paths each
+// declared toolchain-running shell test reads (TSP-V0-950). The shell plugin
+// reads it when the graph is built, so a plan with the declaration dirty is
+// UNKNOWN (shellReadScopesChanged).
+const ShellReadScopesPath = ".corvint/shell-read-scopes.json"
+
+// FrontierShellReadScopesChanged is the unknown detail of a plan whose dirty
+// paths hold ShellReadScopesPath (TSP-V0-950).
+const FrontierShellReadScopesChanged = "shell:read-scopes-changed"
+
+// shellReadScopesChanged returns the TSP-V0-950 unknown when normalized holds
+// the shell read-scope declaration.
+func shellReadScopesChanged(normalized []string) []Unknown {
+	if !slices.Contains(normalized, ShellReadScopesPath) {
+		return nil
+	}
+	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierShellReadScopesChanged}}
+}
+
 // foreignCallersChanged returns the TSP-V0-005 unknown when normalized holds
 // the shell foreign-caller declaration.
 func foreignCallersChanged(normalized []string) []Unknown {

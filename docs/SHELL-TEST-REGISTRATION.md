@@ -23,9 +23,13 @@ note is the one place that lists them; the checks point here when one is missing
    that names the unbounded read and why it cannot be declared (`AFP-V0-025`, `AFP-V0-033`).
    `make unbounded-readers-check` fails naming the file when neither is done. A shell test that runs
    a build or language toolchain (`go`, `make`, `node` and the other `shell.Toolchains` words) is
-   marked `shell:runs-toolchain` and has only the second route: `.corvint/test-read-scopes.json` is
-   keyed by Go package and cannot bound a shell unit, so add the file to `units` with a `reasons`
-   entry naming the toolchain read. The refusal names that route for such a unit (V1-3320).
+   marked `shell:runs-toolchain`. `.corvint/test-read-scopes.json` is keyed by Go package and
+   cannot bound it; instead declare the paths it reads outside its own directory in
+   `.corvint/shell-read-scopes.json` (`TSP-V0-950`: sorted `reads` entries and a one-line `reason`,
+   for example the packages a `go build` it runs compiles), or, when its reads cannot be listed (a
+   whole-program build, a `make` recipe), add the file to `units` with a `reasons` entry naming the
+   toolchain read. A test that also sources a dynamic path cannot be declared. The refusal names
+   both routes for such a unit (V1-3320, V1-2167).
    What an entry allows, and how to check a declared scope locally before confined CI does, is in
    [TEST-READ-SCOPES.md](TEST-READ-SCOPES.md).
 

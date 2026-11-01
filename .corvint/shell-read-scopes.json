@@ -1,0 +1,16 @@
+{
+  "profile": "corvint-shell-read-scopes/0",
+  "tests": {
+    "script/check-sql-native-ratchets_test.sh": {
+      "reads": [
+        "Makefile",
+        "cmd/corvint-go-toolchain-receipt/",
+        "go.mod",
+        "go.sum",
+        "go.work",
+        "internal/toolchainreceipt/"
+      ],
+      "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 runs go build ./cmd/corvint-go-toolchain-receipt, whose only non-standard package is internal/toolchainreceipt (TSP-V0-951, V1-2167)."
+    }
+  }
+}
