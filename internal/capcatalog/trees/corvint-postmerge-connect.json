@@ -1,0 +1,100 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-postmerge-connect",
+  "helpJson": "corvint-postmerge-connect help --json",
+  "source": "cmd/corvint-postmerge-connect usageText",
+  "dispatchSources": [
+    "cmd/corvint-postmerge-connect"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-postmerge-connect plan",
+      "summary": "Print the typed write plan for one input; writes no file",
+      "usage": [
+        "corvint-postmerge-connect plan --experimental --root REPO --fixture FILE --policy FILE --input FILE [--mode dry-run]"
+      ],
+      "flags": [
+        "--experimental",
+        "--fixture",
+        "--input",
+        "--mode",
+        "--policy",
+        "--root"
+      ],
+      "required": [
+        "--experimental",
+        "--root REPO",
+        "--fixture FILE",
+        "--policy FILE",
+        "--input FILE"
+      ],
+      "example": "corvint-postmerge-connect plan --experimental --root REPO --fixture FILE --policy FILE --input FILE",
+      "help": "corvint-postmerge-connect plan --help"
+    },
+    {
+      "path": [
+        "read-intake"
+      ],
+      "command": "corvint-postmerge-connect read-intake",
+      "summary": "Read the source item through the fixture and save the intake file outside the authoring worktree",
+      "usage": [
+        "corvint-postmerge-connect read-intake --experimental --root REPO --fixture FILE --policy FILE --input FILE --output FILE --author-root DIR [--mode dry-run]"
+      ],
+      "flags": [
+        "--author-root",
+        "--experimental",
+        "--fixture",
+        "--input",
+        "--mode",
+        "--output",
+        "--policy",
+        "--root"
+      ],
+      "required": [
+        "--experimental",
+        "--root REPO",
+        "--fixture FILE",
+        "--policy FILE",
+        "--input FILE",
+        "--output FILE",
+        "--author-root DIR"
+      ],
+      "example": "corvint-postmerge-connect read-intake --experimental --root REPO --fixture FILE --policy FILE --input FILE --output FILE --author-root DIR",
+      "help": "corvint-postmerge-connect read-intake --help"
+    },
+    {
+      "path": [
+        "write"
+      ],
+      "command": "corvint-postmerge-connect write",
+      "summary": "Apply the plan in dry-run, recording or local-fixture live mode",
+      "usage": [
+        "corvint-postmerge-connect write --experimental --root REPO --fixture FILE --policy FILE --input FILE [--mode dry-run|recording|live] [--output FILE] [--author-root DIR]"
+      ],
+      "flags": [
+        "--author-root",
+        "--experimental",
+        "--fixture",
+        "--input",
+        "--mode",
+        "--output",
+        "--policy",
+        "--root"
+      ],
+      "required": [
+        "--experimental",
+        "--root REPO",
+        "--fixture FILE",
+        "--policy FILE",
+        "--input FILE"
+      ],
+      "example": "corvint-postmerge-connect write --experimental --root REPO --fixture FILE --policy FILE --input FILE",
+      "help": "corvint-postmerge-connect write --help"
+    }
+  ]
+}

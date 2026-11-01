@@ -41,6 +41,9 @@ func run() int {
 		fmt.Println(id)
 		return 0
 	}
+	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
+		return code
+	}
 	if len(os.Args) < 2 || os.Args[1] != "replay" {
 		fmt.Fprintln(os.Stderr, "usage: corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE --root REPO\n       corvint-postmerge-workflow encode-id VALUE")
 		return 2

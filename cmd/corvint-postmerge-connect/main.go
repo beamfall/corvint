@@ -18,6 +18,9 @@ import (
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -30,6 +30,26 @@
   ([snapshot](internal/capcatalog/trees/corvint-cem-candidate.json))
 - `corvint-cem-experiments help --json`: the CEM criterion experiment companion's tree
   ([snapshot](internal/capcatalog/trees/corvint-cem-experiments.json))
+- `corvint-corpus-republish help --json`: the trusted-local corpus republish companion's tree
+  ([snapshot](internal/capcatalog/trees/corvint-corpus-republish.json))
+- `corvint-dashboard-snapshot help --json`: the dashboard snapshot compiler's tree
+  ([snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json))
+- `corvint-go-test-provider help --json`: the Go live-test provider's tree
+  ([snapshot](internal/capcatalog/trees/corvint-go-test-provider.json))
+- `corvint-intake help --json`: the local intake validator's tree
+  ([snapshot](internal/capcatalog/trees/corvint-intake.json))
+- `corvint-js-test-provider help --json`: the JavaScript test provider's tree
+  ([snapshot](internal/capcatalog/trees/corvint-js-test-provider.json))
+- `corvint-postmerge-connect help --json`: the post-merge connector's tree
+  ([snapshot](internal/capcatalog/trees/corvint-postmerge-connect.json))
+- `corvint-postmerge-metrics help --json`: the post-merge metrics report's tree
+  ([snapshot](internal/capcatalog/trees/corvint-postmerge-metrics.json))
+- `corvint-postmerge-workflow help --json`: the post-merge replay companion's tree
+  ([snapshot](internal/capcatalog/trees/corvint-postmerge-workflow.json))
+- `corvint-pulse help --json`: the Pulse stdio server's tree
+  ([snapshot](internal/capcatalog/trees/corvint-pulse.json))
+- `corvint-ruby-test-provider help --json`: the Ruby test provider's tree
+  ([snapshot](internal/capcatalog/trees/corvint-ruby-test-provider.json))
 - `corvint-tasks help --json`: the task store CLI's tree
   ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
 - `corvint-test help --json`: the test companion's tree

@@ -185,10 +185,18 @@ func Synopses(binary, text string) []string {
 func tokens(form string) []string { return strings.Fields(form) }
 
 // skipPreamble returns the index of the first token after the binary and any
-// leading bracketed option group such as [--root PATH].
+// leading bracketed option group such as [--root PATH] or required option pair
+// such as --root ROOT, when an operation word follows (CAP-V0-972).
 func skipPreamble(fields []string) int {
 	index := 1
-	for index < len(fields) && strings.HasPrefix(fields[index], "[-") {
+	for {
+		if pair := requiredPair(fields, index); pair > 0 {
+			index += pair
+			continue
+		}
+		if index >= len(fields) || !strings.HasPrefix(fields[index], "[-") {
+			return index
+		}
 		depth := 0
 		for index < len(fields) {
 			depth += strings.Count(fields[index], "[") - strings.Count(fields[index], "]")
@@ -198,7 +206,19 @@ func skipPreamble(fields []string) int {
 			}
 		}
 	}
-	return index
+}
+
+// requiredPair reports the length (2) of an unbracketed `--option VALUE` pair
+// at index that leads the subcommand word of a synopsis, or 0.
+func requiredPair(fields []string, index int) int {
+	if index+2 >= len(fields) || !strings.HasPrefix(fields[index], "--") || !flagToken.MatchString(fields[index]) ||
+		fields[index] != flagToken.FindString(fields[index]) || strings.HasPrefix(fields[index+1], "-") || OperationWord(fields[index+1]) {
+		return 0
+	}
+	if OperationWord(fields[index+2]) || requiredPair(fields, index+2) > 0 {
+		return 2
+	}
+	return 0
 }
 
 // FormPath returns the leading operation words of a synopsis after the binary
@@ -361,7 +381,7 @@ func outside(binary, form string, depth int) []string {
 func required(binary string, forms []string, depth int) []string {
 	var common []string
 	for index, form := range forms {
-		var found []string
+		found := preambleRequired(form)
 		fields := outside(binary, form, depth)
 		for position := 0; position < len(fields); position++ {
 			field := fields[position]
@@ -388,6 +408,32 @@ func required(binary string, forms []string, depth int) []string {
 		return []string{}
 	}
 	return common
+}
+
+// preambleRequired lists the required `--option VALUE` pairs a synopsis leads
+// with before its subcommand word (CAP-V0-972).
+func preambleRequired(form string) []string {
+	fields := tokens(form)
+	var found []string
+	for index := 1; index < len(fields); {
+		if pair := requiredPair(fields, index); pair > 0 {
+			found = append(found, fields[index]+" "+fields[index+1])
+			index += pair
+			continue
+		}
+		if !strings.HasPrefix(fields[index], "[-") {
+			break
+		}
+		depth := 0
+		for index < len(fields) {
+			depth += strings.Count(fields[index], "[") - strings.Count(fields[index], "]")
+			index++
+			if depth <= 0 {
+				break
+			}
+		}
+	}
+	return found
 }
 
 // MinimalExample is the smallest invocation a synopsis allows: optional

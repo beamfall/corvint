@@ -1688,12 +1688,15 @@ Usage:
   corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]
   corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL
     --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR
-    [--claim SELECTOR...] [OPTIONS]
+    [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]
   corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL
     --reason REASON [--output MAP]
-  corvint [--root PATH] ocm status --map MAP [OPTIONS]
-  corvint [--root PATH] ocm verify --map MAP [OPTIONS]
-  corvint [--root PATH] ocm report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV
+    [OPTIONS]
+  corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV
+    [OPTIONS]
+  corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV
+    [--output REPORT] [OPTIONS]
 
 Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).

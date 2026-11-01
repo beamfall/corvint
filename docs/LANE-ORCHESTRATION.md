@@ -174,7 +174,9 @@ same file, shipped over ssh on every offload, so no copy on the box is maintaine
 run prints `heavy.sh: script sha256=<hash> <path>`, and every selection-log line ends with
 `script=<first 12 hex>`, so a log row names the runner revision that wrote it. The offload line
 carries the remote's phase seconds (`rc=N receive= wait= prepare= run= worktree=`); a local run
-appends `local wait=Ns run=Ns rc=N` after it exits; a fallback appends `fallback host=H`. When
+appends `local wait=Ns run=Ns rc=N loadwait=Ns load=L` after it exits (slot wait, run, status,
+load wait and starting load; ASD-V0-970), and a load or slot wait prints `heavy.sh: queued for ...`
+when it starts; a fallback appends `fallback host=H`. When
 `HEAVY_FALLBACK_ALERT` (default 3, `0` disables) fallbacks for one host follow each other with no
 offload in between that the host completed (rc other than 97 or 255), the wrapper prints
 `heavy.sh: ALERT remote-unavailable streak=N host=H` and logs an `alert` line; check the host with

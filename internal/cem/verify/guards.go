@@ -338,10 +338,13 @@ func loadGoPackage(tree, dir string, loadBase func(string) []byte) *goPackage {
 }
 
 // parseDecls lists a file's top-level declarations other than imports. An
-// unparsable file declares nothing.
+// unparsable file declares nothing. A declaration's refs leave out every
+// identifier the parser resolves to a name declared inside that declaration (a
+// parameter, a local variable, a range or type-switch variable, a label), so a
+// local that shares a package declaration's name never reaches it (TCQ-V0-970).
 func parseDecls(file string, data []byte, isTest bool) []goDecl {
 	fileSet := token.NewFileSet()
-	parsed, err := parser.ParseFile(fileSet, "", data, parser.SkipObjectResolution)
+	parsed, err := parser.ParseFile(fileSet, "", data, 0)
 	if err != nil {
 		return nil
 	}
@@ -376,7 +379,7 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 			}
 		}
 		ast.Inspect(decl, func(node ast.Node) bool {
-			if ident, ok := node.(*ast.Ident); ok {
+			if ident, ok := node.(*ast.Ident); ok && !declaredWithin(ident, decl) {
 				d.refs[ident.Name] = true
 			}
 			return true
@@ -451,6 +454,36 @@ func (p *goPackage) testsMentioning(reached map[string]bool) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+// declaredWithin reports whether the parser resolved ident to a name declared
+// inside decl other than one of decl's own top-level names. An unresolved
+// identifier (another file's declaration, a field or method selector, a
+// predeclared name) is not.
+func declaredWithin(ident *ast.Ident, decl ast.Decl) bool {
+	object := ident.Obj
+	if object == nil || object.Pos() < decl.Pos() || object.Pos() >= decl.End() {
+		return false
+	}
+	switch declared := object.Decl.(type) {
+	case *ast.FuncDecl:
+		return declared != decl
+	case *ast.TypeSpec, *ast.ValueSpec:
+		for _, spec := range topLevelSpecs(decl) {
+			if spec == declared {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// topLevelSpecs are the specs of a top-level general declaration.
+func topLevelSpecs(decl ast.Decl) []ast.Spec {
+	if general, ok := decl.(*ast.GenDecl); ok {
+		return general.Specs
+	}
+	return nil
 }
 
 func mentions(refs, names map[string]bool) bool {

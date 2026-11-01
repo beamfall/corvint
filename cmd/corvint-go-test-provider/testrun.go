@@ -27,6 +27,9 @@ exit 2 is a refusal before the run.
 // runOrTestRun dispatches the test-run subcommand and otherwise runs the
 // existing provider entry point unchanged.
 func runOrTestRun(arguments []string, stdout, stderr io.Writer) int {
+	if code, handled := serveHelp(arguments, stdout, stderr); handled {
+		return code
+	}
 	if len(arguments) == 0 || arguments[0] != "test-run" {
 		return run(arguments, stdout, stderr)
 	}

@@ -1,0 +1,90 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-dashboard-snapshot",
+  "helpJson": "corvint-dashboard-snapshot help --json",
+  "source": "cmd/corvint-dashboard-snapshot usageText",
+  "dispatchSources": [
+    "cmd/corvint-dashboard-snapshot"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "cem-stable"
+      ],
+      "command": "corvint-dashboard-snapshot cem-stable",
+      "summary": "Compile the dashboard view of a cem/1.0 stable map and its OCM against an expected base and target",
+      "usage": [
+        "corvint-dashboard-snapshot cem-stable --root ROOT --cem PATH --ocm PATH --expected-base OID --target OID --artifact-root DIR"
+      ],
+      "flags": [
+        "--artifact-root",
+        "--cem",
+        "--expected-base",
+        "--ocm",
+        "--root",
+        "--target"
+      ],
+      "required": [
+        "--root ROOT",
+        "--cem PATH",
+        "--ocm PATH",
+        "--expected-base OID",
+        "--target OID",
+        "--artifact-root DIR"
+      ],
+      "example": "corvint-dashboard-snapshot cem-stable --root ROOT --cem PATH --ocm PATH --expected-base OID --target OID --artifact-root DIR",
+      "help": "corvint-dashboard-snapshot cem-stable --help"
+    },
+    {
+      "path": [
+        "roadmap"
+      ],
+      "command": "corvint-dashboard-snapshot roadmap",
+      "summary": "Compile the roadmap snapshot from a Tasks store, receipts, docs state and requirements; --atm is the legacy spelling of --tasks",
+      "usage": [
+        "corvint-dashboard-snapshot roadmap --root ROOT --tasks BINARY --store DIR --generated-at TIME [--receipts-dir DIR] [--docs-state FILE] [--requirements FILE] [--atm BINARY]"
+      ],
+      "flags": [
+        "--atm",
+        "--docs-state",
+        "--generated-at",
+        "--receipts-dir",
+        "--requirements",
+        "--root",
+        "--store",
+        "--tasks"
+      ],
+      "required": [
+        "--root ROOT",
+        "--tasks BINARY",
+        "--store DIR",
+        "--generated-at TIME"
+      ],
+      "example": "corvint-dashboard-snapshot roadmap --root ROOT --tasks BINARY --store DIR --generated-at TIME",
+      "help": "corvint-dashboard-snapshot roadmap --help"
+    },
+    {
+      "path": [
+        "snapshot"
+      ],
+      "command": "corvint-dashboard-snapshot snapshot",
+      "summary": "Compile the dashboard snapshot of a repository from its source adapters; --conformance pins --generated-at",
+      "usage": [
+        "corvint-dashboard-snapshot snapshot --root ROOT [--source ADAPTER=PATH]... [--conformance --generated-at TIME]"
+      ],
+      "flags": [
+        "--conformance",
+        "--generated-at",
+        "--root",
+        "--source"
+      ],
+      "required": [
+        "--root ROOT"
+      ],
+      "example": "corvint-dashboard-snapshot snapshot --root ROOT",
+      "help": "corvint-dashboard-snapshot snapshot --help"
+    }
+  ]
+}

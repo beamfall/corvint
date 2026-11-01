@@ -15,9 +15,8 @@ import (
 func run(args []string, in io.Reader, out, stderr io.Writer) int {
 	f := flag.NewFlagSet("corvint-intake", flag.ContinueOnError)
 	f.SetOutput(io.Discard)
-	if len(args) == 1 && args[0] == "--help" {
-		fmt.Fprintln(out, "Experimental local intake: validate --root PATH --base FULL_OID --head FULL_OID < candidate.json; reader-check --root PATH --raw FILE --output FILE. Output never grants authority. Host confinement/reader extraction NOT_OBSERVED.")
-		return 0
+	if code, handled := serveHelp(args, out, stderr); handled {
+		return code
 	}
 	if len(args) < 1 {
 		fmt.Fprintln(stderr, "INTAKE_ARGUMENTS")

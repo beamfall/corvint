@@ -153,7 +153,7 @@ parentheses the condition when the message does not state it.
 | `invalid-protocol` | `cmd/corvint-pulse/protocol.go:214` | "unsupported protocol" |
 | `generation-mismatch` | `cmd/corvint-pulse/protocol.go:527` | "workspace generation does not match" (the actor did not accept the invalidation for the expected generation) |
 | `invalid-request` | `cmd/corvint-pulse/protocol.go:403` | "initialize request is invalid" (`clientSeq` is not 1, the body fields are not exactly `clientBootId` and `clientId`, or either is not a token) |
-| `pulse-server-failed` | `cmd/corvint-pulse/main.go:49@de6ef80f` | "Pulse stdio server failed" (the stdio server returned an error; exit 2) |
+| `pulse-server-failed` | `cmd/corvint-pulse/main.go:52@de6ef80f` | "Pulse stdio server failed" (the stdio server returned an error; exit 2) |
 | `resource-exhausted` | `cmd/corvint-pulse/protocol.go:390` | "request ID capacity was exhausted" (65,536 request IDs seen; an exact-field `shutdown` on an initialized session is still accepted) |
 | `session-already-initialized` | `cmd/corvint-pulse/protocol.go:458` | "session is already initialized" |
 | `session-not-initialized` | `cmd/corvint-pulse/protocol.go:398` | "initialize must be the first request" |

@@ -151,6 +151,9 @@ b=$!
 wait "$a" || fail "heavy.sh first concurrent command overlapped (exit $?)"
 wait "$b" || fail "heavy.sh second concurrent command overlapped (exit $?)"
 grep -q '^heavy.sh: slot 1/1 after [1-9]' "$tmp/a.err" "$tmp/b.err" || fail "heavy.sh: no command waited for the slot"
+# ASD-V0-970: the command that waited said so once, when its wait started.
+[[ $(cat "$tmp/a.err" "$tmp/b.err" | grep -c '^heavy.sh: queued for a slot (1/1 held)$') == 1 ]] ||
+  fail "heavy.sh: a slot wait did not report its queue once: $(cat "$tmp/a.err" "$tmp/b.err")"
 ok
 
 # ASD-V0-014: the command's exit status and -p bound pass through; an explicit -p is kept.
@@ -953,7 +956,7 @@ ok
 # prototype's fields; HEAVY_REMOTE=0 needs HEAVY_LOCAL_REASON; a local run waits out a high load.
 pol=$tmp/policy
 mkdir -p "$pol/bin" && printf '#!/bin/sh\nexit 0\n' > "$pol/bin/go" &&
-  printf '#!/bin/sh\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$STUB_LOAD"\n' > "$pol/bin/sysctl" &&
+  printf '#!/bin/sh\nl=$STUB_LOAD\n[ -n "$STUB_LOAD_HELD" ] && [ -s "$STUB_LOAD_SLOT" ] && l=$STUB_LOAD_HELD\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$l"\n' > "$pol/bin/sysctl" &&
   chmod +x "$pol/bin/go" "$pol/bin/sysctl" || fail "policy fixture setup failed"
 pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log" HEAVY_FALLBACK_LOG="$pol/fb.log" \
   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD="${STUB_LOAD:-1.00}" HEAVY_SLOTS=1 "$heavy" "$@"); }
@@ -1039,11 +1042,12 @@ $q -skip '^(TestB)\$' ./w
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
-# ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
+# ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits, and
+# (ASD-V0-970) its load wait and starting load.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
 [[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
-  grep -Eq "^$d $l rc=0 pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
-  grep -Eq "^$d $l rc=3 pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
+  grep -Eq "^$d $l rc=0 loadwait=0s load=1 pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
+  grep -Eq "^$d $l rc=3 loadwait=0s load=1 pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
 HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
 [[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
   grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
@@ -1068,7 +1072,18 @@ STUB_LOAD=50.00 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" || fai
 # V1-3232: the wait stops at the 1-second bound instead of finishing a 5-second poll.
 ((SECONDS - s0 >= 1 && SECONDS - s0 <= 3)) && grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_MAX_LOAD=10)' "$pol/err" ||
   fail "heavy.sh did not wait out a high load: $(cat "$pol/err")"
-STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
+# ASD-V0-970: the load queue is reported before the first poll and its wait reaches the log line.
+grep -B1000 '^heavy.sh: waited' "$pol/err" | grep -qx 'heavy.sh: queued for host load 50 > HEAVY_MAX_LOAD=10 (at most 1s)' &&
+  tail -n 1 "$pol/sel.log" | grep -Eq " rc=0 loadwait=[1-3]s load=50 pwd=$pol cmd=true " ||
+  fail "heavy.sh did not report the load queue: $(cat "$pol/err"; tail -n 1 "$pol/sel.log")"
+# ASD-V0-970: the logged load is the one the command started under, sampled once the slot is held
+# (the stub answers 5 once the slot file names a holder), not the 50 the wait began at.
+: > "$pol/slots/slot1"
+STUB_LOAD=50.00 STUB_LOAD_HELD=5.00 STUB_LOAD_SLOT=$pol/slots/slot1 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" &&
+  grep -q '^heavy.sh: queued for host load 50 ' "$pol/err" &&
+  tail -n 1 "$pol/sel.log" | grep -Eq " rc=0 loadwait=[1-3]s load=5 pwd=$pol cmd=true " ||
+  fail "heavy.sh logged the load the wait began at: $(cat "$pol/err"; tail -n 1 "$pol/sel.log")"
+STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q 'waited\|queued' "$pol/err" ||
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
 HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"

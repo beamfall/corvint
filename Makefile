@@ -549,6 +549,16 @@ capability-catalog:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --tree > internal/capcatalog/trees/corvint.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-candidate help --json > internal/capcatalog/trees/corvint-cem-candidate.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-experiments help --json > internal/capcatalog/trees/corvint-cem-experiments.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-corpus-republish help --json > internal/capcatalog/trees/corvint-corpus-republish.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-dashboard-snapshot help --json > internal/capcatalog/trees/corvint-dashboard-snapshot.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-go-test-provider help --json > internal/capcatalog/trees/corvint-go-test-provider.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-intake help --json > internal/capcatalog/trees/corvint-intake.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-js-test-provider help --json > internal/capcatalog/trees/corvint-js-test-provider.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-connect help --json > internal/capcatalog/trees/corvint-postmerge-connect.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-metrics help --json > internal/capcatalog/trees/corvint-postmerge-metrics.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-workflow help --json > internal/capcatalog/trees/corvint-postmerge-workflow.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-pulse help --json > internal/capcatalog/trees/corvint-pulse.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-ruby-test-provider help --json > internal/capcatalog/trees/corvint-ruby-test-provider.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
 

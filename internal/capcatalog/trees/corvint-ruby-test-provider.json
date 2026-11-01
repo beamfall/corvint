@@ -1,0 +1,47 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-ruby-test-provider",
+  "helpJson": "corvint-ruby-test-provider help --json",
+  "source": "cmd/corvint-ruby-test-provider usageText",
+  "dispatchSources": [
+    "cmd/corvint-ruby-test-provider"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [
+    {
+      "word": "help",
+      "reason": "alternative spelling of --help that the binary already accepted; its tree help answers it"
+    },
+    {
+      "word": "-help",
+      "reason": "single-dash alternative spelling of --help that the binary's own dispatch still answers"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [
+        "rspec"
+      ],
+      "command": "corvint-ruby-test-provider rspec",
+      "summary": "Run RSpec once with the JSON formatter and print the corvint-ruby-test-provider/0 document",
+      "usage": [
+        "corvint-ruby-test-provider rspec --dir DIR [--exec-prefix ARG]... [--rspec ARG]... [--spec PATH]... [--formatter stock|corvint-rspec-json/0] [--junit] [--retain] [--timeout DURATION]"
+      ],
+      "flags": [
+        "--dir",
+        "--exec-prefix",
+        "--formatter",
+        "--junit",
+        "--retain",
+        "--rspec",
+        "--spec",
+        "--timeout"
+      ],
+      "required": [
+        "--dir DIR"
+      ],
+      "example": "corvint-ruby-test-provider rspec --dir DIR",
+      "help": "corvint-ruby-test-provider rspec --help"
+    }
+  ]
+}
