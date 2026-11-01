@@ -11,7 +11,7 @@ import (
 // runner's FAIL line; a log with only wrapper lines falls back to the last
 // line.
 func TestTCDV0800_FailingLineSkipsMakeWrapper(t *testing.T) {
-	log := "go test ./...\n" +
+	log := "go test ./internal/gate\n" +
 		"FAIL pinned FFmpeg tone-map conformance\n" +
 		"rerun: make conformance-tonemap; log at out/tonemap.log\n" +
 		"make[2]: *** [Makefile:41: conformance] Error 1\n" +
