@@ -613,6 +613,10 @@ every gap above the threshold with the time the watchdog would have flagged it.
   patch file kept outside the checkout (`git diff > ../p.patch`, then `git apply -R ../p.patch`;
   restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
   `script/lane-clean.sh` keeps any checkout that still has a stash entry.
+  A lane charter template carries this line verbatim (V1-3767; a charter that omitted it let a
+  lane stash in a shared-object worktree): "Never run `git stash` in a lane: the stash is shared
+  by every worktree of the clone. Park work in a named WIP commit on the lane branch, a patch file
+  outside the checkout, or a scratch `git worktree add` off the lane branch."
 - Scratch logs go outside the checkout (untracked files make dogfood report
   `record-index-failed`), into a directory only this lane writes (ASD-V0-108, V1-3156):
   `"$(git rev-parse --absolute-git-dir)/corvint/lane-logs/"`, unique per worktree like
