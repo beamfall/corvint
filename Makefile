@@ -857,11 +857,14 @@ ai-coauthor-trailers-check:
 # over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the
 # merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
 # recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
-# SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+# SELECTION_BASELINE_OUT=FILE also writes the results JSON. Without it the binaries build with
+# -trimpath -buildvcs=false, so identical Go inputs give identical bytes in any worktree and each
+# change's recorded result is reused across runs (ASD-V0-778); with it they keep the commit stamp
+# that the results' planner field names.
 .PHONY: selection-baseline-check
 selection-baseline-check: ## Check the test-selection baseline
 	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build $(if $(SELECTION_BASELINE_OUT),,-trimpath -buildvcs=false) -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
 .PHONY: ai-coauthor-trailers-test
