@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
@@ -59,7 +60,7 @@ func readExecutable(name string) ([]byte, error) {
 // directories. Minimal env is not OS isolation; the report retains that limit.
 // Input files are never modified and no live connector writer is constructed.
 func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (Report, error) {
-	report := Report{Profile: Profile, Status: "BLOCKED", Reasons: []string{}, HumanVerifiedMismatches: []Mismatch{}, GeneratedMismatches: []Mismatch{}, DeferredStages: []string{}, WorkflowQualification: "NOT_OBSERVED",
+	report := Report{Profile: Profile, Status: "BLOCKED", Reasons: []string{}, HumanVerifiedMismatches: []Mismatch{}, GeneratedMismatches: []Mismatch{}, DeferredStages: []string{}, ReplayedStages: []Stage{}, WorkflowQualification: "NOT_OBSERVED",
 		Limits: []string{"adapter-semantic-correctness-not-verified", "filesystem-network-isolation-not-verified", "descendant-observation-bounded", "human-registry-pin-is-not-authentication", "actual-whole-workflow-acceptance-not-observed"}}
 	block := func(err error) (Report, error) {
 		report.Reasons = append(report.Reasons, err.Error())
@@ -142,14 +143,14 @@ func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (
 	}
 	var firstResult Result
 	var firstRecording []byte
+	var plan connector.Plan
 	for i := 0; i < 2; i++ {
-		result, recording, e := run(ctx, root, fixture, policy, request, executable, protectedInputs)
+		result, recording, p, e := run(ctx, root, fixture, policy, request, executable, protectedInputs)
 		if e != nil {
 			return block(e)
 		}
 		if i == 0 {
-			firstResult = result
-			firstRecording = recording
+			firstResult, firstRecording, plan = result, recording, p
 			continue
 		}
 		if valueHash(firstResult) != valueHash(result) || !bytes.Equal(firstRecording, recording) {
@@ -158,14 +159,16 @@ func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (
 	}
 	report.RecordingSHA256 = SHA256(firstRecording)
 	report.Recording = string(firstRecording)
+	// Follow-up and draft requests come from the plan the first run recorded;
+	// the second run proved it byte-identical.
 	followup := false
-	plan, err := connector.Build(ctx, root, fixture.Connector, policy.Connector, firstResult.Input)
-	if err != nil {
-		return block(err)
-	}
+	drafts := []connector.Request{}
 	for _, r := range plan.Requests {
-		if r.Operation == "upsert-followup" {
+		switch r.Operation {
+		case "upsert-followup":
 			followup = true
+		case "upsert-draft-change":
+			drafts = append(drafts, r)
 		}
 	}
 	observed := map[string]any{"affected_flows": normalized(firstResult.AffectedFlows), "followup": followup, "test_gaps": normalized(firstResult.TestGaps), "defects": sortedFindings(firstResult.Defects)}
@@ -180,8 +183,23 @@ func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (
 			}
 		}
 	}
+	// PMR-V0-942: stages the harness replayed itself leave the deferred list.
+	replayed := map[string]bool{}
+	for _, a := range firstResult.Authored {
+		report.ReplayedStages = append(report.ReplayedStages, Stage{a.Kind + "-author", "observed", valueHash(a)})
+		replayed[a.Kind+"-author"] = true
+	}
+	if len(drafts) > 0 {
+		lines, e := connector.JSONL(drafts)
+		if e != nil {
+			return block(e)
+		}
+		report.ReplayedStages = append(report.ReplayedStages, Stage{"draft-requests", "observed", SHA256(lines)})
+		replayed["draft-requests"] = true
+		report.Limits = append(report.Limits, "authored-content-scope-validation-not-verified", "draft-requests-recorded-not-performed", "alternate-object-mtime-may-be-freshened")
+	}
 	for _, stage := range firstResult.Stages {
-		if stage.Status == "deferred" {
+		if stage.Status == "deferred" && !replayed[stage.Name] {
 			report.DeferredStages = append(report.DeferredStages, stage.Name)
 		}
 	}
@@ -195,65 +213,82 @@ func Replay(ctx context.Context, root, fixtureFile, policyFile, change string) (
 	return report, nil
 }
 
-func run(ctx context.Context, root string, f Fixture, p Policy, request Request, executable []byte, inputs []string) (Result, []byte, error) {
+func run(ctx context.Context, root string, f Fixture, p Policy, request Request, executable []byte, inputs []string) (Result, []byte, connector.Plan, error) {
 	scratch, err := os.MkdirTemp("", "corvint-replay-")
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("scratch-unavailable")
+		return Result{}, nil, connector.Plan{}, fmt.Errorf("scratch-unavailable")
 	}
 	defer os.RemoveAll(scratch)
 	scratch, err = filepath.EvalSymlinks(scratch)
 	if err != nil {
-		return Result{}, nil, fmt.Errorf("scratch-unavailable")
+		return Result{}, nil, connector.Plan{}, fmt.Errorf("scratch-unavailable")
 	}
 	author := filepath.Join(scratch, "author")
 	home := filepath.Join(scratch, "home")
 	tmp := filepath.Join(scratch, "tmp")
 	for _, dir := range []string{author, home, tmp} {
 		if err = os.Mkdir(dir, 0700); err != nil {
-			return Result{}, nil, fmt.Errorf("scratch-unavailable")
+			return Result{}, nil, connector.Plan{}, fmt.Errorf("scratch-unavailable")
 		}
 	}
 	program := filepath.Join(scratch, "adapter")
 	if err = os.WriteFile(program, executable, 0700); err != nil {
-		return Result{}, nil, fmt.Errorf("scratch-unavailable")
+		return Result{}, nil, connector.Plan{}, fmt.Errorf("scratch-unavailable")
 	}
 	stdin, _ := json.Marshal(request)
 	o := procgroup.Run(ctx, procgroup.Spec{Argv: append([]string{program}, p.Args...), Dir: scratch, Env: []string{"PATH=/usr/bin:/bin:/usr/sbin:/sbin", "LANG=C", "LC_ALL=C", "HOME=" + home, "TMPDIR=" + tmp}, Stdin: stdin, Timeout: 30 * time.Second, ShutdownTimeout: 2 * time.Second, InputLimit: MaxBytes, OutputLimit: MaxBytes, StderrLimit: 64 << 10, ObserveDescendants: true})
 	if o.Err != nil || o.ExitStatus != 0 || !o.ExitObserved || !o.WaitCompleted || !o.PipesDrained || !o.OwnedProcessGroupCleanup {
-		return Result{}, nil, fmt.Errorf("adapter-process-failed")
+		return Result{}, nil, connector.Plan{}, fmt.Errorf("adapter-process-failed")
 	}
 	var result Result
 	if err = Decode(o.Stdout, &result); err != nil {
-		return Result{}, nil, err
+		return Result{}, nil, connector.Plan{}, err
 	}
 	if err = validateResult(result, request, f.SourceItem); err != nil {
-		return Result{}, nil, err
+		return Result{}, nil, connector.Plan{}, err
 	}
 	result = normalize(result)
-	plan, err := connector.Build(ctx, root, f.Connector, p.Connector, result.Input)
-	if err != nil {
-		return Result{}, nil, err
+	// PMR-V0-940/941: authored content becomes private commits and draft
+	// requests that are recorded below, never sent; the plan then binds to the
+	// private Git directory that holds those commits.
+	planRoot := root
+	if len(result.Authored) > 0 {
+		var drafts []connector.Draft
+		planRoot, drafts, err = authorCommits(ctx, root, scratch, p.DraftURL, f.Connector.Forge.Change, result.Authored)
+		if err != nil {
+			return Result{}, nil, connector.Plan{}, err
+		}
+		result.Input.Drafts = drafts
+		protected, e := connector.ProtectedGitPaths(ctx, root)
+		if e != nil {
+			return Result{}, nil, connector.Plan{}, e
+		}
+		inputs = append(slices.Clone(inputs), protected...)
 	}
-	if err = connector.ValidatePlan(ctx, root, f.Connector, p.Connector, plan); err != nil {
-		return Result{}, nil, err
+	plan, err := connector.Build(ctx, planRoot, f.Connector, p.Connector, result.Input)
+	if err != nil {
+		return Result{}, nil, connector.Plan{}, err
+	}
+	if err = connector.ValidatePlan(ctx, planRoot, f.Connector, p.Connector, plan); err != nil {
+		return Result{}, nil, connector.Plan{}, err
 	}
 	ledger := filepath.Join(scratch, "requests.jsonl")
-	if err = connector.Record(ctx, root, f.Connector, p.Connector, plan, ledger, author, inputs); err != nil {
-		return Result{}, nil, err
+	if err = connector.Record(ctx, planRoot, f.Connector, p.Connector, plan, ledger, author, inputs); err != nil {
+		return Result{}, nil, connector.Plan{}, err
 	}
 	before, err := readBounded(ledger)
 	if err != nil {
-		return Result{}, nil, err
+		return Result{}, nil, connector.Plan{}, err
 	}
-	if err = connector.Record(ctx, root, f.Connector, p.Connector, plan, ledger, author, inputs); err != nil {
-		return Result{}, nil, err
+	if err = connector.Record(ctx, planRoot, f.Connector, p.Connector, plan, ledger, author, inputs); err != nil {
+		return Result{}, nil, connector.Plan{}, err
 	}
 	after, err := readBounded(ledger)
 	if err != nil {
-		return Result{}, nil, err
+		return Result{}, nil, connector.Plan{}, err
 	}
 	if !bytes.Equal(before, after) {
-		return Result{}, nil, fmt.Errorf("recording-not-idempotent")
+		return Result{}, nil, connector.Plan{}, fmt.Errorf("recording-not-idempotent")
 	}
-	return result, after, nil
+	return result, after, plan, nil
 }

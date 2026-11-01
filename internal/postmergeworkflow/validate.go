@@ -240,6 +240,9 @@ func validateResult(r Result, request Request, source string) error {
 	if len(r.Input.Drafts) > 0 {
 		return fmt.Errorf("draft-scope-validation-unavailable")
 	}
+	if err := validateAuthored(r); err != nil {
+		return err
+	}
 	// Detection stages always run. Author/scope/validation verifiers and draft
 	// publication are not integrated, so a driver may never report them as
 	// observed: they are deferred when docs/tests work exists, else not applicable.
@@ -295,5 +298,10 @@ func normalize(r Result) Result {
 	r.Defects = sortedFindings(r.Defects)
 	r.Input.Findings = sortedFindings(r.Input.Findings)
 	slices.SortFunc(r.Stages, func(a, b Stage) int { return strings.Compare(a.Name, b.Name) })
+	slices.SortFunc(r.Authored, func(a, b Authored) int { return strings.Compare(a.Kind, b.Kind) })
+	for i := range r.Authored {
+		r.Authored[i].Files = slices.Clone(r.Authored[i].Files)
+		slices.SortFunc(r.Authored[i].Files, func(a, b AuthoredFile) int { return strings.Compare(a.Path, b.Path) })
+	}
 	return r
 }
