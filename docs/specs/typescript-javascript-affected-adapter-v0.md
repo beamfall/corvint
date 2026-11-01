@@ -903,7 +903,8 @@ reaches only an `in` test and `route.fulfill({ response, json: { ...body, settin
   - No computed read of a fresh object, and no compound write (`||=`, `+=`). Such an access reads
     the member, and a spread initializer can copy a tag array into it. `TJAA-V0-097` and
     `TJAA-V0-098` later admit the positions where that member value cannot flow on.
-  - No regular-expression `testIgnore`, and no global `testIgnore`.
+  - No regular-expression `testIgnore`, and no global `testIgnore` (a literal one is admitted
+    since `TJAA-V0-770`).
   - No change to `projects`, `owns <file>` or membership-unknown sites, which still carry no line.
 - Failure modes, each fail-closed:
   - Any other use of the object stops at the write's line with `a computed member access can
@@ -1130,8 +1131,8 @@ cannot classify fails closed.
   path, is a superset of Playwright's for every checkout location. This holds however many
   `projects[]` entries repeat the glob, as in the reporter's `testIgnore:
   'tests/examples/**/*.spec.ts'` in three projects. A path outside the matcher model, a computed
-  or regular-expression value, a glob outside the `TJAA-V0-092` rule and a global `testIgnore`
-  MUST still name that `testIgnore`'s own line. A `testMatch` glob that reaches above the
+  or regular-expression value, a glob outside the `TJAA-V0-092` rule and a global `testIgnore` outside the literal grammar
+  (`TJAA-V0-770`) MUST still name that `testIgnore`'s own line. A `testMatch` glob that reaches above the
   repository still refuses, since it can add a path. Residual: when a checkout's own parent
   directories do make the glob match, a selected test that the project ignores runs no test in
   that project; Playwright then reports that it found no tests rather than passing silently.
@@ -1596,6 +1597,20 @@ cannot, from the same graph phase and closure walk the plan uses.
   reads, worker-shared state, server-side state) stays unmodelled and keeps refusing through the
   existing frontiers and the not-test-side rule; no class of it is modelled by this amendment.
 
+- `TJAA-V0-770`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3524)
+  Amending `TJAA-V0-094`, `TJAA-V0-105` and the static project profile: a global `testIgnore`
+  whose value is one literal matcher or an array of them, under the project `testIgnore` grammar,
+  MUST no longer refuse the profile as outside the static project subset. Every project that
+  declares no `testIgnore` of its own MUST inherit it as its exclusion, as Playwright's
+  config-to-project override does; a project's own `testIgnore` replaces it. The inherited value is
+  part of that project's `configFragment` identity, and in the general adapter it counts as the
+  config's one global key for the literal-matcher rule, so a literal root-free global glob keeps
+  the membership static and raises no `typescript:executable-config-unresolved` site. A global
+  `testIgnore` outside that grammar (computed, or an unsupported matcher) still refuses with an
+  unknown naming `global testIgnore`, and in the general adapter still names its own line. A
+  global `testIgnore` that every project overrides is still counted unaccounted for and refuses
+  (conservative). Rollback: restore the refusal of `testIgnore` in the global member loop.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -1903,6 +1918,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
 | `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
+| `TJAA-V0-770` (V1-3524) | `TestPlaywrightGlobalTestIgnoreIsAnExclusion_TJAA_V0_770`; the `global testIgnore` rows of `TestPlaywrightPathModeLiteralTestIgnore_GH1737` |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
 | `TJAA-V0-034` (V1-2455; GitHub #1575) | `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
 | `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
