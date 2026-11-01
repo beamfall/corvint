@@ -884,6 +884,23 @@ separate exact extension tuple remains governed by AHI-024.
   Evidence: `TestAHI172SameWindowBaseline` (`AHI-950` subtest) and `TestProcessTimeoutUnderContention`
   in `internal/opencodequalification`. Rollback: revert `baselineSample.reference` and
   `timeoutError` so the fixed reference and an unclassified timeout return.
+- `AHI-951`: (experimental under the standing lane auto-accept (2026-10-31); V1-2495) The Codex
+  qualified-package publish MUST be `script/publish-codex-plugin.sh publish REVISION QUALIFIED_HOOKS
+  OUTPUT`: it extracts `integrations/codex/plugins/corvint` from the committed REVISION only,
+  replaces `hooks/hooks.json` with the reviewed `prepare-qualified-hooks` rendering, omits
+  `scripts/`, keeps every other file including `.mcp.json`, writes the local marketplace manifest
+  and a `PUBLISH.json` naming the source revision, the plugin version and the transforms, and
+  publishes nothing unless the result passes the check. `script/publish-codex-plugin.sh check
+  PLUGIN_DIR` MUST refuse (exit 1, naming the key and path) a plugin whose `.codex-plugin/plugin.json`
+  declares a `skills`, `mcpServers` or `hooks` path that is missing, leaves the plugin, or (for
+  `mcpServers`) declares no server object; `make host-package-versions-check` runs it on the
+  committed plugin. Non-goals: version stamping, Codex configuration or hook trust changes, and a
+  Git marketplace. Failure modes: the qualified hooks file is the caller's reviewed input and is
+  checked only for shape; a fresh install listing the MCP tools needs a live Codex host and stays
+  `NOT_RUN` until one is qualified. Evidence: `script/publish-codex-plugin_test.sh` (committed
+  plugin passes; missing, empty and escaping references are refused; a publish carries `.mcp.json`
+  and the qualified hooks and omits `scripts/`; a refused publish leaves no output). Rollback:
+  delete the script and its two Makefile lines.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2538,6 +2555,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-920` | `cmd/corvint/local_completion_event.go` (`dogfoodMissBuild`) | `TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin` |
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
 | `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
+| `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
