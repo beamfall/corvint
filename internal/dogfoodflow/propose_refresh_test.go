@@ -114,6 +114,15 @@ func TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile(t *testing.T)
 			if err := os.WriteFile(next, stdout.Bytes(), 0o666); err != nil {
 				t.Fatal(err)
 			}
+			// ASD-V0-841 (V1-3924): the stale mark demands a review, so the
+			// pre-flight refuses the refreshed plan until it is removed.
+			if code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: next}); code != 2 || !strings.Contains(errText, "REFUSE citation-row-stale-review rows=1 ") {
+				t.Fatalf("stale-marked plan not refused: code=%d\nstdout=%s\nstderr=%s", code, out, errText)
+			}
+			reviewed := strings.Replace(stdout.String(), "[stale: re-keyed from "+oldLogID+", review] ", "", 1)
+			if err := os.WriteFile(next, []byte(reviewed), 0o666); err != nil {
+				t.Fatal(err)
+			}
 			if code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: next}); code != 0 {
 				t.Fatalf("refreshed plan refused: code=%d\nstdout=%s\nstderr=%s", code, out, errText)
 			}

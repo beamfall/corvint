@@ -281,9 +281,9 @@ for plan in "$root/empty.tsv" "$root/comments.tsv"; do
 done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head, that run selecting since the first run's
-# receipt (DCW-V0-944, V1-3550).
-recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# receipt (DCW-V0-944, V1-3550); the first run skips the batch-drift steps the sealed-head run owns.
+recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@BATCH_PRECHECK_SKIP_DRIFT=1 \$\(MAKE\) --no-print-directory /, "skip-drift:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+[[ $recipe == 'dogfood-inputs-check skip-drift:batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.
@@ -349,7 +349,7 @@ for interrupt in tree-source:INT:build-tree:130 base-source:TERM:build-base:143;
   # DCW-V0-380: the input pre-flight runs between the two builds, so an interrupted base build
   # follows exactly that one inputs-check and never reaches finish-lane.
   flow=
-  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --corvint-bin *[^/]/repo/.git/corvint/corvint"
+  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --sealed skip --corvint-bin *[^/]/repo/.git/corvint/corvint"
   # The git dir is the resolved path, which may differ from $root through a symlink.
   # shellcheck disable=SC2053
   [[ $status == "$code" && $(cat "$TEST_FLOW_LOG") == $flow ]] || { printf '%s: status=%s flow=%s\n' "$step" "$status" "$(cat "$TEST_FLOW_LOG")" >&2; exit 1; }

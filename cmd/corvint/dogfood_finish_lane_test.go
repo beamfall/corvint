@@ -166,6 +166,20 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 0 || stdout != "dogfood-finish-lane: seal SKIP already-sealed sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("sealed rerun exit=%d stdout=%s", code, stdout)
 	}
+	// ASD-V0-842 (V1-3960): inputs-check on the seal head checks nothing, so
+	// it reports NOT_CHECKED and exits 3 rather than a passing SKIP; the
+	// wrappers' --sealed skip keeps the SKIP, and any other value is refused.
+	sealedPath := ".corvint/changes/" + bind + ".cem.json"
+	code, stdout, stderr = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base}, args...)...)
+	if code != 3 || stdout != "dogfood-inputs-check: inputs-check NOT_CHECKED already-sealed sealed="+sealedPath+"\n" || !strings.Contains(stderr, "dogfood-inputs-check: NOT_CHECKED already-sealed head="+seal+"\n") {
+		t.Fatalf("inputs-check on a seal head exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base, "--sealed", "skip"}, args...)...); code != 0 || stdout != "dogfood-inputs-check: seal SKIP already-sealed sealed="+sealedPath+"\n" {
+		t.Fatalf("inputs-check --sealed skip exit=%d stdout=%s", code, stdout)
+	}
+	if code, _, stderr = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base, "--sealed", "pass"}, args...)...); code != 2 || !strings.Contains(stderr, "invalid-dogfood-sealed-value") {
+		t.Fatalf("inputs-check --sealed pass exit=%d stderr=%s", code, stderr)
+	}
 }
 
 // DCW-V0-061, DCW-V0-379: a uniform plan stops at prepare, before any bind,
