@@ -3108,6 +3108,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   deriving is left to the steps, as before. Evidence: `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`
   (each bad intent: the precheck code equals `PrepareOCM`'s code, and no step ran) and
   `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945`. Rollback: restore the bound-only precheck.
+- `DCW-V0-948`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633; refines
+  `DCW-V0-945`) The `intent-invalid` refusal MUST end with one fix line that states the
+  `DOGFOOD_INTENTS_FILE` format: each line is the repository-relative path of a spec committed at
+  HEAD, not prose, in UTF-8 Markdown with exactly one `## Requirements` heading, and a build-log
+  entry or README without that heading is not an intent unless the change is a record change
+  (`DCW-V0-058`). The reported repro, a build-log entry and `docs/specs/README.md` listed as intents,
+  MUST be refused before any step with `code=invalid-requirements-section` for each, the code
+  `ocm-prepare` prints at bind. Non-goals: accepting a build-log or README intent; changing the
+  manifest grammar. Failure modes: a prose line is refused with the derivation's own code, not a
+  grammar refusal. Evidence: `TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents`. Rollback:
+  restore the previous fix line.
 - `DCW-V0-946`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633 acceptance,
   from the vt-w3 friction; refines `DCW-V0-150` and `DCW-V0-442`) `dogfood propose-citations`
   (with or without `--refresh`), `dogfood finish-lane` and `dogfood inputs-check` MUST refuse a BASE
@@ -3597,6 +3608,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-943` (experimental under the standing lane auto-accept; V1-3627) | `script/dogfood-build-corvint.sh` `dogfood_corvint_prune`, `dogfood_bin_outcome`; `script/dogfood-bin-reuse_test.sh` | implemented; focused test PASS |
 | `DCW-V0-944` (experimental under the standing lane auto-accept; V1-3550) | `Makefile` `dogfood-closeout`; `script/batch-precheck_test.sh` | implemented; focused test PASS |
 | `DCW-V0-945` (experimental under the standing lane auto-accept; V1-3633) | `internal/lrfrepo` `DeriveIntentAt`, used by `beginOCM` and `IntentObligationCounts`; `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` | implemented; focused tests PASS |
+| `DCW-V0-948` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/obligation_precheck.go` `intentFormatFix`; `TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents` | implemented; focused tests PASS |
 | `DCW-V0-946` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/flow.go` `requireBaseAncestor`, called by `propose` and `finishLane.run`; `TestDCWV0946ProposeRefusesNonAncestorBase`, `TestDCWV0946FinishLaneRefusesNonAncestorBase` | implemented; focused tests PASS |
 | `DCW-V0-947` (experimental under the standing lane auto-accept; V1-3638) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-960` (experimental under the standing lane auto-accept; V1-3047) | `Makefile` `dogfood-closeout` target-specific `LANE`; `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestDCWV0960InputsCheckRefusesAbsentIntentManifest`, `script/dogfood-cache_test.sh` | implemented; focused tests PASS |

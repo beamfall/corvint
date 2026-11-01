@@ -213,3 +213,62 @@ func TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses(t *testing.T) {
 		t.Errorf("the valid intent was named:\n%s", &stderr)
 	}
 }
+
+// TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents (DCW-V0-948,
+// V1-3633): the two reported repro files, a build-log entry and
+// docs/specs/README.md, neither with a ## Requirements heading, are refused
+// before any step with invalid-requirements-section, the code ocm-prepare
+// prints at bind; a prose line is refused too, and the fix line states the
+// intents format.
+func TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents(t *testing.T) {
+	root, base, _ := obligationRepository(t, "docs/specs", 2)
+	if err := os.MkdirAll(filepath.Join(root, "docs/build-log"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	for path, body := range map[string]string{
+		"docs/build-log/2026-10-31-scripts-w5.md": "# Lane scripts-w5\n\n## Dispositions\n\n- V1-0001 delivered.\n",
+		"docs/specs/README.md":                    "# Specs\n\n| Spec | Status |\n| --- | --- |\n",
+	} {
+		if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(path)), []byte(body), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "build log and readme")
+	head := testGit(t, root, "rev-parse", "HEAD")
+	manifest := filepath.Join(t.TempDir(), "intents")
+	lines := "docs/build-log/2026-10-31-scripts-w5.md\ndocs/specs/README.md\ndocs/specs/intent-1.md\nfix the dogfood bug\n"
+	if err := os.WriteFile(manifest, []byte(lines), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stderr bytes.Buffer
+	code, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, IntentsFile: manifest}, &stderr)
+	if err != nil || code != 2 || calls != 0 {
+		t.Fatalf("code=%d err=%v calls=%d stderr:\n%s", code, err, calls, &stderr)
+	}
+	for intent, want := range map[string]string{
+		"docs/build-log/2026-10-31-scripts-w5.md": "invalid-requirements-section",
+		"docs/specs/README.md":                    "invalid-requirements-section",
+		"fix the dogfood bug":                     "",
+	} {
+		_, deriveErr := lrfrepo.DeriveIntentAt(context.Background(), root, head, intent)
+		refusal := intentRefusal(deriveErr)
+		if refusal == nil || (want != "" && refusal.Code != want) {
+			t.Fatalf("%s: prepare's derivation gave %v, want code %q", intent, deriveErr, want)
+		}
+		if line := "  intent=" + intent + " code=" + refusal.Code + ": "; !strings.Contains(stderr.String(), line) {
+			t.Errorf("refusal lacks %q:\n%s", line, &stderr)
+		}
+	}
+	if strings.Contains(stderr.String(), "intent=docs/specs/intent-1.md") {
+		t.Errorf("the valid intent was named:\n%s", &stderr)
+	}
+	if !strings.Contains(stderr.String(), intentFormatFix+"\n") || !strings.Contains(intentFormatFix, "## Requirements") {
+		t.Errorf("the fix line does not state the intents format:\n%s", &stderr)
+	}
+}

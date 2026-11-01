@@ -476,7 +476,9 @@ this order:
    rename, copy or mode change, a `GIT binary patch` body and abbreviated object IDs still refuse
    (`DCW-V0-902`).
 2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
-   `LC_ALL=C sort -u`) and `verify.txt` (one verification command per line), and choose
+   `LC_ALL=C sort -u`; each line is the path of a spec committed at HEAD with exactly one
+   `## Requirements` heading, never prose; a build-log entry or README is refused `intent-invalid`
+   `code=invalid-requirements-section` unless the change is a record change, `DCW-V0-948`) and `verify.txt` (one verification command per line), and choose
    `OUTCOME=passed|failed|blocked`.
 3. `make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed`
    checks every input and binds nothing. A missing `VERIFY` or `OUTCOME` is refused there as
