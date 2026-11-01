@@ -997,7 +997,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-075`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) An index
   build, and each Git-reading phase of a read command, runs its Git operations under one shared
   30-second deadline (`gitDeadline` in `internal/contextindex/git.go`) with no flag or
-  environment override; an overrun refuses with
+  environment override (the background refresh writer alone is bounded by its own CPU budget and
+  wall bound instead, `IDX-SNAP-V0-912`); an overrun refuses with
   exit 2, empty stdout and exactly the stderr line
   `{"error": "Git repository index exceeded its deadline", "ok": false}`. When the
   coordination-time `impact` run of `dogfood change` refuses in exactly that shape, the step MUST

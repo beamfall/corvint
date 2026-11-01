@@ -824,7 +824,13 @@ snapshots refreshed automatically without a manual warmup.
   context). A starved writer costs almost nothing while it waits and converges as CPU frees. While
   it runs it holds the single-flight lock (`IDX-SNAP-V0-032`), so later hooks report `already
   running` and start no other writer; a writer that exhausts its CPU budget needs that much work
-  on an idle host too. Priority, GOMAXPROCS=1, the session, stream redirection, lock, record and
+  on an idle host too. The writer's build does not apply the shared 30-second Git deadline of
+  `DCW-V0-075`: under the same load its evidence phase alone outlasts 30 seconds of wall time
+  (observed: `Git repository index exceeded its deadline` after 266 s with 12.7 CPU-seconds used),
+  so the writer's own CPU budget and wall bound govern its Git reads instead. The exemption is an
+  in-process context mark the worker sets on itself (`contextindex.WithWriterBounds`); no flag or
+  environment variable reaches it, and every other build and read keeps the 30-second deadline.
+  Priority, GOMAXPROCS=1, the session, stream redirection, lock, record and
   publication rules of `IDX-SNAP-V0-031` to `IDX-SNAP-V0-036` and `IDX-SNAP-V0-515` are unchanged,
   and the child stays one finite process group (invariant 7). The `IDX-SNAP-V0-515` notice names the
   new limits: the 55-second CPU work limit for `expired`, the 10-minute hard limit for a record
@@ -832,6 +838,7 @@ snapshots refreshed automatically without a manual warmup.
   bound, or a second writer started while one runs. Rollback: restore the wall bounds
   (`snapshotRefreshWallBound = time.Minute`, the work deadline at 55 s) and drop the CPU ticker.
   Traceability: `TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912`,
+  `TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912`,
   `TestSnapshotRefreshPreviousOutcome`; loaded qualification in
   `docs/build-log/2026-10-31-indexcli-w5.md`.
 
