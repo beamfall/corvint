@@ -161,7 +161,7 @@ the standalone verbs' own receipts at one snapshot with fewer process launches a
   wire shape, and add no member beyond the `coverage.suppressed_results` (b) requires — (b)'s one
   appended `uncertainty` line is a new element of an existing member, not a new member. `query`
   (`compileReceipt`, `internal/contextindex/query.go:93` authority-start,
-  `internal/contextindex/eval_query.go:474@568d1f5a` repository) carries
+  `internal/contextindex/eval_query.go:321@568d1f5a` repository) carries
   `freshness.state` (`receipt.go:65-66`),
   `coverage.{budget_bytes,packet_bytes,within_budget,uncertainty}` (`:490-494`) and `"kind:id"`
   critical selectors over `(kind, id)` (`selector`, `:890`). `impact` (`impact.go:70,233`) carries
