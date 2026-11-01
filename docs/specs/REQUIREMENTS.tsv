@@ -6832,6 +6832,7 @@ TSP-V0-003	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-004	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
 TSP-V0-005	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
 TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)	standing	2026-10-11; V1-2806
+TSP-V0-961	docs/specs/test-selection-precision-v0.md	(experimental, refining TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
 TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
 TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
