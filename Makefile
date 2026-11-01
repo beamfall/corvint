@@ -359,6 +359,7 @@ spec-requirements-test:
 	@script/spec-requirements-worktree-check_test.sh
 	@script/requirement-id-collisions_test.sh
 	@script/spec-obligation-headroom_test.sh
+	@script/gen-spec-requirements-fixture_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
@@ -492,6 +493,8 @@ line-citations-check:
 .PHONY: line-citations-test
 line-citations-test:
 	@script/check-line-citations_test.sh
+	@script/check-line-citations-sources_test.sh
+	@script/line-citations-resolve_test.sh
 
 # ci-least-privilege-check fails when any tracked .github/workflows/*.yml workflow-level permissions
 # stop being exactly `contents: read` (or a job-level block grants more) without a matching row in

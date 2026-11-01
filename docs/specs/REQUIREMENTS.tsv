@@ -3507,6 +3507,10 @@ DCG-V0-920	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-921	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3323)	standing	2026-10-31; V1-3323
 DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413
 DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467
+DCG-V0-680	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3678; refines	standing	2026-11-01; V1-3678
+DCG-V0-681	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3746) A table	standing	2026-11-01; V1-3746
+DCG-V0-682	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3746)	standing	2026-11-01; V1-3746
+DCG-V0-683	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The hea	standing	2026-11-01; V1-3388
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -6421,6 +6425,7 @@ SRG-V0-965	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-966	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3660) A line	standing	2026-11-01; V1-3660
 SRG-V0-967	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3660)	standing	2026-11-01; V1-3660
 SRG-V0-680	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines	standing	2026-11-01; V1-3769
+SRG-V0-681	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The hea	standing	2026-11-01; V1-3388
 SRG-V0-968	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-

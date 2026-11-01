@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:404@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:413@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -557,6 +557,14 @@ No requirement below diverges from the implementation.
   between the shell count and `scanRequirements` would misreport; the script mirrors that function
   line for line and its test pins the boundary counts. Evidence:
   `script/spec-obligation-headroom_test.sh`. Rollback: drop the recipe line and the two scripts.
+- `SRG-V0-681`: (experimental under the standing lane auto-accept (2026-11-01); V1-3388) The header
+  of `script/gen-spec-requirements.sh` MUST document the minimal fixture layout: the two spec header
+  lines, the one-sentence digest Claim, and, for `--readme`, `--all` and `--write`, the README.md
+  table and the README claim sentence it rewrites. When README.md is not in the Git index in those
+  modes, the refusal MUST name the modes and point at that header. Design: on 2026-11-01 a fixture
+  author learned each prerequisite from a separate refusal. Evidence:
+  `script/gen-spec-requirements-fixture_test.sh`. Rollback: restore the shorter refusal and drop
+  the header paragraph and the test.
 - `SRG-V0-968`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   SRG-V0-012) Every spec's `## Agent digest` MUST carry a `- Claim:` line unless it is a
   superseded digest (a `- Successor:` line, which `internal/specindex` limits to Successor and Why
@@ -685,6 +693,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-965 | the `spec-requirements` recipe in `Makefile` runs `TestSpecsStayWithinTheOCMObligationBound` after writing; `script/gen-spec-requirements_test.sh` case 15 checks the recipe names it |
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
+| SRG-V0-681 | `script/gen-spec-requirements-fixture_test.sh`: the documented layout generates, `--readme` without README.md is refused with the layout pointer, the README row gains its header cells and claim under `--write` and passes `--check`, and a spec without the header lines is refused naming it |
 | SRG-V0-680 | `script/spec-obligation-headroom_test.sh`: 239 obligations are silent, 240 and 256 warn naming the companion-spec remedy, a staged 257 is refused with exit 1 and an untracked one is ignored, a spec with two Requirements sections is not counted, a fenced `##` line does not end the section, and the recipe runs the check before the write |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
@@ -714,6 +723,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-003 | the period, colon, and table-cell rank patterns and the rank 2 discard | `spec-requirements-check` |
 | SRG-V0-004 | the composite sort key and its comparison in `script/gen-spec-requirements.sh` | `spec-requirements-check` |
 | SRG-V0-005 | the title substitutions and the UTF-8-decoded `substr` truncation | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-681 | the fixture layout paragraph in the header of `script/gen-spec-requirements.sh` and the README refusal in `readme_text` | `spec-requirements-test` |
 | SRG-V0-680 | `script/spec-obligation-headroom.sh` and its line in the `spec-requirements` recipe of `Makefile` | `spec-requirements-test` |
 | SRG-V0-006 | the header and the sorted emission loop | `spec-requirements-check` |
 | SRG-V0-007 | the `root=$(...)`/`cd` prelude and the stdout-only body | code inspection |
@@ -795,6 +805,7 @@ summary line, and a rollback-section line ranks as before.
 
 SRG-V0-680 rolls back by removing `script/spec-obligation-headroom.sh`, its test and their two
 `Makefile` lines; the SRG-V0-965 bound test still refuses a spec over the limit after the write.
+SRG-V0-681 rolls back as its clause says; no generated file changes.
 
 SRG-V0-980..983 roll back as one revert of their commits: the frozen file and refusal go, the
 `.PHONY:` lines may be rejoined, and no generated file moves, since the freeze changed no header.

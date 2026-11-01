@@ -44,6 +44,13 @@ set -eu
 # `path:N` in a code comment (Go, shell or any other source file), since only the document set
 # above is scanned, and whether an unpinned legacy citation still names the line it meant.
 #
+# Fixture layout (DCG-V0-683, V1-3388). A scratch repository that runs this gate needs this script
+# and, staged, script/line-citation-legacy-documents.txt and script/line-citation-unpinned-inventory.txt;
+# either may be empty, and a missing one fails naming itself. docs/specs/REQUIREMENTS.tsv and
+# script/line-citation-drift-waivers.txt are optional: without the first a bare continuation after
+# a requirement id does not resolve to that id's spec, and without the second no drift is waived.
+# script/check-line-citations_test.sh builds exactly this layout.
+#
 # Every path this gate reads is resolved against the Git index, never the working
 # filesystem: the scanned document set and the tracked set come from `git ls-files`, and
 # each file's bytes from `:<path>` through `git cat-file --batch`. `make gate` must measure what a fresh
@@ -771,7 +778,8 @@ if (@ARGV && !defined $repin && !$verbose && !defined $selects_base) {
 }
 
 my $legacy_rows = lines_of('script/line-citation-legacy-documents.txt')
-    or die "script/line-citation-legacy-documents.txt: not readable from the Git index\n";
+    or die "script/line-citation-legacy-documents.txt: not readable from the Git index; stage it, even "
+        . "empty, in a fixture repository (the fixture layout is in the header of script/check-line-citations.sh)\n";
 for my $path (@$legacy_rows) {
     next if $path eq '' || $path =~ /^#/;
     die "script/line-citation-legacy-documents.txt: invalid scanned-document path: $path\n"
@@ -784,7 +792,8 @@ for my $path (@$legacy_rows) {
 # as `<document>\t<path>:<span>`. Rows are only ever deleted: a new or edited unpinned citation
 # has no row and fails, so a legacy table cannot drift silently onto a different non-blank line.
 my $inventory_rows = lines_of('script/line-citation-unpinned-inventory.txt')
-    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index\n";
+    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index; stage it, even "
+        . "empty, in a fixture repository (the fixture layout is in the header of script/check-line-citations.sh)\n";
 for my $row (@$inventory_rows) {
     next if $row eq '' || $row =~ /^#/;
     my ($doc, $citation) = $row =~ /^([^\t]+)\t([^\t]+:\d[\d,-]*)$/
@@ -799,12 +808,23 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     my $line_number = 0;
     my $fenced = 0;
     my $current;
+    my %pinned_row;
     for my $doc_line (@$doc_lines) {
         my $line = $doc_line;
         ++$line_number;
         if ($line =~ /^\s*```/) { $fenced = !$fenced; next; }
         next if $fenced;
         if ($line !~ /\S/) { undef $current; next; }
+        # DCG-V0-681 (V1-3746): a table row that repeats an earlier one byte for byte doubles every
+        # repin and every merge conflict on its pinned citations, so the later copy fails.
+        if ($line =~ /^\|/ && $line =~ /`[^`]*:\d[\d,-]*\@[0-9a-f]{4,64}`/) {
+            if (my $first = $pinned_row{$line}) {
+                push @failures, "$doc:$line_number  table row repeats $doc:$first byte for byte, pinned citations "
+                    . "included; delete one copy";
+            } else {
+                $pinned_row{$line} = $line_number;
+            }
+        }
         while ($line =~ /`[^`]*`/g) {
             check_malformed($doc, $line_number, $&);
         }
@@ -980,7 +1000,14 @@ if (@failures) {
         if $movable;
 }
 print_skipped();
-print_unstaged('this gate');
+my $unstaged_noted = print_unstaged('this gate');
+# DCG-V0-680 (V1-3678): a failure always names the copy it judged. The unstaged note above already
+# says the gate reads the Git index; without one, the index and worktree copies of every file read
+# agree, and the line says so.
+print STDERR "line citations: note: checked the Git index copy of each file read; the worktree holds no "
+    . "unstaged edit to any of them\n"
+    if @failures && !$unstaged_noted;
+print_untracked();
 exit 1 if @failures;
 
 # DCG-V0-046: one summary line for every root-basename skip, or each skip under --verbose.
@@ -1017,12 +1044,35 @@ sub print_unstaged {
     }
     # The documents --repin just rewrote are named by its own staging line above.
     delete @unstaged{@rewritten};
-    return unless %unstaged;
+    return 0 unless %unstaged;
     my @paths = sort keys %unstaged;
     print STDERR "line citations: note: $reader reads the Git index, so unstaged edits to "
         . scalar(@paths) . " file(s) it read were not checked (git add them to include them):\n"
         . join('', map { "  $_\n" } @paths)
         . ($reader eq '--repin' ? "  run `git add -- @paths`, then rerun --repin\n" : '');
+    return scalar @paths;
+}
+
+# DCG-V0-680 (V1-3678): a document in the scanned set that is not yet tracked is invisible to the
+# index, so a pass says nothing about it. Name each one, as a note that leaves the result alone.
+sub print_untracked {
+    my @untracked;
+    local $ENV{GIT_OPTIONAL_LOCKS} = '0';
+    if (open my $list, '-|', 'git', 'ls-files', '--others', '--exclude-standard', '-z') {
+        local $/ = "\0";
+        while (my $path = <$list>) {
+            chomp $path;
+            push @untracked, $path if scanned_doc($path);
+        }
+        close $list
+            or print STDERR 'line citations: note: could not list untracked files ('
+                . ($! ? "git ls-files: $!" : 'git ls-files exit ' . ($? >> 8)) . ")\n";
+    } else {
+        print STDERR "line citations: note: could not list untracked files (git ls-files: $!)\n";
+    }
+    return unless @untracked;
+    print STDERR "line citations: note: " . scalar(@untracked) . " untracked document(s) in the scanned set "
+        . "were not checked (git add them to include them):\n" . join('', map { "  $_\n" } sort @untracked);
 }
 PERL
 

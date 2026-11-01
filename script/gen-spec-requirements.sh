@@ -17,6 +17,15 @@ set -eu
 # (SRG-V0-018). SRG-V0-954: `--write` (`make spec-requirements`) writes the three into docs/specs/
 # after refusing any unstaged or untracked spec, and `--check` (`make spec-requirements-check`)
 # byte-compares them with docs/specs/, naming each stale file.
+#
+# Fixture layout (SRG-V0-681, V1-3388). A scratch repository needs only staged specs: each
+# docs/specs/*.md states `Intent status:` and `Delivery status:` header lines (refused, naming the
+# spec, without them), an `## Agent digest` whose `- Claim:` is one sentence (or a superseded
+# digest naming its Successor and Why), and its requirement lines. `--readme`, `--all` and `--write`
+# also read docs/specs/README.md, which must carry a table headed `| Scope | Contract | Intent |
+# Delivery | Description |`. A row whose Contract cell links a spec as `[name.md](name.md)` gets
+# its Intent and Delivery cells and the leading sentence of its Description, the README claim
+# sentence, rewritten from that spec's headers and digest Claim; a spec with no row gains one. script/gen-spec-requirements_test.sh builds this layout from scratch.
 
 usage() {
   printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check]\n' "$0" >&2
@@ -716,7 +725,8 @@ sub index_text {
 # every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
 # internal/specindex reads.
 sub readme_text {
-    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
+    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index; --readme, --all and "
+        . "--write need it staged (the fixture layout is in the header of script/gen-spec-requirements.sh)\n";
     my @rows = split /^/, $blobs->{'docs/specs/README.md'};
     my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
     defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";
