@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332; CIN-V0-010: V1-3748. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -131,6 +131,23 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   marker of another epoch, and an unknown reason SHALL take no place, so an epoch-1 run is never
   counted as absence. `verdict.sh` SHALL trip the AFP-V0-030 kill switch when either the row count
   or `absence.jq` trips. The bar, its thresholds and the `MISS` rule are unchanged.
+- **CIN-V0-010:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3748;
+  effective only after the owner's `ci-control-plane` review of the `.github` change it needs)
+  `CORVINT_PR_TOOL_SOURCE` and `CORVINT_TEST_SHADOW_SOURCE` SHALL name a reviewed `main` commit
+  that contains V1-3354. Before `narrow.sh` or `mq-narrow.sh` runs, the narrowing gate of each
+  `go-product-shard` SHALL run `.github/forward-rows/pin-lag.sh` read from the `main` commit it
+  compares against: the tested merge's first parent for a pull request, the commit of `main` the
+  gate reads its scripts from for a merge-queue entry. `pin-lag.sh MAIN TOOL_PIN SHADOW_PIN`
+  SHALL exit 0 only when each pin is a commit in MAIN's history whose selection paths are
+  identical to MAIN's. The selection paths are the files, other than `*_test.go` files and files
+  under a `testdata/` directory, under `internal/gateselect`, `internal/liveverify/affected`,
+  `internal/sessiontest`, `tools/corvint-pr-tests`, `tools/gate-affected-select` and
+  `.github/cishards` (except `package-costs.json`), plus `cmd/corvint/affected*.go`,
+  `cmd/corvint/test*.go`, `.github/forward-rows/narrow.sh` and `.github/forward-rows/narrow.jq`.
+  The script SHALL exit 1 when a pin lags, or is not in MAIN's history, with one `::error`
+  annotation per such pin naming it and the count and the first 10 selection-path commits since
+  it. It SHALL exit 2 on a malformed or unreadable pin or MAIN. On any nonzero exit, or when the
+  script cannot be read, the gate SHALL fail without setting `mode`, so the shard runs FULL.
 
 ## Non-goals
 
@@ -139,7 +156,7 @@ a pull-request record job and would change the AFP-V0-670 and AFP-V0-080 gated-j
 building the shadow planner once per run (V1-2902 remainder: it touches the pin steps PR #11
 changes and needs a trusted artifact handoff); reusing a narrowed queue record for a `main` push
 (rejected, CIN-V0-005); planner selection of a `tools/local-authority` unit, which belongs to the
-affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values; changing the AFP-V0-816
+affected planner (V1-0872), so CIN-V0-008 runs the module whenever `go-static` runs; changing the pin values (except CIN-V0-010's repin); changing the AFP-V0-816
 `BOUNDED` scope check of `mq-narrow.sh`; adding `infra-reclassified.txt` keys (AFP-V0-463).
 
 ## Failure modes
@@ -161,7 +178,11 @@ fetch needs the module proxy; an unreachable proxy or a `go.sum` mismatch fails 
 loudly rather than skipping the module. (7) CIN-V0-860: rule (d) is only as complete as the static index's root-locator model
 (AFP-V0-012 failure modes): a Go test that reads an unowned path by a computed name without being
 an unbounded reader would be missed, as it already could be under BOUNDED plans. A non-Go reader of
-an unowned path is not a Go shard and runs in its own full job.
+an unowned path is not a Go shard and runs in its own full job. (8) CIN-V0-010: every selection
+change merged to `main` makes every Go shard FULL until both pins are repinned past it. That costs
+latency, not soundness. The path list is declared, not derived: a selection rule moved outside it
+would go unnoticed until the list follows it. A `main` change to `package-costs.json` moves shard
+costs only, so it does not count as lag.
 ## Acceptance evidence and traceability
 
 the tests in the traceability rows; the V1-3091 request counts in build log
@@ -181,6 +202,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and `deletedGoSource` and their calls in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers, an unowned path alone or beside frontiers, no selectable test and a deleted source of an existing package run, the deleted package and its importer selected; a module-level frontier, an unindexed existing source, a deleted source of a removed package, a malformed or empty reason, an UNKNOWN plan naming none and another reason fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
+| CIN-V0-010 | `CORVINT_PR_TOOL_SOURCE`, `CORVINT_TEST_SHADOW_SOURCE` and the `pin-lag.sh` call in the narrowing gate of `ci.yml`; `.github/forward-rows/pin-lag.sh` | `TestCINV0010PinLagRefusesNarrowing` in `tools/ci-forward-row/pinlag_test.go` (a pin at MAIN passes; a selection change, a `cmd/corvint/test*.go` change and a `narrow.jq` change after a pin fail; a test, testdata, `package-costs.json` or unrelated change does not; a pin outside MAIN's history fails; malformed and unknown pins exit 2; the committed pins are equal and pass against the committed tree; the gate calls the script from the compared `main` commit in both branches before `narrow.sh` and `mq-narrow.sh`) |
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
 ## Rollback
@@ -189,4 +211,5 @@ R1: revert the lane's `.github` commits and their test commits; the epoch return
 owner decision, since epoch-1 rows hold the dead-pin `INCOMPLETE` rows. No stored state depends on
 these requirements; verdict artifacts without `listedAt` keep the whole listing. CIN-V0-860: remove the `unknownNarrowing` call in `selectPackages`; Select then
 runs every RUNNABLE plan without a module-level frontier narrowed, as before. CIN-V0-861: drop the `absence.jq`
-call in `verdict.sh`; the markers are then ignored names.
+call in `verdict.sh`; the markers are then ignored names. CIN-V0-010: drop the two `lagcheck` calls
+in the narrowing gate; the pins then may lag again silently. Repinning back restores the older selection rules.
