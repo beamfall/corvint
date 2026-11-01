@@ -68,6 +68,7 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 	}
 	packet := compiler.packet(rows, limit)
 	compiler.attachSpans(packet, rows)
+	queryFloorCoverage(packet, index, task, limit)
 	if err := index.SnapshotRefusal(); err != nil {
 		return nil, err
 	}
@@ -2657,6 +2658,34 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	worktreeCoverage(packet["coverage"].(map[string]any), compiler.index)
 	return packet
+}
+
+// queryFloorCoverage (TCP-V0-960, V1-3709) gives a packet whose own
+// answerability has no signal (`no-specific-terms`) the abstention `corvint
+// query` reaches on the same text. When query's ranking pass and relevance
+// floor reject the task, the packet carries query's `abstention` block and an
+// uncertainty line saying its rows are lexical neighbours, not answers, so the
+// two surfaces agree on an out-of-domain task. The rows and the state
+// stay as compiled. A task the floor cannot judge (one over query's length
+// limit) is left as it was: the floor was not consulted, which is what the
+// absent block says.
+func queryFloorCoverage(packet map[string]any, index *Index, task string, limit int) {
+	coverage, _ := packet["coverage"].(map[string]any)
+	answer, _ := coverage["answerability"].(map[string]any)
+	if answer["verdict"] != "no-specific-terms" {
+		return
+	}
+	// `no-relevant-candidates` says query's record, document and symbol
+	// classes ranked nothing, which is no judgement on the files the packet
+	// matched lexically; only a floor that rejected ranked candidates is.
+	reason, err := QueryRelevanceAbstention(index, task, limit)
+	if err != nil || reason != "below-relevance-floor" {
+		return
+	}
+	packet["abstention"] = map[string]any{"active": true, "reason": reason, "source": "query relevance floor"}
+	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), fmt.Sprintf(
+		"corvint query abstains on this task (%s): no ranked result rests on the task's discriminating words, so these rows are lexical neighbours, not answers",
+		reason))
 }
 
 // worktreeCoverage (TCP-V0-141, V1-1285) says when the packet's committed

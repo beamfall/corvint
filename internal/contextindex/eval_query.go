@@ -230,144 +230,13 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// the stage makes, and the order it reports them in, is unchanged.
 	opening := bracket.open(ctx, index)
 
-	trimmed := TrimPythonSpace(text)
-	queryText := pythonLower(trimmed)
-	intent := evalInferIntent(queryText)
-	queryTerms := evalRelevanceTerms(terms(trimmed), intent)
-	ordered := evalOrderedTerms(trimmed)
-	records, crossField := evalRankRecords(index, queryText, queryTerms, ordered, intent)
-	documents, err := evalRankDocuments(index, queryText, queryTerms, intent)
+	ranked, err := evalRank(index, text, limit)
 	if err != nil {
 		return fail(err)
 	}
-	symbols, symbolTermFrequency := evalRankSymbols(index, queryText, queryTerms, intent)
-	confident := evalConfidentSymbols(index, symbols, symbolTermFrequency, queryText, queryTerms, limit)
-	// GPK-V0-040. Every `limit` cut inside evalConfidentSymbols is a prefix cut
-	// of one sequence, and its own caps saturate at evalConfidentCeiling, so
-	// re-selecting there yields the universe the fallback admitted and its
-	// first `limit` entries are byte-identical to `confident`. `confident`
-	// stays the narrowed list the support index and the relevance floor were
-	// written against; only `results`, which the receipt denominates, reads the
-	// wider one. A caller already at or above the ceiling gets neither a second
-	// selection nor a different list.
-	admittedConfident := confident
-	if limit < evalConfidentCeiling {
-		admittedConfident = evalConfidentSymbols(index, symbols, symbolTermFrequency, queryText, queryTerms, evalConfidentCeiling)
-	}
-
-	topRecordScore := 0
-	if len(records) != 0 {
-		topRecordScore = records[0].score
-	}
-	competitive := make([]evalRecordCandidate, 0, len(records))
-	for _, candidate := range records {
-		_, supported := crossField[candidate.record.Kind+":"+candidate.record.ID]
-		if candidate.score*5 >= topRecordScore*3 || candidate.score >= 100 && supported {
-			competitive = append(competitive, candidate)
-		}
-	}
-	// GPK-V0-040. The ranking ceiling is the receipt's to apply, not the
-	// selection's: applying it here and then handing `receipt` a list that can
-	// no longer exceed `limit` makes `omitted_results` structurally zero and
-	// lets the packet assert a completeness it never measured. `competitive`
-	// stays the ceiling-narrowed list every stage below was written against --
-	// featureLists, the negative-claim scan and the support index all read it,
-	// and none of their behavior changes -- while `results` accumulates the
-	// whole admitted universe and `receipt` truncates it. The first `limit`
-	// entries are byte-identical to what this built before, because every
-	// removed stop was a prefix cut of the same sequence.
-	admitted := competitive
-	if len(competitive) > limit {
-		competitive = competitive[:limit]
-	}
-
-	// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Records and
-	// documents precede confident symbols only as answers to the task, and
-	// GPK-V0-039 measures an answer by the
-	// query words a result rests on, never by its score. A confident symbol
-	// resting on more of those words than every record and document in the
-	// packet leads it once the packet has stood on its own (see the floor
-	// below); a symbol wider than none stays out, as before, and the records
-	// and documents keep their own class order behind the placed symbols. An
-	// empty record packet places no symbol: the confident selection below
-	// answers instead.
-	results := make([]map[string]any, 0, len(admitted)+2)
-	widest := len(ordered)
-	if len(admitted) != 0 || len(documents) != 0 {
-		widest = 0
-	}
-	for _, candidate := range admitted {
-		results = append(results, candidate.result)
-		widest = max(widest, evalSupportWidth(candidate.support, ordered))
-	}
-	// The document slot cap was min(2, limit-len(results)), which is the class's
-	// own cap of 2 narrowed by whatever the ceiling had already spent. Counting
-	// the admitted universe at the narrowed cap would report a universe that
-	// shrinks as `limit` shrinks, so the class cap alone is what admits here.
-	for _, candidate := range documents[:min(len(documents), 2)] {
-		results = append(results, candidate.result)
-		widest = max(widest, evalSupportWidth(candidate.support, ordered))
-	}
-	widerSymbols := make([]evalSymbolCandidate, 0, len(admittedConfident))
-	for _, candidate := range admittedConfident {
-		if evalSupportWidth(candidate.support, ordered) > widest {
-			widerSymbols = append(widerSymbols, candidate)
-		}
-	}
-	seenSymbols := make(map[string]struct{})
-	featureLists := make([][]map[string]any, 0, 2)
-	for _, candidate := range competitive {
-		if candidate.record.Kind != "feature" || candidate.score*4 < topRecordScore*3 {
-			continue
-		}
-		// Three per feature is this class's own cap (GPK-V0-040, decision 0157);
-		// min(limit, cap) would narrow it by the ceiling, and
-		// featureImplementationCandidates truncates only after ranking, so the
-		// wider call's prefix is the narrower call's whole answer. Admitting at
-		// the class cap keeps the universe the same size whatever `limit` the
-		// caller asked for.
-		featureLists = append(featureLists, featureImplementationCandidates(index, candidate.record, 3))
-		if len(featureLists) == 2 {
-			break
-		}
-	}
-	for offset := 0; ; offset++ {
-		advanced := false
-		for _, candidates := range featureLists {
-			if offset >= len(candidates) {
-				continue
-			}
-			advanced = true
-			candidate := candidates[offset]
-			id := stringValue(candidate["id"])
-			if _, exists := seenSymbols[id]; !exists {
-				results = append(results, candidate)
-				seenSymbols[id] = struct{}{}
-			}
-		}
-		if !advanced {
-			break
-		}
-	}
-	if len(results) == 0 && len(confident) != 0 {
-		for _, candidate := range admittedConfident {
-			id := stringValue(candidate.result["id"])
-			if _, exists := seenSymbols[id]; exists {
-				continue
-			}
-			results = append(results, candidate.result)
-			seenSymbols[id] = struct{}{}
-		}
-	} else if len(documents) != 0 && len(competitive) == 0 {
-		for _, candidate := range admittedConfident[:min(len(admittedConfident), 2)] {
-			id := stringValue(candidate.result["id"])
-			if _, exists := seenSymbols[id]; !exists {
-				results = append(results, candidate.result)
-				seenSymbols[id] = struct{}{}
-			}
-		}
-	}
-
+	trimmed, queryText, intent, queryTerms, ordered := ranked.trimmed, ranked.queryText, ranked.intent, ranked.queryTerms, ranked.ordered
+	records := ranked.records
+	competitive, admitted, results, widerSymbols := ranked.competitive, ranked.admitted, ranked.results, ranked.widerSymbols
 	learningTask := trimmed
 	if intent.id == "agent-tooling" {
 		learningTask = strings.Join(keys(queryTerms), " ")
@@ -399,29 +268,7 @@ func evalQuery(ctx context.Context, index *Index, text string, limit int, budget
 	// over the results, so scoring the tail the ceiling drops could only raise
 	// it, and a packet withdrawn today would be published on the strength of a
 	// result the caller never receives.
-	emitted := results[:min(len(results), limit)]
-	floor := min(2, len(ordered))
-	supportIndex := evalQuerySupportIndex(competitive, documents, confident)
-	// GPK-V0-083 judges the floor over the packet as compiled without the
-	// placed symbols: a symbol placed ahead of records that answer nothing
-	// does not carry them past GPK-V0-066.
-	// GPK-V0-093 scope admission: the floor's words must include one of the task's
-	// discriminating words where the task has any (evalScope).
-	scope := evalScope{index: index, text: text, ordered: ordered, floor: floor, records: make(map[string]struct{}, len(competitive))}
-	for _, candidate := range competitive {
-		scope.records[evalResultIdentity(candidate.result)] = struct{}{}
-	}
-	belowFloor := len(results) != 0 && !scope.supported(emitted, supportIndex)
-	// GPK-V0-066. Records and documents take precedence over symbols only as
-	// answers to the task. When the packet they built fails the floor, none of
-	// them is one, so the packet is compiled as though no record or document
-	// matched: the confident symbols alone, judged by the same floor. The
-	// withdrawn records leave no tie state or nearest claim behind.
-	fallback := make([]map[string]any, 0, len(admittedConfident)+3)
-	for _, candidate := range admittedConfident {
-		fallback = append(fallback, candidate.result)
-	}
-	substituted := belowFloor && scope.supported(fallback[:min(len(fallback), limit)], supportIndex)
+	supportIndex, belowFloor, substituted, fallback := ranked.relevanceFloor(index, results, limit)
 	if substituted {
 		results = append(fallback, learned[:min(len(learned), 3)]...)
 		records, competitive, belowFloor = nil, nil, false
@@ -1717,4 +1564,224 @@ func evalOmitsCompetingRecord(admitted []evalRecordCandidate, emitted []map[stri
 		}
 	}
 	return false
+}
+
+// evalRanked is the ranking pass of one query: every candidate class ranked
+// and the packet it admits before trace learning and the relevance floor.
+// EvalQuery and QueryRelevanceAbstention share it, so the two can only differ
+// by what learning adds (TCP-V0-960).
+type evalRanked struct {
+	text, trimmed, queryText       string
+	intent                         evalIntent
+	queryTerms                     map[string]struct{}
+	ordered                        []string
+	records, competitive, admitted []evalRecordCandidate
+	documents                      []evalDocumentCandidate
+	confident, admittedConfident   []evalSymbolCandidate
+	widerSymbols                   []evalSymbolCandidate
+	results                        []map[string]any
+}
+
+func evalRank(index *Index, text string, limit int) (*evalRanked, error) {
+	trimmed := TrimPythonSpace(text)
+	queryText := pythonLower(trimmed)
+	intent := evalInferIntent(queryText)
+	queryTerms := evalRelevanceTerms(terms(trimmed), intent)
+	ordered := evalOrderedTerms(trimmed)
+	records, crossField := evalRankRecords(index, queryText, queryTerms, ordered, intent)
+	documents, err := evalRankDocuments(index, queryText, queryTerms, intent)
+	if err != nil {
+		return nil, err
+	}
+	symbols, symbolTermFrequency := evalRankSymbols(index, queryText, queryTerms, intent)
+	confident := evalConfidentSymbols(index, symbols, symbolTermFrequency, queryText, queryTerms, limit)
+	// GPK-V0-040. Every `limit` cut inside evalConfidentSymbols is a prefix cut
+	// of one sequence, and its own caps saturate at evalConfidentCeiling, so
+	// re-selecting there yields the universe the fallback admitted and its
+	// first `limit` entries are byte-identical to `confident`. `confident`
+	// stays the narrowed list the support index and the relevance floor were
+	// written against; only `results`, which the receipt denominates, reads the
+	// wider one. A caller already at or above the ceiling gets neither a second
+	// selection nor a different list.
+	admittedConfident := confident
+	if limit < evalConfidentCeiling {
+		admittedConfident = evalConfidentSymbols(index, symbols, symbolTermFrequency, queryText, queryTerms, evalConfidentCeiling)
+	}
+
+	topRecordScore := 0
+	if len(records) != 0 {
+		topRecordScore = records[0].score
+	}
+	competitive := make([]evalRecordCandidate, 0, len(records))
+	for _, candidate := range records {
+		_, supported := crossField[candidate.record.Kind+":"+candidate.record.ID]
+		if candidate.score*5 >= topRecordScore*3 || candidate.score >= 100 && supported {
+			competitive = append(competitive, candidate)
+		}
+	}
+	// GPK-V0-040. The ranking ceiling is the receipt's to apply, not the
+	// selection's: applying it here and then handing `receipt` a list that can
+	// no longer exceed `limit` makes `omitted_results` structurally zero and
+	// lets the packet assert a completeness it never measured. `competitive`
+	// stays the ceiling-narrowed list every stage below was written against --
+	// featureLists, the negative-claim scan and the support index all read it,
+	// and none of their behavior changes -- while `results` accumulates the
+	// whole admitted universe and `receipt` truncates it. The first `limit`
+	// entries are byte-identical to what this built before, because every
+	// removed stop was a prefix cut of the same sequence.
+	admitted := competitive
+	if len(competitive) > limit {
+		competitive = competitive[:limit]
+	}
+
+	// GPK-V0-083 (proposed, pending owner acceptance (V1-0266)). Records and
+	// documents precede confident symbols only as answers to the task, and
+	// GPK-V0-039 measures an answer by the
+	// query words a result rests on, never by its score. A confident symbol
+	// resting on more of those words than every record and document in the
+	// packet leads it once the packet has stood on its own (see the floor
+	// below); a symbol wider than none stays out, as before, and the records
+	// and documents keep their own class order behind the placed symbols. An
+	// empty record packet places no symbol: the confident selection below
+	// answers instead.
+	results := make([]map[string]any, 0, len(admitted)+2)
+	widest := len(ordered)
+	if len(admitted) != 0 || len(documents) != 0 {
+		widest = 0
+	}
+	for _, candidate := range admitted {
+		results = append(results, candidate.result)
+		widest = max(widest, evalSupportWidth(candidate.support, ordered))
+	}
+	// The document slot cap was min(2, limit-len(results)), which is the class's
+	// own cap of 2 narrowed by whatever the ceiling had already spent. Counting
+	// the admitted universe at the narrowed cap would report a universe that
+	// shrinks as `limit` shrinks, so the class cap alone is what admits here.
+	for _, candidate := range documents[:min(len(documents), 2)] {
+		results = append(results, candidate.result)
+		widest = max(widest, evalSupportWidth(candidate.support, ordered))
+	}
+	widerSymbols := make([]evalSymbolCandidate, 0, len(admittedConfident))
+	for _, candidate := range admittedConfident {
+		if evalSupportWidth(candidate.support, ordered) > widest {
+			widerSymbols = append(widerSymbols, candidate)
+		}
+	}
+	seenSymbols := make(map[string]struct{})
+	featureLists := make([][]map[string]any, 0, 2)
+	for _, candidate := range competitive {
+		if candidate.record.Kind != "feature" || candidate.score*4 < topRecordScore*3 {
+			continue
+		}
+		// Three per feature is this class's own cap (GPK-V0-040, decision 0157);
+		// min(limit, cap) would narrow it by the ceiling, and
+		// featureImplementationCandidates truncates only after ranking, so the
+		// wider call's prefix is the narrower call's whole answer. Admitting at
+		// the class cap keeps the universe the same size whatever `limit` the
+		// caller asked for.
+		featureLists = append(featureLists, featureImplementationCandidates(index, candidate.record, 3))
+		if len(featureLists) == 2 {
+			break
+		}
+	}
+	for offset := 0; ; offset++ {
+		advanced := false
+		for _, candidates := range featureLists {
+			if offset >= len(candidates) {
+				continue
+			}
+			advanced = true
+			candidate := candidates[offset]
+			id := stringValue(candidate["id"])
+			if _, exists := seenSymbols[id]; !exists {
+				results = append(results, candidate)
+				seenSymbols[id] = struct{}{}
+			}
+		}
+		if !advanced {
+			break
+		}
+	}
+	if len(results) == 0 && len(confident) != 0 {
+		for _, candidate := range admittedConfident {
+			id := stringValue(candidate.result["id"])
+			if _, exists := seenSymbols[id]; exists {
+				continue
+			}
+			results = append(results, candidate.result)
+			seenSymbols[id] = struct{}{}
+		}
+	} else if len(documents) != 0 && len(competitive) == 0 {
+		for _, candidate := range admittedConfident[:min(len(admittedConfident), 2)] {
+			id := stringValue(candidate.result["id"])
+			if _, exists := seenSymbols[id]; !exists {
+				results = append(results, candidate.result)
+				seenSymbols[id] = struct{}{}
+			}
+		}
+	}
+
+	return &evalRanked{
+		text: text, trimmed: trimmed, queryText: queryText, intent: intent, queryTerms: queryTerms, ordered: ordered,
+		records: records, competitive: competitive, admitted: admitted, documents: documents,
+		confident: confident, admittedConfident: admittedConfident, widerSymbols: widerSymbols, results: results,
+	}, nil
+}
+
+// relevanceFloor is GPK-V0-066/GPK-V0-093's floor over results, the packet
+// as compiled so far: whether it fails the floor, and whether the confident
+// symbols alone (fallback) pass it in its place.
+func (ranked *evalRanked) relevanceFloor(index *Index, results []map[string]any, limit int) (map[string]map[string]struct{}, bool, bool, []map[string]any) {
+	ordered, competitive, documents, confident := ranked.ordered, ranked.competitive, ranked.documents, ranked.confident
+	text, admittedConfident := ranked.text, ranked.admittedConfident
+	emitted := results[:min(len(results), limit)]
+	floor := min(2, len(ordered))
+	supportIndex := evalQuerySupportIndex(competitive, documents, confident)
+	// GPK-V0-083 judges the floor over the packet as compiled without the
+	// placed symbols: a symbol placed ahead of records that answer nothing
+	// does not carry them past GPK-V0-066.
+	// GPK-V0-093 scope admission: the floor's words must include one of the task's
+	// discriminating words where the task has any (evalScope).
+	scope := evalScope{index: index, text: text, ordered: ordered, floor: floor, records: make(map[string]struct{}, len(competitive))}
+	for _, candidate := range competitive {
+		scope.records[evalResultIdentity(candidate.result)] = struct{}{}
+	}
+	belowFloor := len(results) != 0 && !scope.supported(emitted, supportIndex)
+	// GPK-V0-066. Records and documents take precedence over symbols only as
+	// answers to the task. When the packet they built fails the floor, none of
+	// them is one, so the packet is compiled as though no record or document
+	// matched: the confident symbols alone, judged by the same floor. The
+	// withdrawn records leave no tie state or nearest claim behind.
+	fallback := make([]map[string]any, 0, len(admittedConfident)+3)
+	for _, candidate := range admittedConfident {
+		fallback = append(fallback, candidate.result)
+	}
+	substituted := belowFloor && scope.supported(fallback[:min(len(fallback), limit)], supportIndex)
+	return supportIndex, belowFloor, substituted, fallback
+}
+
+// QueryRelevanceAbstention reports the abstention `corvint query` reaches on
+// text through its ranking pass and relevance floor alone (TCP-V0-960):
+// `no-relevant-candidates` when nothing ranks, `below-relevance-floor` when
+// the ranked packet and its confident-symbol substitute both fail the floor,
+// and "" when the floor admits a packet. It reads only the index: no trace
+// learning, no Git observation, no stored state.
+func QueryRelevanceAbstention(index *Index, text string, limit int) (string, error) {
+	if limit < 1 || limit > maxLimit {
+		return "", &Error{Message: fmt.Sprintf("limit must be an integer from 1 to %d", maxLimit)}
+	}
+	if text == "" || TrimPythonSpace(text) == "" || utf8.RuneCountInString(text) > maxQueryChars {
+		return "", &Error{Message: "query text must be non-empty and within the query limit"}
+	}
+	ranked, err := evalRank(index, text, limit)
+	if err != nil {
+		return "", err
+	}
+	if len(ranked.results) == 0 {
+		return "no-relevant-candidates", nil
+	}
+	if _, belowFloor, substituted, _ := ranked.relevanceFloor(index, ranked.results, limit); belowFloor && !substituted {
+		return "below-relevance-floor", nil
+	}
+	return "", nil
 }
