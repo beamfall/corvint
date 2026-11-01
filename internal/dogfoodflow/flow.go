@@ -259,6 +259,18 @@ func (f *flow) gitValue(args ...string) string {
 	return chomp(output)
 }
 
+// requireBaseAncestor refuses base-not-ancestor-of-head, before anything is
+// written, when BASE is not an ancestor of HEAD: BASE..HEAD would then bind,
+// as this change, a revert of the mainline commits HEAD lacks (DCW-V0-849).
+func (f *flow) requireBaseAncestor(command string) {
+	if f.gitSucceeds("merge-base", "--is-ancestor", f.base, f.target) {
+		return
+	}
+	f.say("%s: REFUSE base-not-ancestor-of-head BASE=%s HEAD=%s\n  BASE is not an ancestor of HEAD, so BASE..HEAD would bind a revert of every BASE commit HEAD lacks as this change\n  fix: merge BASE into this branch, or pass the BASE the branch was cut from (git merge-base origin/main HEAD), then rerun %s (DCW-V0-849)\n",
+		f.prefix, f.base, f.target, command)
+	f.exit(2)
+}
+
 func (f *flow) gitSucceeds(args ...string) bool {
 	_, status := f.git(true, args...)
 	return status == 0

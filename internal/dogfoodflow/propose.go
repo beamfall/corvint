@@ -157,6 +157,7 @@ func (p *proposal) run() int {
 	}
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
+	p.requireBaseAncestor("corvint dogfood propose-citations BASE")
 	if p.cemBase != "" {
 		// The sealed CEM's base is the BASE its rows were cited at (DCW-V0-843).
 		if prior, status := p.git(true, "rev-parse", "--verify", "-q", p.cemBase+"^{commit}"); status == 0 {
