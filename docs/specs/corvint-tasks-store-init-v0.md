@@ -372,6 +372,14 @@ on a fixture queue remain non-goals.
   failure or timeout, a tree probe that cannot read the tree included, leaves the CTS-V0-010
   warning as it is. Non-goals: serving a ticket from a
   ref, fetching, and writing the projection. Rollback: revert; the CTS-V0-010 wording returns.
+- `CTS-V0-680`: (experimental under the owner's standing lane auto-accept (2026-10-11), 2026-11-01;
+  V1-3262; refines CTS-V0-010) A journal-absent `ticket show` miss MUST also name the read-only
+  snapshot route for a host that cannot reach the primary worktree: export the snapshot there with
+  `corvint-tasks queue snapshot --out FILE`, copy FILE to the host, and retry with
+  `CORVINT_TASKS_SNAPSHOT=FILE corvint-tasks ticket show ID` (TCL-V0-010, TCL-V0-011). The sentence
+  follows the CTS-V0-821 hint, and the outcome, code, item and snapshot of CTS-V0-010 are unchanged.
+  Non-goals: locating or fetching a snapshot, and serving the ticket without one. Rollback: revert;
+  the miss stops naming the snapshot route.
 
 ## Import export and batching
 
@@ -407,6 +415,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Init over committed tickets or releases | Refused with `INTENT_DIVERGED`; no state directory is created (CTS-V0-001). |
 | Init with no `.taskman/queue.json` or `policy.json` | Refused with `UNINITIALIZED` naming the missing file and the template step; nothing is created (CTS-V0-990, which supersedes CTS-V0-820). |
 | A lane clone's `.taskman` predates a ticket its origin holds | The journal-absent miss names `origin`'s commit, the read-only `git show` and the `merge --ff-only` sync step; nothing is fetched or served (CTS-V0-821). |
+| A lane host cannot reach the primary worktree | The journal-absent miss also names the `queue snapshot --out FILE` export and the `CORVINT_TASKS_SNAPSHOT=FILE` retry (CTS-V0-680). |
 | Intent directory unreadable | Refused with `UNSUPPORTED_FILESYSTEM`; nothing is created. |
 | Repository reached through a symlinked ancestor | Resolved; the canonical primary worktree is recorded (CTS-V0-004). |
 | Primary worktree or `.git` is a symbolic link | Refused with `UNSUPPORTED_FILESYSTEM`, unchanged (CTS-V0-004). |
@@ -668,3 +677,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
 | CTS-V0-820 | Superseded (CTS-V0-990) | Its behavior is tested by TestCTSV0990_InitNamesMissingQueueAndPolicy |
 | CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep, TestCTSV0821_UnreadableTreeLeavesWarningUncertain |
+| CTS-V0-680 | `internal/tasks/cli/cli.go` (`snapshotRouteHint`, `journalAbsentNotFound`) | TestCTSV0680_JournalAbsentMissNamesSnapshotRoute |
