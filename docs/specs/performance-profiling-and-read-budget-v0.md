@@ -318,7 +318,9 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
 - `PRB-V0-970`: `perf-budget --scenario ID`, repeatable, MUST measure and judge only the named
   `ScenarioIDs` scenarios (the two MCP scenarios are measured together and only the named ones
   are reported); the report lists them as `selected`, its checks cover only them, and an unknown or
-  repeated ID exits 2 before anything runs. Without `--scenario` the run is unchanged. With
+  repeated ID exits 2 before anything runs. A filter that selects `context-query` or
+  `lifecycle-hook` without either index scenario MUST first build the code repository's index
+  snapshot once, unmeasured, as the index scenarios leave it in a whole run. Without `--scenario` the run is unchanged. With
   `--record-baseline`, a filtered run MUST replace only the selected scenarios' measurements in the
   existing baseline, each carrying `PRB-V0-053` provenance (the run's start time, its clean
   revision, the corvint executable's SHA-256 and the run's host), and MUST refuse, leaving the file
