@@ -335,7 +335,7 @@ inputs to ranking, evidence or authority.
 | ASD-V0-576 | `script/changed-checks.sh`; `Makefile` `changed-checks`; `make changed-checks-test` (`script/changed-checks_test.sh`: each check selected and skipped by its inputs, failure and usage exits); `go test ./cmd/corvint` (`TestASDV0576AffectedListsChangedChecks`); measured 14 s on the lane against the full gate trio |
 | ASD-V0-577 | `internal/dogfoodflow` cite precheck (DCW-V0-379); `go test ./internal/dogfoodflow` (`TestASDV0577InputsCheckReportsACitedSpecSpanTheHeadRemoves`: a spec span the head deletes is reported as `row 1 hunk=1 path="spec.md" lines=3:4 cite-span-not-stable` with nothing bound) |
 | ASD-V0-578 | `script/check-line-citations.sh` fix line; `script/check-line-citations_test.sh` (`make line-citations-test`: the ordered failing run prints the `make repin` fix line) |
-| ASD-V0-579 | `Makefile` `DOC_GATE_TARGETS`; `make no-python-runtime-dependency-test` (fails on a `python3 build.py` fixture; failed at BASE on `script/check-bash32_test.sh:71`, passes after); `make qualify-tasks-basic-test` (16 s on the lane); `script/batch-precheck.sh --list` lists both steps |
+| ASD-V0-579 | `Makefile` `DOC_GATE_TARGETS`; `make no-python-runtime-dependency-test` (fails on a `python3 build.py` fixture; failed at BASE on the case-4 fixture of `script/check-bash32_test.sh`, passes after); `make qualify-tasks-basic-test` (16 s on the lane); `script/batch-precheck.sh --list` lists both steps |
 
 Validation proceeds with focused existing discovery/profile tests and document validators, then one
 coordinated canonical gate on the final source+CEM target, independent semantic review and exact
