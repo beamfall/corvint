@@ -845,6 +845,7 @@ ANL-V0-046	docs/specs/application-navigation-ledger-v0.md	(accepted under the ow
 ANL-V0-047	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1216) For an i	standing	2026-10-11; V1-1216
 ANL-V0-048	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2697, issue #1	standing	2026-10-11; V1-2697; #1803
 ANL-V0-810	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-2713) The map	standing	2026-11-01; V1-2713
+ANL-V0-811	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-1236) Five ste	standing	2026-11-01; V1-1236
 ANL-V0-049	docs/specs/application-navigation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2697, issue #1	standing	2026-10-11; V1-2697; #1803
 ANL-V0-060	docs/specs/application-navigation-ledger-v0.md	(proposed; V1-2698, #1804) `affected --base FULL_COMMIT_ID --appmap-impact REPOR	unrecorded	-
 ANL-V0-061	docs/specs/application-navigation-ledger-v0.md	(proposed; V1-2698) An uncommitted path in a bound repository checkout makes the	unrecorded	-
