@@ -104,6 +104,10 @@ type affectedInvocation struct {
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
+	// ByPath writes the affected-by-path/1 document for a --path list: the
+	// shared UNBOUNDED_READER set once, then each path's additions
+	// (AFP-V0-990).
+	ByPath bool
 	// Cache is the graph cache directory, caller-named or the AFP-V0-436
 	// default, resolved outside the repository root; empty means no cache is
 	// read or written (AFP-V0-390).
@@ -344,6 +348,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--by-path" || strings.HasPrefix(rest[index], "--by-path=") {
+			if invocation.ByPath || rest[index] != "--by-path" {
+				return affectedInvocation{}, argumentError("argument --by-path: does not accept a value or repetition")
+			}
+			invocation.ByPath = true
+			index++
+			continue
+		}
 		if rest[index] == "--require-clean" || strings.HasPrefix(rest[index], "--require-clean=") {
 			if invocation.RequireClean || rest[index] != "--require-clean" {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
@@ -434,6 +446,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
+	}
+	if invocation.ByPath && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.Full) {
+		return affectedInvocation{}, argumentError("--by-path requires --path or --paths-from and cannot be combined with --full")
 	}
 	if invocation.Cache != "" && invocation.NoCache {
 		return affectedInvocation{}, argumentError("--cache and --no-cache cannot be combined")
@@ -710,6 +725,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return runAffectedAudit(ctx, invocation, stdout, stderr)
 	}
 	invocation.sharedVia = !invocation.Full
+	if invocation.ByPath {
+		return runAffectedByPath(ctx, invocation, stdout, stderr)
+	}
 	var receipt any
 	var err error
 	if invocation.Snapshot != "" {

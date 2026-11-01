@@ -1348,6 +1348,7 @@
       "flags": [
         "--appmap-impact",
         "--base",
+        "--by-path",
         "--cache",
         "--changes",
         "--format",
@@ -1375,6 +1376,7 @@
         "--snapshot"
       ],
       "schemaIds": [
+        "affected-by-path/1",
         "affected-plan/0",
         "affected-plan/1",
         "application-flow-selection-provider/1",
@@ -1401,6 +1403,8 @@
         "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
         "Example: corvint affected --base FULL_SHA --format text --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
+        "--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not with --full) builds the graph once and writes one affected-by-path/1 document instead of the plan: sharedUnboundedReaders lists once the units the union plan selects as UNBOUNDED_READER (they are selected on any path), and paths gives each named path's scope, how many of that shared set it selects, its unknowns and only the units it adds.",
+        "--format text writes \"affected by-path scope=S paths=N shared=K revision=SHA\", one \"shared UNIT tests=N WITNESS\" line per shared unit, then per path \"path P scope=S shared=J/K additions=M\" with its \" added UNIT tests=N WITNESS\" and \" unknown REASON DETAIL\" lines.",
         "Write --path=VALUE for a name that begins with -.",
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
