@@ -270,6 +270,20 @@
     "internal/cem/workflow": [
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
+    "internal/cem2proto": [
+      ".github/",
+      "benchmarks/",
+      "cmd/",
+      "conformance/",
+      "examples/",
+      "experimental/",
+      "integrations/",
+      "internal/",
+      "interop/",
+      "protocol/",
+      "script/",
+      "tools/"
+    ],
     "internal/cemcandidate": [
       "interop/cem01-go/testdata/multi-runner/",
       "interop/cem01-go/testdata/omission/",
