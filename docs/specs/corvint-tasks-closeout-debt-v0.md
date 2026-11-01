@@ -599,6 +599,44 @@ closeout step is missing.
   retry replays rather than refusing `REQUEST_ID_CONFLICT`; a retry whose other inputs changed is
   still refused by the writer's mutation digest. Non-goal: an atomic cross-ticket transaction, a
   store-layer change. Rollback: revert `landedRevision`; holds again re-read the revision on retry.
+- `TCD-V0-730`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3713; amends
+  TCD-V0-160, TCD-V0-167 and TCD-V0-870) delivery and veto apply per ticket ID, not per line. A line
+  is split into clauses at `;` and `|`. Inside a clause the markers are the veto phrases (the
+  `TCD-V0-160` words, with `already delivered`, `already-delivered`, `not delivered` and `not
+  started` each one veto) and the delivery words (`Refs`, `Closes`, `Fixes`, `Delivers` or
+  `Delivered` in any case, and `DELIVERED` in capitals) that no veto phrase covers. Each ID
+  occurrence takes the markers between it and the next ID of the clause, up to the first comma (all
+  of them when it is the clause's last ID), as its trailing markers, and the last marker before it in
+  the clause as its leading marker. A trailing veto mentions it; else a trailing delivery word
+  delivers it; else its leading marker decides; with no marker it is mentioned. So `Delivers A, B;
+  ALREADY-DELIVERED C; BLOCKED D` delivers A and B only, and `- E delivered, F blocked` delivers E
+  only. In a PR title or body a delivery word counts anywhere in the clause, so `... Delivers
+  V1-0393, ...` mid-line delivers; `delivery-screen` reads PR text through the same rule, which
+  replaces the `TCD-V0-870` non-goal. In a commit message line, under `TCD-V0-167`, a delivery word
+  other than `DELIVERED` counts only when it leads the line. A `TCD-V0-870` ID-led body line and a
+  title or subject scope (`TCD-V0-167`) deliver an ID only when no veto governs that ID on that line,
+  and a per-ID veto anywhere in a PR body also overrides that PR's title scope for that ID. Delivered
+  on any other line still wins over mentioned. Non-goal: no language parsing beyond these markers.
+  Rollback: revert; the line-level veto and line-leading rule return.
+- `TCD-V0-731`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3713; amends
+  TCD-V0-163, TCD-V0-164, TCD-V0-004 and TCD-V0-871) `batch-delivered`, `batch-close` and the
+  `closeout-debt --prs` proposal for each merged PR (`TCD-V0-871`) also read the PR merge commit's
+  lane commits: every non-merge commit reachable from the merge's second parent and not from its
+  first parent (`git log --no-merges M^1..M^2`, so a batch that merges lane merges reads every
+  lane's commits), at most 1000 commits, each under `commitReferences` (`TCD-V0-167`,
+  `TCD-V0-730`). A ticket a lane PR or the batch text delivers keeps that source; one
+  only a lane commit delivers is a `delivered` row with a null `lanePr` and `commit` set to that
+  commit, and `batch-close` closes it with the reason `Delivered by lane commit C; merged in batch PR
+  #N at M; CI green: URL`. Every `delivered` and `mentioned` row carries `commit` (null when PR text
+  is the source). The item adds `laneCommits`, the number of lane commits read, or `NOT_OBSERVED`
+  with a warning when the merge commit does not resolve locally or has one parent; a range over the
+  bound sets `laneCommitsTruncated` and warns (`closeout-debt` warns naming the PR). `ticket closeout-debt` no longer lists a merge
+  commit's citation of a ticket that another scanned commit also cites, so a merged PR's constituent
+  rows are not repeated as merge-commit umbrella rows. A merge commit's citation is also dropped when
+  a merge commit it merged (one its second parent reaches and its first parent does not) cites the
+  same ticket, so a batch merge does not repeat its lane merge's row; separate merges that each cite
+  a ticket, and a merge commit that is the only citer, still list. Non-goal: no GitHub query for the PR's commits. Rollback: revert; the batch verbs read PR
+  text only and closeout-debt lists merge commits again.
 
 ## Failure modes
 
@@ -817,6 +855,8 @@ closeout step is missing.
 | TCD-V0-965 | V1-3644 | `internal/tasks/cli` (`usage`), `internal/tasks/wire` (`HasCode`, `Encode` doc) | `TestTCDV0965_UsageRefusalCarriesMalformed` (`internal/tasks/cli`); `TestTCDV0965_HasCode` (`internal/tasks/wire`) | none |
 | TCD-V0-966 | V1-3645 | `internal/tasks/cli` (`searchAllFlag`, `parseSearchFilter`, help) | `TestTCDV0966_SearchAllListsEveryTicket` | none |
 | TCD-V0-967 | V1-3646 | `internal/tasks/cli` (`multiTargetSubmit`, `targetRequestID`, `landedRevision`) | `TestTCDV0967_InterruptedMultiTargetWriteResumes` (NOTE_SET), `TestTCDV0967_InterruptedMultiTargetHoldResumes` (HOLD: interrupted, resumed, converged; single-target retry; changed payload refused) | none |
+| TCD-V0-730 | V1-3713 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.idReferences`, `references`, `prReferences`, `commitReferences`) | `TestTCDV0730_ReferencesVetoPerID`, `TestTCDV0730_PRTitleMidLineDelivers` (mid-line Delivers, ALREADY-DELIVERED and BLOCKED IDs on one line, ID-led line and title scope overridden by a per-ID body veto, commit line-leading rule kept); `TestTCDV0731_BatchDeliveredPR25And38Shapes` | none |
+| TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeoutProposals`, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows` (a lane merge and the batch merge enclosing it as the only citers list once); `TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit` (batch-delivered and closeout-debt proposals over a batch of two lane merges); `TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit` | none |
 
 ## Rollout and rollback
 
