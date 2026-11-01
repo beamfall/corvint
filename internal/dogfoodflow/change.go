@@ -1034,8 +1034,13 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 	for _, evidence := range m.Evidence {
 		spans[evidence.ID] = evidence.Path + ":" + strconv.FormatInt(evidence.Span.Start, 10) + ":" + strconv.FormatInt(evidence.Span.End, 10)
 	}
-	carried := 0
+	carried, counted := 0, 0
 	for index, hunk := range m.Hunks {
+		// DCW-V0-720: a record hunk is neither counted nor carried.
+		if RecordPath(hunk.Path) {
+			continue
+		}
+		counted++
 		if named[strconv.Itoa(index+1)] || named[hunk.ID] {
 			continue
 		}
@@ -1049,10 +1054,10 @@ func (c *change) carriedUniform(plan []byte) (int, string, bool) {
 		}
 		carried++
 	}
-	if carried == 0 {
+	if carried == 0 || counted < 2 {
 		return 0, "", false
 	}
-	return len(m.Hunks), span, true
+	return counted, span, true
 }
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
