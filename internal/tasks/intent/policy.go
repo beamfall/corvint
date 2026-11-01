@@ -3,6 +3,7 @@ package intent
 import (
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -396,6 +397,51 @@ func subsetOf(r *wire.Reader, got []string, allowed []string, what string) {
 	}
 }
 
+var (
+	policyRequiredKeys = []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
+		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
+		"cemRequired", "ocmRequired", "runtimes", "environment"}
+	policyOptionalKeys = []string{"pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations", "ciEvidence"}
+)
+
+// newerPolicyKeys refuses UNSUPPORTED_VERSION when v holds every required
+// policy key plus a top-level key this build does not know: a newer
+// corvint-tasks wrote it, and the store is not corrupt. A missing required
+// key is left to Closed, which keeps MALFORMED (CTS-V0-991).
+func newerPolicyKeys(v wire.Value) error {
+	if v.Kind != wire.KindObject || v.Obj == nil {
+		return nil
+	}
+	known := map[string]bool{}
+	for _, k := range append(append([]string{}, policyRequiredKeys...), policyOptionalKeys...) {
+		known[k] = true
+	}
+	for _, k := range policyRequiredKeys {
+		if _, ok := v.Obj.Get(k); !ok {
+			return nil
+		}
+	}
+	var unknown []string
+	for _, k := range v.Obj.Keys {
+		if !known[k] {
+			unknown = append(unknown, k)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	sort.Strings(unknown)
+	text := func(key string) string {
+		if f, ok := v.Obj.Get(key); ok && f.Kind == wire.KindString {
+			return f.Str
+		}
+		return "?"
+	}
+	return wire.Errorf(wire.CodeUnsupportedVersion, "/",
+		"policy.json (profile %s, policyVersion %s) has keys this corvint-tasks build does not know (%s); a newer corvint-tasks likely wrote it, so upgrade this binary rather than repairing the store",
+		text("profile"), text("policyVersion"), strings.Join(unknown, ", "))
+}
+
 // DecodePolicy parses and validates policy.json (≤256 KiB) including the
 // §1 policy caps (max columns and min columns are rejected at load).
 func DecodePolicy(data []byte) (*Policy, error) {
@@ -410,9 +456,10 @@ func DecodePolicy(data []byte) (*Policy, error) {
 	if err := wire.ProfileVersion("/profile", v, ProfilePolicy); err != nil {
 		return nil, err
 	}
-	r.Closed(wire.OptionalKeys(v, []string{"profile", "policyVersion", "roles", "capacity", "budgets", "retries", "retention", "gates",
-		"serialFallback", "integrationRequiredKinds", "allowEmptyObligationsKinds", "reviewLane", "docsLane",
-		"cemRequired", "ocmRequired", "runtimes", "environment"}, "pools", "supervision", "externalReviews", "loopDetection", "progressSignal", "holderLiveness", "knowHow", "obligations", "milestones", "slots", "worktrees", "defects", "reservations", "ciEvidence")...)
+	if err := newerPolicyKeys(v); err != nil {
+		return nil, err
+	}
+	r.Closed(wire.OptionalKeys(v, policyRequiredKeys, policyOptionalKeys...)...)
 	if err := r.Err(); err != nil {
 		return nil, err
 	}

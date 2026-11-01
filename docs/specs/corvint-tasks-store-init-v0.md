@@ -329,6 +329,26 @@ on a fixture queue remain non-goals.
   ticket whose token differs only by leading zeros in that number (`QB-0001`); an exact token
   always wins. When two or more such tickets exist the read MUST refuse as not found and name each
   candidate. Non-goals: prefix or fuzzy matching. Rollback: revert; an unpadded token is not found.
+- `CTS-V0-990`: (accepted under the owner's standing lane auto-accept (2026-10-11), V1-3565)
+  `corvint-tasks init` MUST refuse, before it qualifies the filesystem or creates the state
+  directory, when the intent store lacks `queue.json` or `policy.json`. The refusal MUST carry
+  outcome `BLOCKED` in the store report, `REFUSED` at the CLI and code `UNINITIALIZED`, and a
+  reason naming the missing path and the step that creates it: copying the canonical template
+  from `internal/tasks/cli/testdata/external-agents/` per `docs/TASKS-EXTERNAL-AGENTS.md`
+  (CTS-V0-005). Init MUST NOT create either file: the operator authors and customizes them.
+  Rollback: revert the commit; init on a fresh repository fails `MALFORMED` with the bare `lstat`
+  warning again, and no state format changes.
+- `CTS-V0-991`: (accepted under the owner's standing lane auto-accept (2026-10-11), V1-3566) When
+  `policy.json` holds every key this binary requires but also a top-level key it does not know,
+  the decoder MUST refuse `UNSUPPORTED_VERSION` (not `MALFORMED`), naming the unknown keys, the
+  file's `profile` and `policyVersion`, and that a newer `corvint-tasks` likely wrote it. A
+  missing required key, with or without unknown ones, stays `MALFORMED`. Every Tasks envelope
+  whose codes include `UNSUPPORTED_VERSION` MUST add one warning naming this binary's
+  `version` (`<Version>+build.<Build>`, as `corvint-tasks version` prints it), so the operator
+  can compare builds across hosts. The refusing read MUST still write nothing. Non-goals:
+  nested unknown keys, which stay `MALFORMED`, and older binaries already released, which
+  keep their message. Rollback: revert the commit; an older binary's report of a newer policy
+  reads `MALFORMED` again, and no state format changes.
 
 ## Import export and batching
 
@@ -590,6 +610,8 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | CTS-V0-001 | `internal/tasks/store/store.go` (`Init`, `existingRecord`, `firstEntry`), `internal/tasks/cli/init.go` | TestCTSV0001_InitRefusesOverExistingRecords, TestCTSV0001_InitRefusesOverCommittedTickets |
+| CTS-V0-990 | `internal/tasks/store/store.go` (`Init`, `missingIntentFile`), `internal/tasks/cli/init.go` | TestCTSV0990_InitNamesMissingQueueAndPolicy |
+| CTS-V0-991 | `internal/tasks/intent/policy.go` (`DecodePolicy`, `newerPolicyKeys`), `internal/tasks/cli/cli.go` (`emit`, `binaryVersionWarning`) | TestCTSV0991_NewerPolicyKeyIsVersionSkew, TestCTSV0991_SkewEnvelopeNamesTheBinary |
 | CTS-V0-002 | `internal/tasks/cli/inventory.go` (`withInventoryStore`), `internal/tasks/cli/cli.go` | TestCTS002JournalAbsentReads, TestCTS002NoFallbackForExistingJournal, TestCTS002ProjectionRaces |
 | CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`), `internal/tasks/safeopen` | TestCTSV0004_InitThroughSymlinkedAncestor, TestCTSV0004_TraversalOnlyAncestors, TestTMV0001_AS10_DirectorySwapNoRedirectOrBlock |

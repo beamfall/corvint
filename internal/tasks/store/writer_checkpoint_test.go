@@ -755,8 +755,13 @@ func TestCALV0190_WriterRouteServesReplaysAndRefusals(t *testing.T) {
 			}
 			oracle := writerOracle(t, repo, tc.write)
 			sameDecision(t, run, oracle)
-			if run.rep.Ticket != oracle.rep.Ticket || run.rep.AttemptID != oracle.rep.AttemptID || run.rep.Generation != oracle.rep.Generation || run.rep.Detail != oracle.rep.Detail {
+			if run.rep.Ticket != oracle.rep.Ticket || run.rep.AttemptID != oracle.rep.AttemptID || run.rep.Generation != oracle.rep.Generation || run.rep.Detail != oracle.rep.Detail || run.rep.OriginalReceipt != oracle.rep.OriginalReceipt {
 				t.Fatalf("report %+v, complete route %+v", run.rep, oracle.rep)
+			}
+			// A mutation replay names its original receipt on both routes
+			// (TCL-V0-991).
+			if strings.HasSuffix(tc.name, "-request-replay") && run.rep.OriginalReceipt == "" {
+				t.Fatalf("writer-route replay names no original receipt: %+v", run.rep)
 			}
 			t.Logf("%s: %s %v %s", run.servedWithoutWrite(), run.rep.Kind, run.rep.Outcome.Codes, run.rep.Ticket)
 		})

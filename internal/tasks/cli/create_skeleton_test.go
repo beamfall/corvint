@@ -95,3 +95,59 @@ func TestTCTV0002_MalformedCreateNamesEveryKey(t *testing.T) {
 		t.Fatalf("non-object payload: %+v", arr.res)
 	}
 }
+
+// TestTCTV0990_TemplateFlagsTakeNoValue: --template and --skeleton are
+// switches; both accepted spellings print the template, and a valued
+// spelling is refused naming the flag and the payload's kind field
+// (TCT-V0-990, V1-3564).
+func TestTCTV0990_TemplateFlagsTakeNoValue(t *testing.T) {
+	r := receiptFixture(t)
+	for _, args := range [][]string{{"--template"}, {"--template", "--skeleton"}, {"--skeleton", "--template"}} {
+		x := atm(t, r.Root, nil, append([]string{"ticket", "create"}, args...)...)
+		if x.res.Outcome != wire.OutcomeOK || len(x.res.Items) != 1 {
+			t.Fatalf("%v: %+v", args, x.res)
+		}
+	}
+	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
+	for _, c := range []struct {
+		flag string
+		args []string
+	}{
+		{"--template", []string{"--template=bug"}},
+		{"--template", []string{"--template", "bug"}},
+		{"--skeleton", []string{"--template", "--skeleton=yes"}},
+		{"--skeleton", []string{"--template", "--skeleton", "bug"}},
+	} {
+		x := atm(t, r.Root, nil, append([]string{"ticket", "create"}, c.args...)...)
+		w := strings.Join(x.res.Warnings, " ")
+		if x.res.Outcome == wire.OutcomeOK || !strings.Contains(w, c.flag+" takes no value") || !strings.Contains(w, "kind field") || strings.Contains(w, "unknown flag") {
+			t.Fatalf("%v: %+v", c.args, x.res)
+		}
+	}
+	fixture.AssertUntouched(t, r, state, intents, "valued --template")
+}
+
+// TestTCTV0991_LongRequestIDNamesTheLimit: a --request-id over 64 bytes is
+// refused LIMIT_EXCEEDED naming the flag and the maximum, writing nothing; 64
+// bytes is accepted; help states the limit (TCT-V0-991, V1-3515).
+func TestTCTV0991_LongRequestIDNamesTheLimit(t *testing.T) {
+	r := receiptFixture(t)
+	sk := templateRun(t, r.Root, "--skeleton").Items[0]
+	sk.Obj.Set("title", wire.String("Long request id ticket"))
+	state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
+	long := strings.Repeat("r", wire.MaxRequestIDBytes+1)
+	x := atm(t, r.Root, wire.Encode(sk), "ticket", "create", "--request-id", long, "--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin")
+	w := strings.Join(x.res.Warnings, " ")
+	if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeLimitExceeded) || !strings.Contains(w, "--request-id is 65 bytes") || !strings.Contains(w, "at most 64 bytes") {
+		t.Fatalf("long request id: %+v", x.res)
+	}
+	fixture.AssertUntouched(t, r, state, intents, "long --request-id")
+	ok := atm(t, r.Root, wire.Encode(sk), "ticket", "create", "--request-id", long[:wire.MaxRequestIDBytes], "--issued-at", "2026-10-04T12:00:00Z", "--payload-stdin")
+	if ok.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("64-byte request id: %+v", ok.res)
+	}
+	help := atm(t, r.Root, nil, "ticket", "create", "--help", "--verbose")
+	if !strings.Contains(string(help.stdout), "at most 64 bytes") {
+		t.Fatalf("help does not state the limit: %s", help.stdout)
+	}
+}
