@@ -29,7 +29,9 @@ write_spec() {
   printf '# %s\n\n- `%s`: %s\n' "$1" "$2" "$3" > "$test_root/docs/specs/$1.md"
 }
 
-run() { (cd "$test_root" && script/gen-spec-requirements.sh); }
+# run [MODE ...] runs the generator in the fixture (run_root, by default test_root) with the given
+# mode arguments, none for the default tsv mode (ASD-V0-984, V1-3835).
+run() { (cd "${run_root:-$test_root}" && script/gen-spec-requirements.sh "$@"); }
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -481,7 +483,7 @@ stage docs/specs/dupa.md
 stage docs/specs/dupb.md
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
-  dup_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+  dup_err=$(run $mode 2>&1 > /dev/null) &&
     fail "mode '${mode:-tsv}' accepted a duplicate definition"
   for want in \
     'DUP-V0-001: defined more than once: docs/specs/dupa.md:1 docs/specs/dupb.md:1' \
@@ -883,7 +885,7 @@ printf '# Claimless\n\n## Agent digest\n- Status: proposed\n\n## Requirements\n\
 stage docs/specs/claimless.md
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
-  clm_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+  clm_err=$(run $mode 2>&1 > /dev/null) &&
     fail "mode '${mode:-tsv}' accepted a digest without a Claim"
   case $clm_err in
     *'docs/specs/claimless.md: its ## Agent digest has no `- Claim:` line'*'(SRG-V0-968)'*) ;;
@@ -1004,5 +1006,41 @@ case $lay_err in
   *'docs/specs/README.md is not in the Git index'*'minimal fixture layout is the comment at the top of script/gen-spec-requirements.sh, SRG-V0-743'*) ;;
   *) fail "the missing README refusal does not name the layout: $lay_err" ;;
 esac
+
+# ASD-V0-984 (V1-3835): run passes its mode through. The strict --check mode passes on files --write
+# just made and fails once a staged spec changes under them; --lines, like any read-only mode,
+# prints the staged definitions without writing a file. --write refuses the fixture specs earlier
+# cases leave unstaged, so the case runs in a clean fixture of one complete spec.
+run_root=$test_root/modes
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+cat > "$run_root/docs/specs/mode.md" <<'SPEC'
+# Mode spec
+
+Intent status: proposed
+Delivery status: not-started
+
+## Agent digest
+- Claim: Mode exercises the generator modes.
+
+- MODE-V0-001: The first clause.
+SPEC
+printf '[]\n' > "$run_root/docs/specs/INDEX.json"
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n' > "$run_root/docs/specs/README.md"
+git -C "$run_root" add -- docs/specs
+run --write > /dev/null || fail "run --write failed"
+# The generator reads the index, so the written files are staged and the next write is a fixed point.
+git -C "$run_root" add -- docs/specs
+run --write > /dev/null || fail "run --write failed"
+run --check > /dev/null 2>&1 || fail "run --check failed on the files --write made"
+printf -- '- MODE-V0-002: A clause added after the write.\n' >> "$run_root/docs/specs/mode.md"
+git -C "$run_root" add -- docs/specs/mode.md
+stale=$(run --check 2>&1) && fail "run --check passed on stale generated files"
+case $stale in *REQUIREMENTS.tsv*) ;; *) fail "run --check did not name the stale file: $stale" ;; esac
+before=$(git -C "$run_root" status --porcelain)
+run --lines | grep -q 'MODE-V0-002' || fail "run --lines did not print the staged definition"
+test "$(git -C "$run_root" status --porcelain)" = "$before" || fail "run --lines changed the worktree"
+run_root=
 
 printf 'ok\n'

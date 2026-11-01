@@ -1147,6 +1147,22 @@ HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
   fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-980 (V1-3888): a selected go test of several packages runs once with every package; a
+# failure exits with the command's status and the ASD-V0-940 cause line, never silently.
+# The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
+cp "$pol/bin/go" "$pol/go.keep"
+cp "$pol/sel.log" "$pol/sel.keep"
+printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "$STUB_GO_ARGS"\nexit "${STUB_GO_RC:-0}"\n' > "$pol/bin/go"
+: > "$pol/go.args"
+STUB_GO_ARGS=$pol/go.args HEAVY_WHOLE_REASON= pv go test -count=1 -run TestA ./x ./y > /dev/null 2> "$pol/err" ||
+  fail "heavy.sh refused a selected go test of two packages: $(cat "$pol/err")"
+[[ $(cat "$pol/go.args") == *"-run TestA ./x ./y" && $(wc -l < "$pol/go.args" | tr -d ' ') == 1 ]] ||
+  fail "heavy.sh did not pass both packages to one go test: $(cat "$pol/go.args")"
+STUB_GO_RC=1 STUB_GO_ARGS=$pol/go.args HEAVY_WHOLE_REASON= pv go test -count=1 -run TestA ./x ./y > /dev/null 2> "$pol/err"
+[[ $? == 1 && $(tail -n 1 "$pol/err") == 'heavy.sh: exit rc=1 cause=command cmd=go' ]] ||
+  fail "a failing two-package go test did not end with its cause line: $(cat "$pol/err")"
+/bin/mv -f "$pol/go.keep" "$pol/bin/go"
+/bin/mv -f "$pol/sel.keep" "$pol/sel.log"
 # ASD-V0-891 (V1-3397): a corvint test manifest of HEAD admits the packages it selects whole, and
 # --plan prints one heavy.sh command per unit.
 sel=$tmp/selection

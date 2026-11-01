@@ -3,7 +3,6 @@ package main
 
 import (
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"regexp"
 	"strconv"
@@ -46,10 +45,9 @@ func tempRootOnly(files []string, bodies [][]byte) ([]map[string]bool, error) {
 	for index := range exempt {
 		exempt[index] = map[string]bool{}
 	}
-	fileSet := token.NewFileSet()
 	parsed := make([]*ast.File, len(files))
 	for index, name := range files {
-		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution)
+		_, file, err := parseFile(name, bodies[index])
 		if err != nil {
 			return nil, err
 		}
@@ -483,8 +481,7 @@ func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
 	scan := tempRootScan{tokens: map[string][]string{}}
 	for index, name := range files {
 		marked[index] = map[string]bool{}
-		fileSet := token.NewFileSet()
-		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution|parser.ParseComments)
+		fileSet, file, err := parseFile(name, bodies[index])
 		if err != nil {
 			return nil, err
 		}

@@ -148,8 +148,7 @@ type finding struct {
 func rootLocator(files []string, bodies [][]byte, tokens [][]string) string {
 	scan := tempRootScan{tokens: map[string][]string{}}
 	for index, name := range files {
-		fileSet := token.NewFileSet()
-		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution)
+		fileSet, file, err := parseFile(name, bodies[index])
 		if err != nil {
 			continue
 		}
@@ -275,13 +274,39 @@ func covered(directory, target string, entries []string) bool {
 	return false
 }
 
+// parsedKey and parsedFile memoize parseFile: the check reads each test file
+// through several helpers, which used to parse it once each (ASD-V0-982).
+type parsedKey struct{ name, body string }
+
+type parsedFile struct {
+	fileSet *token.FileSet
+	file    *ast.File
+	err     error
+}
+
+var parsedFiles = map[parsedKey]parsedFile{}
+
+// parseFile parses body once per name and content, with comments, and returns
+// the same read-only syntax tree and the file set its positions belong to on
+// every later call. The check is single-threaded, so the memo needs no lock.
+func parseFile(name string, body []byte) (*token.FileSet, *ast.File, error) {
+	key := parsedKey{name, string(body)}
+	if hit, ok := parsedFiles[key]; ok {
+		return hit.fileSet, hit.file, hit.err
+	}
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, name, body, parser.SkipObjectResolution|parser.ParseComments)
+	parsedFiles[key] = parsedFile{fileSet, file, err}
+	return fileSet, file, err
+}
+
 // joinRuns returns, for every filepath.Join or path.Join call of a test file,
 // each run of two or more adjacent string-literal arguments joined with "/"
 // (V1-2117). filepath.Join(filepath.Dir(file), "..", "..", "protocol", "x")
 // yields "../../protocol/x", which named resolves against the package directory
 // (never from the root); a single literal is already a FilePathTokens token.
 func joinRuns(name string, body []byte) ([]string, error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseFile(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -330,8 +355,7 @@ func joinRuns(name string, body []byte) ([]string, error) {
 // (AFP-V0-981): the test tests the existence of a repository path it read from
 // data, which neither the read scope nor Landlock bounds.
 func statReaders(name string, body []byte) ([]string, error) {
-	fileSet := token.NewFileSet()
-	file, err := parser.ParseFile(fileSet, name, body, parser.SkipObjectResolution)
+	fileSet, file, err := parseFile(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +405,7 @@ func selectorPackage(selector *ast.SelectorExpr, ok bool) (string, bool) {
 // string-literal arguments after "list" that are "." or start with "./" or
 // "../". A listing with no such argument lists the package itself.
 func goListTargets(name string, body []byte) ([]string, error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseFile(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +476,7 @@ var goValueFlags = []string{
 // such as a variable or a file name, is a target the check cannot see. The
 // targets of a verb in goTestVerbs are returned apart, as tests.
 func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseFile(name, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -606,6 +630,10 @@ func stringLiteral(expression ast.Expr) (string, bool) {
 	return value, err == nil
 }
 
+// listedDependencies memoizes the output of each distinct go list command, so
+// test files that build the same targets list them once (ASD-V0-982).
+var listedDependencies = map[string][]byte{}
+
 // dependencyDirectories lists, relative to root, the directory of every
 // non-standard package that `go list -deps` of targets loads from inside root.
 // Those directories are what a confined `go list` must read. A target resolves
@@ -638,13 +666,19 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 	if test {
 		arguments = append(arguments, "-test")
 	}
-	command := exec.Command("go", append(arguments, resolved...)...)
-	command.Dir = root
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	out, err := command.Output()
-	if err != nil {
-		return nil, fmt.Errorf("%s: go list -deps %s: %w: %s", directory, strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
+	arguments = append(arguments, resolved...)
+	key := root + "\x00" + strings.Join(arguments, "\x00")
+	out, listed := listedDependencies[key]
+	if !listed {
+		command := exec.Command("go", arguments...)
+		command.Dir = root
+		var stderr bytes.Buffer
+		command.Stderr = &stderr
+		var err error
+		if out, err = command.Output(); err != nil {
+			return nil, fmt.Errorf("%s: go list -deps %s: %w: %s", directory, strings.Join(resolved, " "), err, strings.TrimSpace(stderr.String()))
+		}
+		listedDependencies[key] = out
 	}
 	// One directory per line: a directory may contain spaces, so splitting at
 	// whitespace would drop its fragments as outside the root.
@@ -717,6 +751,9 @@ func recordedAbove(recorded map[string]string, dependency string) (string, bool)
 // check returns the unrecorded findings and the recorded literals that no test
 // file names any more.
 func check(root string) ([]finding, []string, error) {
+	// The memos hold the reads of one run only, so a later run sees edited files.
+	clear(parsedFiles)
+	clear(listedDependencies)
 	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		return nil, nil, err

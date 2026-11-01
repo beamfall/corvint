@@ -16,6 +16,8 @@
 # host-wide counting semaphore, so concurrent lanes queue instead of thrashing the host
 # (ASD-V0-014, docs/LANE-ORCHESTRATION.md). A `go test`, `go vet` or `make windows-vet` command may
 # instead run on a configured remote Linux host (ASD-V0-028).
+# A go test may name several packages; they run as one command, and its failure ends with the
+# ASD-V0-940 cause line like any other (ASD-V0-980).
 #
 #   HEAVY_SLOTS     concurrent heavy commands admitted host-wide; default max(1, CPUs/4)
 #   HEAVY_P         Go build/test parallelism (-p) exported through GOFLAGS unless GOFLAGS already

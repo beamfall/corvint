@@ -190,6 +190,9 @@ for my $spec_ref (@spec_refs) {
                     ++$planned;
                     next;
                 }
+                # TTG-V0-917 (V1-4048): a word of the test-name shape that names no test, such as a fixture
+                # `TestLine`, is written with `(not a test)` right after it and is not checked or counted.
+                next if $after =~ /^`?[ \t]*\(not a test\)/;
                 # DCW-V0-356 (V1-2855): a wildcard such as `TestX_*` is never expanded; the refusal says
                 # so and names the declared functions it would have matched, so the row can list them.
                 if ($after =~ /^\*/) {

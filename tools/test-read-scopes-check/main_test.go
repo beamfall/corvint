@@ -512,3 +512,32 @@ func TestOwnPackageBuildNamesRemedies_V1_3658(t *testing.T) {
 		}
 	}
 }
+
+// TestASDV0982ParseFileAndGoListAreMemoizedPerRun pins ASD-V0-982: a test file
+// is parsed once per name and content, an edited body is parsed afresh, and the
+// next check run starts with empty memos.
+func TestASDV0982ParseFileAndGoListAreMemoizedPerRun(t *testing.T) {
+	clear(parsedFiles)
+	body := []byte("package p\n\nfunc f() {}\n")
+	_, first, err := parseFile("p_test.go", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, again, _ := parseFile("p_test.go", append([]byte(nil), body...)); again != first {
+		t.Fatal("the same name and content were parsed twice")
+	}
+	if _, edited, _ := parseFile("p_test.go", []byte("package p\n\nfunc g() {}\n")); edited == first {
+		t.Fatal("an edited body returned the earlier syntax tree")
+	}
+	listedDependencies["k"] = nil
+	root := repository(t, "", "")
+	if _, _, err := check(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := listedDependencies["k"]; ok {
+		t.Fatal("check kept the go list memo of an earlier run")
+	}
+	if _, ok := parsedFiles[parsedKey{"p_test.go", string(body)}]; ok {
+		t.Fatal("check kept the parse memo of an earlier run")
+	}
+}
