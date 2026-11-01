@@ -580,6 +580,9 @@ func Answer(tree Tree, args []string, root string, stdout io.Writer) (bool, erro
 			return false, nil
 		}
 		words = LeadingWords(args, nil)
+		if len(words) == 0 {
+			return false, nil
+		}
 	}
 	if len(words) == 0 {
 		_, err := io.WriteString(stdout, root)

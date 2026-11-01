@@ -400,7 +400,7 @@ func TestCAPV0931AnswerRoutesHelpOnly(t *testing.T) {
 			t.Fatalf("%v: handled=%t err=%v out=%q", args, handled, err, out.String())
 		}
 	}
-	for _, args := range [][]string{nil, {}, {"build", "--out", "x"}, {"build", "--", "--help"}, {"help-me"}} {
+	for _, args := range [][]string{nil, {}, {"build", "--out", "x"}, {"build", "--", "--help"}, {"help-me"}, {"--bogus", "--help"}} {
 		var out strings.Builder
 		if handled, err := Answer(tree, args, root, &out); handled || err != nil || out.Len() != 0 {
 			t.Fatalf("%v answered: handled=%t err=%v out=%q", args, handled, err, out.String())
