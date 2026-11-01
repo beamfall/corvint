@@ -532,13 +532,14 @@ drift_step() {
 }
 
 # doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
+# (the target line may carry a `## help` comment, V1-3734)
 # when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
 # (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
 # step (V1-3232: as one step its targets ran one after another).
 doc_gate_expansion() {
   awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; next }
-    /^doc-gates:[[:space:]]*$/ { on = 1; next }
+    /^doc-gates:[[:space:]]*(##.*)?$/ { on = 1; next }
     on && /^\t/ { recipe[++n] = $0; next }
     on { on = 0 }
     END {
