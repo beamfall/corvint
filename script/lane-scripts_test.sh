@@ -414,17 +414,19 @@ out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
 ok
 # V1-2552: an offload of packages holding darwin-only files says so, once on stderr and once in the
 # selection log, naming the count and first file; a package without any stays silent, and a
-# `//go:build darwin || linux` file is not darwin-only.
-mkdir -p "$off/lc/sub/mac" "$off/lc/sub/both"
+# `//go:build darwin || linux` file is not darwin-only. A stub uname keeps the host Linux, since a
+# Darwin host never offloads these (ASD-V0-934, below).
+mkdir -p "$off/lc/sub/mac" "$off/lc/sub/both" "$off/linux"
+printf '#!/bin/sh\necho Linux\n' > "$off/linux/uname" && chmod +x "$off/linux/uname" || fail "uname stub"
 printf 'package mac\n' > "$off/lc/sub/mac/a_darwin_test.go"
 printf '//go:build darwin && cgo\n\npackage mac\n' > "$off/lc/sub/mac/b.go"
 printf '//go:build darwin || linux\n\npackage both\n' > "$off/lc/sub/both/c.go"
-HEAVY_REMOTE_HOST=box hv go test -run X ./... > /dev/null 2> "$off/err"
+PATH=$off/linux:$PATH HEAVY_REMOTE_HOST=box hv go test -run X ./... > /dev/null 2> "$off/err"
 grep -qx 'heavy.sh: offloading to box, which neither builds nor runs 2 darwin-only file(s), first ./mac/a_darwin_test.go; HEAVY_REMOTE=0 with HEAVY_LOCAL_REASON runs them here' "$off/err" &&
   grep -qE '^[0-9TZ:-]+ darwin-only host=box n=2 first=\./mac/a_darwin_test\.go pwd=.*/lc/sub cmd=go test -run X \./\.\.\. script=' "$tmp/selection.log" ||
   fail "heavy.sh offloaded darwin-only files silently: $(cat "$off/err") $(tail -n 3 "$tmp/selection.log")"
-HEAVY_REMOTE_HOST=box hv go test -run X ./both ./mac/missing > /dev/null 2> "$off/err"
-HEAVY_REMOTE_HOST=box hv go test -run X . >> /dev/null 2>> "$off/err"
+PATH=$off/linux:$PATH HEAVY_REMOTE_HOST=box hv go test -run X ./both ./mac/missing > /dev/null 2> "$off/err"
+PATH=$off/linux:$PATH HEAVY_REMOTE_HOST=box hv go test -run X . >> /dev/null 2>> "$off/err"
 grep -q 'darwin-only' "$off/err" && fail "heavy.sh named darwin-only files outside the tested packages: $(cat "$off/err")"
 # ASD-V0-934: on a Darwin host (a stub uname) the same run never offloads; it runs here without
 # HEAVY_LOCAL_REASON and its admission is logged on stderr, in the fallback log and the selection log.
@@ -1236,12 +1238,14 @@ grep -Eq '^heavy.sh: slot 1/1 after [1-9]' "$pol/err" || fail "a foreign HEAVY_H
 ok
 # ASD-V0-930: the Makefile admits build, tasks-build, doc-gates, batch-precheck and dogfood-finish
 # through HEAVY_ADMIT, script/heavy.sh by default and empty under CI.
-adm() { (cd "$script/.." && env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory --eval 'heavy-admit-show: ; @printf "[%s]\n" "$(HEAVY_ADMIT)"' heavy-admit-show); }
+# The probe rule is read from stdin, not --eval, which GNU Make 3.81 (macOS) lacks.
+adm() { (cd "$script/.." && printf 'heavy-admit-show: ; @printf "[%%s]\\n" "$(HEAVY_ADMIT)"\n' |
+  env -u CI -u HEAVY_ADMIT "$@" make -s --no-print-directory -f Makefile -f - heavy-admit-show); }
 [[ $(adm) == '[script/heavy.sh --admit-only]' && $(adm CI=true) == '[]' && $(adm HEAVY_ADMIT=) == '[]' ]] || fail "HEAVY_ADMIT default: $(adm) $(adm CI=true)"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=WRAP build tasks-build batch-precheck dogfood-inputs-check dogfood-finish 2> /dev/null) > "$tmp/admit.out"
 (cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT=echo doc-gates 2> /dev/null) >> "$tmp/admit.out"
 [[ $(grep -c '^WRAP env GOCACHE=.* go build ' "$tmp/admit.out") == 2 ]] && grep -q '^WRAP script/batch-precheck.sh' "$tmp/admit.out" &&
-  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -q '^make --no-print-directory --keep-going ' "$tmp/admit.out" &&
+  [[ $(grep -c 'WRAP script/dogfood-finish.sh' "$tmp/admit.out") == 2 ]] && grep -Eq '^([^ ]*/)?make --no-print-directory --keep-going ' "$tmp/admit.out" &&
   grep -qx 'echo env GOTOOLCHAIN=local go run ./conformance/use-cases-v0' "$tmp/admit.out" ||
   fail "a heavy Makefile target is not admitted through HEAVY_ADMIT: $(cat "$tmp/admit.out")"
 ok
