@@ -117,7 +117,7 @@ The `archive` subcommand writes the witness best-effort: on failure it prints
 `release-artifact-v0 archive: private witness not recorded` to stderr and leaves the verdict
 unchanged (`conformance/release-artifact-v0/archive_cli.go:29`), and the archive gate test asserts
 that a witness failure does not relabel the verdict
-(`conformance/release-artifact-v0/archive_gate_test.go:206`). The witness is persistent private
+(`conformance/release-artifact-v0/archive_gate_test.go:204@cf6df7df`). The witness is persistent private
 state under the Git directory, so a failed write used to leave a witness for the same revision and
 tree from an earlier run for `archive-status` to read, and the script reported `PASS` on evidence
 the current run did not produce. The wrapper now removes any pre-existing witness before the build
