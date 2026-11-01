@@ -213,6 +213,16 @@ jobs:
           name: ${{ steps.row.outputs.cost }}
           path: ${{ runner.temp }}/forward-row/row.json
           if-no-files-found: ignore
+      - name: Retain the forward row's sample name (AFP-V0-984, advisory)
+        # A sampled pull-request run's row under a name that says whether a failed package fell
+        # outside the driver's selection, so the bar estimates the miss rate from names alone.
+        if: steps.row.outputs.sample != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.row.outputs.sample }}
+          path: ${{ runner.temp }}/forward-row/row.json
+          if-no-files-found: ignore
       - name: Count the epoch's latest rows against the shadow bar (V1-0811)
         if: always()
         continue-on-error: true

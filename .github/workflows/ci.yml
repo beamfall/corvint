@@ -431,6 +431,12 @@ jobs:
       # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
       # AFP-V0-098 superset rule records FULL on every batch.
       CORVINT_TEST_SHADOW_SOURCE: "93b9f5b08ce841875c9c81d17905908d91346f99"
+      # AFP-V0-984 (V1-3751): narrow.sh runs 1 in CORVINT_PR_SAMPLE_K pull-request runs that would
+      # narrow in full, chosen by the head commit and this seed, so the forward bar can estimate the
+      # narrowing miss rate. Empty K turns sampling off. Read only by narrow.sh of the
+      # CORVINT_PR_TOOL_SOURCE checkout, so it takes effect with a pin that carries it.
+      CORVINT_PR_SAMPLE_K: "10"
+      CORVINT_PR_SAMPLE_SEED: "3751"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
       # the 1.0 mint, so no earlier row counts toward the AFP-V0-029 bar. The first shadow
