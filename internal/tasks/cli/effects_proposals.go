@@ -103,6 +103,7 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 	var rows []wire.Value
 	human := []string{}
 	proposed := 0
+	byCoverage := map[string]int{}
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		root := rc.repo.PrimaryWorktree
 		for _, id := range rc.store.Inventory.Sorted() {
@@ -110,9 +111,13 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 				continue
 			}
 			rec, _ := rc.store.Inventory.Get(id)
-			if rec.Effects.Coverage != "UNKNOWN" {
+			// The population is the one the COVERAGE_UNKNOWN blocker names:
+			// every OPEN ticket whose coverage is not QUALIFIED, so UNKNOWN
+			// and INCOMPLETE alike (TLF-V0-742, V1-3957).
+			if rec.Effects.Coverage == "QUALIFIED" {
 				continue
 			}
+			byCoverage[rec.Effects.Coverage]++
 			sources := [][2]string{{"title", rec.Title}}
 			if rec.Body != nil {
 				sources = append(sources, [2]string{"body", *rec.Body})
@@ -125,6 +130,7 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 			o.Set("ticketId", wire.String(rec.TicketID.Raw))
 			o.Set("local", wire.String(rec.TicketID.Local))
 			o.Set("revision", wire.String(string(rec.Revision)))
+			o.Set("coverage", wire.String(rec.Effects.Coverage))
 			paths := make([]wire.Value, 0, len(props))
 			for _, p := range props {
 				paths = append(paths, wire.ObjectValue(wire.NewObject().Set("path", wire.String(p.path)).Set("source", wire.String(p.source)).Set("span", wire.String(p.span))))
@@ -149,8 +155,14 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 	o.Set("label", wire.String(labelProposal))
 	o.Set("ticketsScreened", count(len(rows)))
 	o.Set("ticketsProposed", count(proposed))
+	cov := wire.NewObject()
+	for _, c := range []string{"INCOMPLETE", "UNKNOWN"} {
+		cov.Set(c, count(byCoverage[c]))
+	}
+	o.Set("screenedByCoverage", wire.ObjectValue(cov))
 	o.Set("tickets", wire.Array(rows...))
-	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " UNKNOWN-coverage OPEN ticket(s) have a proposal; " + labelProposal}, human...)))
+	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " OPEN ticket(s) without QUALIFIED coverage (the COVERAGE_UNKNOWN blocker's population: " +
+		strconv.Itoa(byCoverage["UNKNOWN"]) + " UNKNOWN, " + strconv.Itoa(byCoverage["INCOMPLETE"]) + " INCOMPLETE) have a proposal; " + labelProposal}, human...)))
 	o.Set("mutationAuthority", wire.Bool(false))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{wire.ObjectValue(o)}

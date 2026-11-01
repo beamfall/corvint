@@ -25,6 +25,43 @@ func tlfUnknownTicket(t *testing.T, root, title, body, criterion string) string 
 	return field(x.res.Items[0], "ticketId").Str
 }
 
+// TestTLFV0742_ProposalsCoverTheBlockerPopulation pins V1-3957: an
+// INCOMPLETE OPEN ticket carries COVERAGE_UNKNOWN like an UNKNOWN one, so
+// effects-proposals screens both, names each row's coverage and counts them,
+// and its human line states the same population; a QUALIFIED ticket is
+// still not screened.
+func TestTLFV0742_ProposalsCoverTheBlockerPopulation(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, _ := ergStore(t)
+	unknown := tlfUnknownTicket(t, root, "unknown", "Nothing named", "it works")
+	payload := strings.NewReplacer(`"title":"Console ticket"`, `"title":"incomplete"`, `"coverage":"QUALIFIED"`, `"coverage":"INCOMPLETE"`).Replace(createPayloadJSON)
+	x := atm(t, root, nil, "ticket", "create", "--request-id", "create-incomplete", "--issued-at", "2026-10-31T12:00:00Z", "--payload", payload)
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("create incomplete: %s", x.stdout)
+	}
+	incomplete := field(x.res.Items[0], "ticketId").Str
+	tcdTicket(t, root, "qualified", "Touches nothing.")
+	screened := map[string]string{}
+	item := tlfProposals(t, root)
+	for _, r := range field(item, "tickets").Arr {
+		screened[field(r, "ticketId").Str] = field(r, "coverage").Str
+	}
+	byCoverage := field(item, "screenedByCoverage")
+	if len(screened) != 2 || screened[unknown] != "UNKNOWN" || screened[incomplete] != "INCOMPLETE" || field(item, "ticketsScreened").Str != "2" ||
+		field(byCoverage, "UNKNOWN").Str != "1" || field(byCoverage, "INCOMPLETE").Str != "1" {
+		t.Fatalf("population: %s", wire.Encode(item))
+	}
+	for _, id := range []string{unknown, incomplete} {
+		if show := atm(t, root, nil, "ticket", "show", id); !strings.Contains(string(show.stdout), "COVERAGE_UNKNOWN") {
+			t.Fatalf("%s is screened but the blocker does not name it: %s", id, show.stdout)
+		}
+	}
+	if h := field(item, "human").Arr[0].Str; !strings.Contains(h, "of 2 OPEN ticket(s) without QUALIFIED coverage") || !strings.Contains(h, "1 UNKNOWN, 1 INCOMPLETE") {
+		t.Fatalf("human line population: %s", h)
+	}
+}
+
 func tlfProposals(t *testing.T, root string) wire.Value {
 	t.Helper()
 	x := atm(t, root, nil, "ticket", "effects-proposals")
