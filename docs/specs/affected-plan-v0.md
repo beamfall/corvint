@@ -5363,8 +5363,12 @@ failing package, so selection misses are never counted.
   `ci-narrowing-*` records of each pull request's newest `pull_request` run of its merged head.
   (3) `mainmiss.jq` SHALL name a miss for each such pull request whose records include a
   `NARROWED` shard and whose `NARROWED` records' `skipped` packages hold a failed package of the
-  main run, as `{pr, head, runId, packages}`; a pull request without records, or whose records are
-  all `FULL`, is no miss. The job SHALL retain the result, `corvint-main-miss/0`, as
+  main run, as `{pr, head, runId, packages}`; a pull request whose readable run kept no
+  `ci-narrowing-*` record, or whose records are all `FULL`, is no miss. When any input is
+  unavailable (a merged pull request with no readable `pull_request` run, an unreadable artifact
+  list, a record that cannot be downloaded or read, or unreadable pull requests of a commit) the
+  job SHALL abstain: no row, and a summary line naming every unavailable input, since the
+  missing pull request could have skipped a failed package. The job SHALL retain the result, `corvint-main-miss/0`, as
   `ci-forward-MAINMISS-r<run>-<sha>-e<epoch>-n<misses>-pr<N>[_<N>...]` (pull request numbers
   ascending, at most 10 named) when it names at least one miss, and SHALL say in its summary why it
   wrote none otherwise. (4) `bar.jq` SHALL count the epoch's MAINMISS names (one per run; a re-run
@@ -5375,7 +5379,8 @@ failing package, so selection misses are never counted.
   AFP-V0-099 already classifies. Failure modes: a failure caused by a later direct push or a flake
   is still counted against every narrowed pull request that skipped the package (over-counting);
   an expired or unreadable artifact, more than 100 commits or 20 pull requests writes no row and
-  says so; a pull request merged without a `pull_request` run is not seen. Rollback: remove the
+  says so; a pull request merged without any `pull_request` run makes every such run abstain.
+  Rollback: remove the
   `main-miss` job, the `ci-failed-push` step, `mainmiss.sh`, `mainmiss.jq` and the MAINMISS
   lines of `bar.jq`.
 
@@ -5401,6 +5406,8 @@ gives that estimate with a confidence bound. Mutation-based measurement stays V1
   sampled, `failingOutside` being the row's failed packages, less its FLAKY ones, outside
   `selected`; `collect.sh` SHALL then write the step output `sample`, the name
   `ci-forward-SAMPLE-pr<N>-<head>-e<epoch>-k<k>-m<0|1>` (`m1` when `failingOutside` is non-empty),
+  `<head>` being the run's validated pull-request head, never the tested merge commit, so one head
+  tested against two bases is one sample,
   which the forward-rows job retains. (4) `bar.jq` SHALL count the epoch's SAMPLE names (one per
   pull request and head) and report the sampled runs, the misses, the estimated miss rate and its
   Wilson 95% upper bound, in its markdown and as `sampledMissRate` in its JSON form; the estimate is
