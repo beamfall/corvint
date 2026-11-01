@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-720: V1-3350. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -287,6 +287,19 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   Failure mode: a moving ref resolves to whatever it names at that call, which is why the receipt
   records the id. Rollback: drop `validBaseRevision` from `validBaseArgument`; the revision branch
   of `resolveBaseArgument` is then unreachable.
+- **TSP-V0-721:** (experimental, amending TSP-V0-002, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3355) The Go plugin SHALL treat each symlinked `.go` entry of a walked package
+  directory as one of that package's files: the link path is a `Sources` (or, for a `_test.go`
+  name, `Tests`) entry, the target's imports are the package's, and the package imports the
+  package of the target's directory, so a change to the target, to what it imports or to the link
+  itself selects the package and its dependents. A link whose target is not a regular `.go` file
+  inside the root, lies in a directory the go tool ignores or lies outside the package's module
+  SHALL add the unit frontier `go:symlinked-source-unattributed`, which bears wherever the unit is
+  reached. TSP-V0-002's build-constraint behavior is unchanged. Non-goals: a directory holding
+  only symlinked files (the walk lists no file there, so no unit exists); immutable tree sources,
+  whose walk already refuses links. Failure mode: a target in a nested module's directory gets an
+  edge under the linking module's path that no unit carries. Rollback: make `linkedSources`
+  return nil, false, and the links are dropped again.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -430,6 +443,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
 | TSP-V0-720 | `validBaseRevision`, `validBaseArgument` and `resolveBaseArgument` in `cmd/corvint/affected_abbrev_base.go`; their calls in `setAffectedBase` (`cmd/corvint/affected.go`) and `parseTestOptions` and `runTest` (`cmd/corvint/test.go`) | `TestTSPV0720BaseRevisionExpressionResolves` in `cmd/corvint/affected_abbrev_base_test.go` (`HEAD`, `HEAD^`, `HEAD~1`, a branch, `branch^{commit}` and `@` resolve and the affected receipt records the full id; an unknown ref, an out-of-range ancestor, a range, a leading `-`, a path and whitespace are refused; all-hex values are not expressions; `test --base HEAD~1 --dry-run` records the full id in its manifest and `test --base HEAD~9` exits 2); `TestAFPV0230AbbreviatedBaseAndTrailingRoot` and `TestAFPV0232AmbiguousAbbreviatedBase` unchanged |
+| TSP-V0-721 | `LinkTarget` in `internal/liveverify/affected/source.go`; `linkedSources`, `linkedImportPath`, `inModule` and their use in `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `FrontierSymlinkedSource` | `TestSymlinkedGoSourceIsAttributedToItsPackage_TSP_V0_721` in `internal/liveverify/affected/golang/golang_test.go` (the source and test links are the package's, it imports the target's package and the target's import, the link is owned by the package, and a dirty target, target import or link selects the package and its dependent but not an unrelated package, `BOUNDED`; without the link the target does not reach it; a link outside the root, dangling, to a non-Go file or into `testdata` names the frontier where the package is reached and not elsewhere); `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` unchanged |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
 | TSP-V0-950 | `readShellReadScopes` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` and their call in `internal/liveverify/affected/shell/shell.go`; `shellReadScopesChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; the `go:` filter in `tools/test-read-scopes-check/main.go` | `TestShellReadScopeDeclaration_TSP_V0_950` in `internal/liveverify/affected/shell/readscopes_test.go` (undeclared: the toolchain test is selected on an unrelated change; declared: it is not, the plan is `BOUNDED`, and a dirty declared entry or a file in its directory selects it; a test that also sources a dynamic path, one that sources a literal helper sourcing a dynamic path directly or two sources away, a non-toolchain test, a source script, an absent file, unsorted or empty reads, a `.git` entry, an empty or multi-line reason, a bad profile, an unknown member and unparsed JSON each name the invalid frontier and keep it unbounded; a dirty declaration is `UNKNOWN`) |
 | TSP-V0-951 | `.corvint/shell-read-scopes.json`; `.corvint/unbounded-readers.json`; the `shell:runs-toolchain` line in `tools/unbounded-readers/main.go` | `TestRepositoryShellReadScopes_TSP_V0_951` and `TestListedDirectoriesKeepSpaces_TSP_V0_951` in `internal/liveverify/affected/shell_readscopes_repo_test.go`; `TestRunsToolchainRefusalNamesTheUnitsEntry` in `tools/unbounded-readers/main_test.go` (an undeclared, unrecorded toolchain test still exits 1 and the line names the declaration) |
@@ -456,7 +470,7 @@ not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 No stored state depends on it. TSP-V0-950 and TSP-V0-951: delete `.corvint/shell-read-scopes.json` (a
 change that itself plans `UNKNOWN`) and restore the ratchet test's `units` and `reasons` entries in
 `.corvint/unbounded-readers.json`; every toolchain shell test is then an unbounded reader again.
-TSP-V0-720: drop `validBaseRevision` from `validBaseArgument`.
+TSP-V0-720: drop `validBaseRevision` from `validBaseArgument`. TSP-V0-721: make `linkedSources` return nil, false.
 TSP-V0-940: drop the `applyGatedLocators`
 call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
 declared package's dependents on every dirty path again, as before.
