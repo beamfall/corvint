@@ -34,6 +34,14 @@ const (
 	CodeMalformed           = "cem2-malformed"
 	CodeEvidenceUnresolved  = "cem2-evidence-unresolved"
 	CodeBoundExceeded       = "cem2-bound-exceeded"
+	CodeHunkIdentity        = "cem2-hunk-identity-mismatch"
+	CodeProjectionMismatch  = "cem2-projection-mismatch"
+)
+
+// Header bounds (CEM2-V0-010): the byte bound is checked before parsing.
+const (
+	MaxHeaderBytes   = 16 << 10
+	MaxHeaderEntries = 64
 )
 
 // Error is a typed prototype refusal or abstention.
@@ -217,6 +225,9 @@ func str(o *wire.Object, key string) string {
 // DecodeHeader parses and validates a header. An unknown critical entry and
 // a non-empty parents list are abstentions (CEM2-V0-007, CEM2-V0-018).
 func DecodeHeader(raw []byte) (Header, error) {
+	if len(raw) > MaxHeaderBytes {
+		return Header{}, fail(CodeBoundExceeded, "header is %d bytes; limit %d", len(raw), MaxHeaderBytes)
+	}
 	v, err := parseCanonical(raw, "header")
 	if err != nil {
 		return Header{}, err
@@ -239,6 +250,11 @@ func DecodeHeader(raw []byte) (Header, error) {
 	}
 	parents, _ := v.Obj.Get("parents")
 	critical, _ := v.Obj.Get("critical")
+	for name, list := range map[string]wire.Value{"parents": parents, "critical": critical} {
+		if len(list.Arr) > MaxHeaderEntries {
+			return Header{}, fail(CodeBoundExceeded, "header %s has %d entries; limit %d", name, len(list.Arr), MaxHeaderEntries)
+		}
+	}
 	if h.Parents, err = stringArray(parents, "header parents"); err != nil {
 		return Header{}, err
 	}

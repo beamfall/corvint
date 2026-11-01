@@ -1,6 +1,9 @@
 package cem2proto
 
 import (
+	"bytes"
+	"context"
+
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -41,6 +44,40 @@ func Encode(m *wire.StableMap, pinned bool) (header, body []byte, err error) {
 		return nil, nil, err
 	}
 	return header, body, nil
+}
+
+// EncodeChecked encodes m, projects the result against Git and refuses any
+// 1.0 input that the projection does not reproduce byte for byte
+// (CEM2-V0-019). Encode reads no Git, so it cannot see a forged hunk id or a
+// moved range, and projection would rebuild them silently.
+func EncodeChecked(ctx context.Context, src Source, target string, m *wire.StableMap, pinned bool) (header, body []byte, err error) {
+	header, body, err = Encode(m, pinned)
+	if err != nil {
+		return nil, nil, err
+	}
+	projected, err := Project(ctx, src, target, header, body)
+	if err != nil {
+		return nil, nil, err
+	}
+	original, err := wire.EncodeStable(m)
+	if err != nil {
+		return nil, nil, fail(CodeMalformed, "input is not a valid cem/1.0 map: %v", err)
+	}
+	if bytes.Equal(original, projected) {
+		return header, body, nil
+	}
+	rebuilt, err := wire.ParseStable(projected)
+	if err != nil {
+		return nil, nil, fail(CodeMalformed, "projection does not parse: %v", err)
+	}
+	// Project already refused a hunk-count mismatch, so the slices align.
+	for i, h := range m.Change.Hunks {
+		r := rebuilt.Change.Hunks[i]
+		if h.ID != r.ID || h.Path != r.Path || h.OldRange != r.OldRange || h.NewRange != r.NewRange {
+			return nil, nil, fail(CodeHunkIdentity, "hunk %d: input %s %s %v %v; patch %s %s %v %v", i, h.ID, h.Path, h.OldRange, h.NewRange, r.ID, r.Path, r.OldRange, r.NewRange)
+		}
+	}
+	return nil, nil, fail(CodeProjectionMismatch, "the projection differs from the input map")
 }
 
 func encodeBody(m *wire.StableMap, pinned bool) (Body, error) {

@@ -228,6 +228,85 @@ func TestCEM2V0010BoundsRefusedBeforeGit(t *testing.T) {
 
 // CEM2-V0-019: derived mode cannot carry a forged evidence id, span hash,
 // hunk range or hunk id; the projection recomputes each from Git.
+func TestCEM2V0010HeaderBoundsRefusedBeforeGit(t *testing.T) {
+	f := newFixture(t, nil)
+	header, body := f.encode(t, false)
+	entries := make([]string, MaxHeaderEntries+1)
+	for i := range entries {
+		entries[i] = "x"
+	}
+	for name, edit := range map[string]func(*Header){
+		"parents entries":  func(h *Header) { h.Parents = entries },
+		"critical entries": func(h *Header) { h.Critical = entries },
+		"parents bytes":    func(h *Header) { h.Parents = []string{strings.Repeat("p", MaxHeaderBytes)} },
+		"critical bytes":   func(h *Header) { h.Critical = []string{strings.Repeat("c", MaxHeaderBytes)} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			h, err := DecodeHeader(header)
+			if err != nil {
+				t.Fatal(err)
+			}
+			edit(&h)
+			oversized, err := EncodeHeader(h)
+			if err != nil {
+				t.Fatal(err)
+			}
+			refuse(t, f, oversized, body, CodeBoundExceeded, true)
+		})
+	}
+	// At the entry bound an unknown critical entry is still an abstention.
+	h, _ := DecodeHeader(header)
+	h.Critical = entries[:MaxHeaderEntries]
+	atBound, _ := EncodeHeader(h)
+	refuse(t, f, atBound, body, CodeUnsupportedCritical, true)
+}
+
+func TestCEM2V0019CheckedEncodeRefusesForgedInput(t *testing.T) {
+	f := newFixture(t, nil)
+	ctx := context.Background()
+	for _, pinned := range []bool{false, true} {
+		if _, _, err := EncodeChecked(ctx, mustSource(t, f.root), f.target, f.stable, pinned); err != nil {
+			t.Fatalf("pinned=%v: a faithful map must encode: %v", pinned, err)
+		}
+	}
+	forgedSpan := func(m *wire.StableMap) {
+		e := &m.Change.Evidence[0]
+		e.SpanSha256 = strings.Repeat("0", 64)
+		e.ID = wire.EvidenceIdentity(e.BlobOid, e.Path, e.Span, e.SpanSha256)
+		for i := range m.Change.Hunks {
+			for j := range m.Change.Hunks[i].Basis {
+				if m.Change.Hunks[i].Basis[j].EvidenceID == f.stable.Change.Evidence[0].ID {
+					m.Change.Hunks[i].Basis[j].EvidenceID = e.ID
+				}
+			}
+		}
+	}
+	for _, c := range []struct {
+		name   string
+		pinned bool
+		mutate func(*wire.StableMap)
+		code   string
+	}{
+		{"moved hunk range, derived", false, func(m *wire.StableMap) { m.Change.Hunks[2].NewRange.Start += 3 }, CodeHunkIdentity},
+		{"moved hunk range, pinned", true, func(m *wire.StableMap) { m.Change.Hunks[2].NewRange.Start += 3 }, CodeHunkIdentity},
+		{"forged hunk id, derived", false, func(m *wire.StableMap) { m.Change.Hunks[2].ID = "hunk:sha256:" + strings.Repeat("0", 64) }, CodeHunkIdentity},
+		{"forged hunk id, pinned", true, func(m *wire.StableMap) { m.Change.Hunks[2].ID = "hunk:sha256:" + strings.Repeat("0", 64) }, CodeHunkIdentity},
+		{"forged span hash, derived", false, forgedSpan, CodeProjectionMismatch},
+		{"forged span hash, pinned", true, forgedSpan, CodePinnedMismatch},
+		{"forged evidence id, pinned", true, func(m *wire.StableMap) { m.Change.Evidence[0].ID = "evidence:sha256:" + strings.Repeat("0", 64) }, CodeUnsupported},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			m := cloneMap(f.stable)
+			c.mutate(m)
+			header, body, err := EncodeChecked(ctx, mustSource(t, f.root), f.target, m, c.pinned)
+			if header != nil || body != nil {
+				t.Fatal("a refused input produced 2.0 bytes")
+			}
+			wantCode(t, err, c.code)
+		})
+	}
+}
+
 func TestCEM2V0019DerivedVectorsAreUnrepresentable(t *testing.T) {
 	f := newFixture(t, nil)
 	for name, mutate := range map[string]func(*wire.StableMap){
