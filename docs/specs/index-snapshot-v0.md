@@ -1098,8 +1098,10 @@ Traceability: `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMa
   `script/dogfood-finish.sh` (`make dogfood-closeout`, `dogfood-finish`, `dogfood-inputs-check`)
   MUST, when the static check notes a changed analyzer input or fails, run `check --output --base
   BASE` before any build, prepare or bind and refuse as `REFUSE analyzer-schema-stale` with a `fix:`
-  line naming the bump; `script/dogfood-change.sh` MUST print the static check's note as
-  `dogfood-change: NOTE analyzer-schema: ...` at change start. `script/batch-regen.sh` bumps when
+  line naming the bump; `script/dogfood-change.sh` MUST print, at change start, `dogfood-change:
+  NOTE analyzer-schema: N analyzer input(s) changed since BASE, first PATH: ...` from
+  `script/analyzer-inputs.sh BASE`, the one lister of changed audited inputs, which the static
+  check also uses and which runs no test, so `dogfood-change.sh` does not reach `script/heavy.sh`. `script/batch-regen.sh` bumps when
   `check --output` fails. Non-goals: adding the analyzer tests to `corvint test` selection. Failure
   mode: a repository without the analyzer schema files skips both steps.
 - `IDX-SNAP-V0-892`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2356) The
