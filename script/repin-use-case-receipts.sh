@@ -13,6 +13,7 @@ set -eu
 #
 #   script/repin-use-case-receipts.sh           repin every stale receipt and report each one
 #   script/repin-use-case-receipts.sh --check   list stale receipts; exit 1 if any, write nothing
+#   script/repin-use-case-receipts.sh --merged  also adopt a receipt git holds after a merge
 #   ... [--changed PATH...]                     take the changed paths from the arguments
 #
 # It refuses, writing nothing, when a receipt or subject is missing, when a receipt's bytes do not
@@ -22,6 +23,14 @@ set -eu
 # A receipt that left its ledger pin is refused with the exact `git restore --source=REV` and
 # repin command when a recent commit holds the pinned bytes (UCV0-019).
 #
+# --merged (ASD-V0-917, V1-3936) is the integrator's step after merging lanes, and the batch-regen
+# full run's use-case-receipts step: a receipt whose bytes left its ledger pin is adopted, not
+# refused, when its worktree bytes equal its index blob, that is when git holds them (a merge
+# result, committed or staged) rather than an unstaged edit. Its ledger pin is then rewritten to
+# its bytes, after its subjects are repinned, and it is listed as "adopted". Two lanes that each
+# repinned one receipt merge, through script/merge-use-case-pins.sh, to ours' pins, which this
+# mode recomputes from the merged subjects. An unstaged receipt edit is still refused.
+#
 # It also lists, for information only, each changed path that no receipt pins (UCV0-018): the
 # paths `git diff --name-only HEAD` names, or the `--changed` paths. "All receipts current" says
 # nothing about such a path, for example help text no receipt covers. The listing never changes
@@ -30,12 +39,13 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-usage() { printf 'usage: %s [--check] [--changed PATH...]\n' "$0" >&2; exit 64; }
+usage() { printf 'usage: %s [--check | --merged] [--changed PATH...]\n' "$0" >&2; exit 64; }
 mode=write
 source=diff
 while [ $# -gt 0 ]; do
     case $1 in
     --check) [ "$mode" = write ] || usage; mode=check; shift ;;
+    --merged) [ "$mode" = write ] || usage; mode=merged; shift ;;
     --changed) source=args; shift; break ;;
     *) usage ;;
     esac
@@ -105,11 +115,23 @@ sub pinned_recovery {
         . "then restore the receipt or record the change by hand";
 }
 
+# index_blob returns the bytes git holds for a path in the index, or undef when it has none.
+sub index_blob {
+    my ($path) = @_;
+    open my $blob, '-|', 'git', 'cat-file', 'blob', ":$path" or return undef;
+    binmode $blob;
+    local $/;
+    my $bytes = <$blob>;
+    close $blob or return undef;
+    return $bytes;
+}
+
 my $ledger_raw = slurp($ledger_path) // die "repin: $ledger_path is missing\n";
 my $ledger = JSON::PP->new->decode($ledger_raw);
 
 my @refusals;
 my @stale;    # [receipt path, pinned receipt digest, receipt raw, [[subject, old, new], ...]]
+my %adopted;  # --merged: receipts whose git-held bytes left their ledger pin
 my $receipt_count = 0;
 my %pinned = ($ledger_path => 1);    # the ledger, every receipt, subject and clause-extract spec
 for my $row (@{ $ledger->{useCases} }) {
@@ -123,7 +145,11 @@ for my $row (@{ $ledger->{useCases} }) {
             push @refusals, "$path: receipt is missing";
             next;
         }
-        if (sha256_hex($raw) ne $ref->{sha256}) {
+        if (sha256_hex($raw) ne $ref->{sha256} && $mode eq 'merged'
+            && defined(my $held = index_blob($path))) {
+            $adopted{$path} = 1 if $held eq $raw;
+        }
+        if (sha256_hex($raw) ne $ref->{sha256} && !$adopted{$path}) {
             push @refusals, "$path: receipt bytes do not match the ledger pin (hand edit?)\n    "
                 . pinned_recovery($path, $ref->{sha256});
             next;
@@ -145,7 +171,7 @@ for my $row (@{ $ledger->{useCases} }) {
             my $digest = sha256_hex($bytes);
             push @changed, [$subject->{path}, $subject->{sha256}, $digest] if $digest ne $subject->{sha256};
         }
-        push @stale, [$path, $ref->{sha256}, $raw, \@changed] if @changed;
+        push @stale, [$path, $ref->{sha256}, $raw, \@changed] if @changed || $adopted{$path};
     }
 }
 
@@ -203,6 +229,7 @@ my $verb = $mode eq 'check' ? 'stale' : 'repinned';
 for my $entry (@stale) {
     my ($path, undef, undef, $changed) = @$entry;
     print "$verb $path\n";
+    print "  adopted the merged receipt bytes (--merged)\n" if $adopted{$path};
     print "  subject $_->[0]\n" for @$changed;
 }
 

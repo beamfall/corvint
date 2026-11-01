@@ -1,3 +1,7 @@
 * -text
 # Parallel decision rows union-merge; check-decision-numbers fails closed on a duplicate or missing row (DNG-V0-009).
 docs/decisions/README.md merge=union
+# Two lanes' repins of one use-case receipt merge to ours' pins, which the batch-regen
+# use-case-receipts step recomputes (ASD-V0-917); install: see script/merge-use-case-pins.sh.
+conformance/use-cases-v0/ledger.json merge=use-case-pins
+conformance/use-cases-v0/receipts/** merge=use-case-pins

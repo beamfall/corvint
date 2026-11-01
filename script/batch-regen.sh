@@ -89,6 +89,10 @@ changed_citations() { script/check-line-citations.sh --repin --changed --base "$
 
 receipts() { script/repin-use-case-receipts.sh; }
 
+# merged_receipts: ASD-V0-917 (V1-3936). The full run follows lane merges, so it also adopts a
+# receipt the merge left off its ledger pin; --mechanical keeps the plain repin.
+merged_receipts() { script/repin-use-case-receipts.sh --merged; }
+
 # Steps as "name<TAB>command"; BATCH_REGEN_STEPS replaces them (tests).
 STEPS=(
   "spec-requirements	make -s spec-requirements"
@@ -98,7 +102,7 @@ STEPS=(
   "goldens	goldens"
   "host-package-versions	host_packages"
   "line-citations	changed_citations"
-  "use-case-receipts	receipts"
+  "use-case-receipts	merged_receipts"
 )
 MECHANICAL=(
   "host-package-versions	host_packages"

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Nine cases, on a fixture repository with one receipt pinning one subject: a current tree
+# Ten cases, on a fixture repository with one receipt pinning one subject: a current tree
 # passes --check; a changed unpinned path passes --check and is listed as unpinned (UCV0-018);
 # a changed subject fails --check with the receipt named and nothing written, and only the
 # unpinned path is listed; --changed replaces the worktree diff;
@@ -9,6 +9,10 @@ set -eu
 # a missing subject and a hand-edited receipt are each refused with nothing written; a receipt
 # that left its ledger pin names the commit holding the pinned bytes and the exact restore and
 # repin command, shell-quoted, or asks for review when no recent commit holds them (UCV0-019).
+# Case 10 (ASD-V0-917, V1-3936), on a second fixture: two lanes that each repinned one receipt
+# conflict under a plain merge, merge with no conflict through script/merge-use-case-pins.sh, and
+# --merged recomputes the pins from the merged tree so --check passes with no hand repin; the
+# driver leaves a non-pin conflict conflicted and --merged still refuses an unstaged receipt edit.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-repin-receipts-test.XXXXXX")
@@ -127,4 +131,72 @@ if output=$(run); then fail "an unpinned receipt was repinned"; fi
 case $output in *"no commit among the last 50"*"review the edit"*) ;; *) fail "no-history refusal: $output" ;; esac
 case $output in *"git restore"*) fail "a restore was named with no pinned commit: $output" ;; esac
 
-printf 'repin-use-case-receipts_test: 9 cases passed\n'
+# 10. Two lanes' repins of one receipt merge with no manual conflict (ASD-V0-917, V1-3936).
+two="$test_root/two"
+mkdir -p "$two/script" "$two/conformance/use-cases-v0/receipts" "$two/docs"
+cp "$source_root/script/repin-use-case-receipts.sh" "$source_root/script/merge-use-case-pins.sh" "$two/script/"
+cp "$source_root/.gitattributes" "$two/"
+sha2() { perl -MDigest::SHA=sha256_hex -0777 -ne 'print sha256_hex($_)' "$two/$1"; }
+run2() { (cd "$two" && script/repin-use-case-receipts.sh "$@" 2>&1); }
+git2() { git -C "$two" "$@"; }
+printf 'a v1\n' > "$two/docs/a.md"
+printf 'b v1\n' > "$two/docs/b.md"
+cat > "$two/conformance/use-cases-v0/receipts/pair.json" <<EOF
+{
+  "repositoryRevision": "0000000000000000000000000000000000000000",
+  "subjects": [
+    {
+      "path": "docs/a.md",
+      "sha256": "$(sha2 docs/a.md)"
+    },
+    {
+      "path": "docs/b.md",
+      "sha256": "$(sha2 docs/b.md)"
+    }
+  ]
+}
+EOF
+cat > "$two/conformance/use-cases-v0/ledger.json" <<EOF
+{
+  "evidenceClasses": ["contract"],
+  "useCases": [
+    {"evidence": {"contract": {"path": "conformance/use-cases-v0/receipts/pair.json", "sha256": "$(sha2 conformance/use-cases-v0/receipts/pair.json)"}}, "id": "UC-P"}
+  ]
+}
+EOF
+git2 init -q
+git2 config user.email fixture@example.test
+git2 config user.name Fixture
+git2 add -A
+git2 commit -qm base
+git2 branch -q lane-b
+printf 'a v2\n' > "$two/docs/a.md"
+run2 > /dev/null || fail "lane a repin failed"
+git2 commit -qam 'lane a'
+git2 checkout -q lane-b
+printf 'b v2\n' > "$two/docs/b.md"
+run2 > /dev/null || fail "lane b repin failed"
+git2 commit -qam 'lane b'
+git2 checkout -q -
+if git2 merge -q --no-edit lane-b > /dev/null 2>&1; then fail "a plain merge of two repins did not conflict"; fi
+git2 merge --abort
+git2 config merge.use-case-pins.driver 'script/merge-use-case-pins.sh %O %A %B %L'
+git2 merge -q --no-edit lane-b > /dev/null 2>&1 || fail "the pin driver left the two repins conflicted"
+if run2 --check > /dev/null; then fail "the merged ours pins passed --check before --merged"; fi
+output=$(run2 --merged) || fail "--merged failed on the merged tree: $output"
+output=$(run2 --check) || fail "--merged left a stale tree: $output"
+git2 commit -qam regen
+# The driver resolves only digest-only hunks: a changed subject path stays conflicted.
+printf '{\n  "path": "docs/a.md",\n  "sha256": "%s"\n}\n' "$(sha2 docs/a.md)" > "$test_root/base.json"
+sed 's/docs\/a.md/docs\/c.md/' "$test_root/base.json" > "$test_root/ours.json"
+sed 's/docs\/a.md/docs\/d.md/' "$test_root/base.json" > "$test_root/theirs.json"
+if (cd "$two" && script/merge-use-case-pins.sh "$test_root/base.json" "$test_root/ours.json" "$test_root/theirs.json" 7); then
+    fail "the pin driver resolved a non-pin conflict"
+fi
+grep -q '^<<<<<<< ours' "$test_root/ours.json" || fail "the non-pin conflict lost its markers"
+# --merged adopts only bytes git holds: an unstaged receipt edit is still refused.
+perl -0pi -e 's/\n\z/\n\n/' "$two/conformance/use-cases-v0/receipts/pair.json"
+if output=$(run2 --merged); then fail "--merged adopted an unstaged receipt edit"; fi
+case $output in *"hand edit?"*) ;; *) fail "unstaged edit refusal: $output" ;; esac
+
+printf 'repin-use-case-receipts_test: 10 cases passed\n'
