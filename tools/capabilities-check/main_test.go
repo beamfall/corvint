@@ -157,7 +157,7 @@ func TestCAPV0780NewCommandNamesEveryArtifact(t *testing.T) {
 			bin = f.String()
 		}
 	}
-	for _, want := range []string{"docs/CAPABILITIES.md", "README", "make capability-catalog", "script/repin-use-case-receipts.sh"} {
+	for _, want := range []string{"docs/CAPABILITIES.md", "README", "make capability-catalog", "script/repin-use-case-receipts.sh"} { //corvint:fixture-path
 		if !strings.Contains(cmd, want) {
 			t.Errorf("missing-command finding does not name %q: %q", want, cmd)
 		}
