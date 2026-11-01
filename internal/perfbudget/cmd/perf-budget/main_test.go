@@ -280,7 +280,30 @@ func TestPRBV0971RecordBaselineFromReport(t *testing.T) {
 	contended.Verdict, contended.NotJudgedReason, contended.OK = perfbudget.RunNotJudged, "host contended", false
 	smoke := judgedReport(t, budgets, nil)
 	smoke.Fixture.Scale = perfbudget.Smoke
+	mutate := func(name string, change func(*perfbudget.Report)) string {
+		r := judgedReport(t, budgets, nil)
+		change(r)
+		return write(name+".json", r, "")
+	}
+	schemaOnly := filepath.Join(dir, "schema-only.json")
+	if err := os.WriteFile(schemaOnly, []byte(`{"schema":"`+perfbudget.ReportSchema+`","fixture":{"scale":{"name":"full"}}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	for name, report := range map[string]string{
+		"schema only":       schemaOnly,
+		"no revision":       mutate("no-revision", func(r *perfbudget.Report) { r.Revision = "" }),
+		"dirty revision":    mutate("dirty", func(r *perfbudget.Report) { r.Revision += "+dirty" }),
+		"no start":          mutate("no-start", func(r *perfbudget.Report) { r.StartedAt = "" }),
+		"no builder":        mutate("no-builder", func(r *perfbudget.Report) { r.Fixture.BuilderSHA256 = "" }),
+		"unobserved host":   mutate("unobserved", func(r *perfbudget.Report) { r.Host = perfbudget.Host{Cores: 4} }),
+		"missing scenario":  mutate("missing", func(r *perfbudget.Report) { r.Scenarios = r.Scenarios[1:] }),
+		"repeated scenario": mutate("repeated", func(r *perfbudget.Report) { r.Scenarios = append(r.Scenarios, r.Scenarios[0]) }),
+		"unmeasured":        mutate("unmeasured", func(r *perfbudget.Report) { r.Scenarios[2].Samples, r.Scenarios[2].P50WallMS = nil, nil }),
+		"selected mismatch": mutate("selected", func(r *perfbudget.Report) { r.Selected = []string{"cli-warm-read"} }),
+		"selected repeated": mutate("selected-repeated", func(r *perfbudget.Report) {
+			r.Selected = []string{"cli-warm-read", "cli-warm-read"}
+			r.Scenarios = r.Scenarios[1:2]
+		}),
 		"contended": write("contended.json", contended, "\n"),
 		"trailing":  write("trailing.json", judgedReport(t, budgets, nil), "}"),
 		"scale":     write("smoke.json", smoke, ""),

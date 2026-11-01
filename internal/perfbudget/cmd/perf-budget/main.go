@@ -34,6 +34,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/perfbudget"
@@ -296,5 +297,68 @@ func readReport(path string) (*perfbudget.Report, error) {
 	if report.Schema != perfbudget.ReportSchema {
 		return nil, fmt.Errorf("report %s has schema %q, want %q", path, report.Schema, perfbudget.ReportSchema)
 	}
+	if err := recordableReport(&report); err != nil {
+		return nil, fmt.Errorf("baseline not recorded: report %s %w", path, err)
+	}
 	return &report, nil
+}
+
+// recordableReport refuses a report another run wrote unless it carries everything a baseline
+// attributes and judges by: a clean revision and start time, the fixture and the executable that
+// built it, a judged uncontended host, a PASS or FAIL verdict, and exactly the ScenarioIDs (or,
+// for a filtered run, exactly its distinct selected ones in report order), each measured
+// (PRB-V0-971).
+func recordableReport(report *perfbudget.Report) error {
+	switch {
+	case !lowerHex(report.Revision, 40):
+		return fmt.Errorf("names no clean 40-hex revision (%q)", report.Revision)
+	case !rfc3339(report.StartedAt):
+		return fmt.Errorf("names no RFC 3339 start time (%q)", report.StartedAt)
+	case report.Fixture == nil || !lowerHex(report.Fixture.BuilderSHA256, 64):
+		return errors.New("names no fixture built by a known executable SHA-256")
+	case report.Host.Cores < 1 || report.Host.Contended == nil || report.Host.NotJudgedReason() != "":
+		return fmt.Errorf("was not run on a judged, uncontended host (%s)", report.Host.NotJudgedReason())
+	case report.Verdict != perfbudget.RunPass && report.Verdict != perfbudget.RunFail || report.NotJudgedReason != "":
+		return fmt.Errorf("has verdict %q, not a judged PASS or FAIL", report.Verdict)
+	}
+	want := perfbudget.ScenarioIDs
+	if len(report.Selected) != 0 {
+		want = nil
+		for _, id := range perfbudget.ScenarioIDs {
+			if slices.Contains(report.Selected, id) {
+				want = append(want, id)
+			}
+		}
+		if len(want) != len(report.Selected) {
+			return fmt.Errorf("selects unknown or repeated scenarios %v", report.Selected)
+		}
+	}
+	got := make([]string, 0, len(report.Scenarios))
+	for _, m := range report.Scenarios {
+		got = append(got, m.ID)
+		if m.Error != "" || len(m.Samples) == 0 || m.P50WallMS == nil || m.P95WallMS == nil {
+			return fmt.Errorf("did not measure scenario %s", m.ID)
+		}
+	}
+	if !slices.Equal(got, want) {
+		return fmt.Errorf("measured scenarios %v, want exactly %v", got, want)
+	}
+	return nil
+}
+
+func lowerHex(s string, length int) bool {
+	if len(s) != length {
+		return false
+	}
+	for _, c := range s {
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func rfc3339(s string) bool {
+	_, err := time.Parse(time.RFC3339, s)
+	return err == nil
 }
