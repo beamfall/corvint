@@ -1,6 +1,8 @@
 BASE ?= main
 DOGFOOD_GOCACHE := $(or $(CORVINT_GOCACHE),$(GOCACHE),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache)
-CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache
+# ASD-V0-914 (V1-3796): the default cache sits under TMPDIR (trailing slash dropped), else /tmp, so a
+# lane that points TMPDIR at a roomy scratch volume does not fill a small /tmp.
+CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache
 CORVINT_BIN ?= corvint
 .DEFAULT_GOAL := gate
 # GO_TEST_TIMEOUT is the per-package hang detector, not a performance budget (decision 0082).
