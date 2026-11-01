@@ -1020,9 +1020,10 @@ func playwrightInheritedUse(scope playwrightPureScope, global, raw string) (brow
 	if localUnmodelled.why != "" {
 		unmodelled = localUnmodelled
 	}
-	if browser == "" && device != "" {
+	// TJAA-V0-601: an unmodelled device, the empty name included, decides the browser only when
+	// no layer names one; it never falls back to an invented chromium.
+	if browser == "" && (device != "" || unmodelled.why != "") {
 		browser = playwrightDeviceBrowser(device)
-		// TJAA-V0-601: an unmodelled device decides the browser only when no layer names one.
 		if ok && browser == "" {
 			return "", "", "", false, unmodelled, nil
 		}

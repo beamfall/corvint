@@ -1,9 +1,11 @@
 package appmap
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -86,5 +88,31 @@ func TestAMAPV0601CoverageReport_V12770(t *testing.T) {
 
 	if doc = v12770Project(t, &Map{App: "empty"}); len(doc.Modules) != 0 || doc.Total != 0 {
 		t.Fatalf("empty map: %+v", doc)
+	}
+}
+
+// AMAP-V0-601: the report is computed from the map bytes alone, so the same map gives identical
+// output from two checkouts whose HEADs differ.
+func TestAMAPV0601CoverageIgnoresCheckout(t *testing.T) {
+	var outputs [2][]byte
+	for i := range outputs {
+		root := t.TempDir()
+		gitTest(t, root, "init", "-q")
+		appendLine(t, root, "README", strings.Repeat("x", i+1))
+		commitAll(t, root, "seed")
+		raw, err := ProjectCoverage(context.Background(), v12770Map(), Options{Root: root})
+		if err != nil {
+			t.Fatal(err)
+		}
+		outputs[i] = raw
+	}
+	if !bytes.Equal(outputs[0], outputs[1]) {
+		t.Fatalf("checkout changed the report:\n%s\n%s", outputs[0], outputs[1])
+	}
+	var head struct {
+		Evaluated string `json:"evaluated_revision"`
+	}
+	if err := json.Unmarshal(outputs[0], &head); err != nil || head.Evaluated != "NOT_READ" {
+		t.Fatalf("evaluated_revision %q: %v", head.Evaluated, err)
 	}
 }

@@ -275,7 +275,7 @@ func TestAMAPV0215BuilderVersionForcesRebuild(t *testing.T) {
 	appendLine(t, root, "assets/logo.png", "px")
 	head := commitAll(t, root, "asset")
 	want := build(t, root, head)
-	for _, builder := range []string{"", "appmap-builder/0"} {
+	for _, builder := range []string{"", "appmap-builder/0", "appmap-builder/1"} {
 		old := *prev
 		old.Builder = builder
 		raw, err := Encode(&old)

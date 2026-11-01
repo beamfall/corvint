@@ -97,8 +97,9 @@ func ProjectCoverage(ctx context.Context, m *Map, o Options) ([]byte, error) {
 		unknown += len(row.Unknown)
 		items[i] = row
 	}
+	// The report reads the map alone: no checkout, so its head names no evaluated revision.
 	p := newProjection(ctx, m, o)
-	p.check()
+	p.fresh = &freshness{oids: map[string]string{}, data: map[string][]byte{}, evaluated: "NOT_READ"}
 	head := append(p.envelope(CoverageSchema, budget),
 		field{"test_join", m.testJoin()},
 		field{"count_sources", map[string]string{

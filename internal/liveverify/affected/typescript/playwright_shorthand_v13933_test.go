@@ -90,3 +90,21 @@ func TestPlaywrightUnmodelledDeviceWithBrowserName_V13933(t *testing.T) {
 		}
 	}
 }
+
+// TJAA-V0-601: an empty device spread replaces an inherited modelled device with an unmodelled
+// one; the browser stays unresolved instead of falling back to an invented chromium.
+func TestPlaywrightEmptyDeviceSpreadKeepsUncertainty(t *testing.T) {
+	config := "import { defineConfig, devices } from '@playwright/test';\n" +
+		"export default defineConfig({\n  use: { ...devices['Desktop Safari'] },\n" +
+		"  projects: [{ name: 'empty', use: { ...devices[''] } }],\n});\n"
+	projects, _, unknown := parsePlaywrightConfig("playwright.config.ts", config)
+	for _, project := range projects {
+		if project.Browser == "chromium" {
+			t.Fatalf("empty device spread invented chromium: %+v", projects)
+		}
+	}
+	notes := gh1625Unknowns(nil, unknown, PlaywrightUnknownBrowserIdentity)
+	if len(notes) != 1 || !strings.Contains(notes[0].Detail, `device "" has no modelled browser`) {
+		t.Fatalf("empty device spread lost the browser-identity unknown: projects=%+v unknown=%+v", projects, unknown)
+	}
+}
