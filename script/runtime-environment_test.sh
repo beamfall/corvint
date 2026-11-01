@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Committed executable (ASD-V0-921, V1-3243): run it directly, as corvint affected selects it.
 # Run by `make runtime-environment-test`, a gate step (ASD-V0-942).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
