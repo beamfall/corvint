@@ -6205,6 +6205,7 @@ SDD-V0-014	docs/specs/source-documentation-draft-v0.md	A page holding `internal/
 SDD-V0-015	docs/specs/source-documentation-draft-v0.md	The blinded maintainer task (audit section 13) is defined by	unrecorded	-
 SDD-V0-018	docs/specs/source-documentation-draft-v0.md	`docs draft`, `docs consume` and `corvint-docs-mcp` accept a module directory in	unrecorded	-
 SDD-V0-019	docs/specs/source-documentation-draft-v0.md	`docs draft --dry-run` and `corvint.docs_draft` with `dry_run: true` preview a f	unrecorded	-
+SDD-V0-700	docs/specs/source-documentation-draft-v0.md	(experimental under the standing lane auto-accept; V1-3706) `corvint.docs_draft`	standing	V1-3706
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-
