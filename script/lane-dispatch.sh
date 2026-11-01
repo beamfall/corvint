@@ -6,7 +6,7 @@
 #
 # The lane dispatch kit (docs/LANE-ORCHESTRATION.md section 14).
 #
-# inputs (ASD-V0-065, ASD-V0-066; V1-3816, V1-3817, V1-3262), run by the orchestrator on the host
+# inputs (ASD-V0-065; V1-3816, V1-3817, V1-3262), run by the orchestrator on the host
 # that owns the Tasks journal: resolves REF to one full commit in REPO (default .) and writes
 #   DIR/lane.env          LANE, BASE (40 hex), DATE, BUILD_LOG=docs/build-log/DATE-LANE.md,
 #                         TICKET_DIR and TICKETS: the one source the brief and charter quote
@@ -19,15 +19,16 @@
 # With --host HOST the directory's contents are copied to HOST:~/lane-inputs/ over ssh
 # (LANE_DISPATCH_SSH, default ssh), and brief-header.md names that path. Exit 2 on a refusal.
 #
-# check (ASD-V0-065): refuses with exit 2 when any FILE (a brief, a charter) names a BASE commit
+# check (ASD-V0-066, V1-3816): refuses with exit 2 when any FILE (a brief, a charter) names a BASE commit
 # that is not a prefix of lane.env's BASE, on a line that contains `BASE`, or a build-log path
 # docs/build-log/DATE-NAME.md for lane.env's DATE that is not BUILD_LOG. Each mismatch prints
 # `lane-dispatch: MISMATCH base|build-log FILE:LINE ...`. Placeholders such as <LANE> never match.
 #
-# base-check (ASD-V0-067, V1-3061), run in the lane worktree: refuses with exit 2 when BASE is not
-# an ancestor of HEAD, when --fresh is given and HEAD is not BASE itself (the check before the first
-# commit), or when a commit in BASE..HEAD that no origin ref holds is also on another local branch
-# (the worktree was cut from another lane's unpushed head). Prints `lane-dispatch: base-ok ...`.
+# base-check (ASD-V0-067, V1-3061), run in the lane worktree: refuses with exit 2 when DIR is the
+# host's primary checkout, not a linked worktree; when BASE is not an ancestor of HEAD; when --fresh
+# is given and HEAD is not BASE itself (the check before the first commit); or when a commit in
+# BASE..HEAD that no origin ref holds is also on another local branch (the worktree was cut from
+# another lane's unpushed head). Prints `lane-dispatch: base-ok ...`.
 set -uo pipefail
 export LC_ALL=C
 refuse() { printf 'lane-dispatch: REFUSE %s\n' "$*" >&2; exit 2; }
@@ -166,6 +167,9 @@ base_check() {
   [[ -n $base ]] || refuse 'usage: --base is required'
   sha=$(git -C "$dir" rev-parse --verify -q "$base^{commit}") || refuse "unknown-base $base in $dir (fix: run git fetch origin, then retry)"
   head=$(git -C "$dir" rev-parse --verify -q HEAD) || refuse "no-head $dir (fix: run it inside the lane worktree, or set --dir)"
+  if [[ $(cd "$(git -C "$dir" rev-parse --absolute-git-dir)" && pwd -P) == "$(cd "$dir" && cd "$(git rev-parse --git-common-dir)" && pwd -P)" ]]; then
+    refuse "shared-checkout $dir is the host's primary checkout, not a lane worktree (fix: run script/lane-setup.sh --base $sha and work there)"
+  fi
   if ! git -C "$dir" merge-base --is-ancestor "$sha" "$head"; then
     mb=$(git -C "$dir" merge-base "$sha" "$head" 2> /dev/null) || mb=none
     refuse "base-not-ancestor BASE=$sha HEAD=$head merge-base=$mb (fix: recreate the worktree with script/lane-setup.sh --base $sha)"

@@ -1984,8 +1984,11 @@ out=$("$script/lane-dispatch.sh" check --env "$ld/in/lane.env" "$ld/brief.md" "$
 # ASD-V0-067 (V1-3061): base-check refuses a worktree that is not on BASE before its first commit, a
 # BASE that is not an ancestor, and a commit that another local branch also holds.
 g() { git -C "$ld/repo" -c user.name=t -c user.email=t@t "$@"; }
-g checkout -q -b lane && g commit -q --allow-empty -m own || fail "base-check fixture"
-bc() { "$script/lane-dispatch.sh" base-check --dir "$ld/repo" "$@" 2>&1; }
+out=$("$script/lane-dispatch.sh" base-check --dir "$ld/repo" --base "$lbase" 2>&1)
+[[ $? == 2 && $out == "lane-dispatch: REFUSE shared-checkout $ld/repo is the host's primary checkout"* ]] || fail "base-check accepted the primary checkout: $out"
+g worktree add -q -b lane "$ld/wt" "$lbase" && git -C "$ld/wt" -c user.name=t -c user.email=t@t commit -q --allow-empty -m own || fail "base-check fixture"
+g() { git -C "$ld/wt" -c user.name=t -c user.email=t@t "$@"; }
+bc() { "$script/lane-dispatch.sh" base-check --dir "$ld/wt" "$@" 2>&1; }
 out=$(bc --base "$lbase")
 [[ $? == 0 && $out == "lane-dispatch: base-ok BASE=$lbase HEAD=$(g rev-parse HEAD) own-commits=1" ]] || fail "base-check ok: $out"
 out=$(bc --base "$lbase" --fresh)

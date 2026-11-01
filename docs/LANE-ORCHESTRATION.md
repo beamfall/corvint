@@ -1013,7 +1013,7 @@ script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
 - The lane creates its worktree with `script/lane-setup.sh --base <BASE from lane.env>`, never from
   the host checkout's current `HEAD`, and runs
   `script/lane-dispatch.sh base-check --base <BASE> --fresh` before its first commit. The check
-  refuses a worktree whose `HEAD` is not `BASE`, a `BASE` that is not an ancestor of `HEAD`, and any
+  refuses the host's primary checkout (a lane never works there), a worktree whose `HEAD` is not `BASE`, a `BASE` that is not an ancestor of `HEAD`, and any
   commit after `BASE` that no `origin` ref holds but another local branch does
   (the worktree started on another lane's unpushed head, V1-3061). Each refusal names the
   `lane-setup.sh --base` command that recreates the worktree.
