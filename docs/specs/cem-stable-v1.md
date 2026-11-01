@@ -5605,3 +5605,63 @@ golden, vector or ledger depends on this change.
 | CEM-V1-984 | `TestCEMV1984CiteRefusesBinaryPath` (`internal/cem/workflow`) | A cite into the changed binary path refuses `cite-span-not-stable` naming it, while a cite into the text file succeeds |
 | CEM-V1-985 | `TestCEMV1985OverBoundBinaryRefuses` (`internal/cem/workflow`), `TestCEMV1980BinaryGroupGrammar` (`internal/cem/patch`) | A binary creation one byte over `gitauth.MaxBlobBytes` beside a text change refuses `cem prepare` with `repository-object-unavailable` naming the path and writes no map; a map begun over the same canonical patch is refused with that code by the candidate and stable verifiers; the parser's oversize and NUL refusals are unchanged |
 | CEM-V1-986 | `TestCEMV1986PortableRefusesCanonicalBinarySection` (`interop/cem01-go`) | The portable parser rejects the canonical full-index binary section beside a textual group with its `patch` refusal |
+
+## Portable route envelopes over the committed corpus (V1-3756, 2026-11-01)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756.
+
+Decision: the 2026-11-01 CEM format audit read the legacy `cem01-go verify-stable` route's
+4096-entry refusal as the independent consumer refusing every real CEM. The repository-scale
+portable route is `verify-stable-canonical` (`CEM-V1-352`), which has no such bound, so the fork
+taken is to measure that route over the whole committed corpus and state each route's envelope,
+not to raise the legacy bound.
+
+- `CEM-V1-961`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The tree-entry, tree-byte, depth, commit-size and Git-operation bounds of `CEM-V1-352`, and the
+  legacy configuration profile of `CEM-V1-962`, MUST bind the legacy `verify-stable` route only
+  (`verify-candidate` keeps its own candidate-proof bounds). `verify-stable-canonical` MUST verify a map whose snapshots hold
+  more than 4096 entries, in an ordinary checkout whose `.git/config` carries `[remote]` and
+  `[branch]` sections, with the same outcome it gives at any smaller size. An independent
+  verification or Go/native agreement claim over a repository of this repository's size MUST name
+  the canonical route; a legacy-route `UNSUPPORTED` answer is a bound, not a verdict.
+- `CEM-V1-962`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The legacy `verify-stable` route's repository profile, which `verify-candidate` shares, is
+  declared, not incidental: `.git` MUST be a directory
+  (a linked worktree's `.git` file is outside it), `.git/config` MUST be a regular file of at most
+  64 KiB holding only `[core]` with `repositoryformatversion`, `filemode`, `bare`,
+  `logallrefupdates`, `ignorecase` or `precomposeunicode`, and `[extensions]` with
+  `objectformat`. Any other section or key (an ordinary clone's `[remote "origin"]` and
+  `[branch]` sections included) is refused `UNSUPPORTED` / `repository` /
+  `unsupported-repository-envelope` before any object is read. A linked worktree is refused
+  `unsupported-object-alternates`, because the alternates probe fails first under a `.git` file;
+  that code names the probe, not an alternates file.
+
+Non-goals: no change to either route's bounds, codes or results; no claim about maps outside
+`.corvint/changes/`; no ancestry repair of the maps whose objects a clone lacks (V1-3758).
+
+Failure modes:
+- A clone that lacks a map's base or target object answers `UNSUPPORTED` /
+  `repository-object-unavailable` on both consumers. That is missing evidence, reported as such,
+  never a REJECT.
+- The corpus measurement is a dated observation, not a gate: a later map is covered only by a
+  rerun.
+
+Acceptance evidence: `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound`
+(`interop/cem01-go`) rebuilds the public `neutral-criterion` case with 5000 extra unchanged
+entries and an ordinary remote/branch config: the canonical route ACCEPTs, the legacy snapshot of
+the same target refuses `unsupported-resource-limit`, and the legacy repository check refuses
+`unsupported-repository-envelope`. Corpus measurement (2026-11-01, base
+`8daec98ce4349c1583186692726d2c3a782ac647`, Linux amd64): for all 111 maps under
+`.corvint/changes/`, `corvint cem verify-stable` and `cem01-go verify-stable-canonical` gave the
+same outcome, stage, code and `verdictSha256` in a linked worktree (108 ACCEPT, 1 REJECT
+`binding` for `8668f77b`, 2 UNSUPPORTED `repository-object-unavailable`) and in an ordinary
+`git clone --no-local` checkout (104 ACCEPT, 1 REJECT, 6 UNSUPPORTED
+`repository-object-unavailable`, the 4 extra being objects only local refs retain). Each
+canonical run took under one second; see `docs/build-log/2026-11-01-searchcem-w8.md`.
+
+Rollback: revert the change commit; it adds a test, a test helper parameter and this record only.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-961 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`) | canonical ACCEPT over 5000+ entries and an ordinary config; 111/111 corpus parity |
+| CEM-V1-962 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`); `candidateRepository` and `repository03` in `interop/cem01-go/cem.go` | ordinary config refused `unsupported-repository-envelope` on the legacy route |
