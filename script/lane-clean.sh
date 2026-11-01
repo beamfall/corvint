@@ -63,19 +63,19 @@ reason() { # reason DIR: prints the first KEEP reason, or nothing when the check
     if [[ $dir == "$a" || $dir == "$a"/* || $a == "$dir"/* ]]; then echo active; return; fi
   done
   local g=(git --no-optional-locks -C "$dir")
-  head=$("${g[@]}" rev-parse --verify --quiet 'HEAD^{commit}') || { echo git-unreadable; return; }
+  head=$(${g[@]+"${g[@]}"} rev-parse --verify --quiet 'HEAD^{commit}') || { echo git-unreadable; return; }
   local status
-  status=$("${g[@]}" status --porcelain --untracked-files=normal 2> /dev/null) || { echo git-unreadable; return; }
+  status=$(${g[@]+"${g[@]}"} status --porcelain --untracked-files=normal 2> /dev/null) || { echo git-unreadable; return; }
   [[ -z $status ]] || { echo dirty; return; }
   local out
-  out=$("${g[@]}" stash list 2> /dev/null) || { echo git-unreadable; return; }
+  out=$(${g[@]+"${g[@]}"} stash list 2> /dev/null) || { echo git-unreadable; return; }
   [[ -z $out ]] || { echo stash; return; }
   if [[ -d $dir/.git ]]; then # a clone: rm -rf would orphan its linked worktrees, wherever they are
-    out=$("${g[@]}" worktree list --porcelain 2> /dev/null) || { echo has-worktrees; return; }
+    out=$(${g[@]+"${g[@]}"} worktree list --porcelain 2> /dev/null) || { echo has-worktrees; return; }
     (($(grep -c '^worktree ' <<< "$out") <= 1)) || { echo has-worktrees; return; }
   fi
   merged "$head" || { echo unmerged-head; return; }
-  out=$("${g[@]}" for-each-ref --format='%(objectname)' refs/heads 2> /dev/null) || { echo git-unreadable; return; }
+  out=$(${g[@]+"${g[@]}"} for-each-ref --format='%(objectname)' refs/heads 2> /dev/null) || { echo git-unreadable; return; }
   while IFS= read -r branch; do
     [[ -z $branch ]] || merged "$branch" || { echo unmerged-branch; return; }
   done <<< "$out"

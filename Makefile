@@ -1037,8 +1037,9 @@ HEAVY_NICE ?= 10
 # ASD-V0-930 (V1-3626): the heavy non-test targets (build, tasks-build, doc-gates, batch-precheck,
 # dogfood-finish, and so dogfood-closeout through its steps) take a slot of the same host-wide
 # script/heavy.sh queue as go test; steps they run through heavy.sh nest without a second slot
-# (ASD-V0-931). Empty under CI, and HEAVY_ADMIT= opts out.
-HEAVY_ADMIT ?= $(if $(CI),,script/heavy.sh)
+# (ASD-V0-931). --admit-only: a slot only, no offload or argument rules. Empty under CI, and
+# HEAVY_ADMIT= opts out.
+HEAVY_ADMIT ?= $(if $(CI),,script/heavy.sh --admit-only)
 HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),$(if $(shell command -v nice 2> /dev/null),nice -n $(HEAVY_NICE)))
 
 # cce-live runs the live CCE prove tests and fails, rather than skips, when the Playwright

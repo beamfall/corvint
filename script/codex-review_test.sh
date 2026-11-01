@@ -28,7 +28,7 @@ STUB
 chmod 0755 "$tmp/bin/codex"
 review() { STUB_LOG=$tmp/calls CODEX_BIN=$tmp/bin/codex CODEX_REVIEW_HEAVY=${WRAP-} "$script" "$@" 2>&1; }
 # ASD-V0-930: the review runs through CODEX_REVIEW_HEAVY (a stub that logs and execs here).
-printf '#!/usr/bin/env bash\nprintf "wrap:%%s\\n" "$*" >> "$STUB_LOG"\nexec "$@"\n' > "$tmp/bin/wrap"
+printf '#!/usr/bin/env bash\nprintf "wrap:%%s\\n" "$*" >> "$STUB_LOG"\n[ "$1" = --admit-only ] && shift\nexec "$@"\n' > "$tmp/bin/wrap"
 chmod 0755 "$tmp/bin/wrap"
 
 : > "$tmp/calls"
@@ -54,7 +54,7 @@ out=$(STUB_STATUS='Logged in using ChatGPT' STUB_RC=0 review 'review this'); rc=
 : > "$tmp/calls"
 out=$(WRAP=$tmp/bin/wrap STUB_STATUS='Logged in' STUB_RC=0 review 'review this'); rc=$?
 [[ $rc == 0 && $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review this' ]] || fail "wrapped review: rc=$rc out=$out"
-[[ $(sed -n 1p "$tmp/calls") == 'login status' && $(sed -n 2p "$tmp/calls") == "wrap:$tmp/bin/codex exec -m gpt-6.1-sol -s read-only review this" ]] ||
+[[ $(sed -n 1p "$tmp/calls") == 'login status' && $(sed -n 2p "$tmp/calls") == "wrap:--admit-only $tmp/bin/codex exec -m gpt-6.1-sol -s read-only review this" ]] ||
   fail "wrapped review: want an unwrapped login check, then the review through the wrapper, got: $(cat "$tmp/calls")"
 : > "$tmp/calls"
 WRAP=$tmp/bin/wrap STUB_STATUS='Logged in' STUB_RC=0 review --preflight > /dev/null

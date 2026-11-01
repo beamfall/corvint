@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # usage: script/heavy.sh COMMAND [ARG...]
+#        script/heavy.sh --admit-only COMMAND [ARG...]
 #        script/heavy.sh --print-lock-dir
+#
+# --admit-only takes a slot (load gate, niceness, -p bound, GOCACHE default) for COMMAND without
+# reading its arguments: no selection policy, sh -c unwrapping, -timeout or offload, so a codex
+# prompt or a make recipe is never misread; under a make dry run (MAKEFLAGS with n) it runs
+# COMMAND directly (ASD-V0-930). The Makefile's HEAVY_ADMIT and script/codex-review.sh use it.
 #
 # --print-lock-dir prints the slot lock directory a run would use (HEAVY_LOCK_DIR, else HEAVY_CONFIG,
 # else the default below), exactly as given (a relative one is relative to the working directory),
@@ -32,6 +38,17 @@
 #                        `whole reason=small-package:NB` (ASD-V0-074, V1-3120); default 49152. On
 #                        2026-10-30 the six such packages measured (4-45 KB of tests) each ran whole
 #                        in 0.6-16 s; cmd/ and internal/ packages are never exempt. 0 disables it.
+#   HEAVY_GO_TEST_TIMEOUT  a go test naming no -timeout (argument, -test.timeout or GOFLAGS) gets
+#                        `-timeout VALUE` after `test`, before any offload; default 30m, off adds none
+#                        (ASD-V0-938, V1-3630).
+#   sh -c / bash -c      a wrapped string holding go test or go vet is unwrapped into its words when it
+#                        is a simple command (quotes and escapes only; leading NAME=V words via env)
+#                        and refused with exit 2 otherwise; other wrapped strings run as given
+#                        (ASD-V0-939, V1-3628).
+#   HEAVY_MIN_FREE_GB    whole GiB a scratch or Go-cache file system must have free, default 3, 0
+#                        off (ASD-V0-937): a remote below it is unavailable (exit 97, so the next host
+#                        or the fallback runs it) and is ordered last by the probe; a local run below
+#                        it warns and logs `lowdisk-local` but still runs.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -61,7 +78,8 @@
 #
 # Remote offload (ASD-V0-028), only when HEAVY_REMOTE_HOST is set and the command contains `go test`,
 # `go vet` or `make windows-vet`:
-#   HEAVY_REMOTE_HOST     ssh destination; unset or empty means every command runs locally.
+#   HEAVY_REMOTE_HOST     ssh destination; unset or empty means every command runs locally (set
+#                         empty in the environment, it also overrides HEAVY_REMOTE_HOSTS).
 #   HEAVY_REMOTE_HOSTS    several ssh destinations (whitespace or commas), winning over
 #                         HEAVY_REMOTE_HOST (ASD-V0-933, V1-3518). Put a user and port in the
 #                         destination (ssh://user@host:2222) or ~/.ssh/config; every other
@@ -169,7 +187,8 @@
 # read on the remote. No remote command default touches /tmp for the Go cache; trim it with
 # `make go-cache-trim` if it grows. The remote command's TMPDIR is a fresh directory under
 # ${HEAVY_REMOTE_TMPDIR:-HEAVY_REMOTE_ROOT/tmp} (read on the remote), removed with everything in it
-# when the command ends (V1-2563: the remote disk, as on the CI runners, not a tmpfs /tmp).
+# when the command ends (V1-2563: the remote disk, as on the CI runners, not a tmpfs /tmp), and its
+# GOTMPDIR is that directory too unless HEAVY_REMOTE_GOTMPDIR or the env file sets one (ASD-V0-938).
 #
 # Pinned Go: the repository root's go.mod (else the nearest one) names the pinned release in its
 # toolchain line, else its go line. When the go on PATH reports another release and the pinned one
@@ -270,7 +289,8 @@ bound_parallelism() {
 }
 
 # The flock semaphore (see the header): perl -e "$slot_perl" LOCK_DIR SLOTS NICE COMMAND...
-slot_perl='
+# V1-3629: a quoted heredoc, so the perl body may hold any quote; read -d '' ends at EOF with status 1.
+IFS= read -r -d '' slot_perl << 'PERL' || :
 use strict;
 use warnings;
 use Fcntl qw(:flock F_SETFD);
@@ -287,7 +307,7 @@ my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
 my $loadwait = delete $ENV{HEAVY_RUN_LOAD} // 0;
 my $t0 = time;
 # ASD-V0-931: inside an admitted command (HEAVY_HELD names a slot file of this lock dir) the
-# holder token HEAVY_HELD.inner is a candidate too, and no candidate is waited for, so a nested
+# holder's token HEAVY_HELD.inner is a candidate too, and no candidate is waited for, so a nested
 # admission runs on its own lane slot or a free one and never deadlocks behind its own holder.
 my @cand = map { ["$dir/slot$_", $_] } 1 .. $n;
 my $held = $ENV{HEAVY_HELD} // "";
@@ -342,7 +362,7 @@ if (length $log) {
     else { print STDERR "heavy.sh: cannot append to $log\n" }
 }
 exit $rc;
-'
+PERL
 
 # origin_key URL: host-independent repository identity (owner/name) of a Git remote URL.
 origin_key() {
@@ -456,7 +476,7 @@ offload() {
     printf 'TREE=%q\nDIRTY=%q\nBACK=%q\n' "$heavy_tree" "$heavy_dirty" "$back"
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
-    printf 'BUSY=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}"
+    printf 'BUSY=%q\nMINFREE=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "$heavy_min_free"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -477,7 +497,7 @@ offload() {
   {
     printf '__heavy_serve=1\n'
     cat "$self"
-    COPYFILE_DISABLE=1 tar ${tarflags[@]+"${tarflags[@]}"} -C "$t" -cf - "${files[@]}" | base64
+    COPYFILE_DISABLE=1 tar ${tarflags[@]+"${tarflags[@]}"} -C "$t" -cf - ${files[@]+"${files[@]}"} | base64
   } | ${HEAVY_REMOTE_SSH:-ssh} -o BatchMode=yes -o ConnectTimeout=5 -o ServerAliveInterval=30 \
     "$HEAVY_REMOTE_HOST" "${HEAVY_REMOTE_SHELL:-bash -s}" 2> "$t/stderr" &
   heavy_ssh=$!
@@ -605,7 +625,7 @@ worktree_slot() {
 # the remote cannot run it (the caller then runs locally).
 # shellcheck disable=SC1090,SC2153 # meta.env (written by offload) defines BASE, HEAD, ORIGIN, CMD...
 serve() {
-  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common
+  local slots par nice_level a cmd=() t0 t1 t2 t3 t4 rc reused=reused common fg
   t0=$(heavy_now)
   infra() {
     printf 'heavy.sh: remote %s: %s\n' "$(command -p hostname)" "$*" >&2
@@ -678,6 +698,10 @@ serve() {
   mkdir -p "${HEAVY_REMOTE_TMPDIR:-$root/tmp}" || infra "temp dir ${HEAVY_REMOTE_TMPDIR:-$root/tmp} unavailable"
   run_tmp=$(mktemp -d "${HEAVY_REMOTE_TMPDIR:-$root/tmp}/run.XXXXXX") || infra "per-run temp dir unavailable"
   export TMPDIR=$run_tmp
+  # ASD-V0-938 (V1-2691): Go's work files go to the remote disk too, unless the env file chose.
+  : "${GOTMPDIR:=${HEAVY_REMOTE_GOTMPDIR:-$run_tmp}}"
+  export GOTMPDIR
+  mkdir -p "$GOTMPDIR" || infra "GOTMPDIR $GOTMPDIR unavailable"
   pin_go
   : "${CORVINT_GOCACHE:=${HEAVY_REMOTE_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}"
   : "${GOCACHE:=$CORVINT_GOCACHE}"
@@ -685,6 +709,11 @@ serve() {
   # ASD-V0-930: a Makefile recipe run here is not admitted a second time through this host's heavy.sh.
   export HEAVY_ADMIT=
   mkdir -p "$GOCACHE" || infra "go cache $GOCACHE unavailable"
+  # ASD-V0-937: a host short of scratch or cache space is unavailable (97), so the next one is tried.
+  for a in "$run_tmp" "$GOCACHE"; do
+    fg=$(free_gb "$a")
+    [[ $fg =~ ^[0-9]+$ ]] && ((${MINFREE:-0} > 0 && fg < MINFREE)) && infra "low-disk $a free=${fg}G floor=${MINFREE}G"
+  done
   bound_parallelism "$par"
   printf 'heavy.sh: running on %s %s/%s %s at %s%s tree=%s dirty=%s\n' "$(hostname)" "$(go env GOOS 2> /dev/null)" \
     "$(go env GOARCH 2> /dev/null)" "$(go env GOVERSION 2> /dev/null)" "$HEAD" "${WIP:+ +wip}" "$TREE" "$DIRTY" >&2
@@ -695,14 +724,14 @@ serve() {
     printf 'heavy.sh: building for %s/%s\n' "$GOOS" "$GOARCH" >&2
   fi
   # A local GOCACHE/GOMODCACHE path means nothing here; the remote uses its own Go caches.
-  for a in "${CMD[@]}"; do
+  for a in ${CMD[@]+"${CMD[@]}"}; do
     [[ -n ${BUILD-} ]] && a=${a//@RT@/$wt}
     case $a in GOCACHE=* | GOMODCACHE=*) ;; *) cmd+=("$a") ;; esac
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
   : > "$w/marker" || infra "marker unwritable"
   t3=$(heavy_now)
-  perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" "${cmd[@]}" < /dev/null
+  perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" ${cmd[@]+"${cmd[@]}"} < /dev/null
   rc=$?
   t4=$(heavy_now)
   # run is the build and the test or vet together (Go does not report them apart).
@@ -855,9 +884,9 @@ ci_busy() {
   read -ra gh <<< "${HEAVY_CI_GH:-gh}"
   ((${#gh[@]})) || gh=(gh)
   # CI on GitHub-hosted runners does not use the remote; any other answer keeps the guard.
-  [[ $guard == auto && $(ci_gh "$limit" "${gh[@]}" variable get CORVINT_SELF_HOSTED --repo "$repo") == off ]] && return 1
+  [[ $guard == auto && $(ci_gh "$limit" ${gh[@]+"${gh[@]}"} variable get CORVINT_SELF_HOSTED --repo "$repo") == off ]] && return 1
   for s in $statuses; do
-    if ! n=$(ci_gh "$limit" "${gh[@]}" run list --repo "$repo" --status "$s" --limit 5 --json databaseId --jq length) ||
+    if ! n=$(ci_gh "$limit" ${gh[@]+"${gh[@]}"} run list --repo "$repo" --status "$s" --limit 5 --json databaseId --jq length) ||
       [[ ! $n =~ ^[0-9]+$ ]]; then
       ci_why="repo=$repo status=$s query-failed"
       return 0
@@ -898,7 +927,7 @@ build_offload() {
   local max=${HEAVY_REMOTE_BUILD_MAX_LOAD:-16} a flags=()
   [[ $max =~ ^[0-9]{1,6}$ ]] || refuse "invalid-build-max-load HEAVY_REMOTE_BUILD_MAX_LOAD=$max (want 0..999999)"
   for a in "$@" "GOFLAGS=${GOFLAGS-}"; do [[ $a == GOFLAGS=* ]] && flags+=("$a"); done
-  if writes_files "${flags[@]}"; then
+  if writes_files ${flags[@]+"${flags[@]}"}; then
     build_local "GOFLAGS writes files" "$@"
     return 1
   fi
@@ -913,7 +942,7 @@ build_offload() {
   pick_remote "$@"
   offload_traps
   heavy_build=$max
-  try_offload "${build_cmd[@]}"
+  try_offload ${build_cmd[@]+"${build_cmd[@]}"}
   heavy_build=
   trap - EXIT INT TERM HUP
   case $rc in
@@ -1112,7 +1141,7 @@ load1() {
 # HEAVY_LOAD_WAIT seconds (ASD-V0-030), and put the wait in heavy_load_wait (ASD-V0-935). The
 # threshold is HEAVY_MAX_LOAD, else floor(HEAVY_LOAD_PER_CPU x CPUS) (ASD-V0-932).
 load_wait() {
-  local cpus=$1 max per=${HEAVY_LOAD_PER_CPU:-1.0} src limit=${HEAVY_LOAD_WAIT:-120} t0=$SECONDS l
+  local cpus=$1 max per=${HEAVY_LOAD_PER_CPU:-1.0} src limit=${HEAVY_LOAD_WAIT:-120} t0=$SECONDS l slept=
   if [[ -n ${HEAVY_MAX_LOAD-} ]]; then
     max=$HEAVY_MAX_LOAD src="HEAVY_MAX_LOAD=$max"
     [[ $max =~ ^[0-9]{1,6}$ ]] || refuse "invalid-max-load HEAVY_MAX_LOAD=$max (want 0..999999)"
@@ -1126,26 +1155,119 @@ load_wait() {
   while l=$(load1) && [[ $l =~ ^[0-9]+$ ]] && ((l > max && SECONDS - t0 < limit)); do
     # Never sleep past the bound (V1-3232): a 1-second bound waits 1 second, not one 5-second poll.
     sleep $((limit - (SECONDS - t0) < 5 ? limit - (SECONDS - t0) : 5))
+    slept=1
   done
-  heavy_load_wait=$((SECONDS - t0))
+  # Only a gate that slept reports a wait: SECONDS can tick over during a gate that never waited.
+  [[ -n $slept ]] && heavy_load_wait=$((SECONDS - t0))
   ((heavy_load_wait > 0)) && printf 'heavy.sh: waited %ss for host load %s (%s)\n' "$heavy_load_wait" "$(load1)" "$src" >&2
   return 0
+}
+
+# free_gb PATH: whole GiB free on the file system of PATH (its nearest existing directory); empty
+# when df cannot say (ASD-V0-937).
+free_gb() {
+  local d=$1
+  while [[ -n $d && ! -d $d ]]; do d=${d%/*}; done
+  df -Pk "${d:-/}" 2> /dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ { printf "%d", $4 / 1048576 }'
+}
+
+# disk_floor: HEAVY_MIN_FREE_GB, validated, into heavy_min_free (ASD-V0-937).
+disk_floor() {
+  heavy_min_free=${HEAVY_MIN_FREE_GB:-3}
+  [[ $heavy_min_free =~ ^[0-9]{1,6}$ ]] || refuse "invalid-min-free HEAVY_MIN_FREE_GB=$heavy_min_free (want whole GiB, 0 disables)"
+  heavy_min_free=$((10#$heavy_min_free))
+}
+
+# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the floor; the run
+# still goes ahead (ASD-V0-937).
+local_disk() {
+  local p g
+  ((heavy_min_free > 0)) || return 0
+  for p in "${TMPDIR:-/tmp}" "$GOCACHE"; do
+    g=$(free_gb "$p")
+    [[ $g =~ ^[0-9]+$ ]] && ((g < heavy_min_free)) || continue
+    printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
+    selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
+  done
+}
+
+# unwrap_perl STRING: the words of a simple shell command, NUL-terminated; exit 3 for anything a
+# shell would expand or treat as an operator (ASD-V0-939).
+IFS= read -r -d '' unwrap_perl << 'PERL' || :
+my ($s, $cur, $have, $q) = (shift, "", 0, "");
+my @w;
+for (my $i = 0; $i < length $s; $i++) {
+    my $c = substr $s, $i, 1;
+    if ($q eq "'") { if ($c eq "'") { $q = "" } else { $cur .= $c } next }
+    if ($q eq '"') { exit 3 if $c =~ /[\$`\\]/; if ($c eq '"') { $q = "" } else { $cur .= $c } next }
+    if ($c eq "'" || $c eq '"') { ($q, $have) = ($c, 1); next }
+    if ($c eq "\\") { exit 3 if ++$i >= length $s; ($cur, $have) = ($cur . substr($s, $i, 1), 1); next }
+    if ($c eq " " || $c eq "\t") { push @w, $cur if $have; ($cur, $have) = ("", 0); next }
+    exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/;
+    ($cur, $have) = ($cur . $c, 1);
+}
+exit 3 if length $q;
+push @w, $cur if $have;
+print map { "$_\0" } @w;
+PERL
+
+# unwrap_shell COMMAND...: the argv to run into heavy_argv. `sh -c STRING` or `bash -c STRING` with
+# a go test or go vet inside becomes STRING's words when STRING is a simple command (leading
+# NAME=VALUE words through env) and is refused otherwise; any other command is kept (ASD-V0-939).
+unwrap_shell() {
+  local w words=()
+  heavy_argv=("$@")
+  case ${1##*/} in sh | bash) ;; *) return 0 ;; esac
+  [[ ${2-} == -c && $# -ge 3 && " $3 " =~ [[:space:]]go[[:space:]]+(test|vet)[[:space:]] ]] || return 0
+  if (($# > 3)) || ! perl -e "$unwrap_perl" "$3" > /dev/null; then
+    refuse "wrapped-compound $1 -c '$3': heavy.sh cannot tell where its go command runs; run it directly, for example script/heavy.sh env K=V go test -run X ./pkg"
+  fi
+  while IFS= read -r -d '' w; do words+=("$w"); done < <(perl -e "$unwrap_perl" "$3")
+  [[ ${words[0]-} =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && words=(env ${words[@]+"${words[@]}"})
+  printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]}" >&2
+  heavy_argv=(${words[@]+"${words[@]}"})
+}
+
+# go_test_timeout COMMAND...: the argv into heavy_argv with `-timeout HEAVY_GO_TEST_TIMEOUT`
+# (default 30m) after `go test` when the command and GOFLAGS name no timeout (ASD-V0-938).
+go_test_timeout() {
+  local t=${HEAVY_GO_TEST_TIMEOUT:-30m} a prev='' at=-1 i=0 out=()
+  heavy_argv=("$@")
+  [[ $t == off ]] && return 0
+  [[ $t =~ ^[0-9]+(\.[0-9]+)?(ns|us|ms|s|m|h)$ ]] || refuse "invalid-go-test-timeout HEAVY_GO_TEST_TIMEOUT=$t (want a Go duration such as 30m, or off)"
+  [[ " ${GOFLAGS-} " == *" -timeout"* || " ${GOFLAGS-} " == *" -test.timeout"* ]] && return 0
+  for a; do
+    case $a in -timeout | -timeout=* | -test.timeout | -test.timeout=* | GOFLAGS=*-timeout*) return 0 ;; esac
+    ((at < 0)) && [[ $a == test && $prev == go ]] && at=$i
+    prev=${a##*/} i=$((i + 1))
+  done
+  ((at >= 0)) || return 0
+  i=0
+  for a; do
+    out+=("$a")
+    ((i == at)) && out+=(-timeout "$t")
+    i=$((i + 1))
+  done
+  heavy_argv=(${out[@]+"${out[@]}"})
 }
 
 # remote_list: the configured offload hosts into remote_hosts, HEAVY_REMOTE_HOSTS (whitespace or
 # comma separated) winning over HEAVY_REMOTE_HOST (ASD-V0-933); HEAVY_REMOTE_HOST becomes the first.
 remote_list() {
   local list=${HEAVY_REMOTE_HOSTS:-${HEAVY_REMOTE_HOST-}}
+  [[ -n ${heavy_remote_off-} ]] && list=
   read -r -a remote_hosts <<< "${list//,/ }"
   HEAVY_REMOTE_HOST=${remote_hosts[0]-}
 }
 
 # probe: the remote half of pick_remote; one line with this host's 1-minute load and CPU count.
 probe() {
-  local l
+  local l f
   l=$(sysctl -n vm.loadavg 2> /dev/null | awk '{ print $2 }')
   [[ -n $l ]] || l=$(awk '{ print $1 }' /proc/loadavg 2> /dev/null)
-  printf 'heavy.sh: probe load=%s cpus=%s\n' "${l:-unknown}" "$(cpu_count)"
+  # ASD-V0-937: the smaller free space of the default scratch and Go-cache file systems.
+  f=$( { free_gb "${HEAVY_REMOTE_TMPDIR:-$HOME/.cache/corvint-heavy/tmp}"; echo; free_gb "${HEAVY_REMOTE_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}"; echo; } | sort -n | awk 'NF { print; exit }')
+  printf 'heavy.sh: probe load=%s cpus=%s free=%s\n' "${l:-unknown}" "$(cpu_count)" "${f:-unknown}"
 }
 
 # pick_remote COMMAND...: with two or more remote_hosts, probe each (bounded by
@@ -1153,15 +1275,18 @@ probe() {
 # hosts last; log the choice (ASD-V0-933).
 pick_remote() {
   ((${#remote_hosts[@]} > 1)) || return 0
-  local h out i=0 t0 ranked=() down=() desc='' bound=${HEAVY_REMOTE_PROBE_TIMEOUT:-15}
+  local h out i=0 t0 ranked=() low=() down=() desc='' bound=${HEAVY_REMOTE_PROBE_TIMEOUT:-15}
   [[ $bound =~ ^[1-9][0-9]{0,2}$ ]] || refuse "invalid-probe-timeout HEAVY_REMOTE_PROBE_TIMEOUT=$bound (want 1..999 seconds)"
   t0=$(heavy_now)
-  for h in "${remote_hosts[@]}"; do
+  for h in ${remote_hosts[@]+"${remote_hosts[@]}"}; do
     i=$((i + 1))
     # shellcheck disable=SC2086 # HEAVY_REMOTE_SSH may carry ssh arguments, as in offload
     out=$({ printf '__heavy_probe=1\n'; cat "${BASH_SOURCE[0]}"; } | perl -e 'alarm shift; exec @ARGV or exit 127' "$bound" \
       ${HEAVY_REMOTE_SSH:-ssh} -o BatchMode=yes -o ConnectTimeout=5 "$h" "${HEAVY_REMOTE_SHELL:-bash -s}" 2> /dev/null)
-    if [[ $out =~ heavy\.sh:\ probe\ load=([0-9]+(\.[0-9]+)?)\ cpus=([1-9][0-9]*) ]]; then
+    if [[ $out =~ heavy\.sh:\ probe\ load=[0-9.]+\ cpus=[0-9]+\ free=([0-9]+) ]] && ((heavy_min_free > 0 && BASH_REMATCH[1] < heavy_min_free)); then
+      low+=("$h")
+      desc+="${desc:+,}$h:lowdisk:${BASH_REMATCH[1]}G"
+    elif [[ $out =~ heavy\.sh:\ probe\ load=([0-9]+(\.[0-9]+)?)\ cpus=([1-9][0-9]*) ]]; then
       ranked+=("$(awk -v l="${BASH_REMATCH[1]}" -v c="${BASH_REMATCH[3]}" 'BEGIN { printf "%.4f", l / c }') $i $h")
       desc+="${desc:+,}$h:${BASH_REMATCH[1]}/${BASH_REMATCH[3]}"
     else
@@ -1170,8 +1295,8 @@ pick_remote() {
     fi
   done
   remote_hosts=()
-  while read -r _ _ h; do [[ -n $h ]] && remote_hosts+=("$h"); done < <(printf '%s\n' ${ranked[@]+"${ranked[@]}"} | sort -k1,1n -k2,2n)
-  remote_hosts+=(${down[@]+"${down[@]}"})
+  while read -r _ _ h; do [[ -n $h ]] && remote_hosts+=("$h"); done < <(printf '%s\n' ${ranked[@]+"${ranked[@]}"} | LC_ALL=C sort -k1,1n -k2,2n)
+  remote_hosts+=(${low[@]+"${low[@]}"} ${down[@]+"${down[@]}"})
   HEAVY_REMOTE_HOST=${remote_hosts[0]}
   printf 'heavy.sh: remote hosts by load per CPU: %s; trying %s first\n' "$desc" "$HEAVY_REMOTE_HOST" >&2
   selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) pick hosts=$desc chose=$HEAVY_REMOTE_HOST probe=$(heavy_secs "$t0" "$(heavy_now)")s pwd=$PWD cmd=$*"
@@ -1238,9 +1363,19 @@ main() {
   fi
   # ASD-V0-070 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
   local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}}
+  # ASD-V0-933: an empty HEAVY_REMOTE_HOST in the environment keeps every command local.
+  heavy_remote_off=
+  [[ -n ${HEAVY_REMOTE_HOST+set} && -z $HEAVY_REMOTE_HOST ]] && heavy_remote_off=1
   load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
+  # ASD-V0-930: --admit-only takes a slot for COMMAND without reading its arguments.
+  heavy_admit_only=
+  if [[ $1 == --admit-only ]]; then
+    shift
+    (($#)) || refuse "invalid-arguments --admit-only needs a command"
+    heavy_admit_only=1
+  fi
   if [[ $1 == --print-lock-dir ]]; then
     [[ $# -eq 1 ]] || refuse "invalid-arguments --print-lock-dir takes no command"
     printf '%s\n' "$lock_dir"
@@ -1251,62 +1386,75 @@ main() {
   cpus=$(cpu_count)
   slot_limits "$cpus"
   mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
-  selection_policy "$@" || { heavy_cause=refused; return 2; }
-  local_policy "$@" || { heavy_cause=refused; return 2; }
+  # ASD-V0-931: one spelling of the lock dir, so a nested HEAVY_HELD always matches its holder.
+  lock_dir=$(cd -P "$lock_dir" 2> /dev/null && pwd -P) || refuse "lock-dir-unavailable $lock_dir"
+  disk_floor
   local remote_hosts=() h
-  remote_list
-  if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
-    if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
-      fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
-    elif writes_files "$@" "GOFLAGS=${GOFLAGS-}"; then
-      fallback_log writes-files "$@"
-    elif darwin_local "$@"; then
-      :
-    elif ci_busy; then
-      ci_local "$@"
-    else
-      retry=${HEAVY_REMOTE_RETRY:-15}
-      [[ $retry =~ ^[0-9]{1,3}$ ]] || refuse "invalid-retry HEAVY_REMOTE_RETRY=$retry (want 0..999 seconds)"
-      fallback_limit=${HEAVY_FALLBACK_ALERT:-3}
-      [[ $fallback_limit =~ ^[0-9]{1,3}$ ]] && ((10#$fallback_limit <= 100)) || refuse "invalid-fallback-alert HEAVY_FALLBACK_ALERT=$fallback_limit (want 0..100)"
-      pick_remote "$@"
-      darwin_notice "$@"
-      offload_traps
-      # ASD-V0-933: each host once, in load order; the single retry only when all were unavailable.
-      for h in "${remote_hosts[@]}"; do
-        HEAVY_REMOTE_HOST=$h
-        try_offload "$@"
-        ((rc == 97)) && [[ -z ${heavy_noretry-} ]] || break
-        [[ $h != "${remote_hosts[${#remote_hosts[@]} - 1]}" ]] && printf 'heavy.sh: offload to %s unavailable; trying the next host\n' "$h" >&2
-      done
-      if ((rc == 97)) && [[ -z ${heavy_noretry-} ]]; then
-        HEAVY_REMOTE_HOST=${remote_hosts[0]}
-        printf 'heavy.sh: offload to %s unavailable; retrying in %ss\n' "$HEAVY_REMOTE_HOST" "$retry" >&2
-        sleep "$retry" &
-        wait $!
-        try_offload "$@"
+  if [[ -n $heavy_admit_only ]]; then
+    # A make dry run (-n) still executes $(MAKE) recipe lines; it takes no slot.
+    [[ ${MAKEFLAGS-} =~ ^-?[A-Za-z]*n[A-Za-z]*([[:space:]]|$) ]] && exec "$@"
+  else
+    unwrap_shell "$@"
+    set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
+    selection_policy "$@" || { heavy_cause=refused; return 2; }
+    go_test_timeout "$@"
+    set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
+    local_policy "$@" || { heavy_cause=refused; return 2; }
+      remote_list
+    if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
+      if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
+        fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
+      elif writes_files "$@" "GOFLAGS=${GOFLAGS-}"; then
+        fallback_log writes-files "$@"
+      elif darwin_local "$@"; then
+        :
+      elif ci_busy; then
+        ci_local "$@"
+      else
+        retry=${HEAVY_REMOTE_RETRY:-15}
+        [[ $retry =~ ^[0-9]{1,3}$ ]] || refuse "invalid-retry HEAVY_REMOTE_RETRY=$retry (want 0..999 seconds)"
+        fallback_limit=${HEAVY_FALLBACK_ALERT:-3}
+        [[ $fallback_limit =~ ^[0-9]{1,3}$ ]] && ((10#$fallback_limit <= 100)) || refuse "invalid-fallback-alert HEAVY_FALLBACK_ALERT=$fallback_limit (want 0..100)"
+        pick_remote "$@"
+        darwin_notice "$@"
+        offload_traps
+        # ASD-V0-933: each host once, in load order; the single retry only when all were unavailable.
+        for h in ${remote_hosts[@]+"${remote_hosts[@]}"}; do
+          HEAVY_REMOTE_HOST=$h
+          try_offload "$@"
+          ((rc == 97)) && [[ -z ${heavy_noretry-} ]] || break
+          [[ $h != "${remote_hosts[${#remote_hosts[@]} - 1]}" ]] && printf 'heavy.sh: offload to %s unavailable; trying the next host\n' "$h" >&2
+        done
+        if ((rc == 97)) && [[ -z ${heavy_noretry-} ]]; then
+          HEAVY_REMOTE_HOST=${remote_hosts[0]}
+          printf 'heavy.sh: offload to %s unavailable; retrying in %ss\n' "$HEAVY_REMOTE_HOST" "$retry" >&2
+          sleep "$retry" &
+          wait $!
+          try_offload "$@"
+        fi
+        trap - EXIT INT TERM HUP
+        ((rc == 97)) || { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
+        printf 'heavy.sh: offload to %s unavailable; running locally (logged)\n' "$HEAVY_REMOTE_HOST" >&2
+        fallback_log offload-unavailable "$@"
+        selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) fallback host=$HEAVY_REMOTE_HOST pwd=$PWD cmd=$*"
+        fallback_alert
       fi
-      trap - EXIT INT TERM HUP
-      ((rc == 97)) || { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
-      printf 'heavy.sh: offload to %s unavailable; running locally (logged)\n' "$HEAVY_REMOTE_HOST" >&2
-      fallback_log offload-unavailable "$@"
-      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) fallback host=$HEAVY_REMOTE_HOST pwd=$PWD cmd=$*"
-      fallback_alert
+    elif [[ -n ${HEAVY_REMOTE_HOST-} && ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
+      build_offload "$@" && { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
     fi
-  elif [[ -n ${HEAVY_REMOTE_HOST-} && ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
-    build_offload "$@" && { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
   fi
   # ASD-V0-931: a nested admission skips the load gate its holder already passed.
   heavy_load_wait=0
   [[ ${HEAVY_HELD-} == "$lock_dir"/slot* ]] || load_wait "$cpus"
   pin_go
   bound_parallelism "$par"
-  local_identity "$@"
+  [[ -n $heavy_admit_only ]] || local_identity "$@"
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default /tmp/corvint-go-build-cache), so a
   # plain go test and a make target do not fill two caches.
   : "${GOCACHE:=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}}"
   export GOCACHE
+  local_disk
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" HEAVY_RUN_LOAD=$heavy_load_wait \

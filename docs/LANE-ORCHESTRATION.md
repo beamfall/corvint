@@ -82,14 +82,24 @@ directory and slot count. Rules: one package per command, a narrow `-run` for `.
 
 Every heavy target takes the same queue (ASD-V0-930, V1-3626). The `Makefile` prefixes the recipes
 of `build`, `tasks-build`, `doc-gates`, `batch-precheck` and `dogfood-finish` with `HEAVY_ADMIT`
-(default `script/heavy.sh`; empty under `CI`; `HEAVY_ADMIT=` opts out). So `make dogfood-closeout`
-is admitted through its precheck and finish steps, and `script/codex-review.sh` runs `codex exec`
-through `CODEX_REVIEW_HEAVY` (default the `heavy.sh` beside it). The holder exports `HEAVY_HELD`. A
+(default `script/heavy.sh --admit-only`; empty under `CI`; `HEAVY_ADMIT=` opts out). So `make
+dogfood-closeout` is admitted through its precheck and finish steps, and `script/codex-review.sh`
+runs `codex exec` through `CODEX_REVIEW_HEAVY --admit-only` (default the `heavy.sh` beside it).
+`--admit-only` takes a slot without reading the command: no policy, no rewrite and no offload, so
+a review prompt that mentions `go test` is never refused and `make build` never cross-builds. A
+make dry run (`make -n`) takes no slot. The holder exports `HEAVY_HELD`. A
 `heavy.sh` started inside an admitted command (batch-precheck's steps, the finish's tests) takes its
 holder's token `slotN.inner` or any free slot, whichever frees first. It never waits for a second
 slot of its own, so nesting cannot deadlock, and it skips the load gate (ASD-V0-931). Each local run
 ends with `heavy.sh: done queue=Ns (load=Ns slot=Ns) run=Ns rc=N`, so queue wait and run time are
 read apart (ASD-V0-935).
+
+Go defaults (ASD-V0-938, ASD-V0-939). A `go test` with no `-timeout` gets `-timeout 30m`
+(`HEAVY_GO_TEST_TIMEOUT`, `off` adds none), so a loaded host never trips Go's 600 s default. A
+`sh -c 'go test ...'` wrapper is unwrapped when its string is a plain command, and refused with
+`heavy.sh: REFUSE wrapped-compound ...` when it holds an operator or an expansion (`cd x && go
+test`, a pipe, `$PKGS`). Run the go command directly instead:
+`script/heavy.sh env K=V go test -run X ./pkg`.
 
 A package slower than the 600 s foreground limit runs as shards (ASD-V0-026):
 
@@ -178,7 +188,13 @@ Before each offload, the wrapper sends each host one probe ssh (bounded by
 each in order of load per CPU, unreachable ones last, and prints
 `heavy.sh: remote hosts by load per CPU: H:L/C,...; trying H first`. An unavailable host passes the
 run to the next. The retry and the logged local fallback below apply only when every host was
-unavailable. A build tries the first host only. With one host there is no probe. A host serves as a
+unavailable. A host short of disk is unavailable too (ASD-V0-937). The remote half refuses with
+`low-disk PATH free=NG floor=MG` when its per-run scratch or its Go cache has less than
+`HEAVY_MIN_FREE_GB` (3) GiB free, and the probe orders such a host after the others
+(`H:lowdisk:NG`). The remote's Go cache and `GOTMPDIR` default to its disk, not a tmpfs `/tmp`
+(V1-2691). A `/tmp/corvint-go-build-cache` left by older runs is not moved; trim it with
+`make go-cache-trim`. An empty `HEAVY_REMOTE_HOST` in the environment keeps one run local even
+with `HEAVY_REMOTE_HOSTS` configured. A build tries the first host only. With one host there is no probe. A host serves as a
 target once it has a clone of origin, the pinned Go (in `~/sdk/go<version>` or through the env
 file), `perl`, `git` and `timeout(1)`, and accepts the lane host's key.
 
