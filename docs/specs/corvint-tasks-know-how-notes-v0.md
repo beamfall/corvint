@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-07
-Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-800 proposed (V1-1007); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)
+Intent status: accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)
 Delivery status: experimental
 
 Authoritative inputs: GitHub issue beamfall/corvint#655 and the agent-filed native ticket V1-0955
@@ -15,7 +15,7 @@ the one in the [agent lease contract](corvint-tasks-agent-leases-v0.md), and it 
 
 ## Agent digest
 - Claim: Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.
-- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-800 proposed (V1-1007); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
+- Status: KHN-V0-001..007 accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045); experimental; `ticket know-how add|retract|reconfirm|list`, the optional `knowHow` record member and claim delivery exist with focused tests.
 - Exists: record/Core codecs, KNOWHOW_ADD/KNOWHOW_RETRACT/KNOWHOW_RECONFIRM through Apply, write-time secret screen (`SECRET_DETECTED`), blob and `--symbol PATH#NAME` declaration-digest pins, attempt/generation provenance verified against the audited attempt inventory (`PROVENANCE_UNVERIFIED`), read-time freshness from batched Git calls, a reconfirm that refuses `KNOWHOW_NOT_STALE`, a 2 KiB claim projection, an authority boundary test, and deterministic archive, concurrency, redo, UNAVAILABLE and commit-race witnesses. Proposed: an opt-in policy `knowHow.workerAdd` lets the claim holder add a scoped note as WORKER (KHN-V0-021..023). Proposed: `--repo ALIAS=ROOT` pins a note in another repository of a multi-repository program, stores its anchors as `ALIAS/PATH` and resolves its freshness only where the alias is mapped (KHN-V0-024..027).
 - Blocked on: owner acceptance of KHN-V0-008..015 (V1-0964), KHN-V0-016..020 (V1-0963) and KHN-V0-021..023 (V1-0987); owner question 8 (V1-0962); durable qualification; Core packet delivery is a non-goal here.
 - Read next: Requirements; Owner questions; Acceptance evidence and traceability; Rollout and rollback.
@@ -272,7 +272,7 @@ KHN-V0-008 provenance check and the KHN-V0-009 audited route and adds only WORKE
   WORKER only on a non-superseding ADD whose `attempt` and `generation` are non-null, and refuse
   it on a superseding ADD, a RETRACT, a RECONFIRM or an ADD without them. Status: proposed (V1-0987; GitHub
   #671).
-- `KHN-V0-800`: A policy change limited to the top-level `knowHow` key (added, changed or removed)
+- `KHN-V0-800`: (proposed; V1-1007) A policy change limited to the top-level `knowHow` key (added, changed or removed)
   MUST be handoff-compatible under CAL-V0-122: the clean-handoff projection ignores the key as it
   ignores `holderLiveness` (CAL-V0-123). `knowHow.workerAdd` and `knowHow.screen` are read from the
   canonical policy under the writer lock at each write, so neither binds a live attempt: an attempt

@@ -13,7 +13,7 @@ amendments live here.
 
 ## Agent digest
 - Claim: Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope.
-- Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 and TRM-V0-800 to TRM-V0-804 are implemented with focused tests.
+- Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 are implemented with focused CLI tests.
 - Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field, and the `--admit-under-barrier` claim/widen exemption for one named ticket under an OPERATOR admission barrier, and release attestations of a COMMAND gate bound to the policy gate argv.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.

@@ -12,7 +12,7 @@ Corvint Tasks contract TCP-00 (`TM-V0-007`, `TM-V0-009`), `docs/specs/corvint-ta
 
 ## Agent digest
 - Claim: A moved or copied task store is bound to a new primary worktree only by an explicit `relocate` that commits one receipt naming both paths.
-- Status: accepted (owner standing auto-accept 2026-10-11); experimental. TRL-V0-001 through TRL-V0-006 and TRL-V0-870 to TRL-V0-871 are implemented and tested in tree; live qualification on an operator store is NOT_RUN.
+- Status: accepted (owner standing auto-accept 2026-10-11); experimental. TRL-V0-001 through TRL-V0-006 are implemented and tested in tree; live qualification on an operator store is NOT_RUN.
 - Exists: the `relocate` verb, the `taskman-relocate/0` pinned descriptor, chain primary tracking in the journal walk, relocate redo, the optional dispatcher-lock hold, the consistent-snapshot refusal text, and `archive restore` into an absent state dir.
 - Blocked on: live qualification on an operator store.
 - Read next: Requirements; Failure modes; Traceability.
