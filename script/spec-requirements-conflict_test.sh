@@ -15,6 +15,11 @@ set -eu
 # their own definition lines and add different phony make targets, each on its own `.PHONY:` line,
 # merge in both orders with no conflict, while the same amendments as header segments and the same
 # targets on one shared `.PHONY:` line conflict; the repository Makefile has no shared line.
+# Covers SRG-V0-920..922 (V1-3448, V1-3338, V1-3437): spec-requirements-resolve regenerates and
+# exits 0 when only a spec conflicted and when no merge is in progress; two lanes that each add a
+# new spec and repin a different use-case receipt conflict in INDEX.json, README.md and the ledger,
+# make spec-requirements refuses that merge with one line naming spec-requirements-resolve (also
+# once the conflicted INDEX.json is staged with its markers), and the resolve alone finishes it.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-conflict-test.XXXXXX")
@@ -30,7 +35,8 @@ GIT_CONFIG_NOSYSTEM=1
 export GIT_CONFIG_GLOBAL GIT_CONFIG_NOSYSTEM
 repo=$test_root/repo
 mkdir -p "$repo/script" "$repo/docs/specs"
-cp "$source_root/script/gen-spec-requirements.sh" "$source_root/script/spec-requirements-resolve.sh" "$repo/script/"
+cp "$source_root/script/gen-spec-requirements.sh" "$source_root/script/spec-requirements-resolve.sh" \
+  "$source_root/script/repin-use-case-receipts.sh" "$repo/script/"
 git() { command git -C "$repo" -c user.name=t -c user.email=t@example.invalid -c merge.conflictStyle=merge "$@"; }
 git init -q -b main
 
@@ -385,5 +391,87 @@ conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
 test "$conflicted" = "docs/specs/sections.md shared.mk " ||
   fail "the controls conflicted in $conflicted, want the spec header and the shared .PHONY: line"
 git merge --abort
+
+# SRG-V0-920 (V1-3448): two lanes reword the same prose line of one spec; only the spec conflicts.
+prose_lane() {
+  git checkout -q -b "$1" "$base"
+  sed "s/^None yet\.\$/$2/" "$repo/docs/specs/shared.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/shared.md"
+  regen
+  git commit -q -m "$1"
+}
+prose_lane lane-p1 'Lane one failure.'
+prose_lane lane-p2 'Lane two failure.'
+git checkout -q -b merge-prose lane-p1
+if git merge -q --no-edit lane-p2 > /dev/null 2>&1; then fail "two prose rewordings merged without a conflict"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/shared.md " || fail "the prose conflict touched $conflicted, want only the spec"
+sed -e '/^<<<<<<< /d' -e '/^=======$/d' -e '/^>>>>>>> /d' -e '/^Lane two failure\.$/d' "$repo/docs/specs/shared.md" > "$test_root/spec"
+cp "$test_root/spec" "$repo/docs/specs/shared.md"
+git add -- docs/specs/shared.md
+out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve 2>&1) ||
+  fail "spec-requirements-resolve failed with no unmerged path: $out"
+case $out in *'no unmerged path; regenerating anyway'*'regenerated and staged'*) ;; *) fail "resolve output: $out" ;; esac
+git commit -q --no-edit
+# No merge in progress: a staged spec edit leaves the index stale; the resolve regenerates it.
+sed 's/^- SHR-V0-002: (accepted, decision 0001) The second clause\.$/- SHR-V0-002: (accepted, decision 0001) The second clause, reworded./' \
+  "$repo/docs/specs/shared.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/shared.md"
+git add -- docs/specs/shared.md
+make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve > /dev/null 2>&1 ||
+  fail "spec-requirements-resolve failed outside a merge"
+grep -q 'reworded' "$repo/docs/specs/REQUIREMENTS.tsv" && git diff --quiet -- docs/specs ||
+  fail "spec-requirements-resolve outside a merge did not regenerate and stage the index"
+git reset -q --hard
+
+# SRG-V0-921/922 (V1-3338, V1-3437): two lanes each add a new spec and repin a different receipt.
+git checkout -q -b receipts "$base"
+uc=conformance/use-cases-v0
+mkdir -p "$repo/$uc/receipts/UC-A" "$repo/$uc/receipts/UC-B" "$repo/docs/subjects"
+sha() { perl -MDigest::SHA=sha256_hex -0777 -ne 'print sha256_hex($_)' "$repo/$1"; }
+for x in A B; do
+  printf 'subject %s v1\n' "$x" > "$repo/docs/subjects/$x.md"
+  printf '{\n  "repositoryRevision": "0000000000000000000000000000000000000000",\n  "subjects": [\n    {\n      "path": "docs/subjects/%s.md",\n      "sha256": "%s"\n    }\n  ]\n}\n' \
+    "$x" "$(sha "docs/subjects/$x.md")" > "$repo/$uc/receipts/UC-$x/contract.json"
+done
+printf '{\n  "evidenceClasses": ["contract"],\n  "useCases": [\n    {"evidence": {"contract": {"path": "%s", "sha256": "%s"}}, "id": "UC-A"},\n    {"evidence": {"contract": {"path": "%s", "sha256": "%s"}}, "id": "UC-B"}\n  ]\n}\n' \
+  "$uc/receipts/UC-A/contract.json" "$(sha "$uc/receipts/UC-A/contract.json")" \
+  "$uc/receipts/UC-B/contract.json" "$(sha "$uc/receipts/UC-B/contract.json")" > "$repo/$uc/ledger.json"
+git add -A && git commit -q -m receipts
+rbase=$(git rev-parse HEAD)
+receipt_lane() {
+  git checkout -q -b "$1" "$rbase"
+  printf '# %s spec\n\nIntent status: accepted\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s.\n\n## Requirements\n\n- %s-V0-001: (accepted, decision 0004) The clause.\n' \
+    "$2" "$2" "$3" > "$repo/docs/specs/$1.md"
+  printf 'subject %s v2\n' "$4" > "$repo/docs/subjects/$4.md"
+  (cd "$repo" && script/repin-use-case-receipts.sh > /dev/null) || fail "$1: the fixture repin failed"
+  regen
+  git add -A && git commit -q -m "$1"
+}
+receipt_lane lane-r1 Alpha ALP A
+receipt_lane lane-r2 Beta BET B
+git checkout -q -b merge-receipts lane-r1
+if git merge -q --no-edit lane-r2 > /dev/null 2>&1; then fail "two new specs and two receipt repins merged without a conflict"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+case $conflicted in *docs/specs/INDEX.json*) ;; *) fail "the new-spec merge did not conflict in INDEX.json: $conflicted" ;; esac
+case $conflicted in *"$uc/ledger.json"*) ;; *) fail "the receipt merge did not conflict in the ledger: $conflicted" ;; esac
+srq() { make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements 2>&1 > /dev/null; }
+err=$(srq) && fail "make spec-requirements ran over an unmerged INDEX.json"
+# One line of its own; make adds its usual `make: *** ... Error 2` line.
+test "$(printf '%s\n' "$err" | grep -vc '^make: \*\*\* ')" = 1 && case $err in *'docs/specs/INDEX.json'*'make spec-requirements-resolve'*) true ;; *) false ;; esac ||
+  fail "the unmerged refusal is not one line naming spec-requirements-resolve: $err"
+git add -- docs/specs/INDEX.json
+err=$(srq) && fail "make spec-requirements ran over a staged INDEX.json holding conflict markers"
+case $err in *'make spec-requirements-resolve'*) ;; *) fail "the staged-marker refusal does not name spec-requirements-resolve: $err" ;; esac
+out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve 2>&1) ||
+  fail "spec-requirements-resolve did not finish the receipt merge: $out"
+test -z "$(git diff --name-only --diff-filter=U)" || fail "paths still unmerged after the resolve"
+git commit -q --no-edit
+for file in REQUIREMENTS.tsv INDEX.json README.md; do
+  case $file in REQUIREMENTS.tsv) flag= ;; INDEX.json) flag=--index ;; README.md) flag=--readme ;; esac
+  (cd "$repo" && script/gen-spec-requirements.sh $flag) | cmp -s - "$repo/docs/specs/$file" || fail "the resolved $file is not the regenerated one"
+done
+grep -q '^ALP-V0-001	' "$repo/docs/specs/REQUIREMENTS.tsv" && grep -q '^BET-V0-001	' "$repo/docs/specs/REQUIREMENTS.tsv" ||
+  fail "a new spec's requirement was lost in the resolve"
+check=$( (cd "$repo" && script/repin-use-case-receipts.sh --check) 2>&1) || fail "receipts stale after the resolve: $check"
+case $check in *'all 2 receipts current'*) ;; *) fail "receipt check after the resolve: $check" ;; esac
 
 printf 'ok\n'

@@ -307,7 +307,12 @@ SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
 SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
 
 .PHONY: spec-requirements
+# SRG-V0-922 (V1-3437): mid-merge, an unmerged generated file (or one staged with its conflict
+# markers) is refused with one line naming spec-requirements-resolve, before the generator reads it.
 spec-requirements:
+	@u=$$(git diff --name-only --diff-filter=U -- $(addprefix docs/specs/,$(SPEC_GENERATED)); \
+	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- $(addprefix docs/specs/,$(SPEC_GENERATED)) 2>/dev/null); \
+	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
 	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
 
