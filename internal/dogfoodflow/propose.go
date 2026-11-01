@@ -733,6 +733,8 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
+			// One batched read serves every BASE blob the hunks below look up (V1-4095).
+			p.prefetchBlobs(p.base, hunkPaths(parsed.Hunks))
 			for _, hunk := range parsed.Hunks {
 				p.derived[hunk.ID] = hunk
 				patched[hunk.DisplayPath] = true
@@ -843,6 +845,10 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			}
 		}
 	}
+	// The candidates' BASE and HEAD blobs are read in batches, not two git
+	// processes each (V1-4095).
+	p.prefetchBlobs(p.base, matchedPaths(p.matches))
+	p.prefetchBlobs(p.target, matchedPaths(p.matches))
 	// Specifications first, then other documents; git grep's path order
 	// within each (DCW-V0-381). A draft has already dropped every path the
 	// change touches (DCW-V0-393).
