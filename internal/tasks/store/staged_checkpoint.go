@@ -22,6 +22,9 @@ const stagedInfix = ".staged-"
 // one complete audit.
 const stagedMaxAge = 10 * time.Minute
 
+// stageCreate creates a staged temporary; a test replaces it to fail staging.
+var stageCreate = os.CreateTemp
+
 // derivedWritten, when a test sets it, observes every write of derived
 // checkpoint bytes: the destination path and the byte count.
 var derivedWritten func(path string, n int)
@@ -46,7 +49,7 @@ type stagedFile struct {
 // retention.
 func stageDerived(path string, raw []byte) *stagedFile {
 	sweepStaged(path)
-	f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+stagedInfix+"*")
+	f, err := stageCreate(filepath.Dir(path), filepath.Base(path)+stagedInfix+"*")
 	if err != nil {
 		return nil
 	}
@@ -121,23 +124,29 @@ type stagedWriterCheckpoint struct {
 	token writerToken
 	base  *stagedFile
 	delta []byte
+	// failed marks a fresh base that could not be encoded or staged: the
+	// commit then retains no writer checkpoint rather than encoding the base
+	// under the lock (JSG-V0-015, JSG-V0-891).
+	failed bool
 }
 
 // stageWriterCheckpoint encodes wc under since and stages its fresh base. It
 // returns nil when there is nothing O(store) to stage: no checkpoint, an
-// unreadable token or a base the checkpoint was decoded with.
+// unreadable token or a base the checkpoint was decoded with; and a failed
+// result when a fresh base could not be encoded or staged.
 func stageWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint, since writerToken) *stagedWriterCheckpoint {
 	if wc == nil || !since.ok || !wc.FreshBase() || wc.Seq.Uint64() < writerCheckpointMin(repo) {
 		return nil
 	}
 	wc.Invalidation = since.digest()
+	failed := &stagedWriterCheckpoint{wc: wc, token: since, failed: true}
 	base, delta, err := wc.Encode()
 	if err != nil {
-		return nil
+		return failed
 	}
 	staged := stageDerived(journal.WriterBasePath(repo.StateDir), base)
 	if staged == nil {
-		return nil
+		return failed
 	}
 	return &stagedWriterCheckpoint{wc: wc, token: since, base: staged, delta: delta}
 }
@@ -156,6 +165,9 @@ func (s *stagedWriterCheckpoint) discard() {
 // audit just refuted the bound checkpoint and replaced the token, it falls
 // back to encoding under the lock.
 func retainStagedWriterCheckpoint(repo *intent.Repository, wc *journal.WriterCheckpoint, since writerToken, staged *stagedWriterCheckpoint) {
+	if staged != nil && staged.failed && staged.wc == wc {
+		return
+	}
 	if staged == nil || staged.wc != wc || staged.token != since {
 		retainWriterCheckpoint(repo, wc, since)
 		return

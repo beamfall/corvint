@@ -116,3 +116,47 @@ func mustCheckpointFiles(t *testing.T, repo *intent.Repository) {
 		}
 	}
 }
+
+// JSG-V0-891, JSG-V0-015 review (V1-2358): when a checkpoint cannot be
+// staged, the writer retains it not at all rather than encoding it under the
+// writer lock. With every staged temporary failing, a writer-route Mutate, a
+// complete-route Mutate, the refresh and a complete-route lease claim each
+// complete and write no read checkpoint or writer base under the lock.
+func TestJSGV0891_FailedStagingRetainsNothingUnderTheLock(t *testing.T) {
+	prev := stageCreate
+	t.Cleanup(func() { stageCreate = prev })
+	repo, _ := completeRouteClaim(t, 40)
+	stageCreate = func(string, string) (*os.File, error) { return nil, os.ErrPermission }
+	locked := map[string]int{}
+	derivedWritten = func(path string, n int) {
+		if writerLockProbe(t, repo) {
+			locked[filepath.Base(path)] += n
+		}
+	}
+	defer func() { derivedWritten = nil }()
+	if r := writerMutate(t, repo, "failed-stage-w", nil); !r.completed() || !r.fast() {
+		t.Fatalf("writer-route mutate: %v %v", r.err, r.stages)
+	}
+	completeRefreshOnly(t, repo)
+	refreshWriterCheckpoint(context.Background(), repo)
+	for _, p := range []string{journal.WriterCheckpointPath(repo.StateDir), journal.WriterBasePath(repo.StateDir), journal.CheckpointPath(repo.StateDir)} {
+		os.Remove(p)
+	}
+	forgetLeaseAudits()
+	if r := writerMutate(t, repo, "failed-stage-c", nil); !r.completed() || r.fast() {
+		t.Fatalf("complete-route mutate: %v %v", r.err, r.stages)
+	}
+	for _, name := range []string{filepath.Base(journal.CheckpointPath(repo.StateDir)), filepath.Base(journal.WriterBasePath(repo.StateDir))} {
+		if locked[name] != 0 {
+			t.Errorf("%d bytes of %s written under the writer lock after staging failed", locked[name], name)
+		}
+	}
+	// The lease complete route: no checkpoint is retained, so the claim
+	// prepares and commits on it, and a failed base stays unretained.
+	_, got, _ := completeRouteClaimMoved(t, 40, false)
+	for _, name := range []string{filepath.Base(journal.CheckpointPath("taskman")), filepath.Base(journal.WriterBasePath("taskman"))} {
+		if got.locked[name] != 0 {
+			t.Errorf("lease commit wrote %d bytes of %s under the writer lock after staging failed", got.locked[name], name)
+		}
+	}
+}

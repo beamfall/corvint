@@ -561,9 +561,9 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 		return
 	}
 	if raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes); err == nil && wire.Sum(raw) == proof.Identity.HeadSha256 {
-		if !stagedRead.publish() {
-			retainCheckpoint(repo, proof)
-		}
+		// A read checkpoint that could not be staged or renamed is not
+		// retained under the lock (JSG-V0-891).
+		stagedRead.publish()
 	}
 }
 
