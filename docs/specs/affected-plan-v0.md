@@ -5427,6 +5427,98 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### A merged output stream still parses (AFP-V0-871; V1-4112)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4112): lanes that ran
+`corvint affected ... 2>&1` with a stale binary got the AFP-V0-846 `DEGRADED` line ahead of the
+JSON document and needed `tail -n +2` before any JSON tool would read it.
+
+- **AFP-V0-871:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4112)
+  Amending AFP-V0-846: when `corvint affected` writes an `affected-plan/1` (compact or `--full`)
+  or `affected-by-path/1` receipt that carries the `degradations` member, and its stdout and
+  stderr are the same pipe or regular file (`os.SameFile`, as after `2>&1`), it SHALL leave out
+  the `corvint: DEGRADED` stderr line, so stdout stays one parseable document that still names
+  the degradation. A terminal, two distinct files or pipes, or a writer that is not a file keeps
+  the line. `--format text` for the plan SHALL carry one `degraded CODE` line after its header,
+  as `--by-path` text already does. Non-goals: `corvint test` (whose `--dry-run` manifest has no
+  degradation member) keeps its line; Playwright receipts, which carry no member, keep theirs;
+  no other stderr output changes. Failure mode: a reader that captured only stderr from a merged
+  stream cannot exist, so no reader loses the code. Acceptance evidence:
+  `TestAffectedStaleBinaryMergedStreamStillParses` and `TestSharedOutputStream`. Rollback:
+  delete `sharedOutputStream` and print the line unconditionally again.
+
+### A few-line verdict on request (AFP-V0-872; V1-4052, V1-3831)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4052, V1-3831): a tests-only
+change produced about 42 KB of `affected-plan/1` JSON, and lanes wrote Python to pull the
+per-tier counts and tier-0 unit names out of a 44.7 KB plan, the only parts a lane acts on.
+
+- **AFP-V0-872:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4052,
+  V1-3831) `corvint affected --summary` SHALL plan exactly as the default invocation and write,
+  instead of the plan, one canonical `affected-summary/1` JSON document: `profile`, `tool`, `ok`,
+  `mutates`, `revision`, `range` as `{base, paths}` where `paths` is the range's path count, the
+  AFP-V0-510 `summary` object unchanged, `tiers` as `{counts, summary, tier0, tier1}` where the
+  counts and summary are the AFP-V0-162 members and `tier0` and `tier1` are the sorted unit ids of
+  those tiers (both empty when nothing is selected), the AFP-V0-846 `degradations` and the receipt
+  `warning` when present, and a `detail` string naming the flags that print the plan. With
+  `--format text` it SHALL write the AFP-V0-928 header line, `degraded CODE` and `warning TEXT`
+  lines when present, `tiers <summary>`, then one `tier0 UNIT` and one `tier1 UNIT` line per unit.
+  `--summary` SHALL be refused with `--full`, `--by-path` or `--playwright-config`, and given once
+  without a value. Decision (lane aff-w23): the default stays the `affected-plan/1` plan, because
+  skills, dogfood steps and gate scripts read `plan.selected` and `advice` from it; the compact
+  verdict V1-4052 asks for is the opt-in `--summary`, which `affected --help` documents.
+  Non-goals: dropping or truncating any default member; listing tier-2 units, witnesses or
+  unknown details, which the plan keeps. Failure mode: a reader that treats the verdict as the
+  plan would miss tier-2 units; the document names only counts for them and says where the
+  plan is. Acceptance evidence: `TestAFPV0872AffectedSummaryVerdict` (the verdict is at most
+  4 KiB and restates the plan's summary and tiers exactly); live, a tests-only edit of
+  `cmd/corvint/affected_summary_test.go` on this repository gave a 656-byte verdict where the
+  default plan was 37,369 bytes. Rollback: delete `cmd/corvint/affected_verdict.go`, the flag and
+  its help paragraph.
+
+### Built-binary readers declare their closure (AFP-V0-873; V1-3763, V1-3587, V1-3788)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3763, V1-3587, V1-3788): a
+one-line spec, `REQUIREMENTS.tsv` or Makefile edit selected about 70 units, 42 of them on the
+unbounded floor that every change selects, though most of those packages read only Go source.
+
+- **AFP-V0-873:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788) `internal/perfbudget` and `internal/opencodequalification`, whose tests
+  `go build` repository binaries (`./cmd/corvint`, `./cmd/corvint-corpus-mcp`,
+  `./tools/qualify-opencode`), SHALL carry AFP-V0-023 declarations that name `go.mod`, `go.sum`
+  and directory entries covering every non-standard directory of those builds' import closure,
+  plus their literal reads, and SHALL leave `.corvint/unbounded-readers.json`. A change inside the
+  closure still selects them as `DECLARED_READ_SCOPE`; a `docs/specs`, Makefile or root script
+  edit no longer does. Decision (lane aff-w23): a package stays on the floor when its confined
+  run (`.github/testconfine`, Landlock) fails or needs `.git` or `/`: `internal/postmergehost`,
+  `internal/postmergeworkflow`, `conformance/dashboard-snapshot-v0` and `internal/mcp/docsbridge`
+  were tried and kept. Non-goals: narrowing any other floor unit; listing the closure directory by
+  directory. Failure mode: a new import outside the declared entries fails the confined CI shard
+  and `TestRepositoryBuiltReaderDeclarations_AFPV0873`, never under-selects silently. Acceptance
+  evidence: `TestRepositoryBuiltReaderDeclarations_AFPV0873` (the closure of each build lies in
+  the declaration, which names no spec, Makefile or script path; removing `tools/` from the
+  OpenCode declaration fails it), both packages passing under `test-confine`, and the before and
+  after counts in `docs/build-log/2026-11-01-aff-w23.md`. Rollback: delete the two declarations
+  and restore the two units and their reasons in `.corvint/unbounded-readers.json`.
+
+### Remediation files are documented (AFP-V0-874; V1-3934)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3934): a Playwright plan told
+the reader to declare a path in `.corvint/playwright-unreached-paths.json`, a file no help text
+explained.
+
+- **AFP-V0-874:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3934)
+  `corvint help affected` SHALL document `.corvint/playwright-unreached-paths.json`: its location,
+  the TJAA-V0-106 schema, an example and its effect on the plan. Every `.corvint/*.json` file that
+  a remediation message of the affected planner (non-test Go under `internal/liveverify/affected`
+  and `cmd/corvint/affected*.go`) names right after a "declare ... in", "record ... in", "list ...
+  in" or "add ... in" phrase SHALL appear in that help text. Non-goals: documenting every
+  declaration file the planner reads; messages of other commands. Failure mode: a remediation
+  phrased another way escapes the scan; the scan fails when it finds no Playwright remediation, so
+  a rewording that hides the known one is caught. Acceptance evidence:
+  `TestAffectedRemedyDeclarationsAreDocumented_AFPV0874` (it failed before the help paragraph).
+  Rollback: delete the paragraph and the test.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)

@@ -897,7 +897,7 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
@@ -905,7 +905,7 @@ Usage:
   corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -938,7 +938,8 @@ degradations, present only when it applies, names self-binary-stale: inside
 its own repository this binary was built from a commit whose Go source differs
 from HEAD, so the plan may not be the one current source gives, or
 self-binary-unverified when that comparison could not complete; stderr repeats
-it with the rebuild command (AFP-V0-846).
+it with the rebuild command (AFP-V0-846), except when stdout and stderr are
+one pipe or file (2>&1), so the document still parses (AFP-V0-871).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
@@ -958,6 +959,13 @@ count and digest, and one "check KIND COMMAND" line per advice check with the
 advisory packages appended. It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
+the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
+tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
+degradations and warning; --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
+It never changes the selection.
+Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
@@ -1128,6 +1136,20 @@ A dirty path that .corvint/runtime-readers.json declares (AFP-V0-602) is listed
 in plan.nonSource as DECLARED_RUNTIME_READERS with the entry's own reason, not
 as UNOWNED_DIRTY_PATH; the units that embed, enclose, name or read it are still
 selected.
+.corvint/playwright-unreached-paths.json (TJAA-V0-106, AFP-V0-874) lists the
+source paths the Playwright suite cannot reach, even through the application
+under test. Without it, a dirty TypeScript or JavaScript path that reaches no
+Playwright test by a static edge raises playwright:out-of-suite-source and the
+plan runs the full suite. Schema: a closed JSON object of at most 64 KiB,
+{"profile":"corvint-playwright-unreached-paths/0","paths":[...]}, at most 256
+strictly ascending repository-relative files or /-ended directories, none under
+.corvint/. Example:
+  {"profile":"corvint-playwright-unreached-paths/0","paths":["scripts/","tools/seed.ts"]}
+Effect: a matched dirty path is excluded, and recorded in plan.declaration, only
+when the Playwright closure provably leaves it out; a matched path the closure
+may load (its unit is in the closure, it is the config, or membership is
+incomplete) refuses the record and raises a second playwright:out-of-suite-source
+unknown naming the path. An invalid file is an error, never an empty list.
 --playwright-env (repeatable, requires --playwright-config, not with --snapshot)
 records one environment variable in plan.environment with its value and SHA-256:
 NAME=VALUE is a value the caller supplies, and NAME reads only that variable from

@@ -1678,7 +1678,9 @@ func jsxQuoteStartsLiteral(body []byte, index int) bool {
 	if len(prefix) == 0 || bytes.HasSuffix(prefix, []byte("\n")) || bytes.HasSuffix(prefix, []byte("\r")) {
 		return true
 	}
-	if bytes.HasSuffix(prefix, []byte("=>")) || strings.ContainsRune("([={,:;!?&|+-*%^~", rune(prefix[len(prefix)-1])) {
+	// A `<` opens a type argument list or is a comparison: JSX text can hold no `<`, which always
+	// opens a tag whose name cannot begin with a quote (TJAA-V0-871).
+	if bytes.HasSuffix(prefix, []byte("=>")) || strings.ContainsRune("([={,:;!?&|+-*%^~<", rune(prefix[len(prefix)-1])) {
 		return true
 	}
 	wordStart := len(prefix)
