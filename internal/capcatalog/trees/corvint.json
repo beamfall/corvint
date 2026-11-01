@@ -4770,6 +4770,33 @@
     },
     {
       "path": [
+        "how"
+      ],
+      "command": "corvint how",
+      "summary": "Answer \"how do I GOAL\" from an application map (SKH-V0, experimental)",
+      "usage": [
+        "corvint [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL"
+      ],
+      "flags": [
+        "--budget",
+        "--condition",
+        "--corpus",
+        "--full",
+        "--ledger",
+        "--map",
+        "--repo",
+        "--root",
+        "--source"
+      ],
+      "required": [
+        "--map FILE",
+        "--source GOAL"
+      ],
+      "example": "corvint how --map FILE --source GOAL",
+      "help": "corvint how --help"
+    },
+    {
+      "path": [
         "impact"
       ],
       "command": "corvint impact",
