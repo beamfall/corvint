@@ -612,3 +612,24 @@ func TestDogfoodPromptLCPV0039ProseIsNotAnAnchor(t *testing.T) {
 		}
 	})
 }
+
+// LCP-V0-955 (V1-3542): a governing file the working tree modifies is downgraded
+// with its TCP-V0-057 reason, and an unread one says so, in the selector itself.
+func TestLocalPromptDowngradedGovernanceNamesItsReason(t *testing.T) {
+	t.Parallel()
+	index := localPromptFixture(t)
+	index.DirtyPaths = []string{"AGENTS.md"}
+	packet := localPrompt(t, index, "pkg/packet.go", nil, 20, 8000)
+	selectors := mapsFromAny(packet["coverage"].(map[string]any)["unavailable_selectors"])
+	if len(selectors) != 1 || selectors[0]["section"] != "governance" || selectors[0]["path"] != "AGENTS.md" ||
+		selectors[0]["reason"] != DowngradedAuthority || !reflect.DeepEqual(selectors[0]["warnings"], []any{SelfModifiedAuthorityWarning}) {
+		t.Fatalf("downgraded governance selector = %v", selectors)
+	}
+	index = localPromptFixture(t)
+	delete(index.Sources, "AGENTS.md")
+	packet = localPrompt(t, index, "pkg/packet.go", nil, 20, 8000)
+	selectors = mapsFromAny(packet["coverage"].(map[string]any)["unavailable_selectors"])
+	if len(selectors) != 1 || selectors[0]["reason"] != "unread" {
+		t.Fatalf("unread governance selector = %v", selectors)
+	}
+}

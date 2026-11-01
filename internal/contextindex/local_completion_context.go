@@ -122,8 +122,17 @@ func (compiler *localPromptCompiler) addGovernance() {
 		compiler.addEvidence("governance", row.path, row.line, "governing", "project-instructions")
 		return
 	}
+	// LCP-V0-955: the selector names why governance is not cited.
+	if ok {
+		selector := localSelector("governance", row.path)
+		selector["reason"], selector["warnings"] = DowngradedAuthority, downgradeCodes(row)
+		compiler.unavailable = append(compiler.unavailable, selector)
+		return
+	}
 	for _, candidate := range compiler.context.candidates[governingRelation] {
-		compiler.unavailable = append(compiler.unavailable, localSelector("governance", candidate))
+		selector := localSelector("governance", candidate)
+		selector["reason"] = "unread"
+		compiler.unavailable = append(compiler.unavailable, selector)
 		break // TaskContext never substitutes a lower-precedence unread authority.
 	}
 }
