@@ -798,7 +798,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			":(exclude)docs/specs/INDEX.json", ":(exclude)docs/specs/REQUIREMENTS.tsv",
 			":(exclude,glob)**/raw/**", ":(exclude,glob)**/*.stdout", ":(exclude,glob)**/*.stderr")
 	}
-	out, status, bounded := p.boundedGit(arguments...)
+	out, status, bounded := p.anchorGrep(arguments, sorted)
 	// git grep exits 1 when nothing matches: a complete read with no candidates.
 	if status > 1 || !bounded {
 		return false

@@ -3070,6 +3070,31 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   file ignored, the matching one prepended), `script/dogfood-bin-reuse_test.sh` (the wrapper's
   build file), and the measured seal in `docs/build-log/2026-10-31-sealreuse-sp1.md`. Rollback:
   drop the clock and the two files; the check prints what it printed before.
+- `DCW-V0-984`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3810; refines
+  `DCW-V0-942` and `DCW-V0-165`) The `DCW-V0-942` `binding` phase MUST be split into named rows:
+  `binding ocm` (the OCM aggregate verification and comparison, its verifier command keeping its
+  own `verifier-tree` row), `binding coverage` (the declared-requirement coverage), `binding record`
+  (each report record write), `binding tiers` (the `CEM-V1-081` tier lines with their
+  `DCW-V0-165` anchor search) and `binding seal-head` (a seal's HEAD binding and clean-change
+  check); `binding -` keeps the rest. A `DCW-V0-907` concurrent cem status pair MUST have its own
+  `verifier-pair` row per command label, its wall time, instead of falling into `binding`. The
+  check's `DCW-V0-165` anchor search MUST read BASE in two passes instead of one `git grep -o`: a
+  `git grep -l` with the same patterns and pathspecs lists the matching files, one
+  `git cat-file --batch` reads them, and every occurrence of each pattern yields one candidate
+  record in the `-o` record form. Every `-o` candidate is still produced, so the warnings can only
+  gain an anchor `-o` skipped inside an earlier overlapping match, which `verify.SpanAnchors`
+  re-checks as before; a draft (`dogfood propose-citations`) keeps its `-o` read byte for byte. A
+  record set or a blob over the flow's Git output bound, or a failed read, is an incomplete read as
+  an oversized `-o` read was. Motivation: on the spd-u20 seal replay (59 hunks, 28 below anchored,
+  492 patterns) the `-o` read took 41.6 s of a 45.3 s binding phase, while `-l` takes 1.0 s and the
+  blob read 0.24 s, because `-o` re-searches the rest of each matching line for every pattern after
+  every match. Non-goals: changing a verdict, exit or output line; changing drafting. Failure
+  modes: a check whose matching files exceed the bound reports the search incomplete, as before.
+  Evidence: `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate` (every `-o` candidate kept, the
+  overlap `-o` skips found, binary and excluded paths left out, the draft read unchanged, the
+  bound and the no-match status kept), `TestDCWV0984BindingSubphaseRows`, and the before/after rows
+  in `docs/build-log/2026-11-01-dck-u24.md`. Rollback: call `boundedGit` again in `prepareAnchors`
+  and drop the sub-phase `enter` calls.
 - `DCW-V0-943`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3627; refines
   `DCW-V0-074`) The verifier build reuse cache (`CORVINT_DOGFOOD_BIN_CACHE`, default
   `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-dogfood-bin`) is per user and host and outside every
@@ -3624,6 +3649,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
+| `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
