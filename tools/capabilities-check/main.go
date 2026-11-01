@@ -4,8 +4,8 @@
 // fails unless docs/CAPABILITIES.md has exactly one row for every corvint command in the
 // root help and every verb cmd/corvint dispatches (and the two lists agree), every cmd/ binary and every corvint.* MCP tool, no row for anything that no
 // longer exists, command maturity that agrees with the root help's Core and Experimental groups,
-// every code-declared subcommand named in its verb's row, every listed refusal code still present
-// in the source, live relative links, a README "What Corvint can do" table whose rows each map to a catalog row,
+// every code-declared or command-tree subcommand named in its verb's row and no
+// row listing a subcommand the code lacks, every listed refusal code equal to a source string literal, live relative links, a README "What Corvint can do" table whose rows each map to a catalog row,
 // and, for each command-tree snapshot under internal/capcatalog/trees, every dispatched subcommand
 // and option named by the tree, with every other binary on a ratchet that may only shrink
 // (docs/specs/capability-catalog-v0.md). It reads files only; it runs nothing and writes nothing.
@@ -29,7 +29,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "capabilities-check:", err)
 		return 2
 	}
-	inv.Words, err = ScanWords([]string{filepath.Join(root, "cmd"), filepath.Join(root, "internal")})
+	if err := MergeSubcommands(&inv, root); err != nil {
+		fmt.Fprintln(stderr, "capabilities-check:", err)
+		return 2
+	}
+	inv.Literals, err = ScanLiterals([]string{filepath.Join(root, "cmd"), filepath.Join(root, "internal")})
 	if err != nil {
 		fmt.Fprintln(stderr, "capabilities-check:", err)
 		return 2
