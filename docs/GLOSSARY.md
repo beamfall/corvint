@@ -125,7 +125,7 @@ cross-profile definition and the following table is the mapping between the fiel
 
 | Surface | Field | Values | Citation |
 |---|---|---|---|
-| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1100@e32959ff`; `docs/MCP-SERVER.md:153@84842141` |
+| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1100@e32959ff`; `docs/MCP-SERVER.md:155@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:268,271@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
 | TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:123@c6531e00` |
 | TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:118@11bd5f87` |
