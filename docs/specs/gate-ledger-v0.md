@@ -158,6 +158,28 @@ therefore come from something keyed on content, not from Go's cache.
   salt never hits. An undeclared NAME with a salt MUST key on the whole tree; an unsalted
   undeclared name still runs and records nothing (GL-V0-003), and `never` scopes still always
   run. `make batch-precheck` is the caller (`corvint-self-development-v0.md` `ASD-V0-042`).
+- `GL-V0-600`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099) A
+  scope entry MAY also be `@root` (every root-level path), `DIR/*.ext` (a glob whose `*` stays in
+  one path component, through `path.Match`) or `@go` (every Go build input: any `*.go`, `go.mod`,
+  `go.sum`, `go.work` or `go.work.sum` file, and every path below a directory that holds a `.go`
+  file, so `//go:embed` targets and `testdata` count). `@go` MUST be computed from the same tree
+  listing the key digests, so a new Go package directory widens the scope in that key. Failure
+  mode: a Go reader that opens a path outside every Go package directory, the root and the step's
+  other entries would hit when it should run; each GL-V0-601 scope therefore also names the step's
+  own data directories, and `tooling` still adds `Makefile`, `go.mod`, `go.sum`, `script/` and
+  `tools/`. Rollback: drop the three forms; a step using them then keys on fewer paths, so remove
+  the GL-V0-601 entries in the same change.
+- `GL-V0-601`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)
+  `selection-baseline-check` MUST be scoped `@go @root .github/cishards/
+  benchmarks/selection-baseline/` and `capability-catalog-check` `@go @root docs/*.md`, the input
+  lists `script/batch-precheck.sh` already declares for them (`corvint-self-development-v0.md`
+  `ASD-V0-944`, `ASD-V0-051`), so the post-seal `make batch-precheck` whose only new paths are a
+  CEM under `.corvint/changes/` or a `docs/build-log/` entry hits instead of repeating both checks.
+  A change to any declared input, the checker's own source under `tools/` or `script/` included,
+  and a different toolchain (the tool identity) MUST run the step. Measured on the WSL lane host
+  (build log 2026-11-01-perf-w22): the post-seal rerun of `selection-baseline-check` went from
+  221 s (a miss) to 2 s, and `capability-catalog-check` from 11 s to 2 s. Rollback: delete the two
+  entries; both steps return to the whole-tree key of GL-V0-051.
 
 ## Non-goals and simpler baseline
 
@@ -240,6 +262,8 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (2026-09-22) |
 | GL-V0-050 | `TestGoTestKeysDeclaredPackagesByTheirScope`: a declared `os.Getwd` package records per package, hits after an edit outside its scope, reruns after an edit under a declared entry or to the declaration, and an invalid declaration keys nothing by scope; `TestDeclaredPackagesAreBoundByTheirScope`: `-unresolved` omits the declared locator and keeps the undeclared one, `-bounds` lists its `declared` paths, and an invalid declaration is an error in both; both fail before the change |
 | GL-V0-051 | `TestRunStepKeysSaltedStepsByBaseScope`: `NAME+SALT` records, hits after a change outside NAME's scope, a different salt runs, an undeclared salted name records on the whole tree and reruns after any change, an unsalted undeclared name records nothing |
+| GL-V0-600 | `TestInScopeBatchPrecheckForms`: `@root` matches a root file only, `docs/*.md` matches a top-level docs page but not a build-log entry or another extension, `@go` matches a Go file, a `testdata` file under a Go package, a nested `go.sum` and a data file beside a `.go` file, and not a workflow, a CEM, a build-log entry or a non-Go directory |
+| GL-V0-601 | `TestRunStepKeysBatchPrecheckScopes`: both steps hit after a new CEM or build-log entry and run after a change to a Go file, an embedded `testdata` file, `go.mod`, a root file or `script/`; `selection-baseline-check` runs after a cost-table or change-set edit and hits after a docs page edit, `capability-catalog-check` the reverse; measured hit on WSL (build log 2026-11-01-perf-w22) |
 
 ## Traceability
 
@@ -256,6 +280,8 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
+| GL-V0-600 | `goScope`, `rootScope`, `goDirectories`, `goInput`, `inScope` and `inputs` in `tools/gate-ledger/main.go` | `TestInScopeBatchPrecheckForms` |
+| GL-V0-601 | the `selection-baseline-check` and `capability-catalog-check` entries of `scopes` in `tools/gate-ledger/main.go` | `TestRunStepKeysBatchPrecheckScopes`; build log 2026-11-01-perf-w22 |
 
 ## Rollout, rollback, and drift
 
