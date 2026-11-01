@@ -6279,6 +6279,7 @@ SKH-V0-330	docs/specs/site-knowledge-howto-v0.md	(experimental under the standin
 SKH-V0-177	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1903) `how` MUST answer with the flow	unrecorded	-
 SKH-V0-178	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1904) The draft guard MUST go directly after	unrecorded	-
 SKH-V0-179	docs/specs/site-knowledge-howto-v0.md	(experimental; Codex review fix, V1-1900) A setup project whose file selection i	unrecorded	-
+SKH-V0-810	docs/specs/site-knowledge-howto-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-2594) `corvint	standing	2026-11-01; V1-2594
 SBQ-V0-001	docs/specs/snapshot-batch-v0.md	`corvint [--root PATH] batch` MUST read one canonical JSON request object from	unrecorded	-
 SBQ-V0-002	docs/specs/snapshot-batch-v0.md	The verb MUST load the current snapshot exactly once through	unrecorded	-
 SBQ-V0-003	docs/specs/snapshot-batch-v0.md	Each operation MUST run the standalone verb's own code path over the loaded	unrecorded	-
