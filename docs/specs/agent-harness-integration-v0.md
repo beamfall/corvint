@@ -879,6 +879,78 @@ separate exact extension tuple remains governed by AHI-024.
   Evidence: `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery` and
   `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` (`cmd/corvint`). Rollback: drop
   `withCauseRemediation` so these notices carry the frame line alone.
+- `AHI-950`: (experimental under the standing lane auto-accept (2026-10-31); V1-2347, V1-2518)
+  Amendment to `AHI-172` and `AHI-171`. Each window's `AHI-172` quiet reference MUST be calibrated
+  per window as the window's fastest completed probe spawn, never below the declared floor of 2 ms,
+  and the slowdown is the probe p95 over that calibrated reference, at least 1.
+  `metrics.latencyAttempts[].baseline` and `metrics.latencyBaseline` MUST record the calibrated
+  reference as `quietReferenceP95Ms` (`NOT_OBSERVED` when the baseline was not observed) and the
+  floor as `referenceFloorMs`. A host whose quiet spawn is slower than the floor then shows no
+  standing slowdown, so a slow-spawn host cannot excuse a candidate regression; the floor keeps a
+  fast host from excusing more than the declared reference allowed. An observed OpenCode child
+  command that reaches its process timeout with a clean owned process group MUST be classified from
+  the host load read before the command started and again at the timeout: when the peak 1-minute
+  load per logical CPU exceeds the `AHI-171` threshold the qualifier MUST exit 75 (`RETRY_LATER`)
+  and name the timeout, the measured peak load, the threshold and `host-starvation-suspected`;
+  otherwise it MUST fail (exit 1) naming the timeout and the measured load as an adapter failure,
+  and with the load unobserved it MUST fail and say `NOT_OBSERVED`. Non-goals: a per-host stored
+  calibration, a separate quiet calibration run, CPU steal time, and retrying a timed-out command
+  in the same run. Failure modes: a window uniformly contended from its first spawn calibrates a
+  high reference and understates the slowdown, which fails closed towards `LATENCY_REGRESSION`; a
+  genuine adapter hang on a contended host retries later until it is reproduced on a quiet one.
+  Evidence: `TestAHI172SameWindowBaseline` (`AHI-950` subtest) and `TestProcessTimeoutUnderContention`
+  in `internal/opencodequalification`. Rollback: revert `baselineSample.reference` and
+  `timeoutError` so the fixed reference and an unclassified timeout return.
+- `AHI-951`: (experimental under the standing lane auto-accept (2026-10-31); V1-2495) The Codex
+  qualified-package publish MUST be `script/publish-codex-plugin.sh publish REVISION QUALIFIED_HOOKS
+  OUTPUT`: it extracts `integrations/codex/plugins/corvint` from the committed REVISION only,
+  replaces `hooks/hooks.json` with the reviewed `prepare-qualified-hooks` rendering, omits
+  `scripts/`, keeps every other file including `.mcp.json`, writes the local marketplace manifest
+  and a `PUBLISH.json` naming the source revision, the plugin version and the transforms, the
+  hooks transform recording the Git blob of the staged copy it publishes (a failed hash refuses
+  the publish), and publishes nothing unless the result passes the check. `script/publish-codex-plugin.sh check
+  PLUGIN_DIR` MUST refuse (exit 1, naming the key and path) a plugin whose `.codex-plugin/plugin.json`
+  declares a `skills`, `mcpServers` or `hooks` path that is missing, leaves the plugin by its text
+  or physically through a symlink (a file reference may not itself be a symlink), or (for
+  `mcpServers`) declares no server object; `make host-package-versions-check` runs it on the
+  committed plugin. Non-goals: version stamping, Codex configuration or hook trust changes, and a
+  Git marketplace. Failure modes: the qualified hooks file is the caller's reviewed input and is
+  checked only for shape; a fresh install listing the MCP tools needs a live Codex host and stays
+  `NOT_RUN` until one is qualified. Evidence: `script/publish-codex-plugin_test.sh` (committed
+  plugin passes; missing, empty and escaping references are refused; a publish carries `.mcp.json`
+  and the qualified hooks and omits `scripts/`; a refused publish leaves no output). Rollback:
+  delete the script and its two Makefile lines.
+- `AHI-952`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; amends
+  `AHI-022`) The Gemini CLI hook MUST apply `AHI-248`: a well-formed `BeforeAgent` receipt that
+  holds an exact copy of the task MUST be withheld as `prompt-echo-withheld`, which joins the
+  `AHI-022` closed expected set, so the unchanged degraded text goes to `BeforeAgent`
+  additionalContext and no `systemMessage` reaches the terminal. A one-word task such as `Add` can
+  equal a symbol name Core rightly returns, so the echo is not a fault. The guard is unchanged: the
+  receipt's context is never used. Non-goals: relaxing the exact-string check or the order of
+  envelope validation, which still runs first. Failure mode: a malformed receipt that also echoes
+  the task keeps its fault `systemMessage`. Evidence: the `echo` case of `gemini response tampering
+  and budgets fail visibly` in `integrations/host-adapters.test.mjs`, run by
+  `TestHostAdapterJavaScriptHosts`; at base it reports `corvint-prompt-echo` as a `systemMessage`.
+  Rollback: restore the `corvint-prompt-echo` code and remove it from the expected set.
+- `AHI-953`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; extends
+  `AHI-249`) The `ADAPTER_VERSION` literal in `integrations/gemini-cli/hooks/corvint-hook.mjs`,
+  which the hook sends as `--adapter-version` and checks in every receipt, MUST be a gemini-cli
+  version location of `script/host-package-version.sh`, so `verify` names it when it drifts and
+  `bump` moves it with the manifests. At base a bump moved only the manifests and left the hook
+  sending the old version. Evidence: the gemini-cli drift case in
+  `script/host-package-version_test.sh` and the version `0.2.12` argv assertion in
+  `integrations/host-adapters.test.mjs`. Rollback: drop the location line and its test case.
+- `AHI-954`: (experimental under the standing lane auto-accept (2026-10-31); V1-3409; amends
+  `AHI-020`) `README.md` is outside every host package's shipped set, the OpenCode and Pi sets
+  included although their published `files` lists name it, so a README-only edit needs no version
+  bump. A version-cached README changes no runtime behaviour, and those two packages' bump moves
+  every `AHI-173` location, including `cmd/corvint/pi_adapter.go` and the Pi tuple in
+  `docs/specs/pi-workflow-v0.md`, which a documentation edit should not rewrite. The other five
+  packages already excluded it. Non-goals: exempting any other file in a `files` list, or changing
+  what a bump moves. Failure mode: an installed OpenCode or Pi package keeps its old README until
+  the next shipped change bumps the version. Evidence: the OpenCode and Pi README-only cases in
+  `script/check-host-package-versions_test.sh`; at base both fail the gate. Rollback: restore the
+  two `README.md` pathspecs in `script/check-host-package-versions.sh`.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2569,6 +2641,11 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-920` | `cmd/corvint/local_completion_event.go` (`dogfoodMissBuild`) | `TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin` |
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
+| `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
+| `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
+| `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
+| `AHI-953` | gemini-cli `locations` in `script/host-package-version.sh` | `script/host-package-version_test.sh` (gemini-cli drift case) |
+| `AHI-954` | `opencode` and `pi` shipped sets in `script/check-host-package-versions.sh` | `script/check-host-package-versions_test.sh` (OpenCode and Pi README-only cases) |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |

@@ -566,16 +566,19 @@ capability-catalog-check:
 # host-package-versions-check fails when a host package manifest's version field (AHI-020,
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
 # commit that changed any other shipped file in that package. AHI-240: it also verifies that every
-# version location of every package agrees, so a manifest-only bump fails here.
+# version location of every package agrees, so a manifest-only bump fails here. AHI-951: every
+# path the Codex plugin manifest declares (skills, mcpServers, hooks) exists.
 .PHONY: host-package-versions-check
 host-package-versions-check:
 	@script/check-host-package-versions.sh
 	@script/host-package-version.sh verify >/dev/null
+	@script/publish-codex-plugin.sh check integrations/codex/plugins/corvint
 
 .PHONY: host-package-versions-test
 host-package-versions-test:
 	@script/check-host-package-versions_test.sh
 	@script/host-package-version_test.sh
+	@script/publish-codex-plugin_test.sh
 
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a

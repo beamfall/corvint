@@ -143,7 +143,7 @@ test('OpenCode boundedTask trims Go strings.TrimSpace whitespace before the boun
 })
 test('CRB-V0-012 Gemini exact transport and only normalized task/path fields',async t=>{
  const f=fixture(t);const start=await f.gemini('session-start');assert.equal(start.output.continue,true);assert.equal(start.output.hookSpecificOutput?.hookEventName,'SessionStart',start.output.systemMessage ?? JSON.stringify(start.output));const [row]=f.captured();noSecret(row)
- assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.11','--event','session-start','--input','-','--budget-bytes','8000'])
+ assert.deepEqual(row.argv,['--root',f.root,'harness','event','--host','gemini-cli','--host-version','unknown','--surface','extension','--adapter-version','0.2.12','--event','session-start','--input','-','--budget-bytes','8000'])
  assert.deepEqual(row.input,{sessionIdSha256:sha('raw-session-secret')})
  await f.gemini('user-prompt',{messages:[{secret:'hidden'}]});const prompt=f.captured().at(-1);assert.deepEqual(prompt.input,{sessionIdSha256:sha('raw-session-secret'),task:'repair the parser'})
  await f.gemini('after-tool',{tool_name:'write_file',tool_input:{file_path:join(f.root,'src/../src/parser.py'),content:'hidden'},tool_response:{success:true}})
@@ -275,6 +275,7 @@ for(const host of ['opencode','gemini']) {
   for(const mode of ['malformed','digest','event','host','profile','echo','nodes','overflow','core-error']) {
    const f=fixture(t,mode)
    if(host==='opencode'){const result=await f.runOpen(request(f.root,'user-prompt'));assert.equal(result.ok,false,`${mode}: ${JSON.stringify(result)}`);if(mode==='echo')assert.equal(result.code,'prompt-echo-withheld')}
+   else if(mode==='echo'){const {output}=await f.gemini('user-prompt');assert.equal(output.continue,true);assert.equal(output.systemMessage,undefined,JSON.stringify(output));assert.match(output.hookSpecificOutput?.additionalContext,/degraded \(prompt-echo-withheld\)/)}
    else {const {output}=await f.gemini('user-prompt');assert.equal(output.continue,true);assert.match(output.systemMessage,/degraded/,mode);assert.ok(Buffer.byteLength(JSON.stringify(output))<1000)}
   }
  })

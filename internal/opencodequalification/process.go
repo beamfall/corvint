@@ -39,6 +39,7 @@ func runCommand(ctx context.Context, dir string, env []string, argv []string, ou
 	if lookupErr != nil {
 		return nil, lookupErr
 	}
+	start := readContention()
 	r := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: env, Timeout: timeout, OutputLimit: 4 << 20, ObserveDescendants: true})
 	e := os.WriteFile(output+".stdout", r.Stdout, 0600)
 	if e != nil {
@@ -53,6 +54,9 @@ func runCommand(ctx context.Context, dir string, env []string, argv []string, ou
 	result := Object{"exitCode": r.ExitStatus, "stdout": string(r.Stdout), "stderr": string(r.Stderr), "argv": argv}
 	if !r.OwnedProcessGroupCleanup || r.DescendantObservation == nil || !r.DescendantObservation.Absent {
 		return result, cleanupError(r.OwnedProcessGroupCleanup, r.DescendantObservation)
+	}
+	if r.TimedOut {
+		return result, timeoutError(argv, timeout, latencySample{start: start, end: readContention()})
 	}
 	if r.Err != nil {
 		return result, fmt.Errorf("command %v: %w", argv, r.Err)
@@ -82,6 +86,23 @@ func cleanupError(groupClean bool, d *procgroup.DescendantObservation) error {
 		return &RetryLaterError{Message: msg}
 	}
 	return fmt.Errorf("observed command cleanup incomplete: groupClean=%t absent=%t processes=%d failures=%q", groupClean, d.Absent, len(d.Processes), d.Failures)
+}
+
+// timeoutError classifies an observed command that hit its process timeout with a clean owned group
+// (AHI-950). A timeout in a window whose peak load per CPU exceeds the AHI-171 threshold is a
+// retry-later outcome with the measured load; otherwise it is a failure that still names the
+// timeout and the measured load, so an operator can tell it from an adapter defect.
+func timeoutError(argv []string, timeout time.Duration, window latencySample) error {
+	msg := fmt.Sprintf("observed command %v hit its %s process timeout", argv, timeout)
+	peak, ok := window.peakLoadPerCPU()
+	if !ok {
+		return errors.New(msg + "; host load NOT_OBSERVED, so host starvation cannot be told from an adapter defect")
+	}
+	load := fmt.Sprintf("peak 1-minute load per logical CPU %.2f against the declared threshold %.2f", peak, latencyContentionLoadPerCPU)
+	if peak > latencyContentionLoadPerCPU {
+		return &RetryLaterError{Message: msg + " under measured host contention (" + load + "); host-starvation-suspected, not an adapter failure; retry when the host is quiet"}
+	}
+	return errors.New(msg + " on an uncontended host (" + load + "); treated as an adapter failure")
 }
 
 func gapOnly(failures []string) bool {

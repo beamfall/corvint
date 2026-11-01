@@ -47,7 +47,8 @@ locations() {
             'integrations/codex/plugins/corvint/compatibility.json|.adapter.version' "$matrix" ;;
         gemini-cli) printf '%s\n' \
             'integrations/gemini-cli/gemini-extension.json|.version' \
-            'integrations/gemini-cli/compatibility.json|.adapterVersion' "$matrix" ;;
+            'integrations/gemini-cli/compatibility.json|.adapterVersion' "$matrix" \
+            'integrations/gemini-cli/hooks/corvint-hook.mjs|lit:ADAPTER_VERSION' ;;
         opencode) printf '%s\n' \
             'integrations/opencode/package.json|.version' \
             'integrations/opencode/package.json|.corvintIntegration.adapterVersion' "$matrix" \

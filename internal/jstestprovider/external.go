@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -589,18 +588,12 @@ func externalCommand(c E2EConfig, scratch string) (string, []string, string, err
 func externalReady(ctx context.Context, address string, limit time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, limit)
 	defer cancel()
-	client := &http.Client{Timeout: time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	if err := probeAddress(address); err != nil {
+		return err
+	}
 	for {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-		if err != nil {
-			return err
-		}
-		resp, err := client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				return nil
-			}
+		if status, err := loopbackGet(ctx, address, false); err == nil && status >= 200 && status < 300 {
+			return nil
 		}
 		select {
 		case <-ctx.Done():

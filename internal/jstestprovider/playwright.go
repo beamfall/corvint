@@ -2,6 +2,7 @@ package jstestprovider
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -38,8 +39,9 @@ type playwrightSpec struct {
 }
 
 type playwrightTest struct {
-	Status  string             `json:"status"` // expected | unexpected | flaky | skipped
-	Results []playwrightResult `json:"results"`
+	Status         string             `json:"status"` // expected | unexpected | flaky | skipped
+	ExpectedStatus string             `json:"expectedStatus"`
+	Results        []playwrightResult `json:"results"`
 }
 
 type playwrightResult struct {
@@ -156,6 +158,7 @@ func walkPlaywrightSuite(s playwrightSuite, out *[]TestOutcome) {
 
 func playwrightOutcome(spec playwrightSpec, t playwrightTest) TestOutcome {
 	outcome := TestOutcome{Name: spec.Title, FullName: spec.Title, Anchor: &Anchor{File: spec.File, Line: spec.Line}}
+	t.Results = expectedStatusResults(t)
 	last := lastResult(t.Results)
 	if last != nil {
 		outcome.DurationMS = last.Duration
@@ -176,6 +179,27 @@ func playwrightOutcome(spec playwrightSpec, t playwrightTest) TestOutcome {
 	outcome.State = playwrightState(t, last, outcome.FailureMessage)
 	scrubPlaywrightOutcome(&outcome)
 	return outcome
+}
+
+// expectedStatusResults records a passed result as failed, with the reason as its error, when the
+// test expects another status (`test.fail()`) or, for the last result, when Playwright marked the
+// test unexpected, so such a test is never a pass, as the appflows run ingest reads it (AFU-V1-950).
+func expectedStatusResults(t playwrightTest) []playwrightResult {
+	results := slices.Clone(t.Results)
+	for i := range results {
+		reason := ""
+		switch {
+		case results[i].Status != "passed":
+		case t.ExpectedStatus != "" && t.ExpectedStatus != "passed":
+			reason = "passed, but the test expects " + t.ExpectedStatus
+		case t.Status == "unexpected" && i == len(results)-1:
+			reason = "passed, but Playwright reported the test unexpected"
+		}
+		if reason != "" {
+			results[i].Status, results[i].Error = "failed", &playwrightError{Message: reason}
+		}
+	}
+	return results
 }
 
 // scrubPlaywrightOutcome applies the run-evidence hygiene and the product secret screen (AFU-V1-038)

@@ -342,6 +342,11 @@ AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-172	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #	standing	2026-10-11; V1-2201; #1406
 AHI-372	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3086; GitHub #	standing	2026-10-11; V1-3086; #1982
 AHI-970	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-3255; amends `AHI-055` and	standing	V1-3255
+AHI-950	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2347, V1-2518	standing	2026-10-31; V1-2347; V1-2518
+AHI-951	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2495) The Cod	standing	2026-10-31; V1-2495
+AHI-952	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2977; amends	standing	2026-10-31; V1-2977
+AHI-953	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2977; extends	standing	2026-10-31; V1-2977
+AHI-954	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3409; amends	standing	2026-10-31; V1-3409
 AHI-820	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) Th	standing	V1-2513
 AHI-373	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendmen	standing	2026-10-11; V1-3244
 AHI-173	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One comm	standing	2026-10-11; V1-2145
@@ -604,6 +609,7 @@ AFU-V1-130	docs/specs/application-flow-understanding-v1.md	`corvint flows --help
 AFU-V1-131	docs/specs/application-flow-understanding-v1.md	`corvint flows ingest --format playwright-json` MUST key each test the way a	unrecorded	-
 AFU-V1-251	docs/specs/application-flow-understanding-v1.md	A `playwright-list` import MUST join the listed specs that share a repository	unrecorded	-
 AFU-V1-252	docs/specs/application-flow-understanding-v1.md	A variation's `no-test` gap MUST read `only inferred test links, which count onc	unrecorded	-
+AFU-V1-950	docs/specs/application-flow-understanding-v1.md	Three decoders of a Playwright `--reporter=json` report remain, each a different	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -5085,6 +5091,7 @@ MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	The tool MUST open no netw
 MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box	unrecorded	-
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl	unrecorded	-
 MTV-V0-010	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The	standing	2026-10-11; V1-1781
+MTV-V0-950	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP	standing	2026-10-11; V1-2185
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-

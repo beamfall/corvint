@@ -2,7 +2,7 @@ package jstestprovider
 
 import (
 	"context"
-	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"time"
@@ -28,8 +28,8 @@ func callerOwnedLoopback(address string) bool {
 	if err != nil || u.Scheme != "http" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return false
 	}
-	ip := net.ParseIP(u.Hostname())
-	return ip != nil && ip.IsLoopback()
+	ip, err := netip.ParseAddr(u.Hostname())
+	return err == nil && ip.Zone() == "" && ip.Unmap().IsLoopback()
 }
 
 // runCallerOwned runs the Playwright test command against a server the caller started and

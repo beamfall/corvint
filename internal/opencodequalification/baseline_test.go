@@ -9,10 +9,11 @@ import (
 	"time"
 )
 
-// probeAt is a same-window baseline whose every no-op spawn took ms.
+// probeAt is a same-window baseline whose no-op spawns took ms, except one fast spawn below the
+// declared reference floor, so the window's calibrated reference is that floor (AHI-950).
 func probeAt(ms float64) baselineSample {
-	b := baselineSample{probe: "/usr/bin/true"}
-	for i := 0; i < 30; i++ {
+	b := baselineSample{probe: "/usr/bin/true", ms: []float64{1}}
+	for i := 1; i < 30; i++ {
 		b.ms = append(b.ms, ms)
 	}
 	return b
@@ -53,6 +54,26 @@ func TestAHI172SameWindowBaseline(t *testing.T) {
 			t.Fatalf("baseline evidence = %v", ev)
 		}
 	})
+	t.Run("AHI-950 a host whose quiet spawn is slow calibrates its own reference", func(t *testing.T) {
+		// Every spawn in the window took at least 5 ms, so the calibrated reference is 5 ms and the
+		// window's 6 ms p95 is a 1.2x slowdown, not 3x the declared 2 ms floor: lifecycle 600 ms is
+		// beyond 250 x 1.2 x 1.5 = 450 ms, so the load does not excuse it.
+		b := baselineSample{probe: "/usr/bin/true"}
+		for i := 0; i < 30; i++ {
+			b.ms = append(b.ms, 5+float64(i%2))
+		}
+		s := loaded(600, b)
+		if got := latencyOutcome(s); got != latencyOutcomeRegressed {
+			t.Fatalf("outcome = %s", got)
+		}
+		if ev := baselineEvidence(s); ev["quietReferenceP95Ms"] != 5.0 || ev["referenceFloorMs"] != baselineQuietP95Ms || ev["slowdown"] != 1.2 || ev["comparison"] != baselineBeyond {
+			t.Fatalf("baseline evidence = %v", ev)
+		}
+		// A fast host never calibrates below the declared floor.
+		if ref := probeAt(5).reference(); ref != baselineQuietP95Ms {
+			t.Fatalf("fast-host reference = %v", ref)
+		}
+	})
 	t.Run("AHI-172 a slow baseline on a quiet host does not excuse a miss", func(t *testing.T) {
 		s := loaded(600, probeAt(5))
 		s.start, s.end = loadAt(1, 12), loadAt(2, 12)
@@ -69,7 +90,7 @@ func TestAHI172SameWindowBaseline(t *testing.T) {
 		}
 		ev := baselineEvidence(s)
 		for _, k := range []string{"p95Ms", "slowdown", "queryRelative", "lifecycleRelative", "scaledQueryLimitMs", "scaledLifecycleLimitMs", "comparison"} {
-			if ev[k] != notObserved {
+			if ev[k] != notObserved || ev["quietReferenceP95Ms"] != notObserved {
 				t.Fatalf("%s = %v, want NOT_OBSERVED", k, ev[k])
 			}
 		}
