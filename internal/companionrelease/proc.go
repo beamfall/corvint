@@ -24,6 +24,9 @@ const subprocessTimeout = 20 * time.Second
 // Every subprocess this package starts goes through procgroup.Run so process
 // groups are owned and reaped; this is the sole call site.
 func runCaptured(ctx context.Context, dir string, env []string, timeout time.Duration, argv ...string) (stdout, stderr []byte, err error) {
+	if err := ensureGoTmp(env); err != nil {
+		return nil, nil, fmt.Errorf("%v: create GOTMPDIR: %w", argv, err)
+	}
 	observation := procgroup.Run(ctx, procgroup.Spec{
 		Argv:            argv,
 		Dir:             dir,
@@ -55,6 +58,9 @@ func runExpectedExit(ctx context.Context, dir string, env []string, timeout time
 
 // runCapturedStdin is runCaptured plus stdin, for `git cat-file --batch`.
 func runCapturedStdin(ctx context.Context, dir string, env []string, timeout time.Duration, stdin []byte, argv ...string) (stdout, stderr []byte, err error) {
+	if err := ensureGoTmp(env); err != nil {
+		return nil, nil, fmt.Errorf("%v: create GOTMPDIR: %w", argv, err)
+	}
 	observation := procgroup.Run(ctx, procgroup.Spec{
 		Argv:            argv,
 		Dir:             dir,
