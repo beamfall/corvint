@@ -622,7 +622,8 @@ for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSp
 done
 
 # 16. SRG-V0-968 (V1-3661): a spec whose Agent digest has no Claim is refused in every mode, naming
-# it, so no README summary is hand-maintained; a spec with no digest at all is unaffected.
+# it, so no live spec's README summary is hand-maintained; a superseded digest (Successor and
+# Why) and a spec with no digest at all are unaffected.
 # shellcheck disable=SC2016
 printf '# Claimless\n\n## Agent digest\n- Status: proposed\n\n## Requirements\n\n- `CLM-V0-001`: a requirement.\n' > "$test_root/docs/specs/claimless.md"
 stage docs/specs/claimless.md
@@ -636,5 +637,19 @@ for mode in '' --lines --index --readme; do
   esac
 done
 git -C "$test_root" rm -q --cached -- docs/specs/claimless.md
+# shellcheck disable=SC2016
+printf '# Retired
+
+## Agent digest
+- Successor: `docs/specs/x.md` replaces it.
+- Why: retired.
+
+## Requirements
+
+- `CLM-V0-002`: a retired requirement.
+' > "$test_root/docs/specs/retired.md"
+stage docs/specs/retired.md
+run > /dev/null || fail "a superseded digest (Successor and Why) was refused for having no Claim"
+git -C "$test_root" rm -q --cached -- docs/specs/retired.md
 
 printf 'ok\n'

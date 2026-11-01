@@ -269,6 +269,7 @@ for my $file (sort @specs) {
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
         claim => digest_values($blob)->{Claim}, status => digest_values($blob)->{Status},
+        successor => digest_values($blob)->{Successor},
         digest => scalar($blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/m),
         intent_line => line_of($blob, qr/^[^\S\n]*(?:- )?[^\S\n]*(?:\QIntent status:\E|\Q**Intent status:**\E)/m),
         status_line => $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*\n/mg
@@ -471,14 +472,15 @@ sub status_ids {
             . "move each definition there, then rerun make spec-requirements (SRG-V0-891, RDG-V0-021)\n";
     }
 }
-# SRG-V0-968 (V1-3661): every spec's Agent digest carries a Claim, so every README row's leading
-# summary is projected from it (SRG-V0-012) and none is hand-maintained. Refused in every mode.
+# SRG-V0-968 (V1-3661): every live spec's Agent digest carries a Claim, so its README row's leading
+# summary is projected from it (SRG-V0-012); a superseded digest (Successor and Why only, as
+# internal/specindex requires) is exempt. Refused in every mode.
 {
-    my @claimless = grep { $header{$_}{digest} && !defined $header{$_}{claim} } sort @specs;
+    my @claimless = grep { $header{$_}{digest} && !defined $header{$_}{claim} && !defined $header{$_}{successor} } sort @specs;
     if (@claimless) {
         print STDERR "$_: its ## Agent digest has no `- Claim:` line\n" for @claimless;
         die "every spec's Agent digest states a one-sentence `- Claim:`, which README.md and INDEX.json "
-            . "project; a retired or superseded spec states its retirement, then rerun make "
+            . "project (a superseded spec's digest holds Successor and Why instead), then rerun make "
             . "spec-requirements (SRG-V0-968)\n";
     }
 }
