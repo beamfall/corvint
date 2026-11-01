@@ -1356,19 +1356,22 @@ as withheld. This amendment reserves what the routed spec cites.
   or the `CORVINT_CONTEXT_TERMS=ident` selection leaves the packet byte-identical to the
   default. Every row that took a fuzzy credit says so first in its evidence reason, as
   ``fuzzy `task`~`matched`; `` for each credit, so a corrected match is never presented as an
-  exact one. Falsifier: a fuzzy credit with no `fuzzy` label, or a changed default packet.
+  exact one; a row another relation admitted carries the label of a fuzzy lexical row that
+  corroborated it. Falsifier: a fuzzy credit with no `fuzzy` label, or a changed default packet.
   Tests: `TestFuzzyEditDistanceOne`, `TestContextFuzzyFallbackIsLabelled`,
-  `TestContextFuzzyDefaultBytes`.
+  `TestContextFuzzyCorroborationIsLabelled`, `TestContextFuzzyDefaultBytes`.
 - `TCP-V0-651`: (experimental, same acceptance; V1-3711) Under the same flag a path token of
   at least five bytes that shares a prefix with a task term and differs from it by at most
   three trailing bytes (`narrowing` and `narrow`), and a path token that is the concatenation
   of two task terms or their TCP-V0-650 neighbours (`unplanned` and `read`, `unplannedread`),
-  are path-field credits at 0.75; a hyphenated task word (`merge-base`) is matched verbatim as a
-  TCP-V0-022 anchor at 0.75 unless the anchor field already carries it. Shell, YAML and JSON
-  sources mostly name their subject in their path and in hyphenated command words rather than
-  in declared identifiers, so these credits are what lets them rank like Go sources do. Each
+  are path-field credits at 0.75; a hyphenated task word (`merge-base`) is matched verbatim, case
+  kept, as a TCP-V0-022 anchor at 0.75 unless the anchor field already carries it. Shell, YAML
+  and JSON sources mostly name their subject in their path and in hyphenated command words
+  rather than in declared identifiers, so these credits are what lets them rank like Go sources
+  do. Each
   credit carries the TCP-V0-650 label (a verbatim word as `` `merge-base` verbatim``).
-  Falsifier: an unlabelled stem, concatenation or verbatim credit.
+  Falsifier: an unlabelled stem, concatenation or verbatim credit, or a verbatim credit for a
+  source that carries the word only in another case. Test: `TestContextFuzzyVerbatimKeepsCase`.
 - `TCP-V0-652`: (experimental, same acceptance; V1-3711) Under the same flag the task words
   `config`, `configs`, `configuration` and `settings` credit, as a path term at 0.75, every
   `.json`, `.yaml`, `.yml`, `.toml`, `.ini`, `.cfg`, `.conf` or `.sh` source under a dot
@@ -1838,7 +1841,7 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-034 | `configureContextGraph`, `contextRelations` | `TestContextGraphDefaultBytes`, `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestContextGraphSlotAbstains` |
 | TCP-V0-039 | `extractRoleSummary`, `roleLine`, `firstParagraph`, `goRoleBlocks`, `commentAbove`, `pythonRoleBlocks`, `docstring`, `rustRoleBlocks`, `docMarkerBlocks`, `markerBlock` | `TestRoleSummaryExtractionIsCommentOnlyAndReproducible`, `TestRoleSummaryBounds` |
 | TCP-V0-040 | `configureContextRoles`, `roleHits`, `roleCandidates`, `roleTerms`, `lexicalHits` | `TestContextRolesExplainAndNeverOutrankAuthority`, `TestContextRolesDefaultBytes` |
-| TCP-V0-650..652 (experimental, standing lane auto-accept, V1-3711) | `configureContextFuzzy`, `fuzzyNeighbour`, `fuzzyPathStems`, `editDistanceOne`, `fuzzyCredits`, `isConfigurationPath`, `fuzzyReason`, `lexicalHits`, `lexicalContextRow` (`internal/contextindex/context_fuzzy.go`, `taskcontext.go`) | `TestFuzzyEditDistanceOne`, `TestContextFuzzyFallbackIsLabelled`, `TestContextFuzzyDefaultBytes`; probe ranks and the NOT_RUN frozen bench in `docs/build-log/2026-11-01-cli-u14.md` |
+| TCP-V0-650..652 (experimental, standing lane auto-accept, V1-3711) | `configureContextFuzzy`, `fuzzyNeighbour`, `fuzzyPathStems`, `editDistanceOne`, `fuzzyCredits`, `isConfigurationPath`, `fuzzyReason`, `lexicalHits`, `lexicalContextRow` (`internal/contextindex/context_fuzzy.go`, `taskcontext.go`) | `TestFuzzyEditDistanceOne`, `TestContextFuzzyFallbackIsLabelled`, `TestContextFuzzyCorroborationIsLabelled`, `TestContextFuzzyVerbatimKeepsCase`, `TestContextFuzzyDefaultBytes`; probe ranks and the NOT_RUN frozen bench in `docs/build-log/2026-11-01-cli-u14.md` |
 | TCP-V0-041 | `roleReason`, `lexicalRows` | `TestContextRolesExplainAndNeverOutrankAuthority` |
 | TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
 | TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
