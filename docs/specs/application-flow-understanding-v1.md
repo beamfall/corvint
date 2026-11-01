@@ -1660,3 +1660,49 @@ Failure modes:
 Rollback: revert this section with `playwrightListDir`, `listSpecs`, `disambiguate`,
 `dropCollisions` and `ImportSkipped`. Playwright import then returns to rootDir-relative keys
 without a describe path, and to an all-or-nothing refusal.
+
+## One Playwright attribution across the report decoders (V1-1235)
+
+Human-owned intent: a Playwright JSON report reads the same way wherever Corvint decodes it, so a
+test that one consumer counts as passed is never failed or missing in another. In particular a
+`test.fail()` test whose body passes, which Playwright itself reports `unexpected`, is never a pass.
+Accepted under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-950**: Three decoders of a Playwright `--reporter=json` report remain, each a different
+  projection with its own refusal rules: `jstestprovider.ParsePlaywrightJSON` (a tolerant decode into
+  receipt outcomes, with the run-evidence hygiene and secret screen), `internal/playwrightruns`
+  (a strict-shape, bounded decode keyed by project, file and title path, for repeats, stability and
+  baselines) and the `internal/appflows` run ingest (a bounded decode keyed by repository path, for
+  attempt records). For one report they MUST agree on attribution: the same tests in report order,
+  each with the same file and title (a failed `ParsePlaywrightJSON` outcome anchors at its failure
+  location instead), the same project where the decoder records one, the same
+  number of attempts, and the same pass verdict. The two decoders that record attempt outcomes
+  (`ParsePlaywrightJSON` and the run ingest) record the same outcome per attempt. A test is a
+  pass only when its last attempt passed, its `expectedStatus` is `passed` (or absent), and
+  Playwright did not mark it `unexpected`. `ParsePlaywrightJSON` therefore records a passed attempt
+  of a test whose `expectedStatus` is not `passed`, or a passed last attempt of an `unexpected` test,
+  as `failed` with the reason as its failure message, as the run ingest already does.
+
+Acceptance: `TestAFUV1950PlaywrightDecodersAgree` decodes one real Playwright 1.61.1 report
+(`internal/appflows/testdata/playwright-attribution.json`: a plain pass, a `test.fail()` test that
+fails, a `test.fail()` test that passes twice, and a test that passes on retry, in project `p1`
+under one describe block) through all three decoders and compares file, title, project, attempt
+count and the pass verdict per test, and the attempt outcomes of the two decoders that record them. It failed before the change: `ParsePlaywrightJSON`
+reported `expected fail passes` as `passed`. `jstestprovider`, `playwrightruns` and `appflows`
+existing tests pass unchanged.
+
+Decision (why three remain): merging the decoders would change the refusal behaviour that each
+consumer's existing tests pin. `playwrightruns` refuses a missing `projectName` or an unknown status
+with `ErrShape`, `ParsePlaywrightJSON` tolerates both, and the run ingest bounds the raw report
+before decode. The shared fixture test is the guard that keeps them consistent.
+
+Non-goals: one shared decoder package; the qualified reporter
+(`internal/jstestprovider/qualified-reporter.cjs`), which builds receipts from reporter callbacks
+and not from a JSON report.
+
+Failure modes: a report with no `expectedStatus` member keeps the earlier classification. A
+`test.fail()` test that fails as expected stays `failed` in every decoder, never a pass, although
+Playwright counts it green.
+
+Rollback: revert this section, the `ParsePlaywrightJSON` expected-status check and the shared
+fixture test. `ParsePlaywrightJSON` then reports a passing `test.fail()` test as `passed` again.
