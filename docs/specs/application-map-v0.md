@@ -789,7 +789,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `cmd/corvint/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/1`), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/2`; bumped from `/1` by the V1-3932 React route ranking), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2184,16 +2184,19 @@ but does not read it; only non-Go syntax impact does.
   head carries `count_sources`, which names the map field each count is read from, plus totals
   across modules. When the map's `test_join` is `UNKNOWN`, every module's `unreached_status` reads
   `UNKNOWN` with reason `test-join-unknown`, since an unread or unresolved test file may reach a
-  listed screen. Otherwise it reads `RESOLVED`. The document follows the projection budget of
-  `AMAP-V0-011`: modules are trimmed before the head.
+  listed screen. Otherwise it reads `RESOLVED`. The head's `evaluated_revision` is `NOT_READ`, as in
+  `flows appmap stats`: no checkout is read, so identical map bytes give identical output from any
+  root. The document follows the projection budget of `AMAP-V0-011`: modules are trimmed before the
+  head.
   - Non-goals: runtime reach, flow-step or page-object-only reach, and per-module gating.
   - Failure modes: a map with no screens reports no modules. A test file the index excluded is
     covered only by `test_join` being `UNKNOWN`, which affects every module at once.
   - Falsifier: `TestAMAPV0601CoverageReport_V12770` in `coverage_report_v12770_test.go` (a fixture
     with two router files, a reached and an unreached screen in each, an unresolved screen and an
     abstract screen: expected counts per module, and `unreached_status` `UNKNOWN` once a test
-    file's join is `UNKNOWN`); `TestFlowsAppmapCoverageCLI_V12770` (the verb emits the schema and
-    refuses without `--map`).
+    file's join is `UNKNOWN`; identical map bytes from two roots at different HEADs give identical
+    output); `TestFlowsAppmapCoverageCLI_V12770` (the verb emits the schema and refuses without
+    `--map`).
   - Rollback: delete `coverage_report.go`, the CLI verb and its tests.
 
 ## Wire contract
