@@ -7150,6 +7150,7 @@ TTG-V0-009	docs/specs/traceability-test-gate-v0.md	When one or more names fail T
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST	unrecorded	-
 TTG-V0-011	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3143; refines	standing	2026-10-29; V1-3143
 TTG-V0-012	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3235; refines	standing	2026-10-30; V1-3235
+TTG-V0-917	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4048; refines	standing	2026-11-01; V1-4048
 TTG-V0-950	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3586)	standing	2026-11-01; V1-3586
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
