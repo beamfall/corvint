@@ -24,11 +24,16 @@ never read the ledger (invariant 4).
 - `TestLMGV0013ClaudeSessionKey`, `TestLMGV0014FilterSession` and `TestLMGV0014ReportSession` pass,
   with the rest of `internal/modelgateway` and `cmd/corvint-gateway`, under `-race`. The command-tree
   snapshot is regenerated for the new `--session` flag.
-- A live join on a real dogfood run: `NOT_RUN`. A Claude Code session started inside this desktop
-  session cannot sign in. The owner runs it by starting `corvint-gateway serve`, opening a Claude Code
-  session with `ANTHROPIC_BASE_URL=http://127.0.0.1:8787`, doing a dogfood change in it, then
-  running `corvint-gateway report --session KEY` with the key the session's start-of-session hook
-  prints in `corvint dogfood status --session-key KEY`.
+- Live join against the real API, run from the owner's signed-in terminal panel: the PR build of
+  `corvint-gateway serve` on `127.0.0.1:8797`, then `claude -p --session-id
+  6f1c2d3e-4b5a-4c7d-8e9f-0a1b2c3d4e5f` in the Corvint checkout with `ANTHROPIC_BASE_URL` set,
+  asked to echo the `--session-key` its Corvint session-start hook handed it. It answered
+  `f914cbaa…be4402`, which equals the hash recomputed by hand, and both ledger lines (HTTP 200,
+  `claude-opus-5-5`) carry that `claudeSessionKey`. `report --session` on that key printed 2 requests:
+  1,204 uncached input, 37,153 cache-creation and 152 output tokens. An unknown key printed
+  `NOT_OBSERVED`. The print-mode session was not enrolled (`dogfood status` reports
+  `enrollment-inactive`), so this proves that the key the adapter issues matches the key in the ledger,
+  not a full dogfood change run through the gateway.
 - Independent review (Codex, one round) returned one finding: an explicit empty `--session=` skipped
   validation and reported every session. `report` now validates any supplied `--session`, and the
   test covers the empty and uppercase forms.
