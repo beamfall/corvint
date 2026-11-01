@@ -4545,6 +4545,8 @@ LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decisio
 LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
 LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
 LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
+LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
+LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-126	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) When	standing	2026-10-11; V1-1024
 LPCV-V0-127	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The	standing	2026-10-11; V1-1024
 LPCV-V0-128	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The same	standing	2026-10-11; V1-1024
