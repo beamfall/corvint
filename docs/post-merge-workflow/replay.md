@@ -37,6 +37,16 @@ request, but their author/scope/validation stages and draft requests must be rep
 because the actual scope/validation verifier is not integrated: an `observed` claim for them, or
 any connector draft, blocks. Never fake receipts to make that path pass.
 
+The author and draft stages can be replayed by the harness itself (PMR-V0-940..942). An adapter may
+return `authored` entries (at most one each of `docs` and `tests`, files only inside its own reported
+documentation targets or, for tests, test-file paths when it reports test gaps). With a host-policy
+`draft_url`, the harness commits each entry in a private Git directory under its scratch (the
+product's objects are read through alternates; no product ref, object, index or worktree is written)
+and records one `upsert-draft-change` request per commit in `recording_jsonl`. Nothing is pushed or
+opened. Those stages are listed in `replayed_stages` and leave `deferred_stages`; scope and
+validation stay deferred. A labelled set of real merged changes and its recorded campaign outcome
+(PMR-V0-943) lives in `internal/postmergeworkflow/testdata/historical/manifest.json`.
+
 `affected_flows` and `test_gaps` are the delta stage outputs. Once `corvint delta` (issue #389) is
 available, an adapter derives them from that record's documentation-drift and uncovered-behaviour
 sections and reports the record's SHA-256 as the `delta` stage digest. Replay itself never parses
