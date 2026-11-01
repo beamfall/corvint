@@ -3112,7 +3112,7 @@
         "gaps writes application-flow-gaps/1; any gap makes a flow incomplete.",
         "impact writes application-flow-impact/1: flows, variations and test keys reached from base..HEAD changes, with the path of each hop.",
         "stability writes flows-run-stability/0: per aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run counts, the applied threshold and a clean or not-stable verdict.",
-        "ingest writes test-run-evidence/0 JSONL to stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree, --source-clean, --build-artifact-digest, --environment-id, --environment-digest, --fixture-id, --fixture-digest, --cleanup, repeatable --control \"SUBJECT<TAB>CONTROL<TAB>EXPECTED\" and repeatable --coverage-artifact ID=FILE, which pins a coverage file the run wrote by sha256.",
+        "ingest writes test-run-evidence/0 JSONL to stdout.",
         "A bound exceeded exits nonzero with the incomplete code and writes nothing.",
         "None of these writes to the repository.",
         "ingest-coverage writes corvint-coverage-ingest/1 to stdout: the coverage, run-evidence and links inputs pinned by digest; each covered test bound to its one run record, and joined only when that record ran clean at the revision and pins the coverage input's sha256 as a --coverage-artifact; observed tested_by relations from executed source files with executed line spans anchored to the committed blobs; links the coverage contradicts as coverage-contradiction conflicts; and every path or test it cannot classify as an unknown with a reason.",

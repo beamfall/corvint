@@ -368,6 +368,19 @@ func runFlowsIngest(_ context.Context, root string, args []string, out, diag io.
 	if f.Parse(args) != nil || *format == "" || *from == "" || f.NArg() != 0 {
 		return errors.New("flows ingest requires --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE and the run header flags")
 	}
+	// AFU-V1-904 (V1-3937): every format needs the whole run header; one refusal names each
+	// missing or invalid flag with the format it accepts, before the report is read.
+	if problems := appflows.CheckRunHeader(h); len(problems) != 0 {
+		named := make([]string, 0, len(problems))
+		for _, p := range problems {
+			state := "invalid"
+			if p.Missing {
+				state = "missing"
+			}
+			named = append(named, fmt.Sprintf("--%s %s (%s)", strings.ReplaceAll(p.Field, "_", "-"), state, p.Format))
+		}
+		return &gokernel.Error{Code: "invalid-arguments", Message: "flows ingest run header: " + strings.Join(named, "; ")}
+	}
 	h.Root = root
 	ingested, err := appflows.IngestRunFile(*format, *from, h)
 	if err != nil {
@@ -424,9 +437,9 @@ Query usage:
   corvint [--root PATH] flows impact --flows DIR --base SHA
   corvint [--root PATH] flows stability --registry FILE [--evidence FILE]...
   corvint [--root PATH] flows ingest --format playwright-json|playwright-receipt|junit-xml|go-test-json --from FILE
-    [--run-id ID] [--runner-version VERSION] [--source-commit SHA] [--source-tree SHA] [--source-clean]
-    [--build-artifact-digest DIGEST] [--environment-id ID] [--environment-digest DIGEST]
-    [--fixture-id ID] [--fixture-digest DIGEST] [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]...
+    --run-id ID --runner-version VERSION --source-commit SHA --source-tree SHA [--source-clean]
+    --build-artifact-digest DIGEST --environment-id ID --environment-digest DIGEST
+    --fixture-id ID --fixture-digest DIGEST [--cleanup STATE] [--control SPEC]... [--coverage-artifact ID=FILE]...
 
 map writes application-flow-map/1: every link with its basis, review state and the
 self-attested review summary, and per variation the test-run-evidence/0 state and
@@ -436,9 +449,13 @@ application-flow-impact/1: flows, variations and test keys reached from base..HE
 changes, with the path of each hop. stability writes flows-run-stability/0: per
 aggregate of the flows-run-registry/0 FILE committed at HEAD, the raw repeated-run
 counts, the applied threshold and a clean or not-stable verdict. ingest writes test-run-evidence/0 JSONL to
-stdout; header flags are --run-id, --runner-version, --source-commit, --source-tree,
---source-clean, --build-artifact-digest, --environment-id, --environment-digest,
---fixture-id, --fixture-digest, --cleanup, repeatable
+stdout. Every --format, playwright-json included, requires the run header: --run-id,
+--environment-id and --fixture-id are IDs of 1-128 letters, digits, '.', '_' or '-';
+--runner-version is printable text; --source-commit and --source-tree are full lowercase hex
+object IDs; --build-artifact-digest, --environment-digest and --fixture-digest are bare
+64-hex sha256 digests (no sha256: prefix); --cleanup is done, failed or not-declared (the
+default). One refusal (exit 2, invalid-arguments) names every missing or invalid header flag
+with its format. Optional: --source-clean, repeatable
 --control "SUBJECT<TAB>CONTROL<TAB>EXPECTED" and repeatable --coverage-artifact
 ID=FILE, which pins a coverage file the run wrote by sha256. A bound exceeded exits nonzero with
 the incomplete code and writes nothing. None of these writes to the repository.
