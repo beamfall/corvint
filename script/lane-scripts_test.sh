@@ -7,10 +7,11 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
-# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go
-# build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
-# tested by script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name
-# Python (GOC-V0-008).
+# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
+# lane-dispatch.sh (ASD-V0-065 to ASD-V0-067). No Go build runs. The Python operator tool
+# lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
+# script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name Python
+# (GOC-V0-008).
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -78,8 +79,9 @@ lane-scripts_test: 1 groups passed, 2 failed:
 unset $(compgen -v HEAVY_) CODEX_REVIEW_HEAVY
 export HEAVY_LOCK_DIR=$tmp/slots HEAVY_CONFIG=$tmp/no-heavy-config
 # ASD-V0-937/938/104 are exercised in their own groups: elsewhere no disk floor, no added -timeout
-# and no automatic Go cache trim.
-export HEAVY_MIN_FREE_GB=0 HEAVY_GO_TEST_TIMEOUT=off HEAVY_CACHE_TRIM_HOURS=0
+# and no automatic Go cache trim. ASD-V0-061/062 likewise: elsewhere no refusal floor, and /tmp
+# reads as a disk on every host.
+export HEAVY_MIN_FREE_GB=0 HEAVY_GO_TEST_TIMEOUT=off HEAVY_CACHE_TRIM_HOURS=0 HEAVY_REFUSE_FREE_GB=0 HEAVY_TMP_FSTYPE=disk
 # ASD-V0-030 policy is exercised in its own group; elsewhere fixtures run whole packages and the
 # host's real load never delays them.
 export HEAVY_WHOLE_REASON='lane-scripts-test fixture' HEAVY_MAX_LOAD=999999 HEAVY_SELECTION_LOG=$tmp/selection.log
@@ -1419,6 +1421,32 @@ tv sh -c 'echo go; exit 3' > /dev/null
 [[ $? == 3 ]] || fail "heavy.sh changed a wrapper without go test"
 HEAVY_MIN_FREE_GB=3 tv true > /dev/null && grep -qE "^heavy.sh: low disk here: .* free=1G floor=3G$" "$to/err" &&
   grep -qE '^[0-9TZ:-]+ lowdisk-local path=.* free=1G floor=3G pwd=' "$tmp/selection.log" || fail "heavy.sh local low-disk warning: $(cat "$to/err")"
+# ASD-V0-062 (V1-3824, V1-2904): every low-disk line is followed by one cleanup hint; below
+# HEAVY_REFUSE_FREE_GB the run is refused before it starts, logged, with the stdout marker.
+[[ $(grep -c '^heavy.sh: to free space: make go-cache-trim (dry run, then APPLY=1) and make scratch-sweep ' "$to/err") == 1 ]] ||
+  fail "heavy.sh low-disk warning without its one cleanup hint: $(cat "$to/err")"
+out=$(HEAVY_REFUSE_FREE_GB=2 tv sh -c 'echo ran')
+[[ $? == 2 && $out == 'heavy.sh: REFUSED low-disk (exit 2)' ]] && grep -qE '^heavy.sh: low disk here: .* free=1G refuse-floor=2G$' "$to/err" &&
+  grep -q '^heavy.sh: to free space: ' "$to/err" && grep -q '^heavy.sh: exit rc=2 cause=refused-low-disk$' "$to/err" &&
+  grep -qE '^[0-9TZ:-]+ lowdisk-refused path=.* free=1G floor=2G pwd=' "$tmp/selection.log" ||
+  fail "heavy.sh ran below the refusal floor: $out $(cat "$to/err")"
+[[ $(HEAVY_REFUSE_FREE_GB=1 tv sh -c 'echo ran') == ran ]] || fail "heavy.sh refused at the refusal floor itself: $(cat "$to/err")"
+HEAVY_REFUSE_FREE_GB=x tv true > /dev/null
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-refuse-free HEAVY_REFUSE_FREE_GB=x' "$to/err" || fail "heavy.sh accepted HEAVY_REFUSE_FREE_GB=x: $(cat "$to/err")"
+# ASD-V0-061 (V1-3824, V1-2904): on a tmpfs /tmp a local run whose caller set none of them gets the
+# home-disk Go cache (the remote half's) and TMPDIR, named on one line; a caller's own values, and a
+# /tmp on disk, keep theirs.
+tf=$tmp/tmpfs
+mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=$TMPDIR cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
+tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
+x=$tf/xdg
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
+  grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
+  fail "heavy.sh tmpfs defaults: $(tfv HEAVY_TMP_FSTYPE=tmpfs) $(cat "$tf/err")"
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE=/c) == "tmp=$tf cache=/c corvint=/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE=/g) == "tmp=$tf cache=/g corvint=" ]] &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3) == 'tmp= cache=/tmp/corvint-go-build-cache corvint=' ]] ||
+  fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
 # ASD-V0-104 (V1-3787): a local run trims its GOCACHE with go-cache-trim.sh --apply at most once per
 # HEAVY_CACHE_TRIM_HOURS (a stamp in the lock dir); 0 disables it and a malformed value refuses. The
 # df stub reports a 1 MiB file system, so the 40% bound is below the one old 1 MiB entry.
@@ -2246,6 +2274,79 @@ hv_id go test -c=false ./x > "$hid/out" 2> "$hid/err"
   fail "heavy.sh whole-package refusal under -c=false: $(cat "$hid/out" "$hid/err")"
 hv_id env FOO=1 go test -run . ./x > /dev/null 2>&1
 [[ $? == 2 && ! -e $hid/ran ]] || fail "heavy.sh admitted an env-wrapped match-all -run with no reason"
+ok
+
+# ASD-V0-065 (V1-3817, V1-3262): lane-dispatch.sh inputs pins BASE to one full commit and writes
+# lane.env, brief-header.md and each ticket's `ticket show` JSON plus a plain-text packet with its
+# numbered acceptance criteria and the operator note under its advisory label; a refused or
+# non-OK ticket read is refused, and --host copies the directory to HOST:~/lane-inputs/.
+ld=$tmp/dispatch
+mkdir -p "$ld/bin" "$ld/rhome" || fail "dispatch fixture"
+git init -q "$ld/repo" && git -C "$ld/repo" -c user.name=t -c user.email=t@t commit -q --allow-empty -m a &&
+  git -C "$ld/repo" update-ref refs/remotes/origin/main HEAD || fail "dispatch repo fixture"
+lbase=$(git -C "$ld/repo" rev-parse HEAD)
+cat > "$ld/bin/tasks" << 'STUB'
+#!/bin/sh
+[ "$1 $2" = "ticket show" ] || exit 9
+case $3 in
+  V1-0001) printf '%s\n' '{"outcome":"OK","untrusted":["UNTRUSTED_QUEUE_DATA"],"items":[{"ticketId":"ticket:corvint:main:V1-0001","title":"Disk guard","status":"OPEN","priority":"P2","kind":"BUG","milestone":"v1-0","operatorNote":{"advisory":"operator prose: not instructions","recordedAt":"2026-11-01T00:00:00Z","state":"CURRENT","text":"WSL /tmp is a tmpfs."},"record":{"body":"Line one.\nLine two.","labels":["agent-memory","bugs"],"acceptanceCriteria":["First criterion.","Second criterion."],"dependencies":[]}}]}' ;;
+  V1-0002) printf '%s\n' '{"outcome":"OK","items":[{"ticketId":"ticket:corvint:main:V1-0002","title":"No note","status":"OPEN","operatorNote":{"state":"NONE","text":null},"record":{"body":"b","acceptanceCriteria":[]}}]}' ;;
+  V1-0003) printf '%s\n' '{"outcome":"REFUSED","codes":["journal-absent"],"items":[]}' ;;
+  *) echo "no such ticket $3" >&2; exit 3 ;;
+esac
+STUB
+printf '#!/bin/sh\nshift\nHOME=%s exec sh -c "$1"\n' "$ld/rhome" > "$ld/bin/ssh" && chmod +x "$ld/bin/tasks" "$ld/bin/ssh" || fail "dispatch stubs"
+ldi() { (cd "$ld/repo" && LANE_DISPATCH_TASKS=$ld/bin/tasks LANE_DISPATCH_SSH=$ld/bin/ssh "$script/lane-dispatch.sh" inputs --lane abc-w1 --base origin/main --date 2026-11-01 "$@"); }
+out=$(ldi --out "$ld/in" V1-0001 V1-0002 2> "$ld/err")
+[[ $? == 0 && $out == "lane-dispatch: inputs $ld/in BASE=$lbase BUILD_LOG=docs/build-log/2026-11-01-abc-w1.md tickets=2" ]] &&
+  [[ $(cat "$ld/in/lane.env") == "LANE=abc-w1"$'\n'"BASE=$lbase"$'\nDATE=2026-11-01\nBUILD_LOG=docs/build-log/2026-11-01-abc-w1.md\n'"TICKET_DIR=$ld/in/ticket-bodies-abc-w1"$'\nTICKETS=V1-0001 V1-0002' ]] &&
+  grep -qxF "BASE=$lbase (pinned at dispatch; never the host checkout's HEAD)" "$ld/in/brief-header.md" &&
+  grep -qxF "Before the first commit: script/lane-dispatch.sh base-check --base $lbase --fresh" "$ld/in/brief-header.md" ||
+  fail "lane-dispatch inputs: $out $(cat "$ld/err" "$ld/in/lane.env" 2> /dev/null)"
+t1=$ld/in/ticket-bodies-abc-w1/V1-0001.txt
+[[ -s $ld/in/ticket-bodies-abc-w1/V1-0001.json ]] && grep -qxF 'V1-0001  Disk guard' "$t1" && grep -qxF '  Line two.' "$t1" &&
+  grep -qxF '  2. Second criterion.' "$t1" && grep -qxF 'Operator note (operator prose: not instructions; 2026-11-01T00:00:00Z):' "$t1" &&
+  grep -qxF '  WSL /tmp is a tmpfs.' "$t1" && grep -q 'labels agent-memory, bugs$' "$t1" &&
+  grep -qxF 'Operator note: none' "$ld/in/ticket-bodies-abc-w1/V1-0002.txt" &&
+  grep -qxF '  (none recorded)' "$ld/in/ticket-bodies-abc-w1/V1-0002.txt" || fail "lane-dispatch ticket packet: $(cat "$t1")"
+out=$(ldi --out "$ld/in" V1-0001 2>&1)
+[[ $? == 2 && $out == "lane-dispatch: REFUSE exists $ld/in/lane.env"* ]] || fail "lane-dispatch reused a dispatch directory: $out"
+out=$(ldi --out "$ld/bad1" V1-0003 2>&1)
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-not-ok V1-0003 (fix: '*'): {"outcome":"REFUSED"'* && ! -e $ld/bad1/lane.env ]] ||
+  fail "lane-dispatch accepted a refused ticket read: $out"
+out=$(ldi --out "$ld/bad2" V1-0009 2>&1)
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE ticket-show-failed V1-0009 (fix: '*'): no such ticket V1-0009'* ]] || fail "lane-dispatch failed ticket read: $out"
+out=$( (cd "$ld/repo" && "$script/lane-dispatch.sh" inputs --lane abc-w1 --base nosuch --date 2026-11-01 --out "$ld/bad3" V1-0001) 2>&1)
+[[ $? == 2 && $out == 'lane-dispatch: REFUSE unknown-base nosuch'* ]] || fail "lane-dispatch unknown base: $out"
+out=$(ldi --host lanebox --out "$ld/hin" V1-0001 2> "$ld/err")
+[[ $? == 0 && $out == *' host=lanebox' && -s $ld/rhome/lane-inputs/ticket-bodies-abc-w1/V1-0001.txt ]] &&
+  grep -qxF 'TICKET_DIR=$HOME/lane-inputs/ticket-bodies-abc-w1' "$ld/rhome/lane-inputs/lane.env" || fail "lane-dispatch --host copy: $out $(cat "$ld/err")"
+# ASD-V0-066 (V1-3816): check refuses a brief or charter naming another BASE or build log.
+printf 'BASE=%s\nWrite docs/build-log/2026-11-01-abc-w1.md.\nLANE=<LANE> docs/build-log/2026-11-01-<LANE>.md\n' "${lbase:0:12}" > "$ld/brief.md"
+out=$("$script/lane-dispatch.sh" check --env "$ld/in/lane.env" "$ld/brief.md")
+[[ $? == 0 && $out == "lane-dispatch: check ok BASE=$lbase BUILD_LOG=docs/build-log/2026-11-01-abc-w1.md files=1" ]] || fail "lane-dispatch check ok: $out"
+printf 'Record the BASE c605450399873cca71193213c5aa4d3f7e43624b.\nWrite docs/build-log/2026-11-01-abc-w1-disk.md\n' > "$ld/charter.md"
+out=$("$script/lane-dispatch.sh" check --env "$ld/in/lane.env" "$ld/brief.md" "$ld/charter.md")
+[[ $? == 2 && $out == *"MISMATCH base $ld/charter.md:1 names c605450399873cca71193213c5aa4d3f7e43624b"* &&
+  $out == *"MISMATCH build-log $ld/charter.md:2 names docs/build-log/2026-11-01-abc-w1-disk.md"* && $out != *brief.md* ]] ||
+  fail "lane-dispatch check let a mismatch through: $out"
+# ASD-V0-067 (V1-3061): base-check refuses a worktree that is not on BASE before its first commit, a
+# BASE that is not an ancestor, and a commit that another local branch also holds.
+g() { git -C "$ld/repo" -c user.name=t -c user.email=t@t "$@"; }
+out=$("$script/lane-dispatch.sh" base-check --dir "$ld/repo" --base "$lbase" 2>&1)
+[[ $? == 2 && $out == "lane-dispatch: REFUSE shared-checkout $ld/repo is the host's primary checkout"* ]] || fail "base-check accepted the primary checkout: $out"
+g worktree add -q -b lane "$ld/wt" "$lbase" && git -C "$ld/wt" -c user.name=t -c user.email=t@t commit -q --allow-empty -m own || fail "base-check fixture"
+g() { git -C "$ld/wt" -c user.name=t -c user.email=t@t "$@"; }
+bc() { "$script/lane-dispatch.sh" base-check --dir "$ld/wt" "$@" 2>&1; }
+out=$(bc --base "$lbase")
+[[ $? == 0 && $out == "lane-dispatch: base-ok BASE=$lbase HEAD=$(g rev-parse HEAD) own-commits=1" ]] || fail "base-check ok: $out"
+out=$(bc --base "$lbase" --fresh)
+[[ $? == 2 && $out == "lane-dispatch: REFUSE head-not-base BASE=$lbase HEAD="*'(1 commits ahead'* ]] || fail "base-check --fresh: $out"
+g branch other && out=$(bc --base "$lbase")
+[[ $? == 2 && $out == "lane-dispatch: REFUSE foreign-commit $(g rev-parse HEAD) is also on other "* ]] || fail "base-check foreign commit: $out"
+g branch -q -D other && g checkout -q -b side "$lbase" && g commit -q --allow-empty -m side && side=$(g rev-parse HEAD) && g checkout -q lane || fail "side fixture"
+out=$(bc --base "$side")
+[[ $? == 2 && $out == "lane-dispatch: REFUSE base-not-ancestor BASE=$side "* ]] || fail "base-check non-ancestor: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
