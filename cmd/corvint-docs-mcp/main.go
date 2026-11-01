@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/docsbridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
@@ -42,9 +43,13 @@ const usage = "usage: corvint-docs-mcp --root ROOT [--protocol-version 2026-07-2
 	"       corvint-docs-mcp --version\n" +
 	"A local read-only stdio MCP server for the experimental docs tools of the Git worktree at ROOT.\n" +
 	"Deprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile docs\n" +
-	"serves the same tools with the same results."
+	"serves the same tools with the same results.\n" +
+	"Example: corvint-docs-mcp --root /absolute/repo"
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-docs-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
