@@ -2055,6 +2055,20 @@ out=$(ldcrun --base nope a="$ldc/a.json")
 [[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
 out=$(ldcrun)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+# ASD-V0-753 (V1-3816): a lane brief and the charter naming two BASE commits or two build-log files
+# fail before dispatch; a short ID that prefixes the full one is the same commit, and <LANE> in the
+# charter is the lane name.
+printf 'BASE: 99e6e6c676c1e68e84338f0d8c90b03e2a1315eb\nwrite docs/build-log/2026-11-01-u9a.md\n' > "$ldc/brief.md"
+printf 'Record the BASE (99e6e6c67) in docs/build-log/2026-11-01-<LANE>.md\n' > "$ldc/charter.md"
+printf 'BASE=0a04f0813 head 404a223\nwrite docs/build-log/2026-11-01-unraid9a.md\n' > "$ldc/other.md"
+out=$(ldcrun --charter "$ldc/charter.md" --brief u9a="$ldc/brief.md" a="$ldc/a.json")
+[[ $? == 0 && $out == 'lane-dispatch-check: PASS 1 lanes, 1 tickets' ]] || fail "lane-dispatch-check brief pass: $out"
+out=$(ldcrun --charter "$ldc/charter.md" --brief u9a="$ldc/other.md")
+[[ $? == 1 && $out == *'BASE_MISMATCH lane=u9a brief '*'names BASE 0a04f0813 and charter '*'names 99e6e6c67'* && $out != *404a223* &&
+  $out == *'BUILDLOG_MISMATCH lane=u9a brief '*'names docs/build-log/2026-11-01-unraid9a.md and charter '*'names docs/build-log/2026-11-01-u9a.md'* &&
+  $out == *'FAIL 2 finding(s)'* ]] || fail "lane-dispatch-check brief mismatch: $out"
+out=$(ldcrun --brief u9a="$ldc/other.md")
+[[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check brief without a charter: $out"
 ok
 
 # ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the

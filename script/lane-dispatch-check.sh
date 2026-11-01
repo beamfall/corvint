@@ -16,26 +16,37 @@
 #   ABSENT     with --base, a touch path is not at REV (a file by git cat-file -e, a directory key by
 #              git ls-tree); --waive a ticket that creates its paths
 # --waive takes a full ticket ID or its last segment (V1-3768) and waives EMPTY and ABSENT for that
-# ticket only. Exit 0 with a PASS line, 1 on any finding, 2 on a usage error, an unreadable file,
+# ticket only.
+# ASD-V0-753 (V1-3816): --charter FILE with one or more --brief LANE=FILE also compares each lane
+# brief with the charter, so a lane never gets two bases or two build-log names:
+#   BASE_MISMATCH      the brief and the charter name different BASE commits (a 7-40 hex ID up to
+#                      4 punctuation or space bytes after BASE, as `BASE: SHA`, `BASE=SHA` or
+#                      `BASE (SHA)`; one ID that prefixes the other is the same commit)
+#   BUILDLOG_MISMATCH  they name different docs/build-log/*.md paths, after <LANE> is replaced by
+#                      the lane name
+# A file that names no BASE or no build log defers to the other, the one source. Exit 0 with a PASS line, 1 on any finding, 2 on a usage error, an unreadable file,
 # malformed JSON, an empty ticketId or one holding a control character, a base that is not a commit
 # or a missing jq.
 set -uo pipefail
 export LC_ALL=C
 me='lane-dispatch-check'
-usage() { printf 'usage: script/lane-dispatch-check.sh [--base REV] [--waive TICKET]... LANE=FILE...\n' >&2; exit 2; }
+usage() { printf 'usage: script/lane-dispatch-check.sh [--base REV] [--waive TICKET]... [--charter FILE --brief LANE=FILE...] LANE=FILE...\n' >&2; exit 2; }
 refuse() { printf '%s: %s\n' "$me" "$*" >&2; exit 2; }
 command -v jq > /dev/null 2>&1 || refuse 'jq is not installed'
-base='' sha='' waive=() lanes=() files=()
+base='' sha='' waive=() lanes=() files=() charter='' briefs=()
 while (($#)); do
   case $1 in
     --base) { (($# >= 2)) && [[ -n $2 ]]; } || usage; base=$2; shift 2 ;;
+    --charter) { (($# >= 2)) && [[ -n $2 ]]; } || usage; charter=$2; shift 2 ;;
+    --brief) { (($# >= 2)) && [[ $2 == ?*=?* ]]; } || usage; briefs+=("$2"); shift 2 ;;
     --waive) { (($# >= 2)) && [[ -n $2 ]]; } || usage; waive+=("${2##*:}"); shift 2 ;;
     -*) usage ;;
     *=*) lanes+=("${1%%=*}"); files+=("${1#*=}"); shift ;;
     *) usage ;;
   esac
 done
-((${#lanes[@]})) || usage
+((${#lanes[@]} || ${#briefs[@]})) || usage
+{ [[ -z $charter ]] && ((${#briefs[@]} == 0)); } || { [[ -n $charter ]] && ((${#briefs[@]})); } || usage
 if [[ -n $base ]]; then
   sha=$(git rev-parse --verify -q "$base^{commit}") || refuse "base $base is not a commit; use a commit SHA or a ref that names one"
 fi
@@ -58,10 +69,38 @@ for ((i = 0; i < ${#lanes[@]}; i++)); do
   jq -r --arg lane "$lane" '.[] | .ticketId as $t | ((.record.effects.touchPaths // []) | if length == 0 then [""] else . end)[]
       | [$lane, $t, .] | join("\t")' "$file" >> "$rows" || refuse "lane $lane: cannot read the tickets of $file; run jq on it to see the error"
 done
+# brief_bases FILE prints the BASE IDs FILE names, one per line; brief_logs FILE LANE its build-log
+# paths with <LANE> replaced (ASD-V0-753).
+brief_bases() { grep -oE 'BASE[^0-9A-Za-z]{1,4}[0-9a-f]{7,40}([^0-9A-Za-z]|$)' "$1" | grep -oE '[0-9a-f]{7,40}' | sort -u; }
+brief_logs() { grep -oE 'docs/build-log/[A-Za-z0-9._<>-]+\.md' "$1" | sed "s/<LANE>/$2/g" | sort -u; }
+same_commit() { [[ $1 == "$2"* || $2 == "$1"* ]]; }
+pair_findings=()
+if [[ -n $charter ]]; then
+  [[ -r $charter ]] || refuse "cannot read the charter $charter; use a readable file"
+  for pair in ${briefs[@]+"${briefs[@]}"}; do
+    lane=${pair%%=*} brief=${pair#*=}
+    [[ $lane =~ ^[A-Za-z0-9._-]+$ ]] || refuse "lane name '$lane' is not valid; use letters, digits, dot, dash or underscore"
+    [[ -r $brief ]] || refuse "lane $lane: cannot read the brief $brief; use a readable file"
+    bb=$(brief_bases "$brief") cb=$(brief_bases "$charter")
+    if [[ -n $bb && -n $cb ]]; then
+      for b in $bb; do
+        for c in $cb; do
+          same_commit "$b" "$c" ||
+            pair_findings+=("BASE_MISMATCH lane=$lane brief $brief names BASE $b and charter $charter names $c; generate both from one BASE before dispatch")
+        done
+      done
+    fi
+    bl=$(brief_logs "$brief" "$lane" | tr '\n' ' ') cl=$(brief_logs "$charter" "$lane" | tr '\n' ' ')
+    if [[ -n $bl && -n $cl && $bl != "$cl" ]]; then
+      pair_findings+=("BUILDLOG_MISMATCH lane=$lane brief $brief names ${bl% } and charter $charter names ${cl% }; name one build-log file in both before dispatch")
+    fi
+  done
+fi
 waived() { local w; for w in ${waive[@]+"${waive[@]}"}; do [[ $w == "${1##*:}" ]] && return 0; done; return 1; }
 findings=0
 finding() { printf '%s: %s\n' "$me" "$*"; findings=$((findings + 1)); }
 tickets=$(cut -f1,2 "$rows" | sort -u | wc -l | tr -d ' ')
+for line in ${pair_findings[@]+"${pair_findings[@]}"}; do finding "$line"; done
 while IFS=$'\t' read -r lane t p; do
   if [[ -z $p ]]; then
     waived "$t" || finding "EMPTY lane=$lane ticket=$t: no touchPaths, so claims and collision checks have no path to compare; fill them before dispatch or pass --waive ${t##*:}"

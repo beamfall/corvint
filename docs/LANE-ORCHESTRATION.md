@@ -475,6 +475,11 @@ in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at t
 (space separated) waives `EMPTY` and `ABSENT` for a ticket that creates its paths; an overlap is
 never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
 not a commit exits 2.
+The same script also compares each lane brief with the charter
+(`script/lane-dispatch-check.sh --charter charter.md --brief lane-a=brief-a.md ...`, `ASD-V0-753`):
+`BASE_MISMATCH` and `BUILDLOG_MISMATCH` name a lane whose brief and charter disagree on the BASE
+commit or the build-log file (`<LANE>` in the charter is the lane name), so a lane never starts with
+two of either.
 
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
