@@ -5376,6 +5376,39 @@ failing package, so selection misses are never counted.
   `main-miss` job, the `ci-failed-push` step, `mainmiss.sh`, `mainmiss.jq` and the MAINMISS
   lines of `bar.jq`.
 
+### Sampled full runs estimate the narrowing miss rate (AFP-V0-984; V1-3751)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3751): nothing estimates how often
+narrowing misses a failing package without bias. Running the full suite on a seeded random sample
+of the pull requests that would narrow, and counting failures outside the driver's selection,
+gives that estimate with a confidence bound. Mutation-based measurement stays V1-2766.
+
+- **AFP-V0-984:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3751;
+  effective only after the owner's `ci-control-plane` review of the `.github` change and a
+  `CORVINT_PR_TOOL_SOURCE` re-pin carrying the new `narrow.sh` and `narrow.jq`)
+  (1) `ci.yml` SHALL set `CORVINT_PR_SAMPLE_K` (an integer of at least 2; empty turns sampling off)
+  and `CORVINT_PR_SAMPLE_SEED` (a non-negative integer) beside the tool pins; this repository sets
+  10 and 3751. (2) For a pull-request shard (not a merge-queue `SELECTION`) whose AFP-V0-098 record
+  would be `NARROWED`, `narrow.jq` SHALL sample the run when the first eight hex digits of the head
+  commit, read as a number, plus the seed is divisible by `k`; every shard of a run then decides
+  alike. A sampled shard SHALL be `FULL` with the reason `sampled for the AFP-V0-984 miss-rate
+  estimate (1 in <k>)` and record `sample: {k, seed, selected}`, `selected` being the driver's
+  selection within the universe; an unsampled record carries no `sample`. (3) `row.jq` SHALL add
+  `sample: {k, selected, failingOutside}` to a complete pull-request row whose every shard record is
+  sampled, `failingOutside` being the row's failed packages, less its FLAKY ones, outside
+  `selected`; `collect.sh` SHALL then write the step output `sample`, the name
+  `ci-forward-SAMPLE-pr<N>-<head>-e<epoch>-k<k>-m<0|1>` (`m1` when `failingOutside` is non-empty),
+  which the forward-rows job retains. (4) `bar.jq` SHALL count the epoch's SAMPLE names (one per
+  pull request and head) and report the sampled runs, the misses, the estimated miss rate and its
+  Wilson 95% upper bound, in its markdown and as `sampledMissRate` in its JSON form; the estimate is
+  advisory and feeds neither the AFP-V0-029 status nor the AFP-V0-030 kill switch. Non-goals:
+  sampling merge-queue runs; weighting the estimate by package cost; test-level misses. Failure
+  modes: a sampled run costs one full run, about `1/k` more CI time on narrowed pull requests; a
+  head commit chosen to avoid the sample can skip it, which a fixed public seed cannot prevent; a
+  flaky failure outside the selection that is not caught as FLAKY counts as a miss. Rollback: set
+  `CORVINT_PR_SAMPLE_K` empty, then remove the sample lines of `narrow.jq`, `row.jq`,
+  `collect.sh` and `bar.jq` and the upload step.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
