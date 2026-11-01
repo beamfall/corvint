@@ -149,6 +149,7 @@ func (l *finishLane) run() int {
 	// snapshotted, so the run checks and binds the refreshed file (DCW-V0-947).
 	l.refreshMovedPlan()
 	l.requireVerifyInput()
+	l.requireAggregateVerify()
 	l.requireIntentsInput()
 	l.snapshotInputs()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another

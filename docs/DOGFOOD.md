@@ -1371,7 +1371,10 @@ word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0
 `DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`) or the whole package (`-run '.'`,
 `-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
 `HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
-(`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
+(`DCW-V0-804`). Such a quoted word or quoted assignment is recorded as typed argv, which the
+nonlearning aggregate receipt of a change admitting more than 200 changed paths cannot hold, so
+over that bound inputs-check refuses `aggregate-verify-argv` before any bind, naming the line; list
+one command per test name or a committed script instead (`DCW-V0-726`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
 with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
