@@ -50,6 +50,7 @@ GATE_STEPS = \
   go-test \
   go-vet \
   cross-vet \
+  adopter-ci-advisory-test \
   agent-preflight-test \
   ai-coauthor-trailers-test \
   analyzer-schema-check \
@@ -777,6 +778,10 @@ batch-regen:
 batch-push-check:
 	@script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
 
+.PHONY: adopter-ci-advisory-test
+adopter-ci-advisory-test:
+	@script/adopter-ci-advisory_test.sh
+
 .PHONY: batch-precheck-test
 batch-precheck-test:
 	@script/batch-precheck_test.sh
@@ -1138,6 +1143,7 @@ test-shard: go-version
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
 shell-test: \
+  adopter-ci-advisory-test \
   agent-preflight-test \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
