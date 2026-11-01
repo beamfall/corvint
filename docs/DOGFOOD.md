@@ -227,7 +227,7 @@ pins this agreement (group V1-3258).
    `path=... hunk=... tier=...` line per hunk (`DCW-V0-344`); without a writable evidence
    directory the per-hunk lines print instead (at most 50, then `more=N`). A hunk no stable BASE line could anchor (none defines a requirement ID it
    adds, none names its path or its basename of 6 bytes or more) is not warned but counted in one
-   `dogfood-check: NOTE tier-below-anchored-unanchorable hunks=N` line (`DCW-V0-165`). A hunk whose basis cites a span of its own file is likewise not warned but counted in one
+   `dogfood-check: NOTE tier-below-anchored-unanchorable hunks=N` line (`DCW-V0-165`). A new file that implements a requirement anchors by naming that ID in the file and citing the BASE line that defines it, as the NOTE's `fix=` says (`DCW-V0-924`). A hunk whose basis cites a span of its own file is likewise not warned but counted in one
    `dogfood-check: NOTE tier-below-anchored-same-path hunks=N` line; an anchoring gate still refuses it (`DCW-V0-388`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
    (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.

@@ -3304,6 +3304,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   printed next command names it. Evidence: `script/dogfood-cache_test.sh` (both recipes) and
   `script/batch-precheck_test.sh` (case 15). Rollback: restore the fourth closeout step and drop the
   target.
+- `DCW-V0-924`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3792; refines
+  `DCW-V0-165`; CEM-V1-081 unchanged) The documented route by which a new file that implements a
+  requirement reaches the anchored tier is the ID anchor: the file names the requirement ID it
+  implements and its citation is the BASE line that defines that ID (- `ID`:), since no BASE line
+  can name a path that does not exist yet. The `dogfood-check: NOTE
+  tier-below-anchored-unanchorable` line MUST name that route in a `fix=` field, and such a new file
+  MUST be warned as anchorable rather than counted unanchorable. Non-goals: anchoring a new file
+  through a traceability row that names only its directory, which would let any file under a cited
+  directory anchor; changing CEM-V1-081. Failure mode: a new file that names no ID stays below
+  anchored and in the NOTE count. Evidence:
+  `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames`. Rollback: drop the fix field.
 
 ## Code vocabulary
 
@@ -3593,6 +3604,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-922` (V1-3928) | `internal/dogfoodflow/verify_run_match.go` `emptyRunLineOf`, `goTestRun`, `runSelectsTest`, `topRunElement`; `requireVerifyRunSelectsTest` in `internal/dogfoodflow/finishlane.go` | `TestDCWV0922VerifyRunMatchingNoTestIsRefused` |
 | `DCW-V0-925` (V1-3779) | `internal/dogfoodflow/prechange.go` `noteOtherBaseRecovery`, `fullCommitID`; `noteBoundReceipt`; the not-base-tree case in `internal/dogfoodflow/change.go`; `docs/DOGFOOD.md` §1 Mid-lane base change | `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, `TestDCWV0881ChangeVerifiesPrechangeBinding` |
 | `DCW-V0-923` (V1-3850) | `Makefile` `dogfood-closeout`, `dogfood-closeout-precheck` | `script/dogfood-cache_test.sh`; `script/batch-precheck_test.sh` (case 15) |
+| `DCW-V0-924` (V1-3792) | `internal/dogfoodflow/check_tiers.go` `tierBelowAnchoredUnavailable` | `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |

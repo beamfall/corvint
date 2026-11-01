@@ -19,8 +19,9 @@ const maxTierWarnings = 50
 const tierBelowAnchoredFix = "rule=CEM-V1-081 fix=\"cite a span that defines a requirement ID the hunk adds (- `ID`:) or that contains the hunk path or its basename of at least 6 bytes\""
 
 // tierBelowAnchoredUnavailable names why the hunks a NOTE line counts carry no
-// tier warning.
-const tierBelowAnchoredUnavailable = "rule=CEM-V1-081 reason=\"no stable BASE line names the hunk path, or its basename of at least 6 bytes, or defines a requirement ID the hunk adds, so no citation can anchor it; a touched-anchored or all-anchored cem-verdict gate refuses it unless a passed runner receipt in the map binds it (CEM-V1-606, CEM-V1-607)\""
+// tier warning, and how a new file that implements a requirement reaches the
+// anchored tier anyway: by naming the ID it implements (DCW-V0-924).
+const tierBelowAnchoredUnavailable = "rule=CEM-V1-081 reason=\"no stable BASE line names the hunk path, or its basename of at least 6 bytes, or defines a requirement ID the hunk adds, so no citation can anchor it; a touched-anchored or all-anchored cem-verdict gate refuses it unless a passed runner receipt in the map binds it (CEM-V1-606, CEM-V1-607)\" fix=\"for a new file that implements a requirement, name its ID in the file (a comment naming `ID`) and cite the BASE line that defines it (- `ID`:): CEM-V1-081 then anchors the hunk by id (DCW-V0-924)\""
 
 // tierBelowAnchoredSamePath names why the hunks a same-path NOTE line counts
 // carry no tier warning: each cites its own file, the ordinary citation of the
