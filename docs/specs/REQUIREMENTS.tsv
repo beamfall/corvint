@@ -5293,6 +5293,7 @@ NGI-V0-984	docs/specs/non-go-impact-v0.md	(experimental under the owner's standi
 NGI-V0-985	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
 NGI-V0-986	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
 NGI-V0-987	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-988	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-

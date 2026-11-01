@@ -221,3 +221,30 @@ func TestNGIV0986CapabilitiesListModuleReferenceSuffixes(t *testing.T) {
 		}
 	}
 }
+
+// TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership: without a
+// registered SwiftPM reading a Swift path has no target membership, keeps the
+// profile gap and reports no reverse-import row, and the request names the
+// missing reading; the test binary links internal/swiftimpact (NGI-V0-988).
+func TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership(t *testing.T) {
+	t.Parallel()
+	if swiftPMReader == nil {
+		t.Fatal("the contextindex test binary registered no SwiftPMReader; internal/swiftimpact is not linked")
+	}
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, swiftPackageFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	reading := newModuleReading(index)
+	reading.swift = buildSwiftTargetMap(index, nil)
+	if rows := reading.impact("Sources/Core/Ledger.swift"); len(rows) != 0 {
+		t.Fatalf("rows = %v, want none without a SwiftPM reading", rows)
+	}
+	if _, mapped := reading.mapped["Sources/Core/Ledger.swift"]; mapped {
+		t.Fatal("an unlinked SwiftPM reading mapped a Swift path")
+	}
+	disclosures := reading.disclosures()
+	if !stringIn(disclosures, swiftModuleUncertainty) || !stringIn(disclosures, swiftReaderUnlinked) {
+		t.Fatalf("disclosures = %v, want the Swift precision limits and the unlinked reading", disclosures)
+	}
+}

@@ -8,9 +8,6 @@ import (
 	"strings"
 	"testing/fstest"
 	"unicode/utf8"
-
-	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/swift"
 )
 
 // This file holds the module-membership reverse-reference readings of path
@@ -28,6 +25,9 @@ const (
 	swiftModuleUncertainty  = "Swift reverse references follow SwiftPM target membership and import declarations only: Xcode project membership, @_exported re-exports, conditional compilation and dependents beyond one import are not resolved"
 	kotlinModuleUncertainty = "Kotlin reverse references follow package declarations, imports and declared names only: Gradle module visibility, Java importers, fully qualified references without an import, wildcard-only extension calls and reflection are not resolved"
 	csharpModuleUncertainty = "C# reverse references follow namespace declarations, using directives and declared type names only: project references, global using reach, extension-method calls, fully qualified references without a using and reflection are not resolved"
+	// swiftReaderUnlinked is the line a binary without the SwiftPM reading
+	// carries for a Swift request (NGI-V0-988).
+	swiftReaderUnlinked = "this binary does not link the SwiftPM target reading, so Swift paths have no target membership"
 )
 
 // ModuleRuleLanguage names the module-membership reading for a changed path's
@@ -157,10 +157,17 @@ type swiftTargetMap struct {
 	module  map[string]string
 	units   map[string][]string
 	failed  bool
+	// unlinked is true when this binary registered no SwiftPMReader
+	// (NGI-V0-988), so no Swift path has target membership.
+	unlinked bool
 }
 
-func buildSwiftTargetMap(index *Index) *swiftTargetMap {
+func buildSwiftTargetMap(index *Index, reader SwiftPMReader) *swiftTargetMap {
 	targets := &swiftTargetMap{unit: map[string]string{}, members: map[string][]string{}, module: map[string]string{}, units: map[string][]string{}}
+	if reader == nil {
+		targets.unlinked = true
+		return targets
+	}
 	fsys := fstest.MapFS{}
 	for name, source := range index.Sources {
 		if !strings.HasSuffix(name, ".swift") {
@@ -170,19 +177,15 @@ func buildSwiftTargetMap(index *Index) *swiftTargetMap {
 			fsys[name] = &fstest.MapFile{Data: []byte(text), Mode: 0o644}
 		}
 	}
-	result, err := swift.New().UnitsSource(affected.FSSource(fsys))
+	units, err := reader.Targets(fsys)
 	if err != nil {
 		targets.failed = true
 		return targets
 	}
-	for _, unit := range result.Units {
-		module, ok := swift.TargetModule(unit.ID)
-		if !ok {
-			continue
-		}
-		targets.module[unit.ID] = module
-		targets.units[module] = append(targets.units[module], unit.ID)
-		for _, member := range append(append([]string(nil), unit.Sources...), unit.Tests...) {
+	for _, unit := range units {
+		targets.module[unit.ID] = unit.Module
+		targets.units[unit.Module] = append(targets.units[unit.Module], unit.ID)
+		for _, member := range unit.Members {
 			targets.unit[member] = unit.ID
 			targets.members[unit.ID] = append(targets.members[unit.ID], member)
 		}
@@ -288,7 +291,7 @@ func (reading *moduleReading) referenceRow(changedPath string, reference package
 
 func (reading *moduleReading) swiftImpact(changedPath string) []rankedResult {
 	if reading.swift == nil {
-		reading.swift = buildSwiftTargetMap(reading.index)
+		reading.swift = buildSwiftTargetMap(reading.index, swiftPMReader)
 	}
 	targets := reading.swift
 	unitID, ok := targets.unit[changedPath]
@@ -324,7 +327,7 @@ func (reading *moduleReading) swiftImpact(changedPath string) []rankedResult {
 		if !valid || !loaded {
 			continue
 		}
-		for _, imported := range swift.ImportedModules(text) {
+		for _, imported := range swiftPMReader.ImportedModules(text) {
 			if imported.Module == module {
 				rows = append(rows, reading.importRow(changedPath, name, imported.Line, module,
 					"imports SwiftPM target module "+module+" containing "+changedPath, "high"))
@@ -497,6 +500,9 @@ func (reading *moduleReading) disclosures() []string {
 	}
 	if reading.swift != nil && reading.swift.failed {
 		lines = append(lines, "the SwiftPM target map could not be read, so Swift paths have no target membership")
+	}
+	if reading.swift != nil && reading.swift.unlinked {
+		lines = append(lines, swiftReaderUnlinked)
 	}
 	notes := make([]string, 0, len(reading.notes))
 	for note := range reading.notes {

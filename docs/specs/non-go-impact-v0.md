@@ -706,7 +706,7 @@ runtime completeness.
   `spec/requests/users_spec.rb`. Non-goals: no route-file reading, no `test/integration` or
   `test/controllers` mapping. Rollback: remove `requestSpec`, its call, and the two row entries.
 
-### Swift, Kotlin and C# module reverse references (NGI-V0-980 to NGI-V0-987; V1-3724)
+### Swift, Kotlin and C# module reverse references (NGI-V0-980 to NGI-V0-988; V1-3724)
 
 `GPK-V0-027` names no reverse-import rule for `.swift`, `.kt` or `.cs`, and its frozen oracle is
 not widened: `ImpactRuleNamed` stays false for these suffixes. Path `impact` instead reads each
@@ -752,6 +752,14 @@ supply a build-unit graph; the Kotlin and C# rules read package and namespace sy
 - `NGI-V0-987`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `swift.ImportedModules` SHALL return each module a Swift
   source imports, with its line, from code only (attributed and kind-qualified imports included),
   and `swift.TargetModule` SHALL return the module of a `swift:spm:` unit ID.
+- `NGI-V0-988`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `internal/contextindex` SHALL NOT import
+  `internal/liveverify/affected` or its language packages, so the corvint-tasks source archive
+  closure (`PUB-V0-012`, `PUB-V0-013`) stays unchanged. It SHALL read SwiftPM targets and Swift
+  imports through a `SwiftPMReader` that `internal/swiftimpact` registers. Every binary that links
+  the affected Swift model SHALL link that package, and corvint-tasks SHALL link neither. A Swift
+  request served without a registered reader SHALL report no target membership and no
+  `reverse-import` row, and SHALL keep the profile gap. It SHALL also carry the line
+  `this binary does not link the SwiftPM target reading, so Swift paths have no target membership`.
 
 ## Trust and failure boundaries
 
@@ -861,7 +869,7 @@ Observed execution and independent findings are retained in
 | `NGI-V0-307` | `rubyConstantEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphRubyConstants`, `TestImportGraphRubyIncompleteResolution` |
 | `NGI-V0-308` | `ImportGraphKinds`, `writeGraphEdge`; `importGraphKindsPattern` (`internal/mcp/bridge/import_graph.go`) | `TestImportGraphKindsClosedSet`, `TestImportGraphAngularResources`, `TestImportGraphRubyConstants` |
 | `NGI-V0-761` | `requestSpec` and `rubyRequestSpecConventionScore` in `internal/contextindex/ruby_autoload.go`; `conformance/ruby-profile-v0/rows.json` | `TestRubyControllerReachesItsRequestSpecByConvention_NGIV0761`; `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` (`request-spec`, `controller-spec`) |
-| `NGI-V0-980` | `moduleReading.swiftImpact`, `buildSwiftTargetMap` (`internal/contextindex/module_impact.go`) | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership` |
+| `NGI-V0-980` | `moduleReading.swiftImpact`, `buildSwiftTargetMap` (`internal/contextindex/module_impact.go`); `Reader.Targets` (`internal/swiftimpact/swiftimpact.go`) | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership` |
 | `NGI-V0-981` | `moduleReading.kotlinImpact`, `kotlinImport` | `TestNGIV0981KotlinReverseImpactFollowsPackageImports` |
 | `NGI-V0-982` | `moduleReading.csharpImpact`, `csharpUsing`, `csharpEncloses` | `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
 | `NGI-V0-983` | `moduleReading.referenceRow`, `references`, `moduleReading.file` | `TestNGIV0983SameModuleMembersAreReferences` |
@@ -869,6 +877,7 @@ Observed execution and independent findings are retained in
 | `NGI-V0-985` | `moduleReading.disclosures` | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership`, `TestNGIV0981KotlinReverseImpactFollowsPackageImports`, `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
 | `NGI-V0-986` | `ImpactCapabilities` (`internal/contextindex/impact_capabilities.go`); `impact` help (`cmd/corvint/help.go`) | `TestNGIV0986CapabilitiesListModuleReferenceSuffixes`, `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
 | `NGI-V0-987` | `ImportedModules`, `TargetModule` (`internal/liveverify/affected/swift/imports.go`) | `TestNGIV0987ImportedModulesReadsCodeOnlyImports` |
+| `NGI-V0-988` | `SwiftPMReader`, `RegisterSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/*/swift_impact.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader`, `TestCurrentTasksSourceArchiveBuildsOffline` |
 
 ## Non-goals, rollout and rollback
 
@@ -889,10 +898,11 @@ the `rubyImpactRequested` selection, the second-hop loop, the `advisory` count, 
 guard, `rangeRubyAutoload`, `isRubyTestPath` and the index bounds; roll back the whole reading by removing
 `ruby_autoload.go`, `internal/rubyautoload` and their wiring in `impact`; the declaration
 file is then ignored. The implementation stays experimental pending human acceptance and
-integration. The Swift, Kotlin and C# readings (`NGI-V0-980` to `NGI-V0-987`) compile nothing,
+integration. The Swift, Kotlin and C# readings (`NGI-V0-980` to `NGI-V0-988`) compile nothing,
 read no `.csproj`, Gradle or Xcode project, follow one import hop, and change neither range
 impact, `corvint graph`, the `GPK-V0-027` oracle nor the historical packet budget; roll them back
-by removing `module_impact.go`, `imports.go`, the `moduleMapped` view and their wiring in `impact`,
+by removing `module_impact.go`, `swiftpm_reader.go`, `internal/swiftimpact`, the `cmd/*/swift_impact.go`
+imports, `imports.go`, the `moduleMapped` view and their wiring in `impact`,
 `reverseImportProfileGap`, `ImpactCapabilities` and the help text. Revert task-owned code/spec changes to roll back; preserve original
 receipts and the failed/unsupported outcomes. Kill or repair the extension if it
 changes legacy Go bytes, invents semantic closure or weakens immutable binding.
