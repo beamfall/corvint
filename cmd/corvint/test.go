@@ -34,6 +34,9 @@ Usage:
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
 
+--base takes a full commit id, an unambiguous prefix or a revision such as
+HEAD~1, resolved once to the full id the manifest records (TSP-V0-720).
+
 Plans in process as corvint affected --base does, adds the AFP-V0-012
 attribution, and runs the selected Go packages on the unchanged
 .github/cishards complete-universe partition with the Go environment and
@@ -199,8 +202,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError("--pins applies only to --dry-run, without --summary (TSP-V0-944)")
 	case *requireClean:
 		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
-	case !validGitObjectID(options.base):
-		return options, argumentError("test needs --base FULL_COMMIT_ID")
+	case !validBaseArgument(options.base):
+		return options, argumentError("test needs --base FULL_COMMIT_ID (or an unambiguous prefix or a revision such as HEAD~1, TSP-V0-720)")
 	case options.placement != sessiontest.PlacementUniverse && options.placement != sessiontest.PlacementBalanced && options.placement != sessiontest.PlacementMeasured:
 		return options, argumentError("--placement must be universe, balanced or measured")
 	case (options.placement == sessiontest.PlacementMeasured) != (options.shardPlan != ""):
@@ -284,6 +287,10 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		root = "."
 	}
 	if root, err = resolveExplicitRoot(root); err != nil {
+		emitError(stderr, err)
+		return 2
+	}
+	if options.base, err = resolveBaseArgument(root, options.base); err != nil {
 		emitError(stderr, err)
 		return 2
 	}

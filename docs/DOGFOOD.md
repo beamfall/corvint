@@ -448,6 +448,14 @@ Implement against stable requirement IDs. Run focused tests after each logical s
 suite and compile gate. Run any frozen conformance or benchmark partition owned by the capability.
 Failed, synthetic, and `NOT_RUN` results keep those labels.
 
+When you add a Go test package, run `make unbounded-readers-check`. A test package that reads
+outside its own directory, or that imports a package which does, is an unbounded reader and fails
+the check until it is recorded. The import chain is often indirect: `internal/mcp/bridge` reaches
+`internal/appflows` and `internal/jstestprovider`, which are both recorded readers. The refusal names
+that import chain and the entry `.corvint/unbounded-readers.json` needs: the directory in `units`,
+in ascending order, and a `reasons` entry that states the unbounded read and why
+`.corvint/test-read-scopes.json` cannot declare it (TSP-V0-723).
+
 ### 4. Produce the CEM
 
 The final dogfood coordination and checking steps are post-commit. Commit the implementation first,

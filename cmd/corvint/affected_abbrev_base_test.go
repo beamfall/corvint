@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/sha1"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -133,5 +136,54 @@ func TestACXV0854RevisionBase(t *testing.T) {
 	}
 	if _, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", "it's"}); err == nil || !strings.Contains(err.Error(), `git rev-parse --verify 'it'\''s^{commit}'`) {
 		t.Fatalf("--base with a quote: err=%v, want the POSIX-quoted hint", err)
+	}
+}
+
+// TSP-V0-720 (V1-3350): affected --base and test --base resolve a revision expression to the
+// full id of the commit it names, which the affected receipt and the test manifest record; an
+// expression naming no commit, a range and an option-like value are refused, and an all-hex
+// value keeps the AFP-V0-230 prefix rules.
+func TestTSPV0720BaseRevisionExpressionResolves(t *testing.T) {
+	root, first := selfBinaryRepository(t)
+	commitSelfBinaryFiles(t, root, map[string]string{"notes.txt": "second\n"})
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	affectedGit(t, root, "branch", "pinned", first)
+	for value, want := range map[string]string{"HEAD": head, "HEAD^": first, "HEAD~1": first, "pinned": first, "pinned^{commit}": first, "@": head} {
+		invocation, handled, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", value})
+		if err != nil || !handled || invocation.Base != want {
+			t.Fatalf("affected --base %s: base=%q err=%v, want %s", value, invocation.Base, err, want)
+		}
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", "HEAD~1")
+	if rangeMember, _ := receipt["range"].(map[string]any); code != 0 || rangeMember["base"] != first {
+		t.Fatalf("affected --base HEAD~1: exit %d range %v: %s", code, receipt["range"], stderr)
+	}
+	for _, value := range []string{"HEAD~9", "nosuchbranch", "HEAD..HEAD", "-HEAD", "HEAD:notes.txt", "HEAD^ x"} {
+		if _, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", value}); err == nil {
+			t.Fatalf("affected --base %q was admitted", value)
+		}
+	}
+	for _, value := range []string{"ABCDEF0", "abcdef"} {
+		if validAffectedBaseRevision(value) {
+			t.Fatalf("all-hex %q read as a revision expression", value)
+		}
+	}
+	manifest := filepath.Join(t.TempDir(), "manifest.json")
+	var stdout, testStderr bytes.Buffer
+	runContext(context.Background(), []string{"--root", root, "test", "--base", "HEAD~1", "--dry-run", "--manifest", manifest}, strings.NewReader(""), &stdout, &testStderr)
+	raw, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatalf("test --base HEAD~1 wrote no manifest: %v\n%s", err, testStderr.String())
+	}
+	var written struct {
+		Base string `json:"base"`
+	}
+	if err := json.Unmarshal(raw, &written); err != nil || written.Base != first {
+		t.Fatalf("test --base HEAD~1 manifest base %q (%v), want %s", written.Base, err, first)
+	}
+	stdout.Reset()
+	testStderr.Reset()
+	if code := runContext(context.Background(), []string{"--root", root, "test", "--base", "HEAD~9", "--dry-run"}, strings.NewReader(""), &stdout, &testStderr); code != 2 || !strings.Contains(testStderr.String(), "is not a commit") {
+		t.Fatalf("test --base HEAD~9: exit %d: %s", code, testStderr.String())
 	}
 }

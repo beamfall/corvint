@@ -7167,6 +7167,10 @@ TSP-V0-901	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-902	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,	standing	2026-10-11; V1-3763
 TSP-V0-710	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-908	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-720	docs/specs/test-selection-precision-v0.md	(experimental, extending ACX-V0-854 to `corvint test`, under the owner's	unrecorded	-
+TSP-V0-721	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-002, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-722	docs/specs/test-selection-precision-v0.md	(experimental, amending AFP-V0-846, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-723	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3780,	standing	2026-10-11; V1-3780
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587

@@ -82,6 +82,61 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 	}
 }
 
+// TSP-V0-722: only a change to a package the binary's main package reaches,
+// or to the module files, makes it stale; a change to another command or to a
+// package nothing it builds imports does not.
+func TestSelfBinaryStaleCountsOnlyTheMainBuildGraph(t *testing.T) {
+	ctx := context.Background()
+	root, _ := selfBinaryRepository(t)
+	commitSelfBinaryFiles(t, root, map[string]string{
+		"cmd/tool/main.go":  "package main\n\nimport _ \"example.test/self/lib\"\n\nfunc main() {}\n",
+		"lib/lib.go":        "package lib\n\nimport _ \"example.test/self/lib/deep\"\n",
+		"lib/deep/deep.go":  "//go:build windows\n\npackage deep\n",
+		"cmd/other/main.go": "package main\n\nfunc main() {}\n",
+		"internal/up/up.go": "package up\n",
+	})
+	built := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	info := selfBinaryInfo("example.test/self", built)
+	info.Path = "example.test/self/cmd/tool"
+	commitSelfBinaryFiles(t, root, map[string]string{
+		"cmd/other/main.go": "package main\n\nfunc main() { println() }\n",
+		"internal/up/up.go": "package up\n\nvar X = 1\n",
+		"self.go":           "package self\n\nfunc Self() int { return 3 }\n",
+	})
+	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+		t.Fatalf("changes outside the main build graph are judged %+v", freshness)
+	}
+	for name, mainPath := range map[string]string{"main package absent": "example.test/self/cmd/gone", "main package unknown": ""} {
+		other := selfBinaryInfo("example.test/self", built)
+		other.Path = mainPath
+		if freshness := binaryStaleAgainst(ctx, root, other); freshness.Code != selfBinaryStaleCode {
+			t.Errorf("%s: judged %+v, want every changed path counted", name, freshness)
+		}
+	}
+	commitSelfBinaryFiles(t, root, map[string]string{"go.work": "go 1.23\n\nuse .\n"})
+	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, "cmd/other/main.go") {
+		t.Errorf("with go.work: judged %+v, want every changed path counted", freshness)
+	}
+	affectedGit(t, root, "rm", "-q", "go.work")
+	affectedGit(t, root, "commit", "-qm", "drop go.work")
+	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+		t.Fatalf("without go.work again: judged %+v", freshness)
+	}
+	for _, change := range []map[string]string{
+		{"lib/deep/deep.go": "//go:build windows\n\npackage deep\n\nvar X = 1\n"},
+		{"cmd/tool/main.go": "package main\n\nimport _ \"example.test/self/lib\"\n\nfunc main() { println() }\n"},
+		{"go.mod": "module example.test/self\n\ngo 1.23\n"},
+	} {
+		commitSelfBinaryFiles(t, root, change)
+		for changed := range change {
+			freshness := binaryStaleAgainst(ctx, root, info)
+			if freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, changed) {
+				t.Fatalf("%s: judged %+v, want stale naming it", changed, freshness)
+			}
+		}
+	}
+}
+
 // AFP-V0-846: output the bound truncated drops its possibly partial last path
 // and counts "at least" the rest.
 func TestSelfBinaryDiffPathsTruncation(t *testing.T) {

@@ -195,6 +195,35 @@ func TestAFPV0025FileLevelUnitsAreRecordedByTheirTestFile(t *testing.T) {
 	}
 }
 
+// TSP-V0-723, V1-3780: an unrecorded reader's refusal names the record file and the
+// exact entry shape to add, besides the import chain (AFP-V0-500).
+func TestUnrecordedRefusalNamesTheEntryShape(t *testing.T) {
+	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
+	for name, content := range map[string]string{
+		"late/l.go":      "package late\n\nimport _ \"example.test/m/untested\"\n",
+		"late/l_test.go": "package late\n\nimport \"testing\"\n\nfunc TestL(t *testing.T) {}\n",
+	} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(file, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
+	}
+	want := `  late: to record it, insert "late" into units of .corvint/unbounded-readers.json in ascending order and add "late": "<the unbounded read, and why .corvint/test-read-scopes.json cannot declare it>" to its reasons`
+	if !strings.Contains(stderr.String(), want+"\n") {
+		t.Fatalf("refusal lacks the entry shape:\n%s", stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "import chain") {
+		t.Fatalf("refusal lacks the import chain:\n%s", stderr.String())
+	}
+}
+
 // TestAFPV0500RefusalNamesTheImportChain proves V1-2823: a package that becomes
 // an unbounded reader only because it imports one is refused with the importing
 // package, every import edge, and the unbounded reader at the chain's end.

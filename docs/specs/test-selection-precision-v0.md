@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-950 and TSP-V0-951: V1-2167. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -423,6 +423,51 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   stale local remote-tracking branch that origin has deleted still counts until
   `git fetch --prune origin`; a clone without origin refs refuses every entry. Rollback: drop
   `servedByOrigin` and its call in `main`.
+- **TSP-V0-720:** (experimental, extending ACX-V0-854 to `corvint test`, under the owner's
+  standing lane auto-accept, 2026-10-11; V1-3350) `corvint test --base` SHALL accept every `--base`
+  shape `corvint affected --base` admits: a full commit id, an AFP-V0-230 prefix, or an ACX-V0-854
+  revision such as `HEAD`, `HEAD^`, `HEAD~1` or `origin/main`. Both commands SHALL resolve the value
+  once through the shared `resolveBaseArgument` to the full commit id, which the affected receipt's
+  `range.base` and the test manifest's `base` record; the expression itself is never recorded. A
+  value that names no commit SHALL be refused with exit 2 and the ACX-V0-854 full-id hint.
+  Non-goals: ranges, `<rev>:<path>` and message searches. Failure mode: a moving ref resolves to
+  whatever it names at that call, which is why the receipt records the id. Rollback: restore the
+  full-id check in `parseTestOptions` and drop the `resolveBaseArgument` call in `runTest`.
+- **TSP-V0-721:** (experimental, amending TSP-V0-002, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3355) The Go plugin SHALL treat each symlinked `.go` entry of a walked package
+  directory as one of that package's files: the link path is a `Sources` (or, for a `_test.go`
+  name, `Tests`) entry, the target's imports are the package's, and the package imports the
+  package of the target's directory, so a change to the target, to what it imports or to the link
+  itself selects the package and its dependents. A link whose target is not a regular `.go` file
+  inside the root, lies in a directory the go tool ignores or lies outside the package's module
+  SHALL add the unit frontier `go:symlinked-source-unattributed`, which bears wherever the unit is
+  reached. TSP-V0-002's build-constraint behavior is unchanged. Non-goals: a directory holding
+  only symlinked files (the walk lists no file there, so no unit exists); immutable tree sources,
+  whose walk already refuses links. Failure mode: a target in a nested module's directory gets an
+  edge under the linking module's path that no unit carries. Rollback: make `linkedSources`
+  return nil, false, false, and the links are dropped again.
+- **TSP-V0-722:** (experimental, amending AFP-V0-846, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3300) When the binary's build information names its main package and the root has
+  no `go.work` and a `go.mod` without `replace`, `self-binary-stale` SHALL count only the changed
+  paths the main package's build compiles: `go.mod`, `go.sum` and the non-test `.go` files of a
+  directory the main package reaches through in-module imports, read from disk at the root with
+  every build constraint admitted, so every platform's build is covered. A change only to another
+  command or to a package nothing it builds imports SHALL leave the binary fresh. A truncated diff,
+  an absent or file-less main package, a file that does not parse, more than 4096 directories or
+  the expired deadline SHALL count every changed path, as before. Non-goals: tracking embedded
+  files or packages reached only through `go:linkname`. Failure mode: the walk reads the import
+  graph at HEAD, so a package the binary built from that HEAD no longer imports counts only through
+  the importing file's own change, which is itself in the graph. Rollback: drop the
+  `mainBuildDirectories` branch in `binaryStaleAgainst`.
+- **TSP-V0-723:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3780,
+  V1-3825) When `tools/unbounded-readers` refuses an unrecorded unbounded reader, it SHALL print,
+  for each such directory, the record file `.corvint/unbounded-readers.json` and the entry that
+  records it: the directory inserted into `units` in ascending order and a `reasons` entry keyed by
+  the directory that states the unbounded read and why `.corvint/test-read-scopes.json` cannot
+  declare it. The existing import-chain lines are unchanged, and `docs/DOGFOOD.md` SHALL state that
+  a new test package importing a recorded reader fails the check. Non-goals: writing the record or
+  choosing the reason text. Failure mode: the printed shape drifts from the record's parser; the
+  test pins the exact line. Rollback: remove the entry-shape `Fprintf` in the unrecorded loop.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -597,6 +642,10 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-947 | the `UNBOUNDED_READER` witness in `internal/liveverify/affected/select.go` | measured counts in the requirement and `docs/build-log/2026-11-01-aff-w16.md`; `TestAffectedMakefileRecipeOnlySelectsScriptTest_TSP_V0_945` pins one unbounded reader |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
+| TSP-V0-720 | `validBaseArgument` and `resolveBaseArgument` in `cmd/corvint/affected_abbrev_base.go`; their calls in `parseTestOptions` and `runTest` (`cmd/corvint/test.go`) and in `resolveAffectedAbbrevBase` | `TestTSPV0720BaseRevisionExpressionResolves` in `cmd/corvint/affected_abbrev_base_test.go` (`HEAD`, `HEAD^`, `HEAD~1`, a branch, `branch^{commit}` and `@` resolve and the affected receipt records the full id; an unknown ref, an out-of-range ancestor, a range, a leading `-`, a path and whitespace are refused; all-hex values are not revisions; `test --base HEAD~1 --dry-run` records the full id in its manifest and `test --base HEAD~9` exits 2); `TestACXV0854RevisionBase`, `TestAFPV0230AbbreviatedBaseAndTrailingRoot` and `TestAFPV0232AmbiguousAbbreviatedBase` unchanged |
+| TSP-V0-721 | `LinkTarget` in `internal/liveverify/affected/source.go`; `linkedSources`, `linkedImportPath`, `inModule` and their use in `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `FrontierSymlinkedSource` | `TestSymlinkedGoSourceIsAttributedToItsPackage_TSP_V0_721` in `internal/liveverify/affected/golang/golang_test.go` (the source and test links are the package's, it imports the target's package and the target's import, the link is owned by the package, and a dirty target, target import or link selects the package and its dependent but not an unrelated package, `BOUNDED`; without the link the target does not reach it; a link outside the root, dangling, to a non-Go file or into `testdata` names the frontier where the package is reached and not elsewhere); `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` unchanged |
+| TSP-V0-722 | `mainBuildDirectories`, `moduleDirectory`, `inMainBuild` and their call in `binaryStaleAgainst` in `cmd/corvint/self_binary.go` | `TestSelfBinaryStaleCountsOnlyTheMainBuildGraph` in `cmd/corvint/self_binary_test.go` (a change to another command, an unimported package and the root package is fresh; an absent or unknown main package and a `go.work` count every path; a constrained reached package, the main package and `go.mod` are stale and named); `TestSelfBinaryStaleComparesStampedCommitWithHEAD` and `TestSelfBinaryStaleIsReportedByAffectedAndTest` unchanged |
+| TSP-V0-723 | the entry-shape line in the unrecorded loop of `run` in `tools/unbounded-readers/main.go`; the unbounded-readers paragraph under §3 of `docs/DOGFOOD.md` | `TestUnrecordedRefusalNamesTheEntryShape` in `tools/unbounded-readers/main_test.go` (an unrecorded reader reached through an import is refused with the exact entry-shape line and its import chain) |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
 | TSP-V0-950 | `readShellReadScopes` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` and their call in `internal/liveverify/affected/shell/shell.go`; `shellReadScopesChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; the `go:` filter in `tools/test-read-scopes-check/main.go` | `TestShellReadScopeDeclaration_TSP_V0_950` in `internal/liveverify/affected/shell/readscopes_test.go` (undeclared: the toolchain test is selected on an unrelated change; declared: it is not, the plan is `BOUNDED`, and a dirty declared entry or a file in its directory selects it; a test that also sources a dynamic path, one that sources a literal helper sourcing a dynamic path directly or two sources away, a non-toolchain test, a source script, an absent file, unsorted or empty reads, a `.git` entry, an empty or multi-line reason, a bad profile, an unknown member and unparsed JSON each name the invalid frontier and keep it unbounded; a dirty declaration is `UNKNOWN`) |
 | TSP-V0-951 | `.corvint/shell-read-scopes.json`; `.corvint/unbounded-readers.json`; the `shell:runs-toolchain` line in `tools/unbounded-readers/main.go` | `TestRepositoryShellReadScopes_TSP_V0_951` and `TestListedDirectoriesKeepSpaces_TSP_V0_951` in `internal/liveverify/affected/shell_readscopes_repo_test.go`; `TestRunsToolchainRefusalNamesTheUnitsEntry` in `tools/unbounded-readers/main_test.go` (an undeclared, unrecorded toolchain test still exits 1 and the line names the declaration) |
@@ -637,6 +686,7 @@ TSP-V0-945, TSP-V0-946 and TSP-V0-947 record existing behavior with tests; dropp
 only the tests and the record.
 TSP-V0-941: drop the `testSourceCodeLines` comparison in `testSourceSlice`; moved functions are
 then unseeded again (the V1-3507 miss returns). No stored state depends on it.
+TSP-V0-720: restore the full-id check in `parseTestOptions` and drop the `resolveBaseArgument` call in `runTest`. TSP-V0-721: make `linkedSources` return nil, false, false. TSP-V0-722: drop the `mainBuildDirectories` branch in `binaryStaleAgainst`. TSP-V0-723: remove the entry-shape `Fprintf` in the unrecorded loop of `tools/unbounded-readers`.
 TSP-V0-940: drop the `applyGatedLocators`
 call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
 declared package's dependents on every dirty path again, as before.
