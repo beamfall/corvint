@@ -370,6 +370,7 @@ spec-requirements-test:
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
 	@script/requirement-id-collisions_test.sh
+	@script/requirement-next-id_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
@@ -1157,6 +1158,12 @@ requirement-ids-free:
 	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
 	@$(if $(RANGE),script/requirement-id-collisions.sh --block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),--base "$(REF)"),true)
+
+# SRG-V0-764 (V1-3389): the next free ID of PREFIX from the staged specs, and every definition that
+# is out of order in its spec, for example make requirement-next-id PREFIX=ASD-V0.
+.PHONY: requirement-next-id
+requirement-next-id:
+	@script/requirement-next-id.sh "$(PREFIX)"
 
 # ASD-V0-950 (V1-2909, V1-1009): names each requirement ID this checkout's staged specs and another
 # local branch or worktree not yet in origin/main (REF= names another base) define differently.

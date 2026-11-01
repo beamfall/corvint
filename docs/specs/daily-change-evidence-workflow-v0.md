@@ -2284,7 +2284,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `finish-lane` and `inputs-check` refusal MUST print, after the `REFUSE` line, one `fix:` line
   naming the file, the line and that quoted form instead of the grammar remediation, and the
   `dogfood-change` `local-outcome` hint MUST name the same form. Every other refused line keeps
-  the `DCW-V0-170` remediation. The fix line MUST be built from one read of the verify file, so
+  the `DCW-V0-170` remediation. The fix and hint end `(DCW-V0-403; quoting rule: docs/DOGFOOD.md
+  Inputs, DOGFOOD_VERIFY_FILE)`, naming the Inputs row that states the rule with an example
+  (amended under the standing lane auto-accept (2026-11-01); V1-3395). The fix line MUST be built from one read of the verify file, so
   a file replaced or truncated meanwhile yields no hint rather than a panic. Non-goals: admitting the unquoted form, which a shell would read
   as a pipe. Evidence: `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` (exact two-line
   stderr, the hint, the quoted form reaching prepare, a grouped regex keeping the grammar hint),

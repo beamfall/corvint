@@ -261,7 +261,7 @@ Prose stays.
 | One scope | [`one.md`](one.md) ONE-V0-001 | accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) | implemented | One does the first thing. Tail stays. |
 | One section | [`one.md`](one.md#requirements) | anchored | kept | Anchored rows stay. |
 | Outside | [`notes`](../notes.md) | n/a | n/a | Non-spec rows stay. |
-| Two spec | [`two.md`](two.md) | proposed | not-started | Two does the second thing. |
+| Two spec | [`two.md`](two.md) TWO-V0-001..002 | proposed | not-started | Two does the second thing. |
 
 Trailing prose stays.
 MD
@@ -418,12 +418,12 @@ long_claim="Two $(printf 'x%.0s' $(seq 1 160))."
 sed -i.bak "s/^- Claim: Two does. The second thing\.$/- Claim: $long_claim/" "$project/docs/specs/two.md"
 git -C "$project" add -- docs/specs/two.md
 long_err=$(gen --all "$refused_dir" 2>&1 > /dev/null) && fail "a 165-character claim was accepted"
-case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "the long-claim refusal did not name the path and length: $long_err" ;; esac
+case $long_err in *"docs/specs/two.md:8: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "the long-claim refusal did not name the path and length: $long_err" ;; esac
 test -z "$(ls -A "$refused_dir")" || fail "a refused long claim wrote into DIR"
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
   long_err=$(gen $mode 2>&1 > /dev/null) && fail "mode '${mode:-tsv}' accepted a 165-character claim"
-  case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
+  case $long_err in *"docs/specs/two.md:8: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
 done
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
 
@@ -636,7 +636,7 @@ for mode in '' --lines --index --readme; do
     'docs/specs/multi.md:10: MUL-V0-001: the acceptance note is not parenthesized' \
     'docs/specs/multi.md:11: MUL-V0-002: the acceptance note is not parenthesized' \
     'MUL-V0-003: defined more than once: docs/specs/multi.md:12 docs/specs/multi.md:13' \
-    'docs/specs/multi.md: the Agent digest Claim is 171 characters; the limit is 160' \
+    'docs/specs/multi.md:7: the Agent digest Claim is 171 characters; the limit is 160' \
     '(SRG-V0-547)' '(SRG-V0-042)'; do
     case $multi_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' did not report '$want' in one run: $multi_err" ;; esac
   done
@@ -779,6 +779,101 @@ recipe=$(sed -n '/^spec-requirements:/,/^$/p' "$(dirname "$0")/../Makefile"; cat
 for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSpecsStayWithinTheOCMObligationBound' 'SRG-V0-965'; do
   case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
 done
+
+# 60. SRG-V0-760 (V1-4000): a `- `ID` (note):` line inside ## Requirements whose id has no
+# definition is refused in every mode, naming the line, instead of the id being dropped; a restated
+# defined id and a fenced line are not refused.
+cat > "$test_root/docs/specs/kept.md" <<'SPEC'
+## Requirements
+
+- `KPT-V0-001` (KEEP): the noted line defines nothing.
+- `KPT-V0-002`: defined.
+- `KPT-V0-002` (V1-0001): restated after its definition.
+
+```text
+- `KPT-V0-003` (fenced): an example.
+```
+SPEC
+stage docs/specs/kept.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  kpt_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' dropped a noted id silently"
+  case $kpt_err in
+    *'docs/specs/kept.md:3: KPT-V0-001: the note sits before the colon'*'(SRG-V0-760)'*) ;;
+    *) fail "mode '${mode:-tsv}' noted-id refusal lacks the line or rule: $kpt_err" ;;
+  esac
+  case $kpt_err in *KPT-V0-002*|*KPT-V0-003*) fail "mode '${mode:-tsv}' refused a defined or fenced id: $kpt_err" ;; esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/kept.md
+
+# 61. SRG-V0-761 (V1-4001) and SRG-V0-762 (V1-2310): --readme replaces only the projected claim (the
+# current Claim or the INDEX.json one) and refuses a hand-edited first sentence naming the row; a
+# Contract cell that is the bare link gains the spec's range, before a `;` too, and is then stable.
+p61=$test_root/p61
+mkdir -p "$p61/script" "$p61/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$p61/script/"
+git -C "$p61" init -q -b main
+for name in sa sb; do
+  upper=$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')
+  printf '# %s\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s does the new thing.\n- Status: proposed / experimental\n\n## Requirements\n\n- `%s-V0-001`: one.\n- `%s-V0-003`: three.\n' \
+    "$name" "$upper" "$upper" "$upper" > "$p61/docs/specs/$name.md"
+done
+cat > "$p61/docs/specs/INDEX.json" <<'JSON'
+[
+  {
+    "path": "docs/specs/sa.md",
+    "title": "sa",
+    "reqPrefix": "SA-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "SA did the old thing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/sb.md",
+    "title": "sb",
+    "reqPrefix": "",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "SB does the new thing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  }
+]
+JSON
+cat > "$p61/docs/specs/README.md" <<'MD'
+| Scope | Contract | Intent | Delivery | Binding evidence or next gate |
+| --- | --- | --- | --- | --- |
+| A | [`sa.md`](sa.md) | proposed | experimental | SA did the old thing. Tail stays. |
+| B | [`sb.md`](sb.md); companion notes | proposed | experimental | SB does the new thing. Tail e.g. stays. |
+MD
+git -C "$p61" add -- docs/specs
+g61() { (cd "$p61" && script/gen-spec-requirements.sh "$@"); }
+cat > "$test_root/want61" <<'MD'
+| Scope | Contract | Intent | Delivery | Binding evidence or next gate |
+| --- | --- | --- | --- | --- |
+| A | [`sa.md`](sa.md) SA-V0-001..003 | proposed | experimental | SA does the new thing. Tail stays. |
+| B | [`sb.md`](sb.md) SB-V0-001..003; companion notes | proposed | experimental | SB does the new thing. Tail e.g. stays. |
+MD
+g61 --readme > "$test_root/got61" || fail "--readme refused the projected rows"
+cmp "$test_root/want61" "$test_root/got61" || fail "--readme did not project the claim and range: $(cat "$test_root/got61")"
+cp "$test_root/got61" "$p61/docs/specs/README.md"
+git -C "$p61" add -- docs/specs/README.md
+g61 --readme | cmp - "$p61/docs/specs/README.md" || fail "the inserted range is not a fixed point"
+sed 's/| SA does the new thing\. Tail stays\. |/| A hand-written sentence. Tail stays. |/' "$test_root/got61" > "$p61/docs/specs/README.md"
+git -C "$p61" add -- docs/specs/README.md
+hand_err=$(g61 --readme 2>&1 > /dev/null) && fail "--readme rewrote a hand-edited first sentence"
+case $hand_err in
+  *'docs/specs/README.md:3: the docs/specs/sa.md row'*'(SRG-V0-761)'*) ;;
+  *) fail "the hand-edit refusal lacks the row or rule: $hand_err" ;;
+esac
+
 
 # 19. SRG-V0-968 (V1-3661): a spec whose Agent digest has no Claim is refused in every mode, naming
 # it, so no live spec's README summary is hand-maintained; a superseded digest (Successor and
