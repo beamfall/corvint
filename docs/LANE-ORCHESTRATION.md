@@ -477,8 +477,8 @@ that touches `docs/specs/` without committing regenerated spec indexes also refu
 finish attempts are allowed; a second failure stops the lane with the exact command and output in
 its report. Then one `make dogfood-batch-check BASE=<origin/main tip>` from a clean checkout.
 Rerunning `dogfood-change` to "see where it stands" between edits is not part of the loop.
-Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
-(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= origin/main` default
+(a moving ref, not a pinned sha) is refused, not used (`ASD-V0-019`, `ACX-V0-857`).
 
 - Windows vet before push (ASD-V0-023, V1-1725): install the pre-push hook once in the shared lane
   repository (its hooks serve every linked worktree):

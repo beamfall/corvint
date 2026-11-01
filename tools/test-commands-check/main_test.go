@@ -592,3 +592,26 @@ func sortedIndex(names []string, name string) int {
 	i, _ := slices.BinarySearch(names, name)
 	return i
 }
+
+// ACX-V0-857 (V1-3734): a bare `make` runs the help target, which lists the documented targets
+// and the effective BASE, whose file default is origin/main; it starts no build, test or gate.
+func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
+	root := requireMake(t)
+	command := exec.Command("make", "-s", "-C", root, "-f", "Makefile", "--no-print-directory")
+	command.Env = append(slices.DeleteFunc(os.Environ(), func(entry string) bool { return strings.HasPrefix(entry, "BASE=") }), "MAKEFLAGS=")
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	out, err := command.Output()
+	if err != nil {
+		t.Fatalf("bare make: %v: %s", err, stderr.String())
+	}
+	got := string(out)
+	if !strings.HasPrefix(got, "usage: make <target> [BASE=<rev>]  (BASE=origin/main)\n") {
+		t.Fatalf("bare make did not print the help header with BASE=origin/main:\n%s", got)
+	}
+	for _, target := range []string{"help", "gate", "doc-gates", "dogfood-change", "windows-vet"} {
+		if !regexp.MustCompile(`(?m)^  ` + regexp.QuoteMeta(target) + ` +\S`).MatchString(got) {
+			t.Errorf("help does not list %s:\n%s", target, got)
+		}
+	}
+}
