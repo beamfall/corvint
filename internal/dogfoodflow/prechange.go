@@ -235,16 +235,16 @@ func (c *change) noteOtherBaseRecovery(old string) {
 		return
 	}
 	c.otherBaseNoted = true
-	if fullCommitID(old) && c.gitSucceeds("merge-base", "--is-ancestor", old, c.base) {
+	if fullObjectName(old) && c.gitSucceeds("merge-base", "--is-ancestor", old, c.base) {
 		c.say("  fix: BASE %s descends from the receipts' base %s, so the lane merged its mainline after its pre-change reads; keep BASE=%s: the receipts still describe the pre-edit context at %s, no rebind exists, and this note changes no row or exit status (docs/DOGFOOD.md, Mid-lane base change)\n", c.base, old, c.base, old)
 		return
 	}
 	c.say("  fix: BASE %s does not descend from the receipts' base %s; rerun with the BASE this lane started from, or after a mid-lane merge see docs/DOGFOOD.md, Mid-lane base change\n", c.base, old)
 }
 
-// fullCommitID reports a 40- or 64-digit lowercase hexadecimal object name,
+// fullObjectName reports a 40- or 64-digit lowercase hexadecimal object name,
 // so a binding's base never reaches git as an option or a revision expression.
-func fullCommitID(value string) bool {
+func fullObjectName(value string) bool {
 	if len(value) != 40 && len(value) != 64 {
 		return false
 	}
