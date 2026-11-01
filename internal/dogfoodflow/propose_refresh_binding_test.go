@@ -69,3 +69,65 @@ func TestProposeCitationsDCWV0442RefreshOrdinalsNeedBinding(t *testing.T) {
 		t.Errorf("the added hunk took a carried row: %q", bound.carried)
 	}
 }
+
+// TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM
+// (V1-3293): after a seal moved the map to .corvint/changes/ and a later
+// commit renumbered the hunks, an ordinal plan with no binding is carried
+// through the sealed CEM whose hunks hold its rows; a sealed CEM that does not
+// hold every row, or two that both do, leave the rows dropped.
+func TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM(t *testing.T) {
+	const (
+		first  = "hunk:sha256:1111111111111111111111111111111111111111111111111111111111111111"
+		second = "hunk:sha256:2222222222222222222222222222222222222222222222222222222222222222"
+		added  = "hunk:sha256:3333333333333333333333333333333333333333333333333333333333333333"
+	)
+	sealed := func(firstSpan string) string {
+		return `{"evidence": [{"id": "e1", "path": "pre.go", "span": {"start": ` + firstSpan + `, "end": ` + firstSpan + `}}, {"id": "e2", "path": "pre.go", "span": {"start": 20, "end": 20}}], "hunks": [` +
+			`{"id": "` + first + `", "disposition": "supported", "basis": [{"evidenceId": "e1", "relation": "implementation"}]}, ` +
+			`{"id": "` + second + `", "disposition": "supported", "basis": [{"evidenceId": "e2", "relation": "implementation"}]}, ` +
+			`{"id": "hunk:sha256:4444444444444444444444444444444444444444444444444444444444444444", "disposition": "unknown", "reason": "insufficient-evidence"}]}` + "\n"
+	}
+	plan := "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n3\tunknown\tinsufficient-evidence\tno caller yet\n"
+	planPath := writeInput(t, plan)
+	owed := []proposedHunk{{ordinal: 1, id: added, path: "a.go"}, {ordinal: 2, id: first, path: "pre.go"}, {ordinal: 3, id: second, path: "pre.go"}}
+	for name, tc := range map[string]struct {
+		seals map[string]string
+		want  bool
+	}{
+		"one matching seal": {map[string]string{strings.Repeat("a", 40): sealed("3")}, true},
+		"seal cites other":  {map[string]string{strings.Repeat("a", 40): sealed("4")}, false},
+		"two matching":      {map[string]string{strings.Repeat("a", 40): sealed("3"), strings.Repeat("b", 40): sealed("3")}, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			root, base := preflightRepository(t, nil)
+			files := map[string]string{}
+			for commit, data := range tc.seals {
+				files[".corvint/changes/"+commit+".cem.json"] = data
+			}
+			writeTree(t, root, files)
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "seal change evidence")
+			var stderr bytes.Buffer
+			p := &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &stderr, base: base, target: testGit(t, root, "rev-parse", "HEAD")}, options: ProposeOptions{Root: root, Refresh: planPath}}
+			p.readRefreshPlan()
+			p.carry(owed, map[string]bool{})
+			notes := strings.Join(p.carryNotes, "\n")
+			if !tc.want {
+				if len(p.carried) != 0 || strings.Count(notes, "cannot be resolved") != 3 {
+					t.Errorf("rows carried without one matching seal: %q\n%s", p.carried, notes)
+				}
+				return
+			}
+			if got := p.carried[first]; len(got) != 1 || got[0] != first+"\tpre.go\t3:3\timplementation" {
+				t.Errorf("ordinal 1 carried to %q, want hunk %s\n%s", p.carried, first, notes)
+			}
+			if got := p.carried[second]; len(got) != 1 || got[0] != second+"\tpre.go\t20:20\timplementation" {
+				t.Errorf("ordinal 2 carried to %q, want hunk %s", p.carried, second)
+			}
+			if !strings.Contains(notes, "resolved through the sealed CEM .corvint/changes/"+strings.Repeat("a", 40)+".cem.json") ||
+				!strings.Contains(notes, "refresh row 3 dropped: hunk hunk:sha256:4444") {
+				t.Errorf("notes do not name the seal and the one unmapped row:\n%s", notes)
+			}
+		})
+	}
+}

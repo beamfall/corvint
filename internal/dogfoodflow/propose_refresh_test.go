@@ -16,7 +16,8 @@ import (
 // `--refresh` fix; `propose-citations --refresh` carries the unchanged cite
 // rows verbatim, re-keys the re-hunked row by path and BASE range, and the
 // refreshed plan passes. Fails on BASE, which refused without naming the
-// current ID and had no --refresh.
+// current ID and had no --refresh. The re-keyed unknown row's NOTE is carried
+// marked stale (DCW-V0-884, V1-3289).
 func TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile(t *testing.T) {
 	const logPath = "docs/build-log/2026-10-30-x.md"
 	for _, mode := range []string{"commit", "amend"} {
@@ -84,6 +85,18 @@ func TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile(t *testing.T)
 				!strings.Contains(stderr.String(), "content changed, so review the row") || !strings.Contains(stderr.String(), `refreshed="`+planPath+`" carried=3 rekeyed=1 dropped=0`) {
 				t.Errorf("refresh did not re-key the stale row:\nstdout=%s\nstderr=%s", stdout.String(), stderr.String())
 			}
+			// DCW-V0-884 (V1-3289): the re-keyed unknown row's NOTE was
+			// written for the old hunk, so it is carried marked stale.
+			stale := "\tunknown\t"
+			for _, line := range refreshed {
+				if strings.Contains(line, "\tunknown\t") {
+					stale = line
+				}
+			}
+			if fields := strings.Split(stale, "\t"); len(fields) != 4 || !strings.HasPrefix(fields[3], "[stale: re-keyed from "+oldLogID+", review] ") ||
+				!strings.Contains(stderr.String(), "note marked stale: it was written for "+oldLogID) {
+				t.Errorf("re-keyed unknown row note not marked stale: %q\n%s", stale, stderr.String())
+			}
 			next := filepath.Join(filepath.Dir(planPath), "plan.new")
 			if err := os.WriteFile(next, stdout.Bytes(), 0o666); err != nil {
 				t.Fatal(err)
@@ -111,4 +124,13 @@ func containsPrefix(lines []string, prefix string) bool {
 		}
 	}
 	return false
+}
+
+// TestDCWV0884StaleNoteMarkIsReplaced: a second re-key replaces the earlier
+// stale mark rather than stacking marks on the NOTE.
+func TestDCWV0884StaleNoteMarkIsReplaced(t *testing.T) {
+	note := staleNotePrefix + "hunk:a, review] why"
+	if got := staleNotePrefix + "hunk:b, review] " + staleNote.ReplaceAllString(note, ""); got != staleNotePrefix+"hunk:b, review] why" {
+		t.Errorf("re-marked note = %q", got)
+	}
 }

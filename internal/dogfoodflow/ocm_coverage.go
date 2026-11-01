@@ -18,6 +18,11 @@ import (
 type changeCoverage struct {
 	requirements, linked int
 	unlinked             string
+	// outside is the referenced IDs whose definition lies outside the
+	// intent's `## Requirements` section, sorted and comma-joined: they have
+	// no OCM obligation, so only a test or table row can trace them
+	// (OCM-V0-880).
+	outside string
 }
 
 // maxNamedUnlinked bounds how many unlinked requirement IDs the check names.
@@ -36,6 +41,21 @@ func (coverage *changeCoverage) unlinkedNote() string {
 		named += fmt.Sprintf(" (+%d more)", len(ids)-maxNamedUnlinked)
 	}
 	return fmt.Sprintf("dogfood-check: NOTE untraced-requirements count=%d ids=%s", len(ids), named)
+}
+
+// outsideNote is the stderr NOTE naming each referenced requirement defined
+// outside its intent's `## Requirements` section, or "" when there is none
+// (OCM-V0-880).
+func (coverage *changeCoverage) outsideNote() string {
+	if coverage == nil || coverage.outside == "" {
+		return ""
+	}
+	ids := strings.Split(coverage.outside, ",")
+	named := strings.Join(ids[:min(len(ids), maxNamedUnlinked)], ",")
+	if len(ids) > maxNamedUnlinked {
+		named += fmt.Sprintf(" (+%d more)", len(ids)-maxNamedUnlinked)
+	}
+	return fmt.Sprintf("dogfood-check: NOTE requirements-outside-ocm-section count=%d ids=%s: their definitions lie outside the intent's one ## Requirements section, so OCM-V0-001 gives them no obligation and only a test or table row traces them; move them into that section for OCM links (OCM-V0-880)", len(ids), named)
 }
 
 // summaryFields prints the three members, or NOT_OBSERVED for each when the
@@ -67,6 +87,10 @@ type requirementSection struct {
 	lines      []string
 	items      []requirementItem
 	first, end int
+	// outside are the unfenced requirement lines outside the section, each
+	// an item running to the next requirement line or unfenced heading
+	// (OCM-V0-880); OCM-V0-001 does not enumerate them.
+	outside []requirementItem
 }
 
 // parseRequirements enumerates a blob's requirements as OCM-V0-001 does
@@ -106,15 +130,34 @@ func parseRequirements(blob []byte) requirementSection {
 			section.first = i
 		}
 	}
+	if section.first >= 0 {
+		for i := section.first + 1; i < len(lines); i++ {
+			text := strings.TrimRight(lines[i], "\r\n")
+			if !fenced[i] && (text == "##" || strings.HasPrefix(text, "## ")) {
+				section.end = i
+				break
+			}
+		}
+	}
+	open := -1
+	for i, line := range lines {
+		inside := section.first >= 0 && i > section.first && i < section.end
+		if fenced[i] || inside {
+			continue
+		}
+		if strings.HasPrefix(line, "#") || requirementLine.MatchString(line) {
+			if open >= 0 {
+				section.outside[open].end, section.outside[open].stop = i, offsets[i]
+				open = -1
+			}
+		}
+		if match := requirementLine.FindStringSubmatch(line); match != nil {
+			section.outside = append(section.outside, requirementItem{id: match[1] + match[2], first: i, end: len(lines), start: offsets[i], stop: offsets[len(lines)]})
+			open = len(section.outside) - 1
+		}
+	}
 	if section.first < 0 {
 		return section
-	}
-	for i := section.first + 1; i < len(lines); i++ {
-		text := strings.TrimRight(lines[i], "\r\n")
-		if !fenced[i] && (text == "##" || strings.HasPrefix(text, "## ")) {
-			section.end = i
-			break
-		}
 	}
 	for i := section.first + 1; i < section.end; i++ {
 		match := requirementLine.FindStringSubmatch(lines[i])
@@ -206,7 +249,7 @@ func (f *flow) changeCoverage(mapPath string, intents []string) *changeCoverage 
 		declared[path] = true
 	}
 	blobs := map[string]requirementSection{}
-	referenced := map[string]bool{}
+	referenced, outside := map[string]bool{}, map[string]bool{}
 	for _, evidence := range *decoded.Evidence {
 		if !declared[evidence.Path] || evidence.Span == nil {
 			continue
@@ -246,8 +289,17 @@ func (f *flow) changeCoverage(mapPath string, intents []string) *changeCoverage 
 				}
 			}
 		}
+		// A requirement the diff defines outside the section is referenced
+		// too, and named, since OCM gives it no obligation (OCM-V0-880).
+		for _, item := range section.outside {
+			for _, lines := range changed {
+				if lines[0] < item.end && item.first < lines[1] {
+					referenced[item.id], outside[item.id] = true, true
+				}
+			}
+		}
 	}
-	coverage := &changeCoverage{requirements: len(referenced)}
+	coverage := &changeCoverage{requirements: len(referenced), outside: strings.Join(sortedKeys(outside), ",")}
 	if len(referenced) == 0 {
 		return coverage
 	}

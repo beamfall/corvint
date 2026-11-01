@@ -301,6 +301,25 @@ $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/precha
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
 
+The supported recorder runs those three reads for you and binds them (`DCW-V0-880`), so no file
+needs forwarding to closeout. Run it before the first edit, while `HEAD` is BASE:
+
+```console
+$ make dogfood-prechange BASE=BASE_SHA TASK="THE CHANGE" PATHS="PATH..."
+```
+
+It writes the same three receipts plus `prechange-binding.json`, which names BASE, its tree, this Git
+directory, the task and each receipt's digest. `prechange-query` is satisfied by `corvint query
+--task`, `prechange-impact` by `corvint impact PATH...`; `prechange-context` is orientation and
+satisfies neither slot. It refuses `prechange-after-change` once a commit or tracked edit exists,
+since a receipt is never written retrospectively, and `prechange-receipt-exists` rather than overwrite
+a receipt you wrote yourself. Every later `dogfood change` pass, including each `make
+dogfood-closeout` pass, prints `NOTE prechange-query OBSERVED bound sha256=... command=corvint query`
+for a bound receipt, or the reason it is not: `agent-receipt-unsupported tool=...` (for example a
+context receipt saved as the query receipt), `agent-receipt-binding-mismatch`,
+`agent-receipt-binding-other-base` or `agent-receipt-wrong-worktree` (`DCW-V0-881`). The notes stay
+non-blocking.
+
 `context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
 frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
 changed (`CWT-V0-017`, `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json`); a READY
@@ -1343,6 +1362,26 @@ on an active enrollment is refused with `cancel-reason-required`, naming the sel
 saved observations it would close, unless `--reason TEXT` records why it is being abandoned. The
 reason is echoed as `cancelReason` in the result and is not persisted (LCP-V0-038). Cancelling an
 already satisfied or cancelled enrollment needs no reason.
+
+When a coordinator's instruction is to preserve that ACTIVE enrollment, it records the instruction
+with `corvint dogfood hold --session-key KEY --reason TEXT`. While the hold exists, `dogfood
+cancel` refuses `enrollment-preservation-hold`, quoting the reason and naming the distinct-checkout
+route; only `dogfood hold --session-key KEY --release-authorization TEXT`, which keeps the released
+hold and its authorization as a record, admits the cancel (LCP-V0-880, LCP-V0-881). Before a managed
+worktree is archived, export its enrollment to a file outside the Git directory:
+
+```console
+$ corvint dogfood export --session-key KEY --output "$HOME/enrollments/KEY.json"
+```
+
+After restore, check out the exported commit and run `corvint dogfood import --session-key KEY
+--input "$HOME/enrollments/KEY.json"` in the restored worktree. The import is bound to that exact
+commit and tree, never replaces an existing enrollment, relocates the saved paths into the new Git
+directory and evaluates as the source did; it never makes the enrollment more satisfied
+(LCP-V0-883..885). Without a bundle a restored worktree reads `inactive`: whether it ever held an
+enrollment cannot be told from it, so report that as `NOT_OBSERVED` and never re-enroll over it.
+Aggregate-outcome and sealed-continuation enrollments cannot be exported yet
+(`enrollment-export-unsupported`); keep their original checkout.
 
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is

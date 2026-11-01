@@ -254,6 +254,46 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		}
 		cemGit(t, root, "config", "--local", "--unset", "corvint.dogfood.anchor")
 	})
+	// LCP-V0-883..885 (V1-0580): a satisfied enrollment exported from this
+	// worktree and imported into a restored worktree at the same commit, with
+	// another Git directory, evaluates satisfied there with the same target,
+	// checks and reports; a second import is refused rather than replacing it.
+	t.Run("LCP-V0-883 restore satisfied", func(t *testing.T) {
+		source, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		if err != nil || !source.Satisfied {
+			t.Fatalf("source completion: %#v %v", source, err)
+		}
+		bundle := filepath.Join(t.TempDir(), "enrollment.json")
+		if code, stdout, stderr := runCLI(t, "--root", root, "dogfood", "export", "--session-key", key, "--output", bundle); code != 0 || !strings.Contains(stdout, `"mutates":false`) {
+			t.Fatalf("export: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		restored := filepath.Join(t.TempDir(), "restored")
+		cemGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
+		restored, _ = filepath.EvalSymlinks(restored)
+		if result, err := localcompletion.Evaluate(ctx, restored, key); err != nil || result.Lifecycle != "inactive" {
+			t.Fatalf("restored worktree before import: %#v %v", result, err)
+		}
+		code, stdout, stderr := runCLI(t, "--root", restored, "dogfood", "import", "--session-key", key, "--input", bundle)
+		var document struct {
+			Policy localcompletion.Evaluation `json:"policy"`
+		}
+		if err = json.Unmarshal([]byte(stdout), &document); err != nil || code != 0 {
+			t.Fatalf("import: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		got := document.Policy
+		if !got.Satisfied || got.Lifecycle != "satisfied" || got.Target != source.Target || len(got.Unmet) != 0 || len(got.Reports) != len(source.Reports) || len(got.Checks) != 1 || !got.Checks[0].Qualified {
+			t.Fatalf("restored policy %#v, source %#v", got, source)
+		}
+		for _, report := range got.Reports {
+			if !strings.HasPrefix(report, cemGit(t, restored, "rev-parse", "--absolute-git-dir")+"/") {
+				t.Errorf("report %s not relocated into the restored Git directory", report)
+			}
+		}
+		if code, _, stderr = runCLI(t, "--root", restored, "dogfood", "import", "--session-key", key, "--input", bundle); code != 2 || !strings.Contains(stderr, "import-would-replace") {
+			t.Fatalf("second import: exit=%d stderr=%s", code, stderr)
+		}
+		cemGit(t, root, "worktree", "remove", "--force", restored)
+	})
 	t.Run("V1-1894 sealed completion", func(t *testing.T) {
 		// Establish a real successful completion before exercising the required seal.
 		result, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
@@ -1069,5 +1109,53 @@ func TestLocalCompletionSealedCloseoutRepin(t *testing.T) {
 	restore()
 	if result = finishReviewed("restored"); result.Target != seal {
 		t.Fatalf("restored completion: %#v", result)
+	}
+}
+
+// TestDogfoodHoldRefusesCancelThroughTheCLI covers LCP-V0-880/881 at the CLI:
+// dogfood hold records the hold, cancel exits 2 with
+// enrollment-preservation-hold naming the distinct-checkout route, and a
+// release with an authorization admits the cancel.
+func TestDogfoodHoldRefusesCancelThroughTheCLI(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.md", "# A\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n")
+	cemWrite(t, root, ".gitignore", ".corvint/\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	plan := localcompletion.Plan{Base: cemGit(t, root, "rev-parse", "HEAD"), Intents: []string{"a.md"}, Checks: []localcompletion.Check{{ID: "unit", Argv: []string{"true"}, TimeoutSeconds: 30}}}
+	raw, _ := json.Marshal(plan)
+	planPath := filepath.Join(t.TempDir(), "plan.json")
+	if err = os.WriteFile(planPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := localcompletion.HashSession(t.Name())
+	call := func(args ...string) (int, string, string) {
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, append(args, "--session-key", key), strings.NewReader(""), &stdout, &stderr)
+		return code, stdout.String(), stderr.String()
+	}
+	if code, stdout, stderr := call("begin", "--plan", planPath); code != 0 {
+		t.Fatalf("begin: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	if code, stdout, stderr := call("hold", "--reason", "preserve ACTIVE"); code != 0 || !strings.Contains(stdout, `"tool":"dogfood-hold"`) || strings.Contains(stdout, "cancelReason") {
+		t.Fatalf("hold: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	code, stdout, stderr := call("cancel", "--reason", "base moved")
+	if code != 2 || stdout != "" || !strings.Contains(stderr, `"enrollment-preservation-hold"`) || !strings.Contains(stderr, "distinct checkout") {
+		t.Fatalf("held cancel: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	if code, _, stderr = call("hold"); code != 2 || !strings.Contains(stderr, "invalid-local-completion-option") {
+		t.Fatalf("hold with no option: exit %d stderr %s", code, stderr)
+	}
+	if code, stdout, stderr = call("hold", "--release-authorization", "coordinator approved"); code != 0 {
+		t.Fatalf("release: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	if code, stdout, _ = call("cancel", "--reason", "approved"); code != 0 || !strings.Contains(stdout, `"lifecycle":"cancelled"`) {
+		t.Fatalf("authorized cancel: exit %d %s", code, stdout)
 	}
 }

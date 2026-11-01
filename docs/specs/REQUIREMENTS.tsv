@@ -3136,6 +3136,14 @@ DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
 DCW-V0-831	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3372)	standing	V1-3372
+DCW-V0-880	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`	standing	V1-3183
+DCW-V0-881	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`	standing	V1-3183
+DCW-V0-882	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3290; refines `DCW-V0-387`	standing	V1-3290
+DCW-V0-883	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3285; refines `DCW-V0-048`	standing	V1-3285
+DCW-V0-884	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3289; refines `DCW-V0-442`	standing	V1-3289
+DCW-V0-885	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3293; refines `DCW-V0-442`	standing	V1-3293
+DCW-V0-886	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3283; refines `DCW-V0-161`	standing	V1-3283
+DCW-V0-887	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2978; refines `DCW-V0-380`	standing	V1-2978
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
@@ -4692,6 +4700,12 @@ LCP-V0-035	docs/specs/local-completion-policy-v0.md	(accepted under the owner's 
 LCP-V0-036	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1757) Every ba	standing	2026-10-11; V1-1757
 LCP-V0-037	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0680)	standing	2026-10-11; V1-0680
 LCP-V0-038	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2177)	standing	2026-10-11; V1-2177
+LCP-V0-880	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0581; refines `LCP-V0-038`	standing	V1-0581
+LCP-V0-881	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0581)	standing	V1-0581
+LCP-V0-882	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0581) Qualification: the	standing	V1-0581
+LCP-V0-883	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
+LCP-V0-884	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
+LCP-V0-885	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580) Import MUST relocate	standing	V1-0580
 LCP-V0-039	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-2762) Amending	standing	V1-2762
 LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change	unrecorded	-
 LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
@@ -5133,6 +5147,7 @@ OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-027	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2894, decision 0585) withi	standing	V1-2894; decision 0585
 OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585) the	standing	V1-2893; decision 0585
 OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
+OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-

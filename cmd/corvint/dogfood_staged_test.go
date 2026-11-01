@@ -59,8 +59,10 @@ func TestDogfoodSingleCommitStagedCitationPlans(t *testing.T) {
 			end = len(doc.Hunks)
 		}
 		var plan strings.Builder
-		for _, h := range doc.Hunks[start:end] {
-			fmt.Fprintf(&plan, "%s\tintent.md\t5:5\tspecification\n", h.ID)
+		// Two spans, so the stages together do not cite one span for every
+		// hunk (DCW-V0-048, DCW-V0-883).
+		for index, h := range doc.Hunks[start:end] {
+			fmt.Fprintf(&plan, "%s\tintent.md\t%d:%d\tspecification\n", h.ID, 5+index%2, 5+index%2)
 		}
 		name := fmt.Sprintf("plan-%d.tsv", stage)
 		cemWrite(t, inputsDir, name, plan.String())

@@ -824,6 +824,13 @@ dogfood-change:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
+# Record the agent pre-change receipts at BASE before the first edit (DCW-V0-880): TASK is the task
+# text, PATHS the tracked files the change intends to touch.
+.PHONY: dogfood-prechange
+dogfood-prechange:
+	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_TASK="$(TASK)" $(HEAVY_NICE_PREFIX) script/dogfood-prechange.sh "$(DOGFOOD_BASE)" $(PATHS)
+
 # Without BASE, dogfood-check takes the base of the CEM committed at HEAD, and the script refuses
 # naming BASE when none is bound (ASD-V0-085, V1-3172).
 .PHONY: dogfood-check

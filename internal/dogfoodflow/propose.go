@@ -90,6 +90,14 @@ type proposal struct {
 	inventoryRead bool
 	// reasons holds, by row key, why a drafted proposal was chosen.
 	reasons map[string]string
+	// governing holds the change's governing specs, which path anchors
+	// prefer; weak holds the low-confidence note of each row whose anchor is
+	// a bare mention outside them (DCW-V0-886).
+	governing map[string]bool
+	weak      []string
+	// modifiedOwners holds, by pattern, the specs this change modifies whose
+	// BASE lines name it: never cited, but counted as governing specs.
+	modifiedOwners map[string][]string
 }
 
 // spanLine is one line of a BASE file.
@@ -366,6 +374,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		p.matches = map[string][]spanLine{}
 		p.changed[sealContract] = true
 	}
+	p.governing = p.governingSpecs(owed)
 	used := map[string]bool{}
 	p.carry(owed, used)
 	rows, notes := []string{}, append([]string{}, p.carryNotes...)
@@ -401,6 +410,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		delete(p.proposals, ordinal)
 		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
+	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
 	}
@@ -544,7 +554,13 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 	}
 	definitions := len(candidates)
 	families := p.hunkFamilies(derived)
-	candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	if p.basenames {
+		candidates = append(candidates, p.matches[anchorPath(derived)]...)
+	} else {
+		// A draft prefers the change's governing spec (DCW-V0-886); the
+		// check's anchor search keeps its order.
+		candidates = append(candidates, p.rankAnchors(p.matches[anchorPath(derived)])...)
+	}
 	if name := anchorBasename(derived); p.basenames && name != "" {
 		candidates = append(candidates, p.matches[name]...)
 	}
@@ -577,7 +593,11 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 			continue
 		}
 		relation := proposalRelation(candidate.path)
-		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation), cite
+		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
+		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
+			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
+		}
+		return row, cite
 	}
 	return "", ""
 }
@@ -672,6 +692,7 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
+	p.modifiedOwners = map[string][]string{}
 	complete := false
 	patched := map[string]bool{}
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
@@ -762,10 +783,24 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		// DCW-V0-966 (amending DCW-V0-393): a modified file's BASE line is kept
 		// as a candidate; stable drops every line a hunk edits or the change
 		// repeats, so the draft never cites the change's own text.
-		// A path git lists as changed that the patch holds no hunk for (a
-		// mode-only change) is still never cited.
-		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && (dataPath(name) || p.changed[name] && !patched[name]) {
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && dataPath(name) {
 			continue
+		}
+		if !p.basenames && p.changed[name] {
+			// A spec the change modifies may be the change's governing spec
+			// (DCW-V0-886).
+			if documentRank(name) == 0 && requirementToken.Match(p.lineText(spanLine{name, line})) {
+				for _, pattern := range sorted {
+					if strings.Contains(text, pattern) {
+						p.modifiedOwners[pattern] = append(p.modifiedOwners[pattern], name)
+					}
+				}
+			}
+			// A path git lists as changed that the patch holds no hunk for (a
+			// mode-only change) is still never cited (DCW-V0-966).
+			if !patched[name] {
+				continue
+			}
 		}
 		for _, pattern := range sorted {
 			if strings.Contains(text, pattern) {

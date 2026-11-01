@@ -843,6 +843,9 @@ func (c *check) verifyBinding(report []byte) int {
 	if note := coverage.unlinkedNote(); note != "" {
 		c.say("%s\n", note)
 	}
+	if note := coverage.outsideNote(); note != "" {
+		c.say("%s\n", note)
+	}
 	if noIntent {
 		_, _ = c.stdout.Write(ocmLine)
 	}

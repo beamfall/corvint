@@ -42,3 +42,19 @@ func TestDCWV0808DogfoodOptionRefusalNamesTheFault(t *testing.T) {
 		}
 	}
 }
+
+// TestDCWV0880PrechangeArguments: dogfood prechange takes --task, BASE first
+// and every later positional as an impact path; a missing BASE still refuses.
+func TestDCWV0880PrechangeArguments(t *testing.T) {
+	t.Parallel()
+	flags, base, err := dogfoodFlowArguments("prechange", []string{"--task", "Fix a", "B", "a.go", "b.go"})
+	if err != nil || base != "B" || flags["--task"] != "Fix a" || flags[prechangePathsFlag] != "a.go\x00b.go" {
+		t.Errorf("flags=%q base=%q err=%v", flags, base, err)
+	}
+	if _, _, err = dogfoodFlowArguments("prechange", []string{"--task", "x"}); err == nil || err.Error() != "dogfood-base-required" {
+		t.Errorf("no BASE: err=%v; want dogfood-base-required", err)
+	}
+	if _, _, err = dogfoodFlowArguments("prechange", []string{"--refresh", "p", "B"}); err == nil {
+		t.Error("prechange accepted --refresh")
+	}
+}

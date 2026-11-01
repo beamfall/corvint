@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -207,17 +208,30 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: hunk %s is gone, %s; its hunk is drafted afresh", row.line, row.id, why))
 			continue
 		}
+		fields := strings.Split(row.rest, "\t")
 		if how != "" {
 			hunk := current[target]
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d re-keyed %s -> %s (%s BASE %d,%d; %s)", row.line, row.id, target, hunk.path, hunk.oldStart, hunk.oldCount, how))
+			// The NOTE of a re-keyed unknown row was written for the old
+			// hunk, so it is carried marked stale for review (DCW-V0-884).
+			if fields[0] == "unknown" {
+				fields[2] = staleNotePrefix + row.id + ", review] " + staleNote.ReplaceAllString(fields[2], "")
+				row.rest = strings.Join(fields, "\t")
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d note marked stale: it was written for %s; review it for %s", row.line, row.id, target))
+			}
 		}
 		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
-		fields := strings.Split(row.rest, "\t")
 		if fields[0] != "unknown" {
 			used[fields[0]+":"+fields[1]] = true
 		}
 	}
 }
+
+// staleNotePrefix opens the NOTE of an unknown row --refresh re-keyed; staleNote
+// matches an earlier such mark, so a second refresh replaces it.
+const staleNotePrefix = "[stale: re-keyed from "
+
+var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 
 // refreshOrdinalIDs are the hunk IDs, in ordinal order, that the --refresh
 // plan's ordinals name, and whether they are known. They come from the
@@ -238,7 +252,91 @@ func (p *proposal) refreshOrdinalIDs() ([]string, bool) {
 			return recorded[1:], true
 		}
 	}
-	return nil, false
+	return p.sealedOrdinalIDs()
+}
+
+// maxSealedCandidates bounds the sealed CEMs sealedOrdinalIDs reads.
+const maxSealedCandidates = 16
+
+// sealedOrdinalIDs resolves the --refresh plan's ordinals through the sealed
+// CEM a seal of this change archived, when no binding records them
+// (DCW-V0-885): the one sealed CEM BASE..HEAD adds whose hunk at each row's
+// ordinal holds that row, a cite row's span among its basis or an unknown
+// row's reason. A plan no single sealed CEM matches stays unresolved.
+func (p *proposal) sealedOrdinalIDs() ([]string, bool) {
+	if p.base == "" || p.target == "" {
+		return nil, false
+	}
+	listed, status, bounded := p.boundedGit("diff", "--name-only", "--no-renames", "--diff-filter=A", p.base, p.target, "--", ".corvint/changes/")
+	if status != 0 || !bounded {
+		return nil, false
+	}
+	paths := textLines([]byte(chomp(listed)))
+	if len(paths) > maxSealedCandidates {
+		paths = paths[len(paths)-maxSealedCandidates:]
+	}
+	var found []string
+	foundPath := ""
+	for _, path := range paths {
+		if sealedCEMPath.FindStringSubmatch(path) == nil {
+			continue
+		}
+		data, status, bounded := p.boundedGit("cat-file", "blob", p.target+":"+path)
+		var m citationMap
+		if status != 0 || !bounded || json.Unmarshal([]byte(data), &m) != nil || !p.sealedHolds(&m) {
+			continue
+		}
+		if found != nil {
+			return nil, false
+		}
+		foundPath = path
+		for _, hunk := range m.Hunks {
+			found = append(found, hunk.ID)
+		}
+	}
+	if found == nil {
+		return nil, false
+	}
+	p.carryNotes = append(p.carryNotes, "refresh ordinals resolved through the sealed CEM "+foundPath+", whose hunks hold every ordinal row (DCW-V0-885)")
+	return found, true
+}
+
+// sealedHolds reports whether m's hunk at each ordinal row's ordinal holds
+// that row; a plan with no ordinal row is never matched.
+func (p *proposal) sealedHolds(m *citationMap) bool {
+	spans := map[string]string{}
+	for _, evidence := range m.Evidence {
+		spans[evidence.ID], _ = canonicalSpan(evidence.Path, strconv.FormatInt(evidence.Span.Start, 10)+":"+strconv.FormatInt(evidence.Span.End, 10))
+	}
+	matched := 0
+	for _, row := range p.refreshRows {
+		if !ordinal.MatchString(row.selector) {
+			continue
+		}
+		index, _ := strconv.Atoi(row.selector)
+		if index < 1 || index > len(m.Hunks) {
+			return false
+		}
+		hunk := m.Hunks[index-1]
+		fields := strings.Split(row.rest, "\t")
+		if fields[0] == "unknown" {
+			if hunk.Disposition != "unknown" || hunk.Reason != fields[1] {
+				return false
+			}
+			matched++
+			continue
+		}
+		span, ok := canonicalSpan(fields[0], fields[1])
+		holds := false
+		for _, basis := range hunk.Basis {
+			holds = holds || ok && spans[basis.EvidenceID] == span
+		}
+		if !holds {
+			return false
+		}
+		matched++
+	}
+	return matched > 0
 }
 
 // resolveHunkFacts finds each wanted hunk ID in the canonical patch of BASE to
