@@ -205,6 +205,9 @@ HEAVY_SLOTS=1 "$heavy" sh -c 'kill -TERM $$' 2> "$tmp/err"
 [[ $? == 143 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=143 cause=signal-TERM cmd=sh' ]] ||
   fail "heavy.sh signalled command: no exit cause line: $(cat "$tmp/err")"
 HEAVY_SLOTS=1 "$heavy" true 2> "$tmp/err" && ! grep -q 'exit rc=' "$tmp/err" || fail "heavy.sh true printed an exit line: $(cat "$tmp/err")"
+# ASD-V0-920 (V1-3518): every run names its host and why; here no host is configured anywhere.
+grep -qx "heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config $tmp/no-heavy-config (absent)" "$tmp/err" ||
+  fail "heavy.sh did not say why it ran locally: $(cat "$tmp/err")"
 (cd "$pin/mod" && env -u HEAVY_WHOLE_REASON HEAVY_SLOTS=1 "$heavy" go test ./sub > /dev/null 2> "$tmp/err")
 [[ $? == 2 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=2 cause=refused' ]] ||
   fail "heavy.sh refusal: no exit cause line: $(cat "$tmp/err")"
@@ -487,6 +490,14 @@ ok
 printf '# lane host\nHEAVY_REMOTE_HOST=box\nHEAVY_REMOTE_SHELL="bash -s"\nNOT_HEAVY=1\n' > "$off/heavy.env"
 out=$(HEAVY_CONFIG=$off/heavy.env hv go test ./... 2> "$off/err")
 [[ $out == where=remote* ]] && grep -q 'ignoring config line .*NOT_HEAVY=1' "$off/err" || fail "heavy.sh ignored HEAVY_CONFIG: $out"
+# ASD-V0-920 (V1-3518): with no export, the config file's host is chosen and the line says so.
+grep -qx "heavy.sh: host=box why=offloadable command, HEAVY_REMOTE_HOST from config $off/heavy.env" "$off/err" ||
+  fail "heavy.sh did not name the config-file host choice: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box hv go test ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: host=box why=offloadable command, HEAVY_REMOTE_HOST from environment' "$off/err" ||
+  fail "heavy.sh did not name the environment host choice: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 HEAVY_LOCAL_REASON=t hv go test ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: host=local why=HEAVY_REMOTE=0' "$off/err" || fail "heavy.sh HEAVY_REMOTE=0 host line: $(cat "$off/err")"
 out=$(HEAVY_CONFIG=$off/heavy.env HEAVY_REMOTE_HOST=down hv go test ./... 2> /dev/null)
 [[ $out == where=local* ]] || fail "heavy.sh HEAVY_CONFIG overrode the environment: $out"
 ok

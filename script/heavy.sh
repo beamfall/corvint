@@ -21,6 +21,9 @@
 #                   priority; a caller already nicer than HEAVY_NICE is never raised.
 #   HEAVY_CONFIG    optional KEY=VALUE file read for any HEAVY_* setting the environment leaves
 #                   unset; default ${XDG_CONFIG_HOME:-$HOME/.config}/corvint/heavy.env.
+#                   Every run prints `heavy.sh: host=H why=W` first (ASD-V0-920): the host the
+#                   command is routed to (`local` or HEAVY_REMOTE_HOST) and why, naming whether the
+#                   host came from the environment or this file, or that neither set it.
 #
 # Lane policy (ASD-V0-030, ported from the lane prototype so its cutover loses nothing):
 #   HEAVY_WHOLE_REASON   a `go test` without `-run` (a whole package) is refused with exit 2 unless
@@ -1128,8 +1131,10 @@ main() {
     return 0
   fi
   # ASD-V0-070 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
-  local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}}
-  load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
+  local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}} host_src=environment config_file
+  config_file=${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}
+  [[ -n ${HEAVY_REMOTE_HOST-} ]] || host_src="config ${config_file:-(none)}"
+  load_config "$config_file"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
   if [[ $1 == --print-lock-dir ]]; then
@@ -1144,6 +1149,7 @@ main() {
   mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
   selection_policy "$@" || { heavy_cause=refused; return 2; }
   local_policy "$@" || { heavy_cause=refused; return 2; }
+  host_choice "$@"
   if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
     if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
       fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
@@ -1188,6 +1194,29 @@ main() {
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" \
     exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
+}
+
+# host_choice COMMAND...: ASD-V0-920 (V1-3518). One stderr line names the host this command is
+# routed to first and why, including where HEAVY_REMOTE_HOST came from (the environment or the config
+# file) or that neither set it; a later fallback (unavailable, CI busy) prints its own line.
+host_choice() {
+  local cfg=${config_file:-(none)} host=local why
+  [[ $cfg != '(none)' && ! -r $cfg ]] && cfg="$cfg (absent)"
+  if [[ -z ${HEAVY_REMOTE_HOST-} ]]; then
+    why="HEAVY_REMOTE_HOST unset in the environment and in config $cfg"
+  elif ! offloadable "$@"; then
+    why="not an offloadable command"
+    if [[ ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
+      host=$HEAVY_REMOTE_HOST why="build offload, HEAVY_REMOTE_HOST from $host_src"
+    fi
+  elif [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
+    why="HEAVY_REMOTE=0"
+  elif writes_files "$@" "GOFLAGS=${GOFLAGS-}"; then
+    why="file-writing flag"
+  else
+    host=$HEAVY_REMOTE_HOST why="offloadable command, HEAVY_REMOTE_HOST from $host_src"
+  fi
+  printf 'heavy.sh: host=%s why=%s\n' "$host" "$why" >&2
 }
 
 # heavy_exit RC: ASD-V0-940. The calling shell names the cause of a non-zero main; the remote half
