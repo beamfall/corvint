@@ -14,7 +14,9 @@ import (
 
 // Probe only the bounded ancestor go.mod metadata of the explicitly selected
 // API. An unlisted nested module must not acquire the root module's identity.
-func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured) bool {
+// A withheld boundary returns the exact REPOSITORY:PATH it rests on and why
+// (BKM-V0-710).
+func moduleBoundary(ctx context.Context, root string, c captured, sources map[string]captured, declared map[string]bool) (bool, string) {
 	args := []string{"ls-tree", "-z", c.repo.Commit, "--"}
 	for dir := path.Dir(c.source.Path); ; dir = path.Dir(dir) {
 		args = append(args, path.Join(dir, "go.mod"))
@@ -24,22 +26,59 @@ func moduleBoundary(ctx context.Context, root string, c captured, sources map[st
 	}
 	raw, err := git(ctx, root, args...)
 	if err != nil {
-		return false
+		return false, "the pinned tree of " + c.repo.ID + " cannot be listed"
 	}
 	found := false
 	for _, row := range strings.Split(strings.TrimSuffix(string(raw), "\x00"), "\x00") {
+		if row == "" {
+			continue
+		}
 		pair := strings.SplitN(row, "\t", 2)
 		if len(pair) != 2 {
-			return false
+			return false, "the pinned tree of " + c.repo.ID + " lists an unreadable go.mod row"
 		}
+		name := c.repo.ID + ":" + pair[1]
 		s, ok := sources[sourceKey(c.repo.ID, pair[1])]
 		fields := strings.Fields(pair[0])
-		if !ok || len(fields) != 3 || fields[1] != "blob" || s.source.Blob != fields[2] {
-			return false
+		if len(fields) != 3 || fields[1] != "blob" {
+			return false, name + " is not a regular file at the pinned commit"
+		}
+		if !ok && declared[sourceKey(c.repo.ID, pair[1])] {
+			return false, name + " is declared as a manifest source but its pinned bytes could not be read (see its own unknown)"
+		}
+		if !ok {
+			return false, name + " is tracked at the pinned commit but not declared as a manifest source; declare it with --source " + name
+		}
+		if s.source.Blob != fields[2] {
+			return false, name + " is declared with blob " + s.source.Blob + " but the pinned tree holds blob " + fields[2]
 		}
 		found = true
 	}
-	return found
+	if !found {
+		return false, "no go.mod is tracked in " + c.repo.ID + ":" + path.Dir(c.source.Path) + " or any ancestor at the pinned commit"
+	}
+	return true, ""
+}
+
+// withheldBoundary returns why a selected Go source's module boundary withholds
+// the syntax mapping, or "" for a bounded Go source or any other language.
+func withheldBoundary(ctx context.Context, root string, c captured, sources map[string]captured, declared map[string]bool) string {
+	if !strings.HasSuffix(c.source.Path, ".go") {
+		return ""
+	}
+	if bounded, why := moduleBoundary(ctx, root, c, sources, declared); !bounded {
+		return why
+	}
+	return ""
+}
+
+// declaredSources is the set of sourceKey values the manifest declares.
+func declaredSources(list []Source) map[string]bool {
+	out := make(map[string]bool, len(list))
+	for _, s := range list {
+		out[sourceKey(s.Repository, s.Path)] = true
+	}
+	return out
 }
 
 func declarationBytes(b []byte, name string) (string, bool) {
