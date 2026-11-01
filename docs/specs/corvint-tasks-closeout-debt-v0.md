@@ -589,9 +589,13 @@ closeout step is missing.
   MUST be: rerun the same command with the same `--request-id`, `--issued-at` and targets; a target
   already applied MUST replay (`replayed: true`, the same `resultingRevision`, no new receipt), and a
   target not yet applied MUST apply, so the rerun converges without a second write to any ticket.
-  This holds for a base request id long enough that every derived id takes the digest form.
-  Non-goal: an atomic cross-ticket transaction, a store-layer change. Rollback: drop the test; no
-  write path is added.
+  This holds for a base request id long enough that every derived id takes the digest form. A
+  `ticket hold` that reads each target's revision itself (single or several targets, no
+  `--expected-revision`) MUST, for a target whose request id already completed, use that request's
+  original expected revision (its resulting revision minus one) instead of the re-read one, so the
+  retry replays rather than refusing `REQUEST_ID_CONFLICT`; a retry whose other inputs changed is
+  still refused by the writer's mutation digest. Non-goal: an atomic cross-ticket transaction, a
+  store-layer change. Rollback: revert `landedRevision`; holds again re-read the revision on retry.
 
 ## Failure modes
 
@@ -808,7 +812,7 @@ closeout step is missing.
 | TCD-V0-874 | V1-3551 | `internal/tasks/cli` | `TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce` (one ticket delivered by two merged PRs: one proposal lists it, its row's `prs` names both) | none |
 | TCD-V0-965 | V1-3644 | `internal/tasks/cli` (`usage`), `internal/tasks/wire` (`HasCode`, `Encode` doc) | `TestTCDV0965_UsageRefusalCarriesMalformed` (`internal/tasks/cli`); `TestTCDV0965_HasCode` (`internal/tasks/wire`) |
 | TCD-V0-966 | V1-3645 | `internal/tasks/cli` (`searchAllFlag`, `parseSearchFilter`, help) | `TestTCDV0966_SearchAllListsEveryTicket` |
-| TCD-V0-967 | V1-3646 | `internal/tasks/cli` (`multiTargetSubmit`, `targetRequestID`) | `TestTCDV0967_InterruptedMultiTargetWriteResumes` |
+| TCD-V0-967 | V1-3646 | `internal/tasks/cli` (`multiTargetSubmit`, `targetRequestID`, `landedRevision`) | `TestTCDV0967_InterruptedMultiTargetWriteResumes` (NOTE_SET), `TestTCDV0967_InterruptedMultiTargetHoldResumes` (HOLD: interrupted, resumed, converged; single-target retry; changed payload refused) |
 
 ## Rollout and rollback
 
