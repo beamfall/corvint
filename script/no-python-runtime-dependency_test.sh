@@ -27,11 +27,50 @@ unexempted() {
   grep -v "$opt_in" | sed -E "s/$names/[allowed-name]/g" | grep -E "$pattern"
 }
 
+# mask_fixture_data blanks the quoted arguments of a printf or echo command (V1-3971): text a shell
+# test writes into a fixture is data, not an invocation. It reads the shell words of each line: a
+# printf or echo in command position (line start, after | ; & ( : or a reserved word such as then)
+# has its single-quoted arguments and its double-quoted ones without $( or a backquote replaced by
+# empty quotes, up to the next unquoted | ; & or ). An unquoted name, a later command on the line and
+# a command substitution inside double quotes are left as they are, so a real call still matches.
+mask_fixture_data() {
+  awk '
+    function endword() {
+      if (word == "") return
+      if (cmdpos && (word == "printf" || word == "echo")) args = 1
+      cmdpos = word ~ /^(then|do|else|elif|if|while|until|!|time)$/
+      word = ""
+    }
+    {
+      line = $0; n = length(line); out = ""; word = ""; cmdpos = 1; args = 0
+      for (i = 1; i <= n; i++) {
+        c = substr(line, i, 1)
+        if (c == "\\") { out = out substr(line, i, 2); word = word "x"; i++; continue }
+        if (c == "\047") {
+          j = index(substr(line, i + 1), "\047")
+          if (j == 0) { out = out substr(line, i); break }
+          out = out (args ? "\047\047" : substr(line, i, j + 1)); i += j; word = word "x"; continue
+        }
+        if (c == "\"") {
+          for (j = i + 1; j <= n && substr(line, j, 1) != "\""; j++) if (substr(line, j, 1) == "\\") j++
+          s = substr(line, i, j - i + 1)
+          out = out ((args && s !~ /\$\(|`/) ? "\"\"" : s); i = j; word = word "x"; continue
+        }
+        if (c ~ /[ \t|;&():]/) {
+          endword()
+          if (c ~ /[|;&(:]/) { cmdpos = 1; args = 0 } else if (c == ")") args = 0
+        } else word = word c
+        out = out c
+      }
+      print out
+    }'
+}
+
 # scan reads grep -Hn lines (path:line:text) and drops only those whose path field is exactly the
 # external-conformance script, so a renamed copy, a longer path or a line elsewhere naming it is
-# still scanned.
+# still scanned. Quoted printf and echo fixture data is masked first (V1-3971).
 scan() {
-  awk -v p="$external_conformance" 'index($0, p ":") != 1 || substr($0, length(p) + 2) !~ /^[0-9]+:/' | unexempted
+  awk -v p="$external_conformance" 'index($0, p ":") != 1 || substr($0, length(p) + 2) !~ /^[0-9]+:/' | mask_fixture_data | unexempted
 }
 
 # reaches_external reads Makefile text and names each way a gate step or another target reaches the
@@ -140,6 +179,36 @@ for makefile in 'GATE_STEPS = go-test spec-toolchain-conformance' 'go-test: buil
   printf '%s\n' "$makefile" > "$fixture"
   if [ -z "$(reaches_external < "$fixture")" ]; then
     echo "self-test: a gate path reaching the external-conformance script was not detected: $makefile" >&2
+    exit 1
+  fi
+done
+
+# V1-3971: an interpreter name only inside a quoted printf or echo argument is fixture data; a real
+# call (bare, after a pipe, after && or ;, inside $(...), unquoted after echo) is still reported.
+# shellcheck disable=SC2016
+for line in "script/x_test.sh:3:printf 'python3 -c 1\\n' > \"\$f\"" \
+  "script/x_test.sh:4:  printf '%s\\n' 'pip install x' \"pytest -q\" >> \"\$f\"" \
+  "script/x_test.sh:5:if true; then echo \"python3 build.py\"; fi" \
+  "script/x_test.sh:6:out=\$(printf 'python3 -c 1' | wc -c)"; do
+  if fires "$line"; then
+    echo "self-test: quoted printf/echo fixture data was flagged: $line" >&2
+    exit 1
+  fi
+  # The mutant that drops the quoting check (no mask_fixture_data stage) flags it, so the
+  # cases above are not vacuous.
+  if ! printf '%s\n' "$line" | unexempted >/dev/null; then
+    echo "self-test: the fixture-data case does not depend on the quoting check: $line" >&2
+    exit 1
+  fi
+done
+# shellcheck disable=SC2016
+for line in "script/x_test.sh:7:python3 -c 1" "script/x_test.sh:8:printf 'x' | python3 -" \
+  "script/x_test.sh:9:printf 'x' && python3 -c 1" "script/x_test.sh:10:printf 'x'; pip install y" \
+  "script/x_test.sh:11:out=\$(python3 -c 1)" "script/x_test.sh:12:printf '%s' \"\$(python3 -c 1)\"" \
+  "script/x_test.sh:13:echo python3 -c 1" "script/x_test.sh:14:printf 'x' | sh -c 'pytest'" \
+  "script/x_test.sh:15:echo 'x' | python3"; do
+  if ! fires "$line"; then
+    echo "self-test: a genuine invocation was hidden as fixture data: $line" >&2
     exit 1
   fi
 done

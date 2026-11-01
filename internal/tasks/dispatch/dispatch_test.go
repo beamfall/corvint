@@ -22,6 +22,7 @@ import (
 func testConfig(t *testing.T, script string) *Config {
 	t.Helper()
 	root := t.TempDir()
+	failOnStrays(t, root)
 	reapOnCleanup(t)
 	host := filepath.Join(root, "host.sh")
 	if err := os.WriteFile(host, []byte("#!/bin/sh\n"+script+"\n"), 0o700); err != nil {
