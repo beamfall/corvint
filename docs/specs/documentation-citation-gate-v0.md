@@ -327,7 +327,11 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   `--changed` without `--repin` is refused. `--hash PATH:A-B` already prints a range's anchor. The
   changed-content refusal MUST name `script/check-line-citations.sh --hash PATH:SPAN` for the cited
   span and the `--repin --changed --base <rev>` rewrite. `make batch-regen` uses `--repin --changed
-  --base` the batch base (`ASD-V0-922`). Non-goals: rewriting a changed span the diff does not map
+  --base` the batch base (`ASD-V0-922`). A span with an endpoint (or, for a single line or comma
+  list, any listed line) inside a hunk that the diff deletes with no replacement lines (a zero-length
+  new side) MUST NOT be mapped, suggested or rewritten: the cited content is gone, so the citation
+  stays a changed-content failure for a reader (review fix, 2026-10-31; before it, a deleted line
+  mapped to the next surviving line). Non-goals: rewriting a changed span the diff does not map
   (it stays a failure); `--mechanical` stays moves-only.
 - `DCG-V0-921`: (experimental under the standing lane auto-accept (2026-10-31); V1-3323)
   `script/check-line-citations.sh --selects REV` (`make line-citations-selects BASE=REV`) MUST list
@@ -337,7 +341,9 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   it exits 0 either way and writes nothing. A lane runs it in its focused set
   (`docs/LANE-ORCHESTRATION.md`), so a script edit that shifts a cited line selects the
   line-citation check before doc-gates. Design: `corvint affected` selects test units, not doc
-  gates, and its selector belongs to another lane; this check reads only the index and REV.
+  gates, and its selector belongs to another lane; this check reads only the index and REV. A
+  pinned citation MUST be selected before its target is resolved, so a citation into a file deleted
+  since REV (or otherwise unreadable in the index) is still listed (review fix, 2026-10-31).
   Non-goals: selecting from unpinned citations, which are frozen by DCG-V0-041.
 - `DCG-V0-922`: (experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413)
   Scope decisions, recorded so they are not re-asked: (a) `path:N` references in code comments (Go,

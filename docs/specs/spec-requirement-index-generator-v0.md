@@ -430,6 +430,13 @@ No requirement below diverges from the implementation.
   resolving after the merge reads the resolved specs. Non-goals: other derived files (the capability
   catalog, analyzer pins: `make batch-regen`). Failure modes: a pin that is not a unique string in
   the ledger is refused; a receipt neither side pins as it now is stays a repin refusal for review.
+  The resolve MUST restart an unmerged receipt or ledger from the current side only when the other
+  side's change to it is digest-only: its `MERGE_HEAD` version (stage 3) equals the merge base's
+  (stage 1, or the current side's when the base has none) once every `"sha256"` and
+  `"repositoryRevision"` value is blanked. Otherwise (a new evidence reference, a status, claim or
+  any other field the other side changed, or a deletion on either side) it MUST refuse before
+  writing anything, naming each such path for a hand merge, because the reconciliation above only
+  carries digests (review fix, 2026-10-31).
 - `SRG-V0-922`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3437) `make
   spec-requirements` MUST, before the generator runs, refuse with exit 2 and one line
   `spec-requirements: generated file(s) unmerged or holding conflict markers: PATH... - run make
