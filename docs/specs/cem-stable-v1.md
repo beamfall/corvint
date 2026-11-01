@@ -883,6 +883,14 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `.corvint/changes/` MUST already list its hunks in patch order, which a scan over the committed
   corpus shows before the rule lands. The producer (`internal/cem/workflow`) emits hunks in parse
   order, which is patch order.
+- `CEM-V1-753`: (experimental under the standing lane auto-accept (V1-3800)) The portable legacy
+  `verify-stable` route keeps its `primary-clean-config-bounded/1` envelope, which refuses linked
+  worktrees (`ALGORITHMS.md`). It MUST name that refusal correctly. A repository whose `.git` is not a
+  directory (a linked worktree's `.git` file) is `UNSUPPORTED` at stage `repository` with
+  `unsupported-repository-envelope`, not `unsupported-object-alternates`. The same linked worktree
+  with no alternates file MUST ACCEPT on `verify-stable-canonical` (`canonical-repository-bounded/1`),
+  the route that admits it. A primary clone backed by `objects/info/alternates` keeps
+  `unsupported-object-alternates` on `verify-stable`.
 
 ## Non-goals and failure modes
 
@@ -3113,6 +3121,7 @@ codes.
 | CEM-V1-750 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable`, `TestCEMV1750HunkOrder` | Subtest `hunk-reorder` pins REJECT `invalid-field` on both consumers; the native unit test refuses a swapped pair and accepts patch order |
 | CEM-V1-751 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `span-hash-recomputed` and `evidence-ids-swapped` pin ACCEPT; `span-end-edited` and `span-hash-mismatch` pin REJECT |
 | CEM-V1-752 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file and the preserved `revisions/r2/` files against the stable manifest; build log 2026-11-01-cemint-u10 retains the committed-corpus order scan |
+| CEM-V1-753 | `TestCEMV1753LegacyEnvelopeNamesLinkedWorktree` (`interop/cem01-go`) | A linked worktree refuses `unsupported-repository-envelope` on `verify-stable` and ACCEPTs on `verify-stable-canonical`; a `git clone --shared` clone refuses `unsupported-object-alternates` |
 
 ## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
 
