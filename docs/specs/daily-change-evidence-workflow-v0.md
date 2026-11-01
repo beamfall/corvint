@@ -1592,7 +1592,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0907CheckRunsTheVerifierPairConcurrently` (both fakes must start before either returns).
   Rollback: clear the option.
 - `DCW-V0-908`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3188; refines
-  `DCW-V0-060`) After a successful seal, `finish-lane` MUST print `dogfood-finish-lane: REVIEW
+  `DCW-V0-060`) After a successful seal, `finish-lane` MUST print on stderr `dogfood-finish-lane: REVIEW
   report=<path> sha256=<digest> reviewed=NOT_OBSERVED` naming the exact reviewer report it bound,
   with a line saying the independent review of that report and the native completion are the
   next authority steps and that finish-lane records neither, so a review is never implied as
