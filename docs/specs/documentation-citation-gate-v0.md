@@ -487,19 +487,19 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:422-425@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:433-436@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:754-771@b0ffc20a` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:776-793@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:422-425@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:360-364@3dd28600` and `:433-436@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:263-269@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:255-261@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:754-771@b0ffc20a` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:776-793@b0ffc20a` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:81-167@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:271-276@fce1154d` and `:354-359@e5963c48` | case 11 |
