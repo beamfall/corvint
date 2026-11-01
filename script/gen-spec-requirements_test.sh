@@ -621,4 +621,20 @@ for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSp
   case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
 done
 
+# 16. SRG-V0-968 (V1-3661): a spec whose Agent digest has no Claim is refused in every mode, naming
+# it, so no README summary is hand-maintained; a spec with no digest at all is unaffected.
+# shellcheck disable=SC2016
+printf '# Claimless\n\n## Agent digest\n- Status: proposed\n\n## Requirements\n\n- `CLM-V0-001`: a requirement.\n' > "$test_root/docs/specs/claimless.md"
+stage docs/specs/claimless.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  clm_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' accepted a digest without a Claim"
+  case $clm_err in
+    *'docs/specs/claimless.md: its ## Agent digest has no `- Claim:` line'*'(SRG-V0-968)'*) ;;
+    *) fail "mode '${mode:-tsv}' claimless refusal lacks the spec or rule: $clm_err" ;;
+  esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/claimless.md
+
 printf 'ok\n'

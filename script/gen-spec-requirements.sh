@@ -269,6 +269,7 @@ for my $file (sort @specs) {
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
         claim => digest_values($blob)->{Claim}, status => digest_values($blob)->{Status},
+        digest => scalar($blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/m),
         intent_line => line_of($blob, qr/^[^\S\n]*(?:- )?[^\S\n]*(?:\QIntent status:\E|\Q**Intent status:**\E)/m),
         status_line => $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*\n/mg
             ? do { my $at = pos $blob; my $rest = substr($blob, $at); $rest =~ /^[^\S\n]*- Status: /m
@@ -468,6 +469,17 @@ sub status_ids {
             . "$section{$_->[0]}[0]..$section{$_->[0]}[1])\n" for @misplaced;
         die "a requirement is defined inside its spec's ## Requirements section, which OCM enumerates; "
             . "move each definition there, then rerun make spec-requirements (SRG-V0-891, RDG-V0-021)\n";
+    }
+}
+# SRG-V0-968 (V1-3661): every spec's Agent digest carries a Claim, so every README row's leading
+# summary is projected from it (SRG-V0-012) and none is hand-maintained. Refused in every mode.
+{
+    my @claimless = grep { $header{$_}{digest} && !defined $header{$_}{claim} } sort @specs;
+    if (@claimless) {
+        print STDERR "$_: its ## Agent digest has no `- Claim:` line\n" for @claimless;
+        die "every spec's Agent digest states a one-sentence `- Claim:`, which README.md and INDEX.json "
+            . "project; a retired or superseded spec states its retirement, then rerun make "
+            . "spec-requirements (SRG-V0-968)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
