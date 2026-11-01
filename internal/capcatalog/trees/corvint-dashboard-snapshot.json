@@ -6,7 +6,9 @@
   "dispatchSources": [
     "cmd/corvint-dashboard-snapshot"
   ],
-  "globalFlags": [],
+  "globalFlags": [
+    "--version"
+  ],
   "internalEntryPoints": [],
   "nodes": [
     {

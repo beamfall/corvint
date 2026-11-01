@@ -11,6 +11,22 @@
   "nodes": [
     {
       "path": [
+        "encode-id"
+      ],
+      "command": "corvint-postmerge-workflow encode-id",
+      "summary": "Print VALUE, such as a branch name, encoded as a workflow identifier (PMR-V0-960)",
+      "usage": [
+        "corvint-postmerge-workflow encode-id VALUE"
+      ],
+      "flags": [],
+      "required": [
+        "VALUE"
+      ],
+      "example": "corvint-postmerge-workflow encode-id VALUE",
+      "help": "corvint-postmerge-workflow encode-id --help"
+    },
+    {
+      "path": [
         "replay"
       ],
       "command": "corvint-postmerge-workflow replay",
