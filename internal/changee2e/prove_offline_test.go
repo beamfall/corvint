@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -40,8 +41,13 @@ type fakeRunner struct {
 	controlReasons []string
 	// controlReport, when set, is the BBF report the controls read through controlResults.
 	controlReport *behaviorfalsify.Report
-	staged        map[string]map[string]string
-	called        int
+	// rerunReport, when set, is the BBF report a CCE-V0-940 rerun of named controls reads;
+	// otherwise a rerun reads the same result as the first run.
+	rerunReport *behaviorfalsify.Report
+	// controlCalls records each controls call's only argument, nil for the full first run.
+	controlCalls [][]string
+	staged       map[string]map[string]string
+	called       int
 }
 
 func (f *fakeRunner) env(root string) *proveEnv {
@@ -101,7 +107,16 @@ func (f *fakeRunner) env(root string) *proveEnv {
 		}
 		return r, "sha256:" + strings.Repeat("0", 64), "", nil
 	}
-	e.controls = func(_ context.Context, _ string, sc Scenario, _ testTree, _ jstestprovider.Receipt) []controlProof {
+	e.controls = func(_ context.Context, _ string, sc Scenario, _ testTree, _ jstestprovider.Receipt, only []string) []controlProof {
+		f.controlCalls = append(f.controlCalls, only)
+		if only != nil && (f.rerunReport != nil || f.controlReport != nil) {
+			specs := slices.DeleteFunc(controlSpecs(sc), func(s controlSpec) bool { return !slices.Contains(only, s.id) })
+			r := f.rerunReport
+			if r == nil {
+				r = f.controlReport
+			}
+			return controlResults(specs, "sha256:rerun", *r)
+		}
 		if f.controlReport != nil {
 			return controlResults(controlSpecs(sc), "sha256:plan", *f.controlReport)
 		}
