@@ -1208,6 +1208,7 @@ CEM-V1-983	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-984	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) `cem cite` MUST	standing	V1-2752
 CEM-V1-985	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The binary	standing	V1-2752
 CEM-V1-986	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The frozen	standing	V1-2752
+CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -1272,7 +1273,6 @@ CEM-V1-052	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) T
 CEM-V1-053	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The OCM MUST bind the exact original sta	owner	decision 0546; 2026-10-20
 CEM-V1-054	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The projection is read-only. It never ex	owner	decision 0546; 2026-10-20
 CEM-V1-055	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `lrf/0` stays frozen. `lrf.Evaluate` MUS	owner	decision 0546; 2026-10-20
-CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
 CEM-V1-056	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A tampered artifact is the verifier's RE	owner	decision 0546; 2026-10-20
 CEM-V1-057	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Profile swaps refuse in both directions.	owner	decision 0546; 2026-10-20
 CEM-V1-058	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The old OCM/LRF admission is unchanged f	owner	decision 0546; 2026-10-20
