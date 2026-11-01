@@ -5246,13 +5246,15 @@ UNBOUNDED_READER units.
   own selection holds and that at least one of them selects as `UNBOUNDED_READER`; `paths` gives,
   per path in path-list order, its scope, `sharedSelected` (how many shared units it selects), its
   unknowns and `additions`, the units it selects outside the shared set, each with `testCount` and
-  its own witness kind. `--format text` writes the same as lines. It selects nothing the union
-  plan does not and runs no test.
+  its own witness kind. `--format text` writes the same as lines. Like the plan, it MUST carry the
+  AFP-V0-846 self-binary freshness: the stderr line, a `degradations` member, and a
+  `degraded CODE` text line. It selects nothing the union plan does not and runs no test.
 
 Non-goals: no change to the `affected-plan/1` wire or to any selection; no per-path advice or
 provider projection. Failure modes: a unit that is an unbounded reader through one path and a
 literal reader through another is shared only when every path selects it. Acceptance evidence:
-`TestAFPV0990ByPathSeparatesSharedUnboundedReaders`, `TestAFPV0990ByPathArguments`; measured on
+`TestAFPV0990ByPathSeparatesSharedUnboundedReaders`, `TestAFPV0990ByPathArguments`, the
+`--by-path` cases of `TestSelfBinaryStaleIsReportedByAffectedAndTest`; measured on
 this repository (WSL host, 2026-10-31) for `docs/GLOSSARY.md` and `docs/agent-memory/fixes.md`:
 two single `--path --no-cache` calls 4.67 s and 3.78 s with 27 KB of overlapping text; one
 `--by-path` call 2.08 s (cached) and 6.45 s (`--no-cache`), 13 KB, 44 shared units listed once and

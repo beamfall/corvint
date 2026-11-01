@@ -940,7 +940,9 @@ each named path's scope, how many of that shared set it selects, its unknowns
 and only the units it adds. --format text writes "affected by-path scope=S
 paths=N shared=K revision=SHA", one "shared UNIT tests=N WITNESS" line per
 shared unit, then per path "path P scope=S shared=J/K additions=M" with its
-"  added UNIT tests=N WITNESS" and "  unknown REASON DETAIL" lines.
+"  added UNIT tests=N WITNESS" and "  unknown REASON DETAIL" lines. A stale
+or unverified binary (AFP-V0-846) is named on stderr, in degradations, and on a
+"degraded CODE" text line.
 Example: corvint affected --by-path --path docs/GLOSSARY.md docs/README.md --format text
 
 --path PATH [PATH ...] (experimental; repeatable, up to 4096 paths in all) plans
