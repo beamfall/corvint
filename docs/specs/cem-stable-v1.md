@@ -2160,6 +2160,7 @@ not relabel the frozen `lrf/0` profile.
   patch identity, a target and a complete OCM binding. Any other spec, including a relabeled
   context, and a context without the OCM binding refuse with `unsupported-lrf-context`. It
   evaluates nothing.
+- `CEM-V1-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint lrf --cem`, `--ocm` and `--patch` read only inside the repository root; an absolute path outside it MUST refuse `invalid-arguments` with a message that states the rule, the resolved absolute path and the root, and names `corvint cem verify --map` as the stable reader that accepts a map outside the repository (`CEM-V1-315`). Unlike `cem status`/`verify`, `lrf` keeps the inside-root rule: it is the frozen `lrf/0` admission. Test: `TestLRFOutsideRootRefusalNamesRulePathAndRoot`. Rollback: restore the fixed message.
 - `CEM-V1-056`: (accepted by decision 0546, 2026-10-20) A tampered artifact is the verifier's REJECT (`artifact-digest-mismatch`, exit 1),
   and a missing one its UNSUPPORTED refusal (`artifact-unavailable`). A stable map other than the
   committed exact sidecar, a stale target or base, an OCM bound to another map digest or target, and

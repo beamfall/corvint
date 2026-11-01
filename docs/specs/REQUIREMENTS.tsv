@@ -1271,6 +1271,7 @@ CEM-V1-052	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) T
 CEM-V1-053	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The OCM MUST bind the exact original sta	owner	decision 0546; 2026-10-20
 CEM-V1-054	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The projection is read-only. It never ex	owner	decision 0546; 2026-10-20
 CEM-V1-055	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) `lrf/0` stays frozen. `lrf.Evaluate` MUS	owner	decision 0546; 2026-10-20
+CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
 CEM-V1-056	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) A tampered artifact is the verifier's RE	owner	decision 0546; 2026-10-20
 CEM-V1-057	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Profile swaps refuse in both directions.	owner	decision 0546; 2026-10-20
 CEM-V1-058	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) The old OCM/LRF admission is unchanged f	owner	decision 0546; 2026-10-20
