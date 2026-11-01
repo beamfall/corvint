@@ -437,7 +437,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			if scope.configured[runnerMocha] {
 				frontier.at(FrontierConfig, relative, text, strings.Index(text, `"mocha"`))
 			}
-			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 {
+			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 || len(scope.localSpecifiers) != 0 {
 				scopes = append(scopes, scope)
 			}
 			continue
@@ -2075,8 +2075,9 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		"testcafe": runnerTestCafe, "nightwatch": runnerNightwatch, "detox": runnerDetox,
 		"@storybook/test-runner": runnerStorybook, "@storybook/addon-vitest": runnerStorybookVitest,
 	}
+	// A runner declared by a local specifier is still that runner (TJAA-V0-710).
 	for dependency, runner := range dependencyRunners {
-		if dependencies[dependency] {
+		if dependencies[dependency] || local[dependency] {
 			runners[runner] = true
 		}
 	}

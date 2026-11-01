@@ -47,6 +47,12 @@ var notPlanner = map[string]string{
 	".corvint/work-queue-policy.json": "the Tasks work-queue policy",
 }
 
+// dogfoodMap reports the change-evidence and change-outcome maps a dogfood run
+// writes between its bind and its seal, which no planner reads as a declaration.
+func dogfoodMap(name string) bool {
+	return name == ".corvint/change.cem.json" || strings.HasPrefix(name, ".corvint/change.ocm.") && strings.HasSuffix(name, ".json")
+}
+
 var pinPattern = regexp.MustCompile(`(?m)^\s+(CORVINT_PR_TOOL_SOURCE|CORVINT_TEST_SHADOW_SOURCE): "([0-9a-f]{40})"`)
 
 type pin struct{ name, commit string }
@@ -156,7 +162,7 @@ func check(root, workflowPath string) ([]string, error) {
 	var findings []string
 	for _, absolute := range names {
 		name := ".corvint/" + filepath.Base(absolute)
-		if _, ok := notPlanner[name]; ok {
+		if _, ok := notPlanner[name]; ok || dogfoodMap(name) {
 			continue
 		}
 		positions, ok := closed[name]

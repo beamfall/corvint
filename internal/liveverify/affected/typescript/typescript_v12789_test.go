@@ -56,3 +56,56 @@ func TestLocalSpecifierDependencyKeepsBareImportFrontier_V12789(t *testing.T) {
 		t.Fatal("repositorySpecifier classifies a nested, an escaping, a node_modules, an absolute or a range specifier wrongly")
 	}
 }
+
+// TJAA-V0-710 (Codex P2): a nameless manifest whose only dependency is a local specifier is still a
+// package scope, so a node:test file importing the alias keeps the bare-import frontier even with a
+// copied node_modules install, and a change to the linked source never yields a bounded plan
+// without the importing test.
+func TestNamelessManifestLocalSpecifierKeepsFrontier_V12789(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"private":true,"dependencies":{"alias":"file:./src/lib"}}`)
+	write(t, root, "src/lib/package.json", `{"name":"other-name","main":"logic.js"}`)
+	write(t, root, "src/lib/logic.js", "export const value = 1\n")
+	write(t, root, "test/alias.test.mjs", "import test from 'node:test'\nimport { value } from 'alias'\ntest('alias', () => { if (value !== 1) throw new Error('value') })\n")
+	write(t, root, ".gitignore", "node_modules\n")
+	write(t, root, "node_modules/alias/package.json", `{"name":"alias","main":"logic.js"}`)
+	write(t, root, "node_modules/alias/logic.js", "export const value = 1\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/lib/logic.js"})
+	if plan.FrontierSites[FrontierBareImportUndeclared] == 0 && !(plan.Scope != affected.ScopeBounded || slices.Contains(selectedTests(plan), "test/alias.test.mjs")) {
+		t.Fatalf("nameless manifest: scope=%s selected=%v frontier=%v", plan.Scope, selectedTests(plan), plan.FrontierSites)
+	}
+	if plan.FrontierSites[FrontierBareImportUndeclared] == 0 {
+		t.Fatalf("nameless manifest: the copied install suppressed the bare-import frontier: %v scope=%s selected=%v unknown=%+v units=%v", plan.FrontierSites, plan.Scope, selectedTests(plan), plan.Unknown, graph.UnitIDs())
+	}
+}
+
+// TJAA-V0-710 (Codex P2): a test runner declared by a local specifier still names that runner, so a
+// convention-only Jest test (a __tests__ file using the global test API, no import) stays a test
+// candidate of its package.
+func TestLocalSpecifierRunnerStillRecognised_V12789(t *testing.T) {
+	for _, specifier := range []string{"29.7.0", "file:./vendor/jest"} {
+		root := t.TempDir()
+		write(t, root, "package.json", `{"name":"app","devDependencies":{"jest":"`+specifier+`"}}`)
+		write(t, root, "vendor/jest/package.json", `{"name":"jest"}`)
+		write(t, root, "src/value.js", "module.exports = 1\n")
+		write(t, root, "__tests__/case.js", "const value = require('../src/value')\ntest('case', () => { expect(value).toBe(1) })\n")
+		graph, err := affected.Build(context.Background(), root, New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		candidate := false
+		for _, id := range graph.UnitIDs() {
+			unit, _ := graph.Unit(id)
+			if slices.Contains(unit.Tests, "__tests__/case.js") {
+				candidate = true
+			}
+		}
+		if !candidate {
+			t.Errorf("jest %q: __tests__/case.js is no test of any unit; units %v", specifier, graph.UnitIDs())
+		}
+	}
+}

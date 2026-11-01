@@ -85,3 +85,28 @@ func TestClosedDeclarationMemberAgainstPin_V13600(t *testing.T) {
 		t.Fatalf("a missing pin: code %d\n%s", code, out)
 	}
 }
+
+// AFP-V0-710 (Codex P2): the change-evidence and change-outcome maps a dogfood run writes between
+// bind and seal are no planner input, so an active CEM and OCM leave the check passing.
+func TestDogfoodMapsAreNoPlannerInput_V13600(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q")
+	writeFile(t, root, ".corvint/runtime-readers.json", pinnedReaders)
+	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \"\"\n")
+	git(t, root, "add", ".")
+	git(t, root, "commit", "-qm", "pin")
+	pinned := git(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, ".github/workflows/ci.yml", "env:\n  CORVINT_PR_TOOL_SOURCE: \""+pinned+"\"\n")
+	writeFile(t, root, ".corvint/change.cem.json", `{"schema":"cem","hunks":[]}`)
+	writeFile(t, root, ".corvint/change.ocm.local.json", `{"schema":"ocm"}`)
+	var stdout, stderr bytes.Buffer
+	if code := run(root, ".github/workflows/ci.yml", &stdout, &stderr); code != 0 {
+		t.Fatalf("an active CEM and OCM: code %d\n%s%s", code, stdout.String(), stderr.String())
+	}
+	writeFile(t, root, ".corvint/change.other.json", `{}`)
+	stdout.Reset()
+	stderr.Reset()
+	if code := run(root, ".github/workflows/ci.yml", &stdout, &stderr); code != 1 || !strings.Contains(stderr.String(), ".corvint/change.other.json is neither") {
+		t.Fatalf("a look-alike name was exempted: code %d\n%s", code, stderr.String())
+	}
+}
