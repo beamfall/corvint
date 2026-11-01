@@ -6564,6 +6564,7 @@ TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's
 TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-063	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1453) A	standing	2026-10-11; V1-1453
 TCQ-V0-761	docs/specs/test-claim-qualification-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1450)	standing	2026-10-11; V1-1450
+TCQ-V0-970	docs/specs/test-claim-qualification-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1451,	standing	2026-10-11; V1-1451
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-
