@@ -3,6 +3,7 @@ package golang
 import (
 	"bytes"
 	"go/ast"
+	"go/scanner"
 	"go/token"
 	"io/fs"
 	"maps"
@@ -157,7 +158,7 @@ func symbolPackage(head fs.FS, directory, packageName string, declared map[strin
 		if err != nil {
 			return nil, AdditiveParseFailure
 		}
-		if bytes.Contains(body, []byte("go:linkname")) {
+		if len(symbolLinknames(body)) != 0 {
 			return nil, SymbolUnmodelled
 		}
 		parsed, err := additiveParseBody(file, body)
@@ -273,10 +274,13 @@ func symbolAlwaysRun(declarations []symbolDeclaration, reached []bool, pkg addit
 
 // symbolUnmodelledDependent names the first transitive dependent, reached
 // through the import graph from unit (test imports included), whose
-// directory holds assembly or a //go:linkname directive: such a package can
-// call the changed code under a name no selector shows. Every test binary
+// directory holds assembly or a //go:linkname directive that pulls a symbol
+// of unit (or whose target cannot be read): such a package can call the
+// changed code under a name no selector shows. A directive that pulls
+// another package's symbol, such as runtime.nanotime, cannot. Every test binary
 // that links the package is the test binary of a transitive dependent.
 func symbolUnmodelledDependent(head fs.FS, graph *affected.Graph, unit string) string {
+	importPath := strings.TrimPrefix(unit, "go:")
 	seen := map[string]bool{unit: true}
 	queue := graph.Dependents(unit)
 	for len(queue) != 0 {
@@ -308,8 +312,13 @@ func symbolUnmodelledDependent(head fs.FS, graph *affected.Graph, unit string) s
 					return id
 				case ".go":
 					body, err := fs.ReadFile(head, file)
-					if err != nil || bytes.Contains(body, []byte("go:linkname")) {
+					if err != nil {
 						return id
+					}
+					for _, target := range symbolLinknames(body) {
+						if target == "" || strings.HasPrefix(target, importPath+".") {
+							return id
+						}
 					}
 				}
 			}
@@ -392,4 +401,38 @@ func symbolLabels(pairs []symbolPair, changedKeys map[string]map[string]bool) []
 	sort.Strings(labels)
 	labels = slices.Compact(labels)
 	return slices.DeleteFunc(labels, func(label string) bool { return label == "_" })
+}
+
+// symbolLinknames returns the target of each //go:linkname directive in a Go
+// source, read with the scanner so a string literal holding the text is no
+// directive; a directive without a target, or a source the scanner rejects,
+// yields an empty target, which callers treat as unbounded.
+func symbolLinknames(body []byte) []string {
+	if !bytes.Contains(body, []byte("go:linkname")) {
+		return nil
+	}
+	var targets []string
+	failed := false
+	var lexer scanner.Scanner
+	files := token.NewFileSet()
+	lexer.Init(files.AddFile("", -1, len(body)), body, func(token.Position, string) { failed = true }, scanner.ScanComments)
+	for {
+		_, kind, literal := lexer.Scan()
+		if kind == token.EOF {
+			break
+		}
+		if kind != token.COMMENT || !strings.HasPrefix(literal, "//go:linkname") {
+			continue
+		}
+		fields := strings.Fields(strings.TrimPrefix(literal, "//go:linkname"))
+		if len(fields) < 2 {
+			targets = append(targets, "")
+			continue
+		}
+		targets = append(targets, fields[1])
+	}
+	if failed {
+		targets = append(targets, "")
+	}
+	return targets
 }

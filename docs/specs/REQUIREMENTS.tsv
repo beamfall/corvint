@@ -10,6 +10,10 @@ ADN-V0-008	docs/specs/additive-narrowing-v0.md	(experimental under the owner's s
 ADN-V0-009	docs/specs/additive-narrowing-v0.md	(experimental, amending AFP-V0-094, under the owner's standing lane auto-accept,	standing	-
 ADN-V0-010	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3129)	standing	2026-10-11; V1-3129
 ADN-V0-011	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3138)	standing	2026-10-11; V1-3138
+ADN-V0-660	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744,	standing	2026-10-11; V1-2744
+ADN-V0-661	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744,	standing	2026-10-11; V1-2744; V1-3282
+ADN-V0-662	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744,	standing	2026-10-11; V1-2744; V1-3282
+ADN-V0-663	docs/specs/additive-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744)	standing	2026-10-11; V1-2744
 ADS-V0-001	docs/specs/adoption-setup-report-v0.md	`corvint [--root PATH] adopt --setup` MUST print one canonical JSON object	unrecorded	-
 ADS-V0-002	docs/specs/adoption-setup-report-v0.md	`--setup` MUST NOT combine with any other `adopt` option or with `init`; such a	unrecorded	-
 ADS-V0-003	docs/specs/adoption-setup-report-v0.md	the `index-snapshot` check MUST use the read-only snapshot probe and report	unrecorded	-

@@ -291,3 +291,16 @@ func TestADNV0663SymbolSelectionCoversLinkedTestBinaries(t *testing.T) {
 	}
 	t.Logf("recall %d/%d linked test binaries; %d unlinked binaries excluded", recalled, observed, excluded)
 }
+
+// TestADNV0662LinknameElsewhereKeepsNarrowing: a dependent's directive that
+// pulls another package's symbol, and the directive's text in a string
+// literal of the hub, leave the record NARROWED.
+func TestADNV0662LinknameElsewhereKeepsNarrowing(t *testing.T) {
+	base := maps.Clone(symbolBase)
+	base["pull/pull.go"] = "package pull\n\nimport (\n\t_ \"unsafe\"\n\n\t_ \"example.test/m/quiet\"\n)\n\n//go:linkname nanotime runtime.nanotime\nfunc nanotime() int64\n"
+	base["hub/text.go"] = "package hub\n\nconst directive = \"//go:linkname\"\n"
+	record, _ := symbolRun(t, base, symbolEdit(t, "strings.ToUpper(s)", "strings.ToUpper(s + \"!\")"), "hub/hub.go")
+	if record.State != affected.GoAdditiveNarrowed || record.Mode != golang.GoSymbolMode {
+		t.Fatalf("record %+v, want NARROWED %s", record, golang.GoSymbolMode)
+	}
+}
