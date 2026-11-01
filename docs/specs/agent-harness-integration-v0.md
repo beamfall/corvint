@@ -889,10 +889,12 @@ separate exact extension tuple remains governed by AHI-024.
   OUTPUT`: it extracts `integrations/codex/plugins/corvint` from the committed REVISION only,
   replaces `hooks/hooks.json` with the reviewed `prepare-qualified-hooks` rendering, omits
   `scripts/`, keeps every other file including `.mcp.json`, writes the local marketplace manifest
-  and a `PUBLISH.json` naming the source revision, the plugin version and the transforms, and
-  publishes nothing unless the result passes the check. `script/publish-codex-plugin.sh check
+  and a `PUBLISH.json` naming the source revision, the plugin version and the transforms, the
+  hooks transform recording the Git blob of the staged copy it publishes (a failed hash refuses
+  the publish), and publishes nothing unless the result passes the check. `script/publish-codex-plugin.sh check
   PLUGIN_DIR` MUST refuse (exit 1, naming the key and path) a plugin whose `.codex-plugin/plugin.json`
-  declares a `skills`, `mcpServers` or `hooks` path that is missing, leaves the plugin, or (for
+  declares a `skills`, `mcpServers` or `hooks` path that is missing, leaves the plugin by its text
+  or physically through a symlink (a file reference may not itself be a symlink), or (for
   `mcpServers`) declares no server object; `make host-package-versions-check` runs it on the
   committed plugin. Non-goals: version stamping, Codex configuration or hook trust changes, and a
   Git marketplace. Failure modes: the qualified hooks file is the caller's reviewed input and is
