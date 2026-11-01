@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/user"
+	"path/filepath"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -78,6 +79,9 @@ func initCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	if res := initPrerequisites(cmd, repo); res != nil {
+		return res
+	}
 	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		return errorResult(cmd, err)
@@ -116,4 +120,26 @@ func initCommand(env Env, args []string) *wire.Result {
 // sees which step did not happen rather than a bare failure.
 func errorResult(cmd []string, err error) *wire.Result {
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeOf(err)}, Warnings: []string{prose(err.Error())}, NotRetryable: wire.RetryForbidden(err)}
+}
+
+// initPrerequisites refuses init before any write when the intent store lacks
+// the authored queue or policy genesis binds, naming each missing file and the
+// template fix instead of a raw lstat failure (CTS-V0-820).
+func initPrerequisites(cmd []string, repo *intent.Repository) *wire.Result {
+	var missing []string
+	for _, name := range []string{"queue.json", "policy.json"} {
+		p := filepath.Join(repo.IntentWorktree, intent.Dir, name)
+		if _, err := os.Lstat(p); os.IsNotExist(err) {
+			missing = append(missing, p)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeRefused, Codes: []string{wire.CodePrerequisiteUnsatisfied}}
+	for _, p := range missing {
+		res.Warnings = append(res.Warnings, "init needs "+p+", which does not exist; nothing was written")
+	}
+	res.Warnings = append(res.Warnings, "author the queue and policy from the templates in docs/TASKS-EXTERNAL-AGENTS.md, then rerun `corvint-tasks init`")
+	return res
 }
