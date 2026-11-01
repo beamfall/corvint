@@ -2007,7 +2007,9 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS] BASE
+  corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
+    [--draft DRAFT] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
@@ -2113,6 +2115,17 @@ BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
 (DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed
+claims in --claims FILE, the only file it writes: each row is kept with its hunk's
+path, content and BASE range and the hash of the BASE text it cites. A cite row of
+--draft DRAFT, or of the earlier claims file, that the plan dropped is kept as a
+tombstone and never drafted again (CKC-V0-003, CKC-V0-007). --refresh FILE given
+a claims file compiles each claim onto the one current hunk with the same path,
+content and BASE range, relocated by its unique BASE text when BASE moved, and
+prints an ordinary hunk-ID plan; a duplicate, split, merged, changed or unlocated
+edit is drafted afresh with a REASSESS note naming its earlier rows (CKC-V0-004,
+CKC-V0-005).
 
 prechange records the agent pre-change receipts before the first edit, while
 HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context

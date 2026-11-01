@@ -28,6 +28,9 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// propose-citations is read-only and prints a draft plan (DCW-V0-150);
 	// --refresh carries an earlier plan's rows forward (DCW-V0-442).
 	"propose-citations": {"--refresh": true},
+	// record-claims writes only its --claims file: the reviewed plan's rows
+	// keyed by edit content, which --refresh compiles (CKC-V0-002).
+	"record-claims": {"--plan": true, "--claims": true, "--draft": true},
 	// prechange records the agent pre-change receipts at BASE and binds them
 	// (DCW-V0-880); every positional after BASE is an impact path.
 	"prechange": {"--task": true},
@@ -138,7 +141,7 @@ func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, std
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, "dogfood-executable-unavailable")
 	}
-	if args[0] != "propose-citations" {
+	if args[0] != "propose-citations" && args[0] != "record-claims" {
 		refusal, notes := dogfoodStaleBinary(ctx, root, self, flags)
 		for _, note := range notes {
 			_, _ = fmt.Fprintf(stderr, "dogfood-%s: NOTE %s\n", args[0], note)
@@ -211,6 +214,9 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	}
 	if action == "propose-citations" {
 		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"]}, stdout, stderr)
+	}
+	if action == "record-claims" {
+		return dogfoodflow.RecordClaims(ctx, dogfoodflow.RecordClaimsOptions{Root: root, Base: base, Plan: flags["--plan"], Claims: flags["--claims"], Draft: flags["--draft"]}, stdout, stderr)
 	}
 	if action == "prechange" {
 		var paths []string

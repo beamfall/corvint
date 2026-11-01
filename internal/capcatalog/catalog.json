@@ -1107,6 +1107,7 @@
         "inputs-check",
         "prechange",
         "propose-citations",
+        "record-claims",
         "review",
         "seal",
         "status",
@@ -1131,6 +1132,10 @@
           "--base",
           "--citations"
         ],
+        "dogfood record-claims": [
+          "--claims",
+          "--plan"
+        ],
         "dogfood review": [
           "--report-set"
         ],
@@ -1145,7 +1150,9 @@
         "--bundle",
         "--check",
         "--citations",
+        "--claims",
         "--corvint-bin",
+        "--draft",
         "--input",
         "--intents",
         "--outcome",
@@ -1182,6 +1189,7 @@
         "propose-citations is read-only.",
         "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
         "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr, a re-keyed unknown row's NOTE marked stale for review (DCW-V0-884); only the remaining hunks are drafted afresh.",
+        "record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed claims in --claims FILE, the only file it writes: each row is kept with its hunk's path, content and BASE range and the hash of the BASE text it cites.",
         "It refuses prechange-after-change once the change began, and prechange-receipt-exists rather than overwrite a receipt it did not write."
       ],
       "unknowns": [

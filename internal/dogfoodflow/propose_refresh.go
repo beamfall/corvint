@@ -66,6 +66,18 @@ func (p *proposal) readRefreshPlan() {
 			p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
 		p.exit(2)
 	}
+	// A claims file is JSON and no plan row starts with '{' (CKC-V0-009).
+	if trimmed := bytes.TrimLeft(data, " \t\r\n"); len(trimmed) > 0 && trimmed[0] == '{' {
+		claims, why := decodeClaims(data)
+		if claims == nil {
+			p.say("%s: REFUSE claims-unreadable\n  --refresh %s is not a valid %s claims file: %s; nothing was drafted\n  fix: rerun corvint dogfood record-claims %s --plan PLAN --claims FILE to rewrite it, or pass a citation plan (CKC-V0-009)\n",
+				p.prefix, strconv.Quote(p.options.Refresh), claimsSchema, why, p.options.Base)
+			p.exit(2)
+		}
+		p.claims = claims
+		p.refreshDeferred = claims.Deferred
+		return
+	}
 	p.refreshPlan = data
 	deferredLines := []string{}
 	for index, line := range textLines(data) {
@@ -101,6 +113,10 @@ func (p *proposal) refreshLabel() string {
 	if p.options.Refresh == "" {
 		return ""
 	}
+	if p.claims != nil {
+		stats := p.claimStats
+		return fmt.Sprintf(" claims=%s carried=%d reassess=%d gone=%d suppressed=%d deferred=%d", strconv.Quote(p.options.Refresh), stats.carried, stats.reassess, stats.gone, stats.suppressed, len(p.refreshDeferred))
+	}
 	carried, rekeyed, dropped := 0, 0, 0
 	for _, note := range p.carryNotes {
 		switch {
@@ -123,6 +139,10 @@ func (p *proposal) refreshLabel() string {
 // matches; any other row is dropped with a note and its hunk drafted afresh.
 // Carried cite spans are not proposed again.
 func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
+	if p.claims != nil {
+		p.carryClaims(owed, used)
+		return
+	}
 	if len(p.refreshRows) == 0 {
 		return
 	}

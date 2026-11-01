@@ -98,6 +98,14 @@ type proposal struct {
 	// modifiedOwners holds, by pattern, the specs this change modifies whose
 	// BASE lines name it: never cited, but counted as governing specs.
 	modifiedOwners map[string][]string
+	// claims is the --refresh file when it is a content-keyed claims file;
+	// patchHunks are the canonical patch's hunks in order, tombstones the
+	// removed cite rows of each hunk's claims, and claimStats count the
+	// refresh (CKC-V0-004, CKC-V0-007, CKC-V0-010).
+	claims     *claimsFile
+	patchHunks []*patch.Hunk
+	tombstones map[string]map[string]bool
+	claimStats claimsStats
 }
 
 // spanLine is one line of a BASE file.
@@ -396,6 +404,17 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			continue
 		}
 		row, cite, fellBack := p.propose(hunk, edited, used)
+		// A drafted cite the author removed for this edit is never drafted
+		// again; the hunk keeps the unknown fallback (CKC-V0-007).
+		if cite != "" && p.tombstoned(hunk.id, row) {
+			key, _, _ := strings.Cut(row, "\t")
+			delete(p.proposals, key)
+			delete(p.reasons, key)
+			fields := strings.Split(row, "\t")
+			row = p.unknownProposal(hunk, key, "the drafted row cites "+fields[1]+" "+fields[2]+" ("+fields[3]+"), which the author removed for this edit (CKC-V0-007); cite the BASE contract the hunk depends on or implements, or keep it unknown")
+			cite, fellBack = "", ""
+			p.claimStats.suppressed++
+		}
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
 		}
@@ -712,6 +731,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
+			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
 				p.derived[hunk.ID] = hunk
 				patched[hunk.DisplayPath] = true

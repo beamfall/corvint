@@ -2984,7 +2984,8 @@
         "corvint [--root PATH] dogfood import --input FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
         "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS] BASE",
+        "corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE [--draft DRAFT] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
         "corvint [--root PATH] dogfood status [--session-key HASH]",
@@ -2997,7 +2998,9 @@
         "--bundle",
         "--check",
         "--citations",
+        "--claims",
         "--corvint-bin",
+        "--draft",
         "--input",
         "--intents",
         "--outcome",
@@ -3312,7 +3315,7 @@
       "command": "corvint dogfood propose-citations",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE"
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS] BASE"
       ],
       "flags": [
         "--refresh",
@@ -3323,6 +3326,30 @@
       ],
       "example": "corvint dogfood propose-citations BASE",
       "help": "corvint dogfood propose-citations --help"
+    },
+    {
+      "path": [
+        "dogfood",
+        "record-claims"
+      ],
+      "command": "corvint dogfood record-claims",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE [--draft DRAFT] BASE"
+      ],
+      "flags": [
+        "--claims",
+        "--draft",
+        "--plan",
+        "--root"
+      ],
+      "required": [
+        "--plan PLAN",
+        "--claims FILE",
+        "BASE"
+      ],
+      "example": "corvint dogfood record-claims --plan PLAN --claims FILE BASE",
+      "help": "corvint dogfood record-claims --help"
     },
     {
       "path": [
