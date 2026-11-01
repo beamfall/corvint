@@ -48,6 +48,13 @@ driving Corvint from scripts.
   it: Go compiles a `_test.go` file only into its own package's test binary, so a directory
   literal of another package is no read of it. A non-Go unit, a declared read scope
   (AFP-V0-023), a glob reader (AFP-V0-401) and every other dirty path keep their rules.
+- **ACX-V0-853:** (experimental, amending AFP-V0-496, under the owner's standing lane
+  auto-accept, 2026-10-11; V1-3726) `corvint affected` SHALL advise the focused
+  `corvint test --base BASE --dry-run` command only when `.github/cishards/test-commands.json`
+  is a regular file at the root, because without it that command falls back to a FULL scope with
+  no units. Otherwise the advice SHALL omit it and SHALL carry the unknown entry
+  `FOCUSED_TEST_COMMAND_UNDECLARED`, which names the missing declaration and points to the
+  declared mandatory checks (the Makefile gate or the AGENTS.md Verify commands) as the next step.
 
 ## Non-goals
 
@@ -70,6 +77,7 @@ still runs it.
 | ACX-V0-850 | `Source.Files`, `Source.FilesIncluding` and `ByName` in `internal/liveverify/affected/source.go`; the catalog filters in `internal/liveverify/affected/kotlin/kotlin.go` | `TestSourceFilesOffersRelativePath_V1_3583`; the plugin package tests |
 | ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go` | `TestACXV0851WorktreePathPlan` |
 | ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
+| ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
 
 ## Rollback
 
