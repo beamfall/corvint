@@ -25,6 +25,7 @@
       "callers": [
         "Makefile",
         "internal/liveverify/affected/golang/golang_test.go",
+        "script/analyzer-schema.sh",
         "script/batch-precheck.sh",
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh",
@@ -39,11 +40,12 @@
         "cmd/corvint/test_whole_reason_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
+        "script/analyzer-schema_test.sh",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
         "tools/test-shards/main.go"
       ],
-      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts and their test run it through computed paths, lane-scripts_test.sh tests it and golang_test.go plans over its text; cmd/corvint prints it in a message, lane-guard.sh matches and names it in a deny message, lane-transcript-metrics.py matches it in transcripts and test-shards names it in a comment (TSP-V0-005)."
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts and their test run it through computed paths, analyzer-schema.sh runs the golden output test through it and its test stubs it (IDX-SNAP-V0-892), lane-scripts_test.sh tests it and golang_test.go plans over its text; cmd/corvint prints it in a message, lane-guard.sh matches and names it in a deny message, lane-transcript-metrics.py matches it in transcripts and test-shards names it in a comment (TSP-V0-005)."
     },
     "script/lane-guard.sh": {
       "callers": [

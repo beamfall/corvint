@@ -76,7 +76,7 @@ if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
 fi
 # IDX-SNAP-V0-891 (V1-2976): an analyzer input change whose golden output drifted from its pins is
 # refused here, before any build or bind, instead of at batch-precheck after the seal. The static
-# check notes a changed input; only then does the output test run (through script/heavy.sh).
+# check notes a changed input; only then does the golden output test run.
 if [[ -f $repo/internal/contextindex/analyzer_schema_test.go && -x $repo/script/analyzer-schema.sh ]]; then
   schema_note=$(cd "$repo" && script/analyzer-schema.sh check --base "$base" 2>&1)
   schema_rc=$?
