@@ -11,84 +11,88 @@ Tasks CLI read verbs `queue status`, `roadmap`, `ticket search`, `ticket show` a
 (`TM-V0-008`).
 
 ## Agent digest
-- Claim: `corvint-tasks mcp` is a local read-only stdio MCP server whose five typed, paged tools answer with the Corvint Tasks CLI read verbs' own envelopes.
+- Claim: The `corvint mcp` tasks group: five typed, paged read-only tools that run the installed `corvint-tasks` read verbs and return their envelopes.
 - Status: experimental under the standing lane auto-accept (V1-3707, 2026-11-01) / experimental
-- Exists: `internal/mcp/tasksread` (`New`, `Handler`, the five tools), `internal/tasks/cli/mcp.go` (`mcpCommand`), `internal/tasks/cli/mcp_test.go`.
-- Blocked on: no host plugin declares the server yet; the write profile is out of scope (see Non-goals).
+- Exists: `internal/mcp/tasksread` (`Group`, `New`, the five tools), the `tasks` group token in `internal/mcp/cli`.
+- Blocked on: no host plugin selects the group yet; the write profile is out of scope (see Non-goals).
 - Read next: Requirements; Non-goals and failure modes.
 
 ## Owner intent and scope
 
 An agent reading the Corvint Tasks queue today shells out to `corvint-tasks` and parses its JSON
 envelope; `corvint-tasks mcp` was an unknown verb (V1-3707). This profile is the smallest MCP
-surface for those reads: a read-only stdio server inside the `corvint-tasks` binary whose tools run
-the existing read verbs in-process, so the CLI stays the one authority for every answer and the
-server holds no state of its own. Writes (claim, heartbeat, submit, complete) need destructive
-annotations, idempotency keys and lease echo, and belong in a separate opt-in profile under their
-own spec.
+surface for those reads. Decision 0397 keeps Tasks free of Core imports and lets Core import only
+the Tasks wire package, so the profile is a Core-side tool group of `corvint mcp`
+(`MMR-V0-012`) that runs the installed `corvint-tasks` binary as a subprocess: the CLI stays the
+one authority for every answer, and the server holds no Tasks state or code of its own. Writes
+(claim, heartbeat, submit, complete) need destructive annotations, idempotency keys and lease
+echo, and belong in a separate opt-in profile under their own spec.
 
 ## Requirements
 
-- `TMR-V0-950`: `corvint-tasks mcp [--protocol-version 2026-07-28|2025-11-25]` MUST serve one stdio
-  MCP server through `internal/mcp/server`, `2026-07-28` by default, named `corvint-tasks-mcp`
-  with the binary's version, under `NameLegacyFlag` (`MCPV0-820`, `MCPV0-954`), until stdin closes
-  or SIGINT/SIGTERM arrives. Any other argument exits 2 with `corvint-tasks mcp: invalid
-  arguments` before serving. It answers in the process's own directory, as every other verb does.
-- `TMR-V0-951`: `tools/list` MUST list exactly `corvint.tasks.queue_status`,
+- `TMR-V0-950`: (amends `MMR-V0-012`) `--tool-profile` MUST admit the group token `tasks`, alone
+  or beside the other groups and at most one code profile. Selected, it adds five tools per
+  declared root, routed by alias in multi-root mode like the other per-root groups
+  (`MMR-V0-013`), and an unusable single root lists them and refuses each `invalid-root`
+  (`MCPV0-950`). The group links no Tasks package but `internal/tasks/wire`.
+- `TMR-V0-951`: The group MUST list exactly `corvint.tasks.queue_status`,
   `corvint.tasks.receipt_audit`, `corvint.tasks.roadmap`, `corvint.tasks.ticket_search` and
-  `corvint.tasks.ticket_show`, sorted, each with a closed JSON Schema 2020-12 `inputSchema`
-  (`additionalProperties: false`), an `outputSchema` requiring `profile`, and the read-only
-  annotations (`readOnlyHint` true, `destructiveHint` false, `idempotentHint` true,
-  `openWorldHint` false). The paged tools take `offset` (integer, minimum 0) and `limit` (integer,
-  1 to the CLI's page maximum); `ticket_search` adds `status` and `kind` enums from the ticket
-  package, `priority` `P0`..`P4`, and bounded `owner`, `milestone`, `label` and `text`; `ticket_show`
-  requires `ticket`, a full ticket ID or a local ID.
-- `TMR-V0-952`: Each call MUST run its verb (`queue status`, `receipt audit`, `roadmap`, `ticket
-  search`, `ticket show ID`) with each argument as the same-named flag, through the CLI's own
-  `Run`, and return its `taskman-command-result/0` envelope as `structuredContent`, with `page`
-  (`offset`, `limit`, `total`, `truncated`) telling the caller whether to fetch the next offset,
-  and its stdout bytes as the one text block inside the `AHI-004` untrusted-data envelope. A verb
-  that does not answer `OK` is an `isError` result `corvint-tasks-mcp-tool-error/0` with code
-  `CLI_REFUSED`, the CLI's `codes`, and its envelope. Every tool reads only: a call takes no store
-  lock and writes nothing.
-- `TMR-V0-953`: A schema-invalid argument, an unknown tool, an unknown param or a non-object
-  `arguments` MUST be `-32602` with `MCPV0-952` data (`reason`, `field`, and `allowed` or `rule`),
-  before any verb runs; a non-empty `tools/list` cursor is `invalid-cursor`.
-- `TMR-V0-954`: The CLI help MUST list `corvint-tasks mcp` with usage, flags and an example, and
-  its command tree node MUST be in `internal/capcatalog/trees/corvint-tasks.json`; `docs/CAPABILITIES.md`
-  names the verb and its five tools.
+  `corvint.tasks.ticket_show`, each with a closed JSON Schema 2020-12 `inputSchema`
+  (`additionalProperties: false`), the read-only annotations (`readOnlyHint` true,
+  `destructiveHint` false, `idempotentHint` true, `openWorldHint` false) and the `MCPV0-953`
+  `outputSchema`. The paged tools take `offset` (integer, minimum 0) and `limit` (integer, 1 to
+  the wire page maximum); `ticket_search` adds bounded `status` and `kind` words, `priority`
+  `P0`..`P9`, and bounded control-free `owner`, `milestone`, `label` and `text`; `ticket_show`
+  requires `ticket`, a full ticket ID or a local ID with no leading dash.
+- `TMR-V0-952`: Each call MUST run `corvint-tasks` from `PATH` with its verb (`queue status`,
+  `receipt audit`, `roadmap`, `ticket search`, `ticket show ID`) and each argument as the
+  same-named flag, in the bound root, with `CORVINT_TASKS_READ_ONLY=1` so the CLI itself refuses
+  any write, a 60-second bound and a 512 KiB output bound. An `OK` `taskman-command-result/0`
+  envelope is the `structuredContent`, with `page` (`offset`, `limit`, `total`, `truncated`)
+  telling the caller whether to fetch the next offset, and its stdout bytes are the one text
+  block inside the `AHI-004` untrusted-data envelope. Any other outcome is an `isError` result
+  `corvint-tasks-mcp-tool-error/0` with code `CLI_REFUSED`, the CLI's `codes` and its envelope; a
+  missing or failed executable is `TASKS_UNAVAILABLE` and unreadable output
+  `TASKS_OUTPUT_UNREADABLE`.
+- `TMR-V0-953`: A schema-invalid argument MUST be `-32602` with `MCPV0-952` data (`reason`,
+  `field`, and `allowed` or `rule`) before any process starts.
+- `TMR-V0-954`: The `corvint-mcp` usage MUST name the `tasks` group, and `docs/CAPABILITIES.md`
+  names its five tools.
 
 ## Non-goals and failure modes
 
 - No write tools (claim, renew, heartbeat, submit, gate run, complete, ticket mutations), no
   attempt or lease reads, and no cursor paging beyond the CLI's `offset`/`limit`.
-- No host plugin wiring and no `corvint mcp` group: a host launches `corvint-tasks mcp` itself.
-- No second source of truth: a tool whose verb changes its envelope changes with it.
-- Failure mode: a store the CLI cannot read answers each call `CLI_REFUSED` with the CLI's codes;
-  the server keeps serving.
-- Failure mode: an envelope carrying the untrusted-data terminator is refused with the
-  `AHI-004` collision code, never emitted.
+- No `corvint-tasks mcp` verb: the Tasks binary stays free of MCP code (decision 0397).
+- No host plugin wiring: a launcher adds `tasks` to its `--tool-profile` list.
+- No second source of truth: a tool whose verb changes its envelope changes with it, and the
+  closed status, kind and priority values are the CLI's, which refuses others as `CLI_REFUSED`.
+- Failure mode: no `corvint-tasks` on `PATH` answers each call `TASKS_UNAVAILABLE`; the server and
+  its other tools keep serving.
+- Failure mode: an envelope carrying the untrusted-data terminator is refused with the `AHI-004`
+  collision code, never emitted.
 
 ## Acceptance evidence
 
-`internal/tasks/cli/mcp_test.go`'s `TestTMRV0950ReadOnlyTasksMCPProfile` (five descriptors with
-closed schemas and read-only annotations; search and roadmap pages; show and queue status OK;
-the enveloped text is the CLI's bytes; an unknown ticket is `CLI_REFUSED` with the CLI's codes; a
-bad enum, an unknown tool and an out-of-range limit are `-32602` with data; the queue is unchanged)
-and `TestTMRV0950InvalidArguments`; the `corvint-tasks` tree snapshot and `tools/capabilities-check`.
+`internal/mcp/tasksread/tasksread_test.go`'s `TestTMRV0951FiveReadOnlyDescriptors` and
+`TestTMRV0952CallsRunTheReadVerb` (argv mapping, root, OK, `CLI_REFUSED` with codes,
+`TASKS_UNAVAILABLE`, `TASKS_OUTPUT_UNREADABLE`, five `-32602` cases, nothing run on a refusal);
+`internal/mcp/cli/tasks_group_test.go`'s `TestTMRV0950TasksGroupRunsTheInstalledReadVerb` (a
+fake `corvint-tasks` on `PATH` run in the bound toplevel of a subdirectory root with
+`CORVINT_TASKS_READ_ONLY=1`; an unusable root refuses `invalid-root`); `internal/tasks`'s
+`TestImportDirection`; `tools/capabilities-check`.
 
 ## Rollback
 
-Remove `internal/mcp/tasksread`, `internal/tasks/cli/mcp.go`, the `mcp` case in `Run`, its `ReadVerbs`, `readOnlyVerbs` and
-`commandUsage` entries and help line, and regenerate the command tree. No stored state depends on
-the server.
+Remove `internal/mcp/tasksread`, the `tasks` group token and its `openGroups` and
+`startUnavailable` cases, and the usage words. No stored state depends on the group.
 
 ## Traceability
 
 | Requirement | Implementation | Focused evidence |
 |---|---|---|
-| `TMR-V0-950` | `mcpCommand`, the `mcp` case of `Run` | `TestTMRV0950InvalidArguments`; `TestTMRV0950ReadOnlyTasksMCPProfile` (2025-11-25 handshake) |
-| `TMR-V0-951` | `internal/mcp/tasksread` (`tasksMCPTools`, `tasksMCPTool.descriptor`, `pageProperties`) | `TestTMRV0950ReadOnlyTasksMCPProfile` (descriptor checks) |
-| `TMR-V0-952` | `internal/mcp/tasksread` (`Handler.call`, `toolFailureResult`), the `Run` callback in `mcpCommand` | `TestTMRV0950ReadOnlyTasksMCPProfile` (pages, enveloped CLI bytes, `CLI_REFUSED`, unchanged queue) |
-| `TMR-V0-953` | `internal/mcp/tasksread` (`tasksMCPTool.argv`, `Handler.Handle`) | `TestTMRV0950ReadOnlyTasksMCPProfile` (enum, unknown tool, range) |
-| `TMR-V0-954` | `commandUsage["mcp"]`, `helpResult`, `internal/capcatalog/trees/corvint-tasks.json`, `docs/CAPABILITIES.md` | `TestCAPV0046HelpJSONIsTheTree`, `tools/capabilities-check` |
+| `TMR-V0-950` | `toolGroups`, `openGroups`, `startUnavailable` (`internal/mcp/cli`), `tasksread.New` | `TestTMRV0950TasksGroupRunsTheInstalledReadVerb`; `TestImportDirection` |
+| `TMR-V0-951` | `internal/mcp/tasksread` (`tools`, `tool.descriptor`, `pageProperties`) | `TestTMRV0951FiveReadOnlyDescriptors` |
+| `TMR-V0-952` | `internal/mcp/tasksread` (`Group.Call`, `Failure`, `runInstalled`) | `TestTMRV0952CallsRunTheReadVerb`, `TestTMRV0950TasksGroupRunsTheInstalledReadVerb` |
+| `TMR-V0-953` | `internal/mcp/tasksread` (`tool.argv`) | `TestTMRV0952CallsRunTheReadVerb` |
+| `TMR-V0-954` | `usage` (`internal/mcp/cli`), `docs/CAPABILITIES.md` | `tools/capabilities-check` |

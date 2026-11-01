@@ -4219,7 +4219,7 @@
     "reqPrefix": "TMR-V0",
     "intent": "experimental under the standing lane auto-accept (V1-3707, 2026-11-01)",
     "delivery": "experimental",
-    "claim": "`corvint-tasks mcp` is a local read-only stdio MCP server whose five typed, paged tools answer with the Corvint Tasks CLI read verbs' own envelopes.",
+    "claim": "The `corvint mcp` tasks group: five typed, paged read-only tools that run the installed `corvint-tasks` read verbs and return their envelopes.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,
