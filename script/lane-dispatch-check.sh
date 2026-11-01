@@ -36,21 +36,21 @@ while (($#)); do
 done
 ((${#lanes[@]})) || usage
 if [[ -n $base ]]; then
-  sha=$(git rev-parse --verify -q "$base^{commit}") || refuse "base $base is not a commit"
+  sha=$(git rev-parse --verify -q "$base^{commit}") || refuse "base $base is not a commit; use a commit SHA or a ref that names one"
 fi
 rows=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || refuse 'mktemp failed'
 trap '/bin/rm -f "$rows"' EXIT
 for ((i = 0; i < ${#lanes[@]}; i++)); do
   lane=${lanes[i]} file=${files[i]}
-  [[ $lane =~ ^[A-Za-z0-9._-]+$ ]] || refuse "lane name '$lane' must be letters, digits, dot, dash or underscore"
-  for ((j = 0; j < i; j++)); do [[ ${lanes[j]} != "$lane" ]] || refuse "lane $lane is named twice"; done
-  [[ -r $file ]] || refuse "lane $lane: cannot read $file"
+  [[ $lane =~ ^[A-Za-z0-9._-]+$ ]] || refuse "lane name '$lane' is not valid; use letters, digits, dot, dash or underscore"
+  for ((j = 0; j < i; j++)); do [[ ${lanes[j]} != "$lane" ]] || refuse "lane $lane is named twice; use a distinct name for each lane"; done
+  [[ -r $file ]] || refuse "lane $lane: cannot read $file; use a readable tickets file"
   jq -e 'type == "array" and all(.[]; type == "object" and (.ticketId | type) == "string"
       and ((.record.effects.touchPaths // []) | type == "array" and all(.[]; type == "string" and test("^[^\t\n]+$"))))' \
-    "$file" > /dev/null 2>&1 || refuse "lane $lane: $file is not a JSON array of tickets with a string ticketId and string touchPaths"
+    "$file" > /dev/null 2>&1 || refuse "lane $lane: $file is not a JSON array of tickets with a string ticketId and string touchPaths; want the charter tickets-file form"
   # One row per ticket and path: lane, ticket, path ("" for a ticket with none).
   jq -r --arg lane "$lane" '.[] | .ticketId as $t | ((.record.effects.touchPaths // []) | if length == 0 then [""] else . end)[]
-      | [$lane, $t, .] | join("\t")' "$file" >> "$rows" || refuse "lane $lane: cannot read the tickets of $file"
+      | [$lane, $t, .] | join("\t")' "$file" >> "$rows" || refuse "lane $lane: cannot read the tickets of $file; run jq on it to see the error"
 done
 waived() { local w; for w in ${waive[@]+"${waive[@]}"}; do [[ $w == "${1##*:}" ]] && return 0; done; return 1; }
 findings=0
