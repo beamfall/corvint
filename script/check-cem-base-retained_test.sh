@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Tests for script/check-cem-base-retained.sh (decision 0588, V1-3758) on a fixture repository: a map whose
+# Tests for script/check-cem-base-retained.sh (decision 0588, V1-3758) on a fixture repository: the check
+# keeps to Bash 3.2 (macOS /bin/bash), a map whose
 # base the retained ref reaches passes, a new map on an unretained base is refused naming the map and the
 # fix, a register label admits exactly its base, a stale or mismatched register row and an unknown label
 # are refused, and with no retained ref the check says it was skipped.
@@ -12,6 +13,12 @@ trap '/bin/rm -rf "$tmp"' EXIT
 fail() { printf 'check-cem-base-retained_test: FAIL line %s: %s\n' "${BASH_LINENO[0]}" "$*" >&2; exit 1; }
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+
+# 0. macOS /bin/bash is 3.2: the check uses no Bash 4 construct (associative arrays, mapfile,
+# case-changing expansion, |&, &>>, ;;&, coproc, [[ -v ]]).
+if grep -nE 'declare -[Aln]|local -n|mapfile|readarray|\$\{[A-Za-z_]+(,,|\^\^)\}|\|&|&>>|;;&|coproc|\[\[ -v ' "$check"; then
+  fail "check uses a Bash 4 construct"
+fi
 
 repo=$tmp/repo
 git init -q "$repo" || fail "git init"
