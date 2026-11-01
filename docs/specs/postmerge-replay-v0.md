@@ -77,6 +77,14 @@ or qualification of the whole workflow, and passing expectations do not accept g
   identities; the `delta` stage digest is the SHA-256 of the canonical record bytes. Until that
   command lands on the base, an adapter supplies these values from its own runtime, bound by
   `runtime_sha256`, and the report gains no delta qualification.
+- `PMR-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3662) Free text
+  that becomes a workflow identifier (grammar `^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$`), such as a
+  branch name with `/`, MUST be encoded by the one shared helper `postmergeworkflow.EncodeID`, or by
+  `corvint-postmerge-workflow encode-id VALUE` for a script: every byte outside `[A-Za-z0-9._-]`,
+  `:` included, becomes `:` and two uppercase hex digits (`claude/lane-a` is `claude:2Flane-a`).
+  A value that does not begin with a letter or digit, or that would encode to more than 128 bytes,
+  is refused. `DecodeID` reverses it and refuses any identifier `EncodeID` would not produce, so
+  the round trip is exact. The grammar itself is unchanged.
 
 The explicit native `postmerge-replay/1` route is governed by `postmerge-runtime-v1.md`.
 Its experimental connector/intake refusal slice always blocks and does not change this `/0`
@@ -121,6 +129,7 @@ and focused vet. The conformance helper is explicitly synthetic and never a hist
 | PMR-V0-007 | `TestReplayMismatchBasis`, `TestReplaySeparatesHumanVerifiedMismatches`, `TestReplayDeferredAuthoringStages` |
 | PMR-V0-008 | `TestCLIReplay`; full integration and whole-workflow acceptance NOT_PRODUCED |
 | PMR-V0-009 | Adapter protocol in `TestAdapterHelper`; actual `corvint delta` integration NOT_PRODUCED (issue #389 not on base) |
+| PMR-V0-960 | `TestPMRV0960EncodeIDRoundTrip` (`internal/postmergeworkflow/id.go`); `corvint-postmerge-workflow encode-id` |
 
 ## Non-goals and rollback
 

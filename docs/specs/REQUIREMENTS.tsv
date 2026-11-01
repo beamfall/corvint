@@ -5429,6 +5429,7 @@ PMR-V0-006	docs/specs/postmerge-replay-v0.md	Build and validate the actual conne
 PMR-V0-007	docs/specs/postmerge-replay-v0.md	Emit a separate report with fixture/policy/binding identities, canonical JSONL,	unrecorded	-
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry	unrecorded	-
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	Replay does not parse or reimplement the issue #389 delta record. The adapter	unrecorded	-
+PMR-V0-960	docs/specs/postmerge-replay-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3662) Free tex	standing	2026-10-31; V1-3662
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	Independently pin full binding, input snapshots, source/tool/runtime/profile and	unrecorded	-
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	Execute real connector/intake/delta joins, retain exact native inputs/outputs an	unrecorded	-
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	Each applicable real author step requires enforced credential/network/filesystem	unrecorded	-
