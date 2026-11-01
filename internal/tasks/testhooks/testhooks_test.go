@@ -8,7 +8,9 @@ import (
 // TestASDV0956ExportTestSettersAreHookUsers: a setter declared only in
 // export_test.go makes its external-package callers hook users, directly and
 // through a helper (V1-2426); a keyed seam reached by a method call and a
-// shadowing local are not hook writes.
+// shadowing local are not hook writes. Review fixes: t.Parallel() inside an if
+// counts and one only inside a subtest does not; a nested parameter or block
+// variable named like a hook shadows only its own scope.
 func TestASDV0956ExportTestSettersAreHookUsers(t *testing.T) {
 	t.Parallel()
 	report, err := Analyze("testdata/exported", "example.test/p")
@@ -22,15 +24,19 @@ func TestASDV0956ExportTestSettersAreHookUsers(t *testing.T) {
 		t.Errorf("setters %v, want %v", report.Setters, want)
 	}
 	want := []User{
+		{Test: "TestBlockShadowThenWrite", File: "internal_test.go", Via: "count"},
 		{Test: "TestDirectWrite", File: "internal_test.go", Via: "publishFault"},
 		{Test: "TestExportedSetterParallel", File: "external_test.go", Parallel: true, Via: "SetPublishFaultForTest"},
 		{Test: "TestExportedSetterViaHelper", File: "external_test.go", Via: "install"},
 		{Test: "TestIncrementViaHelper", File: "internal_test.go", Parallel: true, Via: "bump"},
+		{Test: "TestNestedParallel", File: "internal_test.go", Parallel: true, Via: "publishFault"},
+		{Test: "TestNestedShadowKeepsOuterWrite", File: "internal_test.go", Via: "publishFault"},
+		{Test: "TestSubtestParallelOnly", File: "internal_test.go", Via: "publishFault"},
 	}
 	if !reflect.DeepEqual(report.Users, want) {
 		t.Errorf("users\n%+v\nwant\n%+v", report.Users, want)
 	}
-	if got := report.Violations(); len(got) != 2 || got[0].Test != "TestExportedSetterParallel" || got[1].Test != "TestIncrementViaHelper" {
+	if got := report.Violations(); len(got) != 3 || got[0].Test != "TestExportedSetterParallel" || got[1].Test != "TestIncrementViaHelper" || got[2].Test != "TestNestedParallel" {
 		t.Errorf("violations %+v", got)
 	}
 }

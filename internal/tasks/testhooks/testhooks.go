@@ -81,7 +81,7 @@ func Analyze(dir, importPath string) (Report, error) {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") {
 			continue
 		}
-		file, err := parser.ParseFile(fset, filepath.Join(dir, entry.Name()), nil, parser.SkipObjectResolution)
+		file, err := parser.ParseFile(fset, filepath.Join(dir, entry.Name()), nil, 0) // object resolution gives each identifier its lexical scope
 		if err != nil {
 			return Report{}, err
 		}
@@ -96,11 +96,11 @@ func Analyze(dir, importPath string) (Report, error) {
 		pkgName = file.Name.Name
 		internal = append(internal, file)
 	}
-	vars := packageVars(internal)
+	vars, specs := packageVars(internal)
 	funcs := map[funcKey]*funcInfo{}
 	for _, file := range internal {
 		if strings.HasSuffix(names[file], "_test.go") { // production writes (caches, counters) are no test hook
-			collect(funcs, file, names[file], false, "", vars)
+			collect(funcs, file, names[file], false, "", vars, specs)
 		}
 	}
 	for _, file := range external {
@@ -115,14 +115,16 @@ func Analyze(dir, importPath string) (Report, error) {
 				local = spec.Name.Name
 			}
 		}
-		collect(funcs, file, names[file], true, local, vars)
+		collect(funcs, file, names[file], true, local, vars, specs)
 	}
 	return closure(funcs), nil
 }
 
-// packageVars names the variables declared at the top level of the package's files.
-func packageVars(files []*ast.File) map[string]bool {
-	vars := map[string]bool{}
+// packageVars names the variables declared at the top level of the package's
+// files, and returns their declarations, against which a resolved identifier is
+// checked.
+func packageVars(files []*ast.File) (map[string]bool, map[*ast.ValueSpec]bool) {
+	vars, specs := map[string]bool{}, map[*ast.ValueSpec]bool{}
 	for _, file := range files {
 		for _, decl := range file.Decls {
 			gen, ok := decl.(*ast.GenDecl)
@@ -130,6 +132,7 @@ func packageVars(files []*ast.File) map[string]bool {
 				continue
 			}
 			for _, spec := range gen.Specs {
+				specs[spec.(*ast.ValueSpec)] = true
 				for _, name := range spec.(*ast.ValueSpec).Names {
 					if name.Name != "_" {
 						vars[name.Name] = true
@@ -138,17 +141,28 @@ func packageVars(files []*ast.File) map[string]bool {
 			}
 		}
 	}
-	return vars
+	return vars, specs
 }
 
-func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external bool, imported string, vars map[string]bool) {
+func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external bool, imported string, vars map[string]bool, specs map[*ast.ValueSpec]bool) {
+	// unresolved is an identifier the parser bound to no declaration in its scope chain: a
+	// package-level name from another file, an import or a predeclared name.
+	unresolved := func(id *ast.Ident) bool { return id.Obj == nil }
+	// packageVar reports an identifier that names a package-level variable at its lexical scope,
+	// so a same-named parameter or variable of any enclosing function or block shadows it there only.
+	packageVar := func(id *ast.Ident) bool {
+		if unresolved(id) {
+			return vars[id.Name]
+		}
+		spec, ok := id.Obj.Decl.(*ast.ValueSpec)
+		return ok && specs[spec]
+	}
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
 		if !ok || fn.Body == nil {
 			continue
 		}
 		info := &funcInfo{decl: fn, file: name, imported: imported}
-		locals := localNames(fn)
 		target := func(expr ast.Expr) string { // the hook an assignment target names, if any
 			for {
 				switch e := expr.(type) {
@@ -159,7 +173,7 @@ func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external 
 					expr = e.X
 					continue
 				case *ast.SelectorExpr:
-					if id, ok := e.X.(*ast.Ident); ok && external && imported != "" && id.Name == imported {
+					if id, ok := e.X.(*ast.Ident); ok && external && imported != "" && id.Name == imported && unresolved(id) {
 						if vars[e.Sel.Name] {
 							return e.Sel.Name
 						}
@@ -168,7 +182,7 @@ func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external 
 					expr = e.X
 					continue
 				case *ast.Ident:
-					if !external && vars[e.Name] && !locals[e.Name] {
+					if !external && packageVar(e) {
 						return e.Name
 					}
 				}
@@ -193,11 +207,11 @@ func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external 
 			case *ast.CallExpr:
 				switch f := s.Fun.(type) {
 				case *ast.Ident:
-					if !locals[f.Name] {
+					if unresolved(f) || f.Obj.Kind == ast.Fun {
 						info.calls = append(info.calls, funcKey{external, f.Name})
 					}
 				case *ast.SelectorExpr:
-					if id, ok := f.X.(*ast.Ident); ok && external && imported != "" && id.Name == imported {
+					if id, ok := f.X.(*ast.Ident); ok && external && imported != "" && id.Name == imported && unresolved(id) {
 						info.calls = append(info.calls, funcKey{false, f.Sel.Name})
 					} else {
 						// A method call: matched by method name within the same package.
@@ -218,54 +232,6 @@ func collect(funcs map[funcKey]*funcInfo, file *ast.File, name string, external 
 		}
 		funcs[key] = info
 	}
-}
-
-// localNames is every name the function declares (parameters, results and
-// variables in its body), which shadow a package variable of the same name.
-// A shadowing name anywhere in the body counts for the whole body: a miss
-// there under-reports a write, so a test that relies on it keeps its own review.
-func localNames(fn *ast.FuncDecl) map[string]bool {
-	locals := map[string]bool{}
-	addFields := func(list *ast.FieldList) {
-		if list == nil {
-			return
-		}
-		for _, field := range list.List {
-			for _, name := range field.Names {
-				locals[name.Name] = true
-			}
-		}
-	}
-	addFields(fn.Recv)
-	addFields(fn.Type.Params)
-	addFields(fn.Type.Results)
-	ast.Inspect(fn.Body, func(n ast.Node) bool {
-		switch s := n.(type) {
-		case *ast.AssignStmt:
-			if s.Tok == token.DEFINE {
-				for _, lhs := range s.Lhs {
-					if id, ok := lhs.(*ast.Ident); ok {
-						locals[id.Name] = true
-					}
-				}
-			}
-		case *ast.ValueSpec:
-			for _, name := range s.Names {
-				locals[name.Name] = true
-			}
-		case *ast.FuncLit:
-			addFields(s.Type.Params)
-			addFields(s.Type.Results)
-		case *ast.RangeStmt:
-			for _, e := range []ast.Expr{s.Key, s.Value} {
-				if id, ok := e.(*ast.Ident); ok && s.Tok == token.DEFINE {
-					locals[id.Name] = true
-				}
-			}
-		}
-		return true
-	})
-	return locals
 }
 
 func closure(funcs map[funcKey]*funcInfo) Report {
@@ -345,23 +311,27 @@ func isTest(fn *ast.FuncDecl) bool {
 	return ok && sel.Sel.Name == "T"
 }
 
-// callsParallel reports a statement t.Parallel() directly in the test body.
+// callsParallel reports a call t.Parallel() anywhere in the test body's own
+// control flow (if, for, switch, select and plain blocks included), but not
+// inside a nested function literal such as a t.Run subtest body.
 func callsParallel(fn *ast.FuncDecl) bool {
 	t := fn.Type.Params.List[0].Names[0].Name
-	for _, stmt := range fn.Body.List {
-		expr, ok := stmt.(*ast.ExprStmt)
-		if !ok {
-			continue
+	found := false
+	ast.Inspect(fn.Body, func(n ast.Node) bool {
+		if found {
+			return false
 		}
-		call, ok := expr.X.(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-		if sel, ok := call.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Parallel" {
-			if id, ok := sel.X.(*ast.Ident); ok && id.Name == t {
-				return true
+		switch e := n.(type) {
+		case *ast.FuncLit:
+			return false
+		case *ast.CallExpr:
+			if sel, ok := e.Fun.(*ast.SelectorExpr); ok && sel.Sel.Name == "Parallel" {
+				if id, ok := sel.X.(*ast.Ident); ok && id.Name == t {
+					found = true
+				}
 			}
 		}
-	}
-	return false
+		return true
+	})
+	return found
 }
