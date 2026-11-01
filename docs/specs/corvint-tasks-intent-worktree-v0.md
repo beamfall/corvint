@@ -73,6 +73,22 @@ other clause are unchanged. The owner accepted this amendment on 2026-10-04; the
   `-` in the path, or switching the primary to the intent branch. Paths and the branch in a repair
   command are POSIX single-quoted shell words (each `'` becomes `'\''`), so `$`, backticks and
   spaces paste literally.
+- `CTW-V0-780`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3525) When an
+  entry on the intent branch passes every `CTW-V0-004` registration check and is refused only by a
+  projection check (its `.taskman` has a symlink component, or its `.taskman/queue.json` is
+  missing, unreadable, malformed or names another queue or intent branch), the intent-branch
+  worktree already exists. The `CTW-V0-005` fix then MUST name only unsatisfied steps: it names
+  that worktree's root (or every such root, as "one of"), a `.taskman` directory whose
+  `queue.json` names the hint's queue ID and intent branch, and copies of the primary's
+  `.taskman/queue.json` and `.taskman/policy.json` as the example, quoted as in `CTW-V0-005`, plus
+  `git worktree prune` only when a stale entry is also reported. It MUST NOT name `git worktree
+  add`, `git worktree repair` or switching the primary. Routing is unchanged: the hint still comes
+  from the primary's `queue.json` (`CTW-V0-003`) and the projection lives in the intent worktree,
+  so a primary off the intent branch needs `.taskman/queue.json` in both checkouts, naming the
+  same queue and intent branch, and `.taskman/policy.json` in the intent worktree. Failure mode
+  (V1-3525): after `git worktree add` succeeded, the next refusal still told the operator to run
+  it. Non-goals: reading the intent branch from a linked worktree when the primary has no
+  `queue.json`, and copying files on the operator's behalf.
 - `CTW-V0-006`: When two or more admitted linked worktrees hold the intent branch, none is selected
   and the intent root stays the primary. The refusal fix names every candidate root, quoted as in
   `CTW-V0-005`, and `git worktree remove`.
@@ -240,7 +256,7 @@ receipt state depends on the batch form.
 | Primary on a feature branch, one admitted linked worktree on the intent branch | Writes publish into the linked `.taskman/`; the primary's HEAD, index and working tree are untouched (`CTW-V0-002`). |
 | Primary on a feature branch, no linked worktree on the intent branch | `INTENT_BRANCH_MISMATCH` with the `git worktree add` fix; nothing written (`CTW-V0-005`). |
 | Registered worktree deleted, moved or with a foreign `.git` back-pointer | Stale, not admitted; the fix names prune or repair and add (`CTW-V0-004`, `CTW-V0-005`). |
-| Linked projection names another queue or branch, is missing, or is reached through a symlink | Not admitted; same fix (`CTW-V0-004`). |
+| Linked projection names another queue or branch, is missing, or is reached through a symlink | Not admitted; the fix names that worktree's projection, never `git worktree add` (`CTW-V0-004`, `CTW-V0-780`). |
 | Two linked worktrees on the intent branch | No selection; the fix names both and `git worktree remove` (`CTW-V0-006`). |
 | Linked projection edited or behind the journal | `INTENT_DIVERGED` naming the linked `.taskman` path; nothing written (`CTW-V0-007`). |
 | Linked worktree on another mount | `UNSUPPORTED_FILESYSTEM`; nothing published (`CTW-V0-008`). |
@@ -281,6 +297,7 @@ format changed, so no migration or repair is needed.
 | `CTW-V0-004` | `TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted`, `TestCTWV0004_StaleIntentWorktreeRefusesWithTheFix` |
 | `CTW-V0-005` | `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0005_MissingIntentWorktreeRefusesWithTheFix`, `TestCTWV0002_TicketCreateFromAFeatureBranch` |
 | `CTW-V0-006` | `TestCTWV0006_TwoIntentWorktreesAreAmbiguous` |
+| `CTW-V0-780` | `TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted` (`internal/tasks/intent`: symlinked, missing and foreign projections name the projection and no add, prune or repair); `TestCTWV0780_InitFromFeatureBranchWithLinkedIntentWorktree` (`internal/tasks/store`: a real `git worktree add` without `.taskman` refuses init with the projection fix and no add, prune or repair step; with the files copied, init succeeds and the ticket lands only in the intent worktree) |
 | `CTW-V0-007` | `TestCTWV0007_DirtyIntentWorktreeRefusesWithTheFix`, `TestCTWV0005_NoIntentWorktreeNamesTheFix`, `TestCTWV0007_RepairCommandsUseShellQuoting`, `TestCTWV0007_BarrierRedoRefusesWithTheFix`, `TestCTWV0007_ImportRedoRefusesWithTheFix` |
 | `CTW-V0-008` | `TestCTWV0008_SessionPinsTheLinkedIntentWorktree`, `TestCTWV0008_LinkedIntentWorktreeOnAnotherMountIsRefused`, `TestCTWV0008_SwappedLinkedIntentWorktreeIsRefused` |
 | `CTW-V0-009` | `TestCTWV0009_IntentBranchPrimaryKeepsThePrimaryRoot`, `TestCTWV0009_IntentBranchPrimaryRefusalsAreUnchanged`, `TestTMV0007_AS29_LinkedCallerUsesPrimaryHEAD` (the refusal test checks that repair text is absent, not byte equality of the whole message) |

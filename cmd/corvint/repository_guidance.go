@@ -41,6 +41,12 @@ type guidanceFeature struct {
 	Label     string             `json:"label"`
 	Authority string             `json:"authority"`
 	Evidence  []guidanceEvidence `json:"evidence"`
+	// FeatureID and FeatureCall feed `corvint feature` when the label is a
+	// canonical feature ID (RGV-V0-956); other labels carry neither. The call
+	// asks for the ledger record only (--limit 1), the form feature supports
+	// in a repository that also holds JS, TS or Python sources.
+	FeatureID   string   `json:"featureId,omitempty"`
+	FeatureCall []string `json:"featureCall,omitempty"`
 }
 type guidanceCall struct {
 	Argv      []string `json:"argv"`
@@ -196,11 +202,20 @@ func runGuidance(ctx context.Context, in guidanceInvocation, stdout, stderr io.W
 func compileGuidance(ctx context.Context, in guidanceInvocation, beforeCheck func()) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	snapshot, err := genesis.OpenGuidance(ctx, in.Root)
+	open := genesis.OpenGuidance
+	if in.Command != "review" {
+		open = genesis.OpenGuidanceTolerating
+	}
+	snapshot, err := open(ctx, in.Root)
 	if err != nil {
 		return nil, err
 	}
 	receipt := discoverGuidance(snapshot, in.Command)
+	if snapshot.Untracked > 0 {
+		// RGV-V0-955: untracked-only dirt degrades like affected's MIXED warning.
+		receipt.Omissions["untracked"] = snapshot.Untracked
+		receipt.Unknown = append(receipt.Unknown, "MIXED worktree: untracked paths outside the pinned HEAD tree were not read; "+snapshot.UntrackedDetail)
+	}
 	if in.Command == "overview" {
 		probe, reason, probeErr := contextindex.SnapshotFreshness(ctx, in.Root)
 		if probeErr != nil {
@@ -412,6 +427,9 @@ func addGuidanceFeature(candidates map[string]*guidanceFeature, label string, e 
 			return
 		}
 		candidate = &guidanceFeature{Label: label, Authority: "inferred", Evidence: []guidanceEvidence{}}
+		if contextindex.ValidateFeature(label, 1) == nil {
+			candidate.FeatureID, candidate.FeatureCall = label, []string{"corvint", "feature", label, "--limit", "1"}
+		}
 		candidates[label] = candidate
 	}
 	for _, existing := range candidate.Evidence {

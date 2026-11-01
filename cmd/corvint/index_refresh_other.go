@@ -8,7 +8,8 @@ import (
 )
 
 const snapshotRefreshWorkerEnv = "CORVINT_INTERNAL_INDEX_REFRESH"
-const snapshotRefreshWallBound = time.Minute
+const snapshotRefreshWallBound = 10 * time.Minute
+const snapshotRefreshCPUBudget = 55 * time.Second
 
 func startSnapshotRefresh(ctx context.Context, root string) string {
 	if adapterGetenv(ctx, "CORVINT_INDEX_AUTO_REFRESH") == "0" {
@@ -21,4 +22,6 @@ func startSnapshotRefreshReporting(ctx context.Context, root string) (string, st
 	return startSnapshotRefresh(ctx, root), ""
 }
 
-func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int { return 2 }
+func runSnapshotRefreshWorker(arguments []string, wallBound, cpuBudget time.Duration) int {
+	return 2
+}

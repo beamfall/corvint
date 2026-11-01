@@ -116,8 +116,15 @@ func watchedHostAdapterOutput(ctx context.Context, deadline time.Time, arguments
 		ledger.settle(false)
 		if len(arguments) == 2 && arguments[0] == "claude-code" {
 			output := claudeDegradedOutput(arguments[1], "adapter-host-kill-deadline")
-			recordClaudeKillDeadline(ctx, arguments[1], output)
-			return output
+			repeated, root := recordClaudeKillDeadline(ctx, arguments[1], output)
+			if claudePromptContextEvent(output) {
+				return output
+			}
+			// AHI-911: any other event's banner is shown once per cause and hour, with its action.
+			if repeated {
+				return map[string]any{}
+			}
+			return claudeKillDeadlineBanner(output, root)
 		}
 		return degradedAdapterOutput("adapter-host-kill-deadline")
 	}
@@ -312,7 +319,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	kernel := experimentalKernelContext(ctx, event, root)
 	result, reason := invokeDogfoodEvent(ctx, root, "codex", event, normalized, adapterOutputLimit-promptBoundReserve(disclosure)-promptBoundReserve(kernel))
 	if reason != "" {
-		return withDeadlineRemediation(root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason)))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
 	}
 	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
@@ -376,7 +383,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
 		refuse()
-		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason)))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
@@ -478,14 +485,57 @@ func waitAppend(ctx context.Context, done <-chan struct{}, bound time.Duration) 
 
 // recordClaudeKillDeadline records the watchdog's degradation under adapterDeadlineRecordBound.
 // Codex takes its root from the hook input the watchdog abandoned, so its deadline is not recorded.
-func recordClaudeKillDeadline(ctx context.Context, event string, output map[string]any) {
+// It reports repeated when the ledger already held this cause's row for the hour, and the root
+// it resolved ("" when none). A failed or late append is never a repeat (AHI-911).
+func recordClaudeKillDeadline(ctx context.Context, event string, output map[string]any) (repeated bool, root string) {
 	root, err := claudeAdapterRoot(ctx)
-	if err != nil {
-		return
+	if err != nil || !filepath.IsAbs(root) {
+		return false, ""
 	}
 	bounded, cancel := context.WithTimeout(context.Background(), adapterDeadlineRecordBound)
 	defer cancel()
-	recordAdapterDegradation(bounded, root, "claude-code", event, output)
+	row := observations.AdapterDegradationEvent("claude-code", event, adapterDegradationReason(output), version, time.Now())
+	done := make(chan struct{})
+	var written bool
+	var appendErr error
+	go func() {
+		defer close(done)
+		written, appendErr = observations.AppendNew(root, row)
+	}()
+	waitAppend(bounded, done, adapterDeadlineRecordBound)
+	select {
+	case <-done:
+		return !written && appendErr == nil, root
+	default:
+		return false, root
+	}
+}
+
+// claudePromptContextEvent reports whether output is the context of a SessionStart or
+// UserPromptSubmit event, whose fallback stays on every event (AHI-911).
+func claudePromptContextEvent(output map[string]any) bool {
+	hook, _ := output["hookSpecificOutput"].(map[string]any)
+	name, _ := hook["hookEventName"].(string)
+	return name == "SessionStart" || name == "UserPromptSubmit"
+}
+
+// claudeKillDeadlineBanner adds AHI-911's action line to a visible kill-deadline banner.
+func claudeKillDeadlineBanner(output map[string]any, root string) map[string]any {
+	if root == "" {
+		return output
+	}
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	inspect, _ := json.Marshal([]string{"corvint", "--root", root, "observations"})
+	action := "\nThe hook ran past the host's time limit, usually on a stale index snapshot or a loaded host; this notice is shown once per hour. Refresh: " + string(refresh) + "; inspect repeats: " + string(inspect)
+	if message, ok := output["systemMessage"].(string); ok {
+		return map[string]any{"systemMessage": message + action}
+	}
+	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
+		if text, ok := hook["additionalContext"].(string); ok {
+			return claudeContextOutput(hook["hookEventName"].(string), text+action)
+		}
+	}
+	return output
 }
 
 // adapterStartSources maps a host session-start source to the closed Corvint
@@ -624,7 +674,9 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 	}
 	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
 	if projection == nil {
-		return map[string]any{}
+		// AHI-910: a successful hook with nothing to inject names its event, so it is not
+		// mistaken for a fault or a killed hook.
+		return map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": eventName}}
 	}
 	raw, _ := json.Marshal(withoutHostLoadedGovernance(projection, hostLoadedGovernance(host, root)))
 	if host == "claude-code" {
@@ -913,6 +965,56 @@ func withDeadlineRemediation(root, reason string, output map[string]any) map[str
 		}
 	}
 	if raw, err := json.Marshal(remediated); err != nil || len(raw)+1 > adapterOutputLimit {
+		return output
+	}
+	return remediated
+}
+
+// claudeUnavailableReason is the dogfood event rejection for a failed read outside the named
+// codes (LCP-V0-008, decision 0533).
+const claudeUnavailableReason = "corvint-event-rejected:dogfood-event-unavailable"
+
+// causeLines is the AHI-970 plain-words cause each covered reason appends after its frame. A
+// line names only what the hook observed for that reason.
+var causeLines = map[string]string{
+	claudeUnavailableReason:                   "Corvint's read-only context read for this event failed with an error outside its named codes, so this event got no Corvint context; coding continues.",
+	"compaction-pin-not-emitted":              "PreCompact degraded before it could pin Corvint's evidence, so this compaction summary carries no pin and evidence pinned before compaction is not re-verified.",
+	"compaction-pin-not-preserved":            "The compaction summary dropped or altered Corvint's pin line, so evidence pinned before compaction is not re-verified.",
+	"compaction-pin-revision-unavailable":     "The revision Corvint pinned before compaction is not in this repository's object store, so its evidence is not re-verified.",
+	"compaction-pin-verification-unavailable": "Corvint could not check its pin against the object store within the hook, so evidence pinned before compaction is not re-verified.",
+}
+
+// causeRemediation is the AHI-970 text a covered notice carries after its frame: the cause line
+// and one exact read-only argv that shows whether Corvint's read works outside the hook.
+func causeRemediation(root, reason string) string {
+	query, _ := json.Marshal([]string{"corvint", "--root", root, "query", "--task", "Corvint hook check"})
+	recovery := "\nTo see the underlying error, run this read-only command outside the hook:\n"
+	if reason != claudeUnavailableReason {
+		recovery = "\nThe next prompt rebuilds Corvint context from the current tree. To check that Corvint's read works, run this read-only command outside the hook:\n"
+	}
+	return "\n" + causeLines[reason] + recovery + string(query)
+}
+
+// withCauseRemediation appends causeRemediation to every channel a covered notice already uses,
+// after its unchanged frame (AHI-970), under the AHI-055 size rule: output that would no longer
+// fit adapterOutputLimit keeps the frame-only notice.
+func withCauseRemediation(root, reason string, output map[string]any) map[string]any {
+	if _, covered := causeLines[reason]; !covered {
+		return output
+	}
+	remediated := map[string]any{}
+	for key, value := range output {
+		remediated[key] = value
+	}
+	if text, ok := output["systemMessage"].(string); ok {
+		remediated["systemMessage"] = text + causeRemediation(root, reason)
+	}
+	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
+		if text, ok := hook["additionalContext"].(string); ok {
+			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + causeRemediation(root, reason)}
+		}
+	}
+	if !withinAdapterOutputLimit(remediated) {
 		return output
 	}
 	return remediated

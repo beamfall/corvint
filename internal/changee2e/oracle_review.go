@@ -11,6 +11,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // OracleAcceptanceSchema is the recorded, independent acceptance of an outcome the change edited
@@ -74,7 +76,7 @@ func readOracleAcceptance(ctx context.Context, root, base, head, path string) (*
 	var doc oracleAcceptanceDoc
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&doc); err != nil || dec.More() {
+	if err := dec.Decode(&doc); err != nil || !jsonend.Done(dec) {
 		return nil, refuse("e2e-oracle-acceptance-invalid", "%s: %v", path, err)
 	}
 	if doc.Schema != OracleAcceptanceSchema || doc.Base != base || doc.Head != head {

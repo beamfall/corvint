@@ -20,7 +20,7 @@ func TestOCMExistingFalseLinkRejected(t *testing.T) {
 	t.Run("OCM-V0-006 verifier rejects a persisted nonanchoring claim", func(t *testing.T) {
 		root, options, document, claims := makeOCMAnchorFixture(t)
 		_, falseClaim := falseAnchorClaim(t, claims)
-		linked, err := linkObligation(document, options.Obligation, options.Hunks, []ocmClaim{falseClaim})
+		linked, _, _, err := linkObligation(document, options.Obligation, options.Hunks, []ocmClaim{falseClaim}, options.TestPath, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -265,7 +265,7 @@ func TestOCMLinkExplainsRequirementTokenBoundary(t *testing.T) {
 	})
 	t.Run("OCM-V0-005 verifier issue message is unchanged for an adjoined ID", func(t *testing.T) {
 		root, options, document, claims := makeOCMAnchorFixtureCase(t, "OCM-TEST-001-exact-anchor")
-		linked, err := linkObligation(document, options.Obligation, options.Hunks, []ocmClaim{caseClaim(t, claims)})
+		linked, _, _, err := linkObligation(document, options.Obligation, options.Hunks, []ocmClaim{caseClaim(t, claims)}, options.TestPath, false)
 		if err != nil {
 			t.Fatal(err)
 		}

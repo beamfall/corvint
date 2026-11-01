@@ -824,15 +824,6 @@ func TestBuildQueryPreservesAuthorityFailuresAndPinnedBytes(t *testing.T) {
 	})
 }
 
-func TestValidateQueryBlobAdmissionUsesFullEagerBound(t *testing.T) {
-	entries := []treeEntry{{path: "left.go", size: maxBatchBytes - 128}, {path: "right.go", size: 1}}
-	err := validateQueryBlobAdmission(entries)
-	var queryErr *Error
-	if !errors.As(err, &queryErr) || queryErr.Code != "unsupported-query-repository" || !strings.HasPrefix(queryErr.Message, "authority-start query index sources total 134217601 bytes in 2 files") {
-		t.Fatalf("error = %#v", err)
-	}
-}
-
 func TestBuildQueryBlobAdmissionAndGitProcessCeiling(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test wrapper uses a POSIX shell")

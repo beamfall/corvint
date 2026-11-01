@@ -142,6 +142,44 @@ by legitimate exploration that no packet could have anticipated.
   read (invariant 2). It returns `nil` on every path. Codex exposes no post-tool hook event to this
   adapter, so no Codex call site exists.
 
+### Friction evaluation metrics (V1-0822, amended 2026-11-01)
+
+The unplanned share is one friction signal. These requirements add four more, computed
+deterministically from an explicit session record so two context-packet arms for the same task can
+be compared. The record is caller-supplied evaluation input, not a new ledger: no hook writes it.
+The idea is from Arize Phoenix's friction and tool-use evaluators, rebuilt clean-room without
+any Phoenix code, text or tests and without an LLM judge.
+
+- **URE-V0-996.** `frictionmetric.Evaluate` MUST read one bounded JSON document of profile
+  `corvint-friction-sessions/0` (at most 4 MiB, 256 sessions, 10000 events per session) whose
+  sessions each carry an `id`, an optional `arm`, an optional sorted `relevant` path set, an optional
+  `labelled` flag, and ordered `read`, `command` or `edit` events with an optional `ts_ms`. It MUST
+  compute per session, by these definitions only: `rereads`, a read of a path already read earlier
+  in the session with no edit of that path in between; `unplanned_reads`, a read whose `planned` is
+  `false`; `retried_commands`, a command whose `command` digest equals the immediately preceding
+  command's digest when that preceding command exited non-zero; `reverted_edits`, an edit whose
+  `after` digest equals the `before` digest of an earlier edit of the same path; and
+  `first_relevant_read_ms`, the `ts_ms` of the first read of a `relevant` path minus the first
+  event's `ts_ms`. A metric whose input is missing, for example a session with no events, a read
+  without `planned`, a command without `exit`, an edit without both digests, or no `relevant` set or
+  no `ts_ms`, MUST be `NOT_OBSERVED` with a closed reason (`no-events`, `read-without-planned`,
+  `command-without-exit`, `edit-without-digests`, `no-relevant-set`, `event-without-ts`), never
+  `0`; a relevant path that is never read is `NOT_REACHED` (`relevant-path-never-read`). Totals per
+  `arm` sum only `OBSERVED` sessions and report how many there were; an arm with none is
+  `NOT_OBSERVED` (`no-observed-session`). The report carries counts only, never a path or digest.
+  A malformed, oversized, unknown-field or unknown-profile document MUST be refused.
+- **URE-V0-997.** The metrics MUST be emitted only by `corvint eval --friction FILE`, which takes no
+  other option, reads only `FILE`, writes nothing and reports `mutates: false`. No ranking,
+  retrieval, evidence, authority or learning code path may import `internal/frictionmetric`; a test
+  MUST enforce that the only non-test importer is the eval command.
+- **URE-V0-998.** For each session marked `labelled`, every event a human labelled with a metric name
+  is a positive and every other event a negative; the report MUST give each metric's true positive,
+  false positive and false negative counts with precision and recall, and `NOT_OBSERVED` (`zero-denominator`) for a
+  ratio whose denominator is zero; with no labelled session the benchmark is `NOT_OBSERVED`
+  (`no-labelled-session`). The retained benchmark
+  `internal/frictionmetric/testdata/benchmark.json` MUST be evaluated by a test that asserts its
+  reported precision and recall.
+
 ## Non-goals and authority
 
 This ledger is private derived state. It is never an input to ranking, retrieval, evidence
@@ -194,6 +232,9 @@ by `LTA-V0-009` to `LTA-V0-012`. The non-goals above carry the same clause.
 | degraded user-prompt output | refused packet row recorded; the session's reads abstain until the next delivered prompt | none needed |
 | a `corvint` built before `kind`-tagged rows were skipped reads a newer ledger | each packet or error row decodes as a zero-byte, empty-tool unplanned read and is miscounted; accepted, because the slice is experimental, no tagged release contains the ledger, and rows carry no version marker to gate on | read with a current binary, or delete the ledger (Rollback) |
 | share dominated by exploration | the metric is not measuring packet quality | kill the slice per the criteria below |
+| friction record missing a metric's input | that metric is `NOT_OBSERVED` with a closed reason, never `0` | supply the field |
+| friction record oversized, malformed or of an unknown profile | `eval --friction` refuses and writes nothing | fix the record |
+| friction benchmark labels are author-made, not human-reviewed real sessions | precision and recall describe the definitions on the fixture, not on real agent sessions | label retained real sessions before relying on a metric |
 
 ## Gate and kill criteria
 
@@ -206,7 +247,9 @@ a product, interoperability, or benchmark claim.
 
 ## Rollback
 
-Delete `.corvint/unplanned-reads.enabled` and `.corvint/unplanned-reads.jsonl`. No index, trace,
+Delete `.corvint/unplanned-reads.enabled` and `.corvint/unplanned-reads.jsonl`. The friction
+metrics (`URE-V0-996` to `URE-V0-998`) roll back by deleting `internal/frictionmetric` and
+`cmd/corvint/eval_friction.go`; they store nothing. No index, trace,
 receipt, cache, or repository state refers to either file, so nothing migrates and no result
 changes.
 Removing the adapter call sites deletes `recordDeliveredPacket` and the `HookPostToolSession` call
@@ -225,6 +268,9 @@ from `cmd/corvint/host_adapter.go`; no other output depends on them.
 | `URE-V0-007` | experimental | `TestRunReadsDigestAndToggle`, `TestRunReadsRefusesLimitBesideAToggleInEitherOrder` |
 | `URE-V0-008` | experimental | `TestSessionPacketDenominator`, `TestRefusedPacketAbstains`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites`, `TestURE008WatchdogSettlesPacketOnce` |
 | `URE-V0-009` | experimental | `TestSessionPacketDenominator`; `TestSymlinkedLedgerIsRefused`; `TestNewestPacketBoundsOversizeLedger`; `cmd/corvint`: `TestClaudeAdapterUnplannedReadCallSites` |
+| `URE-V0-996` | experimental | `internal/frictionmetric`: `TestURE996MetricDefinitions`, `TestURE996MissingInputIsNotObserved`, `TestURE996RefusesMalformedRecords` |
+| `URE-V0-997` | experimental | `cmd/corvint`: `TestURE997OnlyTheEvalCommandImportsFrictionMetric`, `TestURE997EvalFrictionReportsWithoutMutating` |
+| `URE-V0-998` | experimental | `internal/frictionmetric`: `TestURE998BenchmarkPrecisionRecall` |
 
 ## Unresolved decisions
 

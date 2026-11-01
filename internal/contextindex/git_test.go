@@ -3,7 +3,7 @@ package contextindex
 import (
 	"bytes"
 	"context"
-	"errors"
+	"fmt"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/execfile"
 	"io"
@@ -180,30 +180,20 @@ func TestParseBlobBatchRejectsHostileFraming(t *testing.T) {
 	}
 }
 
-func TestBlobAdmissionCountsEveryPathBeforeOIDDeduplication(t *testing.T) {
+func TestBlobAdmissionRefusesOneOIDAtTwoSizes(t *testing.T) {
 	oid := strings.Repeat("a", 40)
-	entries := []treeEntry{{path: "left.go", oid: oid, size: maxBatchBytes - 128}, {path: "right.go", oid: oid, size: maxBatchBytes - 128}}
-	if err := validateBlobAdmission(entries); err == nil {
-		t.Fatal("repeated OID bypassed full path aggregate admission")
-	}
 	if _, err := uniqueBlobEntries([]treeEntry{{path: "left.go", oid: oid, size: 1}, {path: "right.go", oid: oid, size: 2}}); err == nil {
 		t.Fatal("repeated OID with incompatible sizes accepted")
 	}
 }
 
-// TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage is V1-0339: a
-// TypeScript repository over the aggregate bound was told its "native Go"
-// index was too large, with neither the measured size nor a way out.
-func TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage(t *testing.T) {
-	entries := []treeEntry{{path: "web/app.ts", size: maxBatchBytes - 128}, {path: "web/lib.ts", size: 1}}
-	var refusal *Error
-	if err := validateBlobAdmission(entries); !errors.As(err, &refusal) || refusal.Code != "unsupported-impact-repository" {
-		t.Fatalf("error = %#v", err)
+// parseBlobBatch parses one batch into a fresh map, as fetchBlobs does per chunk.
+func parseBlobBatch(raw []byte, entries []treeEntry) (map[string][]byte, error) {
+	result := make(map[string][]byte, len(entries))
+	if err := parseBlobBatchInto(raw, entries, result); err != nil {
+		return nil, err
 	}
-	want := "repository index sources total 134217601 bytes in 2 files, 134217857 with per-file framing, over the 134217728-byte (128 MiB) aggregate bound; paths under vendor/, node_modules/, dist/, build/, target/ or generated/ are not admitted"
-	if refusal.Message != want {
-		t.Fatalf("message = %q, want %q", refusal.Message, want)
-	}
+	return result, nil
 }
 
 func TestBlobBatchInputDeduplicatesRepeatedOIDsInFirstSeenOrder(t *testing.T) {
@@ -396,35 +386,42 @@ func TestAggregateGitExecutorErrorParity(t *testing.T) {
 	}
 }
 
-func TestAggregateIndexAdmissionAndPhysicalBatchBoundary(t *testing.T) {
-	// Independent 128-byte-per-file admission oracle, with every source below
-	// the 1,000,000-byte source limit. No production sizing helper sets want.
-	const limit = 128 * 1024 * 1024
-	const count = 135
+// TestFetchBlobsReadsBoundedChunks_IDXSNAPV0910: a candidate set over 128 MiB is
+// admitted, the chunks partition it in order, each chunk's framed output fits
+// the per-call bound, and a lone entry larger than the bound still gets a chunk
+// of its own (whose read then refuses) rather than being merged or dropped.
+func TestFetchBlobsReadsBoundedChunks_IDXSNAPV0910(t *testing.T) {
+	const count = 200
 	entries := make([]treeEntry, count)
-	remaining := limit - count*128
 	for i := range entries {
-		size := 999999
-		if i == count-1 {
-			size = remaining
+		entries[i] = treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", size: 999_999 - i, oid: fmt.Sprintf("%040x", i)}
+	}
+	chunks := blobBatchChunks(entries, maxBatchBytes)
+	if len(chunks) < 2 {
+		t.Fatalf("chunks=%d, want a 200 MB set split", len(chunks))
+	}
+	next := 0
+	for _, chunk := range chunks {
+		if size := blobBatchOutputSize(chunk); size > maxBatchBytes || len(chunk) == 0 {
+			t.Fatalf("chunk of %d entries frames %d bytes over %d", len(chunk), size, maxBatchBytes)
 		}
-		entries[i] = treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", size: size, oid: strings.Repeat("a", 40)}
-		remaining -= size
+		for _, entry := range chunk {
+			if entry.path != entries[next].path {
+				t.Fatalf("chunk order: %s at %d", entry.path, next)
+			}
+			next++
+		}
 	}
-	if remaining != 0 || entries[count-1].size <= 0 || entries[count-1].size > 1000000 {
-		t.Fatal("independent fixture invalid")
+	if next != count {
+		t.Fatalf("chunks hold %d of %d entries", next, count)
 	}
-	if err := validateBlobAdmission(entries); err != nil {
-		t.Fatalf("exact admission: %v", err)
-	}
-	entries[count-1].size++
-	if err := validateBlobAdmission(entries); err == nil || !strings.Contains(err.Error(), "134217729 with per-file framing") {
-		t.Fatalf("plus-one admission: %v", err)
+	oversized := []treeEntry{{path: "a.go", oid: strings.Repeat("a", 40), size: 10}, {path: "b.go", oid: strings.Repeat("b", 40), size: maxBatchBytes}, {path: "c.go", oid: strings.Repeat("c", 40), size: 10}}
+	if chunks := blobBatchChunks(oversized, maxBatchBytes); len(chunks) != 3 || len(chunks[1]) != 1 || chunks[1][0].path != "b.go" {
+		t.Fatalf("oversized chunks = %v", chunks)
 	}
 
-	// The physical cat-file ceiling has smaller actual headers than the
-	// conservative admission allowance. Exercise it separately, without
-	// mislabelling this lower-level acquisition as end-to-end admission.
+	// Physically: blobs whose total framing exceeds one call's bound come back
+	// whole from several bounded calls.
 	root := t.TempDir()
 	git := func(input []byte, args ...string) []byte {
 		t.Helper()
@@ -437,52 +434,24 @@ func TestAggregateIndexAdmissionAndPhysicalBatchBoundary(t *testing.T) {
 		return out
 	}
 	git(nil, "init", "-q")
-	physical := make([]treeEntry, 0, count)
-	actualTotal := 0
-	for i := 0; i < count; i++ {
-		size := 999999
-		if i == count-1 {
-			// This remaining body has six decimal digits; its exact SHA-1
-			// header plus trailing newline is 40+6+6+1+1 bytes.
-			size = limit - actualTotal - (40 + 6 + 6 + 1 + 1)
-		}
-		payload := bytes.Repeat([]byte{'x'}, size)
+	physical := make([]treeEntry, 0, 40)
+	for i := 0; i < 40; i++ {
+		payload := bytes.Repeat([]byte{'x'}, 900_000+i)
 		copy(payload, []byte("package source\n// blob "+strconv.Itoa(i)+"\n"))
 		oid := strings.TrimSpace(string(git(payload, "hash-object", "-w", "--stdin")))
-		if len(oid) != 40 || size > 1000000 || size < 100000 {
-			t.Fatal("physical fixture identity/size invalid")
-		}
-		actualTotal += len(oid) + len(" blob ") + len(strconv.Itoa(size)) + 1 + size + 1
-		physical = append(physical, treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", oid: oid, size: size})
+		physical = append(physical, treeEntry{path: "source/f" + strconv.Itoa(i) + ".go", oid: oid, size: len(payload)})
 	}
-	if actualTotal != limit {
-		t.Fatalf("independent physical framing total=%d", actualTotal)
+	if blobBatchOutputSize(physical) <= maxBatchBytes {
+		t.Fatal("physical fixture fits one call")
 	}
-	if err := validateBlobAdmission(physical); err == nil {
-		t.Fatal("expected earlier conservative end-to-end refusal")
-	}
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	start := time.Now()
 	blobs, err := fetchBlobs(context.Background(), root, physical)
-	if err != nil || len(blobs) != count {
-		t.Fatalf("exact physical acquisition len=%d: %v", len(blobs), err)
+	if err != nil || len(blobs) != len(physical) {
+		t.Fatalf("chunked acquisition len=%d: %v", len(blobs), err)
 	}
 	for _, entry := range physical {
-		if len(blobs[entry.oid]) != entry.size {
-			t.Fatal("truncated blob")
+		if body := blobs[entry.oid]; len(body) != entry.size || cap(body) != len(body) || !bytes.HasPrefix(body, []byte("package source\n// blob ")) {
+			t.Fatalf("%s: %d bytes", entry.path, len(body))
 		}
-	}
-	runtime.ReadMemStats(&after)
-	t.Logf("physical exact bytes=%d elapsed=%s totalAllocDelta=%d", actualTotal, time.Since(start), after.TotalAlloc-before.TotalAlloc)
-	blobs = nil
-	runtime.GC()
-	last := &physical[count-1]
-	payload := bytes.Repeat([]byte{'y'}, last.size+1)
-	last.size++
-	last.oid = strings.TrimSpace(string(git(payload, "hash-object", "-w", "--stdin")))
-	if _, err = fetchBlobs(context.Background(), root, physical); err == nil {
-		t.Fatal("physical plus-one acquisition accepted")
 	}
 }
 

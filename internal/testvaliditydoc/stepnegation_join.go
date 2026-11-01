@@ -20,12 +20,18 @@ var stepNegationJoinQualified = false
 // strength axis came from.
 const stepNegationAnchorPrefix = "strength-evidence:"
 
+// stepNegationUnboundSupportAnchor marks a /0 join, whose test side is bound by
+// the spec and config digests only: helper and support files the test imports
+// are not bound, so a change to them does not break the join (LPCV-V0-940).
+const stepNegationUnboundSupportAnchor = "strength-unbound-inputs:test-support-files"
+
 // JoinStepNegation joins retained corvint-step-negation/0 documents into the
 // per-test strength axes of a Playwright /0 or /1 receipt (LPCV-V0-068). A
 // document joins only when its test identity, runner tuple and application
 // identity equal the receipt's, its tuple is a qualified candidate, and its
 // bound config and spec digests equal both the receipt's and the worktree's
-// current bytes. Without a joinable document the projection is unchanged.
+// current bytes. A /0 join also names its unbound support files
+// (LPCV-V0-940). Without a joinable document the projection is unchanged.
 func JoinStepNegation(document Document, input Input, root string) Document {
 	if !stepNegationJoinQualified || input.js == nil {
 		return document
@@ -66,7 +72,11 @@ func JoinStepNegation(document Document, input Input, root string) Document {
 			continue
 		}
 		strength := stepnegation.Aggregate(*retained)
-		strength.Anchors = append([]string{stepNegationAnchorPrefix + stepnegation.EvidenceDirectory + "/" + stepnegation.FileName(key)}, strength.Anchors...)
+		leading := []string{stepNegationAnchorPrefix + stepnegation.EvidenceDirectory + "/" + stepnegation.FileName(key)}
+		if receipt.Profile == jstestprovider.ExternalProfile {
+			leading = append(leading, stepNegationUnboundSupportAnchor)
+		}
+		strength.Anchors = append(leading, strength.Anchors...)
 		joined := append([]Test(nil), tests...)
 		joined[index].Projection.Strength = strength
 		tests = joined

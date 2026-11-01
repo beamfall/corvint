@@ -999,6 +999,20 @@ nothing to run.
   whose own directory has a candidate searches no importer, so its candidates, runs and cost are
   unchanged. Rollback: remove `indexImporters`, `importIndex.of`, `exportedNames` and the fallback
   in `judgeGuards`.
+- `TCQ-V0-970`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1451,
+  2026-11-01) Amending `TCQ-V0-062`: a declaration's mentions MUST leave out every identifier the
+  Go parser resolves to a name declared inside that same declaration (a parameter, result,
+  receiver, local variable, range or type-switch variable, function literal or label), other than
+  the declaration's own top-level names, so a local that shares a package declaration's name never
+  carries the closure to it. An identifier the parser leaves unresolved (a declaration of another
+  file, a field or method selector, a predeclared name) still counts, so the search stays an
+  over-approximation by name. Measured on the PR #934 pair and two batch merges (build log
+  `2026-10-31-cmdcem-r-w7.md`), the candidates fall 5228 to 5098, 2120 to 1498 (`cmd/corvint` 1306 to
+  889) and 5537 to 5207. Non-goal: bounding a package whose callers form one connected component,
+  such as `internal/tasks/store`, where every hunk still reaches the same 384 tests. Failure mode: a
+  test reached only through a local that shares a changed name is no longer a candidate; it never
+  named the changed declaration. Rollback: parse with `parser.SkipObjectResolution` again and drop
+  `declaredWithin`.
 
 Recorded limits of `TCQ-V0-062`: candidates match identifier names, so they over-approximate and
 the revert run decides; only tests in the hunk's own directory are candidates, and only when they

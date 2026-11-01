@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 const (
@@ -192,7 +193,7 @@ func decodeStrictBytes(name, profile string, limit int, raw []byte, v any, profi
 	if err := decoder.Decode(v); err != nil {
 		return fmt.Errorf("%s is not a %s document: %w", filepath.Base(name), profile, err)
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return fmt.Errorf("%s has trailing data", filepath.Base(name))
 	}
 	if profileOf() != profile {

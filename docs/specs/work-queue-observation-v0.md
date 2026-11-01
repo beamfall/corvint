@@ -769,6 +769,13 @@ Explicit unknowns for an adopted repository:
   and run root until `Close` removes them, and relative, unclean, missing, symlinked,
   through-symlink, non-directory, group/world-open and (as root) other-owner values are refused.
   Rollback: remove the override and the test `TestMain` wiring; the parent is then always `/tmp`.
+- `WQO-V0-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The
+  unsafe-parent refusal of the executable binding names the offending parent: `path has an unsafe
+  parent component: PATH has mode MODE (group- or world-writable without the sticky bit)`, with the
+  resolved parent directory and its symbolic mode (for example `drwxrwxr-x`). A sticky
+  world-writable parent such as `/tmp` (`dtrwxrwxrwx`) stays admitted. The rule itself is
+  unchanged. The usual trigger is a host umask of `0002`, which makes directories created with
+  mode 0777 group-writable. Rollback: drop the suffix.
 - `WQO-V0-920`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an
   adapter leader is reaped, an open stdout or stderr capture pipe is reported as WQO-V0-032
   `incomplete pipe capture` only after the drain has watched one second of awake time: it

@@ -67,6 +67,36 @@ func TestTCQV0062CandidatesFollowThePackageClosure(t *testing.T) {
 	}
 }
 
+// TestTCQV0970LocalsDoNotCarryTheClosure pins that a parameter, a local
+// variable, a range variable and a function literal that share a changed
+// declaration's name are not mentions of it, while a call of the package
+// declaration, a method selector and a reference from another file still are.
+func TestTCQV0970LocalsDoNotCarryTheClosure(t *testing.T) {
+	t.Parallel()
+	source := "package p\n\n" + // 1-2
+		"func open() int {\n\treturn 1\n}\n\n" + // 3-5
+		"func Shadows(open int) int {\n\tfor _, open := range []int{open} {\n\t\t_ = open\n\t}\n\treturn open\n}\n\n" + // 7-12
+		"func Local() int {\n\topen := func() int { return 2 }\n\treturn open()\n}\n\n" + // 14-17
+		"func Calls() int {\n\treturn open()\n}\n\n" + // 19-21
+		"type T struct{}\n\nfunc (T) Method() int {\n\treturn 3\n}\n" // 23-27
+	other := "package p\n\nfunc FromOtherFile() int {\n\treturn Calls() + T{}.Method()\n}\n"
+	tests := "package p\n\nimport \"testing\"\n\n" +
+		"func TestShadows(t *testing.T) { _ = Shadows(1) }\n" +
+		"func TestLocal(t *testing.T) { _ = Local() }\n" +
+		"func TestCalls(t *testing.T) { _ = Calls() }\n" +
+		"func TestOtherFile(t *testing.T) { _ = FromOtherFile() }\n" +
+		"func TestMethodLocal(t *testing.T) { Method := 1; _ = Method }\n" +
+		"func TestMethod(t *testing.T) { var v T; _ = v.Method() }\n"
+	tree := writeGuardTree(t, map[string]string{"p/p.go": source, "p/q.go": other, "p/p_test.go": tests})
+	pkg := loadGoPackage(tree, "p", func(string) []byte { return []byte(tests) })
+	if got := pkg.candidates("p/p.go", map[int64]bool{4: true}); !reflect.DeepEqual(got, []string{"TestCalls", "TestOtherFile"}) {
+		t.Fatalf("open change candidates = %v", got)
+	}
+	if got := pkg.candidates("p/p.go", map[int64]bool{26: true}); !reflect.DeepEqual(got, []string{"TestMethod", "TestOtherFile"}) {
+		t.Fatalf("Method change candidates = %v", got)
+	}
+}
+
 // TestTCQV0062LineDirectivesKeepPhysicalLines pins that declarations and the
 // cited header are located by physical line, so a //line directive in either
 // file moves neither away from the patch lines and the base span.

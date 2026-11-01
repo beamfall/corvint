@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: the 50 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: the 40 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, and the ten subcommand companions of CAP-V0-972 under that requirement); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -307,6 +307,20 @@ cannot silently go missing or outlive its command.
   MUST state that new functionality ships with its help and catalog entry and that the
   capabilities check enforces it. `CAP-V0-051` to `CAP-V0-059` are reserved for this slice and
   unassigned.
+- `CAP-V0-970`: (experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)
+  The help parser (`clitree.Synopses`) MUST NOT read an example as a synopsis: a line of an
+  `Example:` or `Examples:` section (the header line, or the indented block under it up to the
+  next unindented line, as `CAP-V0-955` defines the section; batch 1101a, 2026-11-01, combined the
+  two V1-3286 implementations) is skipped, and the labelled forms (an inline `usage:` line or
+  the indented block under a bare `Usage:`) come before the other synopsis lines, so a node's first
+  usage line is the one its help labels wherever an indented example sits, before or after Usage.
+  Synopsis groups outside a Usage block (a titled group of indented forms) stay synopses. Failure
+  mode: an example written outside an Example section and outside the Usage block is still read
+  as a form, after the labelled ones. Evidence: `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample`
+  (`internal/clitree`) and the regenerated `internal/capcatalog/trees/corvint.json`, where example
+  lines leave the `flows appmap`, `flows appmap build`, `mcp`, `repro` and `repro record` usage
+  (and `repro record` loses the `--path` flag its example contributed). Rollback: restore the
+  previous `Synopses` and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -362,6 +376,52 @@ cannot silently go missing or outlive its command.
   a verb is accepted there and ignored, as before. Rollback: restore the two ratchet rows and the
   ceiling of 52, delete the two snapshots, their `commandTreeRefs`, `llms.txt`, Makefile and
   Command trees entries, the two `help.go` files and `clitree.Answer`.
+- `CAP-V0-972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+  Every ratchet binary whose dispatch code matches a subcommand word MUST ship a command tree:
+  `corvint-corpus-republish`, `corvint-dashboard-snapshot`, `corvint-go-test-provider`,
+  `corvint-intake`, `corvint-js-test-provider`, `corvint-postmerge-connect`,
+  `corvint-postmerge-metrics`, `corvint-postmerge-workflow`, `corvint-pulse` and
+  `corvint-ruby-test-provider` each derive one from a synopsis text in the binary that names every
+  subcommand and every option its dispatch code matches, answer `help --json` with it, keep it
+  committed byte for byte under `internal/capcatalog/trees/` (regenerated by `make
+  capability-catalog`), are linked from the `commandTrees` member of `corvint help --json`,
+  `llms.txt` and the `docs/CAPABILITIES.md` Command trees section, and leave `CLI-RATCHET.tsv`,
+  whose `ratchetCeiling` falls from 50 to 40. Each tree's dispatch source is the binary's own
+  `cmd/` directory, so `tools/capabilities-check` fails on a word or option the binary matches that
+  its tree lacks (CAP-V0-047). A synopsis may lead with required options before the subcommand
+  word, each an unbracketed `--option VALUE` pair (`corvint-pulse --root ROOT serve --stdio`): the
+  builder skips them when it finds the node path, as it skips a bracketed preamble, and lists them
+  in the node's `required` and `flags`. A synopsis names only the options its subcommand accepts,
+  never prose that reads as options.
+- `CAP-V0-973`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+  `clitree.Help.Serve` MUST answer exactly the invocations `clitree.Answer` answers (CAP-V0-931),
+  before the binary's own dispatch, with exit 0, or exit 2 and one stderr line for `help` with an
+  unknown path. The root help is the binary's authored usage when it has one, otherwise a
+  generated title and synopsis list, followed by every node with its summary and the `help --json`
+  pointer. A node's help is its `Render` followed, when the binary has one, by that node's authored
+  detail (its flag defaults), so help a binary printed before keeps its content and moves to
+  stdout. Every other invocation is not answered, so the binary's dispatch, refusals and exit codes
+  are unchanged.
+- `CAP-V0-974`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-01)
+  `clitreetest.CheckCompanion` MUST, in each of the ten binaries' own tests, run the binary's help
+  entry point in process for every node with `--help` and `-h` (exit 0, stdout starting with
+  `Render`, empty stderr), check that the root help lists every node and names `help --json`, that
+  `help` with an unknown path exits 2, and fail when the committed snapshot is stale. Non-goals:
+  command trees for the 40 binaries still on the ratchet, which match no subcommand word (16
+  analyzer processes, 4 folded shims, 4 MCP servers and 16 single-mode tools whose options alone
+  remain ungated by a tree); changing any binary's subcommands, flags, refusals or JSON output.
+  Failure modes: a synopsis states which options a subcommand takes, but a binary that parses one
+  shared flag set still accepts an option the synopsis omits for that subcommand, as before; a
+  subcommand reached only through a computed string is not found by the scan (CAP-V0-041).
+  Rollback: restore the ten ratchet rows and the ceiling of 50, and delete the ten snapshots, their
+  `commandTreeRefs`, `llms.txt`, Makefile and Command trees entries, the ten `help.go` files,
+  `clitree.Help` and `internal/clitree/clitreetest`.
+- `CAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines
+  `CAP-V0-040`) `clitree.Synopses` MUST NOT read an indented line under an example header (an
+  unindented line ending in `:` that contains `example`, such as `Example:`, `Examples:` or
+  `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
+  unindented line. So an example command never becomes a node's usage, flag or derived example.
+  Rollback: drop the example-block skip and regenerate the command trees.
 
 ## Boundaries and failure modes
 
@@ -515,7 +575,9 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
+| CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
+| CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |

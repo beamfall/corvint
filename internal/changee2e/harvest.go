@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -247,7 +248,7 @@ func readAcceptances(ctx context.Context, root, rev string) (l acceptances, ok b
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&l); err != nil || dec.More() {
+	if err := dec.Decode(&l); err != nil || !jsonend.Done(dec) {
 		return l, true, refuse("e2e-acceptances-invalid", "%s: %v", AcceptancesPath, err)
 	}
 	if l.Schema != AcceptancesSchema {

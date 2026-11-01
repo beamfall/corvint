@@ -407,7 +407,6 @@ docs/specs/go-only-cutover-v0.md	cmd/corvint/native_hook.go:43
 docs/specs/go-only-cutover-v0.md	cmd/corvint/native_hook.go:47
 docs/specs/go-only-cutover-v0.md	cmd/corvint/native_hook.go:68
 docs/specs/go-only-cutover-v0.md	cmd/corvint/native_hook.go:73
-docs/specs/go-production-kernel-migration-v0.md	cmd/corvint/main.go:559
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:176-239
 docs/specs/go-production-kernel-migration-v0.md	conformance/cli-parity-v0/runner.go:99-150
 docs/specs/go-production-kernel-migration-v0.md	internal/contextindex/parse.go:300
@@ -587,17 +586,13 @@ docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:60
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:611
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:614
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:68
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:758
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:799
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:801
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:826
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:850
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:863
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:866
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:911
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:930
 docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:94
-docs/specs/ocm-v0-dogfood.md	internal/lrfrepo/ocm_write.go:983
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:26
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:32
 docs/specs/protected-local-execution-v0.md	cmd/corvint/authority_event.go:36

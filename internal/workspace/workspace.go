@@ -20,6 +20,7 @@ import (
 	"unicode"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/rootalias"
 )
 
@@ -118,7 +119,7 @@ func decode(file string, raw []byte) (*Workspace, error) {
 	if err := dec.Decode(w); err != nil {
 		return nil, invalid(file, "not a %s object: %v", Profile, err)
 	}
-	if dec.More() {
+	if !jsonend.Done(dec) {
 		return nil, invalid(file, "trailing data after the object")
 	}
 	if w.Profile != Profile {

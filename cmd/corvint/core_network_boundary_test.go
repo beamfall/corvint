@@ -17,11 +17,6 @@ import (
 // stays unreachable from every core command (V1-1670, AGENTS.md invariant 7;
 // https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-core-net-http-reachability.md).
 var coreHTTPImporters = map[string]string{
-	// Loopback readiness probes in RunE2E/RunFreshE2E. Core links the package
-	// for its report types only; RunE2E is called from changee2e,
-	// playwrightminimize, testacceptance and corvint-js-test-provider, none of
-	// which cmd/corvint links.
-	"github.com/Beamfall/corvint/internal/jstestprovider": "RunE2E callers are outside core",
 	// Loopback WebDriver session DELETE in device cleanup. Core reaches
 	// testrunner.Execute only through liveverify/rbmutate, whose request is
 	// always the rspec runner, so no invocation carries a DeviceCleanup step.
@@ -33,9 +28,9 @@ var coreHTTPImporters = map[string]string{
 // package, with the reason it stays unreachable from the tool (MTV-V0-010,
 // V1-1781). The guard lives here because the bridge package's tests run
 // under a narrow declared read scope that cannot list the closure.
-var testValidityToolNetworkImporters = map[string]string{
-	"github.com/Beamfall/corvint/internal/jstestprovider": "RunE2E callers are outside the tool closure",
-}
+// jstestprovider's E2E probe client moved to jstestprovider/loopbackhttp,
+// which neither closure links (V1-2185, MTV-V0-950), so the set is empty.
+var testValidityToolNetworkImporters = map[string]string{}
 
 // networkGuardConfigs are the build configurations each closure guard lists
 // explicitly, so a platform-only importer (a _unix.go or _windows.go file) is
@@ -46,15 +41,15 @@ var networkGuardConfigs = []string{"darwin/arm64", "linux/amd64", "windows/amd64
 // each configuration. testrunner's net/http import is in
 // device_cleanup_unix.go, so Windows builds do not link it.
 var coreHTTPImportersByConfig = map[string][]string{
-	"darwin/arm64":  {"github.com/Beamfall/corvint/internal/jstestprovider", "github.com/Beamfall/corvint/internal/testrunner"},
-	"linux/amd64":   {"github.com/Beamfall/corvint/internal/jstestprovider", "github.com/Beamfall/corvint/internal/testrunner"},
-	"windows/amd64": {"github.com/Beamfall/corvint/internal/jstestprovider"},
+	"darwin/arm64":  {"github.com/Beamfall/corvint/internal/testrunner"},
+	"linux/amd64":   {"github.com/Beamfall/corvint/internal/testrunner"},
+	"windows/amd64": {},
 }
 
 var testValidityToolNetworkImportersByConfig = map[string][]string{
-	"darwin/arm64":  {"github.com/Beamfall/corvint/internal/jstestprovider"},
-	"linux/amd64":   {"github.com/Beamfall/corvint/internal/jstestprovider"},
-	"windows/amd64": {"github.com/Beamfall/corvint/internal/jstestprovider"},
+	"darwin/arm64":  {},
+	"linux/amd64":   {},
+	"windows/amd64": {},
 }
 
 // moduleImporters lists the module packages in target's import closure for

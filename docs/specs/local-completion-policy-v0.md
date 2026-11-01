@@ -516,6 +516,15 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   satisfied enrollment imported into a `git worktree add` restore evaluates satisfied there with
   the same target, check and reports). Rollback: delete `internal/localcompletion/export.go` and the
   `export` and `import` subverbs.
+- `LCP-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3634; refines
+  `LCP-V0-884`) A bundle file anchored at the Git directory MUST name a path under `corvint/`,
+  the only Git-directory subtree an export carries (the local-completion state, holds and the
+  `corvint/` terminal artifacts). Any other `gitdir` path, such as `hooks/pre-commit`,
+  `config.worktree` or `info/exclude`, MUST refuse the whole import with
+  `import-gitdir-path-refused` before anything is written, even when every digest holds, so a
+  crafted bundle can never plant code or configuration Git reads. Evidence:
+  `TestLCPV0960ImportRefusesGitDirPathOutsideCorvint` (fails on BASE: the hook was written).
+  Rollback: drop the `gitDirExportPrefix` check in `readBundle`.
 - `LCP-V0-039`: (experimental under the standing lane auto-accept; V1-2762) Amending
   `LCP-V0-010` and `LCP-V0-013`, prompt context MUST count a token as an anchor only when it can
   name something in this repository's tree, so prose is neither resolved nor missing:
@@ -647,6 +656,14 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   single-stream envelope. Failure modes: a signal that lands before or after the final check is
   outside this requirement. Rollback: return the zero evaluation again; stderr carries the same
   refusal and no stored state depends on the stdout envelope.
+- `LCP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt or
+  session context packet that does not cite its governing instruction file MUST say why in the
+  `governance` entry of `coverage.unavailable_selectors`: `reason` `downgraded-authority` with
+  `warnings`, the row's `TCP-V0-055`..`057` screen codes in screen order (so a governing file the
+  working tree modifies names `self-modified-authority`), or `reason` `unread` when no governing
+  candidate could be read. The hook projection carries the entry unchanged. A symlinked governing
+  file keeps its `TCP-V0-272`/`TCP-V0-274` `reason` (batch 1101a, 2026-11-01). Rollback: drop the two
+  members.
 
 ## Non-goals and simpler baseline
 
@@ -695,6 +712,7 @@ elsewhere are not repeated.
 | `cancel-reason-required` | `internal/localcompletion/lifecycle.go` (`Cancel`) | an `active` enrollment is cancelled without a nonempty `--reason`; the message names the selected checks and saved observations it would close (`LCP-V0-038`, V1-2177) |
 | `enrollment-preservation-hold` | `internal/localcompletion/lifecycle.go` (`Cancel`), `internal/localcompletion/hold.go` | a coordinator's preservation hold keeps the ACTIVE enrollment; the detail names the distinct-checkout route and the authorized release (`LCP-V0-880`, V1-0581) |
 | `import-would-replace`, `import-target-mismatch`, `import-artifact-conflict`, `import-plan-not-relocatable` | `internal/localcompletion/export.go` (`Import`) | a restore never replaces an enrollment, is bound to the exported commit and tree, never overwrites other bytes, and never rewrites a frozen plan that names the source root or Git directory (`LCP-V0-884`, V1-0580) |
+| `import-gitdir-path-refused` | `internal/localcompletion/export.go` (`readBundle`) | a bundle names a Git-directory file outside `corvint/`, such as `hooks/pre-commit` (`LCP-V0-960`, V1-3634) |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go` (`revalidate`) | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |
@@ -858,6 +876,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-042 | `TestLocalCompletionSealedCloseoutRepin` (each control asserts `SealedDriftError` artifact, reason and pinned/current digests; the CLI `dogfood finish` envelope carries the code and detail); `TestLocalCompletionRealEvidenceWorkflow` existing drift controls keep `sealed-evidence-drift` |
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
+| LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
 
 ## Rollout, rollback and remaining gates
 

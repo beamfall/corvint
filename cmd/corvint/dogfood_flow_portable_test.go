@@ -361,7 +361,7 @@ func TestDogfoodDailyPathCompletesWithDeclaredNoIntent(t *testing.T) {
 	if err := os.WriteFile(snapshot, []byte("intent.md\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 1 || !strings.HasSuffix(stderr, "\ndogfood-check: FAIL dogfood-report-drift\n") {
+	if code, _, stderr = run.exec(t, root, nil, "dogfood", "check", base); code != 1 || !strings.Contains(stderr, "\ndogfood-check: FAIL dogfood-report-drift\n  fix: the recorded evidence no longer matches") {
 		t.Fatalf("swapped declaration exit=%d stderr=%s", code, stderr)
 	}
 	if err := os.WriteFile(snapshot, []byte("#no-intent-declared\n"), 0600); err != nil {
@@ -522,7 +522,7 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\ngo test ./fixture -run '^Test[A-C]'\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run word: an alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801), or one name, anchored or not, such as -run '^TestA$', or the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); write paths in full, not with ~ (DCW-V0-905); a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)\n"
+	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run word: an alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801), or one name, anchored or not, such as -run '^TestA$', or one name with a bracket class such as -run 'TestX88[45]_' (DCW-V0-991), or the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); write paths in full, not with ~ (DCW-V0-905); a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)\n"
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
 	// Bind the sidecar to verify the post-commit refusal as well.
 	run.exec(t, root, inputs, "dogfood", "change", base)
@@ -560,7 +560,7 @@ func TestDogfoodChangeDCWV0034VerifySyntaxBeforeBinding(t *testing.T) {
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
 	verify := filepath.Join(t.TempDir(), "verify")
-	command := "go test ./fixture -run '^(A|[B])$'"
+	command := "go test ./fixture -run '^(A|B.*)$'"
 	if err := os.WriteFile(verify, []byte(command+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}

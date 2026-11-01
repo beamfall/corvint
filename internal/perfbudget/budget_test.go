@@ -582,3 +582,79 @@ func TestPRBV0056UnenforcedTargetNeverReadsAsPassing(t *testing.T) {
 		t.Fatal("pending list serialises as null")
 	}
 }
+
+// PRB-V0-970: a filtered run measures and judges only the selected scenarios; naming only the
+// warm MCP call still measures the MCP pair together but reports only the warm call.
+func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds corvint and corvint-corpus-mcp")
+	}
+	dir := t.TempDir()
+	bin := map[string]string{}
+	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
+		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
+		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
+		if out, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("go build %s: %v %s", pkg, err, out)
+		}
+	}
+	b, err := LoadBudgets("budgets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Scale = Smoke.Name
+	for i := range b.Scenarios {
+		b.Scenarios[i].Samples = 1
+	}
+	quiet := func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
+	selected := []string{"mcp-warm-call", "cli-warm-read"}
+	var lines []string
+	progress := func(line string) { lines = append(lines, line) }
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: selected, Progress: progress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{}
+	for _, m := range r.Scenarios {
+		ids = append(ids, m.ID)
+	}
+	if !slices.Equal(ids, []string{"cli-warm-read", "mcp-warm-call"}) || !slices.Equal(r.Selected, selected) {
+		t.Fatalf("filtered run measured %v, selected %v", ids, r.Selected)
+	}
+	for _, c := range append(append(slices.Clone(r.Checks), r.Pending...), r.Advisory...) {
+		if !slices.Contains(selected, c.Scenario) {
+			t.Fatalf("filtered run judged unselected scenario %s", c.Scenario)
+		}
+		if c.Reason == "scenario not measured" {
+			t.Fatalf("selected scenario %s not measured", c.Scenario)
+		}
+	}
+	for _, line := range lines {
+		if strings.HasPrefix(line, "setup: ") {
+			t.Fatalf("a run without index-reading scenarios ran setup: %q", line)
+		}
+	}
+	// A filter that selects the index-reading scenarios without the index scenarios still builds
+	// their snapshot first, once, unmeasured.
+	if err := removeIndexState(r.Fixture.Code); err != nil {
+		t.Fatal(err)
+	}
+	lines = nil
+	indexReaders := []string{"context-query", "lifecycle-hook"}
+	r, err = Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: indexReaders, Progress: progress})
+	if err != nil {
+		t.Fatal(err)
+	}
+	setup := slices.Index(lines, "setup: index snapshot for context-query")
+	if setup < 0 || setup > slices.Index(lines, "scenario: context-query") || slices.ContainsFunc(lines[setup+1:], func(l string) bool { return strings.HasPrefix(l, "setup: ") }) {
+		t.Fatalf("index setup must run once, before context-query: %q", lines)
+	}
+	if _, err := os.Stat(filepath.Join(r.Fixture.Code, ".git", "corvint")); err != nil {
+		t.Fatalf("index setup left no snapshot store: %v", err)
+	}
+	for _, m := range r.Scenarios {
+		if !slices.Contains(indexReaders, m.ID) || m.Error != "" || len(m.Samples) == 0 {
+			t.Fatalf("index-reading scenario %s: %+v", m.ID, m)
+		}
+	}
+}

@@ -207,6 +207,9 @@ func (c *check) fail(reason string, lines ...string) {
 	for _, line := range lines {
 		c.say("%s\n", line)
 	}
+	if recovery := recoveryLine(reason, c.base, lines); recovery != "" {
+		c.say("%s\n", recovery)
+	}
 	c.exit(1)
 }
 

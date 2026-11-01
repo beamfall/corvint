@@ -1,6 +1,8 @@
 package clitree
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -405,5 +407,101 @@ func TestCAPV0931AnswerRoutesHelpOnly(t *testing.T) {
 		if handled, err := Answer(tree, args, root, &out); handled || err != nil || out.Len() != 0 {
 			t.Fatalf("%v answered: handled=%t err=%v out=%q", args, handled, err, out.String())
 		}
+	}
+}
+
+// TestCAPV0973HelpServe answers the tree's help invocations with the authored root and node
+// detail, refuses an unknown help path with exit 2, and leaves every other invocation unanswered.
+func TestCAPV0973HelpServe(t *testing.T) {
+	tree := CompanionTree("demo", "demo run --dir DIR [--retain]\n", map[string]string{"run": "Run once"}, nil, nil, nil)
+	help := Help{Tree: tree, Title: "a demo", RootForms: []string{"demo --serve"},
+		Detail: func(path []string, w io.Writer) { io.WriteString(w, "detail "+strings.Join(path, " ")+"\n") }}
+	serve := func(args ...string) (string, string, int, bool) {
+		var stdout, stderr bytes.Buffer
+		code, handled := help.Serve(args, &stdout, &stderr)
+		return stdout.String(), stderr.String(), code, handled
+	}
+	node, _ := tree.Find([]string{"run"})
+	if stdout, stderr, code, handled := serve("run", "--dir", "x", "-h"); !handled || code != 0 || stderr != "" || stdout != Render(tree, node)+"detail run\n" {
+		t.Fatalf("run -h: %v %d %q %q", handled, code, stderr, stdout)
+	}
+	if stdout, _, code, _ := serve("--help"); code != 0 || !strings.HasPrefix(stdout, "demo: a demo\n\nUsage:\n  demo --serve\n  demo run --dir DIR [--retain]\n") ||
+		!strings.Contains(stdout, "  run: Run once\n") || !strings.HasSuffix(stdout, "Every command of demo: demo help --json\n") || strings.Contains(stdout, "detail") {
+		t.Fatalf("--help: %d %q", code, stdout)
+	}
+	if _, stderr, code, handled := serve("help", "nope"); !handled || code != 2 || !strings.Contains(stderr, "run `demo help`") {
+		t.Fatalf("help nope: %v %d %q", handled, code, stderr)
+	}
+	for _, args := range [][]string{nil, {"run", "--dir", "x"}, {"run", "--", "-h"}} {
+		if _, _, _, handled := serve(args...); handled {
+			t.Fatalf("%v answered", args)
+		}
+	}
+}
+
+// TestCAPV0972RequiredLeadingOptions skips an unbracketed --option VALUE pair before the
+// subcommand word, lists it as required, and leaves a form without a following word unchanged.
+func TestCAPV0972RequiredLeadingOptions(t *testing.T) {
+	builder := NewBuilder("demo")
+	builder.AddText("demo --root ROOT --mode M serve --stdio\ndemo [--root ROOT] list\ndemo --version VALUE\n", "")
+	tree := builder.Tree("demo help --json", "test", []string{"cmd/demo"}, nil, nil)
+	serve, ok := tree.Find([]string{"serve"})
+	if !ok || !slices.Equal(serve.Required, []string{"--root ROOT", "--mode M", "--stdio"}) {
+		t.Fatalf("serve: %v %v", ok, serve.Required)
+	}
+	list, ok := tree.Find([]string{"list"})
+	if !ok || len(list.Required) != 0 {
+		t.Fatalf("list: %v %v", ok, list.Required)
+	}
+	if len(tree.Nodes) != 2 {
+		t.Fatalf("nodes %v", tree.Nodes)
+	}
+}
+
+// TestSynopsesSkipsIndentedExamples is CAP-V0-955 (V1-3286): an indented
+// example line before or after the Usage block is not a synopsis.
+func TestSynopsesSkipsIndentedExamples(t *testing.T) {
+	for name, text := range map[string]string{
+		"after":  "Build the thing.\n\nUsage:\n  sample build --out FILE [--force]\n\nExamples:\n  sample build --out a.bin --force\n  sample build --out b.bin\n",
+		"before": "Build the thing.\n\nFor example:\n    sample build --out a.bin\n\nUsage:\n  sample build --out FILE [--force]\n",
+		"inline": "Build the thing.\n\nExample:\n  sample build --out a.bin\nUsage:\n  sample build --out FILE [--force]\n",
+	} {
+		got := Synopses("sample", text)
+		if !slices.Equal(got, []string{"sample build --out FILE [--force]"}) {
+			t.Errorf("%s: synopses %q", name, got)
+		}
+	}
+}
+
+// V1-3286: an indented example line before or after the Usage block, or in an
+// Example section, is not a synopsis, so the node's usage line is the one under
+// Usage and no flag or required input is derived from the example.
+func TestCAPV0970SynopsesTakeTheUsageLineNotAnExample(t *testing.T) {
+	const help = `Record a reproduction.
+
+For instance:
+  sample record --output first.json --path README.md
+
+Usage:
+  sample record --output FILE [--input PATH ...]
+
+Example:
+  sample record --output impact.json --path README.md
+Examples:
+    sample record --output other.json --expect-exit 0
+`
+	if got := Synopses("sample", help); got[0] != "sample record --output FILE [--input PATH ...]" {
+		t.Fatalf("first synopsis = %q, want the usage line", got)
+	}
+	builder := NewBuilder("sample")
+	builder.AddText(help, "")
+	tree := builder.Tree("sample help --json", "test", nil, nil, nil)
+	record := node(t, tree, "record")
+	if record.Usage[0] != "sample record --output FILE [--input PATH ...]" || slices.Contains(record.Flags, "--expect-exit") {
+		t.Fatalf("record node = %+v", record)
+	}
+	inline := Synopses("sample", "Usage: sample run --task TEXT\n    sample run --task demo\nExample: sample run --task demo\n")
+	if !slices.Equal(inline, []string{"sample run --task TEXT", "sample run --task demo"}) {
+		t.Fatalf("inline usage synopses = %q", inline)
 	}
 }

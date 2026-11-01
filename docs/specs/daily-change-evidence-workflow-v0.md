@@ -206,7 +206,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a refusal of `corvint impact` as a typed abstention, not a failed step, when the command exits 2
   with empty stdout and stderr of exactly one line `{"code": "CODE", "error": "MESSAGE", "ok":
   false}` whose CODE is `unsupported-impact-range`, `unsupported-impact-repository` (the repository
-  has no slash-qualified Go module, or its native Go index exceeds the aggregate bound) or
+  has no slash-qualified Go module; the aggregate bound it also named is withdrawn by `IDX-SNAP-V0-910`) or
   `unsupported-impact-path` (a changed Go path is at the module root). The row is `NOT_PRODUCED`
   with that exact CODE as its reason, so the three stay distinguishable; the digest-bound
   context-abstention artifact records the same reason under the unchanged
@@ -997,7 +997,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-075`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1652) An index
   build, and each Git-reading phase of a read command, runs its Git operations under one shared
   30-second deadline (`gitDeadline` in `internal/contextindex/git.go`) with no flag or
-  environment override; an overrun refuses with
+  environment override (the background refresh writer alone is bounded by its own CPU budget and
+  wall bound instead, `IDX-SNAP-V0-912`); an overrun refuses with
   exit 2, empty stdout and exactly the stderr line
   `{"error": "Git repository index exceeded its deadline", "ok": false}`. When the
   coordination-time `impact` run of `dogfood change` refuses in exactly that shape, the step MUST
@@ -2488,7 +2489,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   with the `DCW-V0-170` remediation plus one `quoted form: line N: <line with the word in single
   quotes>` line, so the operator sees the admitted A|B form; reconciled with `DCW-V0-403` at
   batch integration, a `finish-lane` verify file whose line is such an alternation gets the one-line
-  `DCW-V0-403` fix instead, and both share one unquoted-alternation grammar. A character class, a nested group, a
+  `DCW-V0-403` fix instead, and both share one unquoted-alternation grammar. A character class (other than the bracket class `DCW-V0-991` admits), a nested group, a
   single anchored name, a second quoted word and a shell operator stay refused. Design: lanes
   wrote `-run TestA|TestB` and `-run '^(TestA|TestB)$'`, both refused with a remediation that did
   not show the accepted form. Non-goals: a general shell-quoting grammar. Evidence:
@@ -2496,6 +2497,21 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   argv, refused forms, the suggestion for each unquoted form; fails on BASE),
   `TestDogfoodChangeNamesVerifySyntaxRemediation`. Rollback: restore the `DCW-V0-384`
   `quotedRunAlternation` and remove `quotedRunSuggestion(s)`.
+- `DCW-V0-991`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3642; amends
+  `DCW-V0-801`) A test name inside the quoted `-run` word MAY hold bracket classes of name
+  characters (`[A-Za-z0-9_-]+`, such as `[45]` or `[0-9]`), in each admitted alternation form, and
+  one such name MAY stand alone, `go test ./pkg -run 'TestX88[45]_'`; inside either quote every
+  byte of it is literal to a POSIX shell, and it is recorded as one typed argv word. Any other
+  quoted `-run` word stays refused, and `finish-lane` and `inputs-check` MUST add one `refused:`
+  line naming the word and its first character outside names, `|`, `^`, `$`, `(`, `)`, `[` and
+  `]`, with its byte offset, or, when every character is admitted, that its shape is none of the
+  admitted forms (a negated or empty class, or an anchored name holding a class; `DCW-V0-904` admits a plain or anchored name and `.*`). Design: the class is admitted
+  rather than refused because its quoting is valid and lanes select related tests by it. Evidence:
+  `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` (fails on BASE), and the updated
+  `TestVerifyArgumentsDCWV0384AdmitsOneQuotedRunAlternation`,
+  `TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare` and
+  `TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep`. Rollback: remove `runClass` from
+  `runAlternation` and `quotedRunRefusal`.
 - `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
   When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
   `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `git-diff-failed` or
@@ -2709,6 +2725,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `cem cite --bytes START:END`; any other value stays a `--lines` range. Evidence:
   `script/dogfood-bind-range_test.sh` DCW-V0-827 case (both forms, and a malformed `bytes:0` falls
   back to `--lines` for the cite pre-flight to refuse). Rollback: drop the `bytes:` branch.
+- `DCW-V0-990`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends
+  `DCW-V0-827`) `corvint dogfood change`, `inputs-check` and `finish-lane` MUST accept the same
+  `bytes:START:END` span field: every cite, cite probe and cite pre-check passes it as
+  `cem cite --bytes START:END`, the recite check (`DCW-V0-117`) compares it to the map's recorded
+  byte span directly, and the uniform-plan check (`DCW-V0-048`) keeps a byte span distinct from a
+  line span with the same numbers. A line span still passes `--lines`. Known gap: a line span and a
+  byte span naming the same BASE bytes are not joined by the uniform-plan check. Evidence:
+  `TestChangeDCWV0990PlanRowsAcceptByteSpans` (a fixture CEM whose line span 1:2 is bytes 0:8) and
+  `TestDCWV0990CanonicalSpanKeepsByteKind`. Rollback: drop `citeSpanArgs` and the `bytes:` branches.
 - `DCW-V0-828`: (experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`)
   A range hunk with no inherited row MUST be proposed a citation when TARGET's own generator or
   checker reproduces or admits it, and stays `unknown` otherwise: `spec-index` for
@@ -3129,6 +3154,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (code, test and new test hunks cite the
   refined definition), `TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown` and `TestProposeCitationsDCWV0967NamesAnEditedRequirementDefinition`.
   Rollback: drop `propose_samechange.go` and its calls.
+- `DCW-V0-921`: (experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane
+  friction; refines `DCW-V0-031`) A pre-change `dogfood change` run (`PRECHANGE no-diff-yet`) MUST,
+  for each of `prechange-query` and `prechange-impact` whose receipt is not a regular file under
+  `<git-dir>/corvint/`, print `  agent receipt NAME absent: write it before the first edit:
+  COMMAND`, COMMAND being the `docs/DOGFOOD.md` §1 command with that absolute path (`corvint query
+  --task "THE CHANGE" --limit 1 > PATH` or `corvint impact PATH... --limit 10 > PATH`), because that
+  run is the one an agent makes before editing and it alone could still write them; a lane that ran
+  only `make dogfood-change` before its first edit closed with both `NOT_OBSERVED
+  agent-receipt-absent`. The lines change no report row, `"complete"` or exit status. Non-goals:
+  writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
+  `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
+  commands; a present one is not). Rollback: drop the lines.
 
 ## Code vocabulary
 
@@ -3414,6 +3451,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-906` (V1-3483) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`; dffric-w1 replay 13 -> 11 unknown of 65 | unit and replay |
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
+| `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
@@ -3487,6 +3525,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
+| `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
+| `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |

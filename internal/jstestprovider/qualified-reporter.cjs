@@ -691,6 +691,12 @@ class Reporter {
     const browserFailure = /browserType\.launch:|browser\.newContext:|browser has been closed|Browser closed|Target page, context or browser has been closed/.test(message);
     const infrastructure = browserFailure || failedFixture(result.steps || []);
     let state = result.status;
+    // V1-3636: test.fail() declares expectedStatus 'failed'. As Playwright counts it, a body that
+    // fails as declared passed, and a body that passed is an unexpected failure.
+    if (test.expectedStatus === 'failed' && !infrastructure) {
+      if (state === 'failed') { state = 'passed'; message = ''; }
+      else if (state === 'passed') { state = 'failed'; message = message || 'test was expected to fail (test.fail()) but passed'; }
+    }
     if (infrastructure) state = 'infrastructure';
     const previous = this.tests.get(test.id);
     const attempts = previous ? previous.attempts : [];

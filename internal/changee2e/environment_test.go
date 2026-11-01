@@ -295,7 +295,7 @@ func TestCCEV0021ControlRequestEnvironment(t *testing.T) {
 	t.Setenv("CORVINT_E2E_SET_NAME", "1")
 	env := &Environment{Serve: []string{"npm", "run", "dev"}, BaseURL: "http://127.0.0.1:5173", Ready: "/", Env: []string{"CORVINT_E2E_SET_NAME", "CORVINT_E2E_UNSET_NAME"}}
 	e := &proveEnv{environment: env, serveBin: "/usr/bin/true", servePath: "/usr/bin"}
-	req := e.controlRequest(Scenario{}, "rev", "/repo", "/disposable", jstestprovider.Receipt{})
+	req := e.controlRequest(Scenario{}, controlSpecs(Scenario{}), "rev", "/repo", "/disposable", jstestprovider.Receipt{})
 	if !slices.Contains(req.DeclaredEnvKeys, "CORVINT_E2E_SET_NAME") || slices.Contains(req.DeclaredEnvKeys, "CORVINT_E2E_UNSET_NAME") {
 		t.Fatalf("declared keys %v", req.DeclaredEnvKeys)
 	}
@@ -306,7 +306,7 @@ func TestCCEV0021ControlRequestEnvironment(t *testing.T) {
 	}
 	// A path serve[0] has no resolved executable, and BBF refuses an empty definition value.
 	e.serveBin = ""
-	for _, c := range e.controlRequest(Scenario{}, "rev", "/repo", "/disposable", jstestprovider.Receipt{}).Controls {
+	for _, c := range e.controlRequest(Scenario{}, controlSpecs(Scenario{}), "rev", "/repo", "/disposable", jstestprovider.Receipt{}).Controls {
 		if _, ok := c.Definition["serve_bin"]; ok {
 			t.Fatalf("empty serve_bin carried: %v", c.Definition)
 		}

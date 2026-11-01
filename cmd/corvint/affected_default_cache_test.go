@@ -5,11 +5,15 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // useAffectedUserCacheDir points the default graph cache at base (or at the
@@ -242,7 +246,7 @@ func TestAFPV0439CacheStatusReportsLocationAndSize(t *testing.T) {
 		t.Fatal(err)
 	}
 	report := status("PRESENT")
-	if report.Location != location || report.Entries != 1 || report.Bytes != info.Size() || report.Reason != "" {
+	if report.Location != location || report.Entries != 1 || report.EntryLimit != affected.GraphCacheMaxEntries || report.Bytes != info.Size() || report.Reason != "" {
 		t.Fatalf("a present cache: %+v, entry %d bytes", report, info.Size())
 	}
 	stdout, stderr, code := runAffectedCacheStatusCLI(t, root, "--format", "doctor-plugin")
@@ -250,7 +254,7 @@ func TestAFPV0439CacheStatusReportsLocationAndSize(t *testing.T) {
 	if code != 0 || json.Unmarshal(stdout, &items) != nil || len(items) != 1 {
 		t.Fatalf("doctor-plugin: exit %d: %s\n%s", code, stderr, stdout)
 	}
-	if item := items[0]; item["kind"] != "AFFECTED_CACHE" || item["who"] != location || !strings.HasPrefix(item["detail"], "PRESENT: 1 entries, ") || item["remedy"] == "" || len(item) != 4 {
+	if item := items[0]; item["kind"] != "AFFECTED_CACHE" || item["who"] != location || !strings.HasPrefix(item["detail"], "PRESENT: 1 entries (limit 32), ") || item["remedy"] == "" || len(item) != 4 {
 		t.Fatalf("doctor-plugin item: %v", item)
 	}
 	if stdout, _, code := runAffectedCacheStatusCLI(t, root, "--format=json"); code != 0 || !bytes.Contains(stdout, []byte(`"state":"PRESENT"`)) {
@@ -301,5 +305,54 @@ func TestAFPV0437HelpDocumentsTheDefaultCache(t *testing.T) {
 		if !strings.Contains(help, want) {
 			t.Fatalf("affected help does not say %q", want)
 		}
+	}
+}
+
+// AFP-V0-970: a write into a full default cache evicts the oldest entries
+// down to the cap, keeps every other file, and the plan bytes equal the
+// --no-cache receipt before, during and after eviction.
+func TestAFPV0970EvictionNeverChangesPlanBytes(t *testing.T) {
+	observeAffectedCache(t)
+	base := resolvedTempDir(t)
+	useAffectedUserCacheDir(t, base, nil)
+	root := affectedFixtureRepository(t)
+	location := filepath.Join(base, "corvint", "affected")
+	if err := os.MkdirAll(location, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(filepath.Join(base, "corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Hour)
+	for index := range affected.GraphCacheMaxEntries {
+		name := filepath.Join(location, fmt.Sprintf("affected-graph-stale%02d.json", index))
+		if err := os.WriteFile(name, []byte("stale"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chtimes(name, old, old.Add(time.Duration(index)*time.Second)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	other := filepath.Join(location, "notes.txt")
+	if err := os.WriteFile(other, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, want, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go", "--no-cache")
+	if code != 0 {
+		t.Fatalf("--no-cache: exit %d: %s", code, stderr)
+	}
+	for run := range 2 {
+		_, got, stderr, code := runAffectedCLI(t, root, "--path", "core/core.go")
+		if code != 0 || stderr != "" || !bytes.Equal(got, want) {
+			t.Fatalf("default run %d: exit %d, plan differs from --no-cache: %s\n%s\n%s", run, code, stderr, got, want)
+		}
+	}
+	entries := affectedDefaultEntries(t, location)
+	if len(entries) != affected.GraphCacheMaxEntries || slices.Contains(entries, filepath.Join(location, "affected-graph-stale00.json")) ||
+		!slices.Contains(entries, filepath.Join(location, "affected-graph-stale01.json")) {
+		t.Fatalf("eviction must drop exactly the oldest stale entry: %q", entries)
+	}
+	if data, err := os.ReadFile(other); err != nil || string(data) != "keep" {
+		t.Fatalf("eviction touched a non-entry file: %q %v", data, err)
 	}
 }

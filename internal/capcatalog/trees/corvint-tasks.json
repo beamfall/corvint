@@ -1705,7 +1705,7 @@
       "command": "corvint-tasks preflight",
       "summary": "",
       "usage": [
-        "corvint-tasks preflight <ticketId|local> [--commit OID] [--path PREFIX ...] [--plan PATH] [--deep --gate GATE ... | --cache [--fresh]] [--refuse-repeat N [--remediation REF]]"
+        "corvint-tasks preflight <ticketId|local> [--commit OID] [--path PREFIX ...] [--plan PATH [--witnesses]] [--deep --gate GATE ... | --cache [--fresh]] [--refuse-repeat N [--remediation REF]]"
       ],
       "flags": [
         "--cache",
@@ -1716,7 +1716,8 @@
         "--path",
         "--plan",
         "--refuse-repeat",
-        "--remediation"
+        "--remediation",
+        "--witnesses"
       ],
       "required": [
         "<ticketId|local>"
@@ -2916,7 +2917,7 @@
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]",
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs]",
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]",
         "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]",
         "corvint-tasks ticket effects-proposals",
         "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]",
@@ -3282,9 +3283,10 @@
       "command": "corvint-tasks ticket delivery-screen",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs]"
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]"
       ],
       "flags": [
+        "--json",
         "--lane-refs",
         "--limit",
         "--prs",

@@ -125,20 +125,23 @@ func testBoundedBlobCancellationRetiresDescendant(t *testing.T) {
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { _, err := r.BlobBytesBounded(ctx, entry.OID, 1024); done <- err }()
+	// Startup ends when the descendant publishes its pid or the reader returns first, which
+	// fails closed with the reader's error. No wall-clock margin: a hung fixture is caught by
+	// the go test timeout, a hang detector rather than a budget (decision 0082; V1-0582).
 	var pid int
-	for i := 0; i < 200; i++ {
-		if data, e := os.ReadFile(pidFile); e == nil {
-			if pid, e = strconv.Atoi(strings.TrimSpace(string(data))); e == nil && pid > 0 {
-				break
-			}
-			pid = 0
+	tick := time.NewTicker(10 * time.Millisecond)
+	defer tick.Stop()
+	for pid == 0 {
+		select {
+		case err := <-done:
+			t.Fatalf("reader returned before the fixture descendant started: %v", err)
+		case <-tick.C:
 		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	if pid == 0 {
-		cancel()
-		<-done
-		t.Fatal("fixture descendant never started")
+		if data, e := os.ReadFile(pidFile); e == nil {
+			if pid, e = strconv.Atoi(strings.TrimSpace(string(data))); e != nil || pid <= 0 {
+				t.Fatalf("fixture published an invalid pid %q", data)
+			}
+		}
 	}
 	t.Cleanup(func() { _ = syscall.Kill(pid, syscall.SIGKILL) })
 	cancel()

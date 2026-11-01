@@ -469,12 +469,40 @@ func standaloneStateCommand(ctx context.Context, c *Config, argv []string) (map[
 	if err := lockExclusive(lock); err != nil {
 		return nil, err
 	}
-	if _, err := resolveReaderByReboot(dir, program, time.Now()); err != nil {
-		return nil, fmt.Errorf("%w: the reboot proof was not recorded: %v", ErrReaderQuiescence, err)
+	// CAL-V0-227 (V1-3635): a lifted quarantine is always reported. The event
+	// is appended before the marker goes, so an unwritable event keeps the
+	// quarantine and refuses this read, and the next read retries it.
+	emit := func(rec *ReaderRecovery) error { return emitStandaloneRecovery(dir, program, rec) }
+	if _, err := resolveReaderByReboot(dir, program, time.Now(), emit); err != nil {
+		return nil, fmt.Errorf("%w: the reboot proof or its reader-recovered event was not recorded: %v", ErrReaderQuiescence, err)
 	}
 	if err := checkReaderQuarantine(dir, program); err != nil {
 		return nil, err
 	}
 	d := &Dispatcher{Program: program, Config: c, dir: dir, lock: lock}
 	return d.stateCommand(ctx, c.WorkRoot, argv)
+}
+
+// emitStandaloneRecovery appends the reader-recovered event the dispatch start
+// emits (loop.go) for a reader with no dispatcher ledger, numbered after the
+// last event already in its log. A retry after the marker removal failed finds
+// the run's event already logged and appends nothing.
+func emitStandaloneRecovery(dir, program string, rec *ReaderRecovery) error {
+	var seq uint64
+	recent, err := ReadEvents(dir, 64)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	for _, e := range recent {
+		if e.Kind == "reader-recovered" && e.Detail["run"] == rec.Run && e.Detail["kind"] == rec.Kind {
+			return nil
+		}
+	}
+	if len(recent) > 0 {
+		seq = recent[len(recent)-1].Seq
+	}
+	e := Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", rec.Run, rec.Reason, rec.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": rec.Kind, "run": rec.Run}}
+	e.Profile, e.Seq, e.Program = EventProfile, seq+1, program
+	e.At = time.Now().UTC().Format(time.RFC3339)
+	return appendEvent(dir, e)
 }

@@ -3185,7 +3185,8 @@ they do not change any plan, wire member or exit code of a plan call.
   produce; it is never repository, Git, trace or `.corvint/` state, never evidence, and never an
   input to ranking, authority or learning. No daemon, watcher, eviction process or network access
   is added (invariant 7). Failure mode: entries of deleted roots accumulate, one per root, until
-  the user deletes the directory; `affected cache` reports its size. Rollback: drop the default
+  the user deletes the directory; `affected cache` reports its size (amended by AFP-V0-970: the
+  directory is capped at 32 entries, oldest evicted first). Rollback: drop the default
   branch in `resolveAffectedBatchAndCache`, restoring the explicit-only cache.
 - **AFP-V0-437:** (proposed, experimental; V1-2572, GH #1601)
   `--cache DIR` MUST replace the default location, under the AFP-V0-390 refusals, and the default
@@ -3206,7 +3207,8 @@ they do not change any plan, wire member or exit code of a plan call.
   `corvint [--root PATH] affected cache [--format json|doctor-plugin]` MUST report the default
   location for the root without creating, opening an entry of or writing anything: one canonical
   JSON object, profile `affected-cache-status/0`, with exactly `bytes` (the sum of regular file
-  sizes in the directory), `entries` (files named `affected-graph-*.json`), `location` (resolved,
+  sizes in the directory), `entries` (files named `affected-graph-*.json`), `entryLimit` (the
+  AFP-V0-970 cap), `location` (resolved,
   or empty when there is none), `mutates` (false), `ok` (true), `profile`, `reason` and `state`:
   `PRESENT`, `ABSENT` (not yet created), `UNAVAILABLE` (no user cache directory, a placement the
   AFP-V0-390 rules refuse, or a directory the planner's handle and privacy checks refuse, such
@@ -3219,6 +3221,26 @@ they do not change any plan, wire member or exit code of a plan call.
   `corvint-tasks doctor --plugins DIR` can show the cache; there is no `corvint doctor` command.
   It exits 0 in every state and 2 (`invalid-arguments`) for any other argument or a repeated or
   unknown `--format`. Rollback: drop the `cache` dispatch and `runAffectedCacheStatus`.
+- **AFP-V0-970:** (proposed, experimental; V1-2610; amends AFP-V0-436 and AFP-V0-439)
+  The graph cache directory MUST hold at most 32 entries (`affected-graph-*.json`,
+  `GraphCacheMaxEntries`). After a successful entry write, the writer MUST list the directory
+  through the handle it wrote with (at most 4096 names, the AFP-V0-439 bound), and while more than
+  32 regular entry files remain, remove the one with the oldest modification time (ties by name),
+  never the entry it just wrote. Only regular files whose names match the entry pattern are
+  removed, each through that handle and by its own name, so no file outside the cache directory,
+  no subdirectory or symbolic-link target, and no other name in it is touched. The cap replaces
+  AFP-V0-436's failure mode (entries of deleted roots accumulate without bound): the entry of a
+  removed worktree is evicted once 32 newer entries are written. Eviction runs after the plan's
+  graph is built or loaded and changes no plan, wire member or exit code: an evicted root's next
+  call is a cold-cache call, whose receipt AFP-V0-438 already makes byte-identical. A listing or
+  removal failure is ignored and leaves the entries in place. The `affected-cache-status/0`
+  report (AFP-V0-439) gains the member `entryLimit` (32), and the `doctor-plugin` detail reads
+  `STATE: N entries (limit 32), B bytes`. Non-goals: a byte cap, eviction on read, and pruning by
+  whether an entry's root still exists, which would need each entry opened. Evidence:
+  `TestAFPV0970EvictionKeepsTheNewestEntries` and `TestAFPV0970EvictionLeavesOtherFiles`
+  (`internal/liveverify/affected`), `TestAFPV0970EvictionNeverChangesPlanBytes` and the
+  AFP-V0-439 status tests (`cmd/corvint`). Rollback: drop `evictGraphCache` and the `entryLimit`
+  member, restoring the unbounded directory.
 - **AFP-V0-441:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2682); its
   `.github` change under the owner's `ci-control-plane` OK, owner chat 2026-10-25) In
   `go-product-shard` only, and only on a `pull_request` or `merge_group` run whose outcomes were
@@ -5232,6 +5254,57 @@ now carry the hint. Rollback: drop `--format` and `affected_text.go` (restoring
 `affectedFormatRefusal`'s AFP-V0-201 message); drop the `hints` map in `frontierUnknowns`; inline
 `planAffectedGraph` again; drop `namesResolvedPath` and `climbingAnchors` from `resolvingReaders`.
 
+### Per-path breakdown of a path list (AFP-V0-990; V1-3648)
+
+Intent (lane friction, 2026-10-31): finding the documentation paths with no specific reader took
+one `--path` call per path and manual set subtraction, because every call lists the same
+UNBOUNDED_READER units.
+
+- **AFP-V0-990:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3648)
+  `corvint affected --by-path` with `--path` or `--paths-from` (never `--full`) SHALL build the
+  graph once, plan the union as AFP-V0-094 does (same refusals and drift checks), then select each
+  named path alone over that graph, and write one `affected-by-path/1` document instead of the
+  plan: `sharedUnboundedReaders`, listed once, holds every union-selected unit that each path's
+  own selection holds and that at least one of them selects as `UNBOUNDED_READER`; `paths` gives,
+  per path in path-list order, its scope, `sharedSelected` (how many shared units it selects), its
+  unknowns and `additions`, the units it selects outside the shared set, each with `testCount` and
+  its own witness kind. `--format text` writes the same as lines. Like the plan, it MUST carry the
+  AFP-V0-846 self-binary freshness: the stderr line, a `degradations` member, and a
+  `degraded CODE` text line. It selects nothing the union plan does not and runs no test.
+
+Non-goals: no change to the `affected-plan/1` wire or to any selection; no per-path advice or
+provider projection. Failure modes: a unit that is an unbounded reader through one path and a
+literal reader through another is shared only when every path selects it. Acceptance evidence:
+`TestAFPV0990ByPathSeparatesSharedUnboundedReaders`, `TestAFPV0990ByPathArguments`, the
+`--by-path` cases of `TestSelfBinaryStaleIsReportedByAffectedAndTest`; measured on
+this repository (WSL host, 2026-10-31) for `docs/GLOSSARY.md` and `docs/agent-memory/fixes.md`:
+two single `--path --no-cache` calls 4.67 s and 3.78 s with 27 KB of overlapping text; one
+`--by-path` call 2.08 s (cached) and 6.45 s (`--no-cache`), 13 KB, 44 shared units listed once and
+5 additions per path. Rollback: remove `--by-path` and `cmd/corvint/affected_by_path.go`.
+
+### Historical replay of the shadow tiers (AFP-V0-991; V1-3664)
+
+Intent (lane friction, 2026-10-31): measuring the AFP-V0-480 tier plan's accuracy needs each
+historical merge replayed with the `go list` of that merge, and no tool did it.
+
+- **AFP-V0-991:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3664)
+  `go run ./tools/tiers-replay [-n N] [-ref REF] [-out FILE]` SHALL, for each of the last N
+  first-parent merges of REF, export that merge's tree (`git archive`) to a private temporary
+  directory, run this checkout's `.github/forward-rows/tiers.sh MERGE^1 MERGE` there with
+  `GIT_DIR` naming the repository, so `go list` reads the merge's own packages while `tiers.jq` is
+  the one under test, and write one JSON line per merge (merge, base, subject, changed-file count,
+  decision `FULL` with its reasons, `NARROWED` with the changed, hop1 and hop2 package counts, or
+  `INCOMPLETE` with `tierIncomplete`, the universe and millis) then a summary line counting each
+  decision. It checks out, commits and writes no repository state, and removes each export.
+
+Non-goals: no CI wiring and no comparison with the failing tests of each merge (the
+selection-baseline tool does that for the planner). Acceptance evidence:
+`TestAFPV0991DecideReadsTheTierDocument`, `TestAFPV0991ReplayUsesEachMergesOwnGoList`; the retained
+run `benchmarks/results/tiers-replay-2026-10-31.jsonl` over the 20 first-parent merges ending at
+`8daec98ce` (60 s on the WSL host: 16 FULL, 4 NARROWED; the FULL reasons are non-Go files such as
+`Makefile` and `.corvint/test-read-scopes.json`, a Go file of the separate `interop/` module, and
+an embedded capability catalog). Rollback: remove `tools/tiers-replay` and the retained run.
+
 ### Merge-queue and pull-request narrowing repairs (AFP-V0-933 to AFP-V0-935; V1-3109, V1-3159, V1-3160)
 
 Intent (orchestrator lane request, 2026-10-30; friction lane K=2): pull-request narrowing's
@@ -5792,6 +5865,7 @@ traceability table.
 | AFP-V0-437 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0437NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0437HelpDocumentsTheDefaultCache` |
 | AFP-V0-438 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0438DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
 | AFP-V0-439 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0439CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
+| AFP-V0-970 | `GraphCacheMaxEntries` and `evictGraphCache` in `internal/liveverify/affected/graphcache_evict.go`, called by `writeGraphCache`; `entryLimit` in `cmd/corvint/affected_cache.go` | `TestAFPV0970EvictionKeepsTheNewestEntries`, `TestAFPV0970EvictionLeavesOtherFiles`, `TestAFPV0970EvictionNeverChangesPlanBytes` |
 | AFP-V0-446 | `localizeFixtureFrontier`, `escapedFixtureUnits`, `fixtureDirectory` and `siteFile` in `internal/liveverify/affected/typescript/fixture_frontier.go`, called from `unitsSource`; `promoteUnhostedFixtureFrontier`, `goUnitAbove` and `Graph.promoted` in `internal/liveverify/affected/fixtures.go`, called from `build` and honoured by `frontierSites` | `internal/liveverify/affected/typescript/fixture_frontier_test.go` TestFixtureFrontierIsTheFixtureUnitsOwn_AFPV0446 (the site leaves the plugin frontier for the fixture unit; a plan over an unrelated source or the host package is `BOUNDED`; one over the fixture is `UNKNOWN` with the site; counted once), TestFixtureFrontierStaysPluginWideWhenEscapedOrUnhosted_AFPV0446 (an outside suite importing a connected fixture file, a fixture importing outside directly or through a connected file, and no Go unit above each keep `UNKNOWN`; an outside import of an unconnected fixture file does not), TestFixtureFrontierKeepsUnboundedSpecifiersPluginWide_AFPV0446 (a specifier leaving the `testdata` directory or the repository and a computed import stay plugin-wide and keep a plan over an unrelated source `UNKNOWN`), TestInsideFixture_AFPV0446, TestSiteFile_AFPV0446; `internal/liveverify/affected/fixtures_test.go` TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446 (fake plugins: unhosted sites widen, hosted ones bear only when reached, two sites counted), TestPromotedFixtureSitesAreListedInFull_AFPV0446 (20 promoted sites listed, outside the `+N` bound), TestFixtureDirectory_AFPV0446; measured on PR #1816: `LANGUAGE_FRONTIER` unknowns 107 to 96, the 11 removed being every in-fixture `relative-import-unresolved` site under a Go package's `testdata`; the 26 other-reason `testdata` sites stay plugin-wide (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v1-2708-selection-precision.md`) |
 | AFP-V0-440 | `affectedPathListGraph`, `affectedGraphListsIgnored`, `affectedGraphsAgreeOutsideTypeScript` and the `PathList` drift check in `compileAffectedGraph` (`cmd/corvint/affected.go`) | `TestAffectedPathListIgnoredReportPlans_GH1774` in `cmd/corvint/affected_path_ignored_gh1774_test.go` (a gitignored untracked `playwright-report/` bundle: `--no-cache`, cold and warm `--cache` plan and never name it; listing it, an unignored untracked report a modified tracked spec, an ignored `.py` file and an ignored unparsable `.go` file beside the report still refuse `unsupported-affected-mixed-worktree`); `TestAFPV0094PathListRefusesIgnoredFilesTheGraphReads` and `TestAFPV0094PathListRefusesIgnoredFilesUnitsRead` (Go refusals unchanged); reporter repository `NOT_OBSERVED` |
 | AFP-V0-441 | the Go tests step (`rerun_invocations`, `forward_outcomes`, the `flaky.sh` decision) and the `Retain the FLAKY record (AFP-V0-441)` step of `go-product-shard` in `.github/workflows/ci.yml`; `.github/forward-rows/flaky.sh` | `TestAFPV0441FlakyShard` (the recorded PR shard-7 flake passes as FLAKY with summary, annotation and `flaky.json`; a second failure, a failed rerun outcome, a rerun timeout, a package not rerun, an interrupted or bounded rerun, a failed whole-package invocation without a whole-package rerun, a passing first attempt and a lost failed-slice record each refuse with no record); `TestAFPV0441WorkflowBindings` (only `go-product-shard` calls `flaky.sh`, the rerun is bounded, FLAKY needs complete outcomes and a written output, the record upload cannot fail open, one `status=0`); a scratch run of the extracted step with a fake `go` (FLAKY pass, double failure exits 1, a hung rerun exits 1 with `rerun-status` 124); a runner run is `NOT_OBSERVED` |
@@ -5873,6 +5947,8 @@ traceability table.
 | AFP-V0-507 | `affectedPathListRecovery` in `cmd/corvint/affected_freshness.go` | `TestAFPV0507PathRefusalNamesRecovery` (clean `--path` plans; dirty `--path` exits 2 with both commands and HEAD's id, writing nothing) |
 | AFP-V0-511 | `FrontierReach` in `internal/liveverify/affected/unit.go`; `declareFrontierReach` in `internal/liveverify/affected/graph.go`; `frontierUnknowns`, `participants`, `readsResolutionInput`, `hostedFixtureDirectories`, `bearsOnUnowned`, `listsBelowAny` in `internal/liveverify/affected/select.go`; `frontier_reach.go` in `internal/liveverify/affected/{typescript,python,ruby,dotnet,swift}` | `TestUnownedPathRaisesOnlyPathOpenFrontiers_AFPV0511` (unowned path, owned path, `PathReader`, Go-hosted and unhosted fixtures, site inside a fixture, listing plugin, rule off, resolution input), `TestFrontierReachLeavesTheDigestUnchanged_AFPV0511`, `TestFrontierReachDeclarationsAreValidatedAtBuild_AFPV0511`, `TestFrontierReachHoldsForUnownedPaths_AFPV0511` in each of the five declaring plugin packages; the measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-unowned-path-frontier-reach.md` |
 | AFP-V0-510 | `affectedSummary`, `summarizeAffectedPlan` in `cmd/corvint/affected_summary.go`; `Summary` in `affectedCompactReceipt` | `TestAFPV0510AffectedSummaryRestatesThePlan` (an unowned path beside a source edit: scope, dirty, selected, excluded and unknown counts equal the plan members, `unknownByReason` and `line` name `UNOWNED_DIRTY_PATH`; a clean bounded plan has an empty `unknownByReason`; `--full` carries no summary); `TestCoreVerbsEmitTheFrozenProfiles` goldens |
+| AFP-V0-990 | `--by-path` in `parseAffectedOptions` and `runAffected` (`cmd/corvint/affected.go`); `runAffectedByPath`, `affectedByPath`, `renderAffectedByPathText` (`cmd/corvint/affected_by_path.go`) | `TestAFPV0990ByPathSeparatesSharedUnboundedReaders`, `TestAFPV0990ByPathArguments` |
+| AFP-V0-991 | `tools/tiers-replay/main.go` (`replay`, `replayMerge`, `decide`) | `TestAFPV0991DecideReadsTheTierDocument`, `TestAFPV0991ReplayUsesEachMergesOwnGoList`; retained `benchmarks/results/tiers-replay-2026-10-31.jsonl` (20 merges) |
 | AFP-V0-509 | the value loop after `addAffectedPath` in `parseAffectedOptions` (`cmd/corvint/affected.go`) | `TestAFPV0509PathTakesSeveralValues` (`--path core/core.go mid/mid.go` plans the same bytes as the one-value-per-flag form, with both paths in `path_list`; `--path core/core.go --full` plans `--full`; `--path core/core.go -x` and `--path core/core.go --full mid/mid.go` refuse) |
 | AFP-V0-508 | `.corvint/documentation-paths.json` (`docs/decisions/` and the top-level `docs/*.md` entries) | `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` (the three directories, every entry exists, every top-level `docs/*.md` declared); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-selection-precision-tags-writes-docs.md` |
 | AFP-V0-480 | `.github/forward-rows/tiers.sh` and `tiers.jq`; the `tiers.sh` call and `--slurpfile tiers` in the shadow step of `.github/workflows/ci.yml`; the `$ARGS.named.tiers` block of `.github/forward-rows/selection.jq` | `TestAFPV0480Tiers` in `tools/ci-forward-row/shadowcost_test.go` (B, C and D over a fixture module, every FULL rule, no packages, and `tiers.sh` end to end over a module: a Go change, a go.mod change, a deleted file of a package that embeds `*.go`, an unknown base, a plausible `millis`); `TestAFPV0480SelectionTiers` (the fields are additive, an empty document is named); `TestAFPV0047WorkflowBindings`; measured 0.76 to 0.9 s locally, hosted `NOT_OBSERVED` |

@@ -48,7 +48,9 @@ literal import() or require(), or by a literal key of a declared string-key
 registry whose data context a setup file imports. A file importing every
 setup file (a hub) and the registry itself are not followed; comments are
 ignored. A computed lookup, unknown key, missing path, unresolved import or
-empty spec list returns ALL setup files with typed reasons. Inclusions give,
+empty spec list returns ALL setup files with typed reasons; a revision with
+no setup file at all returns mode none with reason no-setups.
+Inclusions give,
 for every file the closure proved, the edge chain from a named spec to it.
 The output names the revision and a sha256 digest of every input read;
 --format lines prints only the setup paths, one per line, for a test

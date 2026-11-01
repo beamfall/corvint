@@ -127,7 +127,7 @@ func TestCCEV0036HostedControls(t *testing.T) {
 		t.Fatalf("perturb: %v", err)
 	}
 	e := &proveEnv{root: root, runnerVersion: "1.0.0"}
-	req := e.controlRequest(sc, head, root, t.TempDir(), jstestprovider.Receipt{})
+	req := e.controlRequest(sc, controlSpecs(sc), head, root, t.TempDir(), jstestprovider.Receipt{})
 	def := req.Controls[0].Definition
 	if def["grep"] != grepTitle(sc.TestTitle) || def["file"] != hostedPath || def["line"] != "14" {
 		t.Fatalf("definition %v", def)

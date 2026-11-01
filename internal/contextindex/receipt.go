@@ -31,6 +31,7 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 	// count taken after it makes `omitted_results` structurally zero and lets
 	// the receipt assert a completeness it never measured.
 	admittedResults := len(rawResults)
+	rawResults = markWorktreeResults(index, rawResults)
 	if len(rawResults) > limit {
 		rawResults = rawResults[:limit]
 	}
@@ -74,6 +75,7 @@ func receipt(index *Index, mode string, request map[string]any, rawResults []map
 		"exclusions": map[string]any{"count": len(index.Exclusions) + index.UnsupportedSuffixCount, "samples": exclusionSamples},
 	}
 	setVerification(result, index, verification(index, rawResults))
+	worktreeOverlayFreshness(index, result["freshness"].(map[string]any))
 	if taskState != nil {
 		result["freshness"].(map[string]any)["task_state"] = taskState
 	}
@@ -596,6 +598,14 @@ func setCoverage(receipt map[string]any, requested int, critical []any, budget *
 }
 
 func criticalResults(mode string, results []map[string]any) []any {
+	// A worktree overlay result is advisory and never critical (DIRTY-CACHE-942).
+	committed := make([]map[string]any, 0, len(results))
+	for _, item := range results {
+		if item["worktree_overlay"] != true {
+			committed = append(committed, item)
+		}
+	}
+	results = committed
 	if mode == "feature" {
 		if len(results) == 0 {
 			return []any{}
@@ -784,7 +794,7 @@ func lacksLanguageVerification(index *Index, receipt map[string]any) bool {
 	if len(commands) != 1 || stringValue(commands[0]) != "git diff --check" {
 		return false
 	}
-	hasLanguage := false
+	hasLanguage, node := false, nodeTestCommand(index)
 	for sourcePath := range index.Sources {
 		if !hasSourceLanguageSuffix(sourcePath) {
 			continue
@@ -793,7 +803,7 @@ func lacksLanguageVerification(index *Index, receipt map[string]any) bool {
 		// The Ruby signal is not repository-wide: it clears this line only
 		// through a receipt whose own plan names the Ruby command, which
 		// already returned above (NGI-V0-027, NGI-V0-053).
-		if command, complete := toolchainCommand(sourcePath, index.Sources, ""); complete && command != "" {
+		if command, complete := toolchainCommand(sourcePath, index.Sources, "", node); complete && command != "" {
 			return false
 		}
 	}
@@ -847,6 +857,7 @@ func verificationCommands(index *Index, orderedPaths []string) []any {
 			break
 		}
 	}
+	node := nodeTestCommand(index)
 	commands := make([]string, 0)
 	for _, value := range orderedPaths {
 		// A path's shape can match a named profile's Command table (e.g. an
@@ -858,7 +869,7 @@ func verificationCommands(index *Index, orderedPaths []string) []any {
 		command, prescriber, prescribed := projectprofile.Prescribe(value)
 		complete := true
 		if !prescribed || prescriber.ID != profile.ID {
-			command, complete = toolchainCommand(value, projectFiles, ruby)
+			command, complete = toolchainCommand(value, projectFiles, ruby, node)
 		}
 		if complete && command != "" && !stringIn(commands, command) {
 			commands = append(commands, command)
@@ -909,9 +920,10 @@ func closingGates(index *Index, profile projectprofile.Profile) []string {
 
 // declaredVerification returns, capped at the plan ceiling, the mandatory
 // commands the indexed AGENTS.md declares (NGI-V0-060), or nil when it
-// declares none or its bytes are unavailable.
+// declares none or its bytes are unavailable. An overlay view reads the
+// committed AGENTS.md, never its worktree edit.
 func declaredVerification(index *Index) []string {
-	source, ok := index.Sources[projectprofile.InstructionsPath]
+	source, ok := index.committedSource(projectprofile.InstructionsPath)
 	if !ok {
 		return nil
 	}
@@ -962,9 +974,9 @@ func verificationProfile(projectFiles map[string]Source) projectprofile.Profile 
 // toolchainCommand names the test command a path implies from the build
 // toolchains present in the repository, independent of any project profile.
 // Its boolean is false when deriving the answer required unavailable content.
-// ruby is rubyVerificationCommand's answer, computed once per plan rather than
-// per path.
-func toolchainCommand(value string, projectFiles map[string]Source, ruby string) (string, bool) {
+// ruby is rubyVerificationCommand's answer and node nodeTestCommand's, computed
+// once per plan rather than per path.
+func toolchainCommand(value string, projectFiles map[string]Source, ruby, node string) (string, bool) {
 	switch {
 	case strings.HasSuffix(value, ".go"):
 		if _, ok := projectFiles["go.mod"]; ok {
@@ -988,11 +1000,29 @@ func toolchainCommand(value string, projectFiles map[string]Source, ruby string)
 				return "", false
 			}
 			if hasTest {
-				return "npm test", true
+				return node, true
 			}
 		}
 	}
 	return "", true
+}
+
+// nodeTestCommand runs the root package.json `test` script under the
+// repository's own package manager, so a pnpm workspace is never told to run
+// `npm test` (NGI-V0-780). It is empty when tracked lockfiles name more than
+// one manager and no `packageManager` member settles it.
+func nodeTestCommand(index *Index) string {
+	var raw []byte
+	if source, ok := index.Sources["package.json"]; ok {
+		if text, valid, loaded := source.Text(); loaded && valid {
+			raw = []byte(text)
+		}
+	}
+	manager, known := projectprofile.NodePackageManager(raw, func(name string) bool { return indexTracks(index, name) })
+	if !known {
+		return ""
+	}
+	return projectprofile.NodeTestCommand(manager)
 }
 
 func indexTracks(index *Index, name string) bool {
@@ -1059,7 +1089,7 @@ func makefileTargetCommand(projectFiles map[string]Source) (command string, foun
 }
 
 // packageJSONHasTestScript reports whether package.json declares a non-empty
-// "test" script, so `npm test` is never emitted for a project that has no
+// "test" script, so no test command is emitted for a project that has no
 // such script wired up. Its second result reports whether the scan completed.
 func packageJSONHasTestScript(source Source) (bool, bool) {
 	text, valid, loaded := source.Text()

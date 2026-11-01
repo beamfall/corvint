@@ -309,6 +309,41 @@ cold build that silently reuses a snapshot would read as a warm build, which the
 removal prevents. Rollback: remove the six scenarios from `ScenarioIDs` and `budgets.json` and
 restore generator `/1`.
 
+### Scenario filter and baseline recorded elsewhere (V1-3418)
+
+Status for `PRB-V0-970..971`: experimental under the standing lane auto-accept; V1-3418 (lane
+cmd-w1: reproducing two MCP scenarios needed the whole ten-minute run, and a contended shared host
+could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V0-053`.
+
+- `PRB-V0-970`: `perf-budget --scenario ID`, repeatable, MUST measure and judge only the named
+  `ScenarioIDs` scenarios (the two MCP scenarios are measured together and only the named ones
+  are reported); the report lists them as `selected`, its checks cover only them, and an unknown or
+  repeated ID exits 2 before anything runs. A filter that selects `context-query` or
+  `lifecycle-hook` without either index scenario MUST first build the code repository's index
+  snapshot once, unmeasured, as the index scenarios leave it in a whole run. Without `--scenario` the run is unchanged. With
+  `--record-baseline`, a filtered run MUST replace only the selected scenarios' measurements in the
+  existing baseline, each carrying `PRB-V0-053` provenance (the run's start time, its clean
+  revision, the corvint executable's SHA-256 and the run's host), and MUST refuse, leaving the file
+  untouched, when the budgets file has no baseline yet, the revision is not a clean commit, or a
+  `PRB-V0-043` refusal applies.
+- `PRB-V0-971`: `perf-budget --record-baseline-from REPORT` MUST record the baseline from a report
+  another run wrote with `--out`, typically on an uncontended host, with the refusals and the whole
+  or per-scenario (`PRB-V0-970`) recording `--record-baseline` applies to a run of its own; it
+  runs no scenario and builds nothing. The report is decoded strictly (one JSON value, unknown
+  members refused) and MUST bind the budgets file's scale. Before anything is written it MUST
+  carry a clean 40-hex revision, an RFC 3339 start time, a fixture with its builder SHA-256, a
+  judged uncontended host, a PASS or FAIL verdict, and exactly the `ScenarioIDs` (or a filtered
+  run's distinct selected IDs, in report order), each with samples and both wall percentiles. It refuses a report whose scale differs
+  and every `PRB-V0-043` case, exiting 2 with the budgets file untouched. This is the documented
+  path when the local host is contended: run `make perf-budget PERF_BUDGET_ARGS='--out report.json'`
+  (optionally with `--scenario`) on a quiet host at a clean commit, copy `report.json` back, then
+  run `perf-budget --record-baseline-from report.json`.
+
+Non-goals: tolerating contention in a verdict, and a remote runner. Failure mode: a report from
+another revision records that revision's measurements, attributed to it by provenance or by the
+baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-from` from
+`cmd/perf-budget` and the `Selected` option of `perfbudget.Run`.
+
 ## Non-goals
 
 - No per-phase timing for `docs corpus` (`--timings` is GitHub #1598's lane) and no profile
@@ -460,6 +495,8 @@ restore generator `/1`.
 | `PRB-V0-041` | `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0041VerdictExitStatus` |
 | `PRB-V0-042` | `Makefile` | `TestPRBV0042MakeTargetRequireJudgement` |
 | `PRB-V0-043` | `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0043NotJudgedRunIsNotBaselined` |
+| `PRB-V0-970` | `--scenario` in `internal/perfbudget/cmd/perf-budget/main.go`, `Options.Selected` and `Report.Selected` in `internal/perfbudget/harness.go`, `mergeBaseline` | `TestPRBV0970ScenarioFilterArguments`, `TestPRBV0970FilteredBaselineReplacesOnlySelected`, `TestPRBV0970RunMeasuresOnlySelected` |
+| `PRB-V0-971` | `--record-baseline-from` and `readReport` in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0971RecordBaselineFromReport` |
 
 ## Rollback
 

@@ -39,6 +39,9 @@ func TestAdapterHelper(t *testing.T) {
 	if json.NewDecoder(os.Stdin).Decode(&request) != nil {
 		os.Exit(10)
 	}
+	if mode == "historical" {
+		historicalAdapter(request, args[index+2:])
+	}
 	if mode == "hang" {
 		child := exec.Command("/bin/sleep", "30")
 		if child.Start() != nil {
@@ -80,6 +83,26 @@ func TestAdapterHelper(t *testing.T) {
 				}
 			}
 		}
+	case "authored", "authored-docs-untargeted", "authored-tests-nontest":
+		// PMR-V0-940: authored content for the harness-owned author stage.
+		r.DocumentationTargets = []string{"docs/a.md"}
+		r.TestGaps = []string{"gap-1"}
+		r.Input.Counts = connector.Counts{Docs: 1, Tests: 1}
+		for i := range r.Stages {
+			if r.Stages[i].Status == "not-applicable" {
+				r.Stages[i].Status = "deferred"
+			}
+		}
+		docs, tests := "docs/a.md", "pkg/a_test.go"
+		if mode == "authored-docs-untargeted" {
+			docs = "docs/other.md"
+		}
+		if mode == "authored-tests-nontest" {
+			tests = "pkg/a.go"
+		}
+		r.Authored = []Authored{{Kind: "tests", Files: []AuthoredFile{{Path: tests, Content: "package pkg\n"}}}, {Kind: "docs", Files: []AuthoredFile{{Path: docs, Content: "# A\n"}}}}
+	case "authored-no-gaps":
+		r.Authored = []Authored{{Kind: "tests", Files: []AuthoredFile{{Path: "pkg/a_test.go", Content: "package pkg\n"}}}}
 	case "draft":
 		r.Input.Drafts = []connector.Draft{{Kind: "docs", Revision: request.Binding.Merge, URL: "https://example.com/draft"}}
 	case "nondeterministic":

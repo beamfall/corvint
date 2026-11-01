@@ -626,10 +626,11 @@ func (b *builder) navHelpersOf(p string, f fileFacts) map[string]navHelper {
 	}
 	for _, bd := range b.binds[p] {
 		for _, imp := range tf.Imports {
-			if imp.Specifier != bd.Module || imp.Resolved == "" || b.files[imp.Resolved] == nil {
+			t := imp.testTarget()
+			if imp.Specifier != bd.Module || t == "" || b.files[t] == nil {
 				continue
 			}
-			add(bd.Local, imp.Resolved, bd.Exported, b.facts[imp.Resolved])
+			add(bd.Local, t, bd.Exported, b.facts[t])
 		}
 	}
 	return helpers
@@ -652,18 +653,19 @@ func (b *builder) baseClass(p string, f fileFacts) (string, bool) {
 			continue
 		}
 		for _, imp := range tf.Imports {
-			if imp.Specifier != bd.Module || imp.Resolved == "" || b.files[imp.Resolved] == nil {
+			t := imp.testTarget()
+			if imp.Specifier != bd.Module || t == "" || b.files[t] == nil {
 				continue
 			}
-			if base := b.facts[imp.Resolved]; base.class == bd.Exported || bd.Exported == "default" && base.classDefault {
-				return imp.Resolved, true
+			if base := b.facts[t]; base.class == bd.Exported || bd.Exported == "default" && base.classDefault {
+				return t, true
 			}
 		}
 	}
 	if module, ok := f.defaultImports[f.navBase]; ok {
 		for _, imp := range tf.Imports {
-			if imp.Specifier == module && imp.Resolved != "" && b.files[imp.Resolved] != nil && b.facts[imp.Resolved].classDefault {
-				return imp.Resolved, true
+			if t := imp.testTarget(); imp.Specifier == module && t != "" && b.files[t] != nil && b.facts[t].classDefault {
+				return t, true
 			}
 		}
 	}

@@ -260,16 +260,24 @@ func TaskHash(task string) string {
 // Append is deliberately fail-open. It only writes a bounded JSONL ledger below
 // the repository worktree and never creates an index, trace, or agent-memory file.
 func Append(root string, event Event) error {
+	_, err := AppendNew(root, event)
+	return err
+}
+
+// AppendNew is Append that also reports whether the row was written: false when an
+// adapter-degradation row was already present for its window (SOL-V0-010 deduplication) or the
+// append failed. AHI-911 shows a repeated banner only for a new row.
+func AppendNew(root string, event Event) (bool, error) {
 	if err := validateWriterContract(event); err != nil {
-		return err
+		return false, err
 	}
 	if !ledgerIgnored(root) {
-		return fmt.Errorf("self-observation ledger is not safely gitignored")
+		return false, fmt.Errorf("self-observation ledger is not safely gitignored")
 	}
 	screenEvent(&event)
 	encoded, err := json.Marshal(event)
 	if err != nil || len(encoded)+1 > maxRowBytes {
-		return fmt.Errorf("observation row exceeds bound")
+		return false, fmt.Errorf("observation row exceeds bound")
 	}
 	// Every step below goes through one validated .corvint handle, so a
 	// symlink, even one swapped in after validation, cannot move the write,
@@ -277,7 +285,7 @@ func Append(root string, event Event) error {
 	// (SOL-V0-014).
 	directory, err := OpenLedgerDirectory(root, true, errLedgerNotRegular)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer directory.Close()
 	if ledgerDirectoryOpened != nil {
@@ -286,7 +294,7 @@ func Append(root string, event Event) error {
 	appendProcessLock.Lock()
 	defer appendProcessLock.Unlock()
 	if err := lockObservationFile(directory.File()); err != nil {
-		return err
+		return false, err
 	}
 	defer unlockObservationFile(directory.File())
 	var previous []byte
@@ -295,18 +303,21 @@ func Append(root string, event Event) error {
 		defer ledger.Close()
 		info, statErr := ledger.Stat()
 		if statErr != nil {
-			return statErr
+			return false, statErr
 		}
 		previous, err = readPreviousRows(ledger, info.Size(), len(encoded)+1)
 	}
 	if err != nil && !os.IsNotExist(err) {
-		return err
+		return false, err
 	}
 	if event.Kind == KindAdapterDegradation && retainsRow(previous, encoded) {
-		return nil
+		return false, nil
 	}
 	data := append(append(previous, encoded...), '\n')
-	return directory.Replace(ledgerName, temporaryPrefix, data)
+	if err := directory.Replace(ledgerName, temporaryPrefix, data); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // retainsRow reports whether previous already holds row as a complete line: SOL-V0-010

@@ -26,6 +26,8 @@ import (
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	// The E2E readiness and preflight probes need the loopback HTTP client (V1-2185).
+	_ "github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -243,6 +245,9 @@ type controlProof struct {
 	// LostAttempts are the attempts BBF read infrastructure_failed, each with its concrete
 	// loss (CCE-V0-116); absent when none was.
 	LostAttempts []runLoss `json:"lost_attempts,omitempty"`
+	// RetriedLostAttempts are the first run's losses of a control that was lost to
+	// infrastructure and rerun once (CCE-V0-940); absent when the control was not rerun.
+	RetriedLostAttempts []runLoss `json:"retried_lost_attempts,omitempty"`
 }
 
 // proveEnv is the validated toolchain shared by every run of one Prove call.
@@ -258,10 +263,11 @@ type proveEnv struct {
 	// test tree from root at head.
 	tests testsRoot
 	// side runs one staged pool and returns its receipt, either the qualified receipt digest
-	// or the reason it has none, and the provider's run error; controls applies the CCE-V0-018 controls at head. Prove uses
+	// or the reason it has none, and the provider's run error; controls applies the CCE-V0-018 controls at head,
+	// all of them when only is nil and otherwise the controls only names. Prove uses
 	// runQualified and runControls; the offline ladder tests substitute fakes (CCE-V0-028).
 	side     func(ctx context.Context, in runInput) (jstestprovider.Receipt, string, string, error)
-	controls func(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt) []controlProof
+	controls func(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt, only []string) []controlProof
 }
 
 // Prove runs each compiled scenario at head and then at base through the Playwright provider,
@@ -393,7 +399,7 @@ func (e *proveEnv) proveScenario(ctx context.Context, base, head string, sc Scen
 		p.RecordedCoverage = e.recorded(ctx, head, tree, sc, p.Head, recorder)
 	}
 	if controlsReachable(p.Head, p.Base) {
-		p.Controls = e.controls(ctx, head, sc, tree, headReceipt)
+		p.Controls = e.rerunLostControls(ctx, head, sc, tree, headReceipt, e.controls(ctx, head, sc, tree, headReceipt, nil))
 	} else {
 		p.Controls = notRunControls(sc, "verdict-decided-before-controls")
 	}
@@ -1276,7 +1282,11 @@ func every(outs []repeatOutcome, f func(repeatOutcome) bool) bool {
 // runControls applies the CCE-V0-018 controls at head (CCE-V0-009 rungs 5-6). The proof
 // repository holds the head tree with the test tree over it, and serves as application, test and
 // documentation repository at one revision; the scenario file is the contract file.
-func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt) []controlProof {
+func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt, only []string) []controlProof {
+	specs := controlSpecs(sc)
+	if only != nil {
+		specs = slices.DeleteFunc(specs, func(s controlSpec) bool { return !slices.Contains(only, s.id) })
+	}
 	work, err := os.MkdirTemp("", "corvint-e2e-controls-")
 	if err != nil {
 		return notRunControls(sc, "control-workspace-unavailable")
@@ -1297,7 +1307,7 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tr
 	if err := os.WriteFile(filepath.Join(disposable, behaviorfalsify.MarkerName), []byte(markerText), 0o644); err != nil {
 		return notRunControls(sc, "control-workspace-unavailable")
 	}
-	request := e.controlRequest(sc, rev, repo, disposable, headReceipt)
+	request := e.controlRequest(sc, specs, rev, repo, disposable, headReceipt)
 	plan, err := behaviorfalsify.BuildPlan(request)
 	if err != nil {
 		reason := "plan-refused"
@@ -1314,7 +1324,40 @@ func (e *proveEnv) runControls(ctx context.Context, head string, sc Scenario, tr
 		}
 		return out
 	}
-	return controlResults(controlSpecs(sc), plan.Digest, report)
+	return controlResults(specs, plan.Digest, report)
+}
+
+// rerunLostControls reruns once, alone, each control that read infrastructure_failed without a
+// located teardown failure, and keeps the first run's losses beside the rerun's result
+// (CCE-V0-940). A killed, survived, invalid, not-run or teardown-attributed control never reruns.
+func (e *proveEnv) rerunLostControls(ctx context.Context, head string, sc Scenario, tree testTree, headReceipt jstestprovider.Receipt, controls []controlProof) []controlProof {
+	var lost []string
+	for _, c := range controls {
+		if c.Status == string(behaviorfalsify.StatusInfrastructureFailed) &&
+			!slices.ContainsFunc(c.Reasons, func(r string) bool { return strings.HasPrefix(r, FailureTeardownFailed+" at ") }) {
+			lost = append(lost, c.ID)
+		}
+	}
+	if len(lost) == 0 {
+		return controls
+	}
+	rerun := e.controls(ctx, head, sc, tree, headReceipt, lost)
+	for i, c := range controls {
+		if !slices.Contains(lost, c.ID) {
+			continue
+		}
+		for _, r := range rerun {
+			if r.ID != c.ID || r.Kind != c.Kind {
+				continue
+			}
+			r.RetriedLostAttempts = c.LostAttempts
+			if len(r.RetriedLostAttempts) == 0 { // keep a trace of the rerun even without attempt detail
+				r.RetriedLostAttempts = []runLoss{{AttemptReasons: append([]string{}, c.Reasons...)}}
+			}
+			controls[i] = r
+		}
+	}
+	return controls
 }
 
 func controlResults(specs []controlSpec, digest string, report behaviorfalsify.Report) []controlProof {
@@ -1378,7 +1421,7 @@ func gitWrite(ctx context.Context, dir string, args ...string) ([]byte, error) {
 	}, args...)
 }
 
-func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, headReceipt jstestprovider.Receipt) behaviorfalsify.Request {
+func (e *proveEnv) controlRequest(sc Scenario, specs []controlSpec, rev, repo, disposable string, headReceipt jstestprovider.Receipt) behaviorfalsify.Request {
 	keys := []string{envNodeBin, envModules, envBrowsers}
 	if e.environment != nil {
 		// The hook's serve runs with the same declared names as the prove sides; an unset name is
@@ -1435,7 +1478,7 @@ func (e *proveEnv) controlRequest(sc Scenario, rev, repo, disposable string, hea
 	}
 	hook := e.hook
 	var controls []behaviorfalsify.ControlSpec
-	for _, spec := range controlSpecs(sc) {
+	for _, spec := range specs {
 		controls = append(controls, behaviorfalsify.ControlSpec{ID: spec.id, Kind: spec.kind, Disposition: "run", Definition: def(spec), Hook: &hook})
 	}
 	return behaviorfalsify.Request{

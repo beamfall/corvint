@@ -43,6 +43,7 @@ node_modules/
 # fails a tools/ main whose output is not ignored here, and any binary blob outside a fixture path.
 /beamfall-shadow
 /capabilities-check
+/flow-guide-check
 /cem-citation-baseline
 /cem-release-suites
 /cem-stable-regen
@@ -76,4 +77,5 @@ node_modules/
 /test-commands-run
 /test-read-scopes-check
 /test-shards
+/tiers-replay
 /unbounded-readers

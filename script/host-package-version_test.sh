@@ -23,6 +23,7 @@ integrations/codex/plugins/corvint/.codex-plugin/plugin.json
 integrations/codex/plugins/corvint/compatibility.json
 integrations/gemini-cli/gemini-extension.json
 integrations/gemini-cli/compatibility.json
+integrations/gemini-cli/hooks/corvint-hook.mjs
 integrations/opencode/package.json
 integrations/opencode/src/runtime.js
 integrations/pi/package.json
@@ -57,7 +58,7 @@ before=$(evidence)
 # 2. Bumping each package changes exactly one line per location and leaves recorded evidence
 # versions alone.
 cases=1
-for spec in claude-code:4 codex:3 gemini-cli:3 opencode:4 pi:7 speckit:1 openspec:1; do
+for spec in claude-code:4 codex:3 gemini-cli:4 opencode:4 pi:7 speckit:1 openspec:1; do
     package=${spec%%:*} want=${spec#*:}
     old=$(tool verify "$package") || fail "$package did not verify before its bump"
     old=${old#* }
@@ -85,8 +86,8 @@ if tool bump gemini-cli >/dev/null 2>&1; then fail "bump ran over disagreeing lo
 
 # 4b. AHI-240: a drifted Pi emitter or native literal is a location verify names.
 # AHI-249: the OpenCode runtime ADAPTER_VERSION literal is a location too. AHI-522 (V1-3170): so
-# is the Pi spec's declared capability tuple.
-for spec in "pi|integrations/pi/runtime.js|PI_ADAPTER_VERSION='" "pi|cmd/corvint/pi_adapter.go|piAdapterVersion = \"" 'pi|docs/specs/pi-workflow-v0.md|"tuple": {"adapterVersion": "' "opencode|integrations/opencode/src/runtime.js|ADAPTER_VERSION = \""; do
+# is the Pi spec's declared capability tuple. AHI-953: so is the Gemini hook ADAPTER_VERSION literal.
+for spec in "pi|integrations/pi/runtime.js|PI_ADAPTER_VERSION='" "pi|cmd/corvint/pi_adapter.go|piAdapterVersion = \"" 'pi|docs/specs/pi-workflow-v0.md|"tuple": {"adapterVersion": "' "opencode|integrations/opencode/src/runtime.js|ADAPTER_VERSION = \"" "gemini-cli|integrations/gemini-cli/hooks/corvint-hook.mjs|ADAPTER_VERSION = \""; do
     package=${spec%%|*} spec=${spec#*|}
     path=${spec%%|*} prefix=${spec#*|}
     (cd "$test_root" && git checkout -q -- . && P=$prefix perl -0pi -e 's/\Q$ENV{P}\E[0-9.]+/$ENV{P}0.0.1/' "$path")

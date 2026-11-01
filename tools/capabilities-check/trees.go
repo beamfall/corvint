@@ -24,7 +24,7 @@ const (
 	// ratchetCeiling is the committed size of the ratchet. It may only fall: the check fails
 	// when the file grows past it, and when the file shrinks the ceiling must follow, so a
 	// removed row cannot quietly be re-added later.
-	ratchetCeiling = 50
+	ratchetCeiling = 40
 )
 
 // ratchetBaseline is every binary the ratchet held when it was introduced (V1-2685). A row must

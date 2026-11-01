@@ -28,7 +28,7 @@ func TestVerifyArgumentsDCWV0384AdmitsOneQuotedRunAlternation(t *testing.T) {
 		t.Fatalf("admitted alternation refused: %v", err)
 	}
 	for _, line := range []string{
-		"go test ./a -run 'Test[A-C]|TestD'",
+		"go test ./a -run 'Test.*|TestD'",
 		"go test ./a -run 'TestA|TestB' -run 'TestC|TestD'",
 		"go test ./a -run 'TestA|TestB'; rm -rf x",
 		"go test ./a -run 'TestA|TestB' | tee log",
@@ -148,6 +148,53 @@ func TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments(t *testing.T)
 	}
 }
 
+// DCW-V0-991 (V1-3642): a quoted -run word may hold bracket classes of name
+// characters, alone or in an alternation, and is recorded as one argv word;
+// any other quoted -run word is refused with a reason naming its first
+// unadmitted character, or its shape when every character is admitted.
+func TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass(t *testing.T) {
+	for line, want := range map[string]string{
+		"go test -run 'TestX88[45]_' ./a":           `["go","test","-run","TestX88[45]_","./a"]`,
+		"go test -run=\"TestX[0-9]$x\" ./a":         "",
+		"go test -run '^(TestX88[45]_|TestY)$' ./a": `["go","test","-run","^(TestX88[45]_|TestY)$","./a"]`,
+		"go test ./a -run=\"Test[AB]c\"":            `["go","test","./a","-run=Test[AB]c"]`,
+		"go test -run '[45]_' ./a":                  `["go","test","-run","[45]_","./a"]`,
+		"go test -run 'TestX[0-9]' ./a":             `["go","test","-run","TestX[0-9]","./a"]`,
+		"go test -run '[45]' ./a":                   `["go","test","-run","[45]","./a"]`,
+		"go test -run 'TestA[1]|TestB[23]' ./a":     `["go","test","-run","TestA[1]|TestB[23]","./a"]`,
+		"go test -run 'TestA[45]|TestB[1]' -v ./a":  `["go","test","-run","TestA[45]|TestB[1]","-v","./a"]`,
+	} {
+		got := verifyArguments([]byte(line + "\n"))
+		if want == "" {
+			if got[0] != "--verify" || validateVerify(got) == nil {
+				t.Errorf("%q became %q, want refused", line, got)
+			}
+			continue
+		}
+		if len(got) != 2 || got[0] != "--verify-argv-json" || got[1] != want {
+			t.Errorf("%q became %q, want argv %s", line, got, want)
+			continue
+		}
+		if err := validateVerify(got); err != nil {
+			t.Errorf("%q refused: %v", line, err)
+		}
+	}
+	for line, want := range map[string]string{
+		"go test -run 'TestX[^4]' ./a":   `is none of the admitted forms`,
+		"go test -run 'TestX.*' ./a":     `holds "*" at byte 6`,
+		"go test -run 'Test[a b]' ./a":   `holds " " at byte 6`,
+		"go test -run '^TestX[4]' ./a":   `is none of the admitted forms`,
+		"go test -run 'TestX[]' ./a":     `is none of the admitted forms`,
+		"go test -run 'TestA|TestB' ./a": "",
+		"go test -run TestA ./a":         "",
+	} {
+		got := quotedRunRefusal(line)
+		if want == "" && got != "" || want != "" && (!strings.Contains(got, want) || !strings.Contains(got, "DCW-V0-991")) {
+			t.Errorf("quotedRunRefusal(%q) = %q, want %q", line, got, want)
+		}
+	}
+}
+
 // DCW-V0-904 (V1-3410): one quoted plain or anchored test name and the
 // whole-package -run '.' or '.*' are one typed argv word each, including after
 // a quoted HEAVY_WHOLE_REASON assignment; an unquoted anchored name or .* stays
@@ -207,7 +254,7 @@ func TestDCWV0905TildeVerifyLineNamesTheAbsolutePath(t *testing.T) {
 	if args := verifyArguments([]byte("~/lanes/run.sh go test ./a\n")); validateVerify(args) == nil {
 		t.Fatalf("a ~ path was admitted: %q", args)
 	}
-	if err := os.WriteFile(verify, []byte("go test -run 'Test[A-C]' ./a\n"), 0o600); err != nil {
+	if err := os.WriteFile(verify, []byte("go test -run 'Test.*' ./a\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if got := tildeFix(verify); got != "" {

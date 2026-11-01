@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // ConfigProfile is the closed shared-path configuration profile (SPC-V0-001).
@@ -87,7 +88,7 @@ func LoadConfig(file string) (Config, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&c) != nil || decoder.More() {
+	if decoder.Decode(&c) != nil || !jsonend.Done(decoder) {
 		return Config{}, errors.New(CodeConfigUnavailable)
 	}
 	if c.RunTrailer == "" {

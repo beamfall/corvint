@@ -307,7 +307,7 @@ func admin(ctx context.Context, c Checkout, h Host, b *inventoryBudget) (entries
 	}
 	// Fixed read-only probe excludes gitlinks anywhere in the committed tree.
 	env := append(gokernel.SanitizedGitEnvironment(), "GIT_GRAFT_FILE="+os.DevNull, "GIT_ATTR_NOSYSTEM=1")
-	args := []string{"--no-optional-locks", "--git-dir=" + gitdir, "-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false", "-c", "core.attributesFile=" + os.DevNull, "ls-tree", "-r", "-z", commit}
+	args := []string{"--no-optional-locks", "--git-dir=" + gitdir, "-c", "core.hooksPath=" + os.DevNull, "-c", "core.fsmonitor=false", "-c", "core.attributesFile=" + os.DevNull, "-c", "advice.graftFileDeprecated=false", "ls-tree", "-r", "-z", commit}
 	data, err := gitrun.Run(ctx, gitrun.NewBudget(1, 10_000_000_000), gitrun.Options{Binary: h.GitBinary, Dir: c.Root, Env: env, StdoutLimit: 8 << 20}, args...)
 	if err != nil {
 		return entries, gitdir, common, "", "", ErrUnsupported

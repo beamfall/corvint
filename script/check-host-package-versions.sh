@@ -16,9 +16,9 @@ set -eu
 # at that commit's first parent (a file's first commit always counts, since the field goes
 # from absent to present). "The last commit that changed any other shipped file" is the newest
 # commit (by committer date) touching any tracked path in the package's shipped set, which
-# excludes the version file(s) themselves and, unless a package declares its own `files` list,
-# excludes README.md. The shipped set is named by the package directory with those files excluded,
-# not by a file list, so a shipped file added later (a new skill, say) is covered without editing
+# excludes the version file(s) themselves and README.md (AHI-954: every package, those with a
+# `files` list included). The shipped set is named by the package directory with those files
+# excluded, not by a file list, so a shipped file added later (a new skill, say) is covered without editing
 # this script. The gate fails when a version file's last field-change commit is older
 # than the shipped set's last content-change commit.
 
@@ -153,13 +153,12 @@ check_package gemini-cli \
     ':(exclude)integrations/gemini-cli/gemini-extension.json' \
     ':(exclude)integrations/gemini-cli/README.md'
 
-# opencode declares its own published `files` list, README.md included, so that list (not the
-# README exclusion above) defines its shipped set.
+# opencode declares its own published `files` list, so that list defines its shipped set. Its
+# README.md stays out, as for every package (AHI-954): a version-cached README changes no behaviour.
 check_package opencode \
     'integrations/opencode/package.json|.version' \
     -- \
     integrations/opencode/src \
-    integrations/opencode/README.md \
     integrations/opencode/opencode.example.json \
     integrations/opencode/mcp.example.json \
     integrations/opencode/skills
@@ -169,7 +168,7 @@ check_package pi \
     'integrations/pi/package.json|.version' \
     'integrations/pi/package.json|.corvintIntegration.adapterVersion' \
     -- \
-    integrations/pi/index.ts integrations/pi/extension.js integrations/pi/tools.js integrations/pi/runtime.js integrations/pi/README.md integrations/pi/compatibility.json integrations/pi/process.js integrations/pi/core.js integrations/pi/tasks.js integrations/pi/operations.js integrations/pi/cockpit.js integrations/pi/workflow.js
+    integrations/pi/index.ts integrations/pi/extension.js integrations/pi/tools.js integrations/pi/runtime.js integrations/pi/compatibility.json integrations/pi/process.js integrations/pi/core.js integrations/pi/tasks.js integrations/pi/operations.js integrations/pi/cockpit.js integrations/pi/workflow.js
 
 # AHI-020 / V1-2184: the Spec Kit extension and the OpenSpec skill are cached by version too. The
 # OpenSpec skill file is both its version file and its main shipped content, so it stays in its

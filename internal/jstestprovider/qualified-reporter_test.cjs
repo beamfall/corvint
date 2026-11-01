@@ -513,3 +513,26 @@ test('PWP-V3-014 a test whose launch identity is known keeps it', () => {
   const projects = runFixtureTests(loadReporterWithBrowser(true), [[fixtureTest('api', ['request'], []), {status: 'passed', steps: []}]]);
   assert.equal(projects.api.browser, 'chromium');
 });
+
+// V1-3636: test.fail() declares expectedStatus 'failed'. A body that fails as declared is a
+// pass, and a body that passes is an unexpected outcome, the way Playwright counts them.
+test('expectedStatus failed inverts the recorded state of a test.fail() test', () => {
+  const Reporter = loadReporter();
+  const output = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'corvint-expected-')), 'report.json');
+  const reporter = new Reporter({output});
+  const project = {name: 'chromium', use: {}, metadata: {}};
+  const item = (id, expectedStatus) => ({id, title: id, retries: 0, repeatEachIndex: 0, expectedStatus, location: {file: '/repo/test.cjs', line: 1}, _testType: {fixtures: []}, parent: {project: () => project}, titlePath: () => [id]});
+  const run = status => ({status, retry: 0, workerIndex: 0, duration: 1, errors: status === 'failed' ? [{message: 'expected failure'}] : [], attachments: [], steps: []});
+  reporter.onTestEnd(item('fails-as-declared', 'failed'), run('failed'));
+  reporter.onTestEnd(item('passes-unexpectedly', 'failed'), run('passed'));
+  reporter.onTestEnd(item('ordinary-pass', 'passed'), run('passed'));
+  reporter.onTestEnd(item('ordinary-fail', 'passed'), run('failed'));
+  reporter.onEnd({status: 'failed'});
+  const states = Object.fromEntries(JSON.parse(fs.readFileSync(output, 'utf8')).tests.map(t => [t.name, t]));
+  assert.equal(states['fails-as-declared'].state, 'passed');
+  assert.equal(states['passes-unexpectedly'].state, 'failed');
+  assert.match(states['passes-unexpectedly'].failureMessage, /expected to fail/);
+  assert.equal(states['passes-unexpectedly'].attempts[0].failureKind, 'assertion-or-test');
+  assert.equal(states['ordinary-pass'].state, 'passed');
+  assert.equal(states['ordinary-fail'].state, 'failed');
+});

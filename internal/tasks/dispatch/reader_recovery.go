@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -24,6 +25,14 @@ import (
 const ReaderRecoveryProfile = "taskman-dispatch-reader-recovery/0"
 
 const readerRecoveryDir = "reader-recoveries"
+
+// readerUnannouncedDir, under reader-recoveries/, holds a hard link to each
+// operator recovery record the next dispatch start has yet to announce
+// (DSG-V0-940); maxAnnouncedRecoveries bounds one start's announcements.
+const (
+	readerUnannouncedDir   = "unannounced"
+	maxAnnouncedRecoveries = 64
+)
 
 // Recovery kinds: an operator attestation, or the host-reboot proof.
 const (
@@ -97,8 +106,11 @@ func rebootProof(m readerMarker) (currentBoot string, ok bool) {
 // resolveReaderByReboot applies the reboot proof. The caller holds the
 // program lock. A marker without the proof is left untouched for
 // checkReaderQuarantine to refuse; a proof that cannot be recorded is an
-// error, and the marker stays.
-func resolveReaderByReboot(dir, program string, now time.Time) (*ReaderRecovery, error) {
+// error, and the marker stays. beforeClear, when not nil, runs after the
+// record is durable and before the marker goes: an error from it keeps the
+// marker, so the next attempt finds the same record and runs it again
+// (CAL-V0-227, V1-3635).
+func resolveReaderByReboot(dir, program string, now time.Time, beforeClear func(*ReaderRecovery) error) (*ReaderRecovery, error) {
 	mark, err := readReaderMarker(dir, program)
 	if err != nil {
 		return nil, nil
@@ -125,6 +137,11 @@ func resolveReaderByReboot(dir, program string, now time.Time) (*ReaderRecovery,
 		rec = *prior
 	} else if err != nil {
 		return nil, err
+	}
+	if beforeClear != nil {
+		if err := beforeClear(&rec); err != nil {
+			return nil, err
+		}
 	}
 	if err := clearReaderMarker(mark, program); err != nil {
 		return nil, err
@@ -196,6 +213,11 @@ func RecoverReader(c *Config, program string, req ReaderRecoveryRequest, now tim
 			return nil, false, err
 		}
 	}
+	// DSG-V0-940: the next start announces the recovery; the link precedes
+	// the removal, so a recovery that lifted a quarantine is never silent.
+	if err := linkUnannounced(dir, name); err != nil {
+		return nil, false, err
+	}
 	if err := clearReaderMarker(mark, program); err != nil {
 		return nil, false, err
 	}
@@ -203,6 +225,73 @@ func RecoverReader(c *Config, program string, req ReaderRecoveryRequest, now tim
 		return nil, false, err
 	}
 	return &rec, replayed, nil
+}
+
+// linkUnannounced hard-links the recovery record name into
+// reader-recoveries/unannounced/ with the directory fsynced. An existing
+// link is kept, so a replay that finishes an interrupted removal links
+// nothing twice (DSG-V0-940).
+func linkUnannounced(dir, name string) error {
+	recDir := filepath.Join(dir, readerRecoveryDir)
+	pending := filepath.Join(recDir, readerUnannouncedDir)
+	if err := os.MkdirAll(pending, 0o700); err != nil {
+		return err
+	}
+	if err := syncDir(recDir); err != nil {
+		return err
+	}
+	if err := os.Link(filepath.Join(recDir, name), filepath.Join(pending, name)); err != nil && !errors.Is(err, fs.ErrExist) {
+		return err
+	}
+	return syncDir(pending)
+}
+
+// announceReaderRecoveries emits one reader-recovered event per linked
+// recovery record, in name order and at most maxAnnouncedRecoveries per
+// start, and removes each link only after its event line is appended. A
+// linked record that does not decode stays linked and is reported by an
+// alert (DSG-V0-940). The caller holds the program lock and has passed the
+// quarantine check.
+func (d *Dispatcher) announceReaderRecoveries() {
+	pending := filepath.Join(d.dir, readerRecoveryDir, readerUnannouncedDir)
+	f, err := os.Open(pending)
+	if errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	if err != nil {
+		d.emit(Event{Kind: "alert", Message: "unannounced reader recoveries not read: " + err.Error()})
+		return
+	}
+	entries, err := f.ReadDir(maxAnnouncedRecoveries)
+	f.Close()
+	if err != nil && !errors.Is(err, io.EOF) {
+		d.emit(Event{Kind: "alert", Message: "unannounced reader recoveries not read: " + err.Error()})
+		return
+	}
+	names := make([]string, 0, len(entries))
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	sort.Strings(names)
+	removed := false
+	for _, name := range names {
+		rec, err := ReadReaderRecovery(d.dir, name)
+		if err != nil {
+			d.emit(Event{Kind: "alert", Message: fmt.Sprintf("reader recovery %s is linked for announcement but unreadable; it stays linked: %v", name, err)})
+			continue
+		}
+		e := Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted by %s attestation recorded at %s: %s (%s); recorded in %s", orText(rec.Run, "unknown"), rec.Kind, rec.RecordedAt, rec.Reason, rec.Evidence, readerRecoveryDir),
+			Detail: map[string]string{"kind": rec.Kind, "run": rec.Run, "requestId": rec.RequestID, "recordedAt": rec.RecordedAt}}
+		if d.record(e) != nil {
+			continue
+		}
+		if os.Remove(filepath.Join(pending, name)) == nil {
+			removed = true
+		}
+	}
+	if removed {
+		_ = syncDir(pending)
+	}
 }
 
 // readerLeaderLive applies the live evidence, which outranks the

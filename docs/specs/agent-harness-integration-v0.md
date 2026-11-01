@@ -141,7 +141,7 @@ separate exact extension tuple remains governed by AHI-024.
   may be labelled full support. The `host-adapter` translator reports an unrecognised hook event as
   the degraded reason `unsupported-hook-event`, and oversized or malformed hook input as
   `hook-input-too-large` or `malformed-hook-json`, each in a `systemMessage` that says coding
-  continues (`cmd/corvint/host_adapter.go:39,146,150@b3341e84`). These are faults under `AHI-021`.
+  continues (`cmd/corvint/host_adapter.go:39,153,157@b3341e84`). These are faults under `AHI-021`.
   OpenCode and Gemini owned-process-group cleanup on a timeout, a cancellation or a normal leader
   exit, including which signal or probe answers confirm it and the visible degradation
   `corvint-process-cleanup-unconfirmed`, is governed by `AHI-050` (decision 0474), which supersedes
@@ -862,6 +862,95 @@ separate exact extension tuple remains governed by AHI-024.
   GitHub #1982 shapes (lifecycle 257 and 296 ms at slowdown 7.7 and 10 qualify; 400 ms stays
   retry-later; 3000 ms is a regression). Rollback: revert the AHI-372 branches in `contention.go`,
   `native.go` and `record.go` so a contended miss is `RETRY_LATER` again.
+- `AHI-970`: (experimental under the standing lane auto-accept; V1-3255; amends `AHI-055` and
+  `AHI-057`) A Claude Code or Codex notice for the dogfood event rejection
+  `corvint-event-rejected:dogfood-event-unavailable`, and a Claude Code PostCompact notice for
+  `compaction-pin-not-emitted`, `compaction-pin-not-preserved`,
+  `compaction-pin-revision-unavailable` or `compaction-pin-verification-unavailable`, MUST keep its
+  frame line unchanged and append, in every channel the notice already uses, one plain-words cause
+  line for that reason and one recovery step naming an exact read-only argv to run outside the hook:
+  `corvint --root ROOT query --task "Corvint hook check"` for the dogfood event (which surfaces the
+  typed error the hook's closed code hides), and the same argv for a compaction pin (the next prompt
+  rebuilds Corvint context from the current tree; the argv shows whether that read works). The cause
+  line never claims a cause the hook did not observe. Non-goals: a new degradation code, any change
+  to the SOL-V0-010 reason, the expected-degradation set (`AHI-021`), or PreCompact output, which the
+  host passes to the compactor rather than the user. Failure mode: a root long enough to push the
+  encoded output past the adapter output limit keeps the frame-only notice, as `AHI-055` does.
+  Evidence: `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery` and
+  `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` (`cmd/corvint`). Rollback: drop
+  `withCauseRemediation` so these notices carry the frame line alone.
+- `AHI-950`: (experimental under the standing lane auto-accept (2026-10-31); V1-2347, V1-2518)
+  Amendment to `AHI-172` and `AHI-171`. Each window's `AHI-172` quiet reference MUST be calibrated
+  per window as the window's fastest completed probe spawn, never below the declared floor of 2 ms,
+  and the slowdown is the probe p95 over that calibrated reference, at least 1.
+  `metrics.latencyAttempts[].baseline` and `metrics.latencyBaseline` MUST record the calibrated
+  reference as `quietReferenceP95Ms` (`NOT_OBSERVED` when the baseline was not observed) and the
+  floor as `referenceFloorMs`. A host whose quiet spawn is slower than the floor then shows no
+  standing slowdown, so a slow-spawn host cannot excuse a candidate regression; the floor keeps a
+  fast host from excusing more than the declared reference allowed. An observed OpenCode child
+  command that reaches its process timeout with a clean owned process group MUST be classified from
+  the host load read before the command started and again at the timeout: when the peak 1-minute
+  load per logical CPU exceeds the `AHI-171` threshold the qualifier MUST exit 75 (`RETRY_LATER`)
+  and name the timeout, the measured peak load, the threshold and `host-starvation-suspected`;
+  otherwise it MUST fail (exit 1) naming the timeout and the measured load as an adapter failure,
+  and with the load unobserved it MUST fail and say `NOT_OBSERVED`. Non-goals: a per-host stored
+  calibration, a separate quiet calibration run, CPU steal time, and retrying a timed-out command
+  in the same run. Failure modes: a window uniformly contended from its first spawn calibrates a
+  high reference and understates the slowdown, which fails closed towards `LATENCY_REGRESSION`; a
+  genuine adapter hang on a contended host retries later until it is reproduced on a quiet one.
+  Evidence: `TestAHI172SameWindowBaseline` (`AHI-950` subtest) and `TestProcessTimeoutUnderContention`
+  in `internal/opencodequalification`. Rollback: revert `baselineSample.reference` and
+  `timeoutError` so the fixed reference and an unclassified timeout return.
+- `AHI-951`: (experimental under the standing lane auto-accept (2026-10-31); V1-2495) The Codex
+  qualified-package publish MUST be `script/publish-codex-plugin.sh publish REVISION QUALIFIED_HOOKS
+  OUTPUT`: it extracts `integrations/codex/plugins/corvint` from the committed REVISION only,
+  replaces `hooks/hooks.json` with the reviewed `prepare-qualified-hooks` rendering, omits
+  `scripts/`, keeps every other file including `.mcp.json`, writes the local marketplace manifest
+  and a `PUBLISH.json` naming the source revision, the plugin version and the transforms, the
+  hooks transform recording the Git blob of the staged copy it publishes (a failed hash refuses
+  the publish), and publishes nothing unless the result passes the check. `script/publish-codex-plugin.sh check
+  PLUGIN_DIR` MUST refuse (exit 1, naming the key and path) a plugin whose `.codex-plugin/plugin.json`
+  declares a `skills`, `mcpServers` or `hooks` path that is missing, leaves the plugin by its text
+  or physically through a symlink (a file reference may not itself be a symlink), or (for
+  `mcpServers`) declares no server object; `make host-package-versions-check` runs it on the
+  committed plugin. Non-goals: version stamping, Codex configuration or hook trust changes, and a
+  Git marketplace. Failure modes: the qualified hooks file is the caller's reviewed input and is
+  checked only for shape; a fresh install listing the MCP tools needs a live Codex host and stays
+  `NOT_RUN` until one is qualified. Evidence: `script/publish-codex-plugin_test.sh` (committed
+  plugin passes; missing, empty and escaping references are refused; a publish carries `.mcp.json`
+  and the qualified hooks and omits `scripts/`; a refused publish leaves no output). Rollback:
+  delete the script and its two Makefile lines.
+- `AHI-952`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; amends
+  `AHI-022`) The Gemini CLI hook MUST apply `AHI-248`: a well-formed `BeforeAgent` receipt that
+  holds an exact copy of the task MUST be withheld as `prompt-echo-withheld`, which joins the
+  `AHI-022` closed expected set, so the unchanged degraded text goes to `BeforeAgent`
+  additionalContext and no `systemMessage` reaches the terminal. A one-word task such as `Add` can
+  equal a symbol name Core rightly returns, so the echo is not a fault. The guard is unchanged: the
+  receipt's context is never used. Non-goals: relaxing the exact-string check or the order of
+  envelope validation, which still runs first. Failure mode: a malformed receipt that also echoes
+  the task keeps its fault `systemMessage`. Evidence: the `echo` case of `gemini response tampering
+  and budgets fail visibly` in `integrations/host-adapters.test.mjs`, run by
+  `TestHostAdapterJavaScriptHosts`; at base it reports `corvint-prompt-echo` as a `systemMessage`.
+  Rollback: restore the `corvint-prompt-echo` code and remove it from the expected set.
+- `AHI-953`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; extends
+  `AHI-249`) The `ADAPTER_VERSION` literal in `integrations/gemini-cli/hooks/corvint-hook.mjs`,
+  which the hook sends as `--adapter-version` and checks in every receipt, MUST be a gemini-cli
+  version location of `script/host-package-version.sh`, so `verify` names it when it drifts and
+  `bump` moves it with the manifests. At base a bump moved only the manifests and left the hook
+  sending the old version. Evidence: the gemini-cli drift case in
+  `script/host-package-version_test.sh` and the version `0.2.12` argv assertion in
+  `integrations/host-adapters.test.mjs`. Rollback: drop the location line and its test case.
+- `AHI-954`: (experimental under the standing lane auto-accept (2026-10-31); V1-3409; amends
+  `AHI-020`) `README.md` is outside every host package's shipped set, the OpenCode and Pi sets
+  included although their published `files` lists name it, so a README-only edit needs no version
+  bump. A version-cached README changes no runtime behaviour, and those two packages' bump moves
+  every `AHI-173` location, including `cmd/corvint/pi_adapter.go` and the Pi tuple in
+  `docs/specs/pi-workflow-v0.md`, which a documentation edit should not rewrite. The other five
+  packages already excluded it. Non-goals: exempting any other file in a `files` list, or changing
+  what a bump moves. Failure mode: an installed OpenCode or Pi package keeps its old README until
+  the next shipped change bumps the version. Evidence: the OpenCode and Pi README-only cases in
+  `script/check-host-package-versions_test.sh`; at base both fail the gate. Rollback: restore the
+  two `README.md` pathspecs in `script/check-host-package-versions.sh`.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -1373,6 +1462,27 @@ separate exact extension tuple remains governed by AHI-024.
   - Real hosts remain NOT_OBSERVED.
   Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
   plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
+- `AHI-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude Code
+  or Codex `SessionStart` or `UserPromptSubmit` hook that ran Corvint successfully but found nothing
+  actionable to inject MUST print `{"hookSpecificOutput":{"hookEventName":EVENT}}`, the host's own
+  event name with no `additionalContext`, instead of `{}`. Both hosts accept that shape and inject
+  nothing, while a host or qualification driver can tell the successful empty result apart from a
+  fault (a `FALLBACK degraded:` or `Corvint fallback:` message), a killed hook (no output) and the
+  outputs that stay `{}`: an event the adapter does not handle, a `cwd` outside a repository and
+  `SessionEnd`. Rollback: return `{}` again.
+- `AHI-911`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3423) When the
+  Claude Code adapter's watchdog ends any event other than `SessionStart` and `UserPromptSubmit`
+  (whose fallback explains that prompt's missing context) with `adapter-host-kill-deadline`, for
+  example `PostToolUse` after an unrelated Bash call, the banner (its `systemMessage` or
+  `additionalContext`) is shown once per cause: only when
+  its `SOL-V0-010` row is new for that host, event and UTC hour window (the ledger's existing
+  deduplication key). A repeat within the window prints `{}` and is still ledgered. A shown banner
+  keeps its `Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues` frame and adds
+  one line naming the action: refresh the index snapshot with the exact `corvint --root ROOT index
+  --if-stale` argv, and inspect repeats with `corvint --root ROOT observations`. When the ledger
+  cannot be written (not ignored, unwritable, or past its 50 ms bound) the banner is shown, so a
+  fault is never hidden. The ledger row decides only whether the banner repeats; it feeds no
+  ranking, evidence, authority or learning (invariant 4). Rollback: always show the banner.
 - `AHI-045`: (accepted by decision 0441; V1-0942) The Claude Code and Codex
   `corvint-dogfood-event/0` adapters MUST inject, inside the unchanged `AHI-004` envelope, the
   `corvint-hook-context/0` projection of the engine receipt rather than the whole receipt. The
@@ -2103,6 +2213,15 @@ isolated `CODEX_HOME`, branch-built binaries).
   0.7.29 emits 0 and abstains on all 10 (8 `prompt-context-syntax-only`, 2 `prompt-context-withheld`
   for `BUDGETED` packets); 5 of the 10 prompts also name an existing path. Recorded in
   `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-v2755-prompt-frame-abstains.md`.
+  Offline replay on the 142 replayable ContextBench SWE-bench-Pro rows (2026-10-31,
+  `docs/experiments/v2755/frame_replay.py`, results in
+  `docs/experiments/v2755-contextbench-pro-frame-replay-20261031.json`): the frame emits on 1 task
+  (P@2 0.0) and abstains on 141 (in the delivered order, where `AHI-247` checks named paths
+  before any query: 77 `prompt-context-syntax-only`, 56 `prompt-context-withheld`, 8
+  `prompt-names-path`; in `candidateFrame`'s readiness-first order: 82 and 59, none); the candidates it withholds would have had P@2 0.381 against 0.315 for the
+  idf-weighted identifier rg top 2 on the same 135 tasks, and on 67 of 142 tasks held a gold file
+  absent from the rg-idf top 5. That is measured evidence for revisiting the syntax-only rule, not
+  a change to it.
   Non-goals: no change to retrieval, ranking or Core abstention; no repository-wide declaration
   lookup for demotion; no change to other hosts, to `corvint_context`, or to the `AHI-016` twins
   and their conformance goldens; no model-tokenizer measurement.
@@ -2369,12 +2488,12 @@ there, which is the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1114@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
+| `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1216@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
-| `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@8de67696` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
-| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:103@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
-| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:110@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
+| `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@167fae0d` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
+| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:103@c986f602` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
+| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:110@6950feaa` | Claude adapter: the object store reports the pinned tree as missing |
 | `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:244@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
 | `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:231@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
@@ -2383,8 +2502,8 @@ there, which is the whole of what the row asserts.
 | `invalid-harness-adapter` | `internal/gokernel/harness.go:73` | "invalid <label>" |
 | `invalid-harness-budget` | `internal/gokernel/harness.go:378@b2bc66fa` | "harness budget must be at least <value> bytes" |
 | `invalid-repository-root` | `internal/gokernel/harness.go:376` | "cannot resolve repository root" |
-| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:686@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
-| `project-root-unavailable` | `cmd/corvint/host_adapter.go:337@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
+| `malformed-corvint-output` | `cmd/corvint/host_adapter.go:738@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
+| `project-root-unavailable` | `cmd/corvint/host_adapter.go:344@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:433` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
 | `repository-identity-malformed` | `internal/gokernel/repository.go:179@3a35602c` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
@@ -2522,6 +2641,11 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-920` | `cmd/corvint/local_completion_event.go` (`dogfoodMissBuild`) | `TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin` |
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
+| `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
+| `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
+| `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
+| `AHI-953` | gemini-cli `locations` in `script/host-package-version.sh` | `script/host-package-version_test.sh` (gemini-cli drift case) |
+| `AHI-954` | `opencode` and `pi` shipped sets in `script/check-host-package-versions.sh` | `script/check-host-package-versions_test.sh` (OpenCode and Pi README-only cases) |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
@@ -2538,6 +2662,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-199` (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) | `script/heavy.sh` (`HEAVY_NICE`), `Makefile` (`HEAVY_NICE_PREFIX`); the pinned `ledger/go-test` stays unprefixed | the `AHI-199` group in `script/lane-scripts_test.sh`; the user-prompt timing runs in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-claude-code-integration-matrix.md` |
 | `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys, repeated as the README's `-c` overrides); live receipt with a conflicting trusted project config in the 2026-10-23 Codex matrix entry |
 | `AHI-207` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/.mcp.json`, `.codex-plugin/plugin.json` | `TestAHI207CodexPluginMCPServerBindsLaunchWorktree` (nested launch binds the top level with the legacy protocol; a non-worktree launch exits 2 before exec); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-970` (experimental under the standing lane auto-accept; V1-3255) | `cmd/corvint/host_adapter.go` (`withCauseRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery`, `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |

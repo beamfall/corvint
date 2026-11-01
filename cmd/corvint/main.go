@@ -72,6 +72,7 @@ type options struct {
 	queryTaskSet       bool
 	queryBudget        *int
 	queryIntent        string
+	queryOverlay       bool // --worktree-overlay (DIRTY-CACHE-940)
 	version            string
 }
 
@@ -162,6 +163,10 @@ func parse(arguments []string) (options, error) {
 	if index >= len(arguments) {
 		return result, argumentError("the following arguments are required: command")
 	}
+	if arguments[index] == "version" {
+		// PRS-V1-910: agents type `corvint version` by analogy with corvint-tasks.
+		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + "; to print the version, run corvint --version (or corvint --version --json)")
+	}
 	if arguments[index] != "harness" {
 		return result, invalidChoice("command", arguments[index], topLevelCommands)
 	}
@@ -242,6 +247,11 @@ func parseQueryArgumentsForPlatform(result options, arguments []string, platform
 		return result, queryPlatformRefusal(platform)
 	}
 	for index := 0; index < len(arguments); {
+		if arguments[index] == worktreeOverlayFlag {
+			result.queryOverlay = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(arguments[index], "=")
 		if name != "--task" && name != "--limit" && name != "--budget-bytes" {
 			return result, argumentError("unrecognized arguments: " + arguments[index])
@@ -1253,7 +1263,14 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return emitVersion(stdout, stderr, options.version == "--json")
 	}
 	if options.command == "query" {
-		contextReceipt, err := standaloneQueryContext(withQueryWidening(withSnapshotMissNotice(ctx, stderr, "query", options.root)), options)
+		queryContext := withQueryWidening(withSnapshotMissNotice(ctx, stderr, "query", options.root))
+		var contextReceipt map[string]any
+		var err error
+		if options.queryOverlay {
+			contextReceipt, err = overlayQueryContext(queryContext, stderr, options)
+		} else {
+			contextReceipt, err = standaloneQueryContext(queryContext, options)
+		}
 		if err != nil {
 			emitError(stderr, err)
 			return 2
@@ -1640,6 +1657,11 @@ func emitError(stderr io.Writer, err error) {
 		return
 	}
 	if errors.As(err, &contextError) {
+		if class := contextindex.GitStartErrorClass(err); class != "" {
+			// DRC-V0-910: the start class is additive; the error bytes are unchanged.
+			_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"git_start_error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()), pythonJSONString(class))
+			return
+		}
 		_, _ = fmt.Fprintf(stderr, "{\"error\": %s, \"ok\": false}\n", pythonJSONString(err.Error()))
 		return
 	}
@@ -1754,7 +1776,7 @@ func pythonJSONString(value string) string {
 
 func main() {
 	if os.Getenv(snapshotRefreshWorkerEnv) == "1" {
-		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound))
+		os.Exit(runSnapshotRefreshWorker(os.Args[1:], snapshotRefreshWallBound, snapshotRefreshCPUBudget))
 	}
 	// Startup-only owned-group verification precedes signal goroutines, Git
 	// resolution and every ordinary Core entrypoint.

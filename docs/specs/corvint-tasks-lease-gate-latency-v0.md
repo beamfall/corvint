@@ -71,6 +71,7 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   and a heartbeat or renew that first redoes another write's pending post effects MUST make every
   sync for that redo. The owner decision of 2026-10-24 for V1-2203 authorizes this for heartbeat and renew only, and
   amends decision 0549 F2 for those two verbs.
+- `LGL-V0-780`: (proposed; V1-2539; orchestrator decision 2026-10-31 choosing the claim staging-sync skip that LGL-V0-003 names, extending to claims the owner's 2026-10-24 V1-2203 allowance for heartbeat and renew; owner confirmation of the decision 0549 F2 extension pending; experimental under the standing lane auto-accept) A claim session (`CLAIM` and `CLAIM_NEXT`) MUST skip every staging-directory sync exactly as LGL-V0-005 skips them for heartbeat and renew. It crosses the same `sync:staging` boundaries and runs the same checks, keeps every file sync, destination-directory sync and mkdir parent sync, and keeps every sync when it first redoes another write's pending post effects. LGL-V0-007's residue argument holds for a claim unchanged. A crash can leave only a staging slot name holding a second link to an artifact the claim linked (the receipt, the request entry, the new attempt) or replaced (the head, the ticket). Staging is never read as state: the writer route declines while any staging entry exists, and the complete route clears orphans under the lock before it observes, so the residue reads as a killed writer's orphan (CAL-V0-019, CTS-V0-026). The acknowledged claim then reads exactly as committed, and no second holder can claim the same ticket. The claim's commit point (the receipt link and its receipts-directory sync) is unchanged, so a claim the caller saw acknowledged is as durable as before. Every other verb keeps every sync. LGL-V0-006's count becomes two sync calls per artifact for a claim, as for heartbeat and renew. Failure mode (V1-2539): fourteen concurrent claims are admitted first-in-first-out through the preparation gate, and each claim's hold paid its staging syncs. Non-goals: non-serial admission, and skipping any file or destination sync.
 - `LGL-V0-006`: (proposed; V1-2203) A session MUST count the file and directory sync calls it makes
   (`Session.SyncCalls`), and a lease write's `LeaseTiming.Syncs` MUST sum them over the write's
   sessions. Like `SyncDuration` the count is a diagnostic, never proof or authority; the CLI does not
@@ -343,9 +344,14 @@ replace cycle with and without the skip: the full session syncs staging four tim
 one never, with the same file and destination directory syncs, the same boundaries in the same order
 and the same published bytes, and `SyncCalls` equals the calls observed (LGL-V0-006).
 `TestLGLV0006_OnlyLivenessWritesSkipStagingSync`
-(`internal/tasks/store/lease_staging_sync_test.go`) counts 8 or 10 sync calls for a heartbeat and a
-renew and at least 16, four per artifact, for a claim and a release on both lease routes, with the
-audit passing; without the store wiring it fails with an 18-call heartbeat.
+(`internal/tasks/store/lease_staging_sync_test.go`) counts two sync calls per artifact for a
+heartbeat, a renew and, since LGL-V0-780, a claim, and at least 16, four per artifact, for a release
+on both lease routes, with the audit passing; without the store wiring it fails with an 18-call
+heartbeat. `TestLGLV0780_ClaimStagingResidueIsAnOrphan` (same file) is LGL-V0-780's crash
+injection: after a claim on both lease routes it restores every slot name a crash can undo, as
+second links to the claim's receipt, its posts and `head.json`, and shows that the audit verifies,
+the claim reads as acknowledged, a second holder's claim of the same ticket is not granted, and the
+next writer clears the residue and commits.
 `TestLGLV0005_LivenessRequestRedoesPendingWriteWithFullSyncs` (same file) leaves a claim's head
 advance pending and redoes it once through a replayed heartbeat and once through a replayed claim:
 both make the same sync calls and the audit passes; with the skip set before the redo it fails, 2

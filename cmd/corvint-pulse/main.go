@@ -40,6 +40,9 @@ func emitCLIError(output io.Writer, code, message string) {
 }
 
 func runContext(ctx context.Context, arguments []string, input io.Reader, output, errorOutput io.Writer, factory actorFactory) int {
+	if code, handled := serveHelp(arguments, output, errorOutput); handled {
+		return code
+	}
 	options, err := parseArguments(arguments)
 	if err != nil {
 		emitCLIError(errorOutput, "invalid-arguments", err.Error())

@@ -117,4 +117,46 @@ esac
 stage internal/demo/ghost_test.go
 run >/dev/null || fail "the staged edit did not satisfy the row: $(run)"
 
+# TTG-V0-950 (V1-3586): a spec-first commit citing a test that the next commit adds fails the index
+# check with the range hint, and passes --range BASE..HEAD, which resolves every commit's rows
+# against the change head; a cited test that never lands fails at the head and is named once, at
+# the first commit that cites it.
+commit() { git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -q -m "$1"; }
+commit base
+base=$(git -C "$test_root" rev-parse HEAD)
+# shellcheck disable=SC2016
+printf '%s\n' '# Later' '' '## Traceability' '' '| FIX-V0-007 | `TestLandsNext` |' > "$test_root/docs/specs/later.md"
+stage docs/specs/later.md
+output=$(run) && fail "the spec-only commit passed the index check without its test"
+case "$output" in
+  *"docs/specs/later.md:5: TestLandsNext"*"TRACE_RANGE=BASE..HEAD"*"(TTG-V0-950)"*) ;;
+  *) fail "the spec-only failure lacks the range hint: $output" ;;
+esac
+commit spec
+spec_commit=$(git -C "$test_root" rev-parse HEAD)
+printf '%s\n' 'package demo' '' 'func TestLandsNext() {}' > "$test_root/internal/demo/later_test.go"
+stage internal/demo/later_test.go
+commit test
+range() { (cd "$test_root" && script/check-traceability-tests.sh --range "$1" 2>&1); }
+range "$base..HEAD" > /dev/null || fail "a test added by the next commit failed the range check: $(range "$base..HEAD")"
+(cd "$test_root" && script/check-traceability-tests.sh --range "$base..$spec_commit") > /dev/null 2>&1 &&
+  fail "a range ending before the test landed passed"
+# shellcheck disable=SC2016
+printf '%s\n' '# Never' '' '## Traceability' '' '| FIX-V0-008 | `TestNeverLands` |' > "$test_root/docs/specs/never.md"
+stage docs/specs/never.md
+commit never
+never_commit=$(git -C "$test_root" rev-parse HEAD)
+printf 'x\n' > "$test_root/internal/demo/note.txt"
+stage internal/demo/note.txt
+commit unrelated
+output=$(range "$base..HEAD") && fail "a cited test that never lands passed the range check"
+case "$output" in
+  *"$(printf '%.12s' "$never_commit") docs/specs/never.md:5: TestNeverLands"*) ;;
+  *) fail "the never-landing test was not named at its first commit: $output" ;;
+esac
+test "$(printf '%s\n' "$output" | grep -c TestNeverLands)" = 1 || fail "the never-landing row was named more than once: $output"
+case "$output" in *TestLandsNext*) fail "the landed test was reported: $output" ;; esac
+output=$(range "$base") && fail "a range without .. was accepted"
+case "$output" in *"--range must be BASE..HEAD"*) ;; *) fail "the malformed range was not named: $output" ;; esac
+
 echo "check-traceability-tests_test.sh: ok"

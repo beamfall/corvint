@@ -592,9 +592,9 @@ func dogfoodNativeValidate(t *testing.T, event, input string, output []byte) {
 	}
 	if event != "stop" {
 		hook, framed := native["hookSpecificOutput"].(map[string]any)
-		if !framed {
-			// Only a prompt with nothing actionable may be silent (AHI-046).
-			if event != "user-prompt" || len(native) != 0 || hookContextProjection(event, result, false) != nil {
+		if _, hasContext := hook["additionalContext"]; !framed || !hasContext {
+			// Only a prompt with nothing actionable may be silent (AHI-046): AHI-910's bare event name.
+			if event != "user-prompt" || !emptyHookOutput(native, names[event]) || hookContextProjection(event, result, false) != nil {
 				t.Fatalf("silent native %s response for an actionable receipt: %v", event, native)
 			}
 			return

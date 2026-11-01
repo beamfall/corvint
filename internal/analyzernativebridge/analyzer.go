@@ -179,7 +179,7 @@ func analyze(reader io.Reader, requiredFamily string, parser parserFunc) (result
 	var req request
 	decoder := json.NewDecoder(bytes.NewReader(wire[:len(wire)-1]))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&req) != nil || decoder.More() {
+	if decoder.Decode(&req) != nil || decoder.Decode(&struct{}{}) != io.EOF {
 		return sentinel
 	}
 	canonical, err := json.Marshal(req)

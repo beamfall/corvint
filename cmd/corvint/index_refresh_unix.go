@@ -14,6 +14,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -23,7 +25,14 @@ import (
 
 const snapshotRefreshWorkerEnv = "CORVINT_INTERNAL_INDEX_REFRESH"
 const snapshotRefreshPriorityEnv = "CORVINT_INTERNAL_INDEX_REFRESH_PRIORITY"
-const snapshotRefreshWallBound = time.Minute
+
+// The writer's work bound is CPU time and its hard wall bound is long: a
+// starved low-priority writer is waiting, not running away (IDX-SNAP-V0-912).
+const snapshotRefreshWallBound = 10 * time.Minute
+const snapshotRefreshCPUBudget = 55 * time.Second
+
+// errSnapshotRefreshCPUBudget is the cancel cause once the CPU budget is used.
+var errSnapshotRefreshCPUBudget = errors.New("index refresh CPU budget exhausted")
 
 // Tests can substitute only the scheduler syscall in their exec'd helper when
 // the test sandbox denies lowering priority. Production never replaces it.
@@ -89,10 +98,10 @@ func previousSnapshotRefresh(lock *os.File) string {
 	if err != nil {
 		return ""
 	}
-	cause := "it stopped before recording an outcome (its 60-second hard limit, a crash or a signal ends a refresh this way)"
+	cause := "it stopped before recording an outcome (its 10-minute hard limit, a crash or a signal ends a refresh this way)"
 	switch record.Outcome {
 	case "expired":
-		cause = "it reached its 55-second work limit; heavy machine load can cause this, because the refresh runs at low priority on one CPU"
+		cause = "it reached its work limit (55 CPU-seconds, or 50 seconds before its 10-minute hard limit when heavy machine load starves the low-priority refresh)"
 	case "failed":
 		cause = "it failed"
 	}
@@ -147,7 +156,7 @@ func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) strin
 // runSnapshotRefreshWorker runs only at process startup with an inherited lock
 // and a new session, before ordinary CLI dispatch or Git resolution. All Core
 // Git subprocesses inherit this owned group, so the hard stop also retires them.
-func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
+func runSnapshotRefreshWorker(arguments []string, wallBound, cpuBudget time.Duration) int {
 	if err := gitstatus.EnableOwnedWorker(); err != nil {
 		fmt.Fprintln(os.Stderr, "index refresh group:", err)
 		return 2
@@ -209,20 +218,86 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 		// retire the whole group even there; atomic rename protects readers.
 		_ = syscall.Kill(-os.Getpid(), syscall.SIGKILL)
 	}()
-	ctx, cancel := context.WithDeadline(context.Background(), deadline.Add(-wallBound/12))
+	ctx, cancel := context.WithDeadline(contextindex.WithWriterBounds(context.Background()), deadline.Add(-wallBound/12))
 	defer cancel()
+	// Compilation does not observe cancellation, so a spent budget also records the expiry and
+	// retires the group, as the hard wall does (IDX-SNAP-V0-912).
+	ctx, stopBudget := snapshotRefreshCPUContext(ctx, cpuBudget, time.Second, func() {
+		expired := record
+		expired.Ended, expired.Outcome = time.Now().UTC().Format(time.RFC3339Nano), "expired"
+		_ = writeSnapshotRefreshRecord(lock, expired)
+		_ = syscall.Kill(-os.Getpid(), syscall.SIGKILL)
+	})
+	defer stopBudget()
 	status := runIndex(ctx, invocation, os.Stdout, os.Stderr)
+	if !stopBudget() {
+		// The budget fired first; its kill is already on the way.
+		select {}
+	}
 	if status == 0 {
 		_ = lock.Truncate(0)
 		return status
 	}
 	// A refresh that published nothing leaves its outcome for the next hook's notice.
 	record.Ended, record.Outcome = time.Now().UTC().Format(time.RFC3339Nano), "failed"
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(context.Cause(ctx), errSnapshotRefreshCPUBudget) {
 		record.Outcome = "expired"
 	}
 	_ = writeSnapshotRefreshRecord(lock, record)
 	return status
+}
+
+// snapshotRefreshCPUContext cancels ctx, with errSnapshotRefreshCPUBudget as
+// its cause, once this process and its reaped children have used budget CPU
+// time, checked every interval, and then calls exceeded (IDX-SNAP-V0-912).
+// Work that never reads ctx, such as compiling the index, is stopped by
+// exceeded, not by the cancel. The returned stop reports whether it won the
+// race: once it has returned true, exceeded never runs; false means exceeded
+// has run or is running.
+func snapshotRefreshCPUContext(parent context.Context, budget, interval time.Duration, exceeded func()) (context.Context, func() bool) {
+	ctx, cancel := context.WithCancelCause(parent)
+	var state atomic.Int32 // 0 running, 1 exceeded, 2 stopped
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				if snapshotRefreshCPUTime() >= budget && state.CompareAndSwap(0, 1) {
+					cancel(errSnapshotRefreshCPUBudget)
+					if exceeded != nil {
+						exceeded()
+					}
+					return
+				}
+			}
+		}
+	}()
+	var once sync.Once
+	return ctx, func() bool {
+		stopped := state.CompareAndSwap(0, 2) || state.Load() == 2
+		once.Do(func() { close(done) })
+		if stopped {
+			cancel(nil)
+		}
+		return stopped
+	}
+}
+
+// snapshotRefreshCPUTime is user plus system time of this process and of the
+// children it has reaped, its Git subprocesses.
+func snapshotRefreshCPUTime() time.Duration {
+	var total time.Duration
+	for _, who := range []int{syscall.RUSAGE_SELF, syscall.RUSAGE_CHILDREN} {
+		var usage syscall.Rusage
+		if syscall.Getrusage(who, &usage) == nil {
+			total += time.Duration(usage.Utime.Nano() + usage.Stime.Nano())
+		}
+	}
+	return total
 }
 
 // writeSnapshotRefreshRecord replaces the lock metadata with one JSON line.

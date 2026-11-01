@@ -190,6 +190,7 @@ func TestNegateRefusalsAndBusyEvidence(t *testing.T) {
 			t.Fatalf("status %d stdout %q stderr %q", status, stdout, stderr)
 		}
 	})
+	// LPCV-V0-941: each provider failure refuses negate-provider-failed.
 	for name, fixture := range map[string][2]string{
 		"exit 2 without refusal":      {"garbage", "2"},
 		"refusal with unknown member": {`{"schema":"corvint-step-negation-refusal/0","code":"x","message":"","extra":1}`, "2"},

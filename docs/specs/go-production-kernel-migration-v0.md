@@ -241,11 +241,12 @@ requirements below have evidence. File existence is not parity.
   that packet's expected bytes are authored from this clause's quoted text (decision 0057). No rule
   may be introduced whose only authority is candidate behaviour (`GPK-V0-033`).
   It MUST use immutable committed evidence for clean paths, disclose mixed-worktree
-  freshness, remain read-only/local-only, bound aggregate source admission to 128 MiB, and reject
+  freshness, remain read-only/local-only, bound each admitted source (the 128 MiB aggregate bound is
+  withdrawn by `IDX-SNAP-V0-910`, V1-2881), and reject
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:306,318@fcf14b13`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/main.go:316,328@fcf14b13`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion
@@ -253,7 +254,7 @@ requirements below have evidence. File existence is not parity.
   truncation then makes evidence *content* depend on index build order rather than on the repository.
   Observed byte parity on named Corvint and Beamfall fixtures is dogfood
   evidence, not universal Python parity or authority to cut over the production `corvint` command.
-  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339): the aggregate-bound refusal names no language.
+  Amendment (accepted 2026-09-26, decision 0424; from decision 0398; V1-0339; superseded 2026-10-31 by `IDX-SNAP-V0-910`, which withdraws the refusal): the aggregate-bound refusal names no language.
   Its message states the admitted source bytes, the file count, the total with the per-file framing allowance, the 128 MiB
   bound, and the remedy that paths under `vendor/`, `node_modules/`, `dist/`, `build/`, `target/` or `generated/` are not
   admitted (`IDX-SNAP-V0-018`). Each path keeps its own code (impact `unsupported-impact-repository`, `feature` `unsupported-feature-repository`,
@@ -335,7 +336,7 @@ requirements below have evidence. File existence is not parity.
   the new technical contract; original Go qualification is not non-Go qualification.
 - `GPK-V0-031`: Before the complete Phase 2 feature port, `corvint` MAY expose an experimental
   `feature FEATURE_ID` slice on Darwin and Linux; any other platform returns
-  `unsupported-feature-platform` (`cmd/corvint/main.go:559`). It MUST accept the Python-oracle `--limit` range
+  `unsupported-feature-platform` (`cmd/corvint/main.go:569@4160e496`). It MUST accept the Python-oracle `--limit` range
   1--50 and optional `--budget-bytes` range 1,216--1,000,000, preserve validation precedence and
   canonical bytes, and reuse the bounded immutable context index and shared packet-budget selector.
   A canonical unknown feature id MUST succeed with an exact empty `OUT_OF_SCOPE` receipt, including
@@ -864,6 +865,40 @@ which is the whole of what the row asserts.
   `TestGPKV0295BlankCommentsAndStringsNestedTemplates`, which leaked `leak` and `Component`
   against the flat reading. Rollback: delete the web template case in
   `evalBlankCommentsAndStrings`.
+- `GPK-V0-975`: (experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s
+  document ranking (`evalRankDocuments`) MUST credit a non-instructions document 40 for each indexed
+  path the task names that the document's own `references` field cites, and 40 more when it cites
+  every named path and the task names two or more. The task names a path as `TCP-V0-003`'s
+  `mentioned` rule reads one, over the lowercased task: a token, split at whitespace, backticks,
+  quotes, parentheses, commas and colons and trimmed of a leading `./` and trailing `.` or `;`, that
+  equals an indexed path ignoring case, naming every indexed path it case-folds to (`src/Foo.go`
+  and `src/foo.go` alike, in sorted order, never one picked by map order), or that carries a dot
+  after its first byte and is the basename of exactly one indexed path. A document never cites itself, so the named document earns
+  nothing from its own name. A document with a cited named path passes the two-word floor, and the
+  credit adds no support term. This applies to standalone `query`, `eval`, and
+  `harness event --event user-prompt`. Non-goals: no change to symbol, record, test or learned-path
+  ranking, to the result order across kinds, or to the wire. Failure modes: a long document that
+  cites one named path among many still earns 40, and a task that names a path only by an
+  ambiguous basename credits nothing. The oracle ranked documents on shared words alone, so a task
+  naming two files ranked a lexically broad spec, a fixture or a decision above the spec that
+  governs both (V1-0179, the V1-0148 orientation miss); that is `DR-0047`. Acceptance evidence:
+  `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`, which ranked the long spec first
+  against the oracle ranking, `TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975` (repeated
+  rankings over two paths differing only in case), and the V1-0148 task over this repository ranking
+  `docs/specs/documentation-citation-gate-v0.md` first. Rollback: delete `evalNamedPaths`,
+  `evalCitedNamedPaths` and the credit in `evalRankDocuments`.
+- `GPK-V0-976`: (experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST
+  order, among rows of equal score, a document that explicitly references a changed path (score
+  825) after every other row of that score unless the document's kind is `spec`: the changed
+  document itself and a referencing spec keep their place, and a referencing decision or other
+  document follows them, by path. Scores, evidence, the row set and the wire are unchanged; only
+  the order, and so which rows a packet budget keeps, moves. Failure mode closed: the default
+  harness budget kept decision 0540 and dropped `docs/specs/documentation-citation-gate-v0.md`,
+  the spec that scans `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, because `docs/decisions/` sorts before
+  `docs/specs/` (V1-0179); the oracle's path tie-break is `DR-0047`. Acceptance evidence:
+  `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`, which ordered the decision
+  first against the oracle order, and `corvint impact docs/SPEC-TOOLCHAIN-INTEGRATION.md` listing the
+  gate spec. Rollback: restore order 1 for every referencing document in `impact`.
 - `GPK-V0-336`: (experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated status
   read (`gitstatus.Status`) behind `corvint impact` and the standalone `corvint context` probe MUST
   work in a read-only filesystem sandbox whose ambient temporary directory is not writable. When
@@ -998,6 +1033,14 @@ which is the whole of what the row asserts.
   emphasized `**OPEN**`, or a missing Status bullet reads as open and obliges that disclosure
   (Go evidence: `TestOpenRegisterEntriesTreatAnUnrecognizedStatusAsOpen`). Rollback under
   `GPK-V0-024` applies to a beta-rung command unchanged.
+- `GPK-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The query
+  receipt's top-level `revision` and `freshness.revision` hold the Git tree id of the captured
+  content, not a commit id; `learning.history_tip` holds the commit Git history was read from. The
+  wire is unchanged (the core-freeze receipts stay byte-identical); `corvint query --help` MUST
+  label both members under "Receipt fields", stating that `revision` never equals
+  `history_tip` and that their difference is not staleness, and name the binding route
+  (`git rev-parse COMMIT^{tree}`). Evidence: `TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles`
+  pins the label. Rollback: drop the "Receipt fields" paragraph.
 
 ## Non-goals and simpler baseline
 
@@ -1068,7 +1111,7 @@ repository rewrite, cache conversion, trace conversion, or sidecar migration is 
 | `GPK-V0-020` | strict legal digest pins plus canonical archive member verification in `conformance/release-artifact-v0` | five-target source/archive comparison and dated Go-archive assessment; legal conclusions remain separate owner/legal work |
 | `GPK-V0-021..022` | Corvint and Beamfall dogfood packets | private measurements, receipts, status snapshots, misses |
 | `GPK-V0-023..026` | per-surface rollout ledger and retirement gate | black-box compatibility, rollback drill, zero-mismatch windows |
-| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, `TestBlobAdmissionRefusalNamesTotalAndRemedyWithoutALanguage` (V1-0339), blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
+| `GPK-V0-027`, `GPK-V0-056` | `cmd/corvint` plus bounded `internal/contextindex` one-shot impact compiler; the Go-module precondition applies to `.go` paths only; index-admitted suffixes without a reverse-import rule retain a disclosed packet; test-inclusive name-reference scan and reference-counted test-convention ranking in `internal/contextindex/impact.go`, while checkpoint callers retain their prior test exclusion | race/vet, cancellation, nonmutation, `impact-python-nomodule` oracle replay in `conformance/cli-parity-v0`, `TestImpactArgvIsClosedToThePortedSeed` and `TestRootPackageDivergenceRejectsAnUnpinnedImporterRewrite` (`conformance/cli-parity-v0`) closing the argv/rewrite self-check gaps `docs/reviews/cli-parity-mutation-audit-2026-09-13.md` found, `TestImpactDisclosesUnruledAdmittedSuffixAcrossSurfaces_GPKV0027`, the rule (c) lexical-position tests `TestWebImportsRejectsCommentedSpecifiers`, `TestWebImportsRejectsQuotedSpecifiers`, `TestWebImportsRejectsTemplateLiteralSpecifiers`, `TestWebImportsLexesSubstitutionBodiesAsCode`, `TestWebImportsEndsLineCommentAtEveryLineTerminator`, `TestWebImportsEndsUnclosedQuoteAtCarriageReturn` (an unclosed `'`/`"` literal ends at `\r` as well as `\n`, and not at U+2028 or U+2029), `TestWebImportsKeepsQuotedCRLFContinuationInsideTheLiteral` (a `\` before `\r\n` continues a `'`/`"` literal through both bytes, so an import spelled in its remainder adds no edge), `TestWebImportsReadsRegexLiteralsAfterExpressionOpeners` (a backtick or quote inside a regex after an expression opener opens nothing, so the import between two such literals keeps its edge), and `TestWebImportsReportsUnterminatedConstructs` (`internal/contextindex/webimports_test.go`), named Corvint/Beamfall fixture dogfood, `TestImpactRanksSamePackageTestsByDeclarationReferences/GPK-V0-056`, `TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910` (the V1-0339 refusal is withdrawn by `IDX-SNAP-V0-910`), blind-v3 outcome measurement, `DR-0028`, and `DR-0029`; impact promotion remains BLOCKED until its discriminating CLI parity rows exist and pass under `GPK-V0-034` |
 | `GPK-V0-028` | bounded `internal/contextindex` authority-start query and packet-budget compiler plus `cmd/corvint` dispatch; advisory learned paths above limit 1 reuse `EvalQuery`'s learned-candidate ranking, whose history parser drops `grafted` commits | `TestAuthorityStartHistorySkipsTheShallowBoundaryCommit`; exact unbudgeted process parity at limits 1, default, 50, and with learned paths, the oracle's limit error at 51, a non-ASCII task, frozen Python budget-vector comparison, hostile rejection, nonmutation, and named Corvint/Beamfall authority-start dogfood |
 | `GPK-V0-029` | opt-in `cmd/corvint impact` dispatch plus bounded `internal/worktreeimpact` evidence compiler | `TestCompileValidatesSuffixBeforeRepositoryCondition_GPKV0029`, default byte-parity regression, hostile file/race tests, race/vet/cross-build, and named Corvint untracked-file dogfood |
 | `GPK-V0-030` | opt-in `cmd/corvint impact --base` dispatch plus bounded `internal/contextindex` hunk-qualified compiler | path-profile regression, hostile range rejection, race/vet/cross-build, and exact Beamfall ART-SLOTS committed-range dogfood |
@@ -2010,5 +2053,7 @@ negative result.
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
 | `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
+| `GPK-V0-975` (experimental 2026-10-31, V1-0179) | `evalNamedPaths`, `evalCitedNamedPaths`, `evalRankDocuments` in `internal/contextindex/eval_query.go` | `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`, `TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975`; `DR-0047` |
+| `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |

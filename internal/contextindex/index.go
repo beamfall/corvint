@@ -280,6 +280,12 @@ type Index struct {
 	// bodies: a deferred load's pack bodies (SnapshotRefusal); lease: a mapped read's reference, ended by Release.
 	bodies *packSection
 	lease  *snapshotLease
+	// worktreeOverlay maps each path an overlay view read from the worktree
+	// to that content's blob id; nil on every other index (DIRTY-CACHE-940).
+	worktreeOverlay map[string]string
+	// committedSources is an overlay view's HEAD source map, the only
+	// source of project-owned authority such a view may read; nil otherwise.
+	committedSources map[string]Source
 }
 
 // vocabulary returns the term table, building it once for an index compiled
@@ -340,7 +346,7 @@ func buildStableFrom(ctx context.Context, root string, opening *repositoryObserv
 // snapshot whose unchanged sources and per-source facts the attempt reuses
 // (snapshot_reuse.go, IDX-SNAP-V0-037). A nil reuse is the full build.
 func buildStableReusing(ctx context.Context, root string, opening *repositoryObservation, compile func(*Index), reuse *snapshotReuse) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	for attempt := 0; attempt < 3; attempt++ {
 		before, entries, skipped, err := openingObservationWithTree(ctx, root, attempt, opening)
@@ -427,7 +433,7 @@ func observeRepository(ctx context.Context, root string) repositoryObservation {
 // authority-start query profile. Impact continues to use Build so its complete
 // source index remains unchanged.
 func BuildQuery(ctx context.Context, root, text string) (*Index, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	queryText := pythonLower(TrimPythonSpace(text))
 	queryTerms := terms(queryText)
@@ -804,9 +810,6 @@ func buildQueryAttempt(ctx context.Context, root string, identity repositoryIden
 		return nil, err
 	}
 	exclusions, candidates, unsupported := admittedEntries(entries)
-	if err := validateQueryBlobAdmission(candidates); err != nil {
-		return nil, err
-	}
 	byPath := make(map[string]treeEntry, len(candidates))
 	dirty := make(map[string]struct{}, len(status))
 	for _, item := range status {
@@ -1486,7 +1489,7 @@ type Observation struct {
 // projectprofile.Detect over the source set, which is a pure function of the
 // tree, so an equal Revision already implies an equal ProfileID.
 func Observe(ctx context.Context, root string) (Observation, error) {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	observed := observeRepository(ctx, root)
 	if observed.identityErr != nil {

@@ -794,3 +794,44 @@ func TestSelectSetupEnumeratedOverriddenValuesTSAV0856(t *testing.T) {
 		}
 	}
 }
+
+// TestSelectSetupEmptyUniverseIsNone covers TSA-V0-960 (V1-3655): a revision with no setup file
+// returns mode none with reason no-setups instead of ALL with import reasons, both for a
+// Playwright suite whose spec imports an unresolved package (the core-history shape) and for an
+// application with no setup project (the internal/web/app shape); a missing spec path is still
+// named.
+func TestSelectSetupEmptyUniverseIsNone(t *testing.T) {
+	t.Parallel()
+	for name, files := range map[string]map[string]string{
+		"playwright suite": {
+			"package.json":         `{"devDependencies":{"@playwright/test":"1.64.0"}}` + "\n",
+			"tests/home.spec.ts":   "import { test, expect } from '@playwright/test';\nimport { open } from './helpers';\ntest('home', async ({ page }) => open(page));\n",
+			"tests/helpers.ts":     "import type { Page } from 'playwright-core';\nexport const open = (page: Page) => page.goto('/');\n",
+			"playwright.config.ts": "import { defineConfig } from '@playwright/test';\nexport default defineConfig({});\n",
+		},
+		"application": {
+			"src/app.ts":      "import { render } from './view';\nexport const app = render();\n",
+			"src/view.ts":     "const name = process.env.VIEW;\nexport const render = () => require(name);\n",
+			"src/app.test.ts": "import { app } from './app';\ntest('app', () => app);\n",
+		},
+	} {
+		root := impactRepositoryWithFiles(t, files)
+		head := strings.TrimSpace(testGit(t, root, "rev-parse", "HEAD"))
+		index, err := BuildRevisionContext(context.Background(), root, head)
+		if err != nil {
+			t.Fatal(err)
+		}
+		spec := "tests/home.spec.ts"
+		if name == "application" {
+			spec = "src/app.test.ts"
+		}
+		got := SelectSetup(index, []string{spec})
+		if got.Mode != "none" || got.Universe != 0 || len(got.SetupFiles) != 0 || !slices.Equal(reasonCodes(got), []string{"no-setups"}) {
+			t.Errorf("%s: mode=%s universe=%d files=%v reasons=%+v", name, got.Mode, got.Universe, got.SetupFiles, got.Reasons)
+		}
+		missing := SelectSetup(index, []string{spec, "tests/absent.spec.ts"})
+		if missing.Mode != "none" || !slices.Equal(reasonCodes(missing), []string{"missing-path", "no-setups"}) {
+			t.Errorf("%s: missing spec: mode=%s reasons=%+v", name, missing.Mode, missing.Reasons)
+		}
+	}
+}

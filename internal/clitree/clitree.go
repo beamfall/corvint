@@ -150,34 +150,60 @@ func (b *Builder) AddForm(form, summary string) {
 
 // Synopses returns each synopsis line of text that starts with the binary
 // (after an optional "usage:" or "Usage:" label), joined with its indented
-// continuation lines.
+// continuation lines. A line of an example section is an example, not a
+// synopsis, wherever it stands relative to the Usage block (V1-3286): the
+// section is an unindented header that ends in ":" and names "example"
+// ("Example:", "Examples:", "For example:") or starts "Example:" or
+// "Examples:" (the header line itself is an example), and it ends at the next
+// unindented line. The labelled forms (an inline "usage:" line or the block
+// under a bare "Usage:") come first, so a node's first usage line is its true
+// usage line wherever an example sits.
 func Synopses(binary, text string) []string {
-	var forms []string
-	open := false
+	var labelled, other []string
+	forms := &other
+	open, usageBlock, exampleBlock := false, false, false
 	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		lowered := strings.ToLower(trimmed)
+		indented := trimmed != "" && line != strings.TrimLeft(line, " \t")
+		if !indented {
+			usageBlock = false
+		}
+		if trimmed != "" && !indented {
+			exampleBlock = strings.HasSuffix(lowered, ":") && strings.Contains(lowered, "example") ||
+				strings.HasPrefix(lowered, "example:") || strings.HasPrefix(lowered, "examples:")
+		}
+		if exampleBlock {
+			open = false
+			continue
+		}
+		inline := false
 		if rest, ok := strings.CutPrefix(lowered, "usage:"); ok {
 			trimmed = strings.TrimSpace(trimmed[len(trimmed)-len(rest):])
 			if trimmed == "" {
-				open = false
+				open, usageBlock = false, true
 				continue
 			}
+			inline = true
 		}
 		if label, rest, ok := strings.Cut(trimmed, ": usage: "); ok && strings.HasPrefix(label, binary) {
-			trimmed = rest
+			trimmed, inline = rest, true
 		}
 		switch {
 		case strings.HasPrefix(trimmed, binary+" "):
-			forms = append(forms, trimmed)
+			forms = &other
+			if inline || usageBlock {
+				forms = &labelled
+			}
+			*forms = append(*forms, trimmed)
 			open = true
 		case open && trimmed != "" && strings.HasPrefix(line, "    ") && !strings.Contains(trimmed, ": "):
-			forms[len(forms)-1] += " " + trimmed
+			(*forms)[len(*forms)-1] += " " + trimmed
 		default:
 			open = false
 		}
 	}
-	return forms
+	return append(labelled, other...)
 }
 
 // tokens splits a form, keeping a bracket or angle group with spaces as one
@@ -185,10 +211,18 @@ func Synopses(binary, text string) []string {
 func tokens(form string) []string { return strings.Fields(form) }
 
 // skipPreamble returns the index of the first token after the binary and any
-// leading bracketed option group such as [--root PATH].
+// leading bracketed option group such as [--root PATH] or required option pair
+// such as --root ROOT, when an operation word follows (CAP-V0-972).
 func skipPreamble(fields []string) int {
 	index := 1
-	for index < len(fields) && strings.HasPrefix(fields[index], "[-") {
+	for {
+		if pair := requiredPair(fields, index); pair > 0 {
+			index += pair
+			continue
+		}
+		if index >= len(fields) || !strings.HasPrefix(fields[index], "[-") {
+			return index
+		}
 		depth := 0
 		for index < len(fields) {
 			depth += strings.Count(fields[index], "[") - strings.Count(fields[index], "]")
@@ -198,7 +232,19 @@ func skipPreamble(fields []string) int {
 			}
 		}
 	}
-	return index
+}
+
+// requiredPair reports the length (2) of an unbracketed `--option VALUE` pair
+// at index that leads the subcommand word of a synopsis, or 0.
+func requiredPair(fields []string, index int) int {
+	if index+2 >= len(fields) || !strings.HasPrefix(fields[index], "--") || !flagToken.MatchString(fields[index]) ||
+		fields[index] != flagToken.FindString(fields[index]) || strings.HasPrefix(fields[index+1], "-") || OperationWord(fields[index+1]) {
+		return 0
+	}
+	if OperationWord(fields[index+2]) || requiredPair(fields, index+2) > 0 {
+		return 2
+	}
+	return 0
 }
 
 // FormPath returns the leading operation words of a synopsis after the binary
@@ -361,7 +407,7 @@ func outside(binary, form string, depth int) []string {
 func required(binary string, forms []string, depth int) []string {
 	var common []string
 	for index, form := range forms {
-		var found []string
+		found := preambleRequired(form)
 		fields := outside(binary, form, depth)
 		for position := 0; position < len(fields); position++ {
 			field := fields[position]
@@ -388,6 +434,32 @@ func required(binary string, forms []string, depth int) []string {
 		return []string{}
 	}
 	return common
+}
+
+// preambleRequired lists the required `--option VALUE` pairs a synopsis leads
+// with before its subcommand word (CAP-V0-972).
+func preambleRequired(form string) []string {
+	fields := tokens(form)
+	var found []string
+	for index := 1; index < len(fields); {
+		if pair := requiredPair(fields, index); pair > 0 {
+			found = append(found, fields[index]+" "+fields[index+1])
+			index += pair
+			continue
+		}
+		if !strings.HasPrefix(fields[index], "[-") {
+			break
+		}
+		depth := 0
+		for index < len(fields) {
+			depth += strings.Count(fields[index], "[") - strings.Count(fields[index], "]")
+			index++
+			if depth <= 0 {
+				break
+			}
+		}
+	}
+	return found
 }
 
 // MinimalExample is the smallest invocation a synopsis allows: optional

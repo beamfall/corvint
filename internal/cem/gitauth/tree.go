@@ -25,6 +25,40 @@ func (r *Repository) CommitTree(ctx context.Context, commit string) (string, err
 	return root.oid, nil
 }
 
+// CommitTrees is CommitTree for several pinned commits through one cat-file
+// batch (DCR-V1-975): each commit's root tree, in the order given, with the
+// checks and refusals CommitTree makes for each. On a refusal it returns the
+// trees of the commits before the first failing one beside the error, so a
+// caller checks them in the order separate CommitTree calls would have.
+func (r *Repository) CommitTrees(ctx context.Context, commits []string) ([]string, error) {
+	if len(commits) == 0 {
+		return nil, nil
+	}
+	requests := make([]string, 0, 2*len(commits))
+	for _, commit := range commits {
+		if !wire.IsGitOid(commit) {
+			return nil, unavailable("tree requires a pinned commit")
+		}
+		requests = append(requests, commit+"^{commit}", commit+"^{tree}")
+	}
+	stream, err := r.streamCommitBatch(ctx, requests, nil)
+	if err != nil {
+		return nil, err
+	}
+	trees := make([]string, len(commits))
+	for i := range commits {
+		root := stream.objects[2*i+1]
+		if root.missing || root.kind != "tree" || len(stream.tail) != 0 {
+			return trees[:i], unavailable("invalid tree identity")
+		}
+		if err := requireCommitTree(stream.objects[2*i], root.oid); err != nil {
+			return trees[:i], err
+		}
+		trees[i] = root.oid
+	}
+	return trees, nil
+}
+
 // TreePaths returns bounded immutable paths below one literal directory in
 // the order ls-tree -rt reports them. Every tree body it lists is read through
 // the verified walk (CEM-CB-023): the directory resolves through self-hashed

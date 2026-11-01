@@ -58,8 +58,12 @@
     "cmd/corvint-console": [],
     "cmd/corvint-corpus-http": [],
     "cmd/corvint-corpus-parity": [],
-    "cmd/corvint-corpus-republish": [],
-    "cmd/corvint-dashboard-snapshot": [],
+    "cmd/corvint-corpus-republish": [
+      "internal/capcatalog/trees/corvint-corpus-republish.json"
+    ],
+    "cmd/corvint-dashboard-snapshot": [
+      "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
+    ],
     "cmd/corvint-docs-mcp": [],
     "cmd/corvint-go-test-provider": [
       "cmd/",
@@ -70,20 +74,28 @@
       "tools/"
     ],
     "cmd/corvint-js-test-provider": [
-      "cmd/corvint/docs.go"
+      "cmd/corvint/docs.go",
+      "internal/capcatalog/trees/corvint-js-test-provider.json"
     ],
     "cmd/corvint-lsp": [],
     "cmd/corvint-playwright-minimize": [],
-    "cmd/corvint-postmerge-connect": [],
+    "cmd/corvint-postmerge-connect": [
+      "internal/capcatalog/trees/corvint-postmerge-connect.json"
+    ],
     "cmd/corvint-postmerge-host-launcher": [],
-    "cmd/corvint-postmerge-metrics": [],
+    "cmd/corvint-postmerge-metrics": [
+      "internal/capcatalog/trees/corvint-postmerge-metrics.json"
+    ],
     "cmd/corvint-public-release-check": [],
     "cmd/corvint-pulse": [
-      "conformance/pulse-snapshot-v0/"
+      "conformance/pulse-snapshot-v0/",
+      "internal/capcatalog/trees/corvint-pulse.json"
     ],
     "cmd/corvint-readiness-record": [],
     "cmd/corvint-release-gate": [],
-    "cmd/corvint-ruby-test-provider": [],
+    "cmd/corvint-ruby-test-provider": [
+      "internal/capcatalog/trees/corvint-ruby-test-provider.json"
+    ],
     "cmd/corvint-test": [
       ".github/cishards/",
       "cmd/",
@@ -103,6 +115,7 @@
       "cmd/corvint-go-test-provider/",
       "go.mod",
       "internal/cem/",
+      "internal/clitree/",
       "internal/gitstatus/",
       "internal/gotestrun/",
       "internal/groupreap/",
@@ -128,6 +141,7 @@
     "conformance/pulse-snapshot-v0": [
       "cmd/corvint-pulse/",
       "go.mod",
+      "internal/clitree/",
       "internal/pulse/"
     ],
     "conformance/release-artifact-v0/archive-verifier": [],
@@ -324,6 +338,7 @@
       "internal/cem/verify/",
       "internal/cem/wire/",
       "internal/groupreap/",
+      "internal/jsonend/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
@@ -567,6 +582,15 @@
       "interop/",
       "tools/"
     ],
+    "tools/flow-guide-check": [
+      ".claude/",
+      "Makefile",
+      "cmd/",
+      "docs/",
+      "internal/",
+      "script/",
+      "tools/"
+    ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
       "internal/gateselect/",
@@ -584,6 +608,10 @@
       "Makefile",
       "script/"
     ],
-    "tools/test-commands-run": []
+    "tools/test-commands-run": [],
+    "tools/tiers-replay": [
+      ".github/forward-rows/tiers.jq",
+      ".github/forward-rows/tiers.sh"
+    ]
   }
 }

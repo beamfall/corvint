@@ -197,6 +197,7 @@ AFP-V0-436	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #
 AFP-V0-437	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
 AFP-V0-438	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
 AFP-V0-439	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
+AFP-V0-970	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2610; amends AFP-V0-436 and AFP-V0-439)	unrecorded	-
 AFP-V0-441	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2682); its	standing	2026-10-11; V1-2682
 AFP-V0-440	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2674, Git	standing	2026-10-11; V1-2674; #1774
 AFP-V0-444	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2702, Git	standing	2026-10-11; V1-2702; #1811
@@ -280,6 +281,8 @@ AFP-V0-928	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-929	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3152)	standing	2026-10-11; V1-3152
 AFP-V0-930	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3147)	standing	2026-10-11; V1-3147
 AFP-V0-931	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3146;	standing	2026-10-11; V1-3146
+AFP-V0-990	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3648)	standing	2026-10-11; V1-3648
+AFP-V0-991	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3664)	standing	2026-10-11; V1-3664
 AFP-V0-933	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3109;	standing	2026-10-11; V1-3109
 AFP-V0-934	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3159;	standing	2026-10-11; V1-3159
 AFP-V0-935	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3160;	standing	2026-10-11; V1-3160
@@ -338,6 +341,12 @@ AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
 AHI-172	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #	standing	2026-10-11; V1-2201; #1406
 AHI-372	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3086; GitHub #	standing	2026-10-11; V1-3086; #1982
+AHI-970	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-3255; amends `AHI-055` and	standing	V1-3255
+AHI-950	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2347, V1-2518	standing	2026-10-31; V1-2347; V1-2518
+AHI-951	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2495) The Cod	standing	2026-10-31; V1-2495
+AHI-952	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2977; amends	standing	2026-10-31; V1-2977
+AHI-953	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2977; extends	standing	2026-10-31; V1-2977
+AHI-954	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3409; amends	standing	2026-10-31; V1-3409
 AHI-820	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) Th	standing	V1-2513
 AHI-373	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendmen	standing	2026-10-11; V1-3244
 AHI-173	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One comm	standing	2026-10-11; V1-2145
@@ -367,6 +376,8 @@ AHI-041	docs/specs/agent-harness-integration-v0.md	The terminal MUST show at mos
 AHI-042	docs/specs/agent-harness-integration-v0.md	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex	unrecorded	-
 AHI-043	docs/specs/agent-harness-integration-v0.md	For an unchanged committed tree, worktree state, hook input and session key, the	unrecorded	-
 AHI-044	docs/specs/agent-harness-integration-v0.md	Every shipped hook adapter MUST fail open under the faults a host or machine can	unrecorded	-
+AHI-910	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude	standing	2026-10-31; V1-3312
+AHI-911	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3423) When the	standing	2026-10-31; V1-3423
 AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) The Claude Code and Codex	owner	decision 0441; V1-0942
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939
@@ -598,6 +609,7 @@ AFU-V1-130	docs/specs/application-flow-understanding-v1.md	`corvint flows --help
 AFU-V1-131	docs/specs/application-flow-understanding-v1.md	`corvint flows ingest --format playwright-json` MUST key each test the way a	unrecorded	-
 AFU-V1-251	docs/specs/application-flow-understanding-v1.md	A `playwright-list` import MUST join the listed specs that share a repository	unrecorded	-
 AFU-V1-252	docs/specs/application-flow-understanding-v1.md	A variation's `no-test` gap MUST read `only inferred test links, which count onc	unrecorded	-
+AFU-V1-950	docs/specs/application-flow-understanding-v1.md	Three decoders of a Playwright `--reporter=json` report remain, each a different	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
@@ -783,6 +795,9 @@ AMAP-V0-143	docs/specs/application-map-v0.md	Each cited request MUST read exactl
 AMAP-V0-144	docs/specs/application-map-v0.md	A `BLOCKER-404-NO-ROUTE` or `route-table-incomplete` request MUST name up to 3	unrecorded	-
 AMAP-V0-145	docs/specs/application-map-v0.md	The report head MUST carry the map identity, budget, rule	unrecorded	-
 AMAP-V0-146	docs/specs/application-map-v0.md	Router and handler reads MUST stay within the AMAP-V0-107 bounds, and the same	unrecorded	-
+AMAP-V0-780	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3526) `tests.p	standing	2026-10-31; V1-3526
+AMAP-V0-781	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynami	standing	2026-10-31; V1-3527
+AMAP-V0-782	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) The opti	standing	2026-10-31; V1-3527
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -942,11 +957,16 @@ CAP-V0-047	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-048	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) Every ot	standing	2026-10-11; V1-2685
 CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) A root	standing	2026-10-11; V1-2685
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
+CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
 CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines	standing	2026-10-30; V1-3153
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-931	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
 CAP-V0-932	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
+CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
+CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1233,6 +1253,7 @@ CEM-V1-933	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-934	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) Amends `CEM-V1-986`	standing	V1-3443
 CEM-V1-935	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The portable consum	standing	V1-3443
 CEM-V1-936	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The stable packet i	standing	V1-3443
+CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3531) `corvint	standing	2026-11-01; V1-3531
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -1544,6 +1565,7 @@ CCE-V0-113	docs/specs/change-compiled-e2e-v0.md	Each vocabulary addition MUST ha
 CCE-V0-114	docs/specs/change-compiled-e2e-v0.md	`api_contracts` at base (each a `contract:` ID, one or more relative path globs	unrecorded	-
 CCE-V0-115	docs/specs/change-compiled-e2e-v0.md	A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming	unrecorded	-
 CCE-V0-116	docs/specs/change-compiled-e2e-v0.md	The prove report MUST keep, for each run that ends without a qualified receipt,	unrecorded	-
+CCE-V0-940	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2620) When the CCE-V0-018	standing	2026-10-11; V1-2620
 CCE-V0-117	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2377) On darwin/arm64, when	standing	2026-10-11; V1-2377
 CCE-V0-118	docs/specs/change-compiled-e2e-v0.md	`corvint flows appmap build --help` and `-h`, and `corvint-test e2e SUBCOMMAND	unrecorded	-
 CCE-V0-119	docs/specs/change-compiled-e2e-v0.md	When the manifest is missing or does not build at the catalog revision or the	unrecorded	-
@@ -1774,6 +1796,7 @@ PRS-V1-017	docs/specs/corvint-1.0-product-and-release-v1.md	The expanded capabil
 PRS-V1-018	docs/specs/corvint-1.0-product-and-release-v1.md	Stable 1.0 MUST ship five spec-driven development improvements (owner instructio	unrecorded	-
 PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO	unrecorded	-
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
+PRS-V1-910	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint	standing	2026-10-31; V1-3313
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
 PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
@@ -1895,6 +1918,13 @@ ASD-V0-904	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-905	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3446) Every li	standing	2026-10-31; V1-3446
 ASD-V0-906	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3259; refines	standing	2026-10-31; V1-3259
 ASD-V0-907	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1629) `script/	standing	2026-10-31; V1-1629
+ASD-V0-920	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3518; refines	standing	2026-10-31; V1-3518
+ASD-V0-921	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3243; refines	standing	2026-10-31; V1-3243
+ASD-V0-922	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3342; refines	standing	2026-10-31; V1-3342
+ASD-V0-923	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3341) `script/	standing	2026-10-31; V1-3341
+ASD-V0-924	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3442; refines	standing	2026-10-31; V1-3442
+ASD-V0-926	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; review fix for `A	standing	2026-10-31
+ASD-V0-925	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3469; refines	standing	2026-10-31; V1-3469
 ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
 ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
 ASD-V0-942	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2393; refines	standing	2026-10-31; V1-2393
@@ -1906,9 +1936,28 @@ ASD-V0-834	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-835	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1628; refines	standing	2026-10-31; V1-1628
 ASD-V0-836	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3549; refines	standing	2026-10-31; V1-3549
 ASD-V0-837	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines	standing	2026-10-31; V1-3550
+ASD-V0-930	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626, V1-1628;	standing	2026-11-01; V1-3626; V1-1628
+ASD-V0-931	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626; refines	standing	2026-11-01; V1-3626
+ASD-V0-932	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626; refines	standing	2026-11-01; V1-3626
+ASD-V0-933	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626, V1-3518;	standing	2026-11-01; V1-3626; V1-3518
+ASD-V0-934	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626; refines	standing	2026-11-01; V1-3626; V1-2552
+ASD-V0-935	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626; refines	standing	2026-11-01; V1-3626
+ASD-V0-936	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1627; refines	standing	2026-11-01; V1-1627
+ASD-V0-937	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3626 addendum;	standing	2026-11-01; V1-3626
+ASD-V0-938	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3630, V1-3626	standing	2026-11-01; V1-3630; V1-3626; V1-2691
+ASD-V0-939	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3628; refines	standing	2026-11-01; V1-3628
+ASD-V0-955	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1629; extends	standing	2026-11-01; V1-1629
+ASD-V0-956	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2426) `interna	standing	2026-11-01; V1-2426
 ASD-V0-960	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3472) `make re	standing	2026-10-31; V1-3472
 ASD-V0-961	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3394; refines	standing	2026-10-31; V1-3394
 ASD-V0-962	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3472; extends	standing	2026-10-31; V1-3472
+ASD-V0-970	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2209; refines	standing	2026-11-01; V1-2209
+ASD-V0-996	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `make fl	standing	2026-11-01; V1-3239
+ASD-V0-997	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) The same	standing	2026-11-01; V1-3239
+ASD-V0-998	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `dogfood	standing	2026-11-01; V1-3239
+ASD-V0-950	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2909, V1-1	standing	2026-11-01; V1-2909; V1-1009
+ASD-V0-951	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-1009, V1-2	standing	2026-11-01; V1-1009; V1-2909
+ASD-V0-952	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3614; exte	standing	2026-11-01; V1-3614
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2422,6 +2471,7 @@ TCD-V0-871	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the 
 TCD-V0-872	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496) `make tasks-reconcil	standing	V1-3496
 TCD-V0-873	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496) A merged PR whose bo	standing	V1-3496
 TCD-V0-874	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3551; amends	standing	2026-10-11; V1-3551
+TCD-V0-955	docs/specs/corvint-tasks-closeout-debt-v0.md	(standing lane auto-accept, 2026-11-01; V1-3607) `ticket delivery-screen` accept	standing	2026-11-01; V1-3607
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
@@ -2449,6 +2499,7 @@ DSG-V0-012	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A
 DSG-V0-013	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The handed-over dispatcher lock MUST pass as an inherited fi	unrecorded	-
 DSG-V0-014	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The new image MUST emit `upgraded` with `from`, `fromSha256`	unrecorded	-
 DSG-V0-015	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A start that finds phase `EXEC` with no inherited lock (the	unrecorded	-
+DSG-V0-940	docs/specs/corvint-tasks-dispatch-signals-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved fr	standing	2026-10-11; V1-1389
 TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
 TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
 TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Each finding is `{kind, source, who, deta	owner	decision 0481; #715
@@ -2523,6 +2574,7 @@ CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary workt
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
 CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	A linked worktree is admitted only when all of the following hold. It is among t	unrecorded	-
 CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary is not on the intent branch and no admitted linked worktree hol	unrecorded	-
+CTW-V0-780	docs/specs/corvint-tasks-intent-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3525) When an	standing	2026-10-31; V1-3525
 CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	When two or more admitted linked worktrees hold the intent branch, none is selec	unrecorded	-
 CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`	unrecorded	-
 CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
@@ -2551,6 +2603,7 @@ JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
 JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
 JSG-V0-004	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R4) The writer checkpoint is two derived files: a seale	owner	decision 0549
+JSG-V0-780	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-2592) Amending	standing	2026-10-31; V1-2592
 JSG-V0-005	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed seg	owner	decision 0549
 JSG-V0-006	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (	owner	decision 0549
 JSG-V0-007	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R7) Every writer audit lists `receipts/` exactly and re	owner	decision 0549
@@ -2604,6 +2657,7 @@ TLF-V0-883	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket closeout-debt` MUST 
 TLF-V0-884	docs/specs/corvint-tasks-lane-flow-v0.md	`corvint-tasks ticket split ID --criteria N,M --expected-revision R --request-id	unrecorded	-
 TLF-V0-885	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket split --dry-run` MUST print the child CREATE payload and the parent's	unrecorded	-
 TLF-V0-886	docs/specs/corvint-tasks-lane-flow-v0.md	`tools/requirement-id-collisions` MUST read every local branch and detached work	unrecorded	-
+TLF-V0-960	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3650; refines	standing	2026-10-31; V1-3650
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
 TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
@@ -2612,6 +2666,7 @@ LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203)
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
 LGL-V0-004	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 LGL-V0-005	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew session (`transaction.LivenessLease`) M	unrecorded	-
+LGL-V0-780	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539; orchestrator decision 2026-10-31 choosing the claim staging-	standing	V1-2539; 2026-10-31; 2026-10-24; V1-2203; decision 0549
 LGL-V0-006	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A session MUST count the file and directory sync calls it ma	unrecorded	-
 LGL-V0-007	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) The only state a crash after a heartbeat or renew can leave	unrecorded	-
 LGL-V0-008	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destina	unrecorded	-
@@ -2727,6 +2782,8 @@ TOL-V0-106	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-107	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
 TOL-V0-108	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The read	standing	2026-10-11; V1-1949
 TOL-V0-109	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The	standing	2026-10-11; V1-1949
+TOL-V0-940	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961)	standing	2026-10-11; V1-1961
+TOL-V0-941	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961) The	standing	2026-10-11; V1-1961
 TOL-V0-120	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
 TOL-V0-121	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
 TOL-V0-122	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
@@ -3035,6 +3092,7 @@ BKM-V0-092	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 BKM-V0-093	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) A manifest provider record of s	standing	2026-10-28; V1-2915
 BKM-V0-094	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) `breakage manifest` MUST accept	standing	2026-10-28; V1-2915
 BKM-V0-099	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) With `--base`, the report MUST	standing	2026-10-28; V1-2915
+BKM-V0-955	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go	standing	2026-11-01; V1-3529
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -3207,6 +3265,7 @@ DCW-V0-448	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-449	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3108; refines `DCW-V0-379`	standing	V1-3108
 DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3269; refines `DCW-V0-380`	standing	V1-3269
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
+DCW-V0-991	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3642; amends	standing	2026-10-31; V1-3642
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
 DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
@@ -3222,6 +3281,7 @@ DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
 DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
 DCW-V0-827	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3368) A citation-plan row'	standing	V1-3368
+DCW-V0-990	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends	standing	2026-10-31; V1-3637
 DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`	standing	V1-3369
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
@@ -3251,6 +3311,7 @@ DCW-V0-964	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-965	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines	standing	2026-10-31; V1-3047
 DCW-V0-966	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3284; amends	standing	2026-10-31; V1-3284
 DCW-V0-967	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3428; refines	standing	2026-10-31; V1-3428
+DCW-V0-921	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane	standing	2026-11-01
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -3356,6 +3417,7 @@ DRC-V0-009	docs/specs/diagnostic-repair-contract-v0.md	The bounded repair loop M
 DRC-V0-010	docs/specs/diagnostic-repair-contract-v0.md	A non-zero exit or an `ok: false` envelope MUST NOT be reported as success at an	unrecorded	-
 DRC-V0-011	docs/specs/diagnostic-repair-contract-v0.md	A gate MUST enumerate every diagnostic-emitting site under `internal/` and `cmd/	unrecorded	-
 DRC-V0-012	docs/specs/diagnostic-repair-contract-v0.md	`message` MUST remain human-readable prose and MUST NOT be parsed by any Corvint	unrecorded	-
+DRC-V0-910	docs/specs/diagnostic-repair-contract-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2585) An uncod	standing	2026-10-31; V1-2585
 DCLI-V0-001	docs/specs/direct-native-cli-authority-v0.md	**One real host.** Root-protected candidate/completed records bind host=`codex`,	unrecorded	-
 DCLI-V0-002	docs/specs/direct-native-cli-authority-v0.md	**Smallest parent topology.** Consumer's immediate kernel parent must be that ex	unrecorded	-
 DCLI-V0-003	docs/specs/direct-native-cli-authority-v0.md	**Current immutable image and existing admission boundary.** Bind exact executab	unrecorded	-
@@ -3403,6 +3465,9 @@ DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
 DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
 DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
+DCG-V0-920	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408	standing	2026-10-31; V1-3342; V1-3408
+DCG-V0-921	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3323)	standing	2026-10-31; V1-3323
+DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413
 DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -3566,6 +3631,7 @@ DCS-V1-594	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V
 DCS-V1-595	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V1-3125) `recommend-tests` on a path returns the same owners and	unrecorded	-
 DCS-V1-596	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `navigation` takes a `query` instead of an `id`, never	unrecorded	-
 DCS-V1-597	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `docs_navigation` advertises an optional `query` (1 to	unrecorded	-
+DCS-V1-976	docs/specs/documentation-corpus-search-ranking-v1.md	A compile performs one full artifact encode, the digest's. The artifact's `sha25	unrecorded	-
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-
@@ -3860,6 +3926,7 @@ DCR-V1-556	docs/specs/documentation-corpus-verified-reads-v1.md	The fast query i
 DCR-V1-557	docs/specs/documentation-corpus-verified-reads-v1.md	The claim-audit gaps of a query map only the claims a current incorrect verdict	unrecorded	-
 DCR-V1-558	docs/specs/documentation-corpus-verified-reads-v1.md	The recorded-identity check of `DCR-V1-410` does not validate the manifest again	unrecorded	-
 DCR-V1-559	docs/specs/documentation-corpus-verified-reads-v1.md	A streamed decode whose boundary scan has more than one segment pre-scans each	unrecorded	-
+DCR-V1-975	docs/specs/documentation-corpus-verified-reads-v1.md	The pinned-revision verification resolves every pinned revision of one checkout	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-
@@ -4308,6 +4375,8 @@ GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26,
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
+GPK-V0-975	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s	standing	2026-10-31; V1-0179
+GPK-V0-976	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST	standing	2026-10-31; V1-0179
 GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
@@ -4321,6 +4390,7 @@ GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	Rollback MUST require
 GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	Python production retirement is staged. First, Go is default for one release whi	unrecorded	-
 GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	Promotion claims are per command and per integration surface. Reports MUST state	unrecorded	-
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and	unrecorded	-
+GPK-V0-960	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The quer	standing	2026-10-31; V1-3663
 GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	`corvint query` MAY add a general `repository`-intent profile on Darwin	unrecorded	-
 GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	The standalone `corvint query` `repository`-intent profile introduced	unrecorded	-
 GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave	unrecorded	-
@@ -4511,6 +4581,7 @@ IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Public
 IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) `CORVINT_INDEX_AUTO_REFRESH=0`	owner	decision 0517
 IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Acceptance requires a real	owner	decision 0517
 IDX-SNAP-V0-515	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0607) A	standing	2026-10-11; V1-0607
+IDX-SNAP-V0-912	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3310;	standing	2026-10-11; V1-3310
 IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2130)) The	standing	2026-10-11; V1-2130
 IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1732))	standing	2026-10-11; V1-1732
 IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) When	standing	2026-10-11; V1-1640
@@ -4527,9 +4598,12 @@ IDX-SNAP-V0-114	docs/specs/index-snapshot-v0.md	(accepted under the owner's stan
 IDX-SNAP-V0-115	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept; V1-3133; amends	standing	V1-3133
 IDX-SNAP-V0-106	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2290) Two	standing	2026-10-11; V1-2290
 IDX-SNAP-V0-107	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2289);	standing	2026-10-11; V1-2289
+IDX-SNAP-V0-955	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3574);	standing	2026-11-01; V1-3574
 IDX-SNAP-V0-890	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3574;	standing	2026-10-31; V1-3574
 IDX-SNAP-V0-891	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2976,	standing	2026-10-31; V1-2976
 IDX-SNAP-V0-892	docs/specs/index-snapshot-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2356) The	standing	2026-10-31; V1-2356
+IDX-SNAP-V0-910	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
+IDX-SNAP-V0-911	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2881) The	standing	2026-10-11; V1-2881
 JAT-V0-001	docs/specs/java-affected-test-v0.md	A plugin with namespace `java` MUST own exactly the names ending `.java`. Build	unrecorded	-
 JAT-V0-002	docs/specs/java-affected-test-v0.md	One unit MUST be one file, identity `java:<path>`. A file is a test, with `Tests	unrecorded	-
 JAT-V0-003	docs/specs/java-affected-test-v0.md	Imports MUST include the declaring file of each type named by: a single-type imp	unrecorded	-
@@ -4671,6 +4745,8 @@ LPCV-V0-262	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-290	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step	standing	2026-10-11; V1-2015
 LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After th	standing	2026-10-11; V1-2090
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
+LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
+LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -4806,12 +4882,14 @@ LCP-V0-882	docs/specs/local-completion-policy-v0.md	(experimental under the stan
 LCP-V0-883	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-884	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-885	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580) Import MUST relocate	standing	V1-0580
+LCP-V0-960	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3634; refines	standing	2026-10-31; V1-3634
 LCP-V0-039	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-2762) Amending	standing	V1-2762
 LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change	unrecorded	-
 LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
 LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
+LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
@@ -4848,6 +4926,7 @@ LOD-V0-033	docs/specs/local-observability-dashboard-v0.md	Generated-doc state is
 LOD-V0-034	docs/specs/local-observability-dashboard-v0.md	Given identical `atm` output, `REQUIREMENTS.tsv`, receipts, docs-state, and tree	unrecorded	-
 LOD-V0-035	docs/specs/local-observability-dashboard-v0.md	A scan MUST validate schema-2 trace rows using the closed codec and screening in	unrecorded	-
 LOD-V0-960	docs/specs/local-observability-dashboard-v0.md	A v1-only store MUST be compared between the actual	unrecorded	-
+LOD-V0-970	docs/specs/local-observability-dashboard-v0.md	(experimental under the standing lane auto-accept; V1-3427; amends `LOD-V0-960`)	standing	V1-3427
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit	unrecorded	-
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	The Python reader MUST accept canonical rows only when their filename and row na	unrecorded	-
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	Dry-run MUST be read-only and bind its plan digest to the stable current commit/	unrecorded	-
@@ -5013,6 +5092,7 @@ MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	The tool MUST open no netw
 MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box	unrecorded	-
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl	unrecorded	-
 MTV-V0-010	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The	standing	2026-10-11; V1-1781
+MTV-V0-950	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP	standing	2026-10-11; V1-2185
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-
@@ -5152,6 +5232,7 @@ NGI-V0-059	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-060	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) When the	standing	2026-10-11; V1-2071
 NGI-V0-061	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) A path o	standing	2026-10-11; V1-2071
 NGI-V0-062	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1848) Path imp	standing	2026-10-11; V1-1848
+NGI-V0-780	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Impact's	standing	2026-10-31; V1-3498
 NGI-V0-301	docs/specs/non-go-impact-v0.md	`corvint graph imports --revision FULL_COMMIT [--kinds KINDS]	unrecorded	-
 NGI-V0-302	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS path MUST retain the structured syntax unknowns that	unrecorded	-
 NGI-V0-303	docs/specs/non-go-impact-v0.md	Import resolution and evidence sites MUST agree with impact on the same	unrecorded	-
@@ -5250,6 +5331,9 @@ OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane au
 OCM-V0-900	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3455; refines	standing	2026-10-31; V1-3455
 OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
+OCM-V0-950	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3455;	standing	2026-11-01; V1-3455
+OCM-V0-951	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-0585)	standing	2026-11-01; V1-0585
+OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -5260,6 +5344,7 @@ UPD-V0-006	docs/specs/operator-update-v0.md	Owned executable probes MUST isolate
 UPD-V0-007	docs/specs/operator-update-v0.md	(accepted by decision 0440; V1-0929) The state directory MUST	owner	decision 0440; V1-0929
 UPD-V0-008	docs/specs/operator-update-v0.md	(proposed (V1-1078)) An index snapshot is keyed by the Core executable's digest	unrecorded	-
 UPD-V0-009	docs/specs/operator-update-v0.md	(proposed (V1-0639)) Every `check` result that observes a release MUST state	unrecorded	-
+UPD-V0-910	docs/specs/operator-update-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3301) On basis	standing	2026-10-31; V1-3301
 UPD-V0-010	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1364) An insta	standing	2026-10-11; V1-1364
 UPD-V0-011	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599)	standing	2026-10-11; V1-1599
 UPD-V0-012	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1599) Each	standing	2026-10-11; V1-1599
@@ -5334,6 +5419,8 @@ PRB-V0-057	docs/specs/performance-profiling-and-read-budget-v0.md	After the seve
 PRB-V0-058	docs/specs/performance-profiling-and-read-budget-v0.md	The fixture MUST generate the code repository deterministically (generator	unrecorded	-
 PRB-V0-059	docs/specs/performance-profiling-and-read-budget-v0.md	Each code-repository scenario MUST carry the two `PRB-V0-032` ceilings, enforced	unrecorded	-
 PRB-V0-060	docs/specs/performance-profiling-and-read-budget-v0.md	On Linux, the `PRB-V0-027` peak resident set MUST be the measured process's own,	unrecorded	-
+PRB-V0-970	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --scenario ID`, repeatable, MUST measure and judge only the named	unrecorded	-
+PRB-V0-971	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --record-baseline-from REPORT` MUST record the baseline from a repo	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -5437,6 +5524,7 @@ PWP-V0-092	docs/specs/playwright-external-provider-v0.md	A preflight that did no
 PWP-V0-093	docs/specs/playwright-external-provider-v0.md	The receipt shape check requires a preflight member to appear only on an externa	unrecorded	-
 PWP-V0-153	docs/specs/playwright-external-provider-v0.md	When `corvint test-validity` (`internal/testvaliditydoc`) projects an external	unrecorded	-
 PWP-V0-154	docs/specs/playwright-external-provider-v0.md	The same projection states the freshness of an external run and of each of its	unrecorded	-
+PWP-V0-960	docs/specs/playwright-external-provider-v0.md	The qualified reporter records an attempt of a test whose `expectedStatus` is	unrecorded	-
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	The profile is explicit, separate and bounded to trusted local source-direct ser	unrecorded	-
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	Capture clean product/test repository and file identities before and after execu	unrecorded	-
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	Record the actual reporter-selected semantic test identity, source anchor/digest	unrecorded	-
@@ -5576,6 +5664,11 @@ PMR-V0-006	docs/specs/postmerge-replay-v0.md	Build and validate the actual conne
 PMR-V0-007	docs/specs/postmerge-replay-v0.md	Emit a separate report with fixture/policy/binding identities, canonical JSONL,	unrecorded	-
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry	unrecorded	-
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	Replay does not parse or reimplement the issue #389 delta record. The adapter	unrecorded	-
+PMR-V0-960	docs/specs/postmerge-replay-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3662) Free tex	standing	2026-10-31; V1-3662
+PMR-V0-940	docs/specs/postmerge-replay-v0.md	Author stage. A result may carry `authored`: at most one entry per kind `docs` o	unrecorded	-
+PMR-V0-941	docs/specs/postmerge-replay-v0.md	Draft stage. For each authored commit the harness adds a connector draft of that	unrecorded	-
+PMR-V0-942	docs/specs/postmerge-replay-v0.md	The adapter still reports author and draft stages as `deferred` under `PMR-V0-00	unrecorded	-
+PMR-V0-943	docs/specs/postmerge-replay-v0.md	Historical replay set and campaign. `internal/postmergeworkflow/testdata/histori	unrecorded	-
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	Independently pin full binding, input snapshots, source/tool/runtime/profile and	unrecorded	-
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	Execute real connector/intake/delta joins, retain exact native inputs/outputs an	unrecorded	-
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	Each applicable real author step requires enforced credential/network/filesystem	unrecorded	-
@@ -5802,6 +5895,8 @@ RGV-V0-013	docs/specs/repository-guidance-v0.md	Review MUST NOT plan affected ad
 RGV-V0-014	docs/specs/repository-guidance-v0.md	Review MUST emit `NO_REPOSITORY_GATE_DECLARED` only from a complete read of the	unrecorded	-
 RGV-V0-015	docs/specs/repository-guidance-v0.md	(proposed (V1-0995)) Review MUST NOT embed the full `affected-plan/0` receipt. `	unrecorded	-
 RGV-V0-050	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-2053) The RGV-V	standing	2026-10-11; V1-2053
+RGV-V0-955	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3528) When ever	standing	2026-11-01; V1-3528
+RGV-V0-956	docs/specs/repository-guidance-v0.md	(accepted under the owner's standing auto-accept, 2026-11-01; V1-3532) A guidanc	standing	2026-11-01; V1-3532
 RPB-V0-001	docs/specs/reproduction-bundle-v0.md	A bundle MUST be one JSON object with exactly the members `profile`	unrecorded	-
 RPB-V0-002	docs/specs/reproduction-bundle-v0.md	Bounds: a bundle of at most 4 MiB; 1 to 64 arguments of at most 4096 bytes and n	unrecorded	-
 RPB-V0-003	docs/specs/reproduction-bundle-v0.md	Inputs are pinned, never assumed. `record` MUST refuse with	unrecorded	-
@@ -5852,7 +5947,7 @@ DIRTY-CACHE-006	docs/specs/revision-cache-dirty-worktree-v0.md	worktree status c
 DIRTY-CACHE-007	docs/specs/revision-cache-dirty-worktree-v0.md	existing cache bounds remain: 128 MiB per disk entry, eight disk entries,	unrecorded	-
 DIRTY-CACHE-008	docs/specs/revision-cache-dirty-worktree-v0.md	regressions MUST cover memory and fresh-process disk dirty hits, dirty cold	unrecorded	-
 DIRTY-CACHE-009	docs/specs/revision-cache-dirty-worktree-v0.md	a 30-sample dogfood run MUST distinguish cold and primed-dirty phases, keep	unrecorded	-
-DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay, session, background process, database,	unrecorded	-
+DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay (except the explicit opt-in	unrecorded	-
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	each index build MUST resolve the repository storage object format and exact	unrecorded	-
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)	unrecorded	-
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	the native disk snapshot store (`index-snapshot-v0`) MUST live at	unrecorded	-
@@ -5862,6 +5957,9 @@ DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decis
 DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
 DIRTY-CACHE-018	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2218)**.	unrecorded	-
 DIRTY-CACHE-019	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2880)**.	unrecorded	-
+DIRTY-CACHE-940	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-941	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-942	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-
@@ -6029,6 +6127,7 @@ STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
 STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
+STR-V0-920	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines	standing	2026-10-31; V1-3470
 STR-V0-770	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)	standing	2026-10-11; V1-3573
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
@@ -6238,6 +6337,7 @@ SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2859) Whe	standing	2026-10-11; V1-2859
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
+SRG-V0-970	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`)	standing	V1-2830
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379
@@ -6248,6 +6348,15 @@ SRG-V0-982	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-983	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458)	standing	2026-10-31; V1-3458
 SRG-V0-890	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3575; refines	standing	2026-10-31; V1-3575
 SRG-V0-891	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3295) Every	standing	2026-10-31; V1-3295
+SRG-V0-920	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3448; amen	standing	2026-10-31; V1-3448
+SRG-V0-921	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3338; exte	standing	2026-10-31; V1-3338
+SRG-V0-922	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3437) `mak	standing	2026-10-31; V1-3437
+SRG-V0-923	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3362; refi	standing	2026-10-31; V1-3362
+SRG-V0-950	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3575;	standing	2026-11-01; V1-3575
+SRG-V0-951	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3602) One	standing	2026-11-01; V1-3602
+SRG-V0-952	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3563) An	standing	2026-11-01; V1-3563
+SRG-V0-953	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3553;	standing	2026-11-01; V1-3553
+SRG-V0-954	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3617, V1-3	standing	2026-11-01; V1-3617; V1-3510
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -6410,6 +6519,7 @@ TCP-V0-991	docs/specs/task-context-packet-v0.md	(experimental under the owner's 
 TCP-V0-992	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-993	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-995	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-975	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-3457)	standing	2026-10-31; V1-3457
 TCP-V0-994	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCP-V0-270	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
 TCP-V0-271	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)	standing	2026-10-11; V1-1272
@@ -6561,6 +6671,7 @@ TCQ-V0-061	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's
 TCQ-V0-062	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1266) The	standing	2026-10-11; V1-1266
 TCQ-V0-063	docs/specs/test-claim-qualification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1453) A	standing	2026-10-11; V1-1453
 TCQ-V0-761	docs/specs/test-claim-qualification-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1450)	standing	2026-10-11; V1-1450
+TCQ-V0-970	docs/specs/test-claim-qualification-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1451,	standing	2026-10-11; V1-1451
 TCN-V0-001	docs/specs/test-consolidation-planner-v0.md	The planner MUST be a read-only local projection. `corvint test-plan consolidate	unrecorded	-
 TCN-V0-002	docs/specs/test-consolidation-planner-v0.md	The input MUST be one closed `test-consolidation-input/0` JSON document of at mo	unrecorded	-
 TCN-V0-003	docs/specs/test-consolidation-planner-v0.md	A variation MUST be abstained, never grouped, isolated, reused or deduplicated,	unrecorded	-
@@ -6664,11 +6775,14 @@ TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP
 TSP-V0-861	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-864	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
 TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)	standing	2026-10-11; V1-2892
+TSP-V0-950	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
+TSP-V0-951	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
 TSA-V0-002	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hu	standing	2026-10-11; V1-1587
 TSA-V0-003	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
+TSA-V0-960	docs/specs/test-source-analysis-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3655; amends	standing	2026-10-31; V1-3655
 TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-871	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`	standing	2026-10-11; V1-1587; 2026-10-30
@@ -6964,6 +7078,7 @@ TTG-V0-009	docs/specs/traceability-test-gate-v0.md	When one or more names fail T
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST	unrecorded	-
 TTG-V0-011	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3143; refines	standing	2026-10-29; V1-3143
 TTG-V0-012	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3235; refines	standing	2026-10-30; V1-3235
+TTG-V0-950	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3586)	standing	2026-11-01; V1-3586
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-
@@ -6997,6 +7112,7 @@ TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	Static confi
 TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	A changed source, page object, fixture, scenario builder, or helper MUST select	unrecorded	-
 TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	Project grep/tag and metadata inputs are identity, not file-exclusion authority.	unrecorded	-
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	Per-file commands require a matching complete caller-owned discovery receipt.	unrecorded	-
+TJAA-V0-780	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Every	standing	2026-10-31; V1-3498
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	The profile MUST be read-only and bounded by the shared source-walk and source-r	unrecorded	-
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	Qualification requires a fixture with Chromium plus Angular/React project varian	unrecorded	-
 TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0483; V1-1065; GitHub #709) In a global or project	owner	decision 0483; V1-1065; #709
@@ -7092,6 +7208,9 @@ URE-V0-006	docs/specs/unplanned-read-events-v0.md	`HookPostTool(root, packetPath
 URE-V0-007	docs/specs/unplanned-read-events-v0.md	`corvint [--root PATH] reads [--limit N]` MUST print the digest and write	unrecorded	-
 URE-V0-008	docs/specs/unplanned-read-events-v0.md	After a Claude Code `user-prompt` event renders a delivered context,	unrecorded	-
 URE-V0-009	docs/specs/unplanned-read-events-v0.md	`corvint host-adapter claude-code post-tool` MUST call	unrecorded	-
+URE-V0-996	docs/specs/unplanned-read-events-v0.md	`frictionmetric.Evaluate` MUST read one bounded JSON document of profile	unrecorded	-
+URE-V0-997	docs/specs/unplanned-read-events-v0.md	The metrics MUST be emitted only by `corvint eval --friction FILE`, which takes	unrecorded	-
+URE-V0-998	docs/specs/unplanned-read-events-v0.md	For each session marked `labelled`, every event a human labelled with a metric n	unrecorded	-
 UCL1142-V0-001	docs/specs/upgrade-checklist-v0.md	`corvint [--root SOURCE] changes --from SHA --to SHA` MUST resolve hexadecimal	unrecorded	-
 UCL1142-V0-002	docs/specs/upgrade-checklist-v0.md	The deterministic range MUST use first-parent commits in FROM..TO. Only merge	unrecorded	-
 UCL1142-V0-003	docs/specs/upgrade-checklist-v0.md	Repeatable `--refs-file FILE` MUST scan explicit regular files relative to SOURC	unrecorded	-
@@ -7311,6 +7430,7 @@ WQO-V0-093	docs/specs/work-queue-observation-v0.md	(proposed; V1-2476, V1-2550) 
 WQO-V0-096	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work	standing	2026-10-28; V1-3063
 WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept; V1-2769) The remaining fixed	standing	V1-2769
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
+WQO-V0-910	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The	standing	2026-10-31; V1-3299
 WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-

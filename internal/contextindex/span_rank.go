@@ -50,7 +50,7 @@ func (compiler *taskContextCompiler) attachSpans(packet map[string]any, rows []c
 	ranker := newSpanRanker(compiler, rows)
 	spans, omitted := ranker.rank(contextSpanLineBudget)
 	packet["spans"] = ranker.packet(spans, omitted, contextSpanLineBudget)
-	packet["coverage"].(map[string]any)["sufficiency"] = compiler.sufficiency(spans, ranker.lines).packet()
+	packet["coverage"].(map[string]any)["sufficiency"] = compiler.sufficiency(rows, spans, ranker.lines).packet()
 }
 
 type spanName struct {
@@ -404,6 +404,9 @@ func (ranker *spanRanker) packet(spans []contextSpan, omitted, budget int) map[s
 	used := 0
 	for _, span := range spans {
 		used += span.lines()
+		if _, overlaid := ranker.compiler.index.overlaidBlob(span.path); overlaid { // DIRTY-CACHE-942
+			span.authority, span.confidence = WorktreeOverlayAuthority, "low"
+		}
 		rows = append(rows, map[string]any{
 			"role": span.role, "path": span.path, "start_line": span.start, "end_line": span.end,
 			"symbol": span.symbol, "reason": span.reason, "confidence": span.confidence,

@@ -1,6 +1,6 @@
 //go:build darwin || linux
 
-package jstestprovider_test
+package externallive_test
 
 import (
 	"context"

@@ -639,7 +639,8 @@ phase_jobs="$phase_jobs $!"
   disagreement_output=$(DOGFOOD_TEST_BASE_CORVINT="$test_root/bin/disagree-corvint" \
     run_dogfood_check "$base" 2>&1) || disagreement_status=$?
   test "$disagreement_status" = 1
-  test "$disagreement_output" = $'dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable\ndogfood-check: FAIL verifier-disagreement'
+  test "${disagreement_output%%$'\n  fix: '*}" = $'dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable\ndogfood-check: FAIL verifier-disagreement'
+  rg -q '^  fix: the base and tree verifiers disagree' <<< "$disagreement_output"
   rg -Fq '"outputsAgree": false' .corvint/dogfood-report.json
   wrong_status=0
   wrong_output=$(CORVINT_BIN="$test_root/bin/wrong-corvint" run_dogfood_check "$base" 2>&1) || \
@@ -786,7 +787,7 @@ phase_jobs="$phase_jobs $!"
     DOGFOOD_INTENTS_FILE="$test_root/intents.txt" \
     DOGFOOD_VERIFY='test gate' DOGFOOD_OUTCOME=passed script/dogfood-change.sh "$base" 2>&1) || malformed_status=$?
   test "$malformed_status" = 1
-  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)' <<< "$malformed_output"
+  rg -Fxq -- '    fix: each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order (START:END a BASE line span, or bytes:START:END a byte span), LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)' <<< "$malformed_output"
   missing_report_status=0
   rm -f .corvint/dogfood-report.json
   missing_report_output=$(run_dogfood_check "$base" 2>&1) || missing_report_status=$?
@@ -869,13 +870,13 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
     DOGFOOD_OUTCOME=passed)
   # DCW-V0-034 / V1-1123: reject syntax before the first sidecar bind,
   # naming the command, and never invoke the fake recorder for that refusal.
-  printf '%s\n' "go test ./fixture -run '^(A|[B])$'" > "$test_root/verify-invalid.txt"
+  printf '%s\n' "go test ./fixture -run '^(A|B.*)$'" > "$test_root/verify-invalid.txt"
   verify_syntax_status=0
   verify_syntax_output=$("${verify_env[@]}" DOGFOOD_VERIFY_FILE="$test_root/verify-invalid.txt" \
     script/dogfood-change.sh "$base" 2>&1) || verify_syntax_status=$?
   test "$verify_syntax_status" = 1
   rg -Fq 'local-outcome: unsupported-verify-syntax' <<< "$verify_syntax_output"
-  rg -Fq "go test ./fixture -run '^(A|[B])$'" <<< "$verify_syntax_output"
+  rg -Fq "go test ./fixture -run '^(A|B.*)$'" <<< "$verify_syntax_output"
   rg -Fq 'ASCII letters, digits and _./:@=+, - only' <<< "$verify_syntax_output"
   if rg -q '^dogfood-record ' "$test_root/verify-corvint.log"; then
     printf '%s\n' 'unsupported verification reached recorder' >&2

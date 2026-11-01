@@ -8,6 +8,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 const (
@@ -444,7 +446,7 @@ func parseDecisionsNamed(data []byte, name string) ([]Decision, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&file); err != nil || decoder.More() {
+	if err := decoder.Decode(&file); err != nil || !jsonend.Done(decoder) {
 		return nil, refuse("tests-decisions-invalid", "%s is not a valid decision file", name)
 	}
 	if file.Schema != DecisionsSchema {

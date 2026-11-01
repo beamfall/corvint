@@ -161,8 +161,16 @@ func claudeSessionGuidance(root, key, event string, subagent bool) string {
 
 // withHookContextSuffix appends the experimental kernel block, and gives it its own context when
 // the adapter output is silent so the operator's opt-in still reaches the model.
+// emptyHookSuccess reports whether output is AHI-910's successful hook with nothing to inject:
+// only the event name, no context.
+func emptyHookSuccess(output map[string]any) bool {
+	hook, ok := output["hookSpecificOutput"].(map[string]any)
+	_, named := hook["hookEventName"]
+	return ok && len(output) == 1 && len(hook) == 1 && named
+}
+
 func withHookContextSuffix(output map[string]any, eventName, suffix string) map[string]any {
-	if len(output) == 0 && suffix != "" {
+	if (len(output) == 0 || emptyHookSuccess(output)) && suffix != "" {
 		return claudeContextOutput(eventName, strings.TrimPrefix(suffix, "\n"))
 	}
 	return withAdapterContextSuffix(output, suffix)

@@ -6,9 +6,13 @@ import (
 	"context"
 	"errors"
 	"github.com/Beamfall/corvint/internal/execfile"
+	"io/fs"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -50,5 +54,95 @@ func TestDCWV0075SlowGitOverrunsTheDeadline(t *testing.T) {
 	}
 	if elapsed := time.Since(started); elapsed > 10*time.Second {
 		t.Fatalf("slow Git build returned after %v, want a bounded overrun", elapsed)
+	}
+}
+
+// IDX-SNAP-V0-912: only a context the refresh writer marked drops the shared
+// 30-second deadline, keeping its own; an unmarked context keeps 30 seconds
+// even under a longer parent deadline.
+func TestWriterBoundsReplaceTheGitDeadline_IDXSNAPV0912(t *testing.T) {
+	parent, cancelParent := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancelParent()
+	ordinary, cancel := withGitDeadline(parent)
+	defer cancel()
+	if deadline, ok := ordinary.Deadline(); !ok || time.Until(deadline) > gitDeadline {
+		t.Fatalf("unmarked deadline %v (%t), want at most %s", deadline, ok, gitDeadline)
+	}
+	writer, cancelWriter := withGitDeadline(WithWriterBounds(parent))
+	defer cancelWriter()
+	parentDeadline, _ := parent.Deadline()
+	if deadline, ok := writer.Deadline(); !ok || !deadline.Equal(parentDeadline) {
+		t.Fatalf("writer deadline %v (%t), want the parent's %v", deadline, ok, parentDeadline)
+	}
+	cancelParent()
+	<-writer.Done()
+}
+
+// DRC-V0-910 (V1-2585): a Git that cannot start keeps the stable public
+// message and names its closed start class: ENOENT for a missing executable,
+// ETXTBSY for one still open for writing (the parallel-test race of
+// V1-2585), and nothing for an ordinary Git failure.
+func TestGitStartErrorClass_DRCV0910(t *testing.T) {
+	root := testRepository(t)
+	busy := filepath.Join(t.TempDir(), "git")
+	writer, err := os.OpenFile(busy, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	if _, err := writer.WriteString("#!/bin/sh\nexit 0\n"); err != nil {
+		t.Fatal(err)
+	}
+	failing := filepath.Join(t.TempDir(), "git")
+	if err := execfile.WriteFile(failing, []byte("#!/bin/sh\necho nope >&2\nexit 3\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct{ name, executable, class string }{
+		{"ENOENT", filepath.Join(t.TempDir(), "missing-git"), "ENOENT"},
+		{"ETXTBSY", busy, "ETXTBSY"},
+		{"exit", failing, ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if test.class == "ETXTBSY" && runtime.GOOS != "linux" {
+				// Darwin executes a script that is still open for writing; the race is Linux's.
+				t.Skip("ETXTBSY on exec of a write-open file is Linux behavior")
+			}
+			ctx := withGitExecution(context.Background(), test.executable, os.Environ())
+			_, err := git(ctx, root, 1<<20, nil, "rev-parse", "HEAD")
+			if err == nil {
+				t.Fatal("Git started")
+			}
+			if got := GitStartErrorClass(err); got != test.class {
+				t.Fatalf("class = %q, want %q (err %v)", got, test.class, err)
+			}
+			if test.class != "" && err.Error() != "Git error: cannot start Git" {
+				t.Fatalf("public message changed: %q", err.Error())
+			}
+		})
+	}
+	if GitStartErrorClass(errors.New("unrelated")) != "" {
+		t.Fatal("a non-Git error has a start class")
+	}
+}
+
+// DRC-V0-910: the classification itself, on every platform, for start errors
+// wrapped as os/exec returns them.
+func TestGitStartErrorClassMapsEachErrno_DRCV0910(t *testing.T) {
+	for start, want := range map[error]string{
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ETXTBSY}: "ETXTBSY",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ENOENT}:  "ENOENT",
+		&exec.Error{Name: "git", Err: exec.ErrNotFound}:                      "ENOENT",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.EACCES}:  "EACCES",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.EPERM}:   "EPERM",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ENOEXEC}: "ENOEXEC",
+		errors.New("something else"):                                         "other",
+	} {
+		err := &Error{Message: "Git error: cannot start Git", gitFailure: &GitFailure{ExitCode: -1, StartError: start}}
+		if got := GitStartErrorClass(err); got != want {
+			t.Errorf("%v: class %q, want %q", start, got, want)
+		}
+	}
+	if got := GitStartErrorClass(&Error{Message: "Git error: x", gitFailure: &GitFailure{ExitCode: 3}}); got != "" {
+		t.Errorf("exit failure class %q", got)
 	}
 }

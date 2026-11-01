@@ -227,9 +227,13 @@ func TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995(t *testing.T) {
 	if core := findSpan(rows, "core", "pkg/core/engine.go"); core == nil || core["symbol"] != "RunEngine" {
 		t.Fatalf("core span for the spec-cited file = %#v in %#v", core, rows)
 	}
-	// The spec path stays unread: the instruction reservations take no core span.
+	// The spec path takes no core span, but its reserved row carries the
+	// anchor (TCP-V0-975), so nothing is missing.
 	sufficiency := contextCoverage(t, packet)["sufficiency"].(map[string]any)
-	if missing := sufficiency["missing"].([]any); len(missing) != 1 || missing[0] != "docs/specs/engine-v0.md" {
-		t.Fatalf("sufficiency = %#v, want only the spec path missing", sufficiency)
+	if missing := sufficiency["missing"].([]any); len(missing) != 0 {
+		t.Fatalf("sufficiency = %#v, want nothing missing", sufficiency)
+	}
+	if spec := findSpan(rows, "core", "docs/specs/engine-v0.md"); spec != nil {
+		t.Fatalf("the reserved spec row took a core span: %#v", spec)
 	}
 }

@@ -176,9 +176,10 @@ func run(root string, stdout, stderr io.Writer) int {
 			for _, id := range ids[directory] {
 				fmt.Fprintf(stderr, "  %s\n", explain(graph, id))
 				if unit, ok := graph.Unit(id); ok && unit.UnboundedReads == shell.UnboundedRunsToolchain {
-					// V1-3320: a toolchain-running shell unit has one registration route.
-					fmt.Fprintf(stderr, "  %s runs a build or language toolchain (%s): add %q to units in %s with a reasons entry naming the toolchain read; %s is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).\n",
-						directory, shell.UnboundedRunsToolchain, directory, recordPath, affected.ReadScopesPath)
+					// V1-3320, TSP-V0-951: a toolchain-running shell unit is bounded by
+					// the shell read-scope declaration, else recorded in units.
+					fmt.Fprintf(stderr, "  %s runs a build or language toolchain (%s): declare the paths it reads outside its directory in %s (TSP-V0-950), or add %q to units in %s with a reasons entry naming the toolchain read; %s is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).\n",
+						directory, shell.UnboundedRunsToolchain, affected.ShellReadScopesPath, directory, recordPath, affected.ReadScopesPath)
 				}
 			}
 		}

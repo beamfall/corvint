@@ -1,0 +1,70 @@
+{
+  "profile": "corvint-friction-sessions/0",
+  "sessions": [
+    {
+      "id": "bench-01-clean",
+      "arm": "packet",
+      "labelled": true,
+      "relevant": ["internal/a/a.go"],
+      "events": [
+        {"kind": "read", "ts_ms": 0, "path": "internal/a/a.go", "planned": true, "labels": ["first_relevant_read_ms"]},
+        {"kind": "edit", "ts_ms": 4000, "path": "internal/a/a.go", "before": "b1", "after": "b2"},
+        {"kind": "command", "ts_ms": 9000, "command": "c-test", "exit": 0}
+      ]
+    },
+    {
+      "id": "bench-02-thrash",
+      "arm": "baseline",
+      "labelled": true,
+      "relevant": ["internal/b/b.go"],
+      "events": [
+        {"kind": "read", "ts_ms": 0, "path": "README.md", "planned": false, "labels": ["unplanned_reads"]},
+        {"kind": "read", "ts_ms": 3000, "path": "docs/x.md", "planned": false, "labels": ["unplanned_reads"]},
+        {"kind": "read", "ts_ms": 7000, "path": "README.md", "planned": false, "labels": ["rereads", "unplanned_reads"]},
+        {"kind": "read", "ts_ms": 12000, "path": "internal/b/b.go", "planned": true, "labels": ["first_relevant_read_ms"]},
+        {"kind": "command", "ts_ms": 15000, "command": "c-build", "exit": 1},
+        {"kind": "command", "ts_ms": 18000, "command": "c-build", "exit": 1, "labels": ["retried_commands"]},
+        {"kind": "command", "ts_ms": 21000, "command": "c-build", "exit": 0, "labels": ["retried_commands"]},
+        {"kind": "edit", "ts_ms": 25000, "path": "internal/b/b.go", "before": "d1", "after": "d2"},
+        {"kind": "edit", "ts_ms": 30000, "path": "internal/b/b.go", "before": "d2", "after": "d1", "labels": ["reverted_edits"]}
+      ]
+    },
+    {
+      "id": "bench-03-generated-file",
+      "arm": "baseline",
+      "labelled": true,
+      "relevant": ["gen/out.go"],
+      "events": [
+        {"kind": "read", "ts_ms": 0, "path": "gen/out.go", "planned": true, "labels": ["first_relevant_read_ms"]},
+        {"kind": "command", "ts_ms": 2000, "command": "c-generate", "exit": 0},
+        {"kind": "read", "ts_ms": 5000, "path": "gen/out.go", "planned": true}
+      ]
+    },
+    {
+      "id": "bench-04-retry-with-new-flags",
+      "arm": "packet",
+      "labelled": true,
+      "relevant": ["cmd/x/main.go"],
+      "events": [
+        {"kind": "command", "ts_ms": 0, "command": "c-test-v", "exit": 1},
+        {"kind": "command", "ts_ms": 3000, "command": "c-test-v-count1", "exit": 0, "labels": ["retried_commands"]},
+        {"kind": "read", "ts_ms": 8000, "path": "cmd/x/main.go", "planned": true, "labels": ["first_relevant_read_ms"]},
+        {"kind": "edit", "ts_ms": 9000, "path": "cmd/x/main.go", "before": "e1", "after": "e2"},
+        {"kind": "edit", "ts_ms": 11000, "path": "cmd/x/main.go", "before": "e2", "after": "e3"}
+      ]
+    },
+    {
+      "id": "bench-05-partial-revert",
+      "arm": "packet",
+      "labelled": true,
+      "relevant": ["lib/y.py"],
+      "events": [
+        {"kind": "read", "ts_ms": 0, "path": "lib/z.py", "planned": true},
+        {"kind": "read", "ts_ms": 1000, "path": "lib/y.py", "planned": false, "labels": ["unplanned_reads", "first_relevant_read_ms"]},
+        {"kind": "edit", "ts_ms": 2000, "path": "lib/y.py", "before": "f1", "after": "f2"},
+        {"kind": "edit", "ts_ms": 4000, "path": "lib/y.py", "before": "f2", "after": "f3", "labels": ["reverted_edits"]},
+        {"kind": "read", "ts_ms": 5000, "path": "lib/z.py", "planned": true, "labels": ["rereads"]}
+      ]
+    }
+  ]
+}

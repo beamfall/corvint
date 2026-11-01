@@ -1,6 +1,6 @@
 //go:build darwin || linux
 
-package jstestprovider_test
+package externallive_test
 
 import (
 	"context"
@@ -55,7 +55,7 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"playwright.config.cjs", "external.spec.cjs", "override.spec.cjs", "headed.spec.cjs", "connect.spec.cjs", "identity.spec.cjs", "dynamic.spec.cjs", "custom.spec.cjs", "retry.spec.cjs", "retry-infra.spec.cjs", "interruption.spec.cjs", "setup.cjs", "setup-dependency.cjs", "teardown.cjs"} {
-		data, err := os.ReadFile(filepath.Join("testdata", "external", name))
+		data, err := os.ReadFile(filepath.Join("..", "testdata", "external", name))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -80,11 +80,11 @@ func runQualifiedPlaywrightLive(t *testing.T, retainAttempts bool) {
 	if !ok {
 		t.Fatalf("no live bundled tuple expectation for Playwright %s", pkg.Version)
 	}
-	packageJSON, err := filepath.Abs(filepath.Join("..", "..", "conformance", "interactive-alpha", "fixture", "package.json"))
+	packageJSON, err := filepath.Abs(filepath.Join("..", "..", "..", "conformance", "interactive-alpha", "fixture", "package.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	lockfile, err := filepath.Abs(filepath.Join("..", "..", "conformance", "interactive-alpha", "fixture", "package-lock.json"))
+	lockfile, err := filepath.Abs(filepath.Join("..", "..", "..", "conformance", "interactive-alpha", "fixture", "package-lock.json"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -542,7 +542,7 @@ func runQualifiedPlaywrightDevicesSpread(t *testing.T, retainAttempts bool) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"devices.config.cjs", "devices.spec.cjs"} {
-		data, readErr := os.ReadFile(filepath.Join("testdata", "external", name))
+		data, readErr := os.ReadFile(filepath.Join("..", "testdata", "external", name))
 		if readErr != nil {
 			t.Fatal(readErr)
 		}
@@ -657,7 +657,7 @@ func TestPWPV0035SensitiveProfileLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, name := range []string{"sensitive.config.cjs", "sensitive.spec.cjs"} {
-		data, readErr := os.ReadFile(filepath.Join("testdata", "external", name))
+		data, readErr := os.ReadFile(filepath.Join("..", "testdata", "external", name))
 		if readErr != nil {
 			t.Fatal(readErr)
 		}

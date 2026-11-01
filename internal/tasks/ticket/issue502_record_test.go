@@ -2,7 +2,9 @@ package ticket_test
 
 import (
 	"bytes"
+	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -13,7 +15,21 @@ import (
 
 // issue502RecordFixture is shared with Core's reader test
 // (internal/taskman), so both readers decode the bytes this codec writes.
-const issue502RecordFixture = "testdata/issue502-optional-keys-record.json"
+// Core keeps a byte-identical copy at issue502CoreFixture, because the
+// confined CI shard refuses reads outside a package's directory.
+//
+// To regenerate both after a codec change (V1-3608), run unconfined:
+//
+//	go test ./internal/tasks/ticket -run '^TestIssue502_RecordEscalationsKey$' -regenerate-issue502
+//
+// It writes this codec's encoding of the carrier record to both files, so a
+// rerun with the same codec rewrites the same bytes.
+const (
+	issue502RecordFixture = "testdata/issue502-optional-keys-record.json"
+	issue502CoreFixture   = "../../taskman/testdata/issue502-optional-keys-record.json"
+)
+
+var regenerateIssue502 = flag.Bool("regenerate-issue502", false, "rewrite the issue502 record fixture and Core's copy from this codec (V1-3608)")
 
 func issue502Ref(id, state, acceptance string) ticket.EscalationRef {
 	return ticket.EscalationRef{RequestID: id, OriginSha256: wire.Sum([]byte(id + "-origin")), HeadSha256: wire.Sum([]byte(id + "-" + state)), Revision: "1", AcceptanceRevision: wire.Count(acceptance), Kind: "decision", State: state}
@@ -92,6 +108,13 @@ func TestIssue502_RecordEscalationsKey(t *testing.T) {
 	rec.Progress = []ticket.Progress{{ProgressMark: ticket.ProgressMark{Phase: ticket.PhaseInProgress, Lane: &lane}, Actor: "russell", RecordedAt: "2026-09-06T13:00:00Z"}}
 	rec.KnowHow = issue502KnowHow()
 	rec.ObligationsRef = issue502Obligations(t)
+	if *regenerateIssue502 {
+		for _, name := range []string{issue502RecordFixture, issue502CoreFixture} {
+			if err := os.WriteFile(filepath.FromSlash(name), rec.Encode(), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	file, err := os.ReadFile(issue502RecordFixture)
 	if err != nil {
 		t.Fatal(err)

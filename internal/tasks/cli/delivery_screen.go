@@ -308,7 +308,8 @@ type screenRow struct {
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
 	laneRefs := slices.Contains(args, "--lane-refs")
-	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--lane-refs" })
+	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
+	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--lane-refs" || a == "--json" })
 	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)

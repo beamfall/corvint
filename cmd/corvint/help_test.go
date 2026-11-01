@@ -452,6 +452,10 @@ func TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles(t *testing.T) {
 			"Keep the trace store and original task unchanged",
 			"context --task TASK --limit 5",
 			"Never delete traces, dirty the worktree, or rewrite the task",
+			// GPK-V0-960 (V1-3663): the packet revision is labelled a tree id.
+			"revision and freshness.revision are the Git tree id",
+			"not a commit id, so they never\n  equal learning.history_tip",
+			"the two\n  differing is not staleness (GPK-V0-960)",
 		} {
 			if !strings.Contains(text, required) {
 				t.Fatalf("query help does not contain %q:\n%s", required, text)

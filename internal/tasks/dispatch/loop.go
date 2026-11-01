@@ -290,7 +290,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	// A host reboot is the one automatic containment proof (CAL-V0-227); it
 	// is recorded before the marker goes. Any other prior unresolved reader
 	// refuses before owner/ledger/event writes or adoption.
-	recovered, err := resolveReaderByReboot(dir, program, time.Now())
+	recovered, err := resolveReaderByReboot(dir, program, time.Now(), nil)
 	if err != nil {
 		lock.Close()
 		return nil, fmt.Errorf("%w: the reboot proof was not recorded: %v", ErrReaderQuiescence, err)
@@ -342,6 +342,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if recovered != nil {
 		d.emit(Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", recovered.Run, recovered.Reason, recovered.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": recovered.Kind, "run": recovered.Run}})
 	}
+	d.announceReaderRecoveries()
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
 		if inherited {

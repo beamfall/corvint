@@ -144,6 +144,20 @@ var analyzerGoldenCorpus = map[string]string{
 	".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json": "{\"note\":\"cache demux evidence\"}\n",
 }
 
+// TestAnalyzerSchemaOutputDetectsAnalyzerMutation is the mutant check of the
+// output pin (IDX-SNAP-V0-890, IDX-SNAP-V0-955): an analyzer that extracts one
+// more fact from the same corpus encodes to another pack, so the output pin
+// fails and a bump is required.
+func TestAnalyzerSchemaOutputDetectsAnalyzerMutation(t *testing.T) {
+	plain, _ := analyzerGoldenOutput(t, nil)
+	mutant, _ := analyzerGoldenOutput(t, func(index *Index) {
+		index.Symbols = append(index.Symbols, Symbol{Path: "cache/split.go", Name: "Mutant", Kind: "function", Line: 3})
+	})
+	if plain == mutant {
+		t.Fatalf("a mutated analyzer kept the golden output digest %s; the output pin would not catch an analyzer change", plain)
+	}
+}
+
 // analyzerGoldenOutput commits the corpus with fixed identities and dates,
 // compiles it, applies mutate (when not nil) to the built index, and returns
 // the SHA-256 of its pack and of its blob-shard facts, each shard hashed as

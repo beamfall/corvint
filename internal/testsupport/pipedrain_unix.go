@@ -91,6 +91,9 @@ func checkHeldPipe(t *testing.T, configure func(*exec.Cmd)) {
 	t.Cleanup(func() { _ = hold.Close() })
 	command := exec.CommandContext(context.Background(), "/bin/sh", "-c", "(read held <&3) & printf ok")
 	configure(command)
+	// Deliberately short (V1-3435 review): the descendant holds the pipe until
+	// cleanup, so this bound must expire; it is the injected finite bound the
+	// check asserts fails with ErrWaitDelay, not a production drain bound.
 	command.WaitDelay = 200 * time.Millisecond
 	command.ExtraFiles = []*os.File{release}
 	var out bytes.Buffer

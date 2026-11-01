@@ -1,0 +1,102 @@
+{
+  "profile": "postmerge-replay-historical/0",
+  "source": "Commit-level changes on beamfall/corvint origin/main, all ancestors of 8daec98ce4349c1583186692726d2c3a782ac647, selected 2026-10-31 for V1-0805 from git log by ticket ID; follow-up commits were found with git log --grep on the same ticket ID.",
+  "adapter": "changed-path reference adapter (historicalAdapter in historical_test.go): a source file is a .go/.mjs/.js/.sh file that is not a test file; affected flows are the directories of changed source files; a test gap is a directory with a changed source file and no changed test file; no documentation targets or defects; with test gaps and a follow-up commit it authors the follow-up's test files as the tests draft. Directory identifiers replace / with : and the repository root with root.",
+  "label_definitions": {
+    "affected_flows": "generated: every directory holding a changed non-test file of the change, in the adapter's identifier form",
+    "followup": "generated: true when a later origin/main commit carrying the same ticket ID changed code, tests or specs for the change",
+    "test_gaps": "generated: directories whose tests a later same-ticket commit changed although the change itself changed no test file there",
+    "defects": "generated: line-anchored defects named by a later same-ticket fix; empty where no line anchor exists (see uncertainty)"
+  },
+  "entries": [
+    {
+      "id": "V1-2415",
+      "change": "f4285988a17b1475f3597cb280e06ce7d2294bb2",
+      "base": "d0e8c3dea22869805326a6082bd186f15762a14d",
+      "created_at": "2026-10-31T12:52:44Z",
+      "merged_at": "2026-10-31T12:52:44Z",
+      "title": "fix(flowdocs): mask a generic call only through its type-argument list (V1-2415)",
+      "followup_commit": "310eeed15958792b74c0c222df82590d31f6f1c5",
+      "provenance": "The change edited internal/contextindex/flowlexical.go without a contextindex test; follow-up 310eeed15 (2026-10-31T14:03:05Z, same ticket) repinned internal/contextindex/analyzer_schema_test.go.",
+      "expected": {"affected_flows": ["internal:contextindex", "internal:flowdocs"], "followup": true, "test_gaps": ["internal:contextindex"], "defects": []},
+      "recorded": {"status": "MATCH", "mismatch_fields": [], "draft_requests": 1}
+    },
+    {
+      "id": "V1-2513",
+      "change": "0022646f3995621e73c468f1128e95839ae6054e",
+      "base": "e7f543d6423461a36bd2b41b1826d4a8041c36f3",
+      "created_at": "2026-10-31T12:49:49Z",
+      "merged_at": "2026-10-31T13:39:56Z",
+      "title": "fix(mcp): default MCP servers name --protocol-version 2025-11-25 on a legacy initialize; Claude plugin serves test-validity and docs groups (V1-2507, V1-2513)",
+      "followup_commit": "e141195fa15401923b21cbf31b0124ef71228028",
+      "provenance": "The change edited plugin and compatibility JSON under integrations/ with no integrations test; follow-up e141195fa (2026-10-31T15:49:34Z, same ticket) fixed integrations/host-adapters.test.mjs.",
+      "expected": {"affected_flows": ["cmd:corvint-docs-mcp", "cmd:corvint-test-validity-mcp", "integrations", "integrations:claude-code:.claude-plugin", "integrations:claude-code:plugins:corvint", "integrations:claude-code:plugins:corvint:.claude-plugin", "integrations:opencode", "integrations:pi", "internal:mcp:cli"], "followup": true, "test_gaps": ["integrations"], "defects": []},
+      "recorded": {"status": "MISMATCH", "mismatch_fields": ["affected_flows", "followup", "test_gaps"], "draft_requests": 0}
+    },
+    {
+      "id": "V1-3383",
+      "change": "626456f732b4e14b499037604bd109fe041fef54",
+      "base": "3b298454431db93c65e1e3115d6d7616b0f796bc",
+      "created_at": "2026-10-31T13:27:55Z",
+      "merged_at": "2026-10-31T13:27:55Z",
+      "title": "fix(dogfood): dogfood-change_test.sh ignores ambient dogfood inputs and names enclosing blocks (DCW-V0-807, V1-3383); pin the DCW-V0-806 aggregate fix there",
+      "followup_commit": "1bc46f4fe20f2a268ce0eb4651a2e3a3cda2fcc4",
+      "provenance": "The change edited only script/dogfood-change_test.sh; follow-up 1bc46f4fe (same ticket) changed cmd/corvint/go_only_cutover_test.go, the coordinator test that runs that script.",
+      "uncertainty": "1bc46f4fe has the same commit timestamp as the change and may be the adjacent commit of one PR rather than a post-merge follow-up.",
+      "expected": {"affected_flows": [], "followup": true, "test_gaps": ["cmd:corvint"], "defects": []},
+      "recorded": {"status": "MISMATCH", "mismatch_fields": ["followup", "test_gaps"], "draft_requests": 0}
+    },
+    {
+      "id": "V1-2741",
+      "change": "fb3d0b6dd7503491be43196f52aba67bfdc3e6c8",
+      "base": "1c3f265a43e788d5112859940d6e9caed2031fa3",
+      "created_at": "2026-10-31T13:42:24Z",
+      "merged_at": "2026-10-31T13:42:24Z",
+      "title": "fix(work): count only awake time in the adapter capture drain (V1-2741)",
+      "provenance": "Control: code and tests changed together in cmd/corvint; git log --grep V1-2741 on origin/main shows no later commit.",
+      "expected": {"affected_flows": ["cmd:corvint"], "followup": false, "test_gaps": [], "defects": []},
+      "recorded": {"status": "MATCH", "mismatch_fields": [], "draft_requests": 0}
+    },
+    {
+      "id": "PRS-V1-840",
+      "change": "713a368af27bb5c6f9db33cfb1419b15bd97de51",
+      "base": "bb1f9c4b1abf3feb1017cc592d486f37f537c55e",
+      "created_at": "2026-10-31T14:32:02Z",
+      "merged_at": "2026-10-31T14:35:02Z",
+      "title": "fix(appmap): branch queries keep the platform refusal (PRS-V1-840)",
+      "provenance": "Control: internal/appmap/branch_tests.go (a source file despite its name) changed with platform_refusal_test.go; git log --grep PRS-V1-840 shows no later commit.",
+      "expected": {"affected_flows": ["internal:appmap"], "followup": false, "test_gaps": [], "defects": []},
+      "recorded": {"status": "MATCH", "mismatch_fields": [], "draft_requests": 0}
+    },
+    {
+      "id": "V1-2559",
+      "change": "0a8fc2d007c60bb346d76b8104661ddb44d52eb2",
+      "base": "8f456efebf2816a295228ca98b69cdf83ad59212",
+      "created_at": "2026-10-31T13:21:32Z",
+      "merged_at": "2026-10-31T13:21:32Z",
+      "title": "test(cem/workflow): a budget-exhausted witness is an explicit abstention, not a failure (V1-2559)",
+      "provenance": "Control: a test-only change in internal/cem/workflow; git log --grep V1-2559 shows no later commit.",
+      "expected": {"affected_flows": [], "followup": false, "test_gaps": [], "defects": []},
+      "recorded": {"status": "MATCH", "mismatch_fields": [], "draft_requests": 0}
+    },
+    {
+      "id": "V1-1269",
+      "change": "f71949e171afb8db4b955bfd5b3c7ff538d4799e",
+      "base": "cce9709e7c8cd15828c905fea5e3b581195b54d1",
+      "created_at": "2026-10-31T15:36:58Z",
+      "merged_at": "2026-10-31T15:36:58Z",
+      "title": "fix(context): reserve the code a routed spec cites (V1-1269)",
+      "followup_commit": "515b2c53c28d648e0ffb4c870d8212b117e7b88d",
+      "provenance": "The change edited contextindex code, tests, a spec, a decision and a build-log entry; follow-up 515b2c53c (2026-10-31T15:52:15Z, same ticket) fixed a defect in the new spec-cited rows and changed contextindex code and tests again.",
+      "uncertainty": "The follow-up fixes a defect but names no line anchor in the change, so the defects label is empty; the change already changed contextindex tests, so no test gap is labelled.",
+      "expected": {"affected_flows": ["docs:build-log", "docs:decisions", "docs:specs", "internal:contextindex"], "followup": true, "test_gaps": [], "defects": []},
+      "recorded": {"status": "MISMATCH", "mismatch_fields": ["affected_flows", "followup"], "draft_requests": 0}
+    }
+  ],
+  "campaign": {
+    "run": "TestHistoricalReplayCampaign, 2026-10-31, linux/amd64 go1.27.3 (WSL via script/heavy.sh)",
+    "outcomes": {"MATCH": 4, "MISMATCH": 3, "BLOCKED": 0, "NOT_RUN": 0},
+    "followup_recall": "1 of 4 changes with a same-ticket follow-up was flagged (V1-2415); 3 of 3 controls read no follow-up",
+    "qualifies": "the harness and this reference rule only; workflow_qualification stays NOT_OBSERVED"
+  }
+}

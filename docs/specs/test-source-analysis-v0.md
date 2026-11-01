@@ -74,6 +74,13 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   does not declare), `shared-constant-key-unresolved` (TSA-V0-007), `shared-constant-enumerated` (TSA-V0-856), `registry-unresolved`, `missing-path` (a spec that is not a clean, tracked JS/TS
   path at the revision), `empty-spec-list`, `import-unresolved`, `source-unreadable` or
   `bound-exceeded` (at most 10 000 files in the closure, 100 reasons).
+- `TSA-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3655; amends
+  `TSA-V0-003`) When the setup universe is empty, the result MUST be mode `none` with no setup files
+  and the reason `no-setups`, whatever the closure met: with no setup file at the revision no spec
+  can depend on one, so an unresolved import (such as `playwright-core`) or a computed lookup widens
+  nothing and is not reported. A `missing-path` or `empty-spec-list` reason about the input is kept
+  beside it. Evidence: `TestSelectSetupEmptyUniverseIsNone` (a Playwright suite and an application
+  with no setup project; fails on BASE). Rollback: drop the empty-universe branch of `result`.
 - `TSA-V0-004`: (standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import or a
   registry key MUST NOT select anything (TSA-V0-011).
 - `TSA-V0-005`: (standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema
@@ -3603,6 +3610,7 @@ No live qualification on a real suite was performed. The setup-select provider h
 | TSA-V0-001 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure`, `TestSelectSetupTraversesRegistrySeeders` | experimental |
 | TSA-V0-002 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
 | TSA-V0-003 | `internal/contextindex/setup_select.go` | `TestSelectSetupAll`, `TestSelectSetupUniverseIncludesUnindexedFiles` | experimental |
+| TSA-V0-960 | `internal/contextindex/setup_select.go` `result` | `TestSelectSetupEmptyUniverseIsNone` | experimental |
 | TSA-V0-004 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
 | TSA-V0-005 | `internal/contextindex/setup_select.go`, `cmd/corvint/tests.go` | `TestSelectSetupDigest`, `TestTestsCLI` | experimental |
 | TSA-V0-871 | `runTestsSetupSelect` in `cmd/corvint/tests.go` (`--format lines`) | `TestTestsSetupSelectProviderHandoffLive` in `cmd/corvint/tests_setup_select_handoff_live_test.go`: a real `@playwright/test` 1.61.1 run (Node 22, Mac, 2026-10-30) whose setup project is built from the line list executes only `setup/scenario_a.setup.ts` for a spec reaching `SHARED.scenario_a`, and both setup files for an ALL selection; skips `NOT_RUN` without `CORVINT_PLAYWRIGHT_MODULES` | experimental |

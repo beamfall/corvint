@@ -30,7 +30,13 @@ applies the same classification and hysteresis by hand:
 ```sh
 sysctl -n vm.loadavg hw.ncpu kern.memorystatus_vm_pressure_level   # Darwin
 cat /proc/loadavg; getconf _NPROCESSORS_ONLN; grep -E '^Swap(Total|Free):' /proc/meminfo  # Linux
+script/lane-pressure.sh --level <current level>   # both: the table below applied to one sample
 ```
+
+`script/lane-pressure.sh` (ASD-V0-936, V1-1627) reads those inputs and prints
+`level=L load_per_cpu=X memory=M swap=S admit=N`. From the current level it applies the release rules,
+so the orchestrator only checks that two heartbeats agree before changing the cap. An unreadable
+sample exits 3 and keeps the level.
 
 | Level | Entered when (any signal) | Released when (all signals) | Heavy lanes admitted |
 |---|---|---|---|
@@ -73,6 +79,27 @@ last holder exits, so a killed lane never strands a slot. Every lane on a host m
 directory and slot count. Rules: one package per command, a narrow `-run` for `./cmd/corvint`, no
 `go test ./...` and no `make gate` in a lane (AGENTS.md "Verify"), and `make dogfood-finish` /
 `make dogfood-batch-check` (which build two verifiers) also run through the wrapper.
+
+Every heavy target takes the same queue (ASD-V0-930, V1-3626). The `Makefile` prefixes the recipes
+of `build`, `tasks-build`, `doc-gates`, `batch-precheck` and `dogfood-finish` with `HEAVY_ADMIT`
+(default `script/heavy.sh --admit-only`; empty under `CI`; `HEAVY_ADMIT=` opts out). So `make
+dogfood-closeout` is admitted through its precheck and finish steps, and `script/codex-review.sh`
+runs `codex exec` through `CODEX_REVIEW_HEAVY --admit-only` (default the `heavy.sh` beside it).
+`--admit-only` takes a slot without reading the command: no policy, no rewrite and no offload, so
+a review prompt that mentions `go test` is never refused and `make build` never cross-builds. A
+make dry run (`make -n`) takes no slot. The holder exports `HEAVY_HELD`. A
+`heavy.sh` started inside an admitted command (batch-precheck's steps, the finish's tests) takes its
+holder's token `slotN.inner` or any free slot, whichever frees first. It never waits for a second
+slot of its own, so nesting cannot deadlock, and it skips the load gate (ASD-V0-931). Each local run
+ends with `heavy.sh: done queue=Ns (load=Ns slot=Ns) run=Ns rc=N`, so queue wait and run time are
+read apart (ASD-V0-935).
+
+Go defaults (ASD-V0-938, ASD-V0-939). A `go test` with no `-timeout` gets `-timeout 30m`
+(`HEAVY_GO_TEST_TIMEOUT`, `off` adds none), so a loaded host never trips Go's 600 s default. A
+`sh -c 'go test ...'` wrapper is unwrapped when its string is a plain command, and refused with
+`heavy.sh: REFUSE wrapped-compound ...` when it holds an operator or an expansion (`cd x && go
+test`, a pipe, `$PKGS`). Run the go command directly instead:
+`script/heavy.sh env K=V go test -run X ./pkg`.
 
 A package slower than the 600 s foreground limit runs as shards (ASD-V0-026):
 
@@ -135,7 +162,11 @@ unavailable and falls back), prints
 semaphore and returns the command's status. Only the argv travels, so test environment goes in
 `env K=V` inside the command; a local `GOCACHE`/`GOMODCACHE` assignment is dropped. A command with
 a file-writing flag (`-o`, `-c`, `-coverprofile`, profiles, `-trace`, `-test.*`, also inside a
-`GOFLAGS=` argument or the exported `GOFLAGS`) runs locally, because its files would stay remote; so does `HEAVY_REMOTE=0` (use it for darwin-specific tests).
+`GOFLAGS=` argument or the exported `GOFLAGS`) runs locally, because its files would stay remote; so does `HEAVY_REMOTE=0`.
+On a Darwin lane host, a `go test` or `go vet` whose packages hold darwin-only files never offloads
+(ASD-V0-934). It runs locally without `HEAVY_LOCAL_REASON`, after a
+`heavy.sh: N darwin-only file(s), first F: running on this darwin host, not offloading` line and
+`darwin-local` lines in the fallback and selection logs.
 Checkout files a remote test writes, such as goldens regenerated with `-update`, are copied back
 over a second ssh connection and named in `heavy.sh: copied back PATH` lines (DCW-V0-359); when a
 local edit made during the run touches one of them, nothing is copied and the wrapper exits 96
@@ -146,6 +177,39 @@ such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prin
 `HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
 each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
+
+#### Several offload hosts (ASD-V0-933, V1-3626, V1-3518)
+
+`HEAVY_REMOTE_HOSTS` lists several ssh destinations (whitespace or commas) and wins over
+`HEAVY_REMOTE_HOST`. Put a user and port in the destination or in `~/.ssh/config`, never in the
+script. Every other `HEAVY_REMOTE_*` setting applies to each host, and its `~` paths expand on that
+host. So give each host the same layout: a clone at `HEAVY_REMOTE_CLONE` and the env file at
+`HEAVY_REMOTE_ENV`. Both hosts must also take the same `HEAVY_REMOTE_SHELL`, so reach a WSL box
+through its own sshd rather than through Windows. For the lane Mac with the WSL box and the Unraid
+box:
+
+```sh
+HEAVY_REMOTE_HOSTS='ssh://russell@192.168.4.128:2222 ssh://agent@192.168.4.3:2222'
+HEAVY_REMOTE_SHELL='bash -s'
+HEAVY_REMOTE_CLONE=~/corvint
+HEAVY_REMOTE_ENV=~/bench/go.env
+```
+
+Before each offload, the wrapper sends each host one probe ssh (bounded by
+`HEAVY_REMOTE_PROBE_TIMEOUT`, 15 s) for its 1-minute load and CPU count. It tries the hosts once
+each in order of load per CPU, unreachable ones last, and prints
+`heavy.sh: remote hosts by load per CPU: H:L/C,...; trying H first`. An unavailable host passes the
+run to the next. The retry and the logged local fallback below apply only when every host was
+unavailable. A host short of disk is unavailable too (ASD-V0-937). The remote half refuses with
+`low-disk PATH free=NG floor=MG` when its per-run scratch or its Go cache has less than
+`HEAVY_MIN_FREE_GB` (3) GiB free, and the probe orders such a host after the others
+(`H:lowdisk:NG`). The remote's Go cache and `GOTMPDIR` default to its disk, not a tmpfs `/tmp`
+(V1-2691). A `/tmp/corvint-go-build-cache` left by older runs is not moved; trim it with
+`make go-cache-trim`. An empty `HEAVY_REMOTE_HOST` in the environment keeps one run local even
+with `HEAVY_REMOTE_HOSTS` configured. A build tries the first host only. With one host there is no probe. A host serves as a
+target once it has a clone of origin, the pinned Go (in `~/sdk/go<version>` or through the env
+file), `perl`, `git` and `timeout(1)`, and accepts the lane host's key.
+
 When the host is unreachable the offload is retried once after `HEAVY_REMOTE_RETRY` seconds
 (default 15), then the command runs locally and says so. Each local run of an offloadable command
 appends `UTC pwd=... reason=offload-unavailable|HEAVY_REMOTE=0|writes-files cmd=...` to
@@ -174,7 +238,10 @@ same file, shipped over ssh on every offload, so no copy on the box is maintaine
 run prints `heavy.sh: script sha256=<hash> <path>`, and every selection-log line ends with
 `script=<first 12 hex>`, so a log row names the runner revision that wrote it. The offload line
 carries the remote's phase seconds (`rc=N receive= wait= prepare= run= worktree=`); a local run
-appends `local wait=Ns run=Ns rc=N` after it exits; a fallback appends `fallback host=H`. When
+appends `local wait=Ns run=Ns rc=N loadwait=Ns load=L queue=Ns` after it exits (`wait` is the slot
+wait, `loadwait` the load-gate wait, `load` the starting 1-minute load (ASD-V0-970), `queue` both
+waits (ASD-V0-935)), and a load or slot wait prints `heavy.sh: queued for ...` when it starts; a
+fallback appends `fallback host=H`; a multi-host choice appends `pick hosts=... chose=H probe=Ns`. When
 `HEAVY_FALLBACK_ALERT` (default 3, `0` disables) fallbacks for one host follow each other with no
 offload in between that the host completed (rc other than 97 or 255), the wrapper prints
 `heavy.sh: ALERT remote-unavailable streak=N host=H` and logs an `alert` line; check the host with
@@ -189,7 +256,9 @@ Lane policy (ASD-V0-030, the lane prototype's rules): a `go test` without `-run`
 UNKNOWN/FALLBACK reason; pick units with `corvint test --base <sha> --dry-run`), and every `go test`
 is recorded in `HEAVY_SELECTION_LOG` as `selected`, `whole reason=...` or `refused`. `HEAVY_REMOTE=0`
 needs `HEAVY_LOCAL_REASON` for an offloadable command. A local run first waits up to
-`HEAVY_LOAD_WAIT` (120 s) while the 1-minute load exceeds `HEAVY_MAX_LOAD` (10). The lane
+`HEAVY_LOAD_WAIT` (120 s) while the 1-minute load exceeds the threshold: `HEAVY_MAX_LOAD` when set,
+else `floor(HEAVY_LOAD_PER_CPU x CPUs)` with `HEAVY_LOAD_PER_CPU` defaulting to 1.0, so 12 on a
+12-core host (ASD-V0-932). The wait line names the source. The lane
 cutover below keeps the existing selection and fallback log paths so the canary counts keep
 reading the same files.
 
@@ -267,7 +336,7 @@ HEAVY_CI_STATUSES="queued in_progress"
 HEAVY_CI_GUARD=auto
 HEAVY_REMOTE_BUILD_MAX_LOAD=16
 HEAVY_SLOTS=3
-HEAVY_MAX_LOAD=10
+# HEAVY_MAX_LOAD unset: the gate is 1.0 x CPUs (ASD-V0-932); the cutover's absolute 10 is retired
 HEAVY_SELECTION_LOG=/private/tmp/cem10-build/heavy-selection.log
 HEAVY_FALLBACK_LOG=/private/tmp/cem10-build/heavy-fallback.log
 ```
@@ -303,14 +372,29 @@ the slot it holds, and only later commands see a new lock directory. `script/hea
 Host check (V1-3605). `~/lanes/heavy.sh` delegates only when the lane's checkout carries a
 `script/heavy.sh` that knows `--print-lock-dir`; for any older checkout (and outside a checkout) it
 runs the old prototype, kept as `~/lanes/heavy.sh.bak-*-prototype`, which keeps its own `mkdir`
-slots and writes none of the `script/heavy.sh` log lines (the host line of the unmerged ASD-V0-920
+slots and writes none of the `script/heavy.sh` log lines (the host line of ASD-V0-920
 work of lane scripts-w5 never prints from it). A lane on an older base therefore sees the prototype
 even after the wrapper was updated. Check from the lane worktree: `~/lanes/heavy.sh --print-lock-dir`
 prints the lock directory when the delegated script runs, and fails or runs a command when it is the
 prototype.
-On the Unraid host the wrapper read on 2026-10-31 (read-only) is the delegating form, so the
-prototype seen by `scripts-w5` came from a checkout whose base predated `--print-lock-dir`. The
+On the Unraid host the delegating wrapper was installed at 2026-11-01T01:16Z (`~/lanes/heavy.sh`,
+with the prototype kept as `~/lanes/heavy.sh.bak-20261101-prototype`, last changed 2026-10-31
+18:36Z), so lane scripts-w5 on 2026-10-31 most likely ran the prototype itself; a checkout whose
+base predates `--print-lock-dir` still gets it. Observed 2026-11-01 from the lane spectool-r
+worktree: each run printed `heavy.sh: script sha256=... <worktree>/script/heavy.sh` and took a
+slot of `HEAVY_LOCK_DIR=/home/agent/lanes/.flock-slots` from `~/.config/corvint/heavy.env`
+(`HEAVY_SLOTS=2`), so it delegated; the host line of the unmerged ASD-V0-920 work does not print
+because that work is not on this base. The
 orchestrator refreshes the lane base, or the host wrapper, between batches; no lane changes a host.
+A lane's focused checks include `make line-citations-selects BASE=<base>` (`DCG-V0-921`, V1-3323):
+when it names a pinned citation into a file the change touched, run `make line-citations-check`
+then, not only at doc-gates.
+
+A lane host that offloads (the Mac lane host, for example) sets `HEAVY_REMOTE_HOST` in this file, not
+in a lane charter or a session's environment: a worktree session started from the standard charter
+then offloads with no export (V1-3518). Every run prints `heavy.sh: host=H why=W` first
+(`ASD-V0-920`), so a lane whose runs stay local reads, for example, `host=local why=HEAVY_REMOTE_HOST
+unset in the environment and in config /Users/x/.config/corvint/heavy.env (absent)`.
 
 ### Small packages run whole without a reason (ASD-V0-074, V1-3120)
 
@@ -360,6 +444,17 @@ file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` li
 section, never into the frozen header `Intent status:` or Agent digest `Status:` line, which
 `make spec-requirements` refuses (`SRG-V0-980`, `SRG-V0-890`), nor after that section
 (`SRG-V0-891`).
+`ASD-V0-960`); with a `RANGE` the same target also checks every unmerged local branch and worktree
+and names each ID one of them defines as `used ID NAME (SHA) FILE` (`ASD-V0-952`). The charter tells
+the lane to run `make requirement-id-collisions` after staging a spec that adds an ID and before its
+final commit, and the orchestrator runs it in the batch checkout before integrating each lane
+(`ASD-V0-950`, `ASD-V0-951`).
+
+A charter also tells the lane where a new requirement range goes: on each requirement's own
+definition line (its leading note), in the spec's acceptance and traceability rows and in the
+build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
+so `make spec-requirements` refuses a new ID or range named there, naming that line as `path:line`
+(`SRG-V0-980`, `SRG-V0-950`).
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a
@@ -573,7 +668,11 @@ transcript text). The first before/after measurement (2026-10-14..17 against 202
 - Semaphore (V1-1628): the same test with 5 concurrent lanes, target within 1.5x of quiet; the
   `heavy.sh: slot ... after Ss` lines give the queueing share.
 - Dogfood runs (V1-1629): per lane, count `dogfood-change` and `dogfood-finish` invocations in the
-  lane transcript; target median at most 2.
+  lane transcript; target median at most 2. On each lane host, before `lane-clean.sh` removes the
+  worktrees, also run `make dogfood-change-runs SINCE=<batch start, UTC>` (ASD-V0-955): it reads the
+  repository-wide ledger every `dogfood-change.sh` run appends to, which survives
+  `git worktree remove`, and prints one `run-count BRANCH N` line per lane plus the median. Retain
+  its output in the batch build-log entry; a host whose ledger has no row reads `NOT_OBSERVED`.
 - Polling and timeouts (V1-1630): sum tool time spent in sleep/poll commands and count tool calls
   that hit the 600 s limit across lane transcripts; targets under 1 h and under 10.
 - Idle lanes (V1-1631): `script/lane-idle-check.sh --gaps` over the batch's lane transcripts.
@@ -830,11 +929,19 @@ Common refusals and their recovery:
 | `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
 | `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
 
-Drift. A refusal named here that the product renames is a docs defect; the map is checked against
-the real CLI by the guide-drift test of V1-3239 AC2 (NOT DELIVERED in this lane: it is a Go test
-under `internal/`, outside this docs lane's scope). The refusal audit and the check that a new
-refusal code carries a recovery hint (AC3, AC4) are likewise NOT DELIVERED here and stay open on
-V1-3239.
+Drift. `make flow-guide-check` (a doc gate, ASD-V0-996) checks this section and the repository
+skill `.claude/skills/corvint-lane-flow/SKILL.md` against the real CLI: every `corvint`,
+`corvint-tasks`, `make` and `script/` span must name an existing subcommand, flag, Makefile rule or
+script, and every code in the table above must occur in source. A refusal the product renames
+therefore fails the gate instead of misleading a lane.
+
+New refusals (ASD-V0-997). The same check gates the refusal sites of `script/*.sh` (`refuse "CODE
+..."`) and `internal/dogfoodflow` (`.fail` and `.refuse`): a site must name its recovery (a `fix:`
+line, a valid form such as `want` or `usage:`, a `failRecoveries` default) or have its code in the
+table above. The pairs that did not on 2026-11-01 are listed in
+`tools/flow-guide-check/unhinted-refusals.tsv`, which only shrinks; a new unhinted code fails.
+`go run ./tools/flow-guide-check --audit` prints the counts (ASD-V0-998). A `dogfood check` FAIL
+without its own fix line now prints the code's default recovery.
 
 Lane notes (V1-3610). A lane starts with no seeded sibling hand-over by design: its inputs are the
 charter, the open-friction digest (section 12) and `~/lane-inputs`. The orchestrator names an
@@ -845,8 +952,8 @@ another lane's checkout (Roles above).
 ## 14. Remote (SSH) lane hosts: inputs and closeout channel
 
 An SSH lane host (WSL, Unraid) has no `gh` login (Unraid) or no `gh` at all (WSL), no Tasks journal
-and no route to the orchestrator session. SendMessage fails there with `session not visible from
-the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the lane starts:
+and no route to the orchestrator session. SendMessage from there failed on 2026-10-31 with `session not visible from the Unraid SSH host`
+(V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
   assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
@@ -858,13 +965,17 @@ the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the la
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
 
-Closeout channel. A remote lane writes its final report and the full numbered Friction list
-(section 11 format) to `~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md`
-before wrap_up, and names both paths in its last message. The orchestrator fetches them with
-`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted so the remote shell expands `$HOME`; or `scp`) in the round the lane ends and treats the
-files as the section 11 message. NOT DELIVERED: AC2 of V1-3620, a delivered test message from a live
-SSH lane; it needs a lane host and an orchestrator session, and this lane changes no host. The
-orchestrator verifies the route with the first remote lane of the next batch.
+Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
+format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
+from the lane brief. Observed 2026-11-01 from the Unraid lane spectool-r: the send returned
+`Forwarded to Claude Desktop's session messaging: Message queued` (message 669b8253) while the
+orchestrator was mid-turn, and the orchestrator acted on it, staging the requested ticket bodies as
+`~/lanes/spectool-r-tickets.txt` at 03:23Z. The tool reports queued delivery only, not a read, so
+the lane also keeps the file fallback: it writes the same report and list to
+`~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md` before wrap_up and names
+both paths in its last message. The orchestrator fetches them with
+`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted
+so the remote shell expands `$HOME`; or `scp`) when no message arrived in the round the lane ends.
 
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 

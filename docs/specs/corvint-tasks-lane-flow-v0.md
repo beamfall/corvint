@@ -98,6 +98,16 @@ done and number requirements that a peer branch already used.
   lazily fetch a missing promisor object or use any transport (a missing object is a read failure,
   exit 2), and repository configuration such as `grep.lineNumber` or `grep.column` MUST NOT change
   how a defining bullet is parsed.
+- `TLF-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3650; refines
+  `TLF-V0-886`) Before comparing definitions, `tools/requirement-id-collisions` MUST skip every
+  scanned head that another scanned head contains (`git merge-base --is-ancestor`), such as a lane
+  head already merged into a batch branch, and list the skipped heads on one
+  `skipped N lane head(s) another scanned head contains:` line. The containing head carries the
+  lane's bullets, so a batch that later rewords one is no collision; a lane the batch does not
+  contain is still compared with it. Evidence: `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`
+  (fails on BASE with a false collision), the updated `TestTLFV0886_ReproducesASDV0Collisions`;
+  on the WSL host (2026-10-31) the check scanned 16 of 28 heads, skipped 12 contained ones, and
+  kept the one real collision (`CAP-V0-970`). Rollback: drop `outermost`.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
   detached worktree head not contained in the screened ref that shares a root commit with it (an
   unrelated lineage is no lane), at most `--limit` commits each outside
@@ -154,6 +164,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
 | TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria`; `TestTLFV0884_SplitKeepsExecutionConstraints`; `TestTLFV0884_ResumeRefusesARefinedChild`; `TestTLFV0884_ResumeSettlesAPendingReceipt`; `TestTLFV0884_RecordedRefineMustBeThisSplit`; `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`; `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests` | durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
+| TLF-V0-960 | V1-3650 | `tools/requirement-id-collisions` (`outermost`) | `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`; `TestTLFV0886_ReproducesASDV0Collisions` | none |
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
 

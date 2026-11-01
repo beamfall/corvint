@@ -45,11 +45,12 @@ func WebConfigShaped(data []byte) bool {
 	return jsonv2.Unmarshal([]byte(clean), &value) == nil
 }
 
-// CheckRevisionAdmission returns the refusal BuildRevisionContext gives at revision for the size
-// of the candidate set (the source count and the aggregate byte bound), or nil, after reading only
-// the tree listing: no blob is read.
+// CheckRevisionAdmission returns the refusal BuildRevisionContext gives at revision for the shape
+// of the candidate set (the source count and one object recorded at two sizes), or nil, after
+// reading only the tree listing: no blob is read. There is no aggregate byte bound
+// (IDX-SNAP-V0-910).
 func CheckRevisionAdmission(ctx context.Context, root, revision string) error {
-	ctx, cancel := context.WithTimeout(ctx, gitDeadline)
+	ctx, cancel := withGitDeadline(ctx)
 	defer cancel()
 	identity, err := revisionIdentity(ctx, root, revision)
 	if err != nil {
@@ -60,9 +61,6 @@ func CheckRevisionAdmission(ctx context.Context, root, revision string) error {
 		return err
 	}
 	_, candidates, _ := admittedEntries(entries)
-	if err := validateBlobAdmission(candidates); err != nil {
-		return err
-	}
 	_, err = uniqueBlobEntries(candidates)
 	return err
 }

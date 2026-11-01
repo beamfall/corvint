@@ -36,6 +36,8 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/jstestprovider"
+	// The E2E readiness and preflight probes need the loopback HTTP client (V1-2185).
+	_ "github.com/Beamfall/corvint/internal/jstestprovider/loopbackhttp"
 	"github.com/Beamfall/corvint/internal/testevidence"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -215,6 +217,9 @@ func printSubcommandUsage(w io.Writer, show func()) {
 }
 
 func main() {
+	if code, handled := companionHelp().Serve(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, "usage: corvint-js-test-provider <unit|bun|e2e|negate|qualify-keep-reporters|external-origins> [flags]; corvint-js-test-provider --help for details")
 		os.Exit(2)

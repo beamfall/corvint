@@ -130,8 +130,8 @@ of every requirement below and the binding gate until this spec is promoted.
   defines a target- or pattern-specific variable whose target could match `go-test`; (c) the text
   is readable without make: `$(eval ...)`/`${eval ...}` anywhere, a `define` block, an `include`
   name holding `$` or a glob character and a missing non-optional include are each refused, and
-  includes are followed at most four deep; (d) `GATE_STEPS` is exactly one `GATE_STEPS = ...` line
-  with a `$`-free value, and for each language declared `none` the gate dry-runs those steps
+  includes are followed at most four deep; (d) `GATE_STEPS` is exactly one `GATE_STEPS = ...` assignment
+  (one logical line, its entries one per continued line, `STR-V0-920`) with a `$`-free value, and for each language declared `none` the gate dry-runs those steps
   (`make -s -n`, together first, per step only to name a violation) and fails when a recipe
   word's basename names that language's runner (a closed per-language list: for example `node`,
   `npm`, `bun`, `pytest`, `python3`, `cargo`, `swift`, `dotnet`, `gradle`), inspecting only the
@@ -541,6 +541,7 @@ two requirements make its version name its content and make each receipt carry i
   units, a long reason and incomplete entry stay under the bound; another shard's unit is not
   named; `--summary` alone is refused) and `TestSTRV0800CLIDryRunSummary`. Rollback: remove
   `testDryRunSummary` and the flag.
+- `STR-V0-920`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines `STR-V0-004` and the `GATE_STEPS` rule (d) above) The Makefile's `GATE_STEPS` assignment and `shell-test:` rule SHALL each list one entry per backslash-continued line, ending in a comment line that names the rule: `GATE_STEPS` keeps its first five steps (`host-adapter-test go-version go-test go-vet cross-vet`) in that order and the rest sorted, and the `shell-test` prerequisites are sorted, so two lanes that add different steps insert at different lines and merge without a conflict. Rule (d) still reads exactly one plain `GATE_STEPS = ...` assignment, as make's logical line (continuations joined, the comment dropped); `TestSTRV0004ShellTestIsTheGateShellSteps` and the `no-python-runtime-dependency` reader read logical lines too. Non-goals: a merge driver for the Makefile; two lanes adding the same step, or steps that sort to the same place, still conflict, trivially. Failure modes: an entry line without its trailing backslash ends the list early, which test-commands-check reports as gate steps missing from `shell-test`. Evidence: `TestGateStepsTwoLaneMergeIsClean_STR_V0_920` (the real Makefile's lists are sorted; two lanes each adding a step to both lists merge cleanly and the merged `GATE_STEPS` and `shell-test` list both). Rollback: rejoin each list on one line.
 
 - **STR-V0-770:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)
   Every whole-package unit of a `corvint test` manifest MUST carry a `reason` naming the reader it
@@ -790,6 +791,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, symlink-to-same-inode, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 | STR-V0-800 | `testDryRunSummary`, `summaryList` and `summaryClip` in `cmd/corvint/test_summary.go`; the `--summary` flag and its refusal in `parseTestOptions` (`cmd/corvint/test.go`) | `TestSTRV0800DryRunSummaryIsBounded`, `TestSTRV0800CLIDryRunSummary` |
 | STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
+| STR-V0-920 | `Makefile` `GATE_STEPS` and `shell-test:`; `tools/test-commands-check/main_test.go` `TestGateStepsTwoLaneMergeIsClean_STR_V0_920`, `TestSTRV0004ShellTestIsTheGateShellSteps` on logical lines; `script/no-python-runtime-dependency_test.sh` continued-list fixtures | implemented; Go and shell tests PASS |
 
 ## Open decisions
 

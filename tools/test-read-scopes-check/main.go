@@ -661,7 +661,9 @@ func check(root string) ([]finding, []string, error) {
 	var findings []finding
 	for _, id := range graph.UnitIDs() {
 		unit, _ := graph.Unit(id)
-		if !unit.ReadScoped || len(unit.Tests) == 0 {
+		// A read-scoped shell test (TSP-V0-950) is declared elsewhere; this
+		// check covers Go packages only.
+		if !unit.ReadScoped || len(unit.Tests) == 0 || !strings.HasPrefix(id, "go:") {
 			continue
 		}
 		directory := path.Dir(unit.Tests[0])

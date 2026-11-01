@@ -172,7 +172,8 @@
       "flags": [
         "--budget-bytes",
         "--limit",
-        "--task"
+        "--task",
+        "--worktree-overlay"
       ],
       "schemaIds": [],
       "inputs": null,
@@ -183,6 +184,7 @@
       "writes": "none",
       "selfObservationLedger": "not-listed",
       "writeStatements": [
+        "Writes nothing.",
         "The command is read-only and local-only."
       ],
       "unknowns": [
@@ -321,12 +323,15 @@
       "flags": [
         "--admit",
         "--exclude-producer",
+        "--friction",
         "--goldens",
         "--learn-slot-weights",
         "--reset-slot-weights",
         "--trace-fixture"
       ],
-      "schemaIds": [],
+      "schemaIds": [
+        "corvint-friction-sessions/0"
+      ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [],
@@ -336,7 +341,8 @@
         "The command reads without mutating repository or trace state.",
         "The report counts the traces it read by producer (cli, dogfood, pi-tool, or UNKNOWN for rows written before producer provenance); --exclude-producer NAME leaves that producer's traces out of the read, repeatable, without changing the store or the fixture.",
         "Only with --admit and an improved delta does it write .context-corvint/slot-weights.json; --reset-slot-weights removes that file and restores the default slot order.",
-        "These experimental steps (decision 0368) are eval's only writes."
+        "These experimental steps (decision 0368) are eval's only writes.",
+        "It reads only FILE and writes nothing; the metrics are never a ranking or authority input."
       ],
       "unknowns": [
         {
@@ -795,9 +801,11 @@
       "requiredFlags": {
         "ocm link": [
           "--claim",
+          "--expected-base",
           "--hunk",
           "--map",
           "--obligation",
+          "--target",
           "--test-path"
         ],
         "ocm mark": [
@@ -810,16 +818,23 @@
           "--target"
         ],
         "ocm report": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ],
         "ocm status": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ],
         "ocm verify": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ]
       },
       "flags": [
+        "--accumulate",
         "--cem",
         "--claim",
         "--expected-base",
@@ -961,7 +976,8 @@
         "--subject",
         "--summary",
         "--summary-bytes",
-        "--task"
+        "--task",
+        "--worktree-overlay"
       ],
       "schemaIds": [],
       "inputs": null,
@@ -971,6 +987,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Writes nothing; Go-only (task-context-packet-v0, experimental).",
+        "It writes nothing and is refused with --expand.",
         "Structural lookups (experimental, TCP-V0-017 proposed), read-only, JSON:",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
         "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
@@ -1364,6 +1381,7 @@
       "flags": [
         "--appmap-impact",
         "--base",
+        "--by-path",
         "--cache",
         "--changes",
         "--format",
@@ -1391,6 +1409,7 @@
         "--snapshot"
       ],
       "schemaIds": [
+        "affected-by-path/1",
         "affected-plan/0",
         "affected-plan/1",
         "application-flow-selection-provider/1",
@@ -1417,6 +1436,8 @@
         "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
         "Example: corvint affected --base FULL_SHA --format text --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
+        "--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not with --full) builds the graph once and writes one affected-by-path/1 document instead of the plan: sharedUnboundedReaders lists once the units the union plan selects as UNBOUNDED_READER (they are selected on any path), and paths gives each named path's scope, how many of that shared set it selects, its unknowns and only the units it adds.",
+        "--format text writes \"affected by-path scope=S paths=N shared=K revision=SHA\", one \"shared UNIT tests=N WITNESS\" line per shared unit, then per path \"path P scope=S shared=J/K additions=M\" with its \" added UNIT tests=N WITNESS\" and \" unknown REASON DETAIL\" lines.",
         "Write --path=VALUE for a name that begins with -.",
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
         "The receipt is byte-identical with and without the cache, cold, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
@@ -2706,6 +2727,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2720,7 +2742,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2754,6 +2776,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2768,7 +2791,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2806,6 +2829,7 @@
       },
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2820,7 +2844,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only).",
+        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -4540,6 +4564,56 @@
       "binary": "corvint-cem-experiments",
       "command": "corvint-cem-experiments help --json",
       "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
+    },
+    {
+      "binary": "corvint-corpus-republish",
+      "command": "corvint-corpus-republish help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-corpus-republish.json"
+    },
+    {
+      "binary": "corvint-dashboard-snapshot",
+      "command": "corvint-dashboard-snapshot help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-dashboard-snapshot.json"
+    },
+    {
+      "binary": "corvint-go-test-provider",
+      "command": "corvint-go-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-go-test-provider.json"
+    },
+    {
+      "binary": "corvint-intake",
+      "command": "corvint-intake help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-intake.json"
+    },
+    {
+      "binary": "corvint-js-test-provider",
+      "command": "corvint-js-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-js-test-provider.json"
+    },
+    {
+      "binary": "corvint-postmerge-connect",
+      "command": "corvint-postmerge-connect help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-connect.json"
+    },
+    {
+      "binary": "corvint-postmerge-metrics",
+      "command": "corvint-postmerge-metrics help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-metrics.json"
+    },
+    {
+      "binary": "corvint-postmerge-workflow",
+      "command": "corvint-postmerge-workflow help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-postmerge-workflow.json"
+    },
+    {
+      "binary": "corvint-pulse",
+      "command": "corvint-pulse help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-pulse.json"
+    },
+    {
+      "binary": "corvint-ruby-test-provider",
+      "command": "corvint-ruby-test-provider help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-ruby-test-provider.json"
     },
     {
       "binary": "corvint-tasks",

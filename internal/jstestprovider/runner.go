@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -446,22 +444,16 @@ func waitReady(ctx context.Context, url string, limit time.Duration) error {
 	if url == "" {
 		return nil
 	}
+	if err := probeAddress(url); err != nil {
+		return err
+	}
 	deadline := time.Now().Add(limit)
-	client := &http.Client{Timeout: time.Second}
 	for time.Now().Before(deadline) {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return err
-		}
-		resp, err := client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode < 500 {
-				return nil
-			}
+		if status, err := loopbackGet(ctx, url, true); err == nil && status < 500 {
+			return nil
 		}
 		select {
 		case <-ctx.Done():
@@ -469,7 +461,7 @@ func waitReady(ctx context.Context, url string, limit time.Duration) error {
 		case <-time.After(50 * time.Millisecond):
 		}
 	}
-	return &net.OpError{Op: "wait-ready", Err: context.DeadlineExceeded}
+	return fmt.Errorf("wait-ready: %w", context.DeadlineExceeded)
 }
 
 // resolveArgv resolves argv[0] to an absolute path via PATH lookup, matching

@@ -447,6 +447,9 @@ func proofLosses(p scenarioProof) string {
 		write("base side", *p.Base.Loss)
 	}
 	for _, c := range p.Controls {
+		for _, l := range c.RetriedLostAttempts {
+			write(fmt.Sprintf("%s first-run attempt %d (rerun, CCE-V0-940)", c.ID, l.Attempt), l)
+		}
 		for _, l := range c.LostAttempts {
 			write(fmt.Sprintf("%s attempt %d", c.ID, l.Attempt), l)
 		}

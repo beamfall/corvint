@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // Runtime coverage schema, input cap and hit basis (CCE-V0-045..047).
@@ -52,7 +53,7 @@ func readCoverage(ctx context.Context, root, file, head string, m *appmap.Map) (
 	var c runtimeCoverage
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&c); err != nil || dec.More() {
+	if err := dec.Decode(&c); err != nil || !jsonend.Done(dec) {
 		return "", nil, refuse("e2e-coverage-invalid", "%v", err)
 	}
 	if c.Schema != CoverageSchema {

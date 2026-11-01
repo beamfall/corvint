@@ -403,6 +403,12 @@ accepted by decision 0373 and the amendment it requires are stated.
   plugin or script detects binary skew before it calls a verb instead of meeting a parse failure.
   Plain `--version` keeps its text line; any further argument is an argument error. Plugin trees
   consuming the identity are a separate host-qualified change (V1-0300).
+- `PRS-V1-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3313) `corvint
+  version` is not a command, so `version` stays out of `commands` and the help tree; its refusal
+  keeps the exact `invalid-arguments` envelope and invalid-choice text and appends `; to print the
+  version, run corvint --version (or corvint --version --json)`, because agents type it by analogy
+  with `corvint-tasks version`. Any other unknown command's text is unchanged. Rollback: drop the
+  suffix.
 - `PRS-V1-021`: windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A
   subsystem whose qualified implementation is not built for the running platform MUST refuse before
   it opens, reads or writes anything, with a stable reason naming the platform limit, and MUST NOT

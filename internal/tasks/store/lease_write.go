@@ -356,7 +356,15 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 				return p, err
 			}
 			supplied = proof
-			p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			// The retained checkpoint keeps a base at the sealed sequence, so
+			// a later widen, reap or pool verb resumes from it (JSG-V0-780);
+			// the bound checkpoint's sealed base, when the journal admits it,
+			// is preferred (LGL-V0-891).
+			if plainCheckpoint(repo) {
+				p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			} else {
+				p.writer, _ = proof.SealedWriterCheckpoint(observation.Files)
+			}
 			if rebased := sealedBaseRebase(repo, proof, observation.Files, p.writerToken); p.writer != nil && rebased != nil {
 				p.writerComplete, p.writer = p.writer, rebased
 			}
@@ -878,8 +886,8 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 		report.Redone = true
 		return nil
 	}
-	if transaction.LivenessLease(request) {
-		session.SkipStagingSync() // LGL-V0-005 proposed
+	if skipsStagingSync(request) {
+		session.SkipStagingSync() // LGL-V0-005, LGL-V0-780 proposed
 	}
 	if err := p.guard.CheckEvents(); err != nil {
 		return err

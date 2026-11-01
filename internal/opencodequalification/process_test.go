@@ -96,3 +96,40 @@ func TestObservedCleanupClassification(t *testing.T) {
 		}
 	})
 }
+
+func TestProcessTimeoutUnderContention(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("explicitly unsupported process platform")
+	}
+	load := 24.0
+	old := readContention
+	readContention = func() contentionSnapshot {
+		return contentionSnapshot{load: [3]float64{load, 20, 10}, loadOK: true, cpus: 10, source: "test"}
+	}
+	t.Cleanup(func() { readContention = old })
+	starved := func() error {
+		// A child that never finishes within its timeout stands in for one starved by the host.
+		_, e := runCommand(t.Context(), t.TempDir(), os.Environ(), []string{"sleep", "30"}, filepath.Join(t.TempDir(), "starved"), 200*time.Millisecond)
+		return e
+	}
+	t.Run("AHI-950 a process timeout under measured contention is retry-later with the load", func(t *testing.T) {
+		e := starved()
+		if !IsRetryLater(e) || !strings.Contains(e.Error(), "process timeout") || !strings.Contains(e.Error(), "2.40") || !strings.Contains(e.Error(), "host-starvation-suspected") {
+			t.Fatal(e)
+		}
+	})
+	t.Run("AHI-950 a process timeout on a quiet host fails and names the load", func(t *testing.T) {
+		load = 1
+		e := starved()
+		if e == nil || IsRetryLater(e) || !strings.Contains(e.Error(), "process timeout") || !strings.Contains(e.Error(), "0.10") || !strings.Contains(e.Error(), "adapter failure") {
+			t.Fatal(e)
+		}
+	})
+	t.Run("AHI-950 a process timeout with unobserved load fails and says so", func(t *testing.T) {
+		readContention = func() contentionSnapshot { return contentionSnapshot{cpus: 10, source: "none"} }
+		e := starved()
+		if e == nil || IsRetryLater(e) || !strings.Contains(e.Error(), "NOT_OBSERVED") {
+			t.Fatal(e)
+		}
+	})
+}

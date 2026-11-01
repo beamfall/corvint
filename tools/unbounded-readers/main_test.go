@@ -249,7 +249,7 @@ func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
 	if code := run(root, &stdout, &stderr); code != 1 {
 		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
 	}
-	want := `script/pin-recipe_test.sh runs a build or language toolchain (shell:runs-toolchain): add "script/pin-recipe_test.sh" to units in .corvint/unbounded-readers.json with a reasons entry naming the toolchain read; .corvint/test-read-scopes.json is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).`
+	want := `script/pin-recipe_test.sh runs a build or language toolchain (shell:runs-toolchain): declare the paths it reads outside its directory in .corvint/shell-read-scopes.json (TSP-V0-950), or add "script/pin-recipe_test.sh" to units in .corvint/unbounded-readers.json with a reasons entry naming the toolchain read; .corvint/test-read-scopes.json is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).`
 	if !strings.Contains(stderr.String(), want) {
 		t.Fatalf("refusal lacks the units route:\n%s", stderr.String())
 	}

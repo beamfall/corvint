@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -110,7 +111,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		retainNegation(t, root, retained)
 		input := Input{js: &receipt}
 		strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength
-		if strength.State != testvalidity.StrengthKilled || strength.Reason != stepnegation.ReasonStepControlsKilled || len(strength.Anchors) != 2 || !strings.HasPrefix(strength.Anchors[0], stepNegationAnchorPrefix+stepnegation.EvidenceDirectory+"/") {
+		if strength.State != testvalidity.StrengthKilled || strength.Reason != stepnegation.ReasonStepControlsKilled || len(strength.Anchors) != 3 || !strings.HasPrefix(strength.Anchors[0], stepNegationAnchorPrefix+stepnegation.EvidenceDirectory+"/") || strength.Anchors[1] != stepNegationUnboundSupportAnchor {
 			t.Fatalf("strength = %+v", strength)
 		}
 	})
@@ -199,7 +200,7 @@ func TestStepNegationJoinConditions(t *testing.T) {
 		testRepository := jstestprovider.ApplicationRepositoryIdentity{RootCommit: bound.RootCommit, Revision: bound.Revision, Tree: bound.Tree, DirtyState: "clean"}
 		atPublish := testRepository
 		receipt.TestRepositoryAtStart, receipt.TestRepositoryAtPublish = &testRepository, &atPublish
-		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State != testvalidity.StrengthKilled {
+		if strength := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength; strength.State != testvalidity.StrengthKilled || slices.Contains(strength.Anchors, stepNegationUnboundSupportAnchor) {
 			t.Fatalf("attested join = %+v", strength)
 		}
 		// A new test revision is a changed binding: the witness does not
@@ -240,5 +241,24 @@ func TestStepNegationJoinConditions(t *testing.T) {
 func TestLPCVV0129JoinStaysGatedOff(t *testing.T) {
 	if stepNegationJoinQualified {
 		t.Fatal("stepNegationJoinQualified is true without the LPCV-V0-129 promotion evidence")
+	}
+}
+
+// LPCV-V0-940: a /0 join binds only the spec and config digests, so a changed
+// helper file keeps the join; the joined axis names the unbound support files
+// so a reader never takes it as bound to them. A /1 join carries no such anchor.
+func TestStepNegationJoinNamesUnboundSupportFiles(t *testing.T) {
+	withJoinGate(t, true)
+	root, receipt, retained := joinFixture(t)
+	retainNegation(t, root, retained)
+	writeAt(t, filepath.Join(root, "e2e", "helpers.cjs"), "module.exports = 1\n", time.Unix(1_700_000_000, 0))
+	input := Input{js: &receipt}
+	before := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength
+	writeAt(t, filepath.Join(root, "e2e", "helpers.cjs"), "module.exports = 2\n", time.Unix(1_700_000_001, 0))
+	after := JoinStepNegation(Project(input), input, root).Tests[0].Projection.Strength
+	for _, strength := range []testvalidity.Axis{before, after} {
+		if strength.State != testvalidity.StrengthKilled || len(strength.Anchors) < 2 || strength.Anchors[1] != stepNegationUnboundSupportAnchor {
+			t.Fatalf("/0 join strength = %+v, want KILLED naming %s", strength, stepNegationUnboundSupportAnchor)
+		}
 	}
 }

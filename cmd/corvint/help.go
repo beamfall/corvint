@@ -668,6 +668,7 @@ Usage:
   corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...
   corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]
   corvint [--root PATH] eval --reset-slot-weights
+  corvint [--root PATH] eval --friction FILE
 
 Without --goldens, use the repository's .corvint/eval.json or
 testing/context-retrieval-goldens.json when available. --trace-fixture adds the
@@ -688,6 +689,14 @@ frozen held-out split. Only with --admit and an improved delta does it write
 .context-corvint/slot-weights.json; --reset-slot-weights removes that file and
 restores the default slot order. These experimental steps (decision 0368) are
 eval's only writes.
+
+Experimental (URE-V0-996..998): --friction FILE takes no other option and
+reports deterministic friction metrics (rereads, unplanned_reads,
+retried_commands, reverted_edits, first_relevant_read_ms) for each session of
+a corvint-friction-sessions/0 record, totals per arm, and precision and recall
+for labelled sessions. Missing inputs are NOT_OBSERVED, never 0. It reads only
+FILE and writes nothing; the metrics are never a ranking or authority input.
+Example: corvint eval --friction internal/frictionmetric/testdata/benchmark.json
 `
 
 const activationHelp = `Compile one bounded mechanical repository inventory.
@@ -845,6 +854,8 @@ Usage:
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache]
+  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
+          [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -929,6 +940,19 @@ count: the plan mixes that commit with mutable worktree content.
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not
+with --full) builds the graph once and writes one affected-by-path/1 document
+instead of the plan: sharedUnboundedReaders lists once the units the union plan
+selects as UNBOUNDED_READER (they are selected on any path), and paths gives
+each named path's scope, how many of that shared set it selects, its unknowns
+and only the units it adds. --format text writes "affected by-path scope=S
+paths=N shared=K revision=SHA", one "shared UNIT tests=N WITNESS" line per
+shared unit, then per path "path P scope=S shared=J/K additions=M" with its
+"  added UNIT tests=N WITNESS" and "  unknown REASON DETAIL" lines. A stale
+or unverified binary (AFP-V0-846) is named on stderr, in degradations, and on a
+"degraded CODE" text line.
+Example: corvint affected --by-path --path docs/GLOSSARY.md docs/README.md --format text
 
 --path PATH [PATH ...] (experimental; repeatable, up to 4096 paths in all) plans
 exactly the named repository-relative paths at HEAD instead of the worktree status or a range,
@@ -1673,12 +1697,16 @@ Usage:
   corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]
   corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL
     --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR
-    [--claim SELECTOR...] [OPTIONS]
+    [--claim SELECTOR...] [--accumulate] --expected-base REV --target REV
+    [OPTIONS]
   corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL
     --reason REASON [--output MAP]
-  corvint [--root PATH] ocm status --map MAP [OPTIONS]
-  corvint [--root PATH] ocm verify --map MAP [OPTIONS]
-  corvint [--root PATH] ocm report --map MAP [--output REPORT] [OPTIONS]
+  corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV
+    [OPTIONS]
+  corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV
+    [OPTIONS]
+  corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV
+    [--output REPORT] [OPTIONS]
 
 Options:
   --cem PATH          Bound CEM map (default: .corvint/change.cem.json).
@@ -1694,6 +1722,10 @@ Options:
                       replaced map's links, marks and assessments are
                       discarded, not carried over; copy the map aside first
                       to keep that review.
+  --accumulate        link only: union the obligation's earlier hunks and
+                      claims with the new ones. Without it a link replaces
+                      only the claims on its own --test-path and keeps
+                      those on every other test path.
 
 report writes by default to .git/corvint/ocm-review.md, private Git metadata
 that never dirties the worktree. An explicit --output must be a normalized,
@@ -1728,6 +1760,10 @@ Options:
                BuildEval -> EvalQuery path as harness user-prompt.
   --limit N    Maximum results (default: 10; range: 1-50).
   --budget-bytes N  Optional packet budget (range: 1024-1000000 bytes).
+  --worktree-overlay  Experimental opt-in (DIRTY-CACHE-940..942): read tracked
+               dirty paths from the worktree over the HEAD snapshot. Their
+               results are advisory, low confidence and cite the worktree blob
+               id; freshness scope is git+worktree-overlay. Writes nothing.
 
 Requirements:
   Darwin or Linux and a Git repository accepted by the bounded Go index. The
@@ -1739,6 +1775,13 @@ Requirements:
 
 The command is read-only and local-only. It emits one canonical JSON receipt on
 stdout. Unsupported profiles emit one structured error on stderr and exit 2.
+
+Receipt fields:
+  revision and freshness.revision are the Git tree id of the captured
+  content (HEAD^{tree} for a clean worktree), not a commit id, so they never
+  equal learning.history_tip, the commit Git history was read from; the two
+  differing is not staleness (GPK-V0-960). Bind evidence by comparing revision
+  with a commit's tree (git rev-parse COMMIT^{tree}), then each blob.
 
 Recovery for unsupported-query-trace-state:
   Keep the trace store and original task unchanged. Read the repository's
@@ -2091,7 +2134,8 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only).
+const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only;
+features and overview degrade to a MIXED unknown when the only dirt is untracked).
 
 Usage:
   corvint [--root PATH] features
@@ -2099,7 +2143,9 @@ Usage:
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
 
 Features are bounded heuristic candidates with immutable blob/line evidence, not
-accepted feature IDs. Overview includes inert suggested argv. Review composes
+accepted feature IDs. A label that is a canonical feature ID also carries featureId
+and featureCall, the inert argv of corvint feature for it with --limit 1, which answers READY only
+for a declared feature record. Overview includes inert suggested argv. Review composes
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull
 names the argv that prints the full affected-plan/0 plan and that plan's digest.

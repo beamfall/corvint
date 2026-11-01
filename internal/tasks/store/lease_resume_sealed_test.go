@@ -28,6 +28,10 @@ func newSealedResumeFixture(t *testing.T) resumeFixture {
 		t.Fatal("history was not sealed")
 	}
 	lowerWriterCheckpoint(t, repo)
+	// The seed keeps FullSeq at its head, so the fixture reaches the sealed
+	// base only through validated seals (JSG-V0-780 test seam); a test that
+	// needs the complete route's sealed base deletes the mark.
+	plainCheckpointStores.Store(repo.StateDir, true)
 	if run := writerMutate(t, repo, "sealed-writer-seed", nil); !run.completed() || run.fast() {
 		t.Fatalf("seed: %+v %v %v", run.rep, run.err, run.stages)
 	}

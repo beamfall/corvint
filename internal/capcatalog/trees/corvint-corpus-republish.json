@@ -1,0 +1,77 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-corpus-republish",
+  "helpJson": "corvint-corpus-republish help --json",
+  "source": "cmd/corvint-corpus-republish usageText",
+  "dispatchSources": [
+    "cmd/corvint-corpus-republish"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "build"
+      ],
+      "command": "corvint-corpus-republish build",
+      "summary": "Build a republished corpus into a fresh private output directory",
+      "usage": [
+        "corvint-corpus-republish build --trusted-local --root ROOT --request FILE --policy FILE --expected-policy-sha256 SHA --output-dir DIR [--documentation-root DIR] [--previous-result FILE] [--previous-artifact FILE] [--previous-sidecar FILE]"
+      ],
+      "flags": [
+        "--documentation-root",
+        "--expected-policy-sha256",
+        "--output-dir",
+        "--policy",
+        "--previous-artifact",
+        "--previous-result",
+        "--previous-sidecar",
+        "--request",
+        "--root",
+        "--trusted-local"
+      ],
+      "required": [
+        "--trusted-local",
+        "--root ROOT",
+        "--request FILE",
+        "--policy FILE",
+        "--expected-policy-sha256 SHA",
+        "--output-dir DIR"
+      ],
+      "example": "corvint-corpus-republish build --trusted-local --root ROOT --request FILE --policy FILE --expected-policy-sha256 SHA --output-dir DIR",
+      "help": "corvint-corpus-republish build --help"
+    },
+    {
+      "path": [
+        "queue"
+      ],
+      "command": "corvint-corpus-republish queue",
+      "summary": "Queue a republish request in the private single-writer pending state",
+      "usage": [
+        "corvint-corpus-republish queue --trusted-local --root ROOT --request FILE --policy FILE --expected-policy-sha256 SHA --pending FILE [--documentation-root DIR] [--previous-result FILE] [--previous-artifact FILE] [--previous-sidecar FILE]"
+      ],
+      "flags": [
+        "--documentation-root",
+        "--expected-policy-sha256",
+        "--pending",
+        "--policy",
+        "--previous-artifact",
+        "--previous-result",
+        "--previous-sidecar",
+        "--request",
+        "--root",
+        "--trusted-local"
+      ],
+      "required": [
+        "--trusted-local",
+        "--root ROOT",
+        "--request FILE",
+        "--policy FILE",
+        "--expected-policy-sha256 SHA",
+        "--pending FILE"
+      ],
+      "example": "corvint-corpus-republish queue --trusted-local --root ROOT --request FILE --policy FILE --expected-policy-sha256 SHA --pending FILE",
+      "help": "corvint-corpus-republish queue --help"
+    }
+  ]
+}

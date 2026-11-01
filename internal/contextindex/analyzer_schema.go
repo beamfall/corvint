@@ -11,9 +11,9 @@ import (
 )
 
 // analyzerSchemaID versions the facts and encoding in an opt-in Corvint pack.
-// Bump it after reviewing any change to the inputs pinned by
-// TestAnalyzerSchemaInputs. The audit digest is a maintenance guard, not the
-// runtime key: an unrelated executable rebuild must keep using the same pack.
+// Bump it when TestAnalyzerSchemaOutput's golden pack changes (IDX-SNAP-V0-955).
+// The output pin is a maintenance guard, not the runtime key: an unrelated
+// executable rebuild must keep using the same pack.
 const analyzerSchemaID = "corvint-analyzer/150"
 
 // AnalyzerSchemaID is shared by experimental immutable stores of analyzer facts.

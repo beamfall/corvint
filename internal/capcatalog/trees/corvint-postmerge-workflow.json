@@ -1,0 +1,54 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-postmerge-workflow",
+  "helpJson": "corvint-postmerge-workflow help --json",
+  "source": "cmd/corvint-postmerge-workflow usageText",
+  "dispatchSources": [
+    "cmd/corvint-postmerge-workflow"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "encode-id"
+      ],
+      "command": "corvint-postmerge-workflow encode-id",
+      "summary": "Print VALUE, such as a branch name, encoded as a workflow identifier (PMR-V0-960)",
+      "usage": [
+        "corvint-postmerge-workflow encode-id VALUE"
+      ],
+      "flags": [],
+      "required": [
+        "VALUE"
+      ],
+      "example": "corvint-postmerge-workflow encode-id claude/lane-a",
+      "help": "corvint-postmerge-workflow encode-id --help"
+    },
+    {
+      "path": [
+        "replay"
+      ],
+      "command": "corvint-postmerge-workflow replay",
+      "summary": "Replay one historical change through recording connectors and print the replay report",
+      "usage": [
+        "corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE [--root REPO]"
+      ],
+      "flags": [
+        "--change",
+        "--dry-run",
+        "--fixture",
+        "--policy",
+        "--root"
+      ],
+      "required": [
+        "--change ID",
+        "--dry-run",
+        "--fixture FILE",
+        "--policy FILE"
+      ],
+      "example": "corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE",
+      "help": "corvint-postmerge-workflow replay --help"
+    }
+  ]
+}

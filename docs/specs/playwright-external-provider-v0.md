@@ -871,7 +871,10 @@ oversized documents are refused before stdout/retention. A receipt carrying qual
 without the exact profile discriminator is refused by the legacy reader.
 
 Run the explicit fixture with `CORVINT_PLAYWRIGHT_MODULES` naming an already-installed `node_modules`
-directory and `go test -count=1 -timeout 5m ./internal/jstestprovider -run TestQualifiedPlaywrightLive -v`.
+directory and `go test -count=1 -timeout 5m ./internal/jstestprovider/externallive -run TestQualifiedPlaywrightLive -v`.
+The live tests (`TestQualifiedPlaywright*Live*`, `TestPWPV0035SensitiveProfileLive`,
+`TestPWPV0010KeepReportersLive`) live in `internal/jstestprovider/externallive` since V1-3589; the
+qualification commands recorded above ran them from the parent package before the split.
 No browser or npm package is downloaded by the provider or ordinary Go gate. The live matrix includes
 real pass/assertion/timeout/browser-infrastructure cases, setup dependency hashing, global use,
 project inheritance, retry/flaky state, repeat-each identity, two workers, inherited webServer
@@ -928,12 +931,12 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 |---|---|---|
 | `application-attestation-config-invalid` | The provider config is noncanonical, has the wrong profile, or carries an invalid expectation. | `internal/jstestprovider/application_attestation.go:84@12af3b3a` |
 | `application-attestation-config-unavailable` | The bounded provider config file cannot be read. | `internal/jstestprovider/application_attestation.go:80@b18eb77f` |
-| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:265@db0a61bf` |
+| `application-attestation-provider-drift` | The provider executable or configuration changes before post-run observation. | `internal/jstestprovider/external.go:264@db0a61bf` |
 | `application-attestation-provider-required` | The attested profile lacks an absolute config path or provider argv. | `internal/jstestprovider/application_attestation.go:68@2bc06a44` |
 | `application-attestation-provider-unavailable` | The provider executable is unresolved, unreadable, unstaged, or fails bounded execution. | `internal/jstestprovider/application_attestation.go:72@94973cec` |
-| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:292@5ac3fd01` |
+| `application-attestation-requires-external-server` | Application attestation is requested outside external-server mode. | `internal/jstestprovider/runner.go:290@5ac3fd01` |
 | `attested-external-profile-has-declared-identity` | An attested receipt also carries the legacy caller-declared application identity. | `internal/jstestprovider/projection.go:111@d5db6c8b` |
-| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:518@c7e353c5` |
+| `external-attestation-conflicts-with-caller-identity` | The attested request also supplies legacy caller identity or build-directory input. | `internal/jstestprovider/external.go:517@c7e353c5` |
 | `external-attempt-document-invalid` | The imported document has an unknown shape, trailing data, a profile other than `/3`, or bytes that differ from the rederived canonical qualified document. | `internal/jstestprovider/attempt_details.go`, `DecodeAttemptReceipt` |
 | `external-profile-has-attempt-details` | An earlier `/0`, `/1` or `/2` receipt carries the `/3` `attemptDetails` member (AFU-V1-012). | `internal/jstestprovider/projection.go:86@d7cd2a65` |
 | `file-bound-exceeded` | A bounded attestation input cannot be read within its byte ceiling. | `internal/jstestprovider/application_attestation.go:164@5714ccbf` |
@@ -942,7 +945,7 @@ The `/3` matrix passed locally on 2026-09-28. It retains failed-then-passed and 
 | `legacy-external-profile-has-attested-fields` | A legacy `/0` receipt carries `/1` attestation fields. | `internal/jstestprovider/projection.go:104@751bcb11` |
 | `noncanonical-input` | Parsed input bytes differ from the canonical JSON encoding. | `internal/jstestprovider/application_attestation.go:187@0bb50e72` |
 | `not-regular` | An attestation input path does not resolve to a regular file. | `internal/jstestprovider/application_attestation.go:151@9133b825` |
-| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:284@0fe9d240` |
+| `test-repository-drift` | The test repository identity differs between start and publish. | `internal/jstestprovider/external.go:283@0fe9d240` |
 
 ## Issue340 exact project identity amendment
 
@@ -1237,3 +1240,26 @@ Rollback: remove `internal/testvaliditydoc/external_projection.go` and its two c
 | --- | --- |
 | `PWP-V0-153` | `internal/testvaliditydoc/external_projection_test.go` `TestPWPV0153CompleteExternalReceiptNamesRunAndFreshness` (recorded `/3` sides `preserves.head`, `regression.head`) |
 | `PWP-V0-154` | `internal/testvaliditydoc/external_projection_test.go` `TestPWPV0153CompleteExternalReceiptNamesRunAndFreshness` |
+
+## V1-3636 expected-status amendment
+
+Status: experimental under the standing lane auto-accept (2026-10-11); V1-3636.
+
+Intent: a `test.fail()` test declares `expectedStatus: "failed"`. Before this amendment the
+qualified reporter recorded the raw attempt status, so a body that failed as declared read as a
+failure and a body that passed read as a pass, the reverse of Playwright's own outcome.
+
+- **PWP-V0-960**: The qualified reporter records an attempt of a test whose `expectedStatus` is
+  `failed` by Playwright's outcome: a `failed` attempt is recorded `passed` with no failure
+  message, and a `passed` attempt is recorded `failed` (`failureKind` `assertion-or-test`) with the
+  message `test was expected to fail (test.fail()) but passed`. Infrastructure, `timedOut`,
+  `interrupted` and `skipped` attempts, and tests with any other `expectedStatus`, are unchanged.
+
+Non-goals: no new state value and no `expectedStatus` member in the report (the Go decoder's
+closed shape is unchanged). Failure modes: a live Playwright run of a `test.fail()` fixture is
+`NOT_RUN` on the lane host (outside the qualified runner tuple). Rollback: remove the
+`expectedStatus` branch in `onTestEnd`.
+
+| Requirement | Evidence |
+| --- | --- |
+| `PWP-V0-960` | Node case `expectedStatus failed inverts the recorded state of a test.fail() test` in `internal/jstestprovider/qualified-reporter_test.cjs`, run by `TestQualifiedReporterSensitiveRedaction` |
