@@ -345,7 +345,8 @@ name is exactly what the change's author also wrote and the harness removed.
   `re_registered` with no registration of its own, partition aside. `select` presents each patch
   byte for byte as `internal/cem/gitauth` `CanonicalDiff` derives it for those paths: the same
   pinned diff configuration (`diff.noprefix=false` and the other pins), `--attr-source` set to the
-  empty tree, `--full-index`, `a/` and `b/` prefixes and `--end-of-options`. These V1-2624 fixes
+  empty tree, `--full-index`, `a/` and `b/` prefixes and `--end-of-options`, run under gitauth's scrubbed
+  allowlist environment, so neither `GIT_DIFF_OPTS` nor `GIT_CONFIG_PARAMETERS` changes the bytes. These V1-2624 fixes
   change the scorer digest; the 2026-10-24 held-out report stays rescored at the registered tree
   `bc580295f`, where it was registered and run. The run's build-log entry must name the scorer change, the reused
   lane count, and that the reused pairs were already observed in the earlier run. Limit: the scorer
