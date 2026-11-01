@@ -137,9 +137,6 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 				c.numbers = []int{c.first}
 				if c.ranged {
 					c.last, _ = strconv.Atoi(parts[3])
-					for number := c.first + 1; number <= c.last; number++ {
-						c.numbers = append(c.numbers, number)
-					}
 				} else if parts[4] != "" {
 					for _, extra := range strings.Split(parts[4][1:], ",") {
 						number, _ := strconv.Atoi(extra)
@@ -179,9 +176,19 @@ func Check(ctx context.Context, root string, paths []string) (Report, error) {
 			fail(OutOfRange, "range end %d is before its start %d", c.last, c.first)
 			continue
 		}
-		if bad := outside(c.numbers, len(target)); bad != 0 {
+		// Validate before a range is expanded, so a huge range costs nothing.
+		bounds := c.numbers
+		if c.ranged {
+			bounds = []int{c.first, c.last}
+		}
+		if bad, found := outside(bounds, len(target)); found {
 			fail(OutOfRange, "line %d is outside %s (%d lines)", bad, c.path, len(target))
 			continue
+		}
+		if c.ranged {
+			for number := c.first + 1; number <= c.last; number++ {
+				c.numbers = append(c.numbers, number)
+			}
 		}
 		if c.pin != "" {
 			if anchor := Anchor(target, c.numbers); !strings.HasPrefix(anchor, c.pin) {
@@ -220,13 +227,15 @@ func Anchor(lines []string, numbers []int) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func outside(numbers []int, count int) int {
+// outside returns the first number not in 1..count, and whether there is one;
+// line 0 is outside, so the result cannot use 0 as its "none" value.
+func outside(numbers []int, count int) (int, bool) {
 	for _, number := range numbers {
 		if number < 1 || number > count {
-			return number
+			return number, true
 		}
 	}
-	return 0
+	return 0, false
 }
 
 func trivial(line string) bool {

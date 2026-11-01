@@ -76,3 +76,26 @@ func TestSDDV0633CitationsCheckForeignRepository(t *testing.T) {
 		t.Fatal("non-repository admitted")
 	}
 }
+
+// SDD-V0-633: line 0 and a range far past the file end are out-of-range; the
+// check neither indexes line 0 nor expands the range before validating it.
+func TestSDDV0633CitationsCheckBoundsBeforeExpanding(t *testing.T) {
+	readme := "Zero `lib/run.go:0`, zero list `lib/run.go:3,0`, huge `lib/run.go:1-1000000000`.\n"
+	root := foreignRepository(t, map[string]string{"README.md": readme, "lib/run.go": "package lib\n\nfunc Run() {}\n"})
+	report, err := Check(context.Background(), root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, failure := range report.Failures {
+		got = append(got, failure.Token+" "+failure.Kind+": "+failure.Detail)
+	}
+	want := []string{
+		"`lib/run.go:0` out-of-range: line 0 is outside lib/run.go (3 lines)",
+		"`lib/run.go:3,0` out-of-range: line 0 is outside lib/run.go (3 lines)",
+		"`lib/run.go:1-1000000000` out-of-range: line 1000000000 is outside lib/run.go (3 lines)",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") || report.Citations != 3 {
+		t.Fatalf("citations=%d failures:\n%s", report.Citations, strings.Join(got, "\n"))
+	}
+}
