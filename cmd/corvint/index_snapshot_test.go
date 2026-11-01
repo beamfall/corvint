@@ -12,6 +12,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -67,7 +68,7 @@ func writingIndexReceipt(t *testing.T, encoded []byte) map[string]any {
 	if err := json.Unmarshal(encoded, &receipt); err != nil {
 		t.Fatal(err)
 	}
-	wantKeys := []string{"bytes", "command", "commit", "engine", "evicted", "evicted_snapshots", "live_heads", "live_trees", "mutates", "ok", "path", "profile", "sources", "store", "store_shared", "symbols", "tree"}
+	wantKeys := []string{"build_ms", "bytes", "command", "commit", "engine", "evicted", "evicted_snapshots", "live_heads", "live_trees", "mutates", "ok", "path", "profile", "source_bytes", "sources", "store", "store_shared", "symbols", "tree"}
 	gotKeys := make([]string, 0, len(receipt))
 	for key := range receipt {
 		gotKeys = append(gotKeys, key)
@@ -604,4 +605,41 @@ func indexReceiptNamesTheSweptLegacyStore(t *testing.T, root string) {
 		t.Fatalf("emptied legacy store not removed: %v", next["legacy_removed"])
 	}
 	writingIndexReceipt(t, runIndexForTest(t, root, false))
+}
+
+// TestIndexReceiptReportsSourceBytes_IDXSNAPV0911: the receipt's source_bytes
+// is the Git tree size of exactly the admitted sources, and build_ms is a
+// whole, non-negative millisecond count.
+func TestIndexReceiptReportsSourceBytes_IDXSNAPV0911(t *testing.T) {
+	t.Parallel()
+	root := taskContextRepository(t)
+	var receiptOut, stderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "index"}, strings.NewReader(""), &receiptOut, &stderr); code != 0 {
+		t.Fatalf("index exit %d: %s", code, stderr.String())
+	}
+	var receipt map[string]any
+	if err := json.Unmarshal(receiptOut.Bytes(), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	index, err := contextindex.Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sizes := map[string]int{}
+	for _, line := range strings.Split(strings.TrimSpace(gitOutput(t, root, "ls-tree", "-r", "-l", "HEAD")), "\n") {
+		tab := strings.IndexByte(line, '\t')
+		fields := strings.Fields(line[:tab])
+		size, _ := strconv.Atoi(fields[3])
+		sizes[line[tab+1:]] = size
+	}
+	want := 0
+	for path := range index.Sources {
+		want += sizes[path]
+	}
+	if want == 0 || receipt["source_bytes"] != float64(want) || receipt["sources"] != float64(len(index.Sources)) {
+		t.Fatalf("receipt = %s, want source_bytes %d over %d sources", receiptOut.String(), want, len(index.Sources))
+	}
+	if elapsed, ok := receipt["build_ms"].(float64); !ok || elapsed < 0 || elapsed != float64(int64(elapsed)) {
+		t.Fatalf("build_ms = %v", receipt["build_ms"])
+	}
 }

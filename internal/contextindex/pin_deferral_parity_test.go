@@ -188,13 +188,14 @@ func TestDeferredBlobPinReadsFewerBlobs(t *testing.T) {
 }
 
 // TestDeferredBlobPinKeepsWholeSetAdmission pins that narrowing the batch did
-// not narrow the two refusals that answer for the whole candidate set. Both are
-// verdicts about the repository, so they may not depend on how much of it the
-// worktree happened to pin.
+// not narrow the refusal that answers for the whole candidate set: it is a
+// verdict about the repository, so it may not depend on how much of it the
+// worktree happened to pin. The aggregate size is no such verdict
+// (IDX-SNAP-V0-910): nothing needed from a large set reads nothing.
 func TestDeferredBlobPinKeepsWholeSetAdmission(t *testing.T) {
 	oversized := []treeEntry{{path: "big.go", oid: strings.Repeat("a", 40), size: maxBatchBytes, mode: "100644"}}
-	if err := readOnlyResidual(t, oversized, nil); err == nil {
-		t.Error("an aggregate over the batch bound was admitted when nothing was needed from it")
+	if err := readOnlyResidual(t, oversized, nil); err != nil {
+		t.Errorf("a set over one batch call's bound was refused when nothing was needed from it: %v", err)
 	}
 	conflicting := []treeEntry{
 		{path: "one.go", oid: strings.Repeat("b", 40), size: 10, mode: "100644"},

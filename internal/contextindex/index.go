@@ -804,9 +804,6 @@ func buildQueryAttempt(ctx context.Context, root string, identity repositoryIden
 		return nil, err
 	}
 	exclusions, candidates, unsupported := admittedEntries(entries)
-	if err := validateQueryBlobAdmission(candidates); err != nil {
-		return nil, err
-	}
 	byPath := make(map[string]treeEntry, len(candidates))
 	dirty := make(map[string]struct{}, len(status))
 	for _, item := range status {

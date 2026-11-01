@@ -121,9 +121,6 @@ func shardEvidence(ctx context.Context, root string, observation repositoryObser
 		return nil, err
 	}
 	exclusions, candidates, unsupported := admittedEntries(entries)
-	if err := validateBlobAdmission(candidates); err != nil {
-		return nil, err
-	}
 	if _, err := uniqueBlobEntries(candidates); err != nil {
 		return nil, err
 	}

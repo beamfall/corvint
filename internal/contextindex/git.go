@@ -23,12 +23,15 @@ import (
 )
 
 const (
-	gitDeadline       = 30 * time.Second
-	maxGitErrorBytes  = 64 * 1024
-	maxIdentityBytes  = 4 * 1024
-	maxStatusBytes    = 8 * 1024 * 1024
-	maxTreeBytes      = 64 * 1024 * 1024
-	maxBatchBytes     = 128 * 1024 * 1024
+	gitDeadline      = 30 * time.Second
+	maxGitErrorBytes = 64 * 1024
+	maxIdentityBytes = 4 * 1024
+	maxStatusBytes   = 8 * 1024 * 1024
+	maxTreeBytes     = 64 * 1024 * 1024
+	// maxBatchBytes bounds one `git cat-file --batch` read; fetchBlobs splits
+	// a larger set into chunks, so no read scales with the repository
+	// (IDX-SNAP-V0-910).
+	maxBatchBytes     = 32 * 1024 * 1024
 	maxDirtyPaths     = 100_000
 	maxSourceBytes    = 1_000_000
 	maxIndexedSources = 200_000
@@ -560,9 +563,6 @@ func validObjectID(value, objectFormat string) bool {
 var blobBatchEntries atomic.Int64
 
 func readBlobs(ctx context.Context, root string, entries []treeEntry) (map[string][]byte, error) {
-	if err := validateBlobAdmission(entries); err != nil {
-		return nil, err
-	}
 	unique, err := uniqueBlobEntries(entries)
 	if err != nil {
 		return nil, err
@@ -570,16 +570,11 @@ func readBlobs(ctx context.Context, root string, entries []treeEntry) (map[strin
 	return fetchBlobs(ctx, root, unique)
 }
 
-// readResidualBlobs fetches only needed, while admitting and de-duplicating
-// against all. The two checks answer for the whole candidate set because that
-// is the set they are about: validateBlobAdmission is the repository's
-// aggregate size refusal and uniqueBlobEntries rejects one oid recorded at two
-// sizes, and neither verdict may depend on how many candidates the worktree
-// happened to pin on its own.
+// readResidualBlobs fetches only needed, while de-duplicating against all.
+// uniqueBlobEntries rejects one oid recorded at two sizes, and that verdict
+// answers for the whole candidate set: it may not depend on how many
+// candidates the worktree happened to pin on its own.
 func readResidualBlobs(ctx context.Context, root string, all, needed []treeEntry) (map[string][]byte, error) {
-	if err := validateBlobAdmission(all); err != nil {
-		return nil, err
-	}
 	if _, err := uniqueBlobEntries(all); err != nil {
 		return nil, err
 	}
@@ -590,20 +585,45 @@ func readResidualBlobs(ctx context.Context, root string, all, needed []treeEntry
 	return fetchBlobs(ctx, root, unique)
 }
 
-// fetchBlobs streams the bodies of already-admitted, already-unique entries.
-// An empty set spawns no process: a batch of nothing costs a fork, a pipe pair
-// and a wait to parse zero bytes.
+// fetchBlobs streams the bodies of already-admitted, already-unique entries,
+// one `cat-file --batch` call per chunk of at most maxBatchBytes of framed
+// output (IDX-SNAP-V0-910). Each chunk's buffer is exactly its expected size
+// and its blobs alias it, so the set costs its bytes once and no single read
+// grows with the repository. An empty set spawns no process: a batch of
+// nothing costs a fork, a pipe pair and a wait to parse zero bytes.
 func fetchBlobs(ctx context.Context, root string, unique []treeEntry) (map[string][]byte, error) {
 	blobBatchEntries.Add(int64(len(unique)))
-	if len(unique) == 0 {
-		return map[string][]byte{}, nil
+	result := make(map[string][]byte, len(unique))
+	for _, chunk := range blobBatchChunks(unique, maxBatchBytes) {
+		raw, err := gitExpecting(ctx, root, maxBatchBytes, blobBatchOutputSize(chunk), blobBatchInput(chunk), "cat-file", "--batch")
+		if err != nil {
+			return nil, err
+		}
+		if err := parseBlobBatchInto(raw, chunk, result); err != nil {
+			return nil, err
+		}
 	}
-	input := blobBatchInput(unique)
-	raw, err := gitExpecting(ctx, root, maxBatchBytes, blobBatchOutputSize(unique), input, "cat-file", "--batch")
-	if err != nil {
-		return nil, err
+	return result, nil
+}
+
+// blobBatchChunks splits entries, in order, into runs whose framed output fits
+// limit. Every admitted entry is at most maxSourceBytes, so a run of one always
+// fits; a larger entry still gets its own run and the read refuses it.
+func blobBatchChunks(entries []treeEntry, limit int) [][]treeEntry {
+	var chunks [][]treeEntry
+	start, size := 0, 0
+	for index := range entries {
+		framed := blobBatchOutputSize(entries[index : index+1])
+		if index > start && size+framed > limit {
+			chunks = append(chunks, entries[start:index])
+			start, size = index, 0
+		}
+		size += framed
 	}
-	return parseBlobBatch(raw, unique)
+	if start < len(entries) {
+		chunks = append(chunks, entries[start:])
+	}
+	return chunks
 }
 
 // blobBatchOutputSize is the exact byte count parseBlobBatch will consume:
@@ -625,33 +645,32 @@ func blobBatchInput(entries []treeEntry) []byte {
 	return input
 }
 
-func parseBlobBatch(raw []byte, entries []treeEntry) (map[string][]byte, error) {
-	result := make(map[string][]byte, len(entries))
+func parseBlobBatchInto(raw []byte, entries []treeEntry, result map[string][]byte) error {
 	offset := 0
 	for _, entry := range entries {
 		lineEnd := bytes.IndexByte(raw[offset:], '\n')
 		if lineEnd < 0 {
-			return nil, &Error{Message: "Git blob batch output is malformed"}
+			return &Error{Message: "Git blob batch output is malformed"}
 		}
 		lineEnd += offset
 		size, valid := parseBlobBatchHeader(raw[offset:lineEnd], entry.oid)
 		if !valid {
-			return nil, &Error{Message: "Git blob batch output is malformed"}
+			return &Error{Message: "Git blob batch output is malformed"}
 		}
 		if size != entry.size || lineEnd+1+size >= len(raw) {
-			return nil, &Error{Message: "Git blob batch output is malformed"}
+			return &Error{Message: "Git blob batch output is malformed"}
 		}
 		start := lineEnd + 1
 		if raw[start+size] != '\n' {
-			return nil, &Error{Message: "Git blob batch output is malformed"}
+			return &Error{Message: "Git blob batch output is malformed"}
 		}
 		result[entry.oid] = raw[start : start+size : start+size]
 		offset = start + size + 1
 	}
 	if offset != len(raw) {
-		return nil, &Error{Message: "Git blob batch output is malformed"}
+		return &Error{Message: "Git blob batch output is malformed"}
 	}
-	return result, nil
+	return nil
 }
 
 func uniqueBlobEntries(entries []treeEntry) ([]treeEntry, error) {
@@ -702,44 +721,11 @@ func equalBytesString(value []byte, expected string) bool {
 	return true
 }
 
-// admissionSubject opens the aggregate refusal; the query path renames it.
-const admissionSubject = "repository index"
-
-// validateBlobAdmission refuses a candidate set whose bytes, with a framing
-// allowance per file, exceed maxBatchBytes. The message names the measured
-// total and the directories the index never admits, whatever the language.
-func validateBlobAdmission(entries []treeEntry) error {
-	const framingAllowance = 128
-	var sourceBytes int64
-	for _, entry := range entries {
-		sourceBytes += int64(entry.size)
-	}
-	framed := sourceBytes + int64(len(entries))*framingAllowance
-	if framed <= maxBatchBytes {
-		return nil
-	}
-	message := fmt.Sprintf("%s sources total %d bytes in %d files, %d with per-file framing, over the %d-byte (128 MiB) aggregate bound; paths under vendor/, node_modules/, dist/, build/, target/ or generated/ are not admitted", admissionSubject, sourceBytes, len(entries), framed, maxBatchBytes)
-	return &Error{Code: "unsupported-impact-repository", Message: message}
-}
-
 func readQueryBlobs(ctx context.Context, root string, entries []treeEntry) (map[string][]byte, error) {
 	if len(entries) == 0 {
 		return map[string][]byte{}, nil
 	}
-	blobs, err := readBlobs(ctx, root, entries)
-	return blobs, queryAdmissionError(err)
-}
-
-func validateQueryBlobAdmission(entries []treeEntry) error {
-	return queryAdmissionError(validateBlobAdmission(entries))
-}
-
-func queryAdmissionError(err error) error {
-	var indexErr *Error
-	if errors.As(err, &indexErr) && indexErr.Code == "unsupported-impact-repository" {
-		return &Error{Code: "unsupported-query-repository", Message: strings.Replace(indexErr.Message, admissionSubject, "authority-start query index", 1)}
-	}
-	return err
+	return readBlobs(ctx, root, entries)
 }
 
 // readStatusSnapshotRaw is readStatusSnapshot that also returns the status

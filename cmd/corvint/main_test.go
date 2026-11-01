@@ -418,9 +418,11 @@ func TestNonQueryUnsupportedFailureStillObserves(t *testing.T) {
 	}
 }
 
-// SOL-V0-007: witness, index, and calibrate build the committed
-// index, and each records the aggregate-bound refusal exactly once.
-func TestIndexBuildingCommandsRecordUnsupportedRefusal(t *testing.T) {
+// SOL-V0-007 and IDX-SNAP-V0-910: witness, index, and calibrate build the
+// committed index, and a tree listing 135,000,000 source bytes is no longer an
+// aggregate-bound refusal: the build reaches the (here missing) blobs and fails
+// as an ordinary Git read, and the unsupported ledger records nothing.
+func TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910(t *testing.T) {
 	t.Parallel()
 	environment := checkpointGitWrapper(t, `case " $* " in *" ls-tree -r -l -z "*)
  i=0
@@ -442,12 +444,11 @@ func TestIndexBuildingCommandsRecordUnsupportedRefusal(t *testing.T) {
 			}
 			arguments := append([]string{"--root", root}, argv...)
 			_, stderr, code := runCandidateWithEnvironment(t, "", environment, arguments...)
-			if code != 2 || !strings.Contains(stderr, `"code": "unsupported-impact-repository"`) {
+			if code != 2 || strings.Contains(stderr, "unsupported-") || strings.Contains(stderr, "aggregate bound") {
 				t.Fatalf("exit=%d stderr=%s", code, stderr)
 			}
-			ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl"))
-			if want := `{"kind":"unsupported","code":"unsupported-impact-repository","queryIntent":"unknown"}` + "\n"; err != nil || string(ledger) != want {
-				t.Fatalf("ledger=%q err=%v want %q", ledger, err, want)
+			if ledger, err := os.ReadFile(filepath.Join(root, ".corvint", "self-observations.jsonl")); bytes.Contains(ledger, []byte(`"kind":"unsupported"`)) {
+				t.Fatalf("ledger=%q err=%v", ledger, err)
 			}
 		})
 	}
