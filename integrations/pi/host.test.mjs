@@ -386,7 +386,9 @@ for(const loseClaimReceipt of [false,true])test('LCP PWV native workflow owner a
  const templates=join(root,'internal/tasks/cli/testdata/external-agents');mkdirSync(join(repo,'.taskman'));
  for(const name of ['queue.json','policy.json']){let content=readFileSync(join(templates,name),'utf8');if(name==='queue.json')content=content.replace('"fixture":false','"fixture":true');writeFileSync(join(repo,'.taskman',name),content)}
  git(['add','.']);git(['commit','-qm','fixture']);
- const binary=process.env.CORVINT_PI_HOST_BIN;assert.ok(binary,'set CORVINT_PI_HOST_BIN to the exact candidate Core binary');
+ // V1-3040: like the sibling host checks, build the candidate when CORVINT_PI_HOST_BIN is unset.
+ const binary=process.env.CORVINT_PI_HOST_BIN??join(scratch,'corvint');
+ if(!process.env.CORVINT_PI_HOST_BIN){const build=await run('go',['build','-o',binary,'./cmd/corvint'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});assert.equal(build.code,0,build.stderr)}
  const env={PATH:process.env.PATH,HOME:home,LANG:'en_US.UTF-8',PI_CODING_AGENT_DIR:agent,PI_OFFLINE:'1',CORVINT_BIN:binary,CORVINT_TASKS_BIN:process.env.CORVINT_TASKS_BIN??'corvint-tasks',CORVINT_PI_CAPTURE:capture};
  const receipts=[];
  const realTasks=env.CORVINT_TASKS_BIN,transport=join(scratch,'tasks-transport.cjs'),transportLog=join(scratch,'transport.jsonl'),lostReceipt=join(scratch,'lost-receipt.json');
