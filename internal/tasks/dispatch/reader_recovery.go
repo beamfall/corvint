@@ -28,7 +28,7 @@ const readerRecoveryDir = "reader-recoveries"
 
 // readerUnannouncedDir, under reader-recoveries/, holds a hard link to each
 // operator recovery record the next dispatch start has yet to announce
-// (CAL-V0-940); maxAnnouncedRecoveries bounds one start's announcements.
+// (DSG-V0-940); maxAnnouncedRecoveries bounds one start's announcements.
 const (
 	readerUnannouncedDir   = "unannounced"
 	maxAnnouncedRecoveries = 64
@@ -205,7 +205,7 @@ func RecoverReader(c *Config, program string, req ReaderRecoveryRequest, now tim
 			return nil, false, err
 		}
 	}
-	// CAL-V0-940: the next start announces the recovery; the link precedes
+	// DSG-V0-940: the next start announces the recovery; the link precedes
 	// the removal, so a recovery that lifted a quarantine is never silent.
 	if err := linkUnannounced(dir, name); err != nil {
 		return nil, false, err
@@ -222,7 +222,7 @@ func RecoverReader(c *Config, program string, req ReaderRecoveryRequest, now tim
 // linkUnannounced hard-links the recovery record name into
 // reader-recoveries/unannounced/ with the directory fsynced. An existing
 // link is kept, so a replay that finishes an interrupted removal links
-// nothing twice (CAL-V0-940).
+// nothing twice (DSG-V0-940).
 func linkUnannounced(dir, name string) error {
 	recDir := filepath.Join(dir, readerRecoveryDir)
 	pending := filepath.Join(recDir, readerUnannouncedDir)
@@ -242,7 +242,7 @@ func linkUnannounced(dir, name string) error {
 // recovery record, in name order and at most maxAnnouncedRecoveries per
 // start, and removes each link only after its event line is appended. A
 // linked record that does not decode stays linked and is reported by an
-// alert (CAL-V0-940). The caller holds the program lock and has passed the
+// alert (DSG-V0-940). The caller holds the program lock and has passed the
 // quarantine check.
 func (d *Dispatcher) announceReaderRecoveries() {
 	pending := filepath.Join(d.dir, readerRecoveryDir, readerUnannouncedDir)

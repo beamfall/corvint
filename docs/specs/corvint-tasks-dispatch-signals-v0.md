@@ -111,6 +111,22 @@ whether the new build would adopt the live workers or refuse the ledger.
   record `INTERRUPTED`, discard any stale request (a handed-over image keeps one, which was made for it) (`UPGRADE_REQUEST_DISCARDED`), and adopt the
   recorded workers through the existing CAL-V0-056 path with their leases and attempts unchanged.
   An unreadable record MUST raise `UPGRADE_STATE_UNREADABLE` and start normally.
+- `DSG-V0-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved from the
+  leases contract at its OCM limit) An
+  operator recovery MUST become an observable `reader-recovered` event, kind `OPERATOR`, in the
+  program's event log. `recover-reader` MUST NOT write the event log or the ledger, because only
+  the dispatcher advances the event sequence and the ledger may be one the recovery does not own.
+  Before it removes the marker, it MUST hard-link the recovery record under the same name into
+  `reader-recoveries/unannounced/`, fsynced with that directory. An existing link is kept, so a
+  replay that finishes an interrupted removal links nothing twice. The next `dispatch` start for
+  the program MUST announce each linked record, under the program lock, after the quarantine
+  check passes and before any launch. It emits one `reader-recovered` event per record, in name
+  order and at most 64 per start, with detail `kind`, `run`, `requestId` and `recordedAt` and a
+  message naming the reason and evidence. It MUST remove a link only after that event's line is
+  appended. A linked record that does not decode strictly stays linked and is reported by an
+  `alert` event naming it. Delivery is at least once: a crash after the append and before the
+  link removal repeats the event at the next start. A record an earlier build wrote has no link
+  and is never announced.
 
 ## Non-goals
 
@@ -119,6 +135,11 @@ upgrade without an operator `--apply`, no handover on platforms where the dispat
 and no migration of a live session to the new build (it finishes on the build that launched it); no
 OpenCode tool-call count after handoff; no notice delivery for other
 hosts beyond the existing hook and file modes.
+
+Non-goals of DSG-V0-940: an event at the moment of the attestation (no dispatcher runs then, and the command's
+own result already reports the record); announcing a HOST_REBOOT recovery that a direct
+work-state read applies outside a dispatcher start; a native Tasks journal entry (CAL-V0-226
+rationale); any change to what lifts the quarantine.
 
 ## Failure modes
 
@@ -133,6 +154,11 @@ dispatcher but no worker; the next start reports `UPGRADE_INTERRUPTED` and adopt
 the old image resets its handlers and before exec ends the process the same way. A worker reaped in the
 exec instant, before its exit is carried, can read `NOT_OBSERVED` for its exit code, never a wrong
 code. A request for a build replaced after the check is refused by digest.
+
+For DSG-V0-940, a program that is never started again keeps its links, one directory entry per
+recovery beside records Corvint never removes. An older binary ignores `unannounced/`, so it
+emits no event and changes nothing else. A link that cannot be removed repeats its event at each
+start until it is removed. More than 64 links are announced across successive starts.
 
 ## Acceptance evidence
 
@@ -155,6 +181,10 @@ code. A request for a build replaced after the check is refused by digest.
   the same pid, an old-build session finishing with its real exit code after the new dispatcher owns
   the queue, `upgrade-settled`, and a crash mid-upgrade whose restart adopts the live worker with its
   lease unchanged).
+- For DSG-V0-940, `TestDSGV0940_OperatorRecoveryAnnouncedAtNextStart` and
+`TestDSGV0940_UnreadableLinkedRecordAlertsAndStays` (`internal/tasks/dispatch`), and the
+extended `TestCALV0226_DispatchRecoverReaderOperator` and `TestCALV0228_DispatchHelpNamesRecovery`
+(`internal/tasks/cli`).; live dispatcher qualification and a real reboot NOT_RUN.
 
 ## Rollback
 
@@ -165,3 +195,6 @@ To leave a new build, `dispatch upgrade --apply PREVIOUS_BUILD` hands back in pl
 dispatcher and start the previous build, which adopts the live workers. Builds without DSG-V0-010 to
 015 ignore `workers/<id>/build.json`, `upgrade.json` and `upgrade-request.json`; the ledger format is
 unchanged, so delete those files only after the dispatcher stops.
+
+For DSG-V0-940, revert the link in `RecoverReader`, the announcement in `Open` and this amendment.
+`reader-recoveries/unannounced/` can then be deleted; the records it links stay in place.

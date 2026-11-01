@@ -6459,7 +6459,7 @@ hand, which the #464 amendment says proves nothing.
 Non-goals: inferring containment from a missing pid, an exited leader or elapsed time; a
 host-wide process scan for escaped descendants; a native Tasks journal entry for the recovery
 (the attestation lives in the program state directory and the dispatcher event log); an event
-written by the operator path itself (CAL-V0-940 has the next start announce it); re-sampling host pressure after a killed sample
+written by the operator path itself (DSG-V0-940 has the next start announce it); re-sampling host pressure after a killed sample
 (issue 899 item (d)); changing the safe open's own refusal of relative paths.
 
 V1-1389 rationale (accepted under the owner's standing auto-accept (2026-10-11)). A pressure
@@ -6473,7 +6473,7 @@ fence. Its only consumer is the program's dispatcher, which reads the same state
 the same program lock. The record is written exclusively, fsynced with its directory, never removed
 by Corvint, and checked against the marker before any removal. A journal write would make reader
 recovery depend on the store being writable, and it would add no fence that the program lock does
-not already give. The operator path's event is CAL-V0-940. Live dispatcher qualification and a
+not already give. The operator path's event is DSG-V0-940. Live dispatcher qualification and a
 real Linux reboot stay open on V1-1389.
 
 Failure modes: a machine identity cloned onto another host with the same hostname could present
@@ -6516,45 +6516,9 @@ malformed, which keeps the quarantine (fail closed), and does not see a
 
 ### V1-1389 operator reader recovery event
 
-Status: CAL-V0-940 accepted under the owner's standing auto-accept (2026-10-11) (V1-1389);
-implemented with focused tests. Human-owned input: native ticket V1-1389, the residual of V1-0710
-and GitHub issue 899 that the operator recovery (CAL-V0-226) leaves no event, while the
-host-reboot recovery (CAL-V0-227) emits `reader-recovered`. An operator watching the event log
-could not see that a quarantine had been lifted by attestation.
-
-- `CAL-V0-940`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1389) An
-  operator recovery MUST become an observable `reader-recovered` event, kind `OPERATOR`, in the
-  program's event log. `recover-reader` MUST NOT write the event log or the ledger, because only
-  the dispatcher advances the event sequence and the ledger may be one the recovery does not own.
-  Before it removes the marker, it MUST hard-link the recovery record under the same name into
-  `reader-recoveries/unannounced/`, fsynced with that directory. An existing link is kept, so a
-  replay that finishes an interrupted removal links nothing twice. The next `dispatch` start for
-  the program MUST announce each linked record, under the program lock, after the quarantine
-  check passes and before any launch. It emits one `reader-recovered` event per record, in name
-  order and at most 64 per start, with detail `kind`, `run`, `requestId` and `recordedAt` and a
-  message naming the reason and evidence. It MUST remove a link only after that event's line is
-  appended. A linked record that does not decode strictly stays linked and is reported by an
-  `alert` event naming it. Delivery is at least once: a crash after the append and before the
-  link removal repeats the event at the next start. A record an earlier build wrote has no link
-  and is never announced.
-
-Non-goals: an event at the moment of the attestation (no dispatcher runs then, and the command's
-own result already reports the record); announcing a HOST_REBOOT recovery that a direct
-work-state read applies outside a dispatcher start; a native Tasks journal entry (CAL-V0-226
-rationale); any change to what lifts the quarantine.
-
-Failure modes: a program that is never started again keeps its links, one directory entry per
-recovery beside records Corvint never removes. An older binary ignores `unannounced/`, so it
-emits no event and changes nothing else. A link that cannot be removed repeats its event at each
-start until it is removed. More than 64 links are announced across successive starts.
-
-Acceptance evidence: `TestCALV0940_OperatorRecoveryAnnouncedAtNextStart` and
-`TestCALV0940_UnreadableLinkedRecordAlertsAndStays` (`internal/tasks/dispatch`), and the
-extended `TestCALV0226_DispatchRecoverReaderOperator` and `TestCALV0228_DispatchHelpNamesRecovery`
-(`internal/tasks/cli`).
-
-Rollback: revert the link in `RecoverReader`, the announcement in `Open` and this amendment.
-`reader-recoveries/unannounced/` can then be deleted; the records it links stay in place.
+The operator recovery event (V1-1389) that announces a `recover-reader` attestation at the next
+dispatch start is DSG-V0-940 in the [dispatch signals contract](corvint-tasks-dispatch-signals-v0.md),
+because this Requirements section is at the 256-obligation OCM limit.
 
 ### V1-1313, V1-1320 and V1-1321 renew liveness, superseded generations and claim scope
 
@@ -8462,4 +8426,3 @@ after this restore.
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
-| CAL-V0-940 | `TestCALV0940_OperatorRecoveryAnnouncedAtNextStart`, `TestCALV0940_UnreadableLinkedRecordAlertsAndStays` (`internal/tasks/dispatch`); `TestCALV0226_DispatchRecoverReaderOperator`, `TestCALV0228_DispatchHelpNamesRecovery` (`internal/tasks/cli`); live dispatcher qualification `NOT_RUN` |

@@ -18,7 +18,7 @@ reserved requirement suffixes 940-949.
 | V1-1961 | Delivers (TOL-V0-940, TOL-V0-941); AC1 ALREADY-DELIVERED | integrated adopter-repository run NOT_RUN |
 | V1-1962 | Delivers AC1 | AC2 NOT_PRODUCED: needs an adopter repository |
 | V1-2504 | ALREADY-DELIVERED (ATR-V0-031, CAL-V0-077) | live caching-provider run NOT_RUN |
-| V1-1389 | Delivers (CAL-V0-940); AC1 ALREADY-DELIVERED | AC3 BLOCKED: live dispatcher run and real reboot |
+| V1-1389 | Delivers (DSG-V0-940); AC1 ALREADY-DELIVERED | AC3 BLOCKED: live dispatcher run and real reboot |
 | V1-2620 | Delivers AC1 (CCE-V0-940) | AC2 BLOCKED: 5 hosted macos-15 cce-live runs after merge |
 | V1-2732 | ALREADY-DELIVERED: no reproduction | none (20/20 passes on WSL meet the AC2 close condition) |
 | V1-2302 | ALREADY-DELIVERED: no reproduction | none (-count=20 on WSL passed, 640 PASS) |
@@ -116,7 +116,7 @@ Tickets: V1-1961, V1-1962, V1-2504, V1-1389.
 ### Claimed requirement IDs
 - TOL-V0-940, TOL-V0-941 (V1-1961)
 - ATR-V0-940 (V1-2504, reserved)
-- CAL-V0-940, CAL-V0-941 (V1-1389, reserved)
+- DSG-V0-940, CAL-V0-941 (V1-1389, reserved)
 
 ### V1-1961 — Delivers (spec 255d2ccc0, impl 2b00d9e55)
 - AC1 (dogfood-check names unlinked requirement IDs): ALREADY-DELIVERED. internal/dogfoodflow/ocm_coverage.go `unlinkedNote` names each unlinked requirement ID (bound 32, OCM-V0-025); in 9477995d7 ("Corvint 1.0"), extended by 4a6e8b214 (V1-3092). Evidence: TestOCMV0025CheckNamesUnlinkedRequirementIDs PASS (heavy.sh, linux/amd64).
@@ -164,7 +164,7 @@ Tickets: V1-1961, V1-1962, V1-2504, V1-1389.
 ### V1-1389 — Delivers AC2 event (spec 18259ad26, impl 0be54f66c); AC1 + AC2 attestation ALREADY-DELIVERED; AC3 BLOCKED
 - AC1, pressure re-sample: ALREADY-DELIVERED as the spec's alternative ("or the spec records why it is unnecessary"). The "V1-1389 rationale" paragraph in docs/specs/corvint-tasks-agent-leases-v0.md (CAL-V0-225..229 section, base 8daec98ce) explains why. A recovery launches nothing. A restart keeps the recorded pressure level and is UNKNOWN until its own first sample (CAL-V0-068). So a sample taken by the recovery would be staler than the one the start takes anyway.
 - AC2, attestation as a journal entry: ALREADY-DELIVERED. The same rationale records why a state-directory record suffices: no Tasks authority, the program lock fences, and a journal write would make recovery depend on a writable store.
-- AC2, observable event: DELIVERED as CAL-V0-940. Decision: recover-reader does not write events.jsonl or state.json. The event sequence is owned by the dispatcher ledger, and the ledger may be drained or handed over and not ours to rewrite. Instead:
+- AC2, observable event: DELIVERED as DSG-V0-940. Decision: recover-reader does not write events.jsonl or state.json. The event sequence is owned by the dispatcher ledger, and the ledger may be drained or handed over and not ours to rewrite. Instead:
   - Before removing the marker, recover-reader hard-links the record into reader-recoveries/unannounced/NAME (fsynced; an existing link is kept, so a replay links nothing twice).
   - The next Open, under the program lock and after the quarantine check, emits `reader-recovered` (kind OPERATOR, detail kind/run/requestId/recordedAt) in name order, at most 64 per start.
   - Each link is removed only after its event line is appended (at least once). An unreadable linked record gets an `alert` and stays linked.

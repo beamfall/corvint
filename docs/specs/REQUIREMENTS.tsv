@@ -2077,7 +2077,6 @@ CAL-V0-226	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-227	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker	standing	2026-10-11; V1-0710
 CAL-V0-228	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The	standing	2026-10-11; V1-0710
 CAL-V0-229	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The mark	standing	2026-10-11; V1-0710
-CAL-V0-940	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1389) An	standing	2026-10-11; V1-1389
 CAL-V0-230	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a	standing	2026-10-11; V1-1320
 CAL-V0-231	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A	standing	2026-10-11; V1-1313
 CAL-V0-236	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When	standing	2026-10-11; V1-1402
@@ -2386,6 +2385,7 @@ DSG-V0-012	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A
 DSG-V0-013	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The handed-over dispatcher lock MUST pass as an inherited fi	unrecorded	-
 DSG-V0-014	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The new image MUST emit `upgraded` with `from`, `fromSha256`	unrecorded	-
 DSG-V0-015	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A start that finds phase `EXEC` with no inherited lock (the	unrecorded	-
+DSG-V0-940	docs/specs/corvint-tasks-dispatch-signals-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved fr	standing	2026-10-11; V1-1389
 TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
 TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
 TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Each finding is `{kind, source, who, deta	owner	decision 0481; #715
@@ -4534,6 +4534,8 @@ LPCV-V0-262	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-290	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step	standing	2026-10-11; V1-2015
 LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After th	standing	2026-10-11; V1-2090
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
+LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
+LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -4549,8 +4551,6 @@ LPCV-V0-068	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decisio
 LPCV-V0-069	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Safety. negate runs the user's	owner	decision 0458; V1-1024; #682
 LPCV-V0-071	docs/specs/live-proof-carrying-verification-v0.md	`corvint-js-test-provider --help`, `-h`, `-help` and `help` MUST exit 0 and prin	unrecorded	-
 LPCV-V0-070	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Every negate result is diagnost	owner	decision 0458; V1-1024; #682
-LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
-LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-126	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) When	standing	2026-10-11; V1-1024
 LPCV-V0-127	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The	standing	2026-10-11; V1-1024
 LPCV-V0-128	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1024) The same	standing	2026-10-11; V1-1024

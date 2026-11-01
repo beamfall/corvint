@@ -411,10 +411,10 @@ func recoveryEvents(t *testing.T, dir, kind string) []Event {
 	return out
 }
 
-// CAL-V0-940: an operator recovery links its record before the removal, and
+// DSG-V0-940: an operator recovery links its record before the removal, and
 // the next start announces it once, removing the link only after the event
 // line is appended.
-func TestCALV0940_OperatorRecoveryAnnouncedAtNextStart(t *testing.T) {
+func TestDSGV0940_OperatorRecoveryAnnouncedAtNextStart(t *testing.T) {
 	fakeHost(t, digestHex("m"), digestHex("b1"))
 	c, dir, mark := quarantinedProgram(t, "announce")
 	name := "operator-" + digestHex("req-1")[:32] + ".json"
@@ -472,9 +472,9 @@ func TestCALV0940_OperatorRecoveryAnnouncedAtNextStart(t *testing.T) {
 	}
 }
 
-// CAL-V0-940: a linked record that does not decode stays linked and is
+// DSG-V0-940: a linked record that does not decode stays linked and is
 // reported by an alert; nothing is announced for it.
-func TestCALV0940_UnreadableLinkedRecordAlertsAndStays(t *testing.T) {
+func TestDSGV0940_UnreadableLinkedRecordAlertsAndStays(t *testing.T) {
 	fakeHost(t, digestHex("m"), digestHex("b1"))
 	c, dir, _ := quarantinedProgram(t, "garbled")
 	if _, _, err := RecoverReader(c, "garbled", recoverReq("req-1"), time.Now()); err != nil {

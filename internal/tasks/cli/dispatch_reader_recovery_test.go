@@ -89,7 +89,7 @@ func TestCALV0226_DispatchRecoverReaderOperator(t *testing.T) {
 		t.Fatalf("replay: %s", r.stdout)
 	}
 	startsCleanly(t, root, config, dir)
-	// CAL-V0-940: the start announces the operator recovery.
+	// DSG-V0-940: the start announces the operator recovery.
 	events, err := dispatch.ReadEvents(dir, 50)
 	if err != nil {
 		t.Fatal(err)

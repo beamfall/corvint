@@ -650,6 +650,24 @@ Rollback: revert the V1-2015, V1-2090 and V1-2091 change. 1.64.0 traces abstain 
 unprofiled locations return to their earlier absences, and no retained document or receipt format
 changes.
 
+Step-negation join and provider-refusal amendments (V1-1032; the step-negation section is
+outside this Requirements section, so these two live here):
+
+- `LPCV-V0-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane
+  decision 2026-10-31) A `/0` (`ExternalProfile`) receipt carries no test repository identity, so a
+  `LPCV-V0-068` join of a `/0` document binds the test side by the spec and config file digests
+  only. That binding is an accepted limitation, not a refusal: a `/0` join is kept, and every joined
+  `/0` strength axis carries the anchor `strength-unbound-inputs:test-support-files` after its
+  `strength-evidence:` anchor, so a reader sees that helper, fixture and other support files the
+  test imports are not bound and a change to them does not break the join. A `/1` join binds the
+  whole test repository through its clean identity at start and publish and carries no such anchor.
+  `stepNegationJoinQualified` stays false until `LPCV-V0-129` is met.
+- `LPCV-V0-941`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint
+  test-validity --negate` refuses `negate-provider-failed` (exit 2) when the
+  JavaScript provider cannot be started, exits nonzero other than with a closed refusal document,
+  exits 2 without one, writes more than 4 MiB of output, writes a document that does not decode, or
+  writes a document naming a different test identity than the one requested.
+
 ## Promotion experiments
 
 All promotion corpora, changes, defects, splits, metrics, exclusions, and stopping rules MUST be
@@ -1038,20 +1056,6 @@ assertion* is the first of them, in reporter order, for which a fault can be der
   - a third-party-origin dependency left unfaulted.
 
   A skipped live fixture is never qualification success.
-- `LPCV-V0-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane
-  decision 2026-10-31) A `/0` (`ExternalProfile`) receipt carries no test repository identity, so a
-  `LPCV-V0-068` join of a `/0` document binds the test side by the spec and config file digests
-  only. That binding is an accepted limitation, not a refusal: a `/0` join is kept, and every joined
-  `/0` strength axis carries the anchor `strength-unbound-inputs:test-support-files` after its
-  `strength-evidence:` anchor, so a reader sees that helper, fixture and other support files the
-  test imports are not bound and a change to them does not break the join. A `/1` join binds the
-  whole test repository through its clean identity at start and publish and carries no such anchor.
-  `stepNegationJoinQualified` stays false until `LPCV-V0-129` is met.
-- `LPCV-V0-941`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint
-  test-validity --negate` refuses `negate-provider-failed` (exit 2) when the
-  JavaScript provider cannot be started, exits nonzero other than with a closed refusal document,
-  exits 2 without one, writes more than 4 MiB of output, writes a document that does not decode, or
-  writes a document naming a different test identity than the one requested.
 
 Acceptance evidence (all `NOT_RUN` at proposal) has four parts. The first is Go unit and conformance
 tests for derivation, pass-rule, joint attribution, canonical codec, retention and join vectors,
