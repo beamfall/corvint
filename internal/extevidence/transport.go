@@ -11,6 +11,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -46,7 +47,7 @@ func ParseCommand(value string) (string, error) {
 	if err := decoder.Decode(&argv); err != nil {
 		return "", errors.New("expected a JSON array of strings")
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return "", errors.New("trailing content after the JSON array")
 	}
 	if len(argv) == 0 || len(argv) > MaxCommandArguments {

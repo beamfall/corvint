@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -670,7 +671,7 @@ func decodeDeclarations(data []byte) (declarations, error) {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 	var d declarations
-	if err := dec.Decode(&d); err != nil || dec.More() {
+	if err := dec.Decode(&d); err != nil || !jsonend.Done(dec) {
 		return d, refuse("e2e-blocks-invalid", "%s: %v", DeclarationsPath, err)
 	}
 	if d.Schema != DeclarationsSchema {

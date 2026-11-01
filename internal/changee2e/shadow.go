@@ -9,6 +9,8 @@ import (
 	"math"
 	"slices"
 	"sort"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // Shadow schemas (CCE-V0-011).
@@ -199,7 +201,7 @@ func Shadow(window []byte) ([]byte, error) {
 	var w ShadowWindow
 	dec := json.NewDecoder(bytes.NewReader(window))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&w); err != nil || dec.More() {
+	if err := dec.Decode(&w); err != nil || !jsonend.Done(dec) {
 		return nil, refuse("e2e-shadow-window-invalid", "decode: %v", err)
 	}
 	if w.Truncated != 0 {

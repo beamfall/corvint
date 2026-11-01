@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -967,7 +968,7 @@ func DecodeSKStep(b []byte) (SKStep, error) {
 	if err := dec.Decode(&s); err != nil {
 		return SKStep{}, fmt.Errorf("site-knowledge step refused: %w", err)
 	}
-	if dec.More() {
+	if !jsonend.Done(dec) {
 		return SKStep{}, fmt.Errorf("site-knowledge step refused: trailing data")
 	}
 	if !ValidateSKStep(s) {

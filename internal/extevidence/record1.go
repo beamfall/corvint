@@ -8,6 +8,8 @@ import (
 	"regexp"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // Schema1 is the multi-repository record schema (EEP-V1-001).
@@ -121,7 +123,7 @@ func decode1(data []byte, v3 bool) (Record1, error) {
 	if err := decoder.Decode(&record); err != nil {
 		return record, fmt.Errorf("record is not a strict JSON document: %s", trimJSONError(err))
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return record, errors.New("record has trailing content after the document")
 	}
 	return record, validate1(record, v3)

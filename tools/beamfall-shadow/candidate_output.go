@@ -12,6 +12,8 @@ import (
 	"io"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 const (
@@ -377,7 +379,7 @@ func closedJSONObject(raw []byte) (map[string]stdjson.RawMessage, bool) {
 		object[name] = value
 	}
 	last, err := decoder.Token()
-	if err != nil || last != stdjson.Delim('}') || decoder.More() {
+	if err != nil || last != stdjson.Delim('}') || !jsonend.Done(decoder) {
 		return nil, false
 	}
 	var trailing any
@@ -402,7 +404,7 @@ func rawArray(raw []byte) ([]stdjson.RawMessage, bool) {
 		values = append(values, value)
 	}
 	last, err := decoder.Token()
-	if err != nil || last != stdjson.Delim(']') || decoder.More() {
+	if err != nil || last != stdjson.Delim(']') || !jsonend.Done(decoder) {
 		return nil, false
 	}
 	var trailing any

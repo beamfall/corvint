@@ -10,6 +10,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/verify"
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // The verdict ledger (CEM-V1-271..279) is an append-only record of the
@@ -141,7 +142,7 @@ func (r *repository) readLedgerAt(ctx context.Context, target string, pinned boo
 		var record VerdictRecord
 		decoder := json.NewDecoder(bytes.NewReader(line))
 		decoder.DisallowUnknownFields()
-		if decoder.Decode(&record) != nil || decoder.More() || !wellFormedRecord(record) {
+		if decoder.Decode(&record) != nil || !jsonend.Done(decoder) || !wellFormedRecord(record) {
 			return malformed, nil
 		}
 		canonical, err := json.Marshal(record)
