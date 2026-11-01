@@ -125,7 +125,8 @@ type digestBody struct {
 // advisory and route-dispatch edges, which appear only for a unit that has
 // one (RUBY-AFFECTED-V0-009, RUBY-AFFECTED-V0-049), the literal globs
 // (AFP-V0-401), the exact embed targets (AFP-V0-600), the file-name
-// placement certificate (AFP-V0-400) and the
+// placement certificate (AFP-V0-400), the declared binary consumers
+// (AFP-V0-762) and the
 // frontier's bearing condition (AFP-V0-581), so that graphs
 // without them keep their digest.
 type digestUnit struct {
@@ -150,6 +151,7 @@ type digestUnit struct {
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears,omitempty"`
 	Callers              []string `json:"callers,omitempty"`
+	ExecConsumers        []string `json:"execConsumers,omitempty"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -654,6 +656,7 @@ func projectUnit(unit Unit) digestUnit {
 		Frontier:             unit.Frontier,
 		FrontierBears:        unit.FrontierBears,
 		Callers:              unit.Callers,
+		ExecConsumers:        unit.ExecConsumers,
 	}
 }
 

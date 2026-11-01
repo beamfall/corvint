@@ -73,8 +73,8 @@ func TestInvalidBinaryConsumerDeclaresNothing_AFPV0762(t *testing.T) {
 				t.Fatalf("frontier = %v, want %s", result.Frontier, golang.FrontierBinaryExecsInvalid)
 			}
 			for _, unit := range result.Units {
-				if unit.Callers != nil {
-					t.Errorf("%s keeps declared consumers %v", unit.ID, unit.Callers)
+				if unit.ExecConsumers != nil {
+					t.Errorf("%s keeps declared consumers %v", unit.ID, unit.ExecConsumers)
 				}
 			}
 		})

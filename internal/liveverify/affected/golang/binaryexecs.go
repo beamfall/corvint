@@ -76,7 +76,7 @@ func applyBinaryExecs(root *affected.Source, units []affected.Unit, directories 
 			units[index].Execs = sortedKeys(edges[index])
 		}
 		if files := callers[units[index].ID]; len(files) != 0 {
-			units[index].Callers = files
+			units[index].ExecConsumers = files
 		}
 	}
 }

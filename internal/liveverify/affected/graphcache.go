@@ -199,6 +199,7 @@ type cachedUnit struct {
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears"`
 	Callers              []string `json:"callers"`
+	ExecConsumers        []string `json:"execConsumers"`
 }
 
 type cachedStamp struct {

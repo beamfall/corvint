@@ -62,7 +62,7 @@ func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 }
 
 // unselectedConsumers names, once each in path order, every declared consumer
-// file (a Callers entry, AFP-V0-762) of a Go command whose build the change
+// file (an ExecConsumers entry, AFP-V0-762) of a Go command whose build the change
 // reaches, by a direct source change, a dependency path or an enclosed path,
 // that no selection carries as a test: a Node script that runs the binary is
 // no unit's test, so the plan states it rather than leaving the run out
@@ -81,7 +81,7 @@ func (graph *Graph) unselectedConsumers(reached map[string]Witness, selected []S
 		if !hit || !strings.HasPrefix(id, "go:") || !rebuilds(witness.Kind) {
 			continue
 		}
-		for _, file := range graph.units[id].Callers {
+		for _, file := range graph.units[id].ExecConsumers {
 			if previous := commands[file]; !tests[file] && (previous == "" || witness.ViaLength() < reached[previous].ViaLength()) {
 				commands[file] = id
 			}
