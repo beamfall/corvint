@@ -1237,3 +1237,26 @@ Rollback: remove `internal/testvaliditydoc/external_projection.go` and its two c
 | --- | --- |
 | `PWP-V0-153` | `internal/testvaliditydoc/external_projection_test.go` `TestPWPV0153CompleteExternalReceiptNamesRunAndFreshness` (recorded `/3` sides `preserves.head`, `regression.head`) |
 | `PWP-V0-154` | `internal/testvaliditydoc/external_projection_test.go` `TestPWPV0153CompleteExternalReceiptNamesRunAndFreshness` |
+
+## V1-3636 expected-status amendment
+
+Status: experimental under the standing lane auto-accept (2026-10-11); V1-3636.
+
+Intent: a `test.fail()` test declares `expectedStatus: "failed"`. Before this amendment the
+qualified reporter recorded the raw attempt status, so a body that failed as declared read as a
+failure and a body that passed read as a pass, the reverse of Playwright's own outcome.
+
+- **PWP-V0-960**: The qualified reporter records an attempt of a test whose `expectedStatus` is
+  `failed` by Playwright's outcome: a `failed` attempt is recorded `passed` with no failure
+  message, and a `passed` attempt is recorded `failed` (`failureKind` `assertion-or-test`) with the
+  message `test was expected to fail (test.fail()) but passed`. Infrastructure, `timedOut`,
+  `interrupted` and `skipped` attempts, and tests with any other `expectedStatus`, are unchanged.
+
+Non-goals: no new state value and no `expectedStatus` member in the report (the Go decoder's
+closed shape is unchanged). Failure modes: a live Playwright run of a `test.fail()` fixture is
+`NOT_RUN` on the lane host (outside the qualified runner tuple). Rollback: remove the
+`expectedStatus` branch in `onTestEnd`.
+
+| Requirement | Evidence |
+| --- | --- |
+| `PWP-V0-960` | Node case `expectedStatus failed inverts the recorded state of a test.fail() test` in `internal/jstestprovider/qualified-reporter_test.cjs`, run by `TestQualifiedReporterSensitiveRedaction` |
