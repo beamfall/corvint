@@ -1598,6 +1598,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   sidecar and an `excluded-artifact-mismatch` cause, still stops the bind. Evidence:
   `TestFinishLaneDCWV0816BindAdmitsAReplacedTrackedSidecar`. Rollback: restore the
   record-index-failed-only admission.
+- `DCW-V0-817`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3621; refines
+  `DCW-V0-058`) When an `ocm-prepare-N` row refuses `invalid-requirements-section` for a
+  `docs/build-log/*.md` entry or `docs/decisions/*.md` file named as an intent of a change that is
+  not a record change, its fix line MUST name the record-change rule and the accepted forms (a spec
+  Markdown file with a `## Requirements` heading, or `#no-intent-declared`), and the
+  `missing-intent-scope` fix MUST name the same rule. `docs/LANE-ORCHESTRATION.md` section 3 states
+  it for charters. Evidence: `TestDCWV0817RecordIntentHintNamesAcceptedForms`,
+  `script/dogfood-change_test.sh`. Rollback: drop the record-intent hint and the added clause.
 - `DCW-V0-906`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3483; amends
   `DCW-V0-809` and refines `DCW-V0-967`) A hunk of the defining spec that adds a same-change
   requirement, or only rows naming one, MUST be drafted as the `DCW-V0-967` proposal of the BASE
@@ -3476,6 +3484,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-814` (V1-3742, V1-3895) | `internal/dogfoodflow/verify_argv.go` `runQuotedWord`, `quotedRunRefusal`; `TestDCWV0814VerifyAdmitsOneEndAnchoredRunWords` | unit |
 | `DCW-V0-815` (V1-3594) | `script/dogfood-finish.sh` preflight static checks; `script/dogfood-cache_test.sh` `DCW-V0-815` block | shell fixture |
 | `DCW-V0-816` (V1-3599) | `internal/dogfoodflow/finishlane.go` `bindAdmits`; `TestFinishLaneDCWV0816BindAdmitsAReplacedTrackedSidecar` | unit |
+| `DCW-V0-817` (V1-3621) | `internal/dogfoodflow/change.go` `recordIntentHint`, `intentScopeHint`; `TestDCWV0817RecordIntentHintNamesAcceptedForms`; `script/dogfood-change_test.sh` | unit and shell fixture |
 | `DCW-V0-906` (V1-3483) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0906DraftsTheRefinedBaseForADefiningHunk`; dffric-w1 replay 13 -> 11 unknown of 65 | unit and replay |
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
