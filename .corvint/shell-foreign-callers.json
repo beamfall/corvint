@@ -36,6 +36,21 @@
       ],
       "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571)."
     },
+    "script/dogfood-seal.sh": {
+      "callers": [
+        "Makefile",
+        "script/dogfood-change_test.sh"
+      ],
+      "mentions": [
+        "internal/console/chain.go",
+        "internal/console/chain_stable_test.go",
+        "internal/console/chain_test.go",
+        "internal/liveverify/affected/replay_v12941_test.go",
+        "script/pre-push-dogfood-seal.sh",
+        "script/pre-push-dogfood-seal_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
+    },
     "script/heavy.sh": {
       "callers": [
         "Makefile",
