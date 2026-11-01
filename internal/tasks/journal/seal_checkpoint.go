@@ -208,3 +208,36 @@ func (w *WriterCheckpoint) appendDelta(f *WriterCheckpoint, i int) {
 		w.notes = append(w.notes, writerNote{entry: uint32(len(w.Entries) - 1), digest: d})
 	}
 }
+
+// RebaseOnSealedBase is the base-at-S capture (LGL-V0-891, V1-2621). w is the
+// checkpoint a complete audit derived from receipt 1 at its head on a
+// segmented store whose manifest seals through S, and old is the bound
+// checkpoint whose base is at S with FullSeq S, the base a seal rebased. It
+// returns w on old's base: FullSeq S, every entry, request and note posted
+// after S in the delta, so a later command still finds the sealed base
+// (LGL-V0-009). rebase refuses unless everything w holds at or before S is
+// exactly old's base, and the base's segment digests must be w's, so old's
+// base is checked against the complete audit rather than trusted.
+func (w *WriterCheckpoint) RebaseOnSealedBase(old *WriterCheckpoint, through uint64) (*WriterCheckpoint, error) {
+	if w == nil || w.base != nil || old == nil || old.base == nil || through == 0 || old.FullSeq != through || old.base.seq != through || w.Seq.Uint64() < through {
+		return nil, errCheckpoint("writer checkpoint", "no complete checkpoint and sealed base at the sealed sequence")
+	}
+	b := old.base
+	m := &b.meta
+	if len(m.segments) != len(w.segments) {
+		return nil, errCheckpoint("writer checkpoint", "sealed base segments differ from the manifest")
+	}
+	for i := range m.segments {
+		if m.segments[i] != w.segments[i] {
+			return nil, errCheckpoint("writer checkpoint", "sealed base segments differ from the manifest")
+		}
+	}
+	bc := &WriterCheckpoint{Checkpoint: m.header, FullSeq: b.seq, ReceiptBytes: m.receiptBytes, Cost: m.cost, Intent: m.intent, Invalidation: old.Invalidation, base: b, total: b.n}
+	bc.Entries = nil
+	nb, err := bc.full()
+	if err != nil {
+		return nil, err
+	}
+	nb.segments = m.segments
+	return rebase(w, nb)
+}

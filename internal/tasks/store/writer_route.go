@@ -34,6 +34,9 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if env.Operation == mutation.OpReopen || mutation.IsReviewOperation(env.Operation) || mutation.KnowHowNamesAttempt(env) || ticket.IsObligationOperation(env.Operation) {
 		return false, nil, nil
 	}
+	if _, off := mutateWriterOff.Load(repo.StateDir); off {
+		return false, nil, nil
+	}
 	start := time.Now()
 	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, false, nil, nil)
 	if terminal != nil {

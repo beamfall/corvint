@@ -157,8 +157,25 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 		return guardFailure(report, env.RequestID, err)
 	}
 	keepReadCheckpoint(ctx, repo, canonical)
+	read := token
 	token = verifyWriterCheckpoint(ctx, repo, token, audit.VerifyWriterCheckpoint)
-	keepWriterCheckpoint(ctx, repo, audit.WriterCheckpoint, token)
+	// On a segmented store the complete audit's checkpoint keeps the sealed
+	// base the bound checkpoint holds, unless the verify just refuted it
+	// (LGL-V0-891); the base is bound now, before the lock is released.
+	var sealed *journal.WriterCheckpoint
+	if token == read {
+		sealed, _ = boundWriterCheckpoint(repo)
+	}
+	auditHead := canonical.Head
+	keepWriterCheckpoint(ctx, repo, func() (*journal.WriterCheckpoint, error) {
+		wc, err := audit.WriterCheckpoint()
+		if err == nil {
+			if rebased := rebaseOnSealed(auditHead, wc, sealed); rebased != nil {
+				return rebased, nil
+			}
+		}
+		return wc, err
+	}, token)
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
