@@ -1687,6 +1687,7 @@ CWT-V0-016	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under t
 CWT-V0-017	docs/specs/confidently-wrong-trial-v0.md	(accepted 2026-10-22 under the owner's standing auto-accept (2026-10-11); V1-031	standing	2026-10-22; 2026-10-11; V1-0319
 CEP-V0-001	docs/specs/context-evolution-program-v0.md	ContextBench rows. `tools/retrieval-bench --samples` MUST accept a ContextBench	unrecorded	-
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
+CEP-V0-960	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2761)	standing	2026-10-11; V1-2761
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
 CEP-V0-004	docs/specs/context-evolution-program-v0.md	Already-fixed control. A `tools/cw-trial` task MAY carry `control:	unrecorded	-
 CEP-V0-005	docs/specs/context-evolution-program-v0.md	Control scoring. On an already-fixed control each arm record MUST carry	unrecorded	-
