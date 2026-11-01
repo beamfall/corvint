@@ -914,6 +914,9 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 			budgetMetrics(report.Metrics[name], answer, report.Gold, root, report.Stratum == "positive", configuration)
 		}
 	}
+	if item.TaskType == contextBenchTask {
+		contextBenchLengthMatched(report, item, configuration.limit)
+	}
 	return report
 }
 

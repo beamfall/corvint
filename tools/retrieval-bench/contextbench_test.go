@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,9 +78,11 @@ func TestContextBenchFixtureScoresFileAndLineCoverage(t *testing.T) {
 	want := map[string]map[string]float64{
 		// Gold ring.go 3-8 (two spans merged) and ring_test.go 2-3: 8 lines.
 		// Ranked ring.go (10 lines) and README.md (2 lines): 12 lines, 6 shared.
-		"ringbuf-len-wrap": {"cb_file_coverage": 0.5, "cb_file_precision": 0.5, "cb_line_coverage": 0.75, "cb_line_precision": 0.5},
-		// An empty answer covers nothing and is vacuously precise.
-		"ringbuf-no-answer": {"cb_file_coverage": 0, "cb_file_precision": 1, "cb_line_coverage": 0, "cb_line_precision": 1},
+		"ringbuf-len-wrap": {"cb_file_coverage": 0.5, "cb_file_precision": 0.5, "cb_line_coverage": 0.75, "cb_line_precision": 0.5,
+			"cb_file_abstained": 0, "cb_file_precision_abst0": 0.5, "cb_file_precision_answered": 0.5},
+		// An empty answer covers nothing and is vacuously precise; CEP-V0-960 scores it 0 beside.
+		"ringbuf-no-answer": {"cb_file_coverage": 0, "cb_file_precision": 1, "cb_line_coverage": 0, "cb_line_precision": 1,
+			"cb_file_abstained": 1, "cb_file_precision_abst0": 0},
 	}
 	details := report["details"].([]sampleReport)
 	if len(details) != 2 {
@@ -91,6 +94,54 @@ func TestContextBenchFixtureScoresFileAndLineCoverage(t *testing.T) {
 			if got[key] != value {
 				t.Errorf("%s %s = %v, want %v (%v)", detail.ID, key, got[key], value, got)
 			}
+		}
+	}
+}
+
+// CEP-V0-960 (V1-2761): an abstained row scores precision 1 under ContextBench's rule, so the
+// receipt also carries the abstention flag, precision with abstention scored 0, precision over
+// answered rows only, and the bm25:ident baseline's precision cut to each arm's own list length.
+func TestContextBenchAbstentionAndLengthMatchedPrecision(t *testing.T) {
+	item := sample{TaskType: contextBenchTask, Gold: map[string]any{"files": []any{"a.go", "b.go"}}}
+	answered, abstained := metrics{}, metrics{}
+	contextBenchMetrics(answered, arm{Ranked: []string{"a.go", "x.go", "y.go", "z.go"}}, item, t.TempDir(), 10)
+	contextBenchMetrics(abstained, arm{}, item, t.TempDir(), 10)
+	for key, want := range map[string]float64{"cb_file_precision": 0.25, "cb_file_precision_answered": 0.25, "cb_file_precision_abst0": 0.25, "cb_file_abstained": 0} {
+		if answered[key] != want {
+			t.Errorf("answered %s = %v, want %v", key, answered[key], want)
+		}
+	}
+	for key, want := range map[string]float64{"cb_file_precision": 1, "cb_file_precision_abst0": 0, "cb_file_abstained": 1} {
+		if abstained[key] != want {
+			t.Errorf("abstained %s = %v, want %v", key, abstained[key], want)
+		}
+	}
+	if _, present := abstained["cb_file_precision_answered"]; present {
+		t.Error("an abstained row carries cb_file_precision_answered")
+	}
+	// Over the two rows the reported precision is (0.25+1)/2, answered precision 0.25, abstention 0.5.
+	summary := mean([]metrics{answered, abstained})
+	if summary["cb_file_precision"] != 0.625 || summary["cb_file_precision_answered"] != 0.25 ||
+		summary["cb_file_abstained"] != 0.5 || summary["cb_file_precision_abst0"] != 0.125 {
+		t.Fatalf("summary = %v", summary)
+	}
+	// The baseline ranks twenty files with both gold among its first ten; cut to the context
+	// arm's two files it holds one gold file, precision 0.5, not its full-list 0.1.
+	baseline := []string{"a.go", "q.go", "r.go", "s.go", "t.go", "u.go", "v.go", "w.go", "x.go", "b.go"}
+	for index := 0; index < 10; index++ {
+		baseline = append(baseline, fmt.Sprintf("n%d.go", index))
+	}
+	report := sampleReport{
+		Arms:    map[string]arm{"context": {Ranked: []string{"a.go", "b.go"}}, lengthMatchedBaseline: {Ranked: baseline}, "grep": {}, "impact": {Error: "refused"}},
+		Metrics: map[string]metrics{"context": {}, lengthMatchedBaseline: {}, "grep": {}, "impact": {}},
+	}
+	contextBenchLengthMatched(report, item, 20)
+	if got := report.Metrics["context"]["cb_file_baseline_precision_length_matched"]; got != 0.5 {
+		t.Fatalf("length-matched baseline precision = %v, want 0.5", got)
+	}
+	for _, name := range []string{lengthMatchedBaseline, "grep", "impact"} {
+		if _, present := report.Metrics[name]["cb_file_baseline_precision_length_matched"]; present {
+			t.Errorf("%s carries a length-matched baseline precision", name)
 		}
 	}
 }
