@@ -1398,7 +1398,7 @@ After merges land, run `corvint-tasks ticket closeout-debt` and finish each list
 The separate [local completion policy](specs/local-completion-policy-v0.md) coordinates the loop
 above for an explicitly enrolled change. Freeze a private JSON plan with the immutable `base`,
 sorted owning `intents`, and nonempty `checks` (`id`, `argv` of 1-64 elements, `timeoutSeconds` of
-1-3600, optional `allowCemSidecarOnlyReuse`, default false; split a longer run into several checks). Use the repository's selected required gates; selection
+1-3600, optional `allowCemSidecarOnlyReuse`, default false, and optional `allowSealArchiveReuse`, default false, for a check that does not read where the CEM is archived, which then qualifies at the exact seal without a rerun (`LCP-V0-920`); split a longer run into several checks). Use the repository's selected required gates; selection
 is a review responsibility. Run `corvint dogfood begin --plan FILE` before work and preserve the
 original context receipts. One active session owns a worktree because legacy coordination outputs
 are shared. A different session must use its own worktree or wait for explicit completion/cancellation.

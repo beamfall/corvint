@@ -30,6 +30,10 @@ type Check struct {
 	Argv                     []string `json:"argv"`
 	TimeoutSeconds           int      `json:"timeoutSeconds"`
 	AllowCemSidecarOnlyReuse bool     `json:"allowCemSidecarOnlyReuse"`
+	// AllowSealArchiveReuse declares the check independent of where the CEM
+	// is archived, so an observation at the evidence target qualifies at its
+	// exact seal (LCP-V0-920). Omitted when false, so older plan digests hold.
+	AllowSealArchiveReuse bool `json:"allowSealArchiveReuse,omitempty"`
 }
 
 type Plan struct {

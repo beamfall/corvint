@@ -90,7 +90,7 @@ func validateJSONTypes(value wire.Value, kind reflect.Type) error {
 				if kind == reflect.TypeFor[state]() && (name == "aggregateOutcome" || name == "sealedContinuation") {
 					continue
 				}
-				if kind == reflect.TypeFor[Check]() && name == "allowCemSidecarOnlyReuse" {
+				if kind == reflect.TypeFor[Check]() && (name == "allowCemSidecarOnlyReuse" || name == "allowSealArchiveReuse") {
 					continue
 				}
 				return bad

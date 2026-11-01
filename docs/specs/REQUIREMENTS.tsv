@@ -4933,6 +4933,7 @@ LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The su
 LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
+LCP-V0-920	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-11-01;	standing	2026-11-01
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
