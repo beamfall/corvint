@@ -1135,6 +1135,30 @@ git -C "$brepo" add tools/loose
   fail "an unignored tool output was not refused: $(cat "$tmp/out")"
 grep -q kept "$tmp/out" && fail "an ignored tool output was refused: $(cat "$tmp/out")"
 
+# ASD-V0-720 (V1-3847): fixed-tmp-paths-check is a doc gate; it refuses a test that writes under
+# the fixed /tmp or exports TMPDIR=/tmp, and passes t.TempDir() and a `// fixed-tmp:` line or the
+# line after one, for a quoted or raw literal and for a call whose argument is on the next line.
+grep -qE '^DOC_GATE_TARGETS := (.* )?fixed-tmp-paths-check( |$)' "$script/../Makefile" || fail "fixed-tmp-paths-check is not a doc gate"
+trepo=$tmp/tmprepo
+mkdir -p "$trepo/pkg"
+git -C "$trepo" init -q -b main
+printf '%s\n' 'package pkg' '' 'func a(t *testing.T) {' '	_, _ = os.MkdirTemp(t.TempDir(), "x")' \
+  '	_, _ = os.MkdirTemp("/tmp", "sock-") // fixed-tmp: sun_path' '	_ = "TMPDIR=/tmp"' \
+  '	// fixed-tmp: sun_path' '	_, _ = os.MkdirTemp(' '		`/tmp`, "sock-")' '}' > "$trepo/pkg/ok_test.go"
+git -C "$trepo" add -A
+(cd "$trepo" && "$script/check-fixed-tmp-paths.sh") > "$tmp/out" 2>&1 || fail "allowed /tmp lines failed: $(cat "$tmp/out")"
+printf '%s\n' 'package pkg' '' 'func b(t *testing.T) {' '	_, _ = os.MkdirTemp("/tmp", "x-")' \
+  '	command.Env = []string{"HOME=" + home, "TMPDIR=/tmp"}' '	_ = os.WriteFile(`/tmp/x`, nil, 0o600)' \
+  '	_, _ = os.MkdirTemp(' '		"/tmp", "y-")' '}' > "$trepo/pkg/bad_test.go"
+git -C "$trepo" add -A
+(cd "$trepo" && "$script/check-fixed-tmp-paths.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a fixed /tmp write passed: $(cat "$tmp/out")"
+grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:4: ' "$tmp/out" &&
+  grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:5: ' "$tmp/out" &&
+  grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:6: ' "$tmp/out" &&
+  grep -q '^check-fixed-tmp-paths: FAIL pkg/bad_test.go:7: ' "$tmp/out" &&
+  [[ $(grep -c FAIL "$tmp/out") == 4 ]] || fail "the fixed /tmp lines were not named exactly: $(cat "$tmp/out")"
+
 # 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name

@@ -286,6 +286,16 @@ func TestNEAV0013DeclaredEnvironment(t *testing.T) {
 	})
 	t.Run("worker admits exactly the declared pairs", func(t *testing.T) {
 		saved := os.Environ()
+		// WorkerEnvironmentSafeFor wants a canonical private TMPDIR, which os.TempDir() is not on
+		// macOS (/var/folders/.../T/, a symlinked path with a trailing slash); t.TempDir() is 0755.
+		temporary, err := filepath.EvalSymlinks(t.TempDir())
+		if err == nil {
+			err = os.Chmod(temporary, 0o700)
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		temporary = filepath.Clean(temporary)
 		t.Cleanup(func() {
 			os.Clearenv()
 			for _, entry := range saved {
@@ -294,7 +304,7 @@ func TestNEAV0013DeclaredEnvironment(t *testing.T) {
 			}
 		})
 		os.Clearenv()
-		t.Setenv("TMPDIR", "/tmp")
+		t.Setenv("TMPDIR", temporary)
 		for _, entry := range append(workerEnvironment(), externalEnvironment(f.request)...) {
 			parts := strings.SplitN(entry, "=", 2)
 			t.Setenv(parts[0], parts[1])

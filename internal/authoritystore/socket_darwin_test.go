@@ -15,7 +15,7 @@ func TestDarwinReciprocalSocketWitness(t *testing.T) {
 	// this test process and closed on every return, failure, and process exit.
 	// The socket lives under /tmp, not t.TempDir(): a long TMPDIR plus the test name and the
 	// random suffix can exceed Darwin's 104-byte sun_path ("bind: invalid argument", V1-0778).
-	dir, err := os.MkdirTemp("/tmp", "corvint-sock-")
+	dir, err := os.MkdirTemp("/tmp", "corvint-sock-") // fixed-tmp: Darwin sun_path limit (V1-0778)
 	if err != nil {
 		t.Fatal(err)
 	}

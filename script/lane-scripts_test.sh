@@ -1148,6 +1148,43 @@ $q -skip '^(TestB)\$' ./w
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
+# ASD-V0-722 (V1-3851): a manifest that admits nothing says why on one stderr line, and a relative
+# .git/REL manifest of a linked worktree resolves to Git's own path for REL.
+nadm="heavy.sh: HEAVY_SELECTION=$sel"
+for c in "old.json|./x|/old.json not admitted: source.head 0000000000000000000000000000000000000000 is not HEAD $selhead (regenerate the manifest after this commit)" \
+  "m.json|./y|/m.json not admitted: unit go:example.com/m/y is not selected whole" \
+  "m.json|-skip=^(TestC)\$ ./w|/m.json not admitted: unit go:example.com/m/w has no -skip ^(TestC)\$ slice" \
+  "gone.json|./x|/gone.json not admitted: manifest-unreadable $sel/gone.json" \
+  "m.json|./missing|/m.json not admitted: argument ./missing is not a ./REL directory"; do
+  IFS='|' read -r cm ca cw <<< "$c"
+  HEAVY_SELECTION="$sel/$cm" sv go test $ca > /dev/null 2> "$sel/err"
+  [[ $? == 2 && $(grep -c 'not admitted' "$sel/err") == 1 ]] && grep -qxF "$nadm$cw" "$sel/err" ||
+    fail "heavy.sh did not name why $cm refused $ca: $(cat "$sel/err")"
+done
+selwt=$tmp/selection-wt
+git -C "$sel" worktree add -q "$selwt" 2> /dev/null && mkdir -p "$selwt/x" && cp "$sel/go.mod" "$selwt/go.mod" &&
+  manifest "$selhead" > "$(git -C "$selwt" rev-parse --absolute-git-dir)/sel.json" && [[ -f $selwt/.git ]] ||
+  fail "linked-worktree selection fixture setup failed"
+(cd "$selwt" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
+  HEAVY_WHOLE_REASON= HEAVY_SELECTION=.git/sel.json "$heavy" go test -count=1 ./x) > /dev/null 2> "$sel/err" &&
+  grep -Eq "^$d whole reason=corvint-selection:0123456789ab pwd=$selwt cmd=go test -count=1 \./x$h" "$sel/sel.log" ||
+  fail "heavy.sh did not resolve a linked worktree's .git/sel.json: $(cat "$sel/err")"
+# ASD-V0-721 (V1-3845): go test -c only compiles, so it needs no reason; a -c of another command does not count.
+sv go test -c -o /dev/null ./x > /dev/null 2> "$sel/err" &&
+  grep -Eq "^$d whole reason=compile-only pwd=.* cmd=go test -c -o /dev/null \./x$h" "$sel/sel.log" ||
+  fail "heavy.sh refused or mislogged go test -c: $(cat "$sel/err")"
+sv go test ./x -args -c > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated a -c after -args as compile-only"
+sv bash -c 'go test ./x' > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$sel/err" ||
+  fail "heavy.sh treated bash -c 'go test' as compile-only: $(cat "$sel/err")"
+# The last -c=BOOL wins, and a -c that is another flag's value is not the compile flag.
+sv go test -c -c=false ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -c -c=false as compile-only"
+sv go test -skip -c ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -skip -c as compile-only"
+sv go test -c=false -c ./x > /dev/null 2> "$sel/err" ||
+  fail "heavy.sh refused go test -c=false -c: $(cat "$sel/err")"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits, and
 # (ASD-V0-970) its load wait and starting load.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"

@@ -56,6 +56,9 @@
 #                        off (ASD-V0-937): a remote below it is unavailable (exit 97, so the next host
 #                        or the fallback runs it) and is ordered last by the probe; a local run below
 #                        it warns and logs `lowdisk-local` but still runs.
+#                        A relative .git/REL resolves to Git's path (linked worktrees); when M
+#                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
+#                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -1138,23 +1141,26 @@ run_selects_all() {
 # manifest_perl: reads a corvint-test-manifest/0 (ARGV[0]) for manifest_admits and print_plan
 # (ASD-V0-891). Mode "admit" (ARGV[1]) succeeds, printing the planDigest's first 12 hex digits, when
 # source.head is ARGV[2] and every remaining package (an import path) is a unit with slice "whole",
-# or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern.
+# or, when the -skip pattern ARGV[3] is not empty, a unit of any slice with that -skip pattern. It
+# fails with one `heavy.sh: HEAVY_SELECTION=PATH not admitted: REASON` stderr line (ASD-V0-722).
 # Mode "plan" prints one heavy.sh command per go: unit under module ARGV[2], each slice with its own
 # -run/-skip pattern and the repository's -timeout 30m (GO_TEST_TIMEOUT), or a skipped line.
 manifest_perl='
 use strict; use warnings; use JSON::PP;
 my ($path, $mode, $key, $skip, @pkgs) = @ARGV;
-open(my $fh, "<", $path) or do { print STDERR "heavy.sh: REFUSE manifest-unreadable $path\n"; exit 2 };
+sub nope { print STDERR $mode eq "admit" ? "heavy.sh: HEAVY_SELECTION=$ARGV[0] not admitted: $_[0]\n" : "heavy.sh: REFUSE $_[0]\n"; exit $_[1] }
+open(my $fh, "<", $path) or nope("manifest-unreadable $path", 2);
 my $m = eval { local $/; JSON::PP->new->decode(<$fh>) };
 ref $m eq "HASH" && ($m->{profile} // "") eq "corvint-test-manifest/0" && ref $m->{units} eq "ARRAY"
-  or do { print STDERR "heavy.sh: REFUSE manifest-invalid $path (want corvint-test-manifest/0)\n"; exit 2 };
+  or nope("manifest-invalid $path (want corvint-test-manifest/0)", 2);
 my $digest = ($m->{planDigest} // "") =~ /^sha256:([0-9a-f]{12})/ ? $1 : "unknown";
 if ($mode eq "admit") {
-  exit 1 unless ref $m->{source} eq "HASH" && ($m->{source}{head} // "") eq $key && @pkgs;
+  my $head = ref $m->{source} eq "HASH" ? $m->{source}{head} // "" : "";
+  $head eq $key or nope("source.head $head is not HEAD $key (regenerate the manifest after this commit)", 1);
   my %admit = map { ($_->{unit} // "") => 1 } grep {
     $skip eq "" ? ($_->{slice} // "") eq "whole" : ($_->{flag} // "") eq "-skip" && ($_->{pattern} // "") eq $skip
   } @{ $m->{units} };
-  $admit{"go:$_"} or exit 1 for @pkgs;
+  $admit{"go:$_"} or nope($skip eq "" ? "unit go:$_ is not selected whole" : "unit go:$_ has no -skip $skip slice", 1) for @pkgs;
   print "$digest\n"; exit 0;
 }
 sub sq { (my $v = shift) =~ s/\x27/\x27\\\x27\x27/g; "\x27$v\x27" } # shell single quotes
@@ -1180,14 +1186,48 @@ module_path() {
   awk '$1 == "module" { gsub(/"/, "", $2); print $2; exit }' go.mod 2> /dev/null
 }
 
+# not_admitted REASON: the one ASD-V0-722 stderr line naming why HEAVY_SELECTION admits nothing.
+not_admitted() {
+  printf 'heavy.sh: HEAVY_SELECTION=%s not admitted: %s\n' "$HEAVY_SELECTION" "$1" >&2
+}
+
+# selection_manifest PATH: PATH, or, when PATH is an unreadable relative .git/REL (a linked
+# worktree's .git is a file), Git's own path for REL (ASD-V0-722).
+selection_manifest() {
+  local resolved
+  if [[ ! -r $1 && $1 == .git/?* ]] && resolved=$(git rev-parse --path-format=absolute --git-path "${1#.git/}" 2> /dev/null); then
+    printf '%s\n' "$resolved"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# compile_only COMMAND...: succeeds when the go test arguments (up to -args) include -c, which
+# builds the test binary and runs no test (ASD-V0-721).
+compile_only() {
+  local seen=0 prev_go=0 c=0 skip=0 arg
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case ${arg#-} in
+      -args | args) break ;;
+      c | -c | c=1 | c=t | c=T | c=true | c=TRUE | c=True | -c=1 | -c=t | -c=T | -c=true | -c=TRUE | -c=True) c=1 ;;
+      c=* | -c=*) c=0 ;;
+      # A flag that takes a value consumes the next argument when written without "=".
+      run | skip | bench | benchtime | timeout | count | p | parallel | cpu | tags | shuffle | vet | exec | ldflags | gcflags | asmflags | mod | modfile | o | coverpkg | covermode | coverprofile | cpuprofile | memprofile | memprofilerate | blockprofile | blockprofilerate | mutexprofile | mutexprofilefraction | trace | outputdir | list | fuzz | fuzztime | fuzzminimizetime | C | overlay | pgo | toolexec | installsuffix | pkgdir) skip=1 ;;
+    esac
+  done
+  ((c))
+}
+
 # manifest_admits COMMAND...: ASD-V0-891. Succeeds, printing the manifest's planDigest prefix, when
 # HEAVY_SELECTION is a manifest of HEAD that selects every package argument whole, or, with one
 # -skip PATTERN, lists that -skip slice for each; each argument must be ./REL (or .) with no ..., ..
 # or -C. Other flags are skipped as in small_package_bytes.
 manifest_admits() {
-  local seen=0 skip=0 prev_go=0 arg dir mod head pkgs=() skips=()
-  mod=$(module_path) && [[ -n $mod ]] || return 1
-  head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || return 1
+  local seen=0 skip=0 prev_go=0 arg dir mod head manifest pkgs=() skips=()
+  mod=$(module_path) && [[ -n $mod ]] || { not_admitted "./go.mod names no module"; return 1; }
+  head=$(git rev-parse HEAD 2> /dev/null) && [[ -n $head ]] || { not_admitted "git rev-parse HEAD failed"; return 1; }
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then ((skip == 2)) && skips+=("$arg"); skip=0; continue; fi
@@ -1195,26 +1235,28 @@ manifest_admits() {
       -skip) skip=2 ;;
       -skip=*) skips+=("${arg#-skip=}") ;;
       -run | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
-      -C | -C=*) return 1 ;;
+      -C | -C=*) not_admitted "argument $arg is not a ./REL directory"; return 1 ;;
       -*) ;;
       .) pkgs+=("$mod") ;;
       *)
         dir=${arg#./}
         dir=${dir%/}
-        [[ $arg == ./* && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || return 1
+        [[ $arg == ./* && -n $dir && $dir != *...* && $dir != *..* && -d $dir ]] || { not_admitted "argument $arg is not a ./REL directory"; return 1; }
         pkgs+=("$mod/$dir")
         ;;
     esac
   done
-  ((${#pkgs[@]})) && ((${#skips[@]} < 2)) || return 1
-  perl -e "$manifest_perl" "$HEAVY_SELECTION" admit "$head" "${skips[0]-}" ${pkgs[@]+"${pkgs[@]}"} 2> /dev/null
+  ((${#pkgs[@]})) || { not_admitted "no package argument"; return 1; }
+  ((${#skips[@]} < 2)) || { not_admitted "more than one -skip"; return 1; }
+  manifest=$(selection_manifest "$HEAVY_SELECTION")
+  perl -e "$manifest_perl" "$manifest" admit "$head" "${skips[0]-}" "${pkgs[@]}"
 }
 
 # print_plan MANIFEST: ASD-V0-891 --plan; prints the per-package heavy.sh commands, runs nothing.
 print_plan() {
   local mod
   mod=$(module_path) && [[ -n $mod ]] || refuse "no-module ./go.mod names no module; run --plan from the module root"
-  perl -e "$manifest_perl" "$1" plan "$mod"
+  perl -e "$manifest_perl" "$(selection_manifest "$1")" plan "$mod"
 }
 
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
@@ -1223,6 +1265,10 @@ selection_policy() {
   local now
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  if compile_only "$@"; then
+    selection_log "$now whole reason=compile-only pwd=$PWD cmd=$*"
+    return 0
+  fi
   case " $* " in
     *" -run "* | *" -run="* | *" --run "* | *" --run="*)
       if ! run_selects_all "$@"; then

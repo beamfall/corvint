@@ -583,6 +583,48 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 	}
 }
 
+// GL-V0-720 (V1-3846): go-test --packages runs only the listed packages, says so, records the
+// scope, and refuses an empty list or a flag-like pattern before anything runs.
+func TestGoTestScopedPackages(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	packageRepository(t, map[string]string{
+		"go.mod":              "module example.com/fixture\n\ngo 1.27\n",
+		"core/core_test.go":   "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+		"other/other_test.go": "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {}\n",
+	})
+	log := filepath.Join(t.TempDir(), "ARGS")
+	command := []string{"--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
+	for _, bad := range [][]string{{"--packages", ""}, {"--packages", " , "}, {"--packages", "./core,-x"}, {"--packages"}} {
+		if code, out := ledgerRun(t, append(append([]string{"go-test"}, bad...), command...)...); code != 2 || !strings.Contains(out, "usage: gate-ledger") {
+			t.Fatalf("%q: code %d, %q", bad, code, out)
+		}
+	}
+	if code, out := ledgerRun(t, append([]string{"go-test", "--packages", "./docs/..."}, command...)...); code != 1 || !strings.Contains(out, "gate-ledger: SCOPE packages ./docs/... matches no packages to test") {
+		t.Fatalf("a scope matching no package: code %d, %q", code, out)
+	}
+	if _, err := os.Stat(log); !os.IsNotExist(err) {
+		t.Fatalf("a refused scope ran the command: %v", err)
+	}
+	code, out := ledgerRun(t, append([]string{"go-test", "--packages", "./core"}, command...)...)
+	if code != 0 || !strings.Contains(out, "gate-ledger: SCOPE packages ./core\n") || !strings.Contains(out, "PARTITION 1 resolved packages") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/core ") {
+		t.Fatalf("scoped run: code %d, %q", code, out)
+	}
+	if data, _ := os.ReadFile(log); strings.Contains(string(data), "other") || !strings.Contains(string(data), "example.com/fixture/core") {
+		t.Fatalf("go test received %q", data)
+	}
+	records, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	if len(records) != 1 {
+		t.Fatalf("records %q", records)
+	}
+	if data, _ := os.ReadFile(records[0]); !strings.Contains(string(data), `"scope":["./core"]`) {
+		t.Fatalf("record %s", data)
+	}
+	// Without --packages every package runs and the record carries no scope.
+	if code, out := ledgerRun(t, append([]string{"go-test"}, command...)...); code != 0 || strings.Contains(out, "SCOPE") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/other ") {
+		t.Fatalf("unscoped run: code %d, %q", code, out)
+	}
+}
+
 // GL-V0-050 (V1-0634): a root-locating package the read-scope declaration
 // bounds is keyed per package over its subtree, its declared entries and the
 // declaration, not the tree: an unrelated edit hits its record, and an edit
