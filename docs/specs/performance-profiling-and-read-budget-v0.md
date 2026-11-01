@@ -338,6 +338,16 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
   path when the local host is contended: run `make perf-budget PERF_BUDGET_ARGS='--out report.json'`
   (optionally with `--scenario`) on a quiet host at a clean commit, copy `report.json` back, then
   run `perf-budget --record-baseline-from report.json`.
+- `PRB-V0-120`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3840) A
+  `perf-budget --scale S` run whose `S` differs from the budgets file's scale MUST NOT be refused:
+  it measures as usual, every check becomes `not-judged` with the reason that the budgets bind
+  another scale, `pending` and `advisory` are empty, and the run is `NOT_JUDGED` (still `FAIL` when
+  a scenario failed or a metric was unobserved, as in `PRB-V0-040`). Every run prints one
+  `budget rows applied:` progress line: `none; REASON` for another scale, else the check count, the
+  budgets file and its scale. `--record-baseline` at another scale stays refused with exit 2.
+  Non-goals: committing smoke-scale budget rows. Evidence:
+  `TestPRBV0120SmokeScaleRunIsMeasurementsOnly`, the `scale mismatch baseline` case of
+  `TestPRBV0029HarnessCannotRunExitsTwo`. Rollback: restore the scale-mismatch refusal.
 
 Non-goals: tolerating contention in a verdict, and a remote runner. Failure mode: a report from
 another revision records that revision's measurements, attributed to it by provenance or by the
@@ -497,6 +507,7 @@ baseline's own `revision`. Rollback: drop `--scenario` and `--record-baseline-fr
 | `PRB-V0-043` | `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0043NotJudgedRunIsNotBaselined` |
 | `PRB-V0-970` | `--scenario` in `internal/perfbudget/cmd/perf-budget/main.go`, `Options.Selected` and `Report.Selected` in `internal/perfbudget/harness.go`, `mergeBaseline` | `TestPRBV0970ScenarioFilterArguments`, `TestPRBV0970FilteredBaselineReplacesOnlySelected`, `TestPRBV0970RunMeasuresOnlySelected` |
 | `PRB-V0-971` | `--record-baseline-from` and `readReport` in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0971RecordBaselineFromReport` |
+| `PRB-V0-120` | `withholdForScale`, `appliedLine` and the scale check in `internal/perfbudget/cmd/perf-budget/main.go` | `TestPRBV0120SmokeScaleRunIsMeasurementsOnly`, `TestPRBV0029HarnessCannotRunExitsTwo` |
 
 ## Rollback
 
