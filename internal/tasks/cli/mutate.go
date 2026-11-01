@@ -134,6 +134,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
 		}
+		flags.expected = landedRevision(env, flags.requestID, flags.expected)
 	}
 	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
