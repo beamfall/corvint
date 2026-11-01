@@ -27,7 +27,8 @@ Corvint reads.
 
 Upstream, read from the release sources on 2026-10-17:
 
-- OpenSpec 1.14.3. Current truth lives in `openspec/specs/<capability>/spec.md`, where the
+- OpenSpec 1.14.3 (re-pinned to 1.16.0 on 2026-10-31 with no grammar drift; it raises
+  `engines.node` to `>=22.12.0`). Current truth lives in `openspec/specs/<capability>/spec.md`, where the
   capability may be nested. A change's deltas live in `openspec/changes/<id>/specs/**/spec.md`. An
   archived change moves to `openspec/changes/archive/YYYY-MM-DD-<id>/`.
   - A main spec has `## Purpose` and `## Requirements`. Each requirement is a `### Requirement: <name>`
@@ -39,7 +40,7 @@ Upstream, read from the release sources on 2026-10-17:
     `docs/agent-contract.md`.
   - There are no hooks. `openspec/config.yaml` `context` and `rules` are injected into agent
     instructions.
-- Spec Kit 1.2.1. Features live in `specs/<NNN|YYYYMMDD-HHMMSS>-<slug>/spec.md`, alongside `plan.md`,
+- Spec Kit 1.2.1 (re-pinned to 1.2.5 on 2026-10-31 with no grammar drift). Features live in `specs/<NNN|YYYYMMDD-HHMMSS>-<slug>/spec.md`, alongside `plan.md`,
   `tasks.md`, `contracts/` and `checklists/`. Project principles are in `.specify/memory/constitution.md`.
   - Functional requirements are `- **FR-001**: ...` lines under `## Requirements`. Success criteria
     are `- **SC-001**: ...` lines under `## Success Criteria`.
@@ -58,7 +59,7 @@ Corvint at `d35b0ee3`:
 
 ## Requirements
 
-- `STA-V0-001`: One manifest, `interop/spec-toolchains/versions.json`, records the supported upstream releases. Each entry has the toolchain name, version, source (npm package or Git tag), commit or tarball SHA-256, and the date checked. The initial entries are OpenSpec `@fission-ai/openspec` 1.14.3 and Spec Kit `github/spec-kit` v1.2.1. Corvint's documentation claims support only for listed versions. Every other version is untested and must be reported as such, never as supported.
+- `STA-V0-001`: One manifest, `interop/spec-toolchains/versions.json`, records the supported upstream releases. Each entry has the toolchain name, version, source (npm package or Git tag), commit or tarball SHA-256, and the date checked. The initial entries were OpenSpec `@fission-ai/openspec` 1.14.3 and Spec Kit `github/spec-kit` v1.2.1; the current entries are OpenSpec 1.16.0 and Spec Kit v1.2.5 (V1-2886). Corvint's documentation claims support only for listed versions. Every other version is untested and must be reported as such, never as supported.
 - `STA-V0-002`: `ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob needs exactly one unfenced `## Requirements` line, and the span runs to the next unfenced level-2 heading or the end of the blob, with the `OCM-V0-001` fence rules.
   - Each unfenced line matching `^###\s*Requirement:\s*(.+)$` (case-insensitive keyword) is one requirement. Its native name is the captured text with surrounding blanks trimmed and, as upstream, a closing `#` run removed only when a space or tab precedes it (so `C#` keeps its `#`).
   - The statement runs from the header to the byte before the next unfenced level-3 or level-2 heading, so it includes scenarios.
@@ -98,7 +99,7 @@ Corvint at `d35b0ee3`:
   - Hooks: `before_implement` → context and `after_implement` → review, both `optional: true`.
   - The commands only read, report Corvint's output including every `unknown`/`NOT_PRODUCED`, and never block, edit or commit. `corvint review` refuses a dirty worktree, which is normal after implementing; the command reports that refusal as printed and never commits to satisfy it.
 - `STA-V0-009`: `protocol/integrations/openspec/` holds an OpenSpec integration (Apache-2.0).
-  - A `config.yaml` snippet that tells the agent to run `corvint context` before `apply` and `corvint review` after it. OpenSpec 1.14.3 injects `rules` only into artifacts and `apply` reads `context` and `operations.apply.guidance`, so the steps appear in `rules.tasks`, `context` and `operations.apply.guidance`.
+  - A `config.yaml` snippet that tells the agent to run `corvint context` before `apply` and `corvint review` after it. OpenSpec 1.14.3 and 1.16.0 inject `rules` only into artifacts and `apply` reads `context` and `operations.apply.guidance`, so the steps appear in `rules.tasks`, `context` and `operations.apply.guidance`.
   - An agent skill file with the same two read-only steps.
   - A README giving the exact `ocm prepare --intent-form` commands for main specs and deltas.
 - `STA-V0-010`: `interop/spec-toolchains/fixtures/{openspec,speckit}/` hold minimal projects that pass the pinned upstream validators (`openspec validate --all --strict`; Spec Kit's own templates and `check-prerequisites.sh --json`). They include a nested capability, every delta operation, an archived change, `FR`/`SC` IDs, a clarification marker and a constitution.
@@ -159,11 +160,14 @@ Corvint at `d35b0ee3`:
   Delivered: `.github/workflows/spec-toolchain-conformance.yml` running `make spec-toolchain-conformance`
   (`script/spec-toolchain-conformance.sh`). It passed locally on 2026-10-18 with OpenSpec 1.14.3 and
   Spec Kit 1.2.1 over seven intent forms, one with out-of-section FR/SC items
-  (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-sta-v0-conformance.md`); the first CI run is `NOT_RUN` until the
+  (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-sta-v0-conformance.md`),
+  and again on 2026-10-31 with OpenSpec 1.16.0 and Spec Kit 1.2.5 over the same seven forms
+  (`docs/build-log/2026-10-31-cmdcem-mac.md`); the first CI run is `NOT_RUN` until the
   workflow reaches GitHub.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
   Delivered: the 2026-10-18 transcript (`openspec 1.14.3 CURRENT`, `spec-kit 1.2.1 CURRENT`) in the
-  build-log entry, and the offline cases in `script/spec-toolchain-latest_test.sh`
+  build-log entry, the 2026-10-31 transcript (`openspec 1.16.0 CURRENT`, `spec-kit 1.2.5 CURRENT`) in
+  `docs/build-log/2026-10-31-cmdcem-mac.md`, and the offline cases in `script/spec-toolchain-latest_test.sh`
   (`make spec-toolchain-latest-test`).
 - The route row in `docs/SELF-DEVELOPMENT.md` covers `STA-V0-013`.
   Delivered: "Change an OpenSpec or Spec Kit intent form or integration".

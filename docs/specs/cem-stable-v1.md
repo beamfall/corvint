@@ -6,7 +6,7 @@ Delivery status: implemented and produced on main (decision 0525, CEM-V1-140..15
 ## Agent digest
 - Claim: Owner requires portable task-linked execution evidence and all main runners for Corvint1.0; contract accepted (decision 0546), promotion open.
 - Status: owner scope accepted; technical contract accepted (decision 0546, 2026-10-20); implemented and produced on main (decision 0525, CEM-V1-140..152, V1-1276); not promoted; qualification bounded.
-- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (accepted by decision 0546 `CEM-V1-017..019`), hidden Core report/MCP preview (accepted by decision 0546 `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (accepted by decision 0546 `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (accepted by decision 0546 `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (accepted by decision 0546 `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (accepted by decision 0546 `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (accepted by decision 0546 `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (accepted by decision 0546 `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (accepted by decision 0546 `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (accepted by decision 0546 `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (accepted by decision 0546 `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (accepted by decision 0546 `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (accepted by decision 0546 `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); an opt-in, append-only verdict ledger under `refs/notes/corvint-verdicts` that `cem anchor --artifacts` extends with the native `verdictSha256`, refusing a differing verdict for the same map and commit with `verdict-ledger-conflict`, and a read-only `cem provenance --verdicts` listing (accepted under the owner's standing auto-accept (2026-10-11) `CEM-V1-271..279`, V1-1292); opt-in runner receipt admission in the plain producer and an end-to-end fixture chain from a native Tasks attempt through the runner, the producer and the native and portable verdict gate (`CEM-V1-280..287`, accepted under the owner's standing auto-accept (2026-10-11), V1-0632); an unadmitted plain runner receipt labelled `opaque/0`, read beside the legacy `corvint-test-runner-receipt/0` label by both consumers without rewriting any committed map (`CEM-V1-310..313`, accepted under the owner's standing auto-accept (2026-10-11), V1-2096); `cem status` and `cem verify` reading an absolute `--map` outside the repository, with maps inside it or behind a symlink refused and the map-path rules in help (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-315..317`, V1-2097); a positive `cem/1.0` read for the dashboard's separate `cem-stable` document and the local-authority capsule's stable closure, each with stale and incomplete binding controls (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-290..299`, V1-0632); a plain `assemble-stable` result whose `nextActions` names the `cem verify-stable` route over the bundle it wrote (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-350..351`, V1-2105); native and portable qualification of the canonical repository envelope over real ordinary, origin-config, linked and SHA-256 checkouts and twelve adversarial shapes, with one native code divergence pending V1-2133 (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-360..367`, V1-0595); a native-only hunk-less binary file group bound by blob identity, reported by `cem prepare` as excluded rows and refused as a citation target, with the portable consumer still refusing it (experimental, `CEM-V1-980..986`, V1-2752); qualification remains bounded.
+- Exists: experimental runner profiles, native Tasks criterion binding and portable candidate proofs; hidden Core status/verify stable read (accepted by decision 0546 `CEM-V1-017..019`), hidden Core report/MCP preview (accepted by decision 0546 `CEM-V1-034..036`), hidden Core stable bundle export (accepted `CEM-V1-060..064`), explicit Core mutator refusals of `cem/1.0` (accepted by decision 0546 `CEM-V1-030..033`, narrowed to `cem/0.x` producers), the Core `cem/1.0` producer and dogfood loop cutover (accepted `CEM-V1-140..152`, V1-1276), the internal OCM/LRF stable universe admission (accepted `CEM-V1-051..059`, no stable LRF evaluation) and library-level stable witness, collapse, documentation and console projections (accepted `CEM-V1-070..079`); a provider-neutral plain criterion form verified by both consumers without a Tasks store (accepted by decision 0546 `CEM-V1-083`); DSSE Ed25519 runner receipt authentication that rises to VERIFIED only under a consumer `--trusted-keys` file (accepted by decision 0546 `CEM-V1-084`); optional stable map `provenance` and `role` members, a closed producer-only member list emitted empty, and the 0.1/0.3 algorithms re-homed as 1.0-normative `ALGORITHMS.md` text (accepted by decision 0546 `CEM-V1-093..095`); a deterministic cem/0.x to cem/1.0 map converter with provenance and full-corpus verdict-parity evidence (accepted by decision 0546 `CEM-V1-096..105`, satisfied by the frozen V1-1277 evidence; the converter no longer ships); the one-commit migration of every committed map to `cem/1.0` (accepted `CEM-V1-230..232`, V1-1277); the core 0.x retirement: a stable reader refusal of `cem/0.1..0.3` naming the merge-forward fix, a committed-corpus check, a `cem/1.0`-only sealed-constituent admission with a no-coverage rule for a retired seal, and the converter's removal (accepted by decision 0546 `CEM-V1-200..204`, V1-1278 S1); local-completion sidecar-only reuse of a committed `cem/1.0` sidecar on a stable verifier `ACCEPT` over its exact bytes with the absolute repository root and full object IDs, with closed refusal reasons and `CEM-V1-150`'s fail-closed default otherwise (accepted by decision 0546 `CEM-V1-205..209`, V1-1303); every consumer outside `internal/cem` reads `cem/1.0` only and refuses a retired map with `unsupported-spec`, with the frontier-v0, ocm-v0 and cli-parity-v0 freezes superseded under decision 0525 §6 (accepted by decision 0546 `CEM-V1-210..214`, V1-1278 S2a); the 0.x wire, verifier, producers and `cem` CLI routes, the `frontier/0`, `tcq/0`, `lrf/0` and `external-frontier-obligations/0` routes and the attest `cem/0`/`cem/v1` predicates are deleted, leaving one wire (accepted by decision 0546 `CEM-V1-215..219`, V1-1278 S2b); the `protocol/cem-0.2`, `protocol/cem-0.3`, `interop/cem-0.1`, `conformance/cem-0.1`/`cem-0.2` packets, `examples/cem`, `tools/cem-interop-runner` and the portable consumer's 0.x routes are deleted, the inherited text moves into the self-contained `protocol/cem-1.0` packet and the 0.x specs are retired, completing decision 0525 §1 step 7 (accepted by decision 0546 `CEM-V1-220..225`, V1-1278 S3); one shared `cem/1.0` tamper matrix in the packet that the native and portable consumers both run with the same pinned verdicts (accepted by decision 0546 `CEM-V1-226..229`, V1-1340); `corvint-cem-anchor/1` anchor pointers that read `verified` only when the anchored map describes the commit's canonical patch, `unscoped` legacy `/0` pointers and a `--notes-tip` rollback read (accepted `CEM-V1-067`, V1-1260); the portable consumer's process containment qualified on Darwin and Linux amd64/arm64 through a pidfd/epoll keeper and a `/proc` quiet proof, with every other host still refusing `unsupported-process-containment` (accepted `CEM-V1-180..184`, V1-1358); truthful packet status, the citation rules, stop list, result serialization and diff recipe restated in the packet, and native-generated citation vectors both consumers run (accepted `CEM-V1-107..112`, V1-1333); a discrimination witness whose `mutants` exceeds `bounds.maxMutants` refused `invalid-field` by both consumers (accepted `CEM-V1-090`, V1-1259); a normative nested result member order with pinned whole result lines both consumers reproduce (accepted `CEM-V1-113`, V1-1369); the consumer's Git capability contract (`--attr-source`, Git 2.41 or later, else `repository` / `git-diff-failed`), its PATH-only Git resolution and the hosted `macos-15` qualification through the Tasks gate's own Git (accepted `CEM-V1-185..189`, V1-1377); `cem cite` refusing a governing instruction file the map's own patch changes with `cite-self-modified-authority` (accepted `CEM-V1-114`, V1-0414); `cem status` reporting each governing instruction file the patch changes as `selfModifiedAuthority`, advisory and verdict-neutral (accepted `CEM-V1-270`, V1-0414); `UNSUPPORTED` argument refusals with a stderr or envelope absolute-path fix and a pinned reference precedence, so both consumers return the same outcome, stage and code for the same input (accepted `CEM-V1-115..117`, `CEM-V1-176..177`, V1-1291/V1-1306/V1-1289); an opt-in consumer hunk-revert falsifier, `cem verify --hunk-revert`, that reports `held` beside the unchanged result only from its own `go test` re-execution (accepted `CEM-V1-088..089`, V1-1266; its disposable export refuses a repository-local `TMPDIR`, accepted `CEM-V1-240`, V1-1452); an opt-in, append-only verdict ledger under `refs/notes/corvint-verdicts` that `cem anchor --artifacts` extends with the native `verdictSha256`, refusing a differing verdict for the same map and commit with `verdict-ledger-conflict`, and a read-only `cem provenance --verdicts` listing (accepted under the owner's standing auto-accept (2026-10-11) `CEM-V1-271..279`, V1-1292); opt-in runner receipt admission in the plain producer and an end-to-end fixture chain from a native Tasks attempt through the runner, the producer and the native and portable verdict gate (`CEM-V1-280..287`, accepted under the owner's standing auto-accept (2026-10-11), V1-0632); an unadmitted plain runner receipt labelled `opaque/0`, read beside the legacy `corvint-test-runner-receipt/0` label by both consumers without rewriting any committed map (`CEM-V1-310..313`, accepted under the owner's standing auto-accept (2026-10-11), V1-2096); `cem status` and `cem verify` reading an absolute `--map` outside the repository, with maps inside it or behind a symlink refused and the map-path rules in help (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-315..317`, V1-2097); a positive `cem/1.0` read for the dashboard's separate `cem-stable` document and the local-authority capsule's stable closure, each with stale and incomplete binding controls (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-290..299`, V1-0632); a plain `assemble-stable` result whose `nextActions` names the `cem verify-stable` route over the bundle it wrote (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-350..351`, V1-2105); native and portable qualification of the canonical repository envelope over real ordinary, origin-config, linked and SHA-256 checkouts and twelve adversarial shapes, with one native code divergence pending V1-2133 (accepted under the owner's standing auto-accept (2026-10-11), `CEM-V1-360..367`, V1-0595); a hunk-less binary file group bound by blob identity, reported by `cem prepare` as excluded rows and refused as a citation target (experimental, `CEM-V1-980..986`, V1-2752), now admitted by the portable consumer's stable routes under stable packet revision r2 with a shared native/portable parity case (experimental, `CEM-V1-934..936`, V1-3443); a native-only mode change beside textual hunks, base-mode checked and bound by the canonical-diff proof, with the portable consumer still refusing it (experimental, `CEM-V1-930..933`, V1-3404); qualification remains bounded.
 - Blocked on: stable promotion (owner). Runner-tuple gaps and independent interoperability/outcome evidence (`CEM-V1-008`) ship in 1.0 as recorded limits (decision 0546).
 - Read next: Owner context; Requirements; Acceptance evidence.
 
@@ -797,13 +797,64 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   - the canonical-diff proof reads at most `gitauth.MaxTotalBlobBytes` (128 MiB) of blobs in all,
     and each blob at most `gitauth.MaxBlobBytes` (64 MiB);
   - base simulation reads the base blob through the same bounded source as a textual group.
-- `CEM-V1-986`: (experimental under the standing lane auto-accept (V1-2752)) The frozen
+- `CEM-V1-986`: (experimental under the standing lane auto-accept (V1-2752); amended by
+  `CEM-V1-934..936`, V1-3443, which retire this divergence for the portable stable routes) The frozen
   `protocol/cem-1.0/stable/` packet and the portable consumer (`interop/cem01-go`) are unchanged.
   The portable consumer keeps refusing any patch with a binary marker line (its `patch` refusal),
   so it rejects a map that the native reader now accepts. The divergence fails closed, and it is
   recorded here as a native-only extension until a later packet revision. The shared tamper
   matrix, citation vectors and repository-envelope cells contain no binary section, so every
   pinned native and portable verdict is unchanged.
+- `CEM-V1-930`: (experimental under the standing lane auto-accept (V1-3404)) Amends `CEM-V1-301`
+  for the native parser (`internal/cem/patch`). A textual modification or rename group MAY carry
+  one `old mode M1` line and one `new mode M2` line, with `M1` and `M2` each `100644` or `100755`
+  and different. The group records both modes. Git then omits the `index` mode suffix, so a mode
+  suffix beside these lines refuses `diff-metadata-mismatch`, as do these lines on a creation or a
+  deletion. A lone, repeated or equal pair, or a mode other than `100644` or `100755`, refuses
+  `malformed-patch` as before (`CEM-V1-301`). A binary group with these lines keeps the `CEM-V1-980` `binary-patch`
+  refusal, and a mode-only group keeps the `CEM-V1-300` refusal.
+- `CEM-V1-931`: (experimental under the standing lane auto-accept (V1-3404)) Base simulation
+  (`internal/cem/sim`) of a group with a mode change MUST refuse `diff-metadata-mismatch` when the
+  base path's tree mode differs from `M1`. The hunks apply exactly as for a group without a mode
+  change. The target mode is bound only by the canonical-diff proof (`internal/cem/gitauth`), which
+  already renders these lines from the base and target trees. No hunk, hunk ID, wire member or
+  schema changes.
+- `CEM-V1-932`: (experimental under the standing lane auto-accept (V1-3404)) The frozen
+  `protocol/cem-1.0/stable/` packet (`ALGORITHMS.md` still rejects a mode change) and the portable
+  consumer (`interop/cem01-go`, `unsupported-tree-mode`) are unchanged. The portable consumer
+  therefore refuses a map that the native reader accepts. This divergence fails closed, and it is
+  recorded here as a native-only extension until a later packet revision. The `mode-and-text-change`
+  vector in `interop/cem01-go/testdata/metadata-only/cases.json` pins it, with an empty
+  `nativeCode` (accepted) and an unchanged `portableCode`.
+- `CEM-V1-933`: (experimental under the standing lane auto-accept (V1-3404)) A commit that changes
+  a tracked file's mode and edits its text MUST be bindable: `cem prepare` accepts its canonical
+  patch, and the native stable verifier accepts the prepared map. `corvint dogfood
+  propose-citations` reads the same parser. A regression test MUST build such a commit in a real
+  repository.
+- `CEM-V1-934`: (experimental under the standing lane auto-accept (V1-3443)) Amends `CEM-V1-986`.
+  The portable consumer (`interop/cem01-go`) MUST accept, on its stable routes
+  (`verify-stable` and `verify-stable-canonical`), Git's canonical full-index binary section in a
+  patch with at least one textual hunk, with the `CEM-V1-980` grammar: a symmetric `diff --git`
+  line; no rename, similarity or `old mode`/`new mode` record; `new file mode` for a creation or
+  `deleted file mode` for a deletion; one `index` line whose full lowercase object IDs have one
+  length (40 or 64), all zeros on the absent side, with a mode suffix only for a modification of two
+  distinct nonzero IDs; and the `Binary files a/P and b/P differ` marker as the group's last record,
+  with `/dev/null` on the absent side. A binary-only patch, `GIT binary patch` data, any other binary
+  shape and any binary section on the candidate route keep the `patch` refusal.
+- `CEM-V1-935`: (experimental under the standing lane auto-accept (V1-3443)) The portable consumer
+  MUST NOT simulate a binary group or read its blob bodies. Each present base and target entry MUST
+  be a regular file (otherwise `unsupported-tree-mode`), in the group's mode (otherwise
+  `diff-metadata-mismatch`), whose object ID equals the one the index line names (otherwise
+  `invalid-field`). The path still counts toward the changed-path inventory. The canonical patch is
+  derived from Git and bound by `patchSha256`, as for a textual group.
+- `CEM-V1-936`: (experimental under the standing lane auto-accept (V1-3443)) The stable packet is
+  revised in place to revision r2 under its own rule: the r1 `ALGORITHMS.md` and `manifest.json`
+  bytes are preserved unchanged under `protocol/cem-1.0/stable/revisions/r1/`; `ALGORITHMS.md`
+  items 6 and 7 admit the binary section; and `manifest.json` re-hashes every file, including the
+  preserved ones. The shared case `interop/cem01-go/testdata/binary-section/` (a binary creation,
+  modification and deletion beside one textual hunk) MUST yield one ACCEPT with one patch digest
+  from the native reader and from both portable stable routes, and a REJECT once the digest is
+  altered. The `old mode`/`new mode` divergence of `CEM-V1-932` is unchanged.
 
 ## Non-goals and failure modes
 
@@ -4244,7 +4295,8 @@ header"). Portable gave `metadata`, `file-header` or `unsupported-tree-mode`.
     change has two different modes, the `index` mode is absent or equal to the file mode, and the
     unquoted `diff --git a/PATH b/PATH` names one valid path on both sides.
 - `CEM-V1-301`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0609) Any group
-  outside the `CEM-V1-300` shape MUST keep its pre-V1-0609 error unchanged. Examples:
+  outside the `CEM-V1-300` shape MUST keep its pre-V1-0609 error unchanged (for the native parser,
+  `CEM-V1-930` amends the mode-plus-text case). Examples:
   - a mode change together with a text change;
   - a creation without an `index` line;
   - an unchanged or non-regular mode;
@@ -5604,4 +5656,64 @@ golden, vector or ledger depends on this change.
 | CEM-V1-983 | `TestCEMV1983PrepareBindsBinaryFixture` (`internal/cem/workflow`) | A real commit with one binary fixture and a text change prepares; the result's `binary` rows name the path, change, both blob IDs, both sizes and `excluded`; the map has only the textual hunk and native `verify` reads it without a parser refusal; a text-only prepare has no `binary` member |
 | CEM-V1-984 | `TestCEMV1984CiteRefusesBinaryPath` (`internal/cem/workflow`) | A cite into the changed binary path refuses `cite-span-not-stable` naming it, while a cite into the text file succeeds |
 | CEM-V1-985 | `TestCEMV1985OverBoundBinaryRefuses` (`internal/cem/workflow`), `TestCEMV1980BinaryGroupGrammar` (`internal/cem/patch`) | A binary creation one byte over `gitauth.MaxBlobBytes` beside a text change refuses `cem prepare` with `repository-object-unavailable` naming the path and writes no map; a map begun over the same canonical patch is refused with that code by the candidate and stable verifiers; the parser's oversize and NUL refusals are unchanged |
-| CEM-V1-986 | `TestCEMV1986PortableRefusesCanonicalBinarySection` (`interop/cem01-go`) | The portable parser rejects the canonical full-index binary section beside a textual group with its `patch` refusal |
+| CEM-V1-986 | `TestCEMV1934PortableBinarySectionGrammar` (`interop/cem01-go`) | Superseded for the stable routes by `CEM-V1-934..936`; a binary-only patch, `GIT binary patch` data and every non-canonical binary shape keep the `patch` refusal |
+
+## Mode change beside textual hunks (V1-3404, 2026-10-31)
+
+Status: `CEM-V1-930..933` are experimental under the owner's standing lane auto-accept of
+2026-10-11. Build entry `docs/build-log/2026-10-31-cmdcem-mac.md`. Until now the native parser
+refused every `old mode`/`new mode` line with `malformed-patch`. A commit that ran `chmod +x` on a
+tracked script and edited it could not be prepared or dogfood-bound (V1-3404, observed by lane
+linux-w2).
+
+Design: the canonical-diff proof already renders `old mode`/`new mode` from the verified trees, so
+the target mode is bound through `patchSha256`. The parser records both modes, and base simulation
+checks the base side. This follows the `CEM-V1-980` precedent: native-only, with the portable
+divergence failing closed.
+
+Non-goals: no mode-only map (`CEM-V1-300` stands), no binary or symlink mode change, no wire
+member, and no change to the frozen packet or the portable consumer.
+
+Failure modes: the portable consumer refuses such a map with `unsupported-tree-mode`, which fails
+closed. A base whose mode differs from `old mode` refuses `diff-metadata-mismatch`.
+
+Rollback: revert the V1-3404 implementation commit. Every mode change again refuses
+`malformed-patch`, and a map prepared over one must be re-prepared without that change. No
+committed map, seal, golden or ledger depends on it.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-930 | `TestCEMV1930ModeChangeGrammar` (`internal/cem/patch`) | A modification and a rename with a mode change parse and record both modes; a creation, a deletion, an index mode suffix, a lone, repeated or equal pair, and a non-regular mode refuse with the named codes |
+| CEM-V1-931 | `TestCEMV1931ModeChangeBaseSimulation` (`internal/cem/sim`) | A base in `old mode` passes; a base in the other mode refuses `diff-metadata-mismatch` |
+| CEM-V1-932 | `TestMetadataOnlyChangeRefusalVectors` (`internal/cem/patch` and `interop/cem01-go`) | `mode-and-text-change` parses natively and still refuses `unsupported-tree-mode` portably |
+| CEM-V1-933 | `TestCEMV1933PrepareBindsModeChange` (`internal/cem/workflow`) | A real commit that runs `chmod +x` on a tracked script and edits one line prepares, and the native stable verifier accepts the map |
+
+## Portable binary section and stable packet r2 (V1-3443, 2026-10-31)
+
+Status: `CEM-V1-934..936` are experimental under the owner's standing lane auto-accept of
+2026-10-11. Build entry `docs/build-log/2026-10-31-cmdcem-mac.md`. `CEM-V1-986` left the portable
+consumer refusing every binary marker, so a map that the native reader accepts over a binary file
+change failed portably.
+
+Design: the portable parser admits only the exact section that the native parser admits
+(`CEM-V1-980`). A binary group carries no hunk and is checked against the verified trees by mode and
+object ID. Both stable routes derive the canonical patch from Git and compare its digest, so the
+section's object IDs are bound through `patchSha256`. The packet keeps one directory: its r1 bytes
+are preserved under `revisions/r1/` before items 6 and 7 change, as its README requires.
+
+Non-goals: no binary content diff or citation of binary bytes, no binary section on the portable
+candidate route, no `old mode`/`new mode` support in the portable consumer (`CEM-V1-932` stands),
+and no wire or schema change.
+
+Failure modes: a non-canonical binary shape, a binary-only patch and `GIT binary patch` data keep the
+`patch` refusal. A tree entry that disagrees with the section refuses with the `CEM-V1-935` codes.
+
+Rollback: revert the V1-3443 implementation commit. The portable consumer again refuses every binary
+marker, and `protocol/cem-1.0/stable/` returns to the r1 bytes preserved in `revisions/r1/`. No
+committed map, seal, golden or ledger depends on the revision.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-934 | `TestCEMV1934PortableBinarySectionGrammar` (`interop/cem01-go`) | A binary creation, modification and deletion (SHA-1 and SHA-256 lengths) beside a textual hunk parse; a binary-only patch, abbreviated or mixed-length IDs, a missing or misplaced mode suffix, equal or zero IDs on a modification, a wrong label, rename or mode-pair metadata, a trailing record and `GIT binary patch` data refuse `patch` |
+| CEM-V1-935 | `TestCEMV1935PortableBinaryEntries` (`interop/cem01-go`) | Matching entries pass; a symlink, a mode mismatch and an object ID mismatch on either side refuse with the named codes |
+| CEM-V1-936 | `TestCEMV1936PortableReaderAgreesOnBinarySectionVector` (`interop/cem01-go`), `TestCEMV1936NativeReaderAgreesOnBinarySectionVector` (`internal/cem/verify`) | The shared case ACCEPTs at `complete` with patch `f551fd0a…` on the native reader and on both portable stable routes, maps only `text.txt`, and REJECTs once the digest is altered |

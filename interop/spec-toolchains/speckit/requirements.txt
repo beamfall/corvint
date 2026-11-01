@@ -669,8 +669,8 @@ shellingham==1.5.4 \
     --hash=sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686 \
     --hash=sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de
     # via typer
-specify-cli @ https://github.com/github/spec-kit/archive/9dca9bf42a031765ee5e5f2371137f2f26967e11.tar.gz \
-    --hash=sha256:c416d6ab6af39aa03af35d0704ed620b43d8927852a06fc3dd87e61e396ff07e
+specify-cli @ https://github.com/github/spec-kit/archive/4572a67fe0e72a6837e2d7bb0fda875bc41482e5.tar.gz \
+    --hash=sha256:d90cead971d6a9f0cd47b4ee601456984b40ef2cc64b15805f9b754f5bf5fef8
     # via -r requirements.in
 sse-starlette==3.5.0 \
     --hash=sha256:3e6e1070df3f0f5d9cea81496de92dbb72f6721871d99748ece67441dd8b7997 \

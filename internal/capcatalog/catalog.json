@@ -4532,6 +4532,16 @@
       "snapshot": "internal/capcatalog/trees/corvint.json"
     },
     {
+      "binary": "corvint-cem-candidate",
+      "command": "corvint-cem-candidate help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-cem-candidate.json"
+    },
+    {
+      "binary": "corvint-cem-experiments",
+      "command": "corvint-cem-experiments help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
+    },
+    {
       "binary": "corvint-tasks",
       "command": "corvint-tasks help --json",
       "snapshot": "internal/capcatalog/trees/corvint-tasks.json"

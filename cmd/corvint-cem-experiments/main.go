@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Beamfall/corvint/internal/clitree"
 	ce "github.com/Beamfall/corvint/internal/criterionexperiment"
 )
 
@@ -21,6 +22,14 @@ func main() {
 	os.Exit(command(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 func command(ctx context.Context, args []string, out, errout io.Writer) int {
+	tree := commandTree()
+	if handled, err := clitree.Answer(tree, args, rootHelp(tree), out); handled {
+		if err != nil {
+			fmt.Fprintln(errout, err)
+			return 2
+		}
+		return 0
+	}
 	if len(args) == 0 {
 		fmt.Fprintln(errout, "experimental companion: plan | run | verify | gate")
 		return 2

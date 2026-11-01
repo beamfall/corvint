@@ -48,6 +48,7 @@
       "internal/analyzerswift/"
     ],
     "cmd/corvint-cem-candidate": [
+      "internal/capcatalog/trees/corvint-cem-candidate.json",
       "protocol/cem-1.0/stable/neutral-criterion/"
     ],
     "cmd/corvint-companion-release": [
@@ -220,6 +221,7 @@
       "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/verify": [
+      "interop/cem01-go/testdata/binary-section/",
       "interop/cem01-go/testdata/multi-runner/",
       "interop/cem01-go/testdata/non-regular/",
       "interop/cem01-go/testdata/omission/",
