@@ -282,6 +282,7 @@ func (l *finishLane) requireVerifyInput() {
 		}
 	}
 	if reason == "" {
+		l.requireVerifyRunSelectsTest()
 		return
 	}
 	l.say("%s: REFUSE %s\n", l.prefix, reason)
@@ -318,6 +319,26 @@ func (l *finishLane) requireVerifyInput() {
 		}
 		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are one quoted name such as -run '^TestA$', one name with a bracket class such as -run 'TestX88[45]_' (DCW-V0-991) and the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
+	l.exit(2)
+}
+
+// requireVerifyRunSelectsTest refuses, before prepare runs any step, a
+// verify line whose go test -run pattern selects no test function in the
+// package directories it names: go test exits 0 with "no tests to run", so
+// the CEM would record verification that ran nothing (DCW-V0-922).
+func (l *finishLane) requireVerifyRunSelectsTest() {
+	empty, found := emptyRunLineOf(l.root, l.options.Change)
+	if !found {
+		return
+	}
+	source := "--verify " + l.options.Change.VerifyFile
+	if l.options.Change.VerifyFile == "" {
+		source = "inline verify"
+	}
+	l.say("%s: REFUSE verify-run-matches-no-test\n", l.prefix)
+	l.say("  input: %s line %d: %s\n", source, empty.line, oneLine(empty.text))
+	l.say("  refused: -run %s matches no Test, Example or Fuzz function in the _test.go files of %s, so go test would pass having run no test (DCW-V0-922)\n", empty.pattern, empty.packages)
+	l.say("  fix: name a test that exists in that package (grep -n '^func Test' in its _test.go files), or drop -run, then rerun corvint dogfood finish-lane --base %s\n", l.options.Change.Base)
 	l.exit(2)
 }
 

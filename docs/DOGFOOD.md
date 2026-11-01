@@ -1363,7 +1363,9 @@ word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0
 `-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
 `HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
 (`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
-with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+with the absolute home directory (`DCW-V0-905`). A `go test` line whose `-run` pattern selects no
+`Test`, `Example` or `Fuzz` function in the `./` packages it names is refused as
+`verify-run-matches-no-test`, since it would pass having run nothing (`DCW-V0-922`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by

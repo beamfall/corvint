@@ -3259,6 +3259,24 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
   `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
   commands; a present one is not). Rollback: drop the lines.
+- `DCW-V0-922`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3928; refines
+  `DCW-V0-170`) Before any step runs, `dogfood finish-lane` and its preflight (`make
+  dogfood-inputs-check`) MUST refuse a verify input line, file or inline, that is a `go test`
+  command whose single `-run` pattern selects no top-level `Test`, `Example` or `Fuzz` function in
+  the `_test.go` files of the `./` package directories it names (`./dir`, or `./dir/...` for the
+  tree below it, skipping `testdata`, `vendor`, `.` and `_` directories), since `go test` then exits
+  0 with `no tests to run` and the CEM would record verification that ran nothing. The pattern's
+  element before its first slash outside brackets and parentheses is matched, unanchored, as Go
+  does. The refusal is `REFUSE verify-run-matches-no-test` with `input: --verify FILE line N: TEXT`
+  (or `inline verify line N`), a `refused:` line naming the pattern and packages, a `fix:` line, and
+  exit 2. A line is checked only when every fact is known: a line without `go test`, `go -C` or
+  another flag before `test`, an import-path package argument, an unknown flag between packages,
+  more than one `-run`, a pattern that does not compile, a directory that is missing, unreadable or
+  outside the worktree, or more than 4096 test files is left to the run. Non-goals: subtest
+  selection, build tags, `-skip`, and functions defined outside `func Name(` at line start. Failure
+  modes: a test generated at build time is invisible to the scan, so its line is refused; name it
+  through a script line instead. Evidence: `TestDCWV0922VerifyRunMatchingNoTestIsRefused`. Rollback:
+  remove `requireVerifyRunSelectsTest` and `internal/dogfoodflow/verify_run_match.go`.
 
 ## Code vocabulary
 
@@ -3545,6 +3563,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
 | `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
+| `DCW-V0-922` (V1-3928) | `internal/dogfoodflow/verify_run_match.go` `emptyRunLineOf`, `goTestRun`, `runSelectsTest`, `topRunElement`; `requireVerifyRunSelectsTest` in `internal/dogfoodflow/finishlane.go` | `TestDCWV0922VerifyRunMatchingNoTestIsRefused` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
