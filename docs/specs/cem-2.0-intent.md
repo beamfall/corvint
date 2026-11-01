@@ -160,7 +160,10 @@ separate profile), signed ledger heads, and delta maps beyond the prototype's re
   they are semantic tampers stays a V1-3771 decision.
 - `CEM2-V0-020`: The prototype encoder abstains with UNSUPPORTED on any map it cannot encode
   losslessly: non-empty criterion, receipt, link or artifact arrays, coverage or discrimination
-  witnesses, or an explicit `role` of `change`.
+  witnesses, an explicit `role` of `change`, a spec other than cem/1.0 or another `excludedPath`,
+  an evidence id that is not its derived identity or repeats, a disposition that is not its
+  reason's, and a reason, relation or basis it cannot index. Hunk order needs the patch, so a map
+  not in canonical-patch order surfaces as a projection byte mismatch.
 - `CEM2-V0-021`: The prototype's tests cover fixture round-trips, a committed-corpus round-trip
   (a deterministic sample by default, every committed map on request), one test per CEM2-V0-007
   refusal, and the CEM2-V0-019 vectors.
@@ -196,6 +199,7 @@ abstention, never to ACCEPT.
 | Pinned blob or span hash differs from Git | refused, `cem2-pinned-mismatch` |
 | Header or body not canonical, unknown member, wrong type | refused, `cem2-malformed` |
 | Base path or span absent at base | refused, `cem2-evidence-unresolved` |
+| Body over a cem/1.0 bound (bytes, hunks, evidence, path bytes) | refused before any Git read, `cem2-bound-exceeded` |
 | Base or target objects absent | abstain, never ACCEPT |
 | 1.0 map the encoder cannot represent | encoder UNSUPPORTED, no 2.0 bytes |
 
@@ -235,12 +239,13 @@ requirement index. Nothing else imports or reads them, and no committed map chan
 |---|---|---|
 | CEM2-V0-001, -016 | `internal/cem2proto` (label `cem/2.0-proto`, no importers) | `TestCEM2V0001PrototypeIsUnwired` |
 | CEM2-V0-003, -004, -008 | `internal/cem2proto/format.go` | `TestCEM2V0003HeaderIsClosed`, fixture round-trips |
-| CEM2-V0-005, -006 | `internal/cem2proto/project.go` | `TestCEM2V0005FixtureRoundTrip`, `TestCEM2V0005CorpusRoundTrip`, `TestCEM2V0006HunkReorderPermutesClaims` |
+| CEM2-V0-005, -006 | `internal/cem2proto/project.go`, `gitsource.go` | `TestCEM2V0005FixtureRoundTrip`, `TestCEM2V0005CorpusRoundTrip`, `TestCEM2V0006HunkReorderPermutesClaims` |
 | CEM2-V0-007, -017, -018 | `internal/cem2proto/project.go` | `TestCEM2V0007*` refusal tests |
+| CEM2-V0-010 | `internal/cem2proto/format.go` | `TestCEM2V0010BoundsRefusedBeforeGit` |
 | CEM2-V0-019 | `internal/cem2proto/format.go` | `TestCEM2V0019*` |
 | CEM2-V0-020 | `internal/cem2proto/encode.go` | `TestCEM2V0020EncoderAbstains` |
 | CEM2-V0-021, -022 | `internal/cem2proto/*_test.go` | `TestCEM2V0022CorpusMeasurements`, build log |
-| CEM2-V0-002, -009 to -015 | intent only | owner decision pending |
+| CEM2-V0-002, -009, -011 to -015 | intent only | owner decision pending |
 
 ## Unresolved decisions
 
