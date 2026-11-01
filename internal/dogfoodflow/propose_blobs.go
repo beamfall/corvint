@@ -58,6 +58,17 @@ func (p *proposal) commitTree(commit string) (map[string]treeEntry, bool) {
 // false when the process is unavailable or its answer is not a blob of a
 // readable size; the caller then reads it the per-blob way.
 func (p *proposal) batchBlob(object string) ([]byte, bool) {
+	limit := p.gitOutputLimit
+	if limit <= 0 {
+		limit = maxGitOutputBytes
+	}
+	return p.batchRead(object, limit, true)
+}
+
+// batchRead is batchBlob for a read bounded by limit: over it, refuseOver
+// refuses the flow as a per-blob read would, and otherwise the read reports
+// false (DCW-V0-754).
+func (p *proposal) batchRead(object string, limit int, refuseOver bool) ([]byte, bool) {
 	p.checkpoint()
 	if p.batch == nil {
 		p.batch = &blobBatch{}
@@ -93,16 +104,17 @@ func (p *proposal) batchBlob(object string) ([]byte, bool) {
 		return nil, false
 	}
 	size, err := strconv.Atoi(fields[2])
-	limit := p.gitOutputLimit
-	if limit <= 0 {
-		limit = maxGitOutputBytes
-	}
 	if err != nil || size < 0 {
 		batch.broken = true
 		return nil, false
 	}
 	if size > limit {
-		p.refuse(gitOutputOverBound)
+		if refuseOver {
+			p.refuse(gitOutputOverBound)
+		}
+		// The stream still holds the object, so the process is not used again.
+		batch.broken = true
+		return nil, false
 	}
 	data := make([]byte, size+1)
 	if _, err := io.ReadFull(batch.stdout, data); err != nil || data[size] != '\n' {

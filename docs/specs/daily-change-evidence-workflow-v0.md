@@ -3491,6 +3491,23 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   pre-flight's lines within 1 s and without Git; a valid file is silent) and
   `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop the early block from
   `script/dogfood-finish.sh`.
+- `DCW-V0-754`: (experimental under the standing lane auto-accept, 2026-11-01; owner request
+  2026-11-01 through the orchestrator; refines `DCW-V0-161`, `DCW-V0-165` and `DCW-V0-818`) The
+  anchor search that `propose-citations` drafts from and `dogfood check` classes below-anchored
+  hunks with MUST, for 32 or more patterns, list the matching BASE files with `git grep -z -l` and
+  the same patterns and pathspecs, read each through the `DCW-V0-752` batch reader, and find the
+  matches in process as `git grep -o` does: on each line the leftmost match of any pattern, the
+  longest at that start, then the next from its end. The records MUST be byte-identical to the one
+  `git grep -z -n -o` they replace, under the same output bound; a listing, tree or blob read it
+  cannot complete runs that one grep instead. Git checks every line against every `-e` pattern, so
+  that grep grew with the pattern count. Measured on WSL (load 7 to 23) at lane gcr-w20's bind
+  commit, the search over all 628 hunks (496 patterns) took 152.6 s for its grep and 153.1 s in all,
+  and now takes 3.2 s and 3.8 s, with identical rows and candidate lines. Drafts of six lanes are
+  byte-identical, and a 593 to 629-hunk draft drops from 2.3-3.0 s to 1.8-2.1 s. Non-goals: changing
+  which lines are candidates. Evidence: `TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep`
+  (overlapping, nested and repeated patterns, several matches on a line, CRLF, a last line without
+  LF, a binary file, a symbolic link, an excluded path and no match print what Git prints) and
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: set `anchorGrepFastPath` false.
 
 ## Code vocabulary
 
@@ -3854,6 +3871,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-751` (experimental under the standing lane auto-accept; V1-3854) | `script/batch-precheck_test.sh` (`DCW-V0-751` case) | implemented; shell test PASS |
 | `DCW-V0-752` (experimental under the standing lane auto-accept; V1-2360) | `internal/dogfoodflow/propose_blobs.go` `commitTree`, `batchBlob`, `fastBlob`, `closeBlobs`; `propose.go` `blob`, `familyFallbacks`; `TestProposeCitationsDCWV0752FastBlobReadsMatchTheSlowPath` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-753` (experimental under the standing lane auto-accept; owner request via the orchestrator) | `script/dogfood-finish.sh` early VERIFY block; `tools/verify-syntax-check`; `internal/dogfoodflow/verify_syntax.go` `CheckVerifySyntax`; `TestDCWV0753VerifySyntaxCheckMatchesThePreflight` | implemented; focused test PASS; measured in the build log |
+| `DCW-V0-754` (experimental under the standing lane auto-accept; owner request via the orchestrator) | `internal/dogfoodflow/propose_grep.go` `onlyMatching`, `fixedMatcher`; `propose_blobs.go` `batchRead`; `propose.go` `prepareAnchors`; `TestProposeCitationsDCWV0754AnchorSearchMatchesGitGrep` | implemented; focused test PASS; measured in the build log |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
