@@ -290,6 +290,15 @@ on a fixture queue remain non-goals.
   writer or to the state format. Rollback: revert the commit; reads beside a killed writer's orphan
   slots refuse `MALFORMED` again until the next writer, and no state format, code or envelope
   changes.
+- `CTS-V0-990`: (accepted under the owner's standing lane auto-accept (2026-10-11), V1-3565)
+  `corvint-tasks init` MUST refuse, before it qualifies the filesystem or creates the state
+  directory, when the intent store lacks `queue.json` or `policy.json`. The refusal MUST carry
+  outcome `BLOCKED` in the store report, `REFUSED` at the CLI and code `UNINITIALIZED`, and a
+  reason naming the missing path and the step that creates it: copying the canonical template
+  from `internal/tasks/cli/testdata/external-agents/` per `docs/TASKS-EXTERNAL-AGENTS.md`
+  (CTS-V0-005). Init MUST NOT create either file: the operator authors and customizes them.
+  Rollback: revert the commit; init on a fresh repository fails `MALFORMED` with the bare `lstat`
+  warning again, and no state format changes.
 
 ## Import export and batching
 
@@ -543,6 +552,7 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | CTS-V0-001 | `internal/tasks/store/store.go` (`Init`, `existingRecord`, `firstEntry`), `internal/tasks/cli/init.go` | TestCTSV0001_InitRefusesOverExistingRecords, TestCTSV0001_InitRefusesOverCommittedTickets |
+| CTS-V0-990 | `internal/tasks/store/store.go` (`Init`, `missingIntentFile`), `internal/tasks/cli/init.go` | TestCTSV0990_InitNamesMissingQueueAndPolicy |
 | CTS-V0-002 | `internal/tasks/cli/inventory.go` (`withInventoryStore`), `internal/tasks/cli/cli.go` | TestCTS002JournalAbsentReads, TestCTS002NoFallbackForExistingJournal, TestCTS002ProjectionRaces |
 | CTS-V0-003 | `internal/tasks/importer/importer.go` (`Decode`, `Plan`), `internal/tasks/store/import.go` (`Import`, `importBatch`, `packImport`), `internal/tasks/transaction/model.go` (`ImportApply`, `importPosts`, `importChain`), `internal/tasks/snapshot/stage.go` (`StageImportApply`), `internal/tasks/cli/import.go` | TestCTSV0003_ImportWritesShadowRecordsAndReimportIsIdempotent, TestCTSV0003_ChangedBlockWritesNextRevision, TestCTSV0003_ImportRefusesOverNativeRecord, TestCTSV0003_ImportRefusesWithNothingWritten, TestCTSV0003_ImportBatchesWithinStageLimits, TestCTSV0003_ImportApplyPostsAndChainsRevisions, TestCTSV0003_ImportApplyRefusals, TestCTSV0003_CLIImportWritesShadowRecordsBlockedOnCutover; IMPORT source rules: TestTMV0003_AS02_FieldRelationships, TestTMV0004_AS05_EligibilityDerived |
 | CTS-V0-004 | `internal/tasks/intent/worktree.go` (`finish`, `canonicalAncestors`), `internal/tasks/safeopen` | TestCTSV0004_InitThroughSymlinkedAncestor, TestCTSV0004_TraversalOnlyAncestors, TestTMV0001_AS10_DirectorySwapNoRedirectOrBlock |
