@@ -2718,6 +2718,7 @@ TCD-V0-187	docs/specs/corvint-tasks-closeout-debt-v0.md	each required gate is pl
 TCD-V0-188	docs/specs/corvint-tasks-closeout-debt-v0.md	before the claim, each closed ticket receives one `ATTACH_EVIDENCE` mutation	unrecorded	-
 TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the claim releases the attempt (with the failure code as the	unrecorded	-
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
+TCD-V0-680	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3716; refines	standing	2026-11-01; V1-3716
 TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151)	standing	V1-3548
 TCD-V0-807	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3541) a committed `ticket	standing	V1-3541
 TCD-V0-870	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496; amends TCD-V0-163 an	standing	V1-3496
