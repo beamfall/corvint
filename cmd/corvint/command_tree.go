@@ -178,7 +178,7 @@ func nodeHelpText(path string) string {
 	if !ok {
 		panic("unknown command tree node")
 	}
-	return clitree.Render(commandTree(), node) + parentTopicPointer(node.Path)
+	return clitree.Render(commandTree(), node) + dogfoodFlowOptionsText(node.Path) + parentTopicPointer(node.Path)
 }
 
 // parentTopicPointer names the authored help topic that documents a node's command in full, so a

@@ -26,11 +26,11 @@ func TestPRBV0029HarnessCannotRunExitsTwo(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, args := range map[string][]string{
-		"unknown flag":    {"--bogus"},
-		"positional":      {"extra"},
-		"missing budgets": {"--budgets", filepath.Join(t.TempDir(), "absent.json")},
-		"unknown scale":   {"--budgets", smoke, "--scale", "huge"},
-		"scale mismatch":  {"--budgets", smoke, "--scale", "smoke"},
+		"unknown flag":            {"--bogus"},
+		"positional":              {"extra"},
+		"missing budgets":         {"--budgets", filepath.Join(t.TempDir(), "absent.json")},
+		"unknown scale":           {"--budgets", smoke, "--scale", "huge"},
+		"scale mismatch baseline": {"--budgets", smoke, "--scale", "smoke", "--record-baseline"},
 	} {
 		var stdout, stderr bytes.Buffer
 		if code := run(context.Background(), args, &stdout, &stderr); code != 2 || stdout.Len() != 0 {
@@ -330,5 +330,47 @@ func TestPRBV0971RecordBaselineFromReport(t *testing.T) {
 	}
 	if recorded.Baseline.Revision != strings.Repeat("a", 40) || recorded.Baseline.Host.Cores != 32 || len(recorded.Baseline.Scenarios) != len(perfbudget.ScenarioIDs) {
 		t.Fatalf("report not recorded as the baseline: %+v", recorded.Baseline)
+	}
+}
+
+// PRB-V0-120 (V1-3840): a --scale smoke run against the committed full-scale budgets is not
+// refused; it runs as measurements only, every check not-judged with the scale reason, the run
+// NOT_JUDGED (FAIL only for a scenario that did not measure), and the progress line names which
+// budget rows applied. Recording a baseline at another scale stays refused (above).
+func TestPRBV0120SmokeScaleRunIsMeasurementsOnly(t *testing.T) {
+	observed := 12.0
+	report := &perfbudget.Report{
+		Checks: []perfbudget.Check{
+			{Scenario: "cli-cold-read", Kind: "ceiling", Limit: perfbudget.Limit{Metric: perfbudget.MetricP95Wall, Status: perfbudget.StatusEnforced}, Observed: &observed, Verdict: perfbudget.VerdictPass},
+			{Scenario: "cli-cold-read", Kind: "target", Limit: perfbudget.Limit{Metric: perfbudget.MetricP95Wall, Status: perfbudget.StatusPending}, Observed: &observed, Verdict: perfbudget.VerdictPendingWithin},
+		},
+		Pending: []perfbudget.Check{{Scenario: "cli-cold-read"}},
+		Verdict: perfbudget.RunPass, OK: true,
+	}
+	reason := `budgets b.json bound scale "full", not "smoke", so no budget row applies to this run (measurements only)`
+	withholdForScale(report, reason)
+	if report.Verdict != perfbudget.RunNotJudged || report.OK || report.NotJudgedReason != reason || len(report.Pending) != 0 {
+		t.Fatalf("report %+v", report)
+	}
+	for _, c := range report.Checks {
+		if c.Verdict != perfbudget.VerdictNotJudged || c.Reason != reason || c.Observed == nil {
+			t.Errorf("check %+v", c)
+		}
+	}
+	if got := appliedLine(report, "b.json", "full", reason); got != "budget rows applied: none; "+reason {
+		t.Errorf("applied line %q", got)
+	}
+	if got := appliedLine(report, "b.json", "full", ""); got != `budget rows applied: 2 checks from b.json at scale "full"` {
+		t.Errorf("applied line %q", got)
+	}
+	failed := &perfbudget.Report{Checks: []perfbudget.Check{{Scenario: "x", Verdict: perfbudget.VerdictUnknown}}, Verdict: perfbudget.RunFail}
+	withholdForScale(failed, reason)
+	if failed.Verdict != perfbudget.RunFail {
+		t.Errorf("an unmeasured scenario at smoke scale reads %s, want FAIL", failed.Verdict)
+	}
+	same := &perfbudget.Report{Verdict: perfbudget.RunPass, OK: true}
+	withholdForScale(same, "")
+	if same.Verdict != perfbudget.RunPass || !same.OK {
+		t.Errorf("a run at the budgets scale was withheld: %+v", same)
 	}
 }

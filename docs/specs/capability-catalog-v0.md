@@ -473,6 +473,22 @@ cannot silently go missing or outlive its command.
   `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
   unindented line. So an example command never becomes a node's usage, flag or derived example.
   Rollback: drop the example-block skip and regenerate the command trees.
+- `CAP-V0-120`: (experimental under the standing lane auto-accept (2026-11-01); V1-3682; refines
+  `CAP-V0-040`) The `--help` of each daily-path dogfood subverb (every action in
+  `dogfoodFlowOptions`) MUST list an `Options:` block naming each option that subverb accepts with
+  a one-line description, and a subverb that takes `--refresh` or `--citations` MUST also print the
+  citation plan row format and point to `docs/DOGFOOD.md` (`DOGFOOD_CITATIONS`). An option without
+  a description, or a description for no accepted option, fails the test. Non-goals: renaming or
+  adding options; describing options of non-daily-path nodes. Evidence:
+  `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint). Rollback: drop
+  `dogfoodFlowOptionsText` from `nodeHelpText`.
+- `CAP-V0-121`: (experimental under the standing lane auto-accept (2026-11-01); V1-3802) When
+  `corvint query` is given a positional argument (one that does not start with `-`), its
+  `invalid-arguments` refusal MUST keep the `unrecognized arguments: ARG` prefix and add the
+  `--task` form, `corvint query --task "ARG"`; it still exits 2. Non-goals: accepting positional
+  task text (the `--task` contract stays the one input form). Evidence:
+  `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint). Rollback: drop the hint branch in
+  `parseQueryArgumentsForPlatform`.
 - `CAP-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   CAP-V0-961) A command row's `Subcommands` sentence MUST have a typed structure: every backticked
   span at parenthesis depth zero in it is exactly one subcommand name (`^[a-z][a-z0-9-]*$`); a
@@ -670,3 +686,5 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
 | CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
 | CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
+| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |

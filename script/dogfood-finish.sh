@@ -53,6 +53,15 @@ case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid
 if ((${#missing[@]} > 0)); then
   printf '%s: REFUSE missing-inputs %s\n' "$prefix" "${missing[*]}" >&2
   printf 'fix: make %s BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' "$entry" >&2
+  # ASD-V0-120 (V1-3765): a BASE that is not a full SHA names the commit it resolves to, or how to
+  # resolve it; the refusal still stands, so the pinned BASE is always the one the operator typed.
+  if [[ " ${missing[*]} " == *' BASE:not-full-sha '* ]]; then
+    if resolved=$(git -C "$(cd "$(dirname "$0")/.." && pwd)" rev-parse --verify --quiet "$base_arg^{commit}" 2>/dev/null) && [[ -n $resolved ]]; then
+      printf 'fix: BASE %s resolves to %s; rerun with BASE=%s\n' "$base_arg" "$resolved" "$resolved" >&2
+    else
+      printf 'fix: BASE %s names no unique commit; resolve one with git rev-parse --verify %q and pass the full 40-hex SHA\n' "$base_arg" "$base_arg^{commit}" >&2
+    fi
+  fi
   # ASD-V0-045 (V1-3119): a missing or unreadable plan names how to draft and pre-check one; this
   # refusal ran no build, prepare or bind, so it does not use up a closeout try.
   if [[ " ${missing[*]} " == *' CITATIONS '* || " ${missing[*]} " == *' CITATIONS:unreadable '* || " ${missing[*]} " == *' CITATIONS:empty '* ]]; then

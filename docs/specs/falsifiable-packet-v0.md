@@ -486,7 +486,7 @@ above stands with that substitution.
   beside the `--task` and `--cem` tests, so the FIRST of the three flags to appear in argv selects
   the branch. Before this branch the loop scanned every element of `rest` with no `--` handling,
   while `parseImpactArguments` treats a literal `--` as ending flag recognition and
-  reading every later token positionally (`cmd/corvint/main.go:327-334@bcf2181e`), which is how positional
+  reading every later token positionally (`cmd/corvint/main.go:332-339@bcf2181e`), which is how positional
   impact paths are preserved (FPK-V0-010). Wrapper flag recognition, including the
   `--checkpoint` test, MUST therefore stop scanning at the first `--` (the loop breaks there,
   `cmd/corvint/prove.go:419-421@0bd3675a`), so a tracked path literally
@@ -503,7 +503,7 @@ above stands with that substitution.
   `prove --task T --checkpoint FILE` rewrites to `query` (`parseProveInvocation`,
   `cmd/corvint/prove.go:346-349@4e053440`) and is refused by the query argument parser, whose allowlist admits only
   `--task`, `--limit`, and `--budget-bytes` and refuses everything else as `invalid-arguments`
-  (`parseQueryArgumentsForPlatform`, `cmd/corvint/main.go:255-258@08d7e5ec`; `argumentError`, `cmd/corvint/main.go:84-85@9e55e110`).
+  (`parseQueryArgumentsForPlatform`, `cmd/corvint/main.go:255-262@b64e9610`; `argumentError`, `cmd/corvint/main.go:84-85@9e55e110`).
   The requirement is therefore stated on what is observable: `--checkpoint` with `--task` MUST
   exit 2 with `invalid-arguments` in EITHER argv order. Which parser refuses is a property of the
   ordering — `--task` first is refused by the query allowlist (`cmd/corvint/main.go:255-256@66cf57ce`) without the
@@ -519,7 +519,7 @@ above stands with that substitution.
   reaches the checkpoint parser, because neither is a wrapper flag, and is refused there; with
   `--cem` written first, the CEM parser's unrecognized-flag branch refuses `--checkpoint`
   (`cmd/corvint/prove.go:462-463@8081236a`) with the same code. Before this branch, `prove --checkpoint FILE` rewrote to
-  `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:510-511@6955320f`); it now
+  `impact` and was refused by `parseImpactArguments` (`cmd/corvint/main.go:515-516@6955320f`); it now
   reaches the checkpoint branch, which is the accepted invocation. The parsers are distinct —
   `--budget-bytes` is accepted by the query parser and rejected by the checkpoint parser — so the
   requirement is stated on the code, not on one shared parser. `prove --checkpoint FILE` MUST be read-only under FPK-V0-001: no

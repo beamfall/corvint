@@ -108,10 +108,15 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	default:
 		return fail(fmt.Errorf("unknown scale %q", *scaleName))
 	}
-	// Ceilings are derived at one scale; judging or baselining another scale against them would
-	// report a meaningless verdict.
+	// Ceilings are derived at one scale; baselining another scale against them would record a
+	// meaningless baseline, and judging one would report a meaningless verdict, so another
+	// scale runs as measurements only (PRB-V0-120).
+	scaleReason := ""
 	if scale.Name != budgets.Scale {
-		return fail(fmt.Errorf("budgets %s bound scale %q, not %q; use a budgets file of that scale", *budgetsPath, budgets.Scale, scale.Name))
+		if *record {
+			return fail(fmt.Errorf("budgets %s bound scale %q, not %q; a %s run records no baseline into them", *budgetsPath, budgets.Scale, scale.Name, scale.Name))
+		}
+		scaleReason = fmt.Sprintf("budgets %s bound scale %q, not %q, so no budget row applies to this run (measurements only)", *budgetsPath, budgets.Scale, scale.Name)
 	}
 	work, err := os.MkdirTemp("", "corvint-perf-budget-")
 	if err != nil {
@@ -158,6 +163,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		return fail(err)
 	}
+	withholdForScale(report, scaleReason)
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return fail(err)
@@ -177,6 +183,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		}
 		progress("baseline recorded in " + *budgetsPath)
 	}
+	progress(appliedLine(report, *budgetsPath, budgets.Scale, scaleReason))
 	for _, c := range report.Checks {
 		progress(checkLine(c))
 	}
@@ -184,6 +191,33 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		progress("NOT_JUDGED: " + report.NotJudgedReason)
 	}
 	return verdictStatus(report.Verdict, *requireJudgement)
+}
+
+// withholdForScale makes a run at a scale other than the budgets file's measurements only
+// (PRB-V0-120): every check observed is not-judged with reason, and the run is NOT_JUDGED, except
+// that a scenario that failed or an unobserved metric still fails it, as in Judge.
+func withholdForScale(r *perfbudget.Report, reason string) {
+	if reason == "" {
+		return
+	}
+	verdict := perfbudget.RunNotJudged
+	for i, c := range r.Checks {
+		if c.Verdict == perfbudget.VerdictUnknown {
+			verdict = perfbudget.RunFail
+			continue
+		}
+		r.Checks[i].Verdict, r.Checks[i].Reason = perfbudget.VerdictNotJudged, reason
+	}
+	r.Verdict, r.NotJudgedReason, r.OK = verdict, reason, false
+	r.Pending, r.Advisory = []perfbudget.Check{}, []perfbudget.Check{}
+}
+
+// appliedLine names which budget rows judged this run (PRB-V0-120).
+func appliedLine(r *perfbudget.Report, path, scale, reason string) string {
+	if reason != "" {
+		return "budget rows applied: none; " + reason
+	}
+	return fmt.Sprintf("budget rows applied: %d checks from %s at scale %q", len(r.Checks), path, scale)
 }
 
 // checkLine is one check's progress line. A pending or advisory target names its profile and that

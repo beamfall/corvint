@@ -1026,6 +1026,8 @@ CAP-V0-972	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-973	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-974	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-11-	standing	2026-10-11; V1-2685; 2026-11-01
 CAP-V0-955	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines	standing	2026-11-01; V1-3286
+CAP-V0-120	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3682; refines	standing	2026-11-01; V1-3682
+CAP-V0-121	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3802) When	standing	2026-11-01; V1-3802
 CAP-V0-965	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines	standing	2026-11-01; V1-3661
 CAP-V0-650	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-	standing	2026-10-11; V1-3730; 2026-11-01
 CAP-V0-979	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines	standing	2026-11-01; V1-3679
@@ -1363,6 +1365,8 @@ CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-961	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-962	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-963	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
+CEM-V1-1020	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
+CEM-V1-1021	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
 CEM-V1-750	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`	standing	V1-3771
 CEM-V1-751	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) A span edit whose	standing	V1-3771
 CEM-V1-752	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) The stable packet i	standing	V1-3771
@@ -2190,6 +2194,15 @@ ASD-V0-982	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-983	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3786) A `scrip	standing	2026-11-01; V1-3786
 ASD-V0-984	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3835; refines	standing	2026-11-01; V1-3835
 ASD-V0-985	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3936; refines	standing	2026-11-01; V1-3936
+ASD-V0-1020	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3959; extends	standing	2026-11-01; V1-3959
+ASD-V0-1021	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3959, V1-3668)	standing	2026-11-01; V1-3959; V1-3668
+ASD-V0-1022	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3959) `script/	standing	2026-11-01; V1-3959
+ASD-V0-1023	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3668, V1-3959)	standing	2026-11-01; V1-3668; V1-3959
+ASD-V0-1024	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3668) With `DO	standing	2026-11-01; V1-3668
+ASD-V0-1025	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3892) `script/	standing	2026-11-01; V1-3892
+ASD-V0-1026	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3892) `script/	standing	2026-11-01; V1-3892
+ASD-V0-1027	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3892) `make te	standing	2026-11-01; V1-3892
+ASD-V0-120	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3765; refines	standing	2026-11-01; V1-3765
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -5824,6 +5837,7 @@ PRB-V0-059	docs/specs/performance-profiling-and-read-budget-v0.md	Each code-repo
 PRB-V0-060	docs/specs/performance-profiling-and-read-budget-v0.md	On Linux, the `PRB-V0-027` peak resident set MUST be the measured process's own,	unrecorded	-
 PRB-V0-970	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --scenario ID`, repeatable, MUST measure and judge only the named	unrecorded	-
 PRB-V0-971	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --record-baseline-from REPORT` MUST record the baseline from a repo	unrecorded	-
+PRB-V0-120	docs/specs/performance-profiling-and-read-budget-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3840) A	standing	2026-11-01; V1-3840
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -6449,6 +6463,7 @@ SOL-V0-010	docs/specs/self-observation-ledger-v0.md	The `codex` and `claude-code
 SOL-V0-011	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A `user-prompt` row whose receipt coverage carried a	unrecorded	-
 SOL-V0-012	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) A degradation that an accepted decision fixes on eve	unrecorded	-
 SOL-V0-013	docs/specs/self-observation-ledger-v0.md	(added 2026-10-19, V1-1977) When retained adapter rows carry	unrecorded	-
+SOL-V0-120	docs/specs/self-observation-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3729; refines	standing	2026-11-01; V1-3729
 SOL-V0-014	docs/specs/self-observation-ledger-v0.md	(added 2026-10-28, V1-2992) Both private ledgers (`internal/observations` and	unrecorded	-
 SOL-V0-030	docs/specs/self-observation-ledger-v0.md	(added 2026-10-20, V1-1975) The Claude Code adapter MUST classify a `post-tool`	unrecorded	-
 SEG-001	docs/specs/semantic-escalation-gate-v0.md	Corvint MUST complete deterministic inventory, syntax extraction, exact joins,	unrecorded	-
@@ -6536,6 +6551,7 @@ STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
 STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
+STR-V0-120	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3530; refines	standing	2026-11-01; V1-3530
 STR-V0-920	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines	standing	2026-10-31; V1-3470
 STR-V0-908	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3796; refines	standing	2026-11-01; V1-3796
 STR-V0-770	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)	standing	2026-10-11; V1-3573

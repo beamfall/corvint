@@ -45,7 +45,7 @@ three classes:
 
 The self-observation append happens only when that ledger path is gitignored by the root
 `.gitignore` or `.corvint/.gitignore` together with its `.self-observations.*` temporaries
-(`internal/observations/observations.go:274-276@f504ccce`, `internal/observations/observations.go:698-705@b40a3bba`).
+(`internal/observations/observations.go:307-309@f504ccce`, `internal/observations/observations.go:731-738@b40a3bba`).
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
