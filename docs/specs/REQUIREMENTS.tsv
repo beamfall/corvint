@@ -4871,6 +4871,7 @@ MTV-V0-007	docs/specs/mcp-test-validity-profile-v0.md	The tool MUST open no netw
 MTV-V0-008	docs/specs/mcp-test-validity-profile-v0.md	`conformance/mcp-test-validity-v0/cases.json` MUST hold the profile's black-box	unrecorded	-
 MTV-V0-009	docs/specs/mcp-test-validity-profile-v0.md	`discover: true` (decision 0202) MUST return, as the result's `document`, exactl	unrecorded	-
 MTV-V0-010	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1781) The	standing	2026-10-11; V1-1781
+MTV-V0-950	docs/specs/mcp-test-validity-profile-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP	standing	2026-10-11; V1-2185
 MER-V0-001	docs/specs/migration-evidence-ratchet-v0.md	The profile MUST bind baseline and candidate repository IDs, immutable commit an	unrecorded	-
 MER-V0-002	docs/specs/migration-evidence-ratchet-v0.md	A snapshot MUST carry stable `(kind,id)` identities for legacy cases, discovered	unrecorded	-
 MER-V0-003	docs/specs/migration-evidence-ratchet-v0.md	The receipt MUST expose raw baseline and candidate totals by kind and state, the	unrecorded	-

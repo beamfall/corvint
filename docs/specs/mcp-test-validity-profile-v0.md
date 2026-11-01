@@ -125,6 +125,13 @@ freshness to the worktree's current digests, exactly as `corvint test-validity -
   Transitive `os/exec` edges, such as the Git object reads of the shared index packages, are not part
   of this guard; the tool's no-process rule stays the `MTV-V0-007` source check plus the read-only
   vectors.
+- `MTV-V0-950`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2185) The HTTP
+  client of `jstestprovider`'s server readiness and preflight probes MUST live in
+  `internal/jstestprovider/loopbackhttp`, which registers it from `init`; `jstestprovider` itself
+  MUST import no connection-making network package. Only binaries that run E2E suites import
+  `loopbackhttp`, so the `MTV-V0-010` allowlist is empty and the core `net/http` allowlist names
+  only `testrunner`. A probe in a binary that never imported the client MUST fail closed before
+  its first request rather than wait out its bound.
 
 ## Non-goals and failure modes
 
@@ -190,6 +197,7 @@ persisted state, schema or client configuration needs migration.
 | `MTV-V0-008` | `conformance/mcp-test-validity-v0/cases.json` | `TestVectorsAndReadOnly` |
 | `MTV-V0-009` | `testvaliditybridge.Registry.discover`, `decodeArguments`; `testvaliditydoc.Discover` | `TestTestValidityDiscoveryMatchesMCPDocument` (`cmd/corvint`, CLI and MCP documents canonically byte-equal); `TestToolCatalogueIsExactlyOneReadOnlyTool` (two schema members); vectors `discover-retained-evidence` and `discover-with-receipt-refused` in `TestVectorsAndReadOnly` |
 | `MTV-V0-010` | `testValidityToolNetworkImporters` in `cmd/corvint/core_network_boundary_test.go` | `TestTestValidityToolNetworkImportersAreAllowlisted` (`cmd/corvint`; `go list -deps`, mutation-checked); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-network-closure-guards.md` |
+| `MTV-V0-950` | `internal/jstestprovider/loopbackhttp`; `probeAddress` in `internal/jstestprovider/loopback_probe.go` | `TestTestValidityToolNetworkImportersAreAllowlisted` and `TestCoreHTTPImportersAreAllowlisted` (`cmd/corvint`, both allowlists without `jstestprovider`); `TestMTVV0950ProbesFailClosedWithoutClient` (`internal/jstestprovider`) |
 
 ## Discovery guidance amendment (V1-1140)
 
