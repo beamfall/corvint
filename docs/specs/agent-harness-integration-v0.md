@@ -1122,6 +1122,20 @@ separate exact extension tuple remains governed by AHI-024.
   `native-compaction`, `bounded-stops` and the session checks. Failure mode: a handler added
   without its type is never called on 2.2; the list is derived from the handler table to prevent
   that. Rollback: drop `types` from the subscribe call.
+- `AHI-620`: (experimental under the standing lane auto-accept (2026-11-01); V1-2929) Amendment to
+  the `AHI-245` inspector note. When a `qualify-opencode --inspector` native UI witness times out,
+  the error MUST keep its `native UI witness missing: LABEL` prefix and name the precise cause:
+  that no native frame was captured (and whether the witness plugin logged `loaded`), or the
+  captured frame's width and height, the expected width when it differs, each quoted expected
+  string the frame lacks, each forbidden string it still shows, the last `error` the witness plugin
+  logged (for example a failed fixture session create), and the saved `failed-frame.txt` path.
+  Why the sidebar witness cannot pass here: no lane host has OpenCode 2.1.3 or 2.2.0 installed, so
+  the cause of the 2026-10-28 `sidebar` failure and OpenTUI 0.7 rendering of the TUI plugin stay
+  `NOT_OBSERVED` until a live campaign on a supported host reports the named cause. Non-goals: any
+  change to the witnessed strings, the inspector's steps or the adapter's sidebar. Failure mode: a
+  cause that names the wrong string would misdirect the fix, so the cause lists the frame's own
+  checks verbatim. Acceptance evidence: `TestAHI620InspectorWitnessNamesPreciseCause`
+  (`internal/opencodequalification`). Rollback: return the bare prefix.
 - `AHI-248`: (experimental under the standing lane auto-accept (2026-10-11); V1-2972) A well-formed
   OpenCode user-prompt envelope that holds an exact copy of the task MUST be withheld as the
   abstention `prompt-echo-withheld`, recorded at info level, and MUST NOT be reported as
