@@ -79,3 +79,24 @@ Spec: `docs/specs/corvint-tasks-lane-flow-v0.md` (TLF-V0-880 to TLF-V0-889). Bas
 11. The primary checkout's 1209 private-lineage local branches lie outside origin/main. Any tool
     listing local heads must filter by shared root.
 12. The shared notes folder was empty at lane start, so no sibling hand-over existed.
+
+## Review fixes
+
+One independent review round; each finding was reproduced by a regression test that failed before
+its fix (commits 643de53d5 spec, cc37f145e code).
+
+- P2 truncated lane scan cleared a lane-delivered ticket: FIXED. A candidate created before a
+  truncated lane scan's oldest commit is `TRUNCATED`; `laneHeads[].scanTruncated` and
+  `laneScanTruncated` report the cut (`TestTLFV0887_TruncatedLaneScanIsNotClear`; before: `CLEAR`,
+  exit 0).
+- P2 requirement-id-collisions could lazily fetch into `.git`: FIXED. Git runs with
+  `GIT_NO_LAZY_FETCH=1`, `GIT_ALLOW_PROTOCOL=` and `protocol.allow=never`, so a missing promisor
+  blob is a read failure, exit 2 (`TestTLFV0886_PartialCloneNeverFetches`; before: four new packs).
+- P2 `grep.lineNumber` hid every collision: FIXED. `git grep` passes `--no-line-number
+  --no-column` (`TestTLFV0886_LineNumberConfigStillParses`; before: exit 0, no collision).
+- P2 effects-proposals skipped `.gitignore` and `Makefile`: FIXED. A bare dotfile or extensionless
+  token is admitted when it exactly matches a non-directory root entry, so a prose word, a directory
+  or a differently cased name is still skipped (`TestTLFV0888_RootFilesWithoutExtension`).
+- P3 closeout-debt help advertised `--lane-refs`, which its parser refuses MALFORMED: FIXED. The
+  flag was removed from the usage and the corvint-tasks catalog tree was regenerated
+  (`TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs`).
