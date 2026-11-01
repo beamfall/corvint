@@ -25,7 +25,7 @@ func TestASDV0905AgentsVerifyBlockIsAdmitted(t *testing.T) {
 	block := text[start+len(marker):]
 	block = block[:strings.Index(block, "```")]
 	lines := strings.Split(strings.TrimSpace(block), "\n")
-	if len(lines) < 4 || !strings.Contains(block, "go -C interop/cem01-go test") {
+	if len(lines) < 4 || strings.Count(block, " go -C ") != 2 || strings.Contains(block, "(cd ") {
 		t.Fatalf("Verify block = %q", block)
 	}
 	for _, line := range lines {
