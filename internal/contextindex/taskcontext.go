@@ -84,8 +84,11 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 type contextRow struct {
 	kind, path, summary, reason, confidence, authority, downgrade string
 	// link is the tracked symlink a governing row was admitted through
-	// (TCP-V0-271); path is then its pinned regular-file target.
+	// (TCP-V0-271); path is then its pinned regular-file target. links is
+	// every tracked symlink that reached this row, link first, so a later
+	// link that TCP-V0-273 folded into it is still screened.
 	link        string
+	links       []string
 	score, line int
 	// lexicalOnly marks a test row bound by the mention signal alone.
 	lexicalOnly bool
@@ -1926,20 +1929,25 @@ func (compiler *taskContextCompiler) governingRows() []contextRow {
 		if target != governing {
 			compiler.linked[governing] = target
 		}
-		if slices.ContainsFunc(rows, func(row contextRow) bool { return row.path == target }) {
-			continue // TCP-V0-273: a target reached twice reserves one row.
+		if seen := slices.IndexFunc(rows, func(row contextRow) bool { return row.path == target }); seen >= 0 {
+			// TCP-V0-273: a target reached twice reserves one row; the
+			// later link still binds its screen (TCP-V0-271).
+			if target != governing {
+				rows[seen].links = append(rows[seen].links, governing)
+			}
+			continue
 		}
 		reason := "the highest-precedence tracked instruction file"
 		if scoped && (len(candidates) > 1 || path.Dir(governing) != ".") {
 			reason = "tracked instructions for subject ancestor " + path.Dir(governing) + "; closest directory first"
 		}
-		link := ""
+		link, links := "", []string(nil)
 		if target != governing {
-			link = governing
+			link, links = governing, []string{governing}
 			reason += "; admitted through the tracked symlink " + governing
 		}
 		rows = append(rows, contextRow{
-			kind: governingRelation, path: target, link: link, score: 1000, line: 1,
+			kind: governingRelation, path: target, link: link, links: links, score: 1000, line: 1,
 			summary: "this project's standing instructions", reason: reason,
 			confidence: "high", authority: "project-instructions",
 		})

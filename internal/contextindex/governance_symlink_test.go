@@ -125,6 +125,7 @@ func TestGoverningSymlinkScreenedWhenTargetOrLinkModified_TCPV0271(t *testing.T)
 			if len(rows) != 1 || rows[0]["path"] != "CLAUDE.md" || rows[0]["authority"] != DowngradedAuthority {
 				t.Fatalf("modified link admission was not screened: %v", rows)
 			}
+			assertSelfModifiedWarning(t, rows[0])
 			prompt := localPrompt(t, index, "", nil, 20, 8000)
 			if governance := mapsFromAny(prompt["governance"]); len(governance) != 0 {
 				t.Fatalf("hook kept screened governance: %v", governance)
@@ -153,6 +154,35 @@ func TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273(t *testing.T)
 			t.Fatalf("an admitted link counted as withheld: %v", entry)
 		}
 	}
+}
+
+// assertSelfModifiedWarning requires TCP-V0-057's warning on a downgraded
+// row's evidence, not only its downgraded authority label.
+func assertSelfModifiedWarning(t *testing.T, row map[string]any) {
+	t.Helper()
+	for _, warning := range mapsFromAny(row["warnings"]) {
+		if warning["code"] == SelfModifiedAuthorityWarning && warning["scope"] == "working-tree" {
+			return
+		}
+	}
+	t.Fatalf("downgraded row lacks the self-modified-authority warning: %v", row)
+}
+
+func TestGoverningSymlinkLaterLinkModifiedStillScreens_TCPV0271(t *testing.T) {
+	t.Parallel()
+	links := map[string]string{"pkg/AGENTS.md": "../CLAUDE.md", "AGENTS.md": "CLAUDE.md"}
+	index := symlinkGovernanceIndex(t, symlinkGovernanceFiles, links, nil)
+	index.DirtyPaths = append(index.DirtyPaths, "AGENTS.md")
+	packet, err := TaskContext(context.Background(), index, "fix Link", "pkg/link.go", 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := governingEvidence(t, packet)
+	if len(rows) != 1 || rows[0]["path"] != "CLAUDE.md" || rows[0]["link_path"] != "pkg/AGENTS.md" ||
+		rows[0]["authority"] != DowngradedAuthority {
+		t.Fatalf("a folded link's modification left the row authoritative: %v", rows)
+	}
+	assertSelfModifiedWarning(t, rows[0])
 }
 
 func TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272(t *testing.T) {
