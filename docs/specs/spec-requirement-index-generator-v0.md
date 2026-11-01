@@ -591,6 +591,17 @@ No requirement below diverges from the implementation.
   `make spec-requirements` (V1-4068 item 3). Non-goals: staging specs or any other path. Evidence:
   `script/gen-spec-requirements_test.sh` case 17 (both `--write` runs leave no unstaged generated
   file and the second names the staged index). Rollback: drop the staging loop; stage by hand.
+- `SRG-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines
+  SRG-V0-965) Every generator mode MUST count each spec's `## Requirements` obligations as
+  `internal/lrfrepo/ocm.go` counts them, warn on standard error from 240 to 256 naming the spec,
+  its count and the companion-spec route, and refuse a section over 256 before printing or writing
+  anything, so the limit is seen at authoring time rather than first at the Go test after the TSV
+  is written. Rollback: drop the obligation count and its warning and refusal; SRG-V0-965 still
+  refuses after the write.
+- `SRG-V0-743`: (experimental under the standing lane auto-accept (2026-11-01); V1-3388) The
+  header of `script/gen-spec-requirements.sh` MUST document the minimal Git-index layout each mode
+  needs, and the missing-README refusal MUST name the modes that need it and point at that
+  comment. Rollback: revert the comment and the message.
 
 ## Non-goals and simpler baseline
 
@@ -714,6 +725,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-979 | `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex` in `internal/specindex/superseded_test.go`: a live spec superseded in a fixture repository regenerates through `--index` and `--readme` to an index `checkIndex` accepts, and `supersededBy` names the Successor |
 | SRG-V0-820 | `script/gen-spec-requirements_test.sh` case 17: `--write` stages the regenerated files and prints the `staged` line |
+| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 241 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing |
+| SRG-V0-743 | `script/gen-spec-requirements_test.sh` case 51: a fixture with specs but no README prints the TSV and is refused in `--readme` naming the layout comment |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
@@ -784,6 +797,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-923 | the generated-file index comparison in `script/spec-requirements-worktree-check.sh` | `spec-requirements-test` |
 | SRG-V0-790 | the token, `requirement_id` and `id_order` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-791 | the malformed-definition refusal in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
+| SRG-V0-740 | `%obligations` and the obligation warning and refusal before the SRG-V0-547 check in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
+| SRG-V0-743 | the minimal fixture layout comment and the `readme_text` refusal in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
@@ -823,6 +838,8 @@ SRG-V0-968 rolls back by removing the claimless-digest refusal and case 16.
 SRG-V0-979 rolls back by removing the `successor_path` projection and
 `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex`; every committed `supersededBy` already
 equals its projection, so no generated file moves.
+SRG-V0-740 rolls back by removing the obligation count, its warning and refusal, and case 50.
+SRG-V0-743 rolls back by reverting the layout comment, the README refusal text and case 51.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.

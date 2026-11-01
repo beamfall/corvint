@@ -18,6 +18,15 @@ set -eu
 # (SRG-V0-018). SRG-V0-954: `--write` (`make spec-requirements`) writes the three into docs/specs/
 # after refusing any unstaged or untracked spec, and `--check` (`make spec-requirements-check`)
 # byte-compares them with docs/specs/, naming each stale file.
+#
+# Minimal fixture layout (SRG-V0-743, V1-3388), all read from the Git index, so stage each file:
+# this script at script/gen-spec-requirements.sh and the tracked docs/specs/*.md specs, which is
+# enough for the default TSV and --lines modes. --index starts from docs/specs/INDEX.json when it is
+# tracked and from an empty list otherwise, and a spec new to it needs a `# Title` line and an
+# Agent digest `- Claim:`. --readme, --all, --write and --check also need docs/specs/README.md with
+# a `| Scope | Contract | Intent | Delivery |` table whose rows link each spec.
+# docs/specs/INTENT-STATUS-FROZEN.tsv and script/requirement-definitions-outside-section.txt are
+# optional: absent means no frozen header IDs and no baselined outside definitions.
 
 usage() {
   printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check]\n' "$0" >&2
@@ -321,7 +330,7 @@ push @reads, 'docs/specs/README.md'
     if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
 my $blobs = index_blobs(@reads);
 
-my (%best, %header, %definitions, %section, @outside_section, @continuation_notes, @malformed);
+my (%best, %header, %definitions, %section, @outside_section, @continuation_notes, @malformed, %obligations);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
     # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
@@ -343,6 +352,8 @@ for my $file (sort @specs) {
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
     # OCM-form definition after that section before doc-gates does.
     my ($in_section, $sections, $section_fence, @outside) = (0, 0, '');
+    # SRG-V0-740: the OCM obligations of the section, counted as internal/lrfrepo/ocm.go counts them.
+    my %section_ids;
     my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
@@ -390,8 +401,9 @@ for my $file (sort @specs) {
             } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
-            } elsif (!$in_section && !$rollback && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
-                push @outside, [$1 // $2, $line_number];
+            } elsif ($line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
+                if ($in_section) { $section_ids{$1 // $2} = 1 }
+                elsif (!$rollback) { push @outside, [$1 // $2, $line_number] }
             }
             # SRG-V0-791: a definition-shaped bold or backticked id the token scan cannot read; a lettered
             # sub-requirement (`VAF-009A`) stays unindexed under its parent row.
@@ -460,6 +472,7 @@ for my $file (sort @specs) {
     $section{$file}[1] ||= $line_number if $in_section;
     if ($sections == 1) {
         push @outside_section, [$file, @$_] for @outside;
+        $obligations{$file} = scalar keys %section_ids;
     } else {
         delete $section{$file};
     }
@@ -625,6 +638,23 @@ sub status_ids {
             . "spec-requirements (SRG-V0-968)\n";
     }
 }
+# SRG-V0-740 (V1-3769): `ocm prepare` refuses a ## Requirements section with more than 256
+# obligations, which otherwise surfaces only at spec-requirements-check's Go test after the TSV is
+# written (SRG-V0-965). Refuse it here in every mode, and warn from 240 so the companion spec is
+# planned before the limit.
+{
+    my $route = 'define new requirements in a companion spec with its own requirement prefix, never '
+        . 'in the frozen Intent status header (SRG-V0-980)';
+    my @over = grep { $obligations{$_} > 256 } sort keys %obligations;
+    print STDERR "$_: warning: its ## Requirements section holds $obligations{$_} of the 256 obligations "
+        . "`ocm prepare` admits; $route (SRG-V0-740)\n"
+        for grep { $obligations{$_} >= 240 && $obligations{$_} <= 256 } sort keys %obligations;
+    if (@over) {
+        print STDERR "$_: its ## Requirements section holds $obligations{$_} obligations; the limit is 256\n" for @over;
+        die "`ocm prepare` refuses a Requirements section over 256 obligations; $route, then rerun "
+            . "make spec-requirements (SRG-V0-740)\n";
+    }
+}
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
 # across specs, is refused in every mode, naming every definition, instead of keeping the first
 # and silently dropping the rest. Two lanes that each define the same ID collide here.
@@ -776,7 +806,9 @@ sub index_text {
 # every table row whose Contract cell links a spec without an anchor, the rows `readREADME` in
 # internal/specindex reads.
 sub readme_text {
-    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index\n";
+    $tracked{'docs/specs/README.md'} or die "docs/specs/README.md is not in the Git index; --readme, --all, "
+        . "--write and --check need it with its spec table (the minimal fixture layout is the comment at the "
+        . "top of script/gen-spec-requirements.sh, SRG-V0-743)\n";
     my @rows = split /^/, $blobs->{'docs/specs/README.md'};
     my ($table) = grep { $rows[$_] =~ /\A\| Scope \| Contract \| Intent \| Delivery \|/ } 0 .. $#rows;
     defined $table or die "docs/specs/README.md: no `| Scope | Contract | Intent | Delivery |` table\n";

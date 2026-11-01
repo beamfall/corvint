@@ -3761,6 +3761,10 @@ DCG-V0-980	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413
 DCG-V0-630	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3722; refines	standing	2026-11-01; V1-3722
 DCG-V0-810	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)	standing	V1-3467
+DCG-V0-743	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3678; refines	standing	2026-11-01; V1-3678
+DCG-V0-744	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3746) A table	standing	2026-11-01; V1-3746
+DCG-V0-745	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3746)	standing	2026-11-01; V1-3746
+DCG-V0-746	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The	standing	2026-11-01; V1-3388
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -6254,6 +6258,7 @@ RDG-V0-007	docs/specs/requirement-definition-gate-v0.md	The gate MUST NOT write 
 RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec with exactly one unfenced `## Requirements` heading, the g	unrecorded	-
 RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
 RDG-V0-023	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2403) The gate	standing	2026-10-11; V1-2403
+RDG-V0-741	docs/specs/requirement-definition-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3699; refines	standing	2026-11-01; V1-3699
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-
@@ -6715,6 +6720,8 @@ SRG-V0-790	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-791	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3793) Every	standing	2026-11-01; V1-3793
 SRG-V0-979	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3797; refines	standing	2026-11-01; V1-3797
 SRG-V0-820	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4068; amends	standing	2026-11-01; V1-4068
+SRG-V0-740	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines	standing	2026-11-01; V1-3769
+SRG-V0-743	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3388) The	standing	2026-11-01; V1-3388
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

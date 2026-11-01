@@ -322,6 +322,25 @@ case $output in
 *'1 citation(s) do not resolve'*'unstaged edits to 1 file(s) it read were not checked'*'docs/agent-memory/fixture.md'*) ;;
 *) fail "an unstaged edit to a scanned document was not named beside the failure: $output" ;;
 esac
+# DCG-V0-743 (V1-3678): the failing run names the copy it checked, and an untracked document the
+# scan would read is named as unchecked; a passing run prints no source line.
+case $output in
+*'read the staged (Git index) copy of every file, not the worktree'*) ;;
+*) fail "a failing run did not name the Git index as the checked copy: $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '# New\n\nCites `internal/demo/demo.go:99`.\n' > "$test_root/docs/agent-memory/untracked.md"
+output=$(run) || true
+case $output in
+*'1 untracked document(s) it would scan were not checked'*'docs/agent-memory/untracked.md'*) ;;
+*) fail "an untracked scanned document was not named: $output" ;;
+esac
+rm -f "$test_root/docs/agent-memory/untracked.md"
+cite "$anchor"
+output=$(run) || fail "the restored fixture failed: $output"
+case $output in
+*'Git index) copy'*) fail "a passing run printed the failure-only source line: $output" ;;
+esac
 
 # 22. DCG-V0-001: skipped basenames are visible without affecting pass/fail. DCG-V0-046 (V1-2821):
 #     by default they are one counted note line; --verbose lists each one.
@@ -415,6 +434,7 @@ output=$(run) || rc=$?
 expected_head="line citations: 1 citation(s) do not resolve:
   docs/agent-memory/fixture.md:3  \`$span\`  cited content moved unchanged to \`internal/demo/demo.go:5-6@$pin\` (script/check-line-citations.sh --repin rewrites it)
 line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check
+line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it
 line citations: note: skipped 1 citation(s) whose basename is not tracked at repository root (--verbose lists them)
 line citations: note: this gate reads the Git index, so unstaged edits to 1 file(s) it read were not checked (git add them to include them):
   internal/demo/demo.go"
@@ -1114,6 +1134,152 @@ case $out in
 esac
 git -C "$test_root" rm -q -f docs/specs/in40.md docs/specs/out40.md internal/demo/hint.go
 commit_all hint-gone
+# 50. DCG-V0-744 (V1-3746): a table row that carries a pinned citation and repeats an earlier row
+#     byte for byte fails, naming both lines; a repeated row with no pinned citation is left alone,
+#     and removing the copy passes.
+write_source 1
+row_pin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3)
+# shellcheck disable=SC2016
+printf '# Fixture\n\n| a | `%s` |\n| b | plain |\n| a | `%s` |\n| b | plain |\n' "$row_pin" "$row_pin" \
+  > "$test_root/docs/agent-memory/fixture.md"
+stage docs/agent-memory/fixture.md
+inventory
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "a duplicated table row exited $rc, not 1: $output"
+case $output in
+*'1 citation(s) do not resolve:'*'docs/agent-memory/fixture.md:5  duplicate table row: it repeats docs/agent-memory/fixture.md:3 byte for byte'*) ;;
+*) fail "the duplicated row was not named with its first copy: $output" ;;
+esac
+case $output in
+*'fixture.md:6  duplicate'*) fail "a repeated row with no pinned citation failed: $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '# Fixture\n\n| a | `%s` |\n| b | plain |\n| b | plain |\n' "$row_pin" > "$test_root/docs/agent-memory/fixture.md"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the table without its duplicate row failed: $(run)"
+cite "$single"
+
+# 51. DCG-V0-745 (V1-3746): two branches that each repin one row to different numbers conflict on
+#     nothing but the numbers; line-citations-resolve.sh keeps the current side, stages it and
+#     --repin sets the merged numbers. A conflict that also changes prose is refused, naming its
+#     line, and stays unmerged.
+merge_root="$test_root/merge"
+mkdir -p "$merge_root/script" "$merge_root/docs/agent-memory" "$merge_root/internal/demo"
+cp "$source_root/script/check-line-citations.sh" "$source_root/script/line-citations-resolve.sh" \
+  "$merge_root/script/"
+mg() { git -C "$merge_root" -c user.name=t -c user.email=t@example.invalid "$@"; }
+mg init -q -b main
+: > "$merge_root/script/line-citation-legacy-documents.txt"
+printf '# fixture inventory\n' > "$merge_root/script/line-citation-unpinned-inventory.txt"
+printf '%s\n' 'package demo' '// a' '// b' '// c' '// d' '// e' 'func Cited() int { return 1 }' \
+  > "$merge_root/internal/demo/m.go"
+merge_pin=$(cd "$merge_root" && mg add -A && script/check-line-citations.sh --hash internal/demo/m.go:7)
+merge_pin=${merge_pin##*@}
+merge_doc() {
+  # shellcheck disable=SC2016
+  printf '# Merge\n\nThe claim rests on `internal/demo/m.go:%s@%s`%s.\n' "$1" "$merge_pin" "$2" \
+    > "$merge_root/docs/agent-memory/m.md"
+}
+merge_doc 7 ''
+mg add -A && mg commit -q -m base
+mg checkout -q -b theirs
+perl -0pi -e 's{// b\n}{// b\n// b2\n// b3\n}' "$merge_root/internal/demo/m.go"
+merge_doc 9 ''
+mg commit -q -am theirs
+mg checkout -q -b prose main
+merge_doc 7 ' and more'
+mg commit -q -am prose
+mg checkout -q main
+perl -0pi -e 's{package demo\n}{package demo\n// top\n}' "$merge_root/internal/demo/m.go"
+merge_doc 8 ''
+mg commit -q -am ours
+mg merge -q theirs >/dev/null 2>&1 && fail "the line-number fixture merged without a conflict"
+rc=0
+output=$(cd "$merge_root" && script/line-citations-resolve.sh 2>&1) || rc=$?
+[ "$rc" = 0 ] || fail "a line-number-only conflict exited $rc, not 0: $output"
+[ -z "$(mg diff --name-only --diff-filter=U)" ] || fail "the line-number conflict stayed unmerged: $output"
+case $(mg show :docs/agent-memory/m.md) in
+*"internal/demo/m.go:10@$merge_pin"*) ;;
+*) fail "the resolved row was not repinned to the merged line 10: $(mg show :docs/agent-memory/m.md)" ;;
+esac
+mg reset -q --hard main
+mg merge -q prose >/dev/null 2>&1 && fail "the prose fixture merged without a conflict"
+rc=0
+output=$(cd "$merge_root" && script/line-citations-resolve.sh 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "a prose conflict exited $rc, not 1: $output"
+case $output in
+*'docs/agent-memory/m.md:3  conflict differs in more than citation line numbers'*) ;;
+*) fail "the prose conflict was not named by its line: $output" ;;
+esac
+[ "$(mg diff --name-only --diff-filter=U)" = docs/agent-memory/m.md ] ||
+  fail "the refused document did not stay unmerged: $output"
+
+# 51b. A modify/delete conflict has no markers to read and is refused, never staged.
+mg reset -q --hard main
+mg checkout -q -b gone main~1
+mg rm -q docs/agent-memory/m.md
+mg commit -q -m gone
+mg checkout -q main
+mg merge -q gone >/dev/null 2>&1 && fail "the modify/delete fixture merged without a conflict"
+rc=0
+output=$(cd "$merge_root" && script/line-citations-resolve.sh 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "a modify/delete conflict exited $rc, not 1: $output"
+case $output in
+*'docs/agent-memory/m.md  conflict is not a two-sided content conflict (index stages 12)'*) ;;
+*) fail "the modify/delete conflict was not named: $output" ;;
+esac
+[ "$(mg diff --name-only --diff-filter=U)" = docs/agent-memory/m.md ] ||
+  fail "the modify/delete document did not stay unmerged: $output"
+# 51c. A custom conflict-marker-size writes markers the parser does not read; it is refused.
+mg reset -q --hard main
+printf 'docs/agent-memory/m.md conflict-marker-size=10\n' > "$merge_root/.gitattributes"
+mg merge -q theirs >/dev/null 2>&1 && fail "the marker-size fixture merged without a conflict"
+rc=0
+output=$(cd "$merge_root" && script/line-citations-resolve.sh 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "a custom marker size exited $rc, not 1: $output"
+case $output in
+*'docs/agent-memory/m.md  sets conflict-marker-size 10'*) ;;
+*) fail "the custom marker size was not named: $output" ;;
+esac
+[ "$(mg diff --name-only --diff-filter=U)" = docs/agent-memory/m.md ] ||
+  fail "the custom-marker document did not stay unmerged: $output"
+/bin/rm -f "$merge_root/.gitattributes"
+# 51d. A nested path the gate excludes (docs/build-log/*.md) is skipped, not resolved or staged.
+mg reset -q --hard main
+mkdir -p "$merge_root/docs/build-log"
+# shellcheck disable=SC2016
+nested() { printf 'See `internal/demo/m.go:%s@%s`.\n' "$1" "$merge_pin" > "$merge_root/docs/build-log/example.md"; }
+nested 8
+mg add -A && mg commit -q -m nested-base
+mg checkout -q -b nested-theirs
+nested 9
+mg commit -q -am nested-theirs
+mg checkout -q main
+nested 10
+mg commit -q -am nested-ours
+mg merge -q nested-theirs >/dev/null 2>&1 && fail "the nested fixture merged without a conflict"
+rc=0
+output=$(cd "$merge_root" && script/line-citations-resolve.sh 2>&1) || rc=$?
+case $output in
+*'resolved docs/build-log/example.md'*) fail "the excluded nested path was resolved: $output" ;;
+esac
+[ "$(mg diff --name-only --diff-filter=U)" = docs/build-log/example.md ] ||
+  fail "the excluded nested path was staged: $output"
+mg reset -q --hard main
+
+# 52. DCG-V0-746 (V1-3388): a fixture without the legacy list is refused naming it and the
+#     comment-only remedy.
+git -C "$test_root" rm -q --cached -- script/line-citation-legacy-documents.txt
+rc=0
+output=$(run) || rc=$?
+[ "$rc" != 0 ] || fail "a fixture without the legacy list passed"
+# shellcheck disable=SC2016
+case $output in
+*'script/line-citation-legacy-documents.txt: not readable from the Git index; track it, even holding only `#` comments'*'DCG-V0-746'*) ;;
+*) fail "the missing legacy list was not named with its remedy: $output" ;;
+esac
+stage script/line-citation-legacy-documents.txt
 
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
