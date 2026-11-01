@@ -561,7 +561,7 @@ func TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 		}, "record range: plan scope is UNKNOWN, not BOUNDED"},
 		{"an UNKNOWN main-delta receipt with an unowned path beside its frontier", "", func(env map[string]string, _ map[string]string, recordBase, _, queueBase, _, _ string) {
 			env["BOUNDED_BASES"] = queueBase + " " + recordBase
-			env["UNKNOWN_DETAIL"] = `,"unknown":[{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"UNOWNED_DIRTY_PATH","detail":"Makefile"}]`
+			env["UNKNOWN_DETAIL"] = `,"unknown":[{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"UNOWNED_DIRTY_PATH","detail":"Makefile"}]` //corvint:fixture-path
 		}, "main delta: plan scope is UNKNOWN, not BOUNDED or a language frontier alone"},
 		{"an UNKNOWN record-range receipt with a malformed unknown list", "", func(env map[string]string, _ map[string]string, recordBase, _, _, _, _ string) {
 			env["UNKNOWN_BASES"] = recordBase
