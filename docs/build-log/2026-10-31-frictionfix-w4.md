@@ -120,3 +120,8 @@ branch `claude/lane-frictionfix-w4-1031`. New requirement IDs come from the lane
    widens the selection to 184 units for a scripts-only lane.
 9. V1-3570's ticket names a GOMAXPROCS bound that is on an unmerged lane branch; the ticket was
    assigned against a base that does not carry the code it tunes.
+
+## Review fixes
+
+- P2 numbered manifest slices: FIXED in bfe9fdd8c (spec a3b7b1654). `internal/sessiontest/plan.go` emits `I/N` slices with flag `-run` or `-skip`, but `--plan` rendered a pattern only for slice `selected` and printed duplicate whole commands that admission refused. `--plan` now prints each slice's own flag and pattern. A command with one `-skip PATTERN` (or `-skip=PATTERN`) is admitted when the manifest lists that `-skip` slice. A slice with no `-run`/`-skip` pattern is listed as skipped. The `lane-scripts-test` group `ASD-V0-891` fails 3 checks before the fix and passes after it.
+- P2 missing test timeout: FIXED in bfe9fdd8c. Every `--plan` command carries `-timeout 30m`, the Makefile `GO_TEST_TIMEOUT` (decision 0082), and the plan-output test asserts it.
