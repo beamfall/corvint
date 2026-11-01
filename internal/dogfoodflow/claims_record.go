@@ -32,9 +32,9 @@ func RecordClaims(ctx context.Context, options RecordClaimsOptions, stdout, stde
 	run := &proposal{
 		flow:    flow{ctx: ctx, prefix: "dogfood-record-claims", root: options.Root, stderr: stderr},
 		options: ProposeOptions{Root: options.Root, Base: options.Base}, stdout: stdout,
-		blobs: map[string][]byte{}, lines: map[string][][]byte{},
+		blobs: map[string][]byte{}, lines: map[string][][]byte{}, batchBlobs: batchBlobReads,
 	}
-	return boundary(ctx, func() int { return run.record(options) }, func() {})
+	return boundary(ctx, func() int { return run.record(options) }, run.closeBlobBatch)
 }
 
 // plannedRow is one resolved plan row.

@@ -40,6 +40,10 @@ type proposal struct {
 	stdout  io.Writer
 	blobs   map[string][]byte
 	lines   map[string][][]byte
+	// batchBlobs reads uncached blobs through one cat-file --batch reader,
+	// batch, which the flow boundary closes (CKC-V0-015).
+	batchBlobs bool
+	batch      *blobBatch
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
@@ -134,9 +138,9 @@ type proposedHunk struct {
 func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stderr io.Writer) (int, error) {
 	run := &proposal{
 		flow:    flow{ctx: ctx, prefix: "dogfood-propose-citations", root: options.Root, stderr: stderr},
-		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{}, batchBlobs: batchBlobReads,
 	}
-	return boundary(ctx, run.run, func() {})
+	return boundary(ctx, run.run, run.closeBlobBatch)
 }
 
 func (p *proposal) run() int {
@@ -785,6 +789,11 @@ func (p *proposal) parseAnchors() (bool, map[string]bool) {
 	return complete, patched
 }
 
+// draftDataExcludes are the rest of dataPath, which a draft drops from the
+// search anyway, so git never reads them (CKC-V0-016). A test empties it to
+// compare the unnarrowed search.
+var draftDataExcludes = []string{":(exclude,glob)**/*.json", ":(exclude,glob)**/*.jsonl", ":(exclude).agent-evidence/"}
+
 // searchAnchors runs the one `git grep` of BASE for the owed hunks' anchors;
 // it reports whether the patch read (complete) and the search completed.
 func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map[string]bool) bool {
@@ -837,6 +846,7 @@ func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map
 		arguments = append(arguments, ":(exclude)benchmarks/", ":(exclude,glob)**/testdata/**",
 			":(exclude)docs/specs/INDEX.json", ":(exclude)docs/specs/REQUIREMENTS.tsv",
 			":(exclude,glob)**/raw/**", ":(exclude,glob)**/*.stdout", ":(exclude,glob)**/*.stderr")
+		arguments = append(arguments, draftDataExcludes...)
 	}
 	out, status, bounded := p.boundedGit(arguments...)
 	// git grep exits 1 when nothing matches: a complete read with no candidates.
@@ -1120,6 +1130,10 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 	key := commit + ":" + name
 	if data, ok := p.blobs[key]; ok {
 		return data, data != nil
+	}
+	if data, present, ok := p.batchBlob(commit, name); ok {
+		p.blobs[key] = data
+		return data, present
 	}
 	entry, status := p.git(true, "ls-tree", commit, "--", name)
 	if status != 0 || !strings.HasPrefix(entry, "100") || !strings.Contains(entry, " blob ") {

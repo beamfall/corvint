@@ -689,3 +689,145 @@ func TestClaimsAllCarriedSkipsAnchorSearch(t *testing.T) {
 		t.Fatalf("refresh with a drafted hunk = %d, skipped %d searches\n%s", code, skipped, stderr)
 	}
 }
+
+// TestClaimsBatchBlobMatchesBlob covers CKC-V0-015: the one cat-file --batch
+// reader answers every name at two commits exactly as the per-file read,
+// keeps that read's refusal past the output bound, and leaves drafts,
+// recorded claims and claims refreshes byte-identical.
+func TestClaimsBatchBlobMatchesBlob(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"a.go": claimsLines("a", 40, nil), "empty.txt": "", "dir/x.go": "package x\n", "exec.sh": "echo hi\n", "glob*.go": "// glob\n", "sp ace.txt": "s\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "update-index", "--chmod=+x", "exec.sh")
+	testGit(t, root, "update-index", "--add", "--cacheinfo", "120000,"+testGit(t, root, "hash-object", "-w", "dir/x.go")+",link")
+	testGit(t, root, "update-index", "--add", "--cacheinfo", "160000,"+testGit(t, root, "hash-object", "-w", "dir/x.go")+",module")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	first := testGit(t, root, "rev-parse", "HEAD")
+	claimsCommit(t, root, "second", map[string]string{"a.go": claimsLines("a", 41, nil), "new.go": "package n\n"})
+	second := testGit(t, root, "rev-parse", "HEAD")
+	reader := func(batch bool) (*proposal, *bytes.Buffer) {
+		var stderr bytes.Buffer
+		return &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &stderr}, blobs: map[string][]byte{}, batchBlobs: batch}, &stderr
+	}
+	names := []string{"a.go", "empty.txt", "dir/x.go", "exec.sh", "link", "module", "dir", "missing.go", "dir/missing.go", "new.go", "sp ace.txt", "glob*.go", "./a.go", "dir/../a.go", ""}
+	batched, _ := reader(true)
+	single, _ := reader(false)
+	for _, commit := range []string{first, second, first, "no-such-commit"} {
+		for _, name := range names {
+			got, gotOK := batched.blob(commit, name)
+			want, wantOK := single.blob(commit, name)
+			if gotOK != wantOK || !bytes.Equal(got, want) {
+				t.Errorf("%s:%q: batched = %v %q, blob = %v %q", commit, name, gotOK, got, wantOK, want)
+			}
+		}
+	}
+	if batched.batch == nil || batched.batch.failed || batched.batch.command == nil {
+		t.Fatalf("the batch reader did not stay up: %+v", batched.batch)
+	}
+	batched.closeBlobBatch()
+	if batched.batch.command != nil {
+		t.Error("closeBlobBatch left the reader running")
+	}
+	// Past the bound the per-file read refuses the flow; so does the batch.
+	refusal := func(p *proposal) (code int) {
+		defer func() {
+			if unwound, ok := recover().(stop); ok {
+				code = unwound.code
+			}
+		}()
+		p.blob(first, "a.go")
+		return 0
+	}
+	boundedBatch, batchErr := reader(true)
+	boundedSingle, singleErr := reader(false)
+	boundedBatch.gitOutputLimit, boundedSingle.gitOutputLimit = 256, 256
+	if data, ok := boundedBatch.blob(first, "dir/x.go"); !ok || string(data) != "package x\n" {
+		t.Fatalf("dir/x.go under the bound = %v %q", ok, data)
+	}
+	if got, want := refusal(boundedBatch), refusal(boundedSingle); got != 2 || got != want || batchErr.String() != singleErr.String() {
+		t.Errorf("over the bound: batch %d %q, blob %d %q", got, batchErr, want, singleErr)
+	}
+	if data, ok := boundedBatch.blob(first, "exec.sh"); !ok || string(data) != "echo hi\n" {
+		t.Errorf("after the bound the read did not fall back: %v %q", ok, data)
+	}
+	boundedBatch.closeBlobBatch()
+
+	original := batchBlobReads
+	t.Cleanup(func() { batchBlobReads = original })
+	repo, base := claimsRepo(t)
+	hunks := claimsHunks(t, repo, base)
+	dir := t.TempDir()
+	both := func(step func(dir string) []string) {
+		t.Helper()
+		batchBlobReads = false
+		perFile := step(dir)
+		batchBlobReads = true
+		batch := step(dir)
+		for index := range perFile {
+			if perFile[index] != batch[index] {
+				t.Errorf("output %d differs with the batch:\n%s\n---\n%s", index, batch[index], perFile[index])
+			}
+		}
+	}
+	var draft string
+	both(func(dir string) []string {
+		code, out, stderr := claimsRefresh(t, repo, base, "")
+		draft = out
+		claims := filepath.Join(dir, "claims.json")
+		recorded, recordErr := claimsRecord(t, repo, base, keyed(hunks, claimsReviewed), claims, out)
+		data, err := os.ReadFile(claims)
+		if code != 0 || recorded != 0 || err != nil {
+			t.Fatalf("draft %d record %d %v\n%s\n%s", code, recorded, err, stderr, recordErr)
+		}
+		return []string{out, stderr, recordErr, string(data)}
+	})
+	claims := filepath.Join(t.TempDir(), "claims.json")
+	if code, stderr := claimsRecord(t, repo, base, keyed(hunks, claimsReviewed), claims, draft); code != 0 {
+		t.Fatalf("record = %d\n%s", code, stderr)
+	}
+	claimsCommit(t, repo, "fix", map[string]string{"a.go": claimsLines("a", 40, map[int]string{5: "// a line 5 changed\n", 15: "// a line 15\n// a line 15 inserted\n", 25: "// a line 25 changed\n"})})
+	both(func(string) []string {
+		code, out, stderr := claimsRefresh(t, repo, base, claims)
+		if code != 0 || !strings.Contains(stderr, "; drafted") {
+			t.Fatalf("claims refresh = %d\n%s", code, stderr)
+		}
+		return []string{out, stderr}
+	})
+}
+
+// TestClaimsDataExcludesKeepDraft covers CKC-V0-016: a draft whose search
+// leaves the JSON, JSONL and .agent-evidence/ data out is byte-identical to
+// the unnarrowed search, which reads those files and then drops them.
+func TestClaimsDataExcludesKeepDraft(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "init", "-q")
+	data := "{\"a\": \"a.go\", \"b\": \"b.go\"}\n"
+	claimsCommit(t, root, "base", map[string]string{"docs/spec.md": claimsSpec, "a.go": claimsLines("a", 40, nil), "b.go": claimsLines("b", 20, nil),
+		"x/data.json": data, "x/log.jsonl": data, ".agent-evidence/note.md": "a.go and b.go\n", "docs/guide.md": "# Guide\n\nSee a.go.\n"})
+	base := testGit(t, root, "rev-parse", "HEAD")
+	claimsCommit(t, root, "change", map[string]string{
+		"a.go": claimsLines("a", 40, map[int]string{5: "// a line 5 changed\n"}),
+		"b.go": claimsLines("b", 20, map[int]string{10: "// b line 10 changed\n"}),
+	})
+	if hits := testGit(t, root, "grep", "-l", "-F", "a.go", base, "--", "x/", ".agent-evidence/"); strings.Count(hits, "\n") != 2 {
+		t.Fatalf("the data files do not name the anchors:\n%s", hits)
+	}
+	original := draftDataExcludes
+	t.Cleanup(func() { draftDataExcludes = original })
+	code, narrowed, narrowedErr := claimsRefresh(t, root, base, "")
+	draftDataExcludes = nil
+	fullCode, full, fullErr := claimsRefresh(t, root, base, "")
+	if code != 0 || fullCode != 0 || narrowed != full || narrowedErr != fullErr {
+		t.Errorf("narrowing the search changed the draft: %d %d\n%s\n%s\n---\n%s\n%s", code, fullCode, narrowed, narrowedErr, full, fullErr)
+	}
+	if !strings.Contains(narrowed, "docs/guide.md") {
+		t.Errorf("the draft does not cite the untouched guide:\n%s", narrowed)
+	}
+}
