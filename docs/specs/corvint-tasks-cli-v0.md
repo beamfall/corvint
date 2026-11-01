@@ -150,6 +150,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   idf floor is not used, because idf scales with the store's size and a small store has no term
   above it. The frozen evaluation of `TCL-V0-009` MUST keep its recall, refusal count and
   precision.
+- `TCL-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A
+  mutation replayed by its recorded `--request-id` MUST report `replayed: true` and, in `receipt`,
+  the name (`<seq as 12 digits>.json`) of the receipt that committed the original mutation, so a
+  caller that confirms a write by its receipt sees the same name on replay. A replay writes no
+  receipt; `receipt` is empty only when the recorded original carried no receipt sequence. The
+  mutation help (`replay` member) MUST document this envelope.
 
 ## Non-goals
 
@@ -180,8 +186,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 ## Acceptance evidence
 
 - `internal/tasks/similar/similar_test.go`: `TestTCLV0002_RankIsDeterministicWithEvidence`,
-  `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`,
-  `TestTCLV0990_OneRareTermIsNotDuplicate`;
+  `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`;
+  `internal/tasks/similar/anchor_test.go`: `TestTCLV0990_OneRareTermIsNotDuplicate`;
   `internal/tasks/similar/eval_test.go`: `TestTCLV0009_FrozenDuplicateEval` (recall@3 and @5, known
   misses, precision, latency).
 - `internal/contextindex/lexrank_test.go`: `TestTCLV0003_ScoreMatchesContextCompiler` (the
@@ -189,6 +195,7 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/similar_test.go`: `TestTCLV0001_SimilarRanksWithEvidence`,
   `TestTCLV0004_CreateGuard`, `TestTCLV0005_DigestAndOfflineMatch`,
   `TestTCLV0007_RecurAppendsOneLine`.
+- `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
 - `internal/tasks/cli/snapshot_bundle_test.go`: `TestTCLV0010_QueueSnapshot`,
   `TestTCLV0011_SnapshotReads`, `TestTCLV0012_SnapshotRefusesWrites`.
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
