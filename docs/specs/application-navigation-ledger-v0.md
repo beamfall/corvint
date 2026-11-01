@@ -360,8 +360,11 @@ are URL templates, not component source files. This slice makes neither missing 
   A changed path that would read unknown `non-ui-path` (ANL-V0-048) and that an entry matches is
   counted under `ignored_paths` instead and listed under `exempt` with the path, the pattern, the
   reason and the declaring `MANIFEST:LINE`. An exemption never covers a path a map element or an
-  endpoint places, a UI-extension path, the manifest itself or a test file the map records, and is
-  never inferred. An undeclared non-UI path still reads unknown `non-ui-path` and forces
+  endpoint places, a UI-extension path, a path whose extension names a template or script the
+  classifier does not read as UI (`.mts`, `.cts`, `.erb`, `.haml`, `.slim`, `.ejs`, `.njk`,
+  `.twig`, `.liquid`, `.mustache`, `.handlebars`, `.jinja`, `.jinja2`, `.j2`, `.jsp`, `.php`,
+  `.cshtml`, `.razor`, `.astro`, `.coffee`, `.styl`, `.tpl`; such a path still reads unknown
+  `non-ui-path`), the manifest itself or a test file the map records, and is never inferred. An undeclared non-UI path still reads unknown `non-ui-path` and forces
   `full-suite-required`; a manifest held by an aliased root declares no exemption here. Failure
   mode: a documentation-only change forced `full-suite-required` with no reviewed way to exempt it.
   Non-goal: exempting a UI path or a test file. Rollback: remove `impact_exempt` from the manifest

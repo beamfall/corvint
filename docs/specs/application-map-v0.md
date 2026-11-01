@@ -2165,8 +2165,11 @@ but does not read it; only non-Go syntax impact does.
   module's `unknown` with its reason, never as reached or unreached; such a module reads status
   `UNKNOWN`. Abstract screens are counted only under `screens_abstract`. A file that the
   manifest's `router_globs` match but no router declaration names is a module with status `UNKNOWN`
-  and `null` counts, since the map read none of its screens. The head `status` is `UNKNOWN` when
-  any module is.
+  and `null` counts, since the map read none of its screens. A router-level unknown (kind `router`
+  or `state`, other than `router-not-declared`) anchored in a file makes that file a module with
+  status `UNKNOWN` and lists it under the module's `unknown` with its `ref` and reason, never as a
+  screen count, so a declared router that yields only such unknowns still appears. The head
+  `status` is `UNKNOWN` when any module is.
 - `AMAP-V0-812`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2770) The report exits 0 once written; a missing
   `--map`, a stray argument or a bad budget refuses with exit 2 and no stdout. It measures the
   declared static scope only: reached means a test is statically attributed to the screen, not
@@ -2178,7 +2181,9 @@ but does not read it; only non-Go syntax impact does.
   key, or starting with the key and `/`, may name repository code, so it may hold the table (a
   webpack `$` exact-match suffix is read as a prefix too). An `alias` the reader cannot list as a
   plain object with literal keys (an array, a variable, an assignment, a spread or computed key) or
-  a config it cannot lex makes every package a possible holder. Failure mode (V1-1077): a relay
+  a config it cannot lex makes every package a possible holder. A key is compared by its decoded
+  value, so an escaped literal such as `"\u0061lias"` is an `alias` key and a config holding an
+  escape is never skipped unread. Failure mode (V1-1077): a relay
   importing `tables/x` that `resolve.alias` maps onto repository code read as external, so the
   injected name resolved with false certainty. Non-goal: resolving the alias target; the name
   stays UNKNOWN. Rollback: drop `readBundlerAliases` from `internal/appmap/stateconst.go`.
@@ -2191,14 +2196,15 @@ but does not read it; only non-Go syntax impact does.
 - `AMAP-V0-815`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A
   `testIdAttribute: '<name>'` property or a `setTestIdAttribute('<name>')` call with a literal name,
   in a map test file or a committed `playwright.config.{ts,js,mjs,cjs,mts,cts}` at the repository
-  root, MUST make an exact `[<name>=...]` locator a test-id reference like `[data-testid=...]`.
+  root or at the root of a bound aliased root whose map test files are read, MUST make an exact `[<name>=...]` locator a test-id reference like `[data-testid=...]`.
   Every configured name is honoured (a project may set more than one); `data-testid` stays one.
 - `AMAP-V0-816`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1614) A route
   regular expression anchored at both ends (`^` then `/` or `\/`, ending in an unescaped `$`, with
-  no flag but `i`) that compiles as an RE2 expression MUST be evaluated against the resolved
+  no flag but `i` and no `|` outside a group or class) that compiles as an RE2 expression MUST be evaluated against the resolved
   screens instead of labelled: a parameter-free template matches when the expression matches its
   path, with or without the map's base path and hash prefix; a template with a parameter or splat
-  matches unless the expression's literal start (AMAP-V0-092) cannot begin it. Such a reference
+  matches unless the expression's literal start (AMAP-V0-092) cannot begin it, compared without
+  case under the `i` flag. Such a reference
   misses unlabelled when no template matches (only a root splat leaves `catch-all-route`). Any
   other expression keeps the `regular-expression` label. Non-goal: deciding a parameter's value
   against the expression; that is a possible match.
