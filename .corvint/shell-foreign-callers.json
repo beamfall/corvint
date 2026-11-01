@@ -88,6 +88,12 @@
       ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005)."
     },
+    "script/pr-landing-watch.sh": {
+      "callers": [
+        "script/lane-scripts_test.sh"
+      ],
+      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data (TSP-V0-005; V1-3571)."
+    },
     "script/proof-tour.sh": {
       "callers": [
         "script/proof-tour-test.sh"
