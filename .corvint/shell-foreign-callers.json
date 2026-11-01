@@ -26,10 +26,9 @@
     },
     "script/check-install-lifecycle.sh": {
       "callers": [
-        ".github/workflows/release-gates.yml",
         "script/check-install-lifecycle_test.sh"
       ],
-      "reason": "Every tracked file naming check-install-lifecycle.sh: the release-gates workflow runs it through run-gate and its shell test runs it (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file in the source universe naming check-install-lifecycle.sh: its shell test runs it. The release-gates workflow also runs it through run-gate; .github is outside the source universe and holds no test unit, so it adds no edge (TSP-V0-005; V1-3571)."
     },
     "script/dogfood-bind-coverage.sh": {
       "callers": [
