@@ -804,6 +804,33 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   recorded here as a native-only extension until a later packet revision. The shared tamper
   matrix, citation vectors and repository-envelope cells contain no binary section, so every
   pinned native and portable verdict is unchanged.
+- `CEM-V1-961`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The tree-entry, tree-byte, depth, commit-size and Git-operation bounds of `CEM-V1-352`, and the
+  legacy configuration profile of `CEM-V1-962`, MUST bind the legacy `verify-stable` route only
+  (`verify-candidate` keeps its own candidate-proof bounds). `verify-stable-canonical` MUST verify a map whose snapshots hold
+  more than 4096 entries, in an ordinary checkout whose `.git/config` carries `[remote]` and
+  `[branch]` sections, with the same outcome it gives at any smaller size. An independent
+  verification or Go/native agreement claim over a repository of this repository's size MUST name
+  the canonical route; a legacy-route `UNSUPPORTED` answer is a bound, not a verdict.
+- `CEM-V1-962`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
+  The legacy `verify-stable` route's repository profile, which `verify-candidate` shares, is
+  declared, not incidental: `.git` MUST be a directory
+  (a linked worktree's `.git` file is outside it), `.git/config` MUST be a regular file of at most
+  64 KiB holding only `[core]` with `repositoryformatversion`, `filemode`, `bare`,
+  `logallrefupdates`, `ignorecase` or `precomposeunicode`, and `[extensions]` with
+  `objectformat`. Any other section or key (an ordinary clone's `[remote "origin"]` and
+  `[branch]` sections included) is refused `UNSUPPORTED` / `repository` /
+  `unsupported-repository-envelope` before any object is read. A linked worktree is refused
+  `unsupported-object-alternates`, because the alternates probe fails first under a `.git` file;
+  that code names the probe, not an alternates file.
+- `CEM-V1-963`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)
+  Every tracked `.corvint/changes/NAME.cem.json` MUST have a `baseRevision` that a retained ref
+  (default `refs/remotes/origin/main`) reaches, or a `.corvint/cem-lineage.tsv` row
+  (`corvint-cem-lineage/1`: target, base, label, retained ref) labelling that exact base
+  `archive-lineage`, `rebased-lane-base` or `base-unavailable`. `make cem-base-retention-check`
+  MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
+  unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
+  A label is a disclosure and changes no verdict.
 
 ## Non-goals and failure modes
 
@@ -5616,25 +5643,8 @@ portable route is `verify-stable-canonical` (`CEM-V1-352`), which has no such bo
 taken is to measure that route over the whole committed corpus and state each route's envelope,
 not to raise the legacy bound.
 
-- `CEM-V1-961`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
-  The tree-entry, tree-byte, depth, commit-size and Git-operation bounds of `CEM-V1-352`, and the
-  legacy configuration profile of `CEM-V1-962`, MUST bind the legacy `verify-stable` route only
-  (`verify-candidate` keeps its own candidate-proof bounds). `verify-stable-canonical` MUST verify a map whose snapshots hold
-  more than 4096 entries, in an ordinary checkout whose `.git/config` carries `[remote]` and
-  `[branch]` sections, with the same outcome it gives at any smaller size. An independent
-  verification or Go/native agreement claim over a repository of this repository's size MUST name
-  the canonical route; a legacy-route `UNSUPPORTED` answer is a bound, not a verdict.
-- `CEM-V1-962`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)
-  The legacy `verify-stable` route's repository profile, which `verify-candidate` shares, is
-  declared, not incidental: `.git` MUST be a directory
-  (a linked worktree's `.git` file is outside it), `.git/config` MUST be a regular file of at most
-  64 KiB holding only `[core]` with `repositoryformatversion`, `filemode`, `bare`,
-  `logallrefupdates`, `ignorecase` or `precomposeunicode`, and `[extensions]` with
-  `objectformat`. Any other section or key (an ordinary clone's `[remote "origin"]` and
-  `[branch]` sections included) is refused `UNSUPPORTED` / `repository` /
-  `unsupported-repository-envelope` before any object is read. A linked worktree is refused
-  `unsupported-object-alternates`, because the alternates probe fails first under a `.git` file;
-  that code names the probe, not an alternates file.
+Requirements: `CEM-V1-961` (the legacy bounds bind the legacy route only; canonical verifies past them) and
+`CEM-V1-962` (the legacy repository profile), both in the Requirements section.
 
 Non-goals: no change to either route's bounds, codes or results; no claim about maps outside
 `.corvint/changes/`; no ancestry repair of the maps whose objects a clone lacks (V1-3758).
@@ -5671,14 +5681,7 @@ Rollback: revert the change commit; it adds a test, a test helper parameter and 
 Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758; decision
 0588.
 
-- `CEM-V1-963`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)
-  Every tracked `.corvint/changes/NAME.cem.json` MUST have a `baseRevision` that a retained ref
-  (default `refs/remotes/origin/main`) reaches, or a `.corvint/cem-lineage.tsv` row
-  (`corvint-cem-lineage/1`: target, base, label, retained ref) labelling that exact base
-  `archive-lineage`, `rebased-lane-base` or `base-unavailable`. `make cem-base-retention-check`
-  MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
-  unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
-  A label is a disclosure and changes no verdict.
+Requirement: `CEM-V1-963` (every committed map base retained or labelled), in the Requirements section.
 
 Non-goals: no rewrite of a sealed map, no new ref, no verification of the archive repository.
 
