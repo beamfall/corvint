@@ -2868,6 +2868,46 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the bind and seal commits cannot reach. Non-goals: dropping either run. Evidence:
   `script/batch-precheck_test.sh` (the closeout recipe; the second run's selection) and the
   measured closeouts in `docs/build-log/2026-10-31-sealreuse-sp1.md`. Rollback: drop the variable.
+- `DCW-V0-945`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633; refines
+  `DCW-V0-379`, `DCW-V0-380` and `DCW-V0-961`) The prepare and full passes, and so
+  `dogfood inputs-check` (`make dogfood-inputs-check`), MUST derive every intent in
+  `DOGFOOD_INTENTS_FILE` at HEAD with the same function `ocm-prepare` uses to begin an intent's map
+  (`lrfrepo.DeriveIntentAt`: the intent is a blob at the target, in the declared form, UTF-8, and
+  derives within one map's obligation bound), and MUST refuse before any step runs, naming each
+  failing intent with the refusal code and message `ocm-prepare` would print after the bind commit
+  (`REFUSE intent-invalid intent=PATH code=CODE`, `too-many-obligations` keeping its
+  `DCW-V0-961` text), so an INTENTS file inputs-check passes is not refused by bind for an intent
+  derivation. Non-goals: the CEM-bound checks `ocm-prepare` also runs, which need the bind's map
+  (the bootstrap rule already prechecked by `DCW-V0-449`). Failure modes: a Git read error while
+  deriving is left to the steps, as before. Evidence: `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`
+  (each bad intent: the precheck code equals `PrepareOCM`'s code, and no step ran) and
+  `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945`. Rollback: restore the bound-only precheck.
+- `DCW-V0-946`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633 acceptance,
+  from the vt-w3 friction; refines `DCW-V0-150` and `DCW-V0-442`) `dogfood propose-citations`
+  (with or without `--refresh`), `dogfood finish-lane` and `dogfood inputs-check` MUST refuse a BASE
+  that is not an ancestor of HEAD before reading any patch, with `REFUSE base-not-ancestor
+  base=BASE merge-base=M` (M is `git merge-base BASE HEAD`, or `none`) and a fix line naming
+  `BASE=M` (or rebasing onto BASE), because a BASE..HEAD diff from a BASE that HEAD does not
+  contain carries the reverse of every BASE commit HEAD lacks, so a reseal would bind a revert of
+  main. `head-not-ahead-of-base` stays the refusal for a HEAD equal to BASE. Non-goals: choosing the
+  merge-base automatically. Evidence: `TestDCWV0946ProposeRefusesNonAncestorBase`,
+  `TestDCWV0946FinishLaneRefusesNonAncestorBase`. Rollback: drop the two guards.
+- `DCW-V0-947`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3638; refines
+  `DCW-V0-441` and `DCW-V0-442`) Before its prepare pass, `dogfood finish-lane` (and so `make
+  dogfood-finish` and `make dogfood-inputs-check`), on a HEAD that is neither a bind nor a seal
+  commit, MUST refresh the citation plan when a row names a hunk ID the current BASE..HEAD patch
+  lacks (HEAD moved since the plan was drafted), as `propose-citations BASE --refresh CITATIONS`
+  would, writing the result to `{evidence}/dogfood-finish.refreshed-plan.tsv`. When every row was
+  carried or re-keyed and no hunk had to be drafted afresh, the run MUST continue with that plan,
+  printing `NOTE citations-refreshed plan=PATH carried=N rekeyed=M`. Otherwise it MUST stop before
+  any step with `REFUSE citations-refresh-incomplete plan=PATH dropped=D drafted=K`, naming the
+  hunks left uncarried and the rerun with `CITATIONS=PATH` after review, exit 2. A plan whose hunk
+  IDs are all current, or keyed only by ordinals, is used unchanged. Non-goals: rewriting the
+  caller's CITATIONS file; refreshing after the bind commit. Failure modes: a refresh that itself
+  refuses is printed and stops the run. Evidence: `TestDCWV0947FinishRefreshesAMovedPlan` (a
+  re-keyed plan continues on the refreshed file; a plan whose hunk needs a fresh draft stops;
+  a current plan is untouched). Rollback: drop the refresh; the stale row is refused at the bind as
+  before (`DCW-V0-441`).
 - `DCW-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines
   `DCW-V0-380` and `DCW-V0-800`) `make dogfood-closeout` MUST run its `dogfood-inputs-check` and
   `dogfood-finish` steps with `LANE=1`, so one closeout without `INTENTS`, `VERIFY` or `OUTCOME`
@@ -3305,6 +3345,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-942` (experimental under the standing lane auto-accept; V1-3625) | `internal/dogfoodflow/check_timing.go` `phaseClock`, `writeTimings`, `readBuildTimings`; `script/dogfood-check.sh` build file; `TestDCWV0942CheckWritesPhaseTimings`, `script/dogfood-bin-reuse_test.sh` | implemented; focused tests PASS |
 | `DCW-V0-943` (experimental under the standing lane auto-accept; V1-3627) | `script/dogfood-build-corvint.sh` `dogfood_corvint_prune`, `dogfood_bin_outcome`; `script/dogfood-bin-reuse_test.sh` | implemented; focused test PASS |
 | `DCW-V0-944` (experimental under the standing lane auto-accept; V1-3550) | `Makefile` `dogfood-closeout`; `script/batch-precheck_test.sh` | implemented; focused test PASS |
+| `DCW-V0-945` (experimental under the standing lane auto-accept; V1-3633) | `internal/lrfrepo` `DeriveIntentAt`, used by `beginOCM` and `IntentObligationCounts`; `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` | implemented; focused tests PASS |
+| `DCW-V0-946` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/flow.go` `requireBaseAncestor`, called by `propose` and `finishLane.run`; `TestDCWV0946ProposeRefusesNonAncestorBase`, `TestDCWV0946FinishLaneRefusesNonAncestorBase` | implemented; focused tests PASS |
+| `DCW-V0-947` (experimental under the standing lane auto-accept; V1-3638) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-960` (experimental under the standing lane auto-accept; V1-3047) | `Makefile` `dogfood-closeout` target-specific `LANE`; `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestDCWV0960InputsCheckRefusesAbsentIntentManifest`, `script/dogfood-cache_test.sh` | implemented; focused tests PASS |
 | `DCW-V0-961` (experimental under the standing lane auto-accept; V1-3047) | `internal/dogfoodflow/obligation_precheck.go` `refuseOverBoundIntents`, `overMapBound`; `TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep` | implemented; focused test PASS |
 | `DCW-V0-962` (experimental under the standing lane auto-accept; V1-3284, V1-3428) | `internal/dogfoodflow/propose.go` `propose`, `definesRequirement`, `printDraft`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal` | implemented; focused tests PASS |
