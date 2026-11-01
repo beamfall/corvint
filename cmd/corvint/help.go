@@ -1910,8 +1910,9 @@ Options:
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
   --capabilities             Print the corvint-impact-capabilities/0 listing and
                              exit: suffixes with a reverse-import rule, suffixes
-                             admitted without one, and the per-call limits, derived
-                             from the admission tables. Takes no other argument.
+                             admitted without one, the per-call limits, derived
+                             from the admission tables, and the reverse-import
+                             closure depth. Takes no other argument.
   --producer                 Add one "producer" member (version, build, commit,
                              commitState) to the receipt; an unknown member reads
                              "unknown" and an unstamped build reads "unstamped".

@@ -519,10 +519,13 @@
       "go.mod"
     ],
     "tools/capabilities-check": [
+      ".github/workflows/",
       "AGENTS.md",
+      "Makefile",
       "README.md",
       "cmd/",
       "docs/",
+      "go.mod",
       "integrations/",
       "internal/",
       "llms.txt",

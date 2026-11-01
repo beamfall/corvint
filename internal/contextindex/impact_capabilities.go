@@ -9,6 +9,14 @@ import (
 // listing (GPK-V0-084).
 const ImpactCapabilitiesProfile = "corvint-impact-capabilities/0"
 
+// Reverse-import closure the listing states (GPK-V0-881): results stop at
+// direct importers, and Ruby's advisory autoload rows reach a second hop
+// ((*rubyAutoload).impact). Neither makes a READY receipt a closed test selection.
+const (
+	impactReverseImportClosureDepth  = 1
+	rubyAutoloadAdvisoryClosureDepth = 2
+)
+
 // ImpactCapabilities lists what path impact admits, derived from the same
 // tables the admission and rule predicates read (GPK-V0-084, GPK-V0-085):
 // textSuffixes through ImpactPathAdmitted, and the GPK-V0-027 rule suffixes
@@ -39,6 +47,12 @@ func ImpactCapabilities(defaultLimit int) map[string]any {
 			"ruleCaseSensitive":        caseSensitive,
 			"admissionCaseInsensitive": true,
 			"unadmitted":               "unsupported-impact-path-suffix",
+		},
+		"reverseImports": map[string]any{
+			"closureDepth":         impactReverseImportClosureDepth,
+			"advisoryClosureDepth": map[string]any{".rb": rubyAutoloadAdvisoryClosureDepth},
+			"closedTestSelection":  false,
+			"transitiveSelection":  "corvint affected --path",
 		},
 		"limits": map[string]any{
 			"pathsMin":     1,

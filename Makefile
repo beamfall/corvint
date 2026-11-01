@@ -1017,10 +1017,16 @@ shell-foreign-callers-check:
 shell-test-registration-check:
 	$(DOC_GATE_GO_TEST) -run '^(TestSTRV0004ShellTestIsTheGateShellSteps|TestASDV0921ScriptTestsAreExecutable)$$' ./tools/test-commands-check
 
+# ASD-V0-880 (V1-3882): every GOVERSION toolchain check in AGENTS.md, README.md, this Makefile and
+# the workflows names the version go.mod pins.
+.PHONY: go-version-pins-check
+go-version-pins-check:
+	$(DOC_GATE_GO_TEST) -run '^TestASDV0880' ./tools/capabilities-check
+
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check fixed-tmp-paths-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check fixed-tmp-paths-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:

@@ -1041,6 +1041,23 @@ which is the whole of what the row asserts.
   `history_tip` and that their difference is not staleness, and name the binding route
   (`git rev-parse COMMIT^{tree}`). Evidence: `TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles`
   pins the label. Rollback: drop the "Receipt fields" paragraph.
+- `GPK-V0-880`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3873) The
+  `unsupported-impact-path-suffix` refusal MUST list two supported fixes, in order:
+  `impact.omit-unadmitted-path` and `affected.use-path`, the latter registered in
+  `docs/specs/FIX-REGISTRY.tsv` as passing the refused tracked file or directory to
+  `corvint affected --path`. Its code, message, subject and exit status are unchanged, at every
+  layer that shares it (`impact`, a `batch` impact row, a `harness event` `file-change`), so a
+  tracked directory and the `Makefile` are refused with a code that names the supported
+  alternative. Non-goals: admitting directories or build files to impact (a directory would need
+  an aggregation contract and new receipt bytes); changing `affected`. Failure mode: a caller that
+  reads only `code` sees no change.
+- `GPK-V0-881`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2081) The
+  `GPK-V0-084` listing MUST carry a `reverseImports` member: `closureDepth` 1 (results stop at
+  direct importers), `advisoryClosureDepth` `{".rb": 2}` (Ruby's advisory autoload rows reach a
+  second hop), `closedTestSelection` `false` (a READY receipt is evidence, not a closed test
+  selection) and `transitiveSelection` `"corvint affected --path"`. A test MUST prove the member's
+  values and that the impact help states the same depths. Non-goals: a receipt member; changing the
+  walk depth.
 
 ## Non-goals and simpler baseline
 
@@ -2057,3 +2074,28 @@ negative result.
 | `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |
+
+## Amendment 2026-11-01 (V1-3873, V1-2081): the suffix refusal names `affected --path`, and the capability listing states the reverse-import closure
+
+`corvint impact internal/liveverify/affected` and `corvint impact Makefile` refuse with
+`unsupported-impact-path-suffix`, whose one supported fix (`impact.omit-unadmitted-path`) tells the
+caller only to drop the path, while `corvint affected --path` already plans a transitive selection
+for both (V1-3873). Separately, the one-hop reverse-import depth and "READY is not a closed test
+selection" were stated only in help prose and `docs/CAPABILITIES.md`, because impact receipt bytes
+are pinned by `conformance/cli-parity-v0/manifest.json` (`CCF-V1-006`; V1-2081). The owner's
+standing lane auto-accept (2026-10-11) covers both requirements.
+
+Divergence decision (V1-2081): the closure depth goes into the `GPK-V0-084` capability listing,
+not into impact receipts. The listing is not a parity-manifest case, so no receipt byte, golden or
+divergence-register row changes; a receipt member would have needed a register entry for every
+pinned impact case to restate a constant.
+
+`GPK-V0-880` and `GPK-V0-881` (defined at the end of the Requirements section) apply.
+
+Rollback: drop `affected.use-path` from the refusal and the registry, and the `reverseImports`
+member; no receipt, index, snapshot or trace changes.
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `GPK-V0-880` (experimental 2026-11-01, V1-3873) | `impactPathSuffixRefusal` in `cmd/corvint/diagnostic_refusals.go`; `affected.use-path` in `docs/specs/FIX-REGISTRY.tsv` | `TestGPKV0880SuffixRefusalNamesAffectedForDirectoryAndMakefile`, `TestFixIdentifiersResolveInRegistry` |
+| `GPK-V0-881` (experimental 2026-11-01, V1-2081) | `ImpactCapabilities` in `internal/contextindex/impact_capabilities.go` | `TestGPKV0881ImpactCapabilitiesStateTheReverseImportClosure`, `TestGPKV0084ImpactCapabilitiesListing` |

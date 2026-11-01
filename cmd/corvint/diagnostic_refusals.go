@@ -173,7 +173,7 @@ func impactPlatformRefusal(platform string) error {
 func impactPathSuffixRefusal(normalized string) error {
 	return refused("unsupported-impact-path-suffix", "native Go impact requires a suffix admitted by the repository index", diagnostic.Refusal{
 		Subject:        diagnostic.Subject{Kind: "value", Value: normalized},
-		SupportedFixes: []string{"impact.omit-unadmitted-path"},
+		SupportedFixes: []string{"impact.omit-unadmitted-path", "affected.use-path"},
 	})
 }
 
