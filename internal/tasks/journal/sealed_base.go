@@ -14,6 +14,7 @@ type sealedCapture struct {
 	seq        wire.Size
 	last       wire.Digest
 	generation uint64
+	primary    string
 	canonical  map[string]latest
 	notes      *noteState
 }
@@ -21,7 +22,7 @@ type sealedCapture struct {
 // captureSealed snapshots st and result right after the walk stepped the
 // receipt at the sealed sequence.
 func (st *chain) captureSealed(result *Result) *sealedCapture {
-	c := &sealedCapture{seq: result.LastSeq, last: result.LastReceiptSha256, generation: st.generation, canonical: maps.Clone(st.canonical)}
+	c := &sealedCapture{seq: result.LastSeq, last: result.LastReceiptSha256, generation: st.generation, primary: st.primary, canonical: maps.Clone(st.canonical)}
 	if st.notes != nil {
 		c.notes = &noteState{refs: maps.Clone(st.notes.refs), policyWalked: st.notes.policyWalked}
 	}
@@ -57,6 +58,14 @@ func (res *Result) sealedBaseCheckpoint(physical map[string]PhysicalFile) *Write
 	}
 	c := res.chain.atSealed
 	if res.manifest.Through != c.seq.Uint64() || res.Head.Segments.Through != c.seq {
+		return nil
+	}
+	// The base header names the head's primary worktree. A RELOCATE after S
+	// would give the base a primary the chain did not hold at S, and the next
+	// seal or resume would refuse the RELOCATE it re-steps. A head the
+	// segmented writer bound would send back to the complete route keeps the
+	// plain checkpoint too (JSG-V0-010).
+	if c.primary != res.Head.PrimaryWorktree || res.Head.LastSeq.Uint64()-c.seq.Uint64() >= WriterSegmentedBound {
 		return nil
 	}
 	at := *res.Head
