@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // treeDigest hashes every regular file under root except .git, ignored files
@@ -580,6 +581,7 @@ func writeAffectedGateDeclarations(t *testing.T, root string) {
 	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	writeTestCommandDeclaration(t, root)
 	affectedGit(t, root, "add", ".")
 	affectedGit(t, root, "commit", "-qm", "declare the gate")
 }
@@ -1391,5 +1393,18 @@ func TestAFPV0560CompactPlanKeepsFrontierExcluded(t *testing.T) {
 	}
 	if !reflect.DeepEqual(compact.Plan.FrontierExcluded, excluded) {
 		t.Fatalf("frontierExcluded=%v want %v", compact.Plan.FrontierExcluded, excluded)
+	}
+}
+
+// writeTestCommandDeclaration writes an empty corvint test command declaration
+// (sessiontest.DeclarationPath) under root.
+func writeTestCommandDeclaration(t *testing.T, root string) {
+	t.Helper()
+	declaration := filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))
+	if err := os.MkdirAll(filepath.Dir(declaration), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(declaration, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

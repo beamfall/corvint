@@ -27,6 +27,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // affectedProfile names the full wire `--full` emits (AFP-V0-003), which is
@@ -207,6 +208,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceFocusedCommand     = "corvint test --base %s --dry-run"
+	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.DeclarationPath + " is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory at the project terminal boundary, not as the default next step"
@@ -1318,7 +1320,7 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	provider := providerGoProjection(graph, plan)
-	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.base, plan)
+	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
 	return graph, plan, provider, advice
 }
 
@@ -1564,9 +1566,15 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 // withFocusedNextStep puts the focused selected-test command first among the
 // advisory checks when the plan has a base and dirty paths (AFP-V0-496): the
 // default next step is the narrowed run, and the declared exhaustive commands
-// stay the terminal-boundary checks a project policy may require.
-func withFocusedNextStep(advice affectedAdvice, base string, plan affected.Plan) affectedAdvice {
+// stay the terminal-boundary checks a project policy may require. A root
+// without the test-command declaration gets an unknown entry instead, since
+// that command would select nothing there (ACX-V0-853).
+func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected.Plan) affectedAdvice {
 	if base == "" || len(plan.Dirty) == 0 {
+		return advice
+	}
+	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}
 	focused := affectedCheck{Command: fmt.Sprintf(adviceFocusedCommand, shellQuoteJoin([]string{base})), Kind: adviceKindAdvisory, Reason: "prints the selected focused test argv for this plan and runs nothing; run the selected units, not the whole suite", Source: adviceSourcePlan}
@@ -2056,7 +2064,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		}
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
-		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
+		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
 	}
 	if err := snapshot.Validate(ctx, invocation.Root); err != nil {
 		return nil, snapshotAffectedError()
