@@ -104,6 +104,9 @@ type affectedInvocation struct {
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
+	// Worktree plans a --path list against the working tree, dirty and
+	// ignored bytes included, as a labelled non-evidence plan (ACX-V0-851).
+	Worktree bool
 	// ByPath writes the affected-by-path/1 document for a --path list: the
 	// shared UNBOUNDED_READER set once, then each path's additions
 	// (AFP-V0-990).
@@ -306,7 +309,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--format", "--full", "--no-cache", "--require-clean"}
+	names := []string{"--format", "--full", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -361,6 +364,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
 			}
 			invocation.RequireClean = true
+			index++
+			continue
+		}
+		if rest[index] == "--worktree" || strings.HasPrefix(rest[index], "--worktree=") {
+			if invocation.Worktree || rest[index] != "--worktree" {
+				return affectedInvocation{}, argumentError("argument --worktree: does not accept a value or repetition")
+			}
+			invocation.Worktree = true
 			index++
 			continue
 		}
@@ -460,6 +471,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err := affectedPathProfileRefusal(invocation); err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "" || invocation.Base != "") {
+		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean, --snapshot or --base")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -1109,7 +1123,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
-	if len(invocation.PathList) != 0 && len(dirty) != 0 {
+	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
 		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
@@ -1125,7 +1139,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		changed = invocation.PathList
 	}
 	var ignored []string
-	if len(invocation.PathList) != 0 {
+	if len(invocation.PathList) != 0 && !invocation.Worktree {
 		if graph, ignored, err = affectedPathListGraph(ctx, gitExecutable, root, revision, invocation, graph); err != nil {
 			return affectedReceipt{}, nil, err
 		}
@@ -1164,7 +1178,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if !equalStringSlices(dirty, recheck) {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
 	}
-	if len(invocation.PathList) != 0 {
+	if len(invocation.PathList) != 0 && !invocation.Worktree {
 		if err := playwrightIgnoredDrift(ctx, gitExecutable, root, ignored, "plan"); err != nil {
 			return affectedReceipt{}, nil, err
 		}
@@ -1175,7 +1189,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err := recheckCheckouts(); err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	return affectedReceipt{
+	receipt := affectedReceipt{
 		PathList: invocation.PathList,
 		Advice:   advice,
 		Mutates:  false,
@@ -1187,7 +1201,22 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Revision: revision,
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
-	}, graph, nil
+	}
+	if invocation.Worktree {
+		receipt.Warning = affectedWorktreeWarning(revision, dirty)
+		receipt.Degradations = append(receipt.Degradations, affectedWorktreeDegradation)
+	}
+	return receipt, graph, nil
+}
+
+// affectedWorktreeDegradation labels a --worktree path plan, which reads
+// uncommitted bytes and so is not pinned evidence (ACX-V0-851).
+const affectedWorktreeDegradation = "worktree-path-plan"
+
+// affectedWorktreeWarning names HEAD and the dirty count of a --worktree plan
+// and says it is worktree-derived, not pinned evidence (ACX-V0-851).
+func affectedWorktreeWarning(revision string, dirty []string) string {
+	return fmt.Sprintf("WORKTREE plan: --worktree planned the named paths against the working tree at HEAD %s with %d dirty worktree paths; the plan is worktree-derived and is not pinned evidence", revision, len(dirty))
 }
 
 // affectedE2ESafeSelection runs the e2e-safe profile over the plan and hands its closed output to

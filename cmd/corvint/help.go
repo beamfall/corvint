@@ -853,7 +853,7 @@ Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
-          [--paths-from FILE] [--cache DIR | --no-cache]
+          [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
   corvint [--root PATH] affected --by-path --path PATH [PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
@@ -972,6 +972,14 @@ Under --snapshot, --provider, the Playwright profile (--playwright-config,
 --playwright-discovery) or --appmap-impact it refuses with exit 2 and
 unsupported-affected-path-profile, naming why that profile plans its own
 change set and the recovery: commit the paths and plan with --base <HEAD>.
+
+--worktree (experimental, ACX-V0-851; requires --path or --paths-from, not
+with --require-clean, --snapshot or --base) plans the named paths against the
+working tree, dirty and ignored files included, instead of refusing a dirty
+worktree. The receipt carries the degradation worktree-path-plan and a warning
+naming HEAD and the dirty count: the plan is worktree-derived, not pinned
+evidence. Without --worktree the refusal stays the default.
+Example: corvint affected --worktree --path internal/foo/foo.go --format text
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
 per LF-separated line, blank lines skipped; FILE is relative to the root unless
