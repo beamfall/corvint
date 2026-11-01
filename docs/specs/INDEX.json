@@ -4332,5 +4332,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/context-ranking-v0.md",
+    "title": "Context ranking V0",
+    "reqPrefix": "CRK-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

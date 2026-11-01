@@ -414,14 +414,7 @@ func roleCandidates(scores []float64) []uint32 {
 // roleTerms is the sorted task terms the role line carries, tokenised as
 // the body Terms table tokenises a source.
 func roleTerms(line string, terms map[string]struct{}) []string {
-	matched := make([]string, 0)
-	for term := range countTerms(line) {
-		if _, ok := terms[term]; ok {
-			matched = append(matched, term)
-		}
-	}
-	sort.Strings(matched)
-	return matched
+	return matchTerms(line, terms)
 }
 
 // roleReason is the TCP-V0-041 evidence prefix of a lexical row.
