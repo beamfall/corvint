@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"os/exec"
+	"slices"
 	"strings"
 )
 
@@ -29,37 +30,37 @@ type DeliveryObservation struct {
 	GitCalls                          int
 }
 
-// TLC-V0-006 budgets: walk output bytes and fallback ancestry checks.
+// TLC-V0-006 budgets: walk output bytes, fallback ancestry checks and the
+// explicit refs named one by one before the listing widens to all of refs/.
 const (
 	deliveryWalkMaxBytes   = 16 << 20
 	deliveryRefsMaxBytes   = 32 << 20
 	deliveryAncestryChecks = 16
+	deliveryExactRefs      = 64
 )
 
 func boolp(b bool) *bool { return &b }
 
 // ObserveDeliveries checks every query against the refs of root with a fixed
 // number of Git processes (TLC-V0-006): one ref listing, one object check,
-// one integration walk, one walk over the distinct branch refs and at most
-// deliveryAncestryChecks bounded ancestry checks. It never writes.
+// one integration walk, one shallow check when that walk leaves a head
+// unreached, one walk over the distinct branch-ref commits and at most
+// deliveryAncestryChecks bounded ancestry checks. Every walk starts from the
+// commits the listing captured, in sorted order. It never writes.
 func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) DeliveryObservation {
 	var obs DeliveryObservation
 	run := func(stdin string, max int64, args ...string) ([]byte, bool, error) {
 		obs.GitCalls++
 		return deliveryGit(root, stdin, max, args...)
 	}
-	refsOut, over, err := run("", deliveryRefsMaxBytes, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/", "refs/remotes/")
+	listing := append([]string{"for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/", "refs/remotes/"}, exactRefPatterns(qs)...)
+	refsOut, over, err := run("", deliveryRefsMaxBytes, listing...)
 	if err != nil || over {
 		return DeliveryObservation{Failed: true, GitCalls: obs.GitCalls}
 	}
-	refs := map[string]string{}
-	for _, line := range strings.Split(string(refsOut), "\n") {
-		if oid, name, ok := strings.Cut(line, " "); ok {
-			refs[name] = oid
-		}
-	}
+	refs := newRefIndex(refsOut)
 	for _, name := range []string{"refs/remotes/origin/" + integrationBranch, "refs/heads/" + integrationBranch} {
-		if oid, ok := refs[name]; ok && integrationBranch != "" {
+		if oid, ok := refs.oids[name]; ok && integrationBranch != "" {
 			obs.IntegrationRef, obs.IntegrationCommit = name, oid
 			break
 		}
@@ -93,17 +94,17 @@ func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) Deliv
 		if exists {
 			heads[i] = oid
 		}
-		if ref := resolveBranch(refs, qs[i].Branch); ref != "" {
-			obs.Results[i].Ref, obs.Results[i].RefCommit = ref, refs[ref]
+		if ref := refs.resolve(qs[i].Branch); ref != "" {
+			obs.Results[i].Ref, obs.Results[i].RefCommit = ref, refs.oids[ref]
 		}
 	}
-	// Integration walk: a head the walk from heads ^tip emits is not integrated.
+	// Integration walk: a head the walk from heads ^tip emits is not
+	// integrated, unless the history is shallow and the head may lie past
+	// the shallow boundary; then it is not observed (TLC-V0-004).
 	if obs.IntegrationCommit != "" {
 		var in strings.Builder
-		for _, h := range heads {
-			if h != "" {
-				in.WriteString(h + "\n")
-			}
+		for _, h := range sortedSet(heads) {
+			in.WriteString(h + "\n")
 		}
 		if in.Len() > 0 {
 			in.WriteString("^" + obs.IntegrationCommit + "\n")
@@ -112,19 +113,31 @@ func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) Deliv
 				return DeliveryObservation{Failed: true, GitCalls: obs.GitCalls}
 			}
 			emitted := lineSet(out, over)
+			shallow := false
+			if len(emitted) > 0 {
+				out, _, err := run("", 64, "rev-parse", "--is-shallow-repository")
+				if err != nil {
+					return DeliveryObservation{Failed: true, GitCalls: obs.GitCalls}
+				}
+				shallow = strings.TrimSpace(string(out)) != "false"
+			}
 			for i, h := range heads {
 				switch {
 				case h == "":
 				case emitted[h]:
-					obs.Results[i].Integrated = boolp(false)
+					if !shallow {
+						obs.Results[i].Integrated = boolp(false)
+					}
 				case !over:
 					obs.Results[i].Integrated = boolp(true)
 				}
 			}
 		}
 	}
-	// Branch walk over the distinct refs of non-integrated heads.
-	pending := map[string]bool{}
+	// Branch walk over the distinct ref commits of non-integrated heads. An
+	// integrated head is never pending, so it keeps headOnRef null.
+	pending := make([]bool, len(qs))
+	var starts []string
 	for i, h := range heads {
 		r := &obs.Results[i]
 		switch {
@@ -132,15 +145,16 @@ func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) Deliv
 		case r.RefCommit == h:
 			r.HeadOnRef = boolp(true)
 		default:
-			pending[r.Ref] = true
+			pending[i] = true
+			starts = append(starts, r.RefCommit)
 		}
 	}
-	if len(pending) == 0 {
+	if len(starts) == 0 {
 		return obs
 	}
 	var in strings.Builder
-	for ref := range pending {
-		in.WriteString(ref + "\n")
+	for _, oid := range sortedSet(starts) {
+		in.WriteString(oid + "\n")
 	}
 	in.WriteString("^" + obs.IntegrationCommit + "\n")
 	out, over, err := run(in.String(), deliveryWalkMaxBytes, "log", "--no-show-signature", "--no-color", "--source", "--format=%H %S", "--stdin")
@@ -149,19 +163,19 @@ func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) Deliv
 	}
 	source := map[string]string{}
 	for _, line := range completeLines(out, over) {
-		if oid, ref, ok := strings.Cut(line, " "); ok {
-			source[oid] = ref
+		if oid, start, ok := strings.Cut(line, " "); ok {
+			source[oid] = start
 		}
 	}
 	checks := 0
 	for i, h := range heads {
 		r := &obs.Results[i]
-		if h == "" || !pending[r.Ref] || r.HeadOnRef != nil {
+		if !pending[i] {
 			continue
 		}
 		src, seen := source[h]
 		switch {
-		case seen && src == r.Ref:
+		case seen && src == r.RefCommit:
 			r.HeadOnRef = boolp(true)
 		case !seen && !over:
 			r.HeadOnRef = boolp(false)
@@ -181,34 +195,82 @@ func ObserveDeliveries(root, integrationBranch string, qs []DeliveryQuery) Deliv
 	return obs
 }
 
-// resolveBranch is the TLC-V0-003 branch resolution, or "" when no ref
-// matches.
-func resolveBranch(refs map[string]string, branch string) string {
+// refIndex is one observation's ref listing: each ref's object name, and
+// each remote-tracking short name mapped to its only ref, or "" when two
+// remotes share it. It is built once, so resolution never rescans the refs.
+type refIndex struct {
+	oids, remote map[string]string
+}
+
+func newRefIndex(listing []byte) refIndex {
+	x := refIndex{oids: map[string]string{}, remote: map[string]string{}}
+	for _, line := range strings.Split(string(listing), "\n") {
+		oid, name, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		x.oids[name] = oid
+		if rest, ok := strings.CutPrefix(name, "refs/remotes/"); ok {
+			if _, b, cut := strings.Cut(rest, "/"); cut {
+				if _, dup := x.remote[b]; dup {
+					x.remote[b] = ""
+				} else {
+					x.remote[b] = name
+				}
+			}
+		}
+	}
+	return x
+}
+
+// resolve is the TLC-V0-003 branch resolution, or "" when no ref matches.
+func (x refIndex) resolve(branch string) string {
 	if branch == "" {
 		return ""
 	}
 	if strings.HasPrefix(branch, "refs/") {
-		if _, ok := refs[branch]; ok {
+		if _, ok := x.oids[branch]; ok {
 			return branch
 		}
 		return ""
 	}
 	for _, name := range []string{"refs/heads/" + branch, "refs/remotes/origin/" + branch} {
-		if _, ok := refs[name]; ok {
+		if _, ok := x.oids[name]; ok {
 			return name
 		}
 	}
-	match := ""
-	for name := range refs {
-		rest, ok := strings.CutPrefix(name, "refs/remotes/")
-		if _, b, cut := strings.Cut(rest, "/"); ok && cut && b == branch {
-			if match != "" {
-				return ""
-			}
-			match = name
+	return x.remote[branch]
+}
+
+// exactRefPatterns are the distinct, sorted explicit refs/ branches of qs
+// that the default listing of refs/heads/ and refs/remotes/ misses, so an
+// exact ref in any namespace resolves (TLC-V0-003). A name with a pattern
+// metacharacter or whitespace is no valid ref and is left unresolved. Past
+// deliveryExactRefs names the listing takes all of refs/ instead, which keeps
+// the argument list bounded.
+func exactRefPatterns(qs []DeliveryQuery) []string {
+	var names []string
+	for _, q := range qs {
+		b := q.Branch
+		if strings.HasPrefix(b, "refs/") && !strings.HasPrefix(b, "refs/heads/") && !strings.HasPrefix(b, "refs/remotes/") &&
+			!strings.ContainsFunc(b, func(c rune) bool { return c <= ' ' || c == 0x7f || strings.ContainsRune("*?[\\", c) }) {
+			names = append(names, b)
 		}
 	}
-	return match
+	if names = sortedSet(names); len(names) > deliveryExactRefs {
+		return []string{"refs/"}
+	}
+	return names
+}
+
+// sortedSet is the distinct non-empty members of xs in sorted order.
+func sortedSet(xs []string) []string {
+	out := slices.Sorted(slices.Values(xs))
+	out = slices.Compact(out)
+	if len(out) > 0 && out[0] == "" {
+		out = out[1:]
+	}
+	return out
 }
 
 // validHead admits a hexadecimal object name only, so no batch input can be
