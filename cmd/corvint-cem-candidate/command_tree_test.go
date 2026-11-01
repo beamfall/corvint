@@ -3,10 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -14,27 +11,23 @@ import (
 	"github.com/Beamfall/corvint/internal/clitree"
 )
 
-// TestCAPV0932EveryNodeAnswersHelp runs the built binary for every command-tree node with --help
+// TestCAPV0932EveryNodeAnswersHelp runs the command for every command-tree node with --help
 // and -h: each exits 0 with that node's own help on stdout and nothing on stderr, and the root
 // help lists every node and names help --json.
 func TestCAPV0932EveryNodeAnswersHelp(t *testing.T) {
-	bin := filepath.Join(t.TempDir(), "corvint-cem-candidate")
-	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, out)
-	}
 	tree := commandTree()
 	if problems := clitree.Problems(tree); len(problems) > 0 || len(tree.Nodes) == 0 {
 		t.Fatalf("tree problems: %v (%d nodes)", problems, len(tree.Nodes))
 	}
 	for _, node := range tree.Nodes {
 		for _, flag := range []string{"--help", "-h"} {
-			stdout, stderr, code := run(t, bin, append(slices.Clone(node.Path), flag)...)
+			stdout, stderr, code := run(t, append(slices.Clone(node.Path), flag)...)
 			if code != 0 || stderr != "" || stdout != clitree.Render(tree, node) {
 				t.Fatalf("%s %s: exit %d, stderr %q, stdout:\n%s", node.Command, flag, code, stderr, stdout)
 			}
 		}
 	}
-	stdout, _, code := run(t, bin, "--help")
+	stdout, _, code := run(t, "--help")
 	if code != 0 || !strings.Contains(stdout, "corvint-cem-candidate help --json") {
 		t.Fatalf("--help: exit %d, %q", code, stdout)
 	}
@@ -43,10 +36,10 @@ func TestCAPV0932EveryNodeAnswersHelp(t *testing.T) {
 			t.Fatalf("root help lacks %v:\n%s", node.Path, stdout)
 		}
 	}
-	if _, stderr, code := run(t, bin, "help", "nope"); code != 2 || !strings.Contains(stderr, "unknown command") {
+	if _, stderr, code := run(t, "help", "nope"); code != 2 || !strings.Contains(stderr, "unknown command") {
 		t.Fatalf("help nope: exit %d, %q", code, stderr)
 	}
-	if _, _, code := run(t, bin); code != 2 {
+	if _, _, code := run(t); code != 2 {
 		t.Fatalf("no arguments: exit %d, want the usage refusal", code)
 	}
 }
@@ -67,18 +60,9 @@ func TestCAPV0930TreeSnapshotIsCurrent(t *testing.T) {
 	}
 }
 
-func run(t *testing.T, bin string, args ...string) (string, string, int) {
+func run(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
 	var stdout, stderr bytes.Buffer
-	cmd := exec.Command(bin, args...)
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	code := 0
-	if err := cmd.Run(); err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) {
-			t.Fatal(err)
-		}
-		code = exit.ExitCode()
-	}
+	code := command(context.Background(), args, &stdout, &stderr)
 	return stdout.String(), stderr.String(), code
 }

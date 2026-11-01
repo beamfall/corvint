@@ -48,6 +48,7 @@
       "internal/analyzerswift/"
     ],
     "cmd/corvint-cem-candidate": [
+      "internal/capcatalog/trees/corvint-cem-candidate.json",
       "protocol/cem-1.0/stable/neutral-criterion/"
     ],
     "cmd/corvint-companion-release": [
