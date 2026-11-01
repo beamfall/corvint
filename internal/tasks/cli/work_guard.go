@@ -93,6 +93,31 @@ func withReasonCode(op, code string, payload wire.Value) (wire.Value, error) {
 	return mutation.CanonicalPayload(op, wire.ObjectValue(obj))
 }
 
+// writerGuard runs at every writer entry: the §5.2 writer, refine --batch,
+// release mutations and reconcile intent (TAW-V0-021). A read-only session
+// writes nothing even when a command got past readOnlyRefusal, and
+// agentGuard then checks the session class.
+func writerGuard(env Env, op string, payload wire.Value) error {
+	if v := os.Getenv(ReadOnlyEnv); v != "" && v != "0" {
+		return wire.Errorf(wire.CodeUnsupported, ReadOnlyEnv, "%s is set: this is a read-only session, so the write was refused before any store access (ATR-V0-212, TAW-V0-021)", ReadOnlyEnv)
+	}
+	return agentGuard(env, op, payload)
+}
+
+// classRefusal refuses every command that is not a listed pure read under
+// an unknown session class, before any store access (TAW-V0-001,
+// TAW-V0-021).
+func classRefusal(env Env, args []string) *wire.Result {
+	verb := verbPath(args)
+	if readOnlyVerbs[verb] {
+		return nil
+	}
+	if _, err := taskClass(env); err != nil {
+		return errorResult(strings.Fields(verb), err)
+	}
+	return nil
+}
+
 // agentGuard runs at the §5.2 writer entry, so every caller is covered
 // (TAW-V0-013): nil unless the session class is unknown, or AGENT and the
 // operation edits status outside the work verbs' paths.

@@ -393,7 +393,7 @@ func submitMutation(env Env, cmd []string, operation string, actor mutation.Bind
 // submitMutationContext is submitMutation under a caller's writer context,
 // which may carry write-time inputs such as an obligation report check.
 func submitMutationContext(ctx context.Context, env Env, cmd []string, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) *wire.Result {
-	if err := agentGuard(env, operation, payload); err != nil {
+	if err := writerGuard(env, operation, payload); err != nil {
 		return errorResult(cmd, err)
 	}
 	repo, err := intent.Resolve(env.Cwd)

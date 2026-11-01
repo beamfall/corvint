@@ -8,12 +8,15 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// releaseSyncFlags are the work release-sync flags (TAW-V0-016).
+var releaseSyncFlags = workFlagSpec{single: []string{"release", "milestone", "request-id", "issued-at", "role"}, bools: []string{"dry-run"}}
+
 // workReleaseSync is TAW-V0-014: it adds every OPEN ticket whose milestone
 // is M and that is not a member of release R through one release membership
 // mutation, and reports members whose milestone is not M without removing
 // them. In sync it writes nothing, so a rerun is a no-op.
 func workReleaseSync(env Env, cmd []string, args []string) *wire.Result {
-	fl, set, res := listFlags(cmd, args, []string{"release", "milestone", "request-id", "issued-at", "role"}, nil, []string{"dry-run"})
+	fl, set, res := releaseSyncFlags.parse(cmd, args)
 	if res != nil {
 		return res
 	}

@@ -157,6 +157,9 @@ func Run(env Env) int {
 	if result := readOnlyRefusal(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := classRefusal(env, args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}

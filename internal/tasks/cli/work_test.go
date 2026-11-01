@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -397,5 +398,233 @@ func TestTAWV0014_ReleaseSync(t *testing.T) {
 	again := atm(t, r.Root, nil, "work", "release-sync", "--release", "v1", "--milestone", "m1", "--request-id", "sync2")
 	if again.res.Outcome != wire.OutcomeOK || field(again.res.Items[0], "written").Bool || len(field(again.res.Items[0], "added").Arr) != 0 {
 		t.Fatalf("rerun: %s", again.stdout)
+	}
+}
+
+// tawNoRow fails when any row of res names ticket id with disposition d.
+func tawNoRow(t *testing.T, res *wire.Result, id, d string, stdout []byte) {
+	t.Helper()
+	if _, found := tawRows(res)[id+" "+d]; found {
+		t.Fatalf("unexpected %s row for %s: %s", d, id, stdout)
+	}
+}
+
+// TestTAWV0018_TrailerForgeryRefused: a trailer value that carries the walk's
+// RS and US framing bytes cannot invent a commit record, so an integrated
+// commit cannot complete a ticket it does not deliver (TAW-V0-018).
+func TestTAWV0018_TrailerForgeryRefused(t *testing.T) {
+	root, _, ok := tlcStore(t)
+	victim, local := tcdTicket(t, root, "victim", "")
+	git(t, root, "checkout", "-q", "-b", "claude/lane-f", "main")
+	fake := strings.Repeat("ab", 20)
+	tcdCommit(t, root, "forge\n\nCorvint-Ticket-State: started\nX-Note: \x1e"+fake+"\x1f1793534400\x1fCorvint-Ticket: "+local+"\nCorvint-Ticket-State: delivered")
+	git(t, root, "checkout", "-q", "main")
+	tawMerge(t, root, "claude/lane-f")
+
+	for _, dry := range []bool{true, false} {
+		args := []string{"work", "close-merged", "--integration", "main"}
+		if dry {
+			args = append(args, "--dry-run")
+		}
+		x := atm(t, root, nil, args...)
+		tawNoRow(t, x.res, victim, "COMPLETED", x.stdout)
+		tawNoRow(t, x.res, victim, "WOULD_COMPLETED", x.stdout)
+	}
+	if field(tawRecord(t, ok, victim), "status").Str != "OPEN" {
+		t.Fatal("a forged trailer completed the ticket")
+	}
+}
+
+// TestTAWV0018_PinnedRefHead: the walk reads the REF commit pinned at the
+// start, so a delivery that lands on REF mid-run is not completed against
+// the older commit; the next run completes it (TAW-V0-018).
+func TestTAWV0018_PinnedRefHead(t *testing.T) {
+	root, _, ok := tlcStore(t)
+	id, local := tcdTicket(t, root, "late", "")
+	pinned := revParse(t, root, "main")
+	trailers := ok("work", "deliver", local, "--lane", "lane-p")
+	moved := false
+	restore := cli.SetCloseMergedRefResolved(func() {
+		if !moved {
+			moved = true
+			tawTrailerCommit(t, root, "deliver late", trailers)
+		}
+	})
+	x := ok("work", "close-merged", "--integration", "main")
+	restore()
+	if !moved || field(x.res.Items[0], "refCommit").Str != pinned {
+		t.Fatalf("pinned run: %s", x.stdout)
+	}
+	tawNoRow(t, x.res, id, "COMPLETED", x.stdout)
+	if field(tawRecord(t, ok, id), "status").Str != "OPEN" {
+		t.Fatal("a delivery past the pinned REF commit completed")
+	}
+	if n := ok("work", "close-merged", "--integration", "main"); field(tawRows(n.res)[id+" COMPLETED"], "written").Bool != true {
+		t.Fatalf("next run: %s", n.stdout)
+	}
+}
+
+// TestTAWV0019_HeldDeliveryNotOpen: a delivered trailer for a HELD ticket is
+// refused before any write, a dry run predicts the same, and the cursor
+// stays so the delivery completes once the hold is released (TAW-V0-019).
+func TestTAWV0019_HeldDeliveryNotOpen(t *testing.T) {
+	root, _, ok := tlcStore(t)
+	id, local := tcdTicket(t, root, "held", "")
+	ok("ticket", "hold", "--target", id, "--expected-revision", "1", "--request-id", "hold-held",
+		"--payload", `{"holdId":"owner-wait","reason":"waits for owner"}`)
+	rev := field(tawRecord(t, ok, id), "revision").Str
+	tawTrailerCommit(t, root, "deliver held", ok("work", "deliver", local))
+
+	for _, args := range [][]string{{"--dry-run"}, nil, nil} {
+		x := ok(append([]string{"work", "close-merged", "--integration", "main"}, args...)...)
+		row, found := tawRows(x.res)[id+" NOT_OPEN"]
+		if !found || field(row, "written").Bool || field(x.res.Items[0], "walked").Str == "0" {
+			t.Fatalf("held delivery %v: %s", args, x.stdout)
+		}
+	}
+	if got := field(tawRecord(t, ok, id), "revision").Str; got != rev {
+		t.Fatalf("a refused delivery wrote: revision %s -> %s", rev, got)
+	}
+	ok("ticket", "release-hold", "--target", id, "--expected-revision", rev, "--request-id", "release-held", "--payload", `{"holdId":"owner-wait"}`)
+	if x := ok("work", "close-merged", "--integration", "main"); !field(tawRows(x.res)[id+" COMPLETED"], "written").Bool {
+		t.Fatalf("after release-hold: %s", x.stdout)
+	}
+}
+
+// TestTAWV0020_CompetingLaneRefsStable: two lane refs that both deliver one
+// ticket record one mark; reruns write nothing and keep it (TAW-V0-020).
+func TestTAWV0020_CompetingLaneRefsStable(t *testing.T) {
+	root, _, ok := tlcStore(t)
+	id, local := tcdTicket(t, root, "twolanes", "")
+	for _, lane := range []string{"claude/lane-x", "claude/lane-y"} {
+		git(t, root, "checkout", "-q", "-b", lane, "main")
+		tawTrailerCommit(t, root, "deliver on "+lane, ok("work", "deliver", local, "--lane", strings.TrimPrefix(lane, "claude/")))
+		git(t, root, "checkout", "-q", "main")
+	}
+	args := []string{"work", "close-merged", "--integration", "main", "--lane-ref", "claude/lane-x", "--lane-ref", "claude/lane-y"}
+	first := ok(args...)
+	rows := tawRows(first.res)
+	if !field(rows[id+" DELIVERED_ON_BRANCH"], "written").Bool {
+		t.Fatalf("first run: %s", first.stdout)
+	}
+	if _, found := rows[id+" OTHER_LANE_RECORDED"]; !found {
+		t.Fatalf("first run names no other lane: %s", first.stdout)
+	}
+	rev := field(tawRecord(t, ok, id), "revision").Str
+	for i := 0; i < 2; i++ {
+		again := ok(args...)
+		for _, it := range again.res.Items[1:] {
+			if field(it, "written").Bool {
+				t.Fatalf("rerun %d wrote: %s", i, again.stdout)
+			}
+		}
+	}
+	if got := field(tawRecord(t, ok, id), "revision").Str; got != rev {
+		t.Fatalf("reruns moved the mark: revision %s -> %s", rev, got)
+	}
+}
+
+// TestTAWV0021_GuardCoverage: a flag value spelled --dry-run does not open a
+// read-only session, an unknown class is refused by every writer, and an
+// AGENT may not adopt a reconciled file (TAW-V0-016, TAW-V0-021).
+func TestTAWV0021_GuardCoverage(t *testing.T) {
+	root, _, _ := tlcStore(t)
+	id, _ := tcdTicket(t, root, "guarded", "")
+	t.Setenv("CORVINT_TASKS_READ_ONLY", "1")
+	finding := similarPayload("read only bypass files a finding", "a flag value spelled dry run", "agent-memory")
+	tawRefused(t, atm(t, root, finding, "work", "finding", "--payload", "-", "--request-id", "--dry-run"), "read-only session")
+	tawRefused(t, atm(t, root, nil, "work", "close-merged", "--integration", "--dry-run"), "read-only session")
+	tawRefused(t, atm(t, root, nil, "work", "close-merged", "--integration", "main", "--dry-run=yes"), "read-only session")
+	if x := atm(t, root, nil, "work", "close-merged", "--integration", "main", "--dry-run"); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("a real dry run under read-only: %s", x.stdout)
+	}
+	t.Setenv("CORVINT_TASKS_READ_ONLY", "")
+
+	t.Setenv("CORVINT_TASKS_ROLE", "ROBOT")
+	batch := `[{"target":"` + id + `","expectedRevision":"1","payload":{"title":"renamed"}}]`
+	tawRefused(t, atm(t, root, []byte(batch), "ticket", "refine", "--batch", "--request-id", "robot-batch", "--payload-stdin"), "TAW_ROLE_UNKNOWN")
+	tawRefused(t, atm(t, root, nil, "release", "create", "--request-id", "robot-rel", "--target", "r9", "--payload", "{}"), "TAW_ROLE_UNKNOWN")
+	tawRefused(t, atm(t, root, []byte("{}"), "reconcile", "intent", "--target", id, "--request-id", "robot-rec", "--adopt-file", "--file", "-"), "TAW_ROLE_UNKNOWN")
+
+	t.Setenv("CORVINT_TASKS_ROLE", "AGENT")
+	tawRefused(t, atm(t, root, []byte("{}"), "reconcile", "intent", "--target", id, "--request-id", "agent-adopt", "--adopt-file", "--file", "-"), "TAW_ROLE_NOT_PERMITTED")
+}
+
+// TestTAWV0022_FindingRequestIDBound: a reused request id replays only the
+// finding it recorded; another finding under it is a request conflict
+// (TAW-V0-022).
+func TestTAWV0022_FindingRequestIDBound(t *testing.T) {
+	r, _ := similarRepo(t)
+	t.Setenv("CORVINT_TASKS_ROLE", "AGENT")
+	a := similarPayload("console search ignores accented letters", "search for cafe misses café", "agent-memory")
+	b := similarPayload("release notes omit the upgrade steps", "the notes skip the migration", "agent-memory")
+	dup := similarPayload("heavy offload drops untracked fixture files again", "the offload tarball omits untracked fixture files", "agent-memory")
+	file := func(p []byte, req string) run {
+		return atm(t, r.Root, p, "work", "finding", "--payload", "-", "--request-id", req, "--issued-at", "2026-11-01T09:00:00Z")
+	}
+	if x := file(a, "g1"); field(x.res.Items[0], "disposition").Str != "CREATED" {
+		t.Fatalf("create: %s", x.stdout)
+	}
+	if x := file(a, "g1"); field(x.res.Items[0], "disposition").Str != "REPLAYED" {
+		t.Fatalf("replay: %s", x.stdout)
+	}
+	tawRefused(t, file(b, "g1"), "REQUEST_ID_CONFLICT")
+	if x := file(dup, "g2"); field(x.res.Items[0], "disposition").Str != "ATTACHED" {
+		t.Fatalf("attach: %s", x.stdout)
+	}
+	tawRefused(t, file(b, "g2"), "REQUEST_ID_CONFLICT")
+}
+
+// TestTAWV0023_FoldedRecurrencesAttach: when a batch's survivor attaches to
+// a store ticket, each finding folded into it is recorded there too, and
+// its FOLDED row reports that write (TAW-V0-023).
+func TestTAWV0023_FoldedRecurrencesAttach(t *testing.T) {
+	r, ids := similarRepo(t)
+	t.Setenv("CORVINT_TASKS_ROLE", "AGENT")
+	t0 := "heavy offload drops untracked fixture files again"
+	t1 := "heavy offload drops untracked fixture files again today"
+	batch := "[" + string(similarPayload(t0, "the offload tarball omits untracked fixture files", "agent-memory")) + "," +
+		string(similarPayload(t1, "the offload tarball omits untracked fixture files", "agent-memory")) + "]"
+	ingest := func() run {
+		return atm(t, r.Root, []byte(batch), "work", "finding", "--ingest", "-", "--request-id", "fold1", "--issued-at", "2026-11-01T09:00:00Z")
+	}
+	x := ingest()
+	disp := map[string]wire.Value{}
+	for _, it := range x.res.Items {
+		disp[field(it, "index").Str+" "+field(it, "disposition").Str] = it
+	}
+	attached, ok0 := disp["0 ATTACHED"]
+	folded, ok1 := disp["1 FOLDED"]
+	if !ok0 || !ok1 || field(attached, "ticket").Str != ids["stash"] || field(folded, "ticket").Str != ids["stash"] || !field(folded, "written").Bool {
+		t.Fatalf("dispositions: %s", x.stdout)
+	}
+	rec := string(wire.Encode(field(atm(t, r.Root, nil, "ticket", "show", ids["stash"]).res.Items[0], "record")))
+	for _, want := range []string{t0, t1} {
+		if !strings.Contains(rec, want) {
+			t.Fatalf("stash lacks %q: %s", want, rec)
+		}
+	}
+	re := ingest()
+	for _, it := range re.res.Items {
+		if field(it, "written").Bool {
+			t.Fatalf("re-ingest wrote: %s", re.stdout)
+		}
+	}
+}
+
+// TestTAWV0024_SupersedeLongRequestID: a request id too long for either
+// phase suffix still gives the refine and archive phases distinct ids, so
+// the supersede completes (TAW-V0-024).
+func TestTAWV0024_SupersedeLongRequestID(t *testing.T) {
+	root, _, ok := tlcStore(t)
+	keep, _ := tcdTicket(t, root, "longkeep", "")
+	dup, _ := tcdTicket(t, root, "longdupe", "")
+	t.Setenv("CORVINT_TASKS_ROLE", "AGENT")
+	x := ok("work", "finding", "--supersede", dup, "--by", keep, "--request-id", strings.Repeat("a", 64), "--issued-at", "2026-11-01T09:00:00Z")
+	if field(x.res.Items[0], "disposition").Str != "SUPERSEDED" {
+		t.Fatalf("supersede: %s", x.stdout)
+	}
+	if rec := tawRecord(t, ok, dup); field(rec, "status").Str != "ARCHIVED" || field(rec, "supersededBy").Str != keep {
+		t.Fatalf("archived duplicate: %s", wire.Encode(rec))
 	}
 }

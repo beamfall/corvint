@@ -75,7 +75,7 @@ func workFinding(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	row, out := fileFinding(env, cmd, f, f.requestID, payload)
+	row, out := fileFinding(env, cmd, f, f.requestID, payload, nil)
 	if out != nil {
 		return out
 	}
@@ -111,25 +111,31 @@ func readFindingSource(env Env, src string) ([]byte, error) {
 }
 
 // recordedRequest reports the ticket a request id already committed, so a
-// rerun replays instead of ranking against the ticket it created.
-func recordedRequest(env Env, requestID string) (string, bool, error) {
-	var ticketID string
-	var found bool
+// rerun replays instead of ranking against the ticket it created. same
+// reports whether that commit is this finding: a completed outcome on a
+// ticket titled as the finding, or carrying the finding's recurrence line
+// (TAW-V0-022).
+func recordedRequest(env Env, requestID, title string) (ticketID string, found, same bool, err error) {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		ticketID, found = "", false
+		ticketID, found, same = "", false, false
 		if rc.journalAbsent {
 			return nil
 		}
 		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
-		_, ok, err := idx.Lookup(requestID)
-		if err != nil {
+		entry, ok, err := idx.Lookup(requestID)
+		if err != nil || !ok {
 			return err
 		}
-		found, ticketID = ok, idx.TicketID
+		found, ticketID = true, idx.TicketID
+		rec, has := rc.store.Inventory.Get(ticketID)
+		if !has || entry.Outcome.Outcome != mutation.OutcomeCompleted {
+			return nil
+		}
+		same = strings.TrimSpace(rec.Title) == title || (rec.Body != nil && similar.HasRecurrence(*rec.Body, title))
 		return nil
 	})
 	_ = rc
-	return ticketID, found, err
+	return ticketID, found, same, err
 }
 
 func findingRow(index int, disposition, ticketID, reason string, written bool) wire.Value {
@@ -164,13 +170,18 @@ func setPayloadString(v wire.Value, key, s string) (wire.Value, error) {
 }
 
 // fileFinding is TAW-V0-010 for one canonical CREATE payload: the similar
-// check first, then attach (ticket recur) or create. A non-nil result is a
+// check first, then attach (ticket recur) or create. folds are the contexts
+// of batch findings folded into this one; an attach records each as its own
+// recurrence before the finding's (TAW-V0-023). A non-nil result is a
 // refusal of the whole command.
-func fileFinding(env Env, cmd []string, f findingFlags, requestID string, payload wire.Value) (wire.Value, *wire.Result) {
-	if id, found, err := recordedRequest(env, requestID); err != nil {
+func fileFinding(env Env, cmd []string, f findingFlags, requestID string, payload wire.Value, folds []string) (wire.Value, *wire.Result) {
+	title := strings.TrimSpace(payloadString(payload, "title"))
+	if id, found, same, err := recordedRequest(env, requestID, title); err != nil {
 		return wire.Value{}, errorResult(cmd, err)
-	} else if found {
+	} else if found && same {
 		return findingRow(-1, "REPLAYED", id, "request "+requestID+" is already recorded; nothing was written", false), nil
+	} else if found {
+		return wire.Value{}, errorResult(cmd, wire.Errorf(wire.CodeRequestIDConflict, "--request-id", "request %s is already recorded for another finding or mutation (%s); use a new request ID (TAW-V0-022)", prose(requestID), prose(id)))
 	}
 	var dups []similar.Candidate
 	var full map[string]string
@@ -205,18 +216,47 @@ func fileFinding(env Env, cmd []string, f findingFlags, requestID string, payloa
 		if named[id] {
 			continue
 		}
-		// TAW-V0-010: an unnamed duplicate takes the finding as a recurrence.
-		context := strings.TrimSpace(payloadString(payload, "title"))
-		rargs := []string{c.Doc.ID, "--context", context, "--request-id", requestID, "--role", f.role}
-		if f.issuedAt != "" {
-			rargs = append(rargs, "--issued-at", f.issuedAt)
+		// TAW-V0-010: an unnamed duplicate takes the finding as a recurrence;
+		// folded batch findings go first under their own request ids, so a
+		// rerun after a partial attach records the rest (TAW-V0-023).
+		recur := func(context, req string) *wire.Result {
+			rargs := []string{c.Doc.ID, "--context", context, "--request-id", req, "--role", f.role}
+			if f.issuedAt != "" {
+				rargs = append(rargs, "--issued-at", f.issuedAt)
+			}
+			if out := ticketRecur(env, rargs); out.Outcome != wire.OutcomeOK {
+				out.Command = cmd
+				return out
+			}
+			return nil
 		}
-		out := ticketRecur(env, rargs)
-		if out.Outcome != wire.OutcomeOK {
-			out.Command = cmd
+		for k, fold := range folds {
+			if out := recur(fold, targetRequestID(requestID, "fold\x00"+strconv.Itoa(k), "fold"+strconv.Itoa(k))); out != nil {
+				return wire.Value{}, out
+			}
+		}
+		if out := recur(title, requestID); out != nil {
 			return wire.Value{}, out
 		}
 		return findingRow(-1, "ATTACHED", id, "similar "+strconv.FormatFloat(c.Similarity, 'f', 2, 64)+" to "+c.Doc.ID+"; recorded as a recurrence", true), nil
+	}
+	// A created survivor carries each fold as a recurrence line of its body.
+	if len(folds) > 0 {
+		date := time.Now().UTC().Format("2006-01-02")
+		if f.issuedAt != "" {
+			date = f.issuedAt[:10]
+		}
+		body := strings.TrimRight(payloadString(payload, "body"), "\n")
+		for _, fold := range folds {
+			if body != "" {
+				body += "\n\n"
+			}
+			body += similar.RecurrenceLine(date, fold)
+		}
+		var err error
+		if payload, err = setPayloadString(payload, "body", body); err != nil {
+			return wire.Value{}, errorResult(cmd, err)
+		}
 	}
 	flags := mutateFlags{role: f.role, requestID: requestID, issuedAt: f.issuedAt}
 	reason := ""
@@ -273,18 +313,17 @@ func findingIngest(env Env, cmd []string, f findingFlags) *wire.Result {
 	if v.Kind != wire.KindArray || len(v.Arr) == 0 {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "--ingest", "the batch must be a non-empty JSON array of create payloads"))
 	}
-	date := time.Now().UTC().Format("2006-01-02")
-	if f.issuedAt != "" {
-		date = f.issuedAt[:10]
-	}
 	payloads := make([]wire.Value, len(v.Arr))
 	for i, e := range v.Arr {
 		if payloads[i], err = mutation.CanonicalPayload(mutation.OpCreate, e); err != nil {
 			return errorResult(cmd, wire.Annotatef(err, "--ingest/"+strconv.Itoa(i), "finding %d", i))
 		}
 	}
-	// Fold each later duplicate into its earliest survivor as a recurrence
-	// line, before any write. The batch is ranked inside the store corpus so
+	// Fold each later duplicate into its earliest survivor, before any
+	// write. The fold is carried beside the survivor, not in its payload, so
+	// the survivor is matched against the store on its own text; fileFinding
+	// writes each fold as a recurrence of whichever ticket the survivor
+	// reaches (TAW-V0-023). The batch is ranked inside the store corpus so
 	// its term weights match the store check; only batch docs can match.
 	var storeCorpus []similar.Doc
 	if rc, err := withInventoryStore(env, func(rc *readCtx) error {
@@ -295,6 +334,7 @@ func findingIngest(env Env, cmd []string, f findingFlags) *wire.Result {
 	}
 	inBatch := func(d *similar.Doc) bool { return strings.HasPrefix(d.ID, "batch:") }
 	foldedInto := make([]int, len(payloads))
+	folds := map[int][]string{}
 	var survivors []int
 	for i, p := range payloads {
 		foldedInto[i] = -1
@@ -319,19 +359,14 @@ func findingIngest(env Env, cmd []string, f findingFlags) *wire.Result {
 		if why := similar.ValidContext(context); why != "" {
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "--ingest/"+strconv.Itoa(i)+"/title", "%s", why))
 		}
-		body := strings.TrimRight(payloadString(payloads[j], "body"), "\n")
-		if body != "" {
-			body += "\n\n"
-		}
-		if payloads[j], err = setPayloadString(payloads[j], "body", body+similar.RecurrenceLine(date, context)); err != nil {
-			return errorResult(cmd, err)
-		}
+		folds[j] = append(folds[j], context)
 	}
 	var items []wire.Value
 	var warnings []string
 	filed := map[int]string{}
+	wrote := map[int]bool{}
 	for _, i := range survivors {
-		row, out := fileFinding(env, cmd, f, targetRequestID(f.requestID, strconv.Itoa(i), strconv.Itoa(i)), payloads[i])
+		row, out := fileFinding(env, cmd, f, targetRequestID(f.requestID, strconv.Itoa(i), strconv.Itoa(i)), payloads[i], folds[i])
 		if out != nil {
 			// Earlier rows stay committed; a rerun with the same request id replays them.
 			out.Items = append(items, out.Items...)
@@ -341,18 +376,22 @@ func findingIngest(env Env, cmd []string, f findingFlags) *wire.Result {
 		if t, ok := row.Obj.Get("ticket"); ok {
 			filed[i] = t.Str
 		}
+		if w, ok := row.Obj.Get("written"); ok {
+			wrote[i] = w.Bool
+		}
 		items = append(items, row)
 	}
 	for i, j := range foldedInto {
 		if j >= 0 {
-			items = append(items, findingRow(i, "FOLDED", filed[j], "duplicate of batch finding "+strconv.Itoa(j)+"; recorded as its recurrence line", false))
+			items = append(items, findingRow(i, "FOLDED", filed[j], "duplicate of batch finding "+strconv.Itoa(j)+"; recorded as its recurrence line", wrote[j]))
 		}
 	}
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: items, Warnings: warnings}
 }
 
 // findingSupersede is TAW-V0-012: REFINE supersededBy on DUP, then ARCHIVE
-// DUP with a DUPLICATE reason code.
+// DUP with a DUPLICATE reason code. Each phase hashes its own name into a
+// long request id's fallback, so the two never collide (TAW-V0-024).
 func findingSupersede(env Env, cmd []string, f findingFlags) *wire.Result {
 	var dup, keep string
 	var dupRec *ticket.Record
@@ -396,7 +435,7 @@ func findingSupersede(env Env, cmd []string, f findingFlags) *wire.Result {
 		if err != nil {
 			return errorResult(cmd, err)
 		}
-		flags := mutateFlags{role: f.role, requestID: targetRequestID(f.requestID, dup, "refine"), target: dup, expected: string(dupRec.Revision), issuedAt: f.issuedAt}
+		flags := mutateFlags{role: f.role, requestID: targetRequestID(f.requestID, dup+"\x00refine", "refine"), target: dup, expected: string(dupRec.Revision), issuedAt: f.issuedAt}
 		if out := submitMutation(env, []string{"ticket", "refine"}, mutation.OpRefine, actor, flags, payload); out.Outcome != wire.OutcomeOK {
 			out.Command = cmd
 			return out
@@ -411,7 +450,7 @@ func findingSupersede(env Env, cmd []string, f findingFlags) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	flags := mutateFlags{role: f.role, requestID: targetRequestID(f.requestID, dup, "archive"), target: dup, expected: rev, issuedAt: f.issuedAt}
+	flags := mutateFlags{role: f.role, requestID: targetRequestID(f.requestID, dup+"\x00archive", "archive"), target: dup, expected: rev, issuedAt: f.issuedAt}
 	if out := submitMutation(env, []string{"ticket", "archive"}, mutation.OpArchive, actor, flags, payload); out.Outcome != wire.OutcomeOK {
 		out.Command = cmd
 		return out

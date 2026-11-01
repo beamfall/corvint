@@ -30,6 +30,18 @@ var readOnlyVerbs = map[string]bool{
 	"ticket obligations show": true, "ticket obligations plan": true, "ticket obligations boundary": true, "ticket obligations worklist": true,
 }
 
+// workFlagSpec is a work verb's flag set, shared by the verb and the
+// read-only dry-run check so both parse the same arguments the same way.
+type workFlagSpec struct{ single, repeat, bools []string }
+
+func (w workFlagSpec) parse(cmd, args []string) (map[string][]string, map[string]bool, *wire.Result) {
+	return listFlags(cmd, args, w.single, w.repeat, w.bools)
+}
+
+// dryRunVerbs are the work verbs with a --dry-run that writes nothing
+// (TAW-V0-016); work finding has none.
+var dryRunVerbs = map[string]*workFlagSpec{"work close-merged": &closeMergedFlags, "work release-sync": &releaseSyncFlags}
+
 // readOnlyRefusal refuses, before any store read or lock, every command
 // that is not a listed pure read while ReadOnlyEnv is set to a nonempty
 // value other than "0" (ATR-V0-212). doctor --refresh writes its cache and
@@ -42,8 +54,12 @@ func readOnlyRefusal(args []string) *wire.Result {
 	if readOnlyVerbs[verb] && !(verb == "doctor" && hasArg(args, "--refresh")) {
 		return nil
 	}
-	if strings.HasPrefix(verb, "work ") && hasArg(args, "--dry-run") {
-		return nil // a dry-run work verb writes nothing (TAW-V0-016)
+	if spec, ok := dryRunVerbs[verb]; ok && len(args) >= 2 {
+		// Only a --dry-run the verb itself parses as its boolean flag writes
+		// nothing; a flag value spelled --dry-run does not count (TAW-V0-016).
+		if _, set, res := spec.parse(strings.Fields(verb), args[2:]); res == nil && set["dry-run"] {
+			return nil
+		}
 	}
 	return &wire.Result{Command: strings.Fields(verb), Outcome: wire.OutcomeError, Codes: []string{wire.CodeUnsupported}, NotRetryable: true, Warnings: []string{
 		ReadOnlyEnv + " is set: this is a read-only session, and " + verb + " is not a pure read, so it was refused before any store access; nothing was written. Run it outside the read-only session (ATR-V0-212).",

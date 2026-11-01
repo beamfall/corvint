@@ -162,6 +162,15 @@ func reconcileIntent(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	if err := writerGuard(env, "", wire.Null()); err != nil {
+		return errorResult(cmd, err)
+	}
+	// Adopting the file can compose any status edit, HOLD and RELEASE_HOLD
+	// included, so an AGENT session keeps the journal or asks an operator
+	// (TAW-V0-021).
+	if class, _ := taskClass(env); class == ClassAgent && flags.choice == transaction.AdoptFile {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, RoleEnv, "TAW_ROLE_NOT_PERMITTED: an AGENT session may not run reconcile intent --adopt-file; it can compose a status edit (TAW-V0-021)"))
+	}
 	actor, err := initActor(flags.role)
 	if err != nil {
 		return errorResult(cmd, err)

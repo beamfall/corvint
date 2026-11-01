@@ -92,6 +92,24 @@ the similar match as the place to attach a finding, and release membership is ed
   disposition prefix `WOULD_`.
 - `TAW-V0-009`: `work close-merged` and `work release-sync` MUST refuse under class `AGENT`
   (MALFORMED, `TAW_ROLE_NOT_PERMITTED`).
+- `TAW-V0-018`: The run MUST resolve REF, `--since` and each `--lane-ref` to commit IDs once, before
+  the walk, and walk and cite only those pinned commits; a ref that moves during the run is read by
+  the next run. The walk MUST list commit IDs separately from their trailers and accept a combined
+  read only when every record starts with its listed ID; otherwise it reads each commit alone. A
+  trailer value that carries the record separators therefore cannot add a commit. Before a
+  `delivered` state completes a ticket, its commit MUST be an ancestor of the pinned REF commit;
+  otherwise the row is `FAILED`, MALFORMED, and nothing is written. A `--since` that names no commit
+  refuses MALFORMED.
+- `TAW-V0-019`: Completion eligibility MUST be checked before any write and before a dry run
+  predicts a row: a delivered ticket that is neither OPEN, COMPLETED nor ARCHIVED (HELD, DRAFT) is a
+  row `NOT_OPEN` with no write, and that run MUST leave the cursor where it was, so the delivery is
+  ingested again once the ticket is OPEN. When a later write fails after the
+  `MERGED_AWAITING_CLOSEOUT` mark was written, the `FAILED` row MUST say so and report `written`
+  true; a rerun finishes it.
+- `TAW-V0-020`: When several `--lane-ref` commits deliver one ticket that REF does not, the run MUST
+  record one `DELIVERED_ON_BRANCH` mark for it: the candidate matching the latest recorded mark, else
+  the newest by trailer time, with the earlier `--lane-ref` winning a tie. Each other candidate is a
+  row `OTHER_LANE_RECORDED` with no write, so an unchanged rerun writes nothing.
 
 ### Findings
 
@@ -109,6 +127,18 @@ the similar match as the place to attach a finding, and release membership is ed
   through REFINE and then archive DUP with reason `[TAW-REASON:DUPLICATE] duplicate of KEEP`. REFINE
   gains the key `supersededBy`: it MUST name an existing ticket other than the target. ADOPT keeps it
   protected.
+- `TAW-V0-022`: A finding request ID MUST replay only the finding it recorded: `REPLAYED` needs a
+  COMPLETED recorded outcome whose ticket exists and either has the finding's title or carries it as a
+  recurrence line. Any other recorded request under that ID refuses `REQUEST_ID_CONFLICT` and writes
+  nothing.
+- `TAW-V0-023`: A batch finding folded into a survivor MUST be carried beside it, not in its
+  payload, so the survivor is matched against the store on its own text. When the survivor attaches,
+  each folded title MUST be recorded as a recurrence of the attached ticket under its own derived
+  request ID before the survivor's; when it is created, each is a recurrence line of its body. A
+  `FOLDED` row reports `written` exactly as its survivor's row does.
+- `TAW-V0-024`: The REFINE and ARCHIVE phases of a supersede MUST derive distinct request IDs from R
+  for every R, including one too long to take a suffix, so a long R completes both phases and a rerun
+  replays.
 
 ### Agent guard
 
@@ -121,6 +151,11 @@ the similar match as the place to attach a finding, and release membership is ed
   `HOLD` and `RELEASE_HOLD` MUST refuse `TAW_ROLE_NOT_PERMITTED`. Because the guard sits at the
   writer entry, every caller (batch-close `--manual` included) is covered. `OWNER`, `OPERATOR` and an
   unset class keep today's behavior and may pass `--reason-code`.
+- `TAW-V0-021`: The class MUST be checked at command entry for every verb that is not a pure read, and
+  every writer (the §5.2 writer, `ticket refine --batch`, the release writer and `reconcile intent`)
+  MUST refuse before store access when the session is read-only or the class is unknown. Under class
+  `AGENT`, `reconcile intent --adopt-file` MUST refuse `TAW_ROLE_NOT_PERMITTED`, because adopting the
+  file can compose any status edit, `HOLD` and `RELEASE_HOLD` included.
 
 ### Release membership
 
@@ -140,7 +175,9 @@ the similar match as the place to attach a finding, and release membership is ed
 ### Reads and protocol
 
 - `TAW-V0-016`: `work start`, `work deliver` and `work block` MUST be allowed in a read-only session;
-  the other `work` verbs are writes and are refused there unless `--dry-run`.
+  the other `work` verbs are writes and are refused there, except `work close-merged` and
+  `work release-sync` when their own flag parse succeeds and sets the boolean `--dry-run`. A value of
+  another flag spelled `--dry-run`, or `--dry-run=VALUE`, is not a dry run.
 - `TAW-V0-017`: The lane protocol (which trailers a lane writes and when) MUST be documented in
   `docs/TASKS-EXTERNAL-AGENTS.md`, replacing the instruction that lanes stay out of the store.
 
@@ -158,6 +195,10 @@ the similar match as the place to attach a finding, and release membership is ed
   accident; it does not stop a hostile one, which the store role and binding still govern.
 - A writer failure mid-run leaves earlier rows written and later rows untouched; the cursor does not
   move, and the rerun replays the written rows.
+- Commit messages are lane-authored text. They can carry Git's record separators, so the walk never
+  trusts a combined read it cannot match to the listed commit IDs (`TAW-V0-018`).
+- `targetRequestID` hashes base and ticket only when the suffixed ID is too long, so a caller with
+  several phases on one ticket puts the phase in the hashed part (`TAW-V0-024`).
 
 ## Non-goals and simpler baseline
 
@@ -180,6 +221,11 @@ the similar match as the place to attach a finding, and release membership is ed
 | TAW-V0-014 | V1-3975 criterion 6 | `internal/tasks/cli/work_release_sync.go` | `TestTAWV0014_ReleaseSync` | none |
 | TAW-V0-015 | V1-3975 criterion 7 | `internal/mcp/tasksbridge`; `internal/mcp/cli` | `TestTAWV0015_TasksToolsPerRole`; `TestTAWV0015_CallsEachTool`; `TestTAWV0015TasksGroupProfile` | none |
 | TAW-V0-017 | V1-3975 criterion 8 | `docs/TASKS-EXTERNAL-AGENTS.md` | doc gates | none |
+| TAW-V0-018 | V1-3975 criterion 3 | `internal/tasks/cli/work_close_merged.go` | `TestTAWV0018_TrailerForgeryRefused`; `TestTAWV0018_PinnedRefHead` | live-store qualification |
+| TAW-V0-019 | V1-3975 criterion 3 | `internal/tasks/cli/work_close_merged.go` | `TestTAWV0019_HeldDeliveryNotOpen` | none |
+| TAW-V0-020 | V1-3975 criterion 3 | `internal/tasks/cli/work_close_merged.go` | `TestTAWV0020_CompetingLaneRefsStable` | none |
+| TAW-V0-016, TAW-V0-021 | V1-3975 criterion 5 | `internal/tasks/cli/read_only.go`; `internal/tasks/cli/work_guard.go`; `internal/tasks/cli/cli.go`; `internal/tasks/cli/mutate_batch.go`; `internal/tasks/cli/release.go`; `internal/tasks/cli/reconcile.go` | `TestTAWV0021_GuardCoverage` | none |
+| TAW-V0-022 to TAW-V0-024 | V1-3975 criterion 4 | `internal/tasks/cli/work_finding.go` | `TestTAWV0022_FindingRequestIDBound`; `TestTAWV0023_FoldedRecurrencesAttach`; `TestTAWV0024_SupersedeLongRequestID` | none |
 
 ## Resolved decisions
 
