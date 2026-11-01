@@ -93,6 +93,13 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - A replay harness drives 20 real fix sequences of this repository plus injected duplicate, split, merge and reorder cases, and counts incorrect carries.
   - The same replays measure manual row edits and the plan-step time of both flows.
   - Unmeasured closeout time stays `NOT_OBSERVED`.
+- `CKC-V0-012`: Batched blob reads.
+  - `record-claims` reads every BASE file it hashes (the hunk paths and the cited paths of the plan and draft) through one `ls-tree` and one `cat-file --batch` call, not two Git processes a file.
+  - A claims compile after BASE moved batches its claim and row paths at both commits the same way.
+  - A batched read caches each name exactly as the per-file read would, including absent for a missing path, a directory, a symlink or a submodule.
+  - A name with a pathspec or revision metacharacter, a blob past the flow's Git output bound and every name of a failed batch fall back to the per-file read.
+  - Recorded claims are byte-identical with and without the batch.
+- `CKC-V0-013`: In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with `; carried` when the hunk's rows were carried from the earlier plan or claims, and `; drafted` otherwise. A plain draft adds no mark.
 
 ## Failure modes
 
@@ -107,6 +114,7 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
 | Author deleted a drafted cite | Never redrafted; unknown fallback with note |
 | Claims file invalid, oversized or for unreadable BASE blobs | Named refusal, nothing drafted or written |
 | Plan row unresolved or stale at record | Named refusal by row, nothing written |
+| Batched blob read fails, is over the bound, or a name is not batchable | Per-file read for those names, same bytes and absent cases |
 
 ## Acceptance evidence
 
@@ -117,6 +125,8 @@ These focused tests live in `internal/dogfoodflow/claims_test.go`:
 - `TestClaimsRebaseRelocates` covers relocation after BASE moves.
 - `TestClaimsTombstones` covers AC4.
 - `TestClaimsRecordRefusals` covers the record refusals.
+- `TestClaimsPrefetchBlobsMatchesBlob` covers CKC-V0-012: the batched cache equals the per-file read for regular, empty, executable, missing, directory and symlink names, unbatchable names stay uncached, and the bound skips an oversized blob.
+- `TestClaimsTombstones` also covers CKC-V0-013's carried and drafted marks.
 
 `TestClaimsReplay` runs only when `CKC_REPLAY_REPO` and `CKC_REPLAY_SEQUENCES` are set. It replays real history and prints the raw counts and timings recorded in `docs/build-log/2026-11-01-ckc-w15.md`. CLI wiring is covered in `cmd/corvint`.
 

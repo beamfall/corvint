@@ -203,7 +203,7 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 	for _, row := range rows {
 		key, _, _ := strings.Cut(row, "\t")
 		if hunk, ok := edits[key]; ok && key != "" {
-			p.say("  hunk %s edits %s\n", key, p.hunkSpan(hunk))
+			p.say("  hunk %s edits %s%s\n", key, p.hunkSpan(hunk), p.refreshMark(hunk))
 		}
 		if reason := p.reasons[key]; p.proposals[key] && key != "" && reason != "" {
 			p.say("  drafted proposal: %s\n    %s\n", row, reason)
@@ -397,8 +397,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	lastCite := ""
 	uniform := true
 	for _, hunk := range owed {
-		// A prior seal's CEM carried as unknown is redrafted (DCW-V0-966).
-		if carried, ok := p.carried[hunk.id]; ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried)) {
+		if carried, ok := p.carriedRows(hunk); ok {
 			rows = append(rows, carried...)
 			uniform = false
 			continue
@@ -1048,6 +1047,26 @@ func declaration(line string) bool {
 
 // hunkSpan names the hunk's path, its BASE range and, when the canonical
 // patch holds it, its new range at HEAD (DCW-V0-963).
+// carriedRows returns the rows a refresh carries for hunk. A prior seal's CEM
+// carried as unknown is redrafted instead (DCW-V0-966).
+func (p *proposal) carriedRows(hunk proposedHunk) ([]string, bool) {
+	carried, ok := p.carried[hunk.id]
+	return carried, ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried))
+}
+
+// refreshMark tells a refresh's reviewer whether a hunk's rows were carried
+// from the earlier plan or claims or drafted afresh, so review can start with
+// the drafted ones (CKC-V0-013). A plain draft has no mark.
+func (p *proposal) refreshMark(hunk proposedHunk) string {
+	if p.options.Refresh == "" {
+		return ""
+	}
+	if _, ok := p.carriedRows(hunk); ok {
+		return "; carried"
+	}
+	return "; drafted"
+}
+
 func (p *proposal) hunkSpan(hunk proposedHunk) string {
 	span := fmt.Sprintf("%s at BASE %d,%d", hunk.path, hunk.oldStart, hunk.oldCount)
 	if derived := p.derivedHunk(hunk); derived != nil && derived.Body != nil {
@@ -1076,6 +1095,97 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 	data, _ := p.git(true, "cat-file", "blob", key)
 	p.blobs[key] = []byte(data)
 	return p.blobs[key], true
+}
+
+// prefetchBlobs caches names at commit through one ls-tree and one cat-file
+// --batch read, so a caller that knows its read set starts two Git processes
+// rather than two a file (CKC-V0-012). A name the listing holds as no regular
+// file is cached absent, as blob caches it. A name that is not a clean
+// repository path, a blob that would take the batch past the flow's Git output
+// bound, and every name of a failed read stay uncached, so blob reads them
+// one by one as before. So does a name with a pathspec or revision
+// metacharacter, which blob's unquoted ls-tree reads its own way.
+func (p *proposal) prefetchBlobs(commit string, names []string) {
+	const chunk = 1024
+	for len(names) > chunk {
+		p.prefetchBlobs(commit, names[:chunk])
+		names = names[chunk:]
+	}
+	wanted := map[string]bool{}
+	arguments := []string{"--literal-pathspecs", "ls-tree", "-z", "-l", commit, "--"}
+	for _, name := range names {
+		if _, cached := p.blobs[commit+":"+name]; cached || wanted[name] || name == "" || name == "." || path.Clean(name) != name || path.IsAbs(name) || strings.HasPrefix(name, "../") || strings.ContainsAny(name, "*?[]\\:\x00\n") {
+			continue
+		}
+		wanted[name] = true
+		arguments = append(arguments, name)
+	}
+	if len(wanted) == 0 {
+		return
+	}
+	listing, status, bounded := p.boundedGit(arguments...)
+	if status != 0 || !bounded {
+		return
+	}
+	limit := p.gitOutputLimit
+	if limit <= 0 {
+		limit = maxGitOutputBytes
+	}
+	byObject, request, total := map[string][]string{}, &bytes.Buffer{}, 0
+	listed := map[string]bool{}
+	for _, entry := range strings.Split(listing, "\x00") {
+		meta, name, found := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if !found || !wanted[name] || len(fields) != 4 {
+			continue
+		}
+		listed[name] = true
+		size, err := strconv.Atoi(fields[3])
+		if !strings.HasPrefix(fields[0], "100") || fields[1] != "blob" || err != nil {
+			p.blobs[commit+":"+name] = nil
+			continue
+		}
+		if byObject[fields[2]] == nil {
+			// Each record adds its header and trailing LF to the object.
+			if total+size+len(fields[2])+32 > limit {
+				continue
+			}
+			total += size + len(fields[2]) + 32
+			request.WriteString(fields[2] + "\n")
+		}
+		byObject[fields[2]] = append(byObject[fields[2]], name)
+	}
+	for name := range wanted {
+		if !listed[name] {
+			p.blobs[commit+":"+name] = nil
+		}
+	}
+	if request.Len() == 0 {
+		return
+	}
+	p.checkpoint()
+	command := p.gitCommand(true, "cat-file", "--batch")
+	command.Stdin = request
+	raw, status, bounded := p.readGit(command)
+	if status != 0 || !bounded {
+		return
+	}
+	data := []byte(raw)
+	for len(data) > 0 {
+		header, rest, ok := bytes.Cut(data, []byte{'\n'})
+		fields := strings.Fields(string(header))
+		if !ok || len(fields) != 3 || fields[1] != "blob" {
+			return
+		}
+		size, err := strconv.Atoi(fields[2])
+		if err != nil || size < 0 || size+1 > len(rest) {
+			return
+		}
+		for _, name := range byObject[fields[0]] {
+			p.blobs[commit+":"+name] = rest[:size:size]
+		}
+		data = rest[size+1:]
+	}
 }
 
 // splitRecords splits data into LF-terminated records as cem cite counts

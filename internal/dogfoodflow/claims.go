@@ -470,6 +470,7 @@ func (p *proposal) carryClaims(owed []proposedHunk, used map[string]bool) {
 		p.say("%s: REFUSE claims-patch-unavailable\n  the canonical BASE..HEAD patch could not be read or parsed, so no claim can be compiled; nothing was drafted (CKC-V0-009)\n", p.prefix)
 		p.exit(2)
 	}
+	p.prefetchMovedBase(p.claims)
 	compiler := &claimsCompiler{recordedBase: p.claims.Base, currentBase: p.base, blob: p.blob, records: map[string][][]byte{}}
 	results := compiler.compile(p.claims.Claims, p.patchHunks)
 	current := map[string]bool{}

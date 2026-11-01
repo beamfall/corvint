@@ -63,6 +63,13 @@ func (p *proposal) record(options RecordClaimsOptions) int {
 		p.refusePatchUnavailable(reason, detail)
 	}
 	ordinals := p.recordOrdinals(parsed)
+	// Every BASE file the record reads comes from one batched read rather
+	// than two Git processes a file (CKC-V0-012).
+	names := planPaths(options.Plan, options.Draft)
+	for _, hunk := range parsed.Hunks {
+		names = append(names, hunk.DisplayPath)
+	}
+	p.prefetchBlobs(p.base, names)
 	planRows, deferred := p.readClaimPlan(options.Plan, "plan", parsed, ordinals)
 	var draftRows []plannedRow
 	if options.Draft != "" {
@@ -229,6 +236,50 @@ func (p *proposal) readClaimPlan(name, label string, parsed *patch.Patch, ordina
 	return rows, deferred
 }
 
+// planPaths returns the PATH field of every row of the named plans that it can
+// read. It only chooses what to prefetch, so an unreadable plan adds nothing
+// and readClaimPlan still refuses it.
+func planPaths(names ...string) []string {
+	var paths []string
+	for _, name := range names {
+		if name == "" || !isRegular(name) {
+			continue
+		}
+		data, err := readPrefix(name, maxPlanBytes+1)
+		if err != nil || len(data) > maxPlanBytes {
+			continue
+		}
+		for _, line := range textLines(data) {
+			if fields := strings.Split(line, "\t"); len(fields) == 4 && fields[1] != "unknown" {
+				paths = append(paths, fields[1])
+			}
+		}
+	}
+	return paths
+}
+
+// prefetchMovedBase batches the reads a claims compile makes when BASE moved
+// since the file was recorded: every claim and row path at both commits
+// (CKC-V0-012). A compile at an unmoved BASE reads no file.
+func (p *proposal) prefetchMovedBase(file *claimsFile) {
+	if file.Base == p.base {
+		return
+	}
+	var names []string
+	for _, entry := range file.Claims {
+		names = append(names, entry.Path)
+		for _, rows := range [][]claimRow{entry.Rows, entry.Tombstones} {
+			for _, row := range rows {
+				if row.Kind == "cite" {
+					names = append(names, row.Path)
+				}
+			}
+		}
+	}
+	p.prefetchBlobs(file.Base, names)
+	p.prefetchBlobs(p.base, names)
+}
+
 // newClaim keys hunk by path, content, BASE range and anchor (CKC-V0-001).
 func (p *proposal) newClaim(hunk *patch.Hunk) *claim {
 	entry := &claim{Path: hunk.DisplayPath, Content: hunk.ContentSha256, OldStart: hunk.OldRange.Start, OldCount: hunk.OldRange.Count, Occurrences: 1}
@@ -266,6 +317,7 @@ func (p *proposal) priorClaims(name string, parsed *patch.Patch) map[*patch.Hunk
 		p.say("%s: REFUSE claims-unreadable\n  --claims %s is not a valid %s claims file: %s; move it aside to record afresh (CKC-V0-009)\n", p.prefix, strconv.Quote(name), claimsSchema, why)
 		p.exit(2)
 	}
+	p.prefetchMovedBase(file)
 	compiler := &claimsCompiler{recordedBase: file.Base, currentBase: p.base, blob: p.blob, records: map[string][][]byte{}}
 	prior := map[*patch.Hunk][]claimRow{}
 	for _, result := range compiler.compile(file.Claims, parsed.Hunks) {

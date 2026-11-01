@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -472,6 +473,58 @@ func TestClaimsRebaseRelocates(t *testing.T) {
 	}
 }
 
+// TestClaimsPrefetchBlobsMatchesBlob covers CKC-V0-012: a batched read
+// caches every clean name exactly as blob reads it one by one, including the
+// absent cases, and leaves the rest to blob.
+func TestClaimsPrefetchBlobsMatchesBlob(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"a.go": claimsLines("a", 40, nil), "empty.txt": "", "dir/x.go": "package x\n", "exec.sh": "echo hi\n", "glob*.go": "// glob\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "update-index", "--chmod=+x", "exec.sh")
+	testGit(t, root, "update-index", "--add", "--cacheinfo", "120000,"+testGit(t, root, "hash-object", "-w", "dir/x.go")+",link")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	commit := testGit(t, root, "rev-parse", "HEAD")
+	reader := func() *proposal {
+		var stderr bytes.Buffer
+		return &proposal{flow: flow{ctx: context.Background(), prefix: "test", root: root, stderr: &stderr}, blobs: map[string][]byte{}}
+	}
+	clean := []string{"a.go", "empty.txt", "dir/x.go", "exec.sh", "link", "dir", "missing.go", "dir/missing.go"}
+	names := append([]string{"glob*.go", "./a.go", "dir/../a.go", ""}, clean...)
+	batched := reader()
+	batched.prefetchBlobs(commit, append(names, "a.go"))
+	for _, name := range clean {
+		if _, cached := batched.blobs[commit+":"+name]; !cached {
+			t.Errorf("%q was not cached by the batched read", name)
+		}
+	}
+	for _, name := range names[:4] {
+		if _, cached := batched.blobs[commit+":"+name]; cached {
+			t.Errorf("%q was cached; it must stay with blob", name)
+		}
+	}
+	single := reader()
+	for _, name := range names {
+		got, gotOK := batched.blob(commit, name)
+		want, wantOK := single.blob(commit, name)
+		if gotOK != wantOK || !bytes.Equal(got, want) {
+			t.Errorf("%q: batched = %v %q, blob = %v %q", name, gotOK, got, wantOK, want)
+		}
+	}
+	bounded := reader()
+	bounded.gitOutputLimit = 256
+	bounded.prefetchBlobs(commit, []string{"a.go", "dir/x.go"})
+	if _, cached := bounded.blobs[commit+":a.go"]; cached {
+		t.Error("a.go is over the batch bound but was cached")
+	}
+	if data, cached := bounded.blobs[commit+":dir/x.go"]; !cached || string(data) != "package x\n" {
+		t.Errorf("dir/x.go = %v %q under the bound", cached, data)
+	}
+}
+
 // TestClaimsTombstones covers AC4 (CKC-V0-003, CKC-V0-007): a drafted cite
 // the author removed is never drafted again for that edit, even once the
 // edit is reassessed, and the draft still passes the bind precheck.
@@ -519,6 +572,17 @@ func TestClaimsTombstones(t *testing.T) {
 	code, compiled, stderr = claimsRefresh(t, root, base, claims)
 	if code != 0 || !strings.Contains(stderr, "REASSESS changed") || !strings.Contains(stderr, "suppressed=1") || !strings.Contains(compiled, "CKC-V0-007") {
 		t.Fatalf("reassessed refresh = %d\n%s\n%s", code, compiled, stderr)
+	}
+	// The stderr hunk notes mark the reassessed hunk drafted and the
+	// others carried (CKC-V0-013).
+	for index, hunk := range claimsHunks(t, root, base) {
+		mark := "; carried\n"
+		if index == target {
+			mark = "; drafted\n"
+		}
+		if !strings.Contains(stderr, "  hunk "+hunk.ID+" edits "+hunk.DisplayPath+" at BASE ") || !regexp.MustCompile(`  hunk `+hunk.ID+` edits [^\n]*`+regexp.QuoteMeta(mark)).MatchString(stderr) {
+			t.Errorf("hunk %d note lacks %q:\n%s", index, mark, stderr)
+		}
 	}
 	for _, line := range textLines([]byte(compiled)) {
 		if fields := strings.Split(line, "\t"); len(fields) == 4 && fields[1] == removedFields[1] && fields[2] == removedFields[2] && fields[3] == removedFields[3] {
