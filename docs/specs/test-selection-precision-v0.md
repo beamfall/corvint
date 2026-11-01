@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -234,6 +234,31 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   appears. It SHALL be one of `DOC_GATE_TARGETS`, so `make doc-gates` (the CI `doc-gates` job, which
   checks out full history) and `make batch-precheck` run it (owner ci-control-plane approval
   delegated to the orchestrator, 2026-10-31).
+- **TSP-V0-950:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)
+  The project MAY declare, in `.corvint/shell-read-scopes.json` (profile
+  `corvint-shell-read-scopes/0`, `{"profile", "tests": {TEST: {"reads", "reason"}}}`), for a shell
+  test file, the repository paths it reads outside its own directory: `reads` is 1 to 256 sorted,
+  unique AFP-V0-023 read-scope entries (a path, or a subtree with one trailing `/`), and `reason` a
+  non-empty single-line statement of at most 512 bytes naming what the toolchain run reads. The
+  shell plugin SHALL accept the declaration only when every declared test is an observed shell test
+  unit whose only unbounded read is NSA-V0-011's `shell:runs-toolchain` (a test that also sources a
+  dynamic path stays unbounded). An accepted test's unit SHALL then carry no `UnboundedReads` and
+  SHALL be read-scoped to its entries, as an AFP-V0-023 Go package is: it is selected by a dirty path
+  in its own directory or in a declared entry, and a literal it names outside them selects nothing.
+  A missing declaration SHALL change nothing; a present one that is unreadable, oversized, invalid in
+  any member, or names a test that is not such a unit SHALL declare nothing and name
+  `shell:read-scopes-invalid`, so every toolchain test stays an unbounded reader. A plan with the
+  declaration dirty SHALL name `shell:read-scopes-changed` and be `UNKNOWN`.
+  `tools/test-read-scopes-check` SHALL keep checking Go packages only.
+- **TSP-V0-951:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)
+  `script/check-sql-native-ratchets_test.sh` SHALL be declared under TSP-V0-950 with `Makefile`,
+  `go.mod`, `go.sum`, `go.work` and the non-standard packages `go list -deps` gives for
+  `./cmd/corvint-go-toolchain-receipt`, and SHALL leave the units of
+  `.corvint/unbounded-readers.json`. A repository test SHALL fail when that package gains a
+  dependency outside the declared reads or the plugin does not accept the declaration. For a
+  `shell:runs-toolchain` unit that is neither declared nor recorded, `tools/unbounded-readers`
+  SHALL still refuse with exit 1 and its line SHALL name `.corvint/shell-read-scopes.json` as the
+  bounded route before the `units` entry.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -326,6 +351,11 @@ closed through `UnboundedReads`, as NSA-V0-009 does for a dynamic source, was re
 would select those tests on every plan. A test file is a leaf and carries no frontier for what it
 constructs. Unknown parts match any text, so a pattern can count a file as naming a script it never
 runs, which can only invalidate the declaration, never verify it.
+(13) TSP-V0-950: no wrapper confines a shell test to its declared reads, as `.github/testconfine` does a
+Go package, so a declaration is the project's claim; a read the toolchain gains outside it (a new
+dependency of a built package) is missed until the declaration is widened. TSP-V0-951's repository
+test catches the ratchet test's one such drift, a new dependency of the receipt tool; any other
+declared test needs its own check.
 
 ## Open questions
 
@@ -371,6 +401,8 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-864 | `testSourceAdditive` and the `added`, `additive` and `seeds` handling in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0864DryRunSlicesAdditiveDeclarations` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a file comment, a new const no test names, a new const a changed function uses, and a new type with its new test slice; a new var, import, method on a new type, directive, `//+build ignore` without a space, swapped `//go:embed` bindings and a changed declaration stay whole); the "a comment outside functions" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
+| TSP-V0-950 | `readShellReadScopes` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` and their call in `internal/liveverify/affected/shell/shell.go`; `shellReadScopesChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; the `go:` filter in `tools/test-read-scopes-check/main.go` | `TestShellReadScopeDeclaration_TSP_V0_950` in `internal/liveverify/affected/shell/readscopes_test.go` (undeclared: the toolchain test is selected on an unrelated change; declared: it is not, the plan is `BOUNDED`, and a dirty declared entry or a file in its directory selects it; a test that also sources a dynamic path, a non-toolchain test, a source script, an absent file, unsorted or empty reads, a `.git` entry, an empty or multi-line reason, a bad profile, an unknown member and unparsed JSON each name the invalid frontier and keep it unbounded; a dirty declaration is `UNKNOWN`) |
+| TSP-V0-951 | `.corvint/shell-read-scopes.json`; `.corvint/unbounded-readers.json`; the `shell:runs-toolchain` line in `tools/unbounded-readers/main.go` | `TestRepositoryShellReadScopes_TSP_V0_951` in `internal/liveverify/affected/shell_readscopes_repo_test.go`; `TestRunsToolchainRefusalNamesTheUnitsEntry` in `tools/unbounded-readers/main_test.go` (an undeclared, unrecorded toolchain test still exits 1 and the line names the declaration) |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 
 ## Rollback
@@ -391,6 +423,9 @@ not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 `testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-864: make
 `testSourceAdditive` return false; every residue change keeps the package whole again. TSP-V0-960: make
 `constructed` return false and pass an empty `built` map; computed words are then ignored again.
-No stored state depends on it. TSP-V0-940: drop the `applyGatedLocators`
+No stored state depends on it. TSP-V0-950 and TSP-V0-951: delete `.corvint/shell-read-scopes.json` (a
+change that itself plans `UNKNOWN`) and restore the ratchet test's `units` and `reasons` entries in
+`.corvint/unbounded-readers.json`; every toolchain shell test is then an unbounded reader again.
+TSP-V0-940: drop the `applyGatedLocators`
 call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
 declared package's dependents on every dirty path again, as before.
