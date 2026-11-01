@@ -236,3 +236,14 @@ transitive dependency of the admitted contextindex edge, not a new Tasks import 
 unchanged. Rule 5's source-archive subset adds `internal/rubyautoload` so the exported tarball still
 rebuilds offline (`TestCurrentTasksSourceArchiveBuildsOffline`). Rollback is removing this prefix
 together with the contextindex change that needs it.
+
+## V1-3486 addendum — tools/ and internal/*/cmd are Core
+
+Agent clarification, 2026-11-01, made while delivering V1-3486 (`ASD-V0-783`); it adds no edge and
+changes no rule. Every module package outside `internal/tasks/` and `cmd/corvint-tasks/` is Core for
+rules 2 and 3, including the developer tools under `tools/` and command packages under
+`internal/*/cmd`: such a package imports only `internal/tasks/wire` from Tasks, or moves under
+`internal/tasks/`. `make import-direction-check`, one of the doc gates, runs `TestImportDirection`
+and `TestImportViolationControls` alone, so the refusal, which names this rule, appears in
+doc-gates rather than first in batch-precheck. Rollback is removing that target from
+`DOC_GATE_TARGETS`.
