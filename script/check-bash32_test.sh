@@ -137,6 +137,7 @@ expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
 
 # 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
 grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
-grep -qE '^GATE_STEPS = (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in GATE_STEPS"
+# GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
+awk '/^GATE_STEPS = /,/end of GATE_STEPS/' "$root/Makefile" | grep -qE '(^|[[:space:]])bash32-check([[:space:]]|$)' || fail "bash32-check is not in GATE_STEPS"
 
 echo 'check-bash32_test: PASS'
