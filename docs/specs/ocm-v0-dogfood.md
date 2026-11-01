@@ -516,7 +516,7 @@ what the row asserts.
 | `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:411` | "CEM patch digest does not match" |
 | `claim-conflict` | `internal/lrfrepo/ocm_write.go:1055@1c03b150` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
-| `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:866` | "claim selectors must be unique" |
+| `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:842@df280c84` | "claim selectors must be unique" |
 | `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:787@c947a99d` | "hunk selectors must be unique" |
 | `duplicate-key` | `internal/lrfrepo/ocm_write.go:614` | "JSON contains a duplicate key" |
 | `duplicate-obligation` | `internal/lrfrepo/ocm.go:306` | "obligation IDs must be unique" |
@@ -537,7 +537,7 @@ what the row asserts.
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
 | `invalid-intent-scope` | `internal/lrfrepo/ocm_write.go:547@3d47dc64` | "intentScope must be an object" |
 | `invalid-linked` | `internal/lrfrepo/ocm.go:713` | "linked obligation has invalid fields" |
-| `invalid-map` | `internal/lrfrepo/ocm_read.go:257@361a9362` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:757@bd4c9e59` returns it as "OCM verification failed" |
+| `invalid-map` | `internal/lrfrepo/ocm_read.go:257@361a9362` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:746@bd4c9e59` returns it as "OCM verification failed" |
 | `invalid-object` | `internal/lrfrepo/ocm.go:311` | "<value> must be an object" |
 | `invalid-obligation` | `internal/lrfrepo/ocm_write.go:68` | "selected obligation has no valid id" |
 | `invalid-obligation-id` | `internal/lrfrepo/ocm.go:303` | "obligation ID is invalid" |
@@ -556,9 +556,9 @@ what the row asserts.
 | `invalid-unknown-reason` | `internal/lrfrepo/ocm_write.go:94` | "unknown reason is outside the allowlist" |
 | `map-outdated` | `internal/lrfrepo/ocm_write.go:490@f57b71be` | "existing OCM map binds a different target, intent, or CEM" |
 | `map-type` | `internal/lrfrepo/ocm_write.go:611` | "OCM root must be an object" |
-| `missing-claim` | `internal/lrfrepo/ocm_write.go:839@16d721ec` | "at least one claim is required" |
+| `missing-claim` | `internal/lrfrepo/ocm_write.go:826@af198a6f` | "at least one claim is required" |
 | `missing-field` | `internal/lrfrepo/ocm.go:341` | "<value> is missing a required field" |
-| `missing-hunk` | `internal/lrfrepo/ocm_write.go:790@45e25e4a` | "at least one hunk is required" |
+| `missing-hunk` | `internal/lrfrepo/ocm_write.go:777@ba085cd5` | "at least one hunk is required" |
 | `noncanonical-map` | `internal/lrfrepo/ocm.go:133` | "OCM bytes are not canonical" |
 | `obligation-order-mismatch` | `internal/lrfrepo/ocm.go:770` | "obligations must retain requirement order" |
 | `obligation-selector-out-of-range` | `internal/lrfrepo/ocm_write.go:60` | "obligation selector is outside the worklist" |
