@@ -2542,6 +2542,7 @@ LGL-V0-015	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2866;
 LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203, V1-2539; owner decision 2026-10-27 "Try concurrent publish	owner	V1-2203; V1-2539; 2026-10-27
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
 LGL-V0-890	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203; experimental under the standing lane auto-accept and the own	standing	V1-2203
+LGL-V0-891	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2621; experimental under the standing lane auto-accept and the own	standing	V1-2621
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-

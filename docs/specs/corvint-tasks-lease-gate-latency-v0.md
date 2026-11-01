@@ -190,6 +190,17 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   artifact a write publishes keeps its file sync and its destination directory sync (LGL-V0-008),
   so an acknowledged heartbeat is as durable as before. A one-shot command line still qualifies
   once per process; a supervisor or other long-lived writer pays the probe once.
+- `LGL-V0-891`: (proposed; V1-2621; experimental under the standing lane auto-accept and the owner's
+  2026-11-01 direction to add a base-at-S capture) On a segmented store whose manifest seals through S,
+  a lease or Mutate write that takes the complete route while the bound writer checkpoint has
+  `FullSeq` S and its base at S MUST retain its complete audit's checkpoint re-based on that sealed
+  base (`WriterCheckpoint.RebaseOnSealedBase`): `FullSeq` S, every entry, request and note posted after
+  S in the delta. The re-base MUST refuse, and the write retain the complete audit's own checkpoint
+  (`FullSeq` at its head, as before), unless every entry, request and note that audit derived from
+  receipt 1 at or before S is exactly the sealed base's and the base's segment digests are the
+  manifest's; and it MUST NOT be used when that write's verify (JSG-V0-003) refuted the bound
+  checkpoint. The next pool acquire or release then still resumes from the sealed base (LGL-V0-009).
+  No store format changes and no process stays resident.
 - `LGL-V0-900`: (proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,
   its commit step MUST, under the writer lock, re-read the head and the segment manifest it binds;
   a manifest that is absent or whose SHA-256 differs from the head's binding MUST refuse at once
