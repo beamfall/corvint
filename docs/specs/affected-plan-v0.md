@@ -5425,6 +5425,35 @@ JSON document and needed `tail -n +2` before any JSON tool would read it.
   `TestAffectedStaleBinaryMergedStreamStillParses` and `TestSharedOutputStream`. Rollback:
   delete `sharedOutputStream` and print the line unconditionally again.
 
+### A few-line verdict on request (AFP-V0-872; V1-4052, V1-3831)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-4052, V1-3831): a tests-only
+change produced about 42 KB of `affected-plan/1` JSON, and lanes wrote Python to pull the
+per-tier counts and tier-0 unit names out of a 44.7 KB plan, the only parts a lane acts on.
+
+- **AFP-V0-872:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-4052,
+  V1-3831) `corvint affected --summary` SHALL plan exactly as the default invocation and write,
+  instead of the plan, one canonical `affected-summary/1` JSON document: `profile`, `tool`, `ok`,
+  `mutates`, `revision`, `range` as `{base, paths}` where `paths` is the range's path count, the
+  AFP-V0-510 `summary` object unchanged, `tiers` as `{counts, summary, tier0, tier1}` where the
+  counts and summary are the AFP-V0-162 members and `tier0` and `tier1` are the sorted unit ids of
+  those tiers (both empty when nothing is selected), the AFP-V0-846 `degradations` and the receipt
+  `warning` when present, and a `detail` string naming the flags that print the plan. With
+  `--format text` it SHALL write the AFP-V0-928 header line, `degraded CODE` and `warning TEXT`
+  lines when present, `tiers <summary>`, then one `tier0 UNIT` and one `tier1 UNIT` line per unit.
+  `--summary` SHALL be refused with `--full`, `--by-path` or `--playwright-config`, and given once
+  without a value. Decision (lane aff-w23): the default stays the `affected-plan/1` plan, because
+  skills, dogfood steps and gate scripts read `plan.selected` and `advice` from it; the compact
+  verdict V1-4052 asks for is the opt-in `--summary`, which `affected --help` documents.
+  Non-goals: dropping or truncating any default member; listing tier-2 units, witnesses or
+  unknown details, which the plan keeps. Failure mode: a reader that treats the verdict as the
+  plan would miss tier-2 units; the document names only counts for them and says where the
+  plan is. Acceptance evidence: `TestAFPV0872AffectedSummaryVerdict` (the verdict is at most
+  4 KiB and restates the plan's summary and tiers exactly); live, a tests-only edit of
+  `cmd/corvint/affected_summary_test.go` on this repository gave a 656-byte verdict where the
+  default plan was 37,369 bytes. Rollback: delete `cmd/corvint/affected_verdict.go`, the flag and
+  its help paragraph.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)

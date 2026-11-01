@@ -860,14 +860,14 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -921,6 +921,13 @@ count and digest, and one "check KIND COMMAND" line per advice check with the
 advisory packages appended. It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
+the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
+tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
+degradations and warning; --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
+It never changes the selection.
+Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own

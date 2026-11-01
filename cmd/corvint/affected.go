@@ -97,6 +97,9 @@ type affectedInvocation struct {
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
+	// Summary writes the affected-summary/1 verdict instead of the plan
+	// (AFP-V0-872).
+	Summary bool
 	// sharedVia selects with every witness chain held by reference, for a
 	// receipt that is only ever compacted (AFP-V0-641); runAffected sets it
 	// for the default wire. Every other caller gets each chain in Via.
@@ -356,6 +359,14 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--summary" || strings.HasPrefix(rest[index], "--summary=") {
+			if invocation.Summary || rest[index] != "--summary" {
+				return affectedInvocation{}, argumentError("argument --summary: does not accept a value or repetition")
+			}
+			invocation.Summary = true
+			index++
+			continue
+		}
 		if rest[index] == "--require-clean" || strings.HasPrefix(rest[index], "--require-clean=") {
 			if invocation.RequireClean || rest[index] != "--require-clean" {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
@@ -446,6 +457,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	}
 	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
+	}
+	if invocation.Summary && (invocation.Full || invocation.ByPath || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--summary writes the affected-summary/1 verdict and cannot be combined with --full, --by-path or --playwright-config")
 	}
 	if invocation.ByPath && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.Full) {
 		return affectedInvocation{}, argumentError("--by-path requires --path or --paths-from and cannot be combined with --full")
@@ -775,6 +789,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if err != nil {
 		emitError(stderr, err)
 		return 2
+	}
+	if invocation.Summary {
+		return writeAffectedVerdict(receipt, invocation.Format, stdout, stderr)
 	}
 	if invocation.Format == "text" {
 		compact, ok := receipt.(affectedCompactReceipt)
