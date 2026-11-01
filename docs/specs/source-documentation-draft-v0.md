@@ -345,8 +345,11 @@ list, `TRUNCATED: declarations A–B of M on page N of P; the other M-k entries 
 page.` (importers likewise; a list with no entries on the page says `0 of M`).
 A package whose lists both fit one page keeps its bytes free of any page or TRUNCATED line. The
 `SDD-V0-005` byte bounds still apply per page. `corvint-docs-mcp` and `docs maintain` draft page 1,
-so an over-64 package now yields a labelled first page there instead of a refusal. Evidence:
-`TestSDDV0632PagesOverSixtyFourEntries`, `TestSDDV0632ImportersCountSeparately`. Rollback: restore
+so an over-64 package now yields a labelled first page there instead of a refusal. The `docs maintain`
+source digest covers each TRUNCATED line as well as the page's entries, so an entry added or removed
+on a later page refreshes the page-1 block instead of reporting it `unchanged`; an unpaged draft keeps
+its earlier digest. Evidence: `TestSDDV0632PagesOverSixtyFourEntries`,
+`TestSDDV0632ImportersCountSeparately`, `TestSDDV0632MaintainDigestCoversTruncation`. Rollback: restore
 the combined refusal. Status: experimental under the standing lane auto-accept (V1-3718).
 
 - `SDD-V0-633`: Foreign repositories need no Corvint-specific heading (V1-3721). `docs draft`,

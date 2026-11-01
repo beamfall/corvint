@@ -156,7 +156,7 @@ func Preview(ctx context.Context, root, page string, selectors []Selector, polic
 		if draftErr != nil {
 			return nil, doccompilerRefusal(draftErr)
 		}
-		newDigest := sourceDigest(draft.Entries)
+		newDigest := sourceDigest(draft)
 		if containsMarker(draft.Markdown) {
 			return nil, refuse("marker-in-content")
 		}
