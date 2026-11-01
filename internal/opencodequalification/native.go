@@ -542,7 +542,7 @@ const (
 	queryP95LimitMs     = 500.0
 	lifecycleP95LimitMs = 250.0
 	latencyMinSamples   = 20
-	latencyMethod       = "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained. AHI-171: each window records host contention; a latency-only miss whose decisive window peaked above the declared load per CPU is RETRY_LATER (LATENCY_HOST_CONTENDED), not a regression. AHI-172: a fixed no-op probe sampled during each window measures the host's slowdown against its quiet reference; a contended miss beyond the limits scaled by that slowdown and tolerance is a LATENCY_REGRESSION. AHI-372: a contended miss within the AHI-012 limits scaled by that slowdown capped at 1.5, with no tolerance, is QUALIFIED_UNDER_CONTENTION, never PASS"
+	latencyMethod       = "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained. AHI-171: each window records host contention; a latency-only miss whose decisive window peaked above the declared load per CPU is RETRY_LATER (LATENCY_HOST_CONTENDED), not a regression. AHI-172: a fixed no-op probe sampled during each window measures the host's slowdown against its quiet reference, calibrated per window as its fastest spawn and at least 2 ms (AHI-950); a contended miss beyond the limits scaled by that slowdown and tolerance is a LATENCY_REGRESSION. AHI-372: a contended miss within the AHI-012 limits scaled by that slowdown capped at 1.5, with no tolerance, is QUALIFIED_UNDER_CONTENTION, never PASS"
 )
 
 // latencySample is one timing campaign's post-warm-up samples in milliseconds.

@@ -2,21 +2,26 @@ package opencodequalification
 
 import (
 	"context"
+	"math"
 	"os"
 	"os/exec"
+	"slices"
 	"time"
 )
 
 // AHI-172 same-window baseline: while each timing window runs, the harness repeatedly spawns a fixed
 // no-op probe that does not depend on the candidate. The probe's p95 in the window, against its
-// declared quiet-host reference, measures how slow the host was; a latency miss under contention is
+// window reference, measures how slow the host was; a latency miss under contention is
 // LATENCY_HOST_CONTENDED only when the candidate stays within its limits scaled by that slowdown.
+// AHI-950: the reference is calibrated per window as the window's fastest probe spawn, never below
+// the declared floor, so a host whose quiet spawn is slow does not show a standing slowdown.
 
 const (
 	baselineProbeInterval = 100 * time.Millisecond
 	baselineMinSamples    = 20
 	baselineMaxSamples    = 4096
-	// baselineQuietP95Ms is the declared quiet-host p95 for one spawn of the no-op probe.
+	// baselineQuietP95Ms is the declared floor of the per-window quiet reference for one spawn of
+	// the no-op probe (AHI-950).
 	baselineQuietP95Ms = 2.0
 	// latencyBaselineTolerance is how far beyond its slowdown-scaled limits a candidate may be and
 	// still be explained by the host.
@@ -79,13 +84,19 @@ func sampleBaseline(ctx context.Context) func() baselineSample {
 	}
 }
 
-// slowdown is the window's probe p95 over its quiet-host reference, at least 1; false when the
+// reference is the window's calibrated quiet reference (AHI-950): its fastest probe spawn, at least
+// the declared floor.
+func (b baselineSample) reference() float64 {
+	return math.Max(baselineQuietP95Ms, slices.Min(b.ms))
+}
+
+// slowdown is the window's probe p95 over its calibrated reference, at least 1; false when the
 // window has too few samples to measure.
 func (b baselineSample) slowdown() (float64, bool) {
 	if len(b.ms) < baselineMinSamples {
 		return 0, false
 	}
-	if v := p95(b.ms) / baselineQuietP95Ms; v > 1 {
+	if v := p95(b.ms) / b.reference(); v > 1 {
 		return v, true
 	}
 	return 1, true
@@ -106,7 +117,7 @@ func baselineComparison(s latencySample) string {
 
 func baselineEvidence(s latencySample) Object {
 	b := s.baseline
-	o := Object{"probe": b.probe, "samples": len(b.ms), "quietReferenceP95Ms": baselineQuietP95Ms, "tolerance": latencyBaselineTolerance, "p95Ms": notObserved, "slowdown": notObserved, "queryRelative": notObserved, "lifecycleRelative": notObserved, "scaledQueryLimitMs": notObserved, "scaledLifecycleLimitMs": notObserved, "comparison": notObserved}
+	o := Object{"probe": b.probe, "samples": len(b.ms), "quietReferenceP95Ms": notObserved, "referenceFloorMs": baselineQuietP95Ms, "tolerance": latencyBaselineTolerance, "p95Ms": notObserved, "slowdown": notObserved, "queryRelative": notObserved, "lifecycleRelative": notObserved, "scaledQueryLimitMs": notObserved, "scaledLifecycleLimitMs": notObserved, "comparison": notObserved}
 	if b.probe == "" {
 		o["probe"] = "none"
 	}
@@ -115,7 +126,7 @@ func baselineEvidence(s latencySample) Object {
 		return o
 	}
 	base := p95(b.ms)
-	o["p95Ms"], o["slowdown"] = base, slow
+	o["p95Ms"], o["slowdown"], o["quietReferenceP95Ms"] = base, slow, b.reference()
 	if base > 0 && len(s.query) > 0 && len(s.lifecycle) > 0 {
 		o["queryRelative"], o["lifecycleRelative"] = p95(s.query)/base, p95(s.lifecycle)/base
 	}
