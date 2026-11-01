@@ -1240,7 +1240,13 @@ NOT_PRODUCED verify-file-unavailable`). Each line becomes one recorder `--verify
 512-character, shell-syntax-free grammar applies per command; a refused command names its first
 offending byte and the admitted set. A command that needs quotes or regular-expression syntax, such
 as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
-`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). One quoted `-run`
+word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0-384`,
+`DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`) or the whole package (`-run '.'`,
+`-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
+`HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
+(`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
+with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by
