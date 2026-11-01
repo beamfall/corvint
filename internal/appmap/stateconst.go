@@ -1628,7 +1628,7 @@ func (f *constFile) unread() {
 
 // auditExports checks f by one whole-file token pass, independent of the declaration readers
 // (whose skipped bodies could hide what follows): brackets that do not nest and match, a backslash
-// outside a string (an escaped identifier the lexer splits), or a top-level `export` that no
+// outside a string or an escaped identifier token (AMAP-V0-880), or a top-level `export` that no
 // reader consumed makes the file unread.
 func (f *constFile) auditExports() {
 	var open []string // the closer each open bracket expects
@@ -1642,7 +1642,7 @@ func (f *constFile) auditExports() {
 				return
 			}
 			open = open[:len(open)-1]
-		case t.kind == tokPunct && t.text == "\\":
+		case t.escaped || t.kind == tokPunct && t.text == "\\":
 			f.unread()
 		case t.kind == tokIdent && t.text == "export" && len(open) == 0 && (k == 0 || !isPunct(f.toks[k-1], ".")) && !f.claimed[k]:
 			f.unread()
