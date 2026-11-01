@@ -106,3 +106,20 @@ WSL2 (32 threads), go1.27.3 local toolchain. The host ran four peer lanes throug
   for every focused whole-package run.
 - `corvint affected --base` refuses revision syntax such as `<sha>^1`; scripts must `rev-parse`
   first.
+
+## Review fixes
+
+One Codex round (read-only, no tests run by the reviewer); each finding verified against the code
+and a failing-first regression test.
+
+- P2 runtime edges break single-language graphs: FIXED (`891911cd8`, spec `8a2a931c6`). Confirmed:
+  `preparePlaywrightGraph` failed with `runs "go:example.test/app/cmd/server" names no unit` and
+  `tools/test-read-scopes-check` with `tests "e2e/" holds no test file` on a valid Go-to-Playwright
+  declaration. Both now build through `affected.BuildPartial`, which skips an edge whose other side
+  the graph does not hold and still refuses an invalid declaration; `Build` keeps the
+  full-repository stale-edge refusal. Tests: `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`,
+  `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819`, `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819`.
+- P2 Playwright freshness omits the declaration: FIXED (`891911cd8`). Confirmed: the source identity
+  was equal with and without `.corvint/runtime-edges.json`. `ObservePlaywrightSources` now binds its
+  presence and bytes (absent file leaves the identity unchanged). Test:
+  `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819`.
