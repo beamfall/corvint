@@ -2057,13 +2057,15 @@ out=$(ldcrun)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
 ok
 
-# ASD-V0-742 (V1-3245): lane-stage-inputs exports each ticket's show JSON and text, copies them to
-# ~/lane-inputs/ticket-bodies-LANE on the target and passes only when every file is there and
-# non-empty; a refused export copies nothing, a lost copy is MISSING, a bad argument exits 2.
+# ASD-V0-742 (V1-3245): lane-stage-inputs exports each ticket's show JSON and text and the queue
+# snapshot, copies them to ~/lane-inputs/ticket-bodies-LANE on the target and passes only when every
+# file is there and non-empty; a refused export copies nothing, a lost copy is MISSING, a bad
+# argument exits 2.
 lsi=$tmp/lsi
 mkdir -p "$lsi/bin" "$lsi/home"
 cat > "$lsi/bin/corvint-tasks" << 'STUB'
 #!/usr/bin/env bash
+if [[ $1 == queue && $2 == snapshot && $3 == --out ]]; then [[ -n ${FAKE_NO_SNAPSHOT:-} ]] || printf '{}\n' > "$4"; exit 0; fi
 [[ $1 == ticket && $2 == show && $3 != V1-BAD ]] || { printf '{"outcome":"REFUSED"}\n'; exit 1; }
 if [[ ${4:-} == --format ]]; then printf '%s  title\n' "$3"; else printf '{"outcome":"OK","items":[{"ticketId":"%s"}]}\n' "$3"; fi
 STUB
@@ -2077,14 +2079,16 @@ chmod +x "$lsi/bin/corvint-tasks" "$lsi/bin/ssh"
 lsirun() { HOME=$lsi/home CORVINT_TASKS_BIN=$lsi/bin/corvint-tasks LANE_SSH=$lsi/bin/ssh "$script/lane-stage-inputs.sh" "$@" 2>&1; }
 out=$(lsirun --host wsl-lanes ln1 V1-1 V1-2)
 [[ $? == 0 && $out == 'lane-stage-inputs: PASS 2 tickets staged and verified at wsl-lanes:~/lane-inputs/ticket-bodies-ln1' ]] || fail "lane-stage-inputs pass: $out"
-[[ $(cat "$lsi/home/lane-inputs/ticket-bodies-ln1/V1-2.txt") == 'V1-2  title' && -s $lsi/home/lane-inputs/ticket-bodies-ln1/V1-1.json ]] || fail "lane-stage-inputs staged files"
+[[ $(cat "$lsi/home/lane-inputs/ticket-bodies-ln1/V1-2.txt") == 'V1-2  title' && -s $lsi/home/lane-inputs/ticket-bodies-ln1/V1-1.json && -s $lsi/home/lane-inputs/ticket-bodies-ln1/queue-snapshot.json ]] || fail "lane-stage-inputs staged files"
 out=$(lsirun ln2 V1-3)
 [[ $? == 0 && $out == *'PASS 1 tickets staged and verified at this host:~/lane-inputs/ticket-bodies-ln2' ]] || fail "lane-stage-inputs local: $out"
 out=$(lsirun --host wsl-lanes ln3 V1-1 V1-BAD)
-[[ $? == 1 && $out == *'EXPORT ticket=V1-BAD:'* && $out == *'FAIL 1 of 2 tickets did not export; nothing was copied'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln3 ]] ||
+[[ $? == 1 && $out == *'EXPORT ticket=V1-BAD:'* && $out == *'FAIL 1 exports refused; nothing was copied'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln3 ]] ||
   fail "lane-stage-inputs export refusal: $out"
+out=$(FAKE_NO_SNAPSHOT=1 lsirun ln6 V1-1)
+[[ $? == 1 && $out == *'EXPORT queue-snapshot.json:'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln6 ]] || fail "lane-stage-inputs snapshot refusal: $out"
 out=$(FAKE_LOSE=1 lsirun --host wsl-lanes ln4 V1-1)
-[[ $? == 1 && $out == *'MISSING wsl-lanes:~/lane-inputs/ticket-bodies-ln4/V1-1.json is absent or empty'* && $out == *'V1-1.txt is absent'* && $out != *PASS* ]] ||
+[[ $? == 1 && $out == *'MISSING wsl-lanes:~/lane-inputs/ticket-bodies-ln4/V1-1.json is absent or empty'* && $out == *'V1-1.txt is absent'* && $out == *'queue-snapshot.json is absent'* && $out != *PASS* ]] ||
   fail "lane-stage-inputs lost copy: $out"
 out=$(lsirun 'bad/lane' V1-1)
 [[ $? == 2 && $out == *"lane name 'bad/lane' is not valid"* ]] || fail "lane-stage-inputs bad lane: $out"

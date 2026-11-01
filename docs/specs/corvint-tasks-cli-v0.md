@@ -323,6 +323,21 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   default, is the unchanged envelope. A refusal stays the JSON envelope, and `--format text` with
   `--summary` or `--fields`, or a format other than `json` or `text`, refuses `MALFORMED`. A lane
   ticket packet is this output.
+- `TCL-V0-742`: (experimental under the standing lane auto-accept (2026-11-01); V1-3931)
+  `queue parity --against FILE` MUST compare the store this host reads (its worktree store, or
+  the `CORVINT_TASKS_SNAPSHOT` bundle) with the authoritative `queue snapshot` FILE by intent file
+  sha256 and return one item naming `inSync`, the host's tree digest and source, the authority's
+  path, host, primary worktree, tree digest, `producedAt`, age and journal sequence, and the ticket
+  IDs `missing` (in the authority only), `stale` (different content) and `extra` (on the host
+  only), plus differing non-ticket files, each with a whole count and a list capped at 200. A host
+  whose tree digest differs MUST be refused `STALE_TICKET` (the closed wire code set, SPEC section
+  11, has no store-level code) with a warning naming both trees, the counts and the
+  `CORVINT_TASKS_SNAPSHOT` remedy; an unreadable or tampered FILE refuses as `queue snapshot`
+  reads do, and a missing or empty `--against` refuses `MALFORMED`. It is a read verb and runs
+  under `CORVINT_TASKS_SNAPSHOT`. Every snapshot read's warning MUST also name the snapshot's age
+  and tree digest. `script/agent-preflight.sh` MUST print a `tasks-store` row from this verb
+  against `CORVINT_TASKS_AUTHORITY` or the newest staged `queue-snapshot.json`, and never fail on
+  it. Non-goals: syncing or repairing the host store, which stays the orchestrator's export.
 
 ## Non-goals
 
@@ -415,6 +430,10 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0739_DuplicateRecordedAsSupersedesLink`; `TestTCLV0004_CreateGuard` (TCL-V0-739).
 - `internal/tasks/cli/ticket_show_text_test.go`:
   `TestTCLV0741_ShowFormatTextRendersBodyAndAcceptance` (TCL-V0-741).
+- `internal/tasks/cli/queue_parity_test.go`:
+  `TestTCLV0742_QueueParityNamesMissingAndStaleTickets`; `script/agent-preflight_test.sh` case 6
+  (`tasks-store` row); the wsl-lanes live snapshot read in `docs/build-log/2026-11-01-tcl-w31.md`
+  (TCL-V0-742).
 
 ## Rollback
 

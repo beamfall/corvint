@@ -86,7 +86,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"queue status", "queue snapshot", "queue parity", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -354,10 +354,13 @@ func Run(env Env) int {
 		if len(args) >= 2 && args[1] == "snapshot" {
 			return queueSnapshot(env, args[2:])
 		}
+		if len(args) >= 2 && args[1] == "parity" {
+			return emit(env.Stdout, queueParity(env, args[2:]))
+		}
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status or snapshot"))
+		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status, snapshot or parity"))
 	case "roadmap":
 		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":

@@ -1824,10 +1824,12 @@
       "command": "corvint-tasks queue",
       "summary": "",
       "usage": [
+        "corvint-tasks queue parity --against FILE",
         "corvint-tasks queue snapshot [--out FILE] [--worktree DIR]",
         "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]"
       ],
       "flags": [
+        "--against",
         "--fields",
         "--out",
         "--retries",
@@ -1835,8 +1837,27 @@
         "--worktree"
       ],
       "required": [],
-      "example": "corvint-tasks queue snapshot",
+      "example": "corvint-tasks queue parity --against FILE",
       "help": "corvint-tasks queue --help"
+    },
+    {
+      "path": [
+        "queue",
+        "parity"
+      ],
+      "command": "corvint-tasks queue parity",
+      "summary": "",
+      "usage": [
+        "corvint-tasks queue parity --against FILE"
+      ],
+      "flags": [
+        "--against"
+      ],
+      "required": [
+        "--against FILE"
+      ],
+      "example": "corvint-tasks queue parity --against FILE",
+      "help": "corvint-tasks queue parity --help"
     },
     {
       "path": [

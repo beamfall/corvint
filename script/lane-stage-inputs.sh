@@ -6,10 +6,12 @@
 #   script/lane-stage-inputs.sh [--host HOST] LANE TICKET...
 #
 # Run on the host that owns the Tasks store. For each TICKET it exports `corvint-tasks ticket show`
-# JSON as TICKET.json and `--format text` (TCL-V0-741) as TICKET.txt, copies both into
-# ~/lane-inputs/ticket-bodies-LANE/ on HOST (over ssh; on this host without --host), then lists that
-# directory on the target and requires every file to be there and non-empty. One line per finding:
-#   EXPORT   ticket show refused or printed nothing for a ticket (nothing is copied)
+# JSON as TICKET.json and `--format text` (TCL-V0-741) as TICKET.txt, and the whole queue as
+# queue-snapshot.json (`queue snapshot`, the authority the lane's `queue parity` and agent-preflight
+# tasks-store row compare against, TCL-V0-742), copies them into ~/lane-inputs/ticket-bodies-LANE/
+# on HOST (over ssh; on this host without --host), then lists that directory on the target and
+# requires every file to be there and non-empty. One line per finding:
+#   EXPORT   ticket show or queue snapshot refused or printed nothing (nothing is copied)
 #   MISSING  a file is absent or empty on the target after the copy
 # Exit 0 with a PASS line, 1 on any finding, 2 on a usage error or a failed copy or listing. Do not
 # start the lane session unless it exits 0. CORVINT_TASKS_BIN and LANE_SSH override the
@@ -47,20 +49,24 @@ for id in "$@"; do
     findings=$((findings + 1))
   }
 done
-((findings == 0)) || { printf '%s: FAIL %d of %d tickets did not export; nothing was copied\n' "$me" "$findings" "$#"; exit 1; }
+"$tasks" queue snapshot --out "$stage/queue-snapshot.json" > /dev/null 2>&1 && [[ -s $stage/queue-snapshot.json ]] || {
+  printf '%s: EXPORT queue-snapshot.json: corvint-tasks queue snapshot refused or wrote nothing; check the store\n' "$me"
+  findings=$((findings + 1))
+}
+((findings == 0)) || { printf '%s: FAIL %d exports refused; nothing was copied\n' "$me" "$findings"; exit 1; }
 target=${host:-this host}
 tar -C "$stage" -cf - . | on_target "mkdir -p \"\$HOME/$rel\" && tar -C \"\$HOME/$rel\" -xf -" ||
   refuse "copying to ~/$rel on $target failed"
 # A directory absent after the copy lists nothing, so each of its files is reported MISSING.
 listing=$(on_target "cd \"\$HOME/$rel\" 2> /dev/null || exit 0; find . -maxdepth 1 -type f -size +0c") ||
   refuse "listing ~/$rel on $target failed"
-for id in "$@"; do
-  for ext in json txt; do
-    grep -qxF "./$id.$ext" <<< "$listing" || {
-      printf '%s: MISSING %s:~/%s/%s.%s is absent or empty after the copy\n' "$me" "$target" "$rel" "$id" "$ext"
-      findings=$((findings + 1))
-    }
-  done
+want=(queue-snapshot.json)
+for id in "$@"; do want+=("$id.json" "$id.txt"); done
+for f in ${want[@]+"${want[@]}"}; do
+  grep -qxF "./$f" <<< "$listing" || {
+    printf '%s: MISSING %s:~/%s/%s is absent or empty after the copy\n' "$me" "$target" "$rel" "$f"
+    findings=$((findings + 1))
+  }
 done
 ((findings == 0)) || exit 1
 printf '%s: PASS %d tickets staged and verified at %s:~/%s\n' "$me" "$#" "$target" "$rel"

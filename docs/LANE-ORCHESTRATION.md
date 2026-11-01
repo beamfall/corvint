@@ -934,6 +934,22 @@ are verified first, and every result names the snapshot's host, primary worktree
 journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
 naming the owning store and the command to run there.
 
+Store parity (TCL-V0-742, V1-3931). A lane host's store copy or snapshot can fall behind the owning
+store, and a lane that reads it reports tickets as absent that exist. Before claiming anything about
+store contents on a lane host, compare it with the staged authoritative snapshot:
+
+```sh
+corvint-tasks queue parity --against ~/lane-inputs/ticket-bodies-<lane>/queue-snapshot.json
+```
+
+It names both tree digests, ages and journal sequences and lists the tickets the host lacks
+(`missing`), holds at different content (`stale`) or holds that the authority lacks (`extra`); a
+host that is behind is refused `STALE_TICKET`. `script/agent-preflight.sh` prints the same check as
+its `tasks-store` row (`in sync`, `WARN behind`, `UNKNOWN` or no snapshot staged) and never fails
+on it. When the host is behind, read tickets with `CORVINT_TASKS_SNAPSHOT=` that file. Any claim
+that a ticket or field is absent from the store cites the store tree digest the read named (every
+snapshot read's warning names its tree and age).
+
 ## 13. Lane flow guide and refusal recovery map (V1-3239)
 
 One lane runs this flow, in order; each step names the command and the section that owns it.
@@ -1016,7 +1032,8 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
 - the charter, requirement-ID block and digest files, as for a local lane.
 
 Stage the ticket bodies with `script/lane-stage-inputs.sh --host HOST LANE ID...` on the Mac
-(ASD-V0-742, V1-3245). It exports both files per ticket, copies them to
+(ASD-V0-742, V1-3245). It exports both files per ticket and `queue-snapshot.json`, the authority
+`queue parity` compares against (section 12, TCL-V0-742), copies them to
 `~/lane-inputs/ticket-bodies-<lane>/` on HOST and lists that directory there. Start the lane session
 only after it prints `PASS`; an `EXPORT` or `MISSING` line names the ticket or file to fix first.
 
