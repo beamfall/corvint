@@ -262,6 +262,7 @@ func (h *semanticHarness) init(t *testing.T) {
 	if _, advertised := result.Capabilities["definitionProvider"]; advertised {
 		t.Fatal("unqualified standard definition capability advertised")
 	}
+	assertTestedCapabilitySubset(t, result.Capabilities)
 	var experimental map[string]json.RawMessage
 	if err := json.Unmarshal(result.Capabilities["experimental"], &experimental); err != nil || string(experimental["corvintDefinitionProbe"]) != "true" {
 		t.Fatal("missing explicit development probe marker", err)
@@ -409,5 +410,33 @@ func TestSemanticShutdownReplyBeforeExit(t *testing.T) {
 		h.done <- e
 	case <-time.After(3 * time.Second):
 		t.Fatal("exit did not retire session")
+	}
+}
+
+// assertTestedCapabilitySubset pins LQP-V0-012 (V1-0481): the companion
+// advertises only the tested standard members. Any new standard provider,
+// diagnostics included, must first gain transcript tests and be added here.
+func assertTestedCapabilitySubset(t *testing.T, capabilities map[string]json.RawMessage) {
+	t.Helper()
+	for name := range capabilities {
+		switch name {
+		case "positionEncoding", "textDocumentSync", "experimental":
+		default:
+			t.Fatalf("untested standard capability %q advertised", name)
+		}
+	}
+	var sync map[string]json.RawMessage
+	if err := json.Unmarshal(capabilities["textDocumentSync"], &sync); err != nil {
+		t.Fatal("textDocumentSync is not an options object", err)
+	}
+	for name := range sync {
+		switch name {
+		case "openClose", "change", "save":
+		default:
+			t.Fatalf("untested textDocumentSync member %q advertised", name)
+		}
+	}
+	if string(sync["openClose"]) != "true" || string(sync["change"]) != "1" {
+		t.Fatalf("textDocumentSync must be full open/close sync: %s", capabilities["textDocumentSync"])
 	}
 }
