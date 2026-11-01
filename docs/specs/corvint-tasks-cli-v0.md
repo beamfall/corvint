@@ -152,6 +152,13 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `UNCERTAIN_EFFECT`, `REQUEST_ID_CONFLICT` → `REQUEST_ID_CONFLICT`, `STORAGE_FAILED` →
   `UNSUPPORTED_FILESYSTEM`. The item's `outcome` field still names the store outcome. The
   derivation happens only in the CLI envelope: receipts and recorded outcome codes are unchanged.
+- `TCL-V0-859`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3736) An
+  unknown first word MUST put the closed code `MALFORMED` in the result's `codes`, and its hint
+  MUST also name the first verb words within edit distance 2 of it, so `tikcet` suggests
+  `ticket`. A read refusal for a ticket or escalation that does not exist in the queue
+  (`ticket show`, `ticket note show`, `ticket note history`, `critical-path`,
+  `ticket escalation show`, `ticket escalation history`) MUST carry `MALFORMED`, as the review and
+  obligation reads already do. No new code is added.
 
 ## Non-goals
 
@@ -200,6 +207,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
   `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
   (TCL-V0-870).
+- `internal/tasks/cli/refusal_codes_test.go`: `TestTCLV0859_UnknownVerbAndMissingTicketCarryCodes`;
+  `conformance/cli-errors-v0`: `TestCLIErrorContracts_ACXV0859` (TCL-V0-859).
 
 ## Rollback
 

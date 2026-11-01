@@ -90,6 +90,14 @@ driving Corvint from scripts.
   A test SHALL enumerate the range and output flags each verb's help names, so a change to that
   vocabulary is a reviewed edit. Renaming the other spellings (`--revision`, `--rev`, `--json`,
   `--summary`) is out of scope here.
+- **ACX-V0-859:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-3736) An unknown top-level `corvint` command SHALL keep the argparse invalid-choice
+  `invalid-arguments` envelope and SHALL append `; did you mean 'X'?`, naming up to three commands
+  within edit distance 2 of the typed word, nearest first. The test in `conformance/cli-errors-v0`
+  SHALL build every binary that has a command tree in `internal/capcatalog/trees/`, run each one
+  with an unknown verb, and check its exit code, output stream and envelope against a declared
+  row for that binary. A binary without a row, or a row without a binary, SHALL fail the test.
+  Making the binaries' envelopes identical is out of scope; each row records the current contract.
 
 ## Non-goals
 
@@ -117,6 +125,7 @@ still runs it.
 | ACX-V0-856 | `frontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
 | ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
+| ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 
 ## Rollback
