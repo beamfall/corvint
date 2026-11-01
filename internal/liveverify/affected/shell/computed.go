@@ -131,7 +131,13 @@ func expand(word string, values map[string][]string, depth int, cut *bool) []str
 			}
 			inner := word[index+2 : end]
 			if word[index+1] == '(' {
-				appendAll([]string{wildcard})
+				// A leading `$(dirname "$0")/` keeps its directory form so the
+				// resolver can place the value (AFP-V0-553).
+				form, own := ownDirectory(inner)
+				if !own || index != 0 || end+1 >= len(word) || word[end+1] != '/' {
+					form = wildcard
+				}
+				appendAll([]string{form})
 			} else {
 				appendAll(braced(inner, values, depth, cut))
 			}
@@ -184,9 +190,28 @@ func closing(word string, open int) int {
 	return -1
 }
 
+// ownDirectory reports a substitution that names the running script's
+// directory, `dirname "$0"` or `dirname "${BASH_SOURCE[0]}"`, and the
+// directory form the resolver places the same way.
+func ownDirectory(inner string) (string, bool) {
+	words := dropFlags(fieldsTop(redirection.ReplaceAllString(inner, "")))
+	if len(words) != 2 || words[0] != "dirname" || !scriptPaths[words[1]] {
+		return "", false
+	}
+	switch {
+	case words[1] == "$0" || words[1] == "${0}":
+		return "${0%/*}", true
+	case strings.Contains(words[1], "BATS_TEST_FILENAME"):
+		return "${BATS_TEST_FILENAME%/*}", true
+	}
+	return "${BASH_SOURCE%/*}", true
+}
+
 // braced expands `${...}`: a plain name, or a name with a `-`, `:-`, `=` or
-// `:=` default, takes the name's values and the default's; any other operator
-// transforms the value in a way the model does not follow.
+// `:=` default, takes the name's values and the default's. A `+` or `:+`
+// alternative takes the empty value and its alternative's first field, the
+// word a command runs (AFP-V0-553). Any other operator transforms the value
+// in a way the model does not follow.
 func braced(inner string, values map[string][]string, depth int, cut *bool) []string {
 	end := 0
 	for end < len(inner) && (inner[end] == '_' || inner[end] >= 'a' && inner[end] <= 'z' || inner[end] >= 'A' && inner[end] <= 'Z' || end > 0 && inner[end] >= '0' && inner[end] <= '9') {
@@ -209,6 +234,15 @@ func braced(inner string, values map[string][]string, depth int, cut *bool) []st
 				alternatives, *cut = alternatives[:maxValueCount], true
 			}
 			return alternatives
+		}
+	}
+	for _, operator := range []string{":+", "+"} {
+		if strings.HasPrefix(rest, operator) {
+			fields := fieldsTop(rest[len(operator):])
+			if depth >= maxValueDepth || len(fields) == 0 {
+				return []string{wildcard}
+			}
+			return append([]string{""}, expand(unquote(fields[0]), values, depth+1, cut)...)
 		}
 	}
 	return []string{wildcard}

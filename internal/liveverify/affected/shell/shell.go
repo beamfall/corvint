@@ -227,6 +227,11 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 			// A command string's commands are scanned as the file's own.
 			if script, ok := commandString(args); ok {
 				commands = append(commands, parse(script).commands...)
+				if index < len(parsed.commands) && strings.ContainsAny(script, "$`") {
+					// A command string held in a variable is scanned for each
+					// value the file gives it (AFP-V0-553).
+					commands = append(commands, commandStrings(script, values)...)
+				}
 			}
 			for _, target := range invokedScripts(word, args) {
 				computed(unquote(target))
@@ -466,6 +471,17 @@ func commandString(args []string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// commandStrings parses each value of a computed command string. A part the
+// file does not fix stays a computed name, so it never reads as a literal.
+func commandStrings(script string, values map[string][]string) []command {
+	var cut bool
+	var out []command
+	for _, value := range expand(script, values, 0, &cut) {
+		out = append(out, parse(strings.ReplaceAll(value, wildcard, "$_")).commands...)
+	}
+	return out
 }
 
 // invokedScripts lists an interpreter command's script operands: the first

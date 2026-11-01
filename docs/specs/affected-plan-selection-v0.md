@@ -76,6 +76,16 @@ measure. None of them drops a unit the change can reach.
   follow a closing multi-line triple-quoted string are missed but covered by
   `python:conditional-import`. They are logged and reported as an over-wide frontier, not fixed.
 
+- **AFP-V0-553:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4170)
+  The shell plugin MUST link a script that a file runs through a variable in three more forms: a
+  default that names the script's own directory (`heavy=${H-$(dirname "$0")/heavy.sh}`), a
+  `${NAME:+word}` or `${NAME+word}` command word, whose values are empty or the word's first
+  field, and a `sh -c` or `bash -c` command string held in a variable, which is parsed once for
+  each value the file gives it. Any other `$(...)` part stays unknown, so it never reads as a
+  literal path. Each form only adds edges. With it, `script/analyzer-schema_test.sh` and
+  `script/codex-review_test.sh` inherit `shell:dynamic-source` from `script/heavy.sh`, as
+  `.corvint/unbounded-readers.json` records, and stay selected for an unrelated edit.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -100,6 +110,7 @@ unit whole. A missing `python3` skips AFP-V0-552 rather than passing it.
 | AFP-V0-550 | `affectedWhole`, `withWholePackages`, `testMainSource`, `testMainOf` in `cmd/corvint/affected_whole.go`; `WholePackages` in `cmd/corvint/affected.go`; `cmd/corvint/affected_compact.go` | `TestAFPV0550TestMainChangeMakesThePackageWhole` in `cmd/corvint/affected_whole_test.go` |
 | AFP-V0-551 | `FixturePathMarker`, `fileScan.fixture`, `fixtureOnly`, `scannedLiteral`, `fixtureTokens`, `pathTokens` and `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestAFPV0551FixtureMarkedLiteralsNameNoRead` in `internal/liveverify/affected/golang/fixture_marker_test.go`; before/after counts in build log `2026-11-01-aff-w26` |
 | AFP-V0-552 | `astImports`, `differentialCorpus` in `internal/liveverify/affected/python/differential_test.go` | `TestScanImportsAgreesWithAst_V13322` |
+| AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/replay_v14170_test.go` |
 
 ## Rollback
 
