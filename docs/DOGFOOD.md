@@ -1384,7 +1384,9 @@ The `.corvint/` outputs live in the worktree root. Repository-wide Git state (ob
 `info/exclude`) is shared with the main checkout, so the ignore entries need adding only once.
 
 Within the same task, resume with `corvint dogfood status`; the unkeyed examples below use the
-current `CODEX_THREAD_ID` or `CODEX_SESSION_ID`. For a handoff of the same enrolled work, retain the
+current `CODEX_THREAD_ID` or `CODEX_SESSION_ID`, or inside Claude Code `CLAUDE_CODE_SESSION_ID`
+hashed as its native hook does; with both hosts' identities set, pass `--session-key KEY`
+(LCP-V0-810). For a handoff of the same enrolled work, retain the
 original worktree and explicit 64-hex session key from its emitted `nextActions`. Resume there with
 `corvint dogfood status --session-key KEY`. Every subsequent dogfood invocation must retain that
 key: use the returned keyed `nextActions` for verify, review and finish instead of the unkeyed
