@@ -4,7 +4,7 @@
   "generatedAt": "2026-09-27",
   "entries": [
     {
-      "adapterVersion": "0.3.10",
+      "adapterVersion": "0.3.11",
       "documentedAgainstHostVersion": "2.1.238",
       "fullSupport": "external-dependent",
       "host": "claude-code",
