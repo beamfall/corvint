@@ -298,6 +298,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   "takes no value", and an undeclared flag is still refused. `ticket delivery-screen` MUST parse
   `--lane-refs` and `--json` through it rather than stripping them by hand, and the flags its usage
   names MUST equal the booleans and value flags its parser declares.
+- `TCL-V0-738`: (experimental under the standing lane auto-accept (2026-11-01); V1-3485; ships
+  TCX-V0-988) `corvint-tasks doctor --rebuild-closed-index`, given alone, MUST validate the store
+  with the inventory read (a journaled store, or a journal-free copy whose tracked intent tree
+  loads) and then write the closed-ticket index with the writer the CLI runs after a committed
+  mutation, reporting `path`, `journal` (`PRESENT` or `ABSENT`) and `indexSha256`. The index file
+  is its only write. A repository with no store, or a tree that does not load, MUST refuse with
+  the read's own code and write nothing; a snapshot bundle refuses `UNSUPPORTED`; the flag with
+  any other argument refuses `MALFORMED`.
 
 ## Non-goals
 
@@ -383,6 +391,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/flags_bool_internal_test.go`:
   `TestTCLV0737_FlagsParseDeclaredBooleans`, `TestTCLV0737_DeliveryScreenUsageMatchesParser`
   (TCL-V0-737).
+- `internal/tasks/cli/doctor_closed_index_test.go`:
+  `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; the wsl-lanes live rebuild in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-738).
 
 ## Rollback
 

@@ -293,6 +293,9 @@ func Run(env Env) int {
 		if len(args) == 2 && args[1] == "--line" {
 			return doctorLine(env)
 		}
+		if len(args) == 2 && args[1] == "--rebuild-closed-index" {
+			return emit(env.Stdout, doctorRebuildClosedIndex(env))
+		}
 		return emit(env.Stdout, doctorCommand(env, args[1:]))
 	case "pool":
 		if len(args) > 1 && args[1] == "sweep" {
