@@ -1054,6 +1054,8 @@ doc-gates:
 # by a tool timeout resumes where it stopped. ASD-V0-568 (V1-4101): the repin step commits a
 # mechanical repin and refreshes the plan before batch-precheck reads them.
 CLOSEOUT_FROM ?= 1
+# The closeout's mechanical repin command (ASD-V0-568); empty skips the repin step.
+DOGFOOD_CLOSEOUT_REGEN ?= script/batch-regen.sh --mechanical
 closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
 closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
 	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
@@ -1064,7 +1066,7 @@ dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(call closeout_step,1,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
-	@$(call closeout_step,2,repin,script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
+	@$(call closeout_step,2,repin,DOGFOOD_CLOSEOUT_REGEN=$(call dogfood_finish_quote,$(DOGFOOD_CLOSEOUT_REGEN)) script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
 	@$(call closeout_step,3,batch-precheck,BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck)
 	@$(call closeout_step,4,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)
 	@$(call closeout_step,5,batch-precheck,BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck)

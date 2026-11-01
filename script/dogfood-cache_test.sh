@@ -284,8 +284,8 @@ done
 # receipt (DCW-V0-944, V1-3550).
 # ASD-V0-567, ASD-V0-568 (V1-4114, V1-3477, V1-4101): each step runs through closeout_step, and the
 # mechanical repin runs between the pre-flight and the first batch-precheck.
-recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(call closeout_step,[0-9],[a-z-]*,/, ""); sub(/\$\(MAKE\) --no-print-directory /, ""); sub(/ \$\(call dogfood_finish_quote.*/, ""); sub(/\)$/, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' '|')
-[[ $recipe == 'dogfood-inputs-check|script/dogfood-closeout-repin.sh|BATCH_PRECHECK_SKIP_DRIFT=1 batch-precheck|dogfood-finish|BATCH_PRECHECK_SINCE_RECEIPT=1 batch-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(call closeout_step,[0-9],[a-z-]*,/, ""); sub(/\$\(MAKE\) --no-print-directory /, ""); sub(/^DOGFOOD_CLOSEOUT_REGEN=\$\(call dogfood_finish_quote,\$\(DOGFOOD_CLOSEOUT_REGEN\)\) /, "REGEN "); sub(/ \$\(call dogfood_finish_quote.*/, ""); sub(/\)$/, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' '|')
+[[ $recipe == 'dogfood-inputs-check|REGEN script/dogfood-closeout-repin.sh|BATCH_PRECHECK_SKIP_DRIFT=1 batch-precheck|dogfood-finish|BATCH_PRECHECK_SINCE_RECEIPT=1 batch-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
 # ASD-V0-567 (V1-4114, V1-3477): a failed step names itself on one line with the resume command, and
 # CLOSEOUT_FROM skips the earlier steps.
 status=0

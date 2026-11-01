@@ -41,7 +41,7 @@ printf '#!/bin/sh\nprintf "x\\n" >> spec.md\necho "line-citations: changed span 
 out=$(DOGFOOD_CLOSEOUT_REGEN=$tmp/bad "$script" "$base" "$tmp/plan.tsv" 2>&1)
 rc=$?
 [[ $rc == 1 && $(git rev-parse HEAD) == "$head" ]] || fail "failed repin: rc=$rc $out"
-grep -qF '  | line-citations: changed span spec.md:2' <<< "$out" && grep -q '^fix: run script/batch-regen.sh --mechanical' <<< "$out" || fail "failed repin output: $out"
+grep -qF '  | line-citations: changed span spec.md:2' <<< "$out" && grep -qF "fix: run $tmp/bad, fix what it names" <<< "$out" || fail "failed repin output: $out"
 git diff --quiet HEAD -- || fail "the failed repin left tracked changes"
 
 # 4. Uncommitted tracked changes skip the step; batch-precheck names them.
@@ -50,7 +50,11 @@ out=$(DOGFOOD_CLOSEOUT_REGEN=$tmp/regen "$script" "$base" "$tmp/plan.tsv" 2>&1) 
 grep -q 'skipped: tracked changes are uncommitted' <<< "$out" && [[ $(git rev-parse HEAD) == "$head" ]] || fail "dirty tree: $out"
 git checkout -q -- spec.md
 
-# 5. Usage.
+# 5. An unset repin command skips the step.
+out=$(env -u DOGFOOD_CLOSEOUT_REGEN "$script" "$base" "$tmp/plan.tsv" 2>&1) || fail "unset command: rc=$?"
+grep -q 'skipped' <<< "$out" && [[ $(git rev-parse HEAD) == "$head" ]] || fail "unset command: $out"
+
+# 6. Usage.
 "$script" > /dev/null 2>&1
 [[ $? == 2 ]] || fail "no BASE is not a usage error"
 printf 'dogfood-closeout-repin_test: ok\n'

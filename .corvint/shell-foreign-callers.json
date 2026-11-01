@@ -19,13 +19,10 @@
         "internal/dogfoodflow/regenerated.go",
         "internal/dogfoodflow/regenerated_test.go",
         "script/batch-precheck.sh",
-        "script/batch-precheck_test.sh",
-        "script/dogfood-closeout-repin.sh"
+        "script/batch-precheck_test.sh"
       ],
-      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401); dogfood-closeout-repin.sh runs it as the closeout repin step and its test names its fix line (ASD-V0-568) (TSP-V0-005).",
-      "mentions": [
-        "script/dogfood-closeout-repin_test.sh"
-      ]
+      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
+      "mentions": null
     },
     "script/heavy.sh": {
       "callers": [
