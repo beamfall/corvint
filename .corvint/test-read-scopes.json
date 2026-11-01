@@ -616,6 +616,19 @@
       "script/"
     ],
     "tools/test-commands-run": [],
+    "tools/test-exec-writes-check": [
+      ".github/",
+      "benchmarks/",
+      "cmd/",
+      "conformance/",
+      "examples/",
+      "experimental/",
+      "internal/",
+      "interop/",
+      "protocol/",
+      "script/",
+      "tools/"
+    ],
     "tools/tiers-replay": [
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"

@@ -75,6 +75,7 @@ node_modules/
 /selection-baseline
 /str-parity
 /test-commands-check
+/test-exec-writes-check
 /test-commands-run
 /test-read-scopes-check
 /test-shards

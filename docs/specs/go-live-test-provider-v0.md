@@ -1031,11 +1031,11 @@ a fixture-owned sentinel path segment the drift fixture alone writes into `reque
 unrelated test's ACQUIRE (with ordinary `t.TempDir()` paths carrying no such segment) never
 matches.
 `cmd/corvint-go-test-provider/main_test.go:78` calls `runQualificationAuthority`
-(`cmd/corvint-go-test-provider/qualification_test.go:24`), the drift fixture's routing hook keyed on
-`driftFixtureSegment` (`cmd/corvint-go-test-provider/qualification_test.go:19`); it is a test-only
+(`cmd/corvint-go-test-provider/qualification_test.go:25@3739f67a`), the drift fixture's routing hook keyed on
+`driftFixtureSegment` (`cmd/corvint-go-test-provider/qualification_test.go:20@f9df02b9`); it is a test-only
 file, so this is not a second production change. Both exchanges MUST route to the real
 `runProductionAuthority` — which `runQualificationAuthority` calls directly at
-`cmd/corvint-go-test-provider/qualification_test.go:27` and `:38` — and never to the stateless
+`cmd/corvint-go-test-provider/qualification_test.go:28@edc9a8e7` and `cmd/corvint-go-test-provider/qualification_test.go:39@e23c3188` — and never to the stateless
 `runAuthorityHelper` (`cmd/corvint-go-test-provider/main_test.go:554-636`), which always answers
 `Status:"OK"` and sets no `ErrorCode`: a fixture-written `AUTHORITY_DRIFT` string would exercise
 none of `internal/liveverify/parentverify/discovery.go:40`,
