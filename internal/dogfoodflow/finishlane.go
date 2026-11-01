@@ -192,6 +192,7 @@ func (l *finishLane) run() int {
 		l.removePreflight()
 		l.recordPreflight(l.prepare())
 		l.noteUnknownRows()
+		l.recordPlanHead()
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}

@@ -2569,6 +2569,13 @@ func (c *change) rowValues() string {
 
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding == "" {
+		// DCW-V0-724: a plan that passed inputs-check at an earlier HEAD was
+		// built for that HEAD's map; name both and the refresh.
+		if passed := planPassedAt(c.evidence, c.options.Citations); passed != "" && passed != c.target {
+			return fmt.Sprintf("the plan passed inputs-check at HEAD %s, but HEAD is now %s and a later commit changed the map: run ", passed, c.target) + staleHunkIDHint(c.base, c.options.Citations) + " (DCW-V0-724)"
+		}
+	}
 	if value == "cem-cite:citation-plan-map-mismatch" && strings.Contains(c.mismatchDetail, staleHunkIDMarker) {
 		return staleHunkIDHint(c.base, c.options.Citations)
 	}

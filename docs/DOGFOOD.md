@@ -541,7 +541,11 @@ leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a ci
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
-worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before the first
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). A pass records
+the plan's digest and the `HEAD` it passed at in `$(git rev-parse --git-dir)/corvint/inputs-check-plan-head`;
+when a later commit (a build-log entry, say) re-prepares the map and the same plan bytes then refuse
+`citation-plan-map-mismatch`, the fix line names both `HEAD`s and the
+`propose-citations BASE --refresh PLAN` command (`DCW-V0-724`). Before the first
 bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
 a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
 `REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).

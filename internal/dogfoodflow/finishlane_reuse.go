@@ -11,6 +11,39 @@ import (
 // finish-lane run that follows it (DCW-V0-887).
 const preflightReceipt = "inputs-check-pass"
 
+// planHeadReceipt is the private file a passing inputs-check leaves naming the
+// plan digest and the HEAD it passed at; unlike preflightReceipt no run
+// consumes it, so a later citation-plan-map-mismatch can name both HEADs
+// (DCW-V0-724).
+const planHeadReceipt = "inputs-check-plan-head"
+
+// recordPlanHead keeps the passing plan's digest and HEAD.
+func (l *finishLane) recordPlanHead() {
+	path := l.gitDir + "/corvint/" + planHeadReceipt
+	digest, err := fileSHA256(l.options.Change.Citations)
+	if l.options.Change.Citations == "" || err != nil {
+		_ = removeFile(path)
+		return
+	}
+	_ = writePrivate(path, []byte("digest="+digest+"\nhead="+l.target+"\n"))
+}
+
+// planPassedAt names the HEAD at which inputs-check passed these same plan
+// bytes, or "" when no receipt matches the plan.
+func planPassedAt(evidence, plan string) string {
+	data, err := readPrefix(evidence+"/"+planHeadReceipt, 4<<10)
+	digest, digestErr := fileSHA256(plan)
+	if err != nil || digestErr != nil {
+		return ""
+	}
+	lines := textLines(data)
+	if len(lines) != 2 || lines[0] != "digest="+digest {
+		return ""
+	}
+	head, _ := strings.CutPrefix(lines[1], "head=")
+	return head
+}
+
 // preflightKey binds a prepare pass to everything it read: BASE, HEAD and its
 // tree, each supplied input's path and content digest, the outcome, the plan's
 // staging and the step executable's digest. An unreadable executable gives no
