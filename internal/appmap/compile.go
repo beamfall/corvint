@@ -261,6 +261,7 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		return err
 	}
 	screens, unknowns := resolveScreens(b.m.App, raws)
+	markDialects(b.m.App, b.m.Routers, raws, spans, screens)
 	b.out.Screens = screens
 	b.out.Unknowns = append(b.out.Unknowns, unknowns...)
 	b.screens = map[string]*Screen{}
@@ -268,7 +269,6 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 		b.screens[b.out.Screens[i].ID] = &b.out.Screens[i]
 	}
 	b.idx = newScreenIndex(b.m.HashPrefix, b.m.BasePath, screens)
-	b.idx.rankReact(b.m.App, b.m.Routers, raws, spans)
 	for _, k := range b.idx.ambiguousKeys() {
 		b.unknown(Unknown{Kind: "template", Ref: k, Reason: "ambiguous-template"})
 	}

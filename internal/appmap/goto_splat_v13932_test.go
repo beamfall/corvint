@@ -100,8 +100,8 @@ func TestAMAPV0600RankingStaysWithinReact_V13932(t *testing.T) {
 		t.Fatal(u)
 	}
 	routers := []RouterFile{{Path: "App.tsx", Dialect: DialectReact}, {Path: "routes.js", Dialect: DialectUIRouter}, {Path: "More.tsx", Dialect: DialectReact}}
+	markDialects("test", routers, raws, [][2]int{{0, 4}, {4, 5}, {5, 6}}, screens)
 	idx := newScreenIndex("", "", screens)
-	idx.rankReact("test", routers, raws, [][2]int{{0, 4}, {4, 5}, {5, 6}})
 	if id, reason := idx.byURL("/new"); id != "screen:test:new" || reason != "" {
 		t.Fatalf("/new: %q %q", id, reason)
 	}
@@ -115,7 +115,10 @@ func TestAMAPV0600RankingStaysWithinReact_V13932(t *testing.T) {
 	if _, reason := idx.byURL("/n/7"); reason != "ambiguous-template" {
 		t.Fatalf("mixed /n/7: %q", reason)
 	}
-	// Without the router spans (another reader of the map), nothing is ranked.
+	// Screens without a recorded dialect (a map an earlier builder wrote) rank nothing (AMAP-V0-881).
+	for i := range screens {
+		screens[i].Dialect = ""
+	}
 	if _, reason := newScreenIndex("", "", screens).byURL("/new"); reason != "ambiguous-template" {
 		t.Fatalf("unranked index: %q", reason)
 	}

@@ -437,8 +437,9 @@ type screenIndex struct {
 	byKey      map[string][]string
 	bySegments map[int][]routable
 	splats     []routable
-	// ranked names the screens a react-router/0 file declared; a URL matching only such screens
-	// takes the single best React Router rank (AMAP-V0-600).
+	// ranked names the screens whose recorded dialect is react-router/0; a URL matching only such
+	// screens takes the single best React Router rank (AMAP-V0-600). It is read from the screens
+	// themselves, so every index built over a map ranks as the builder does (AMAP-V0-881).
 	ranked map[string]bool
 	score  map[string]int
 }
@@ -450,12 +451,15 @@ type routable struct {
 }
 
 func newScreenIndex(hashPrefix, basePath string, screens []Screen) *screenIndex {
-	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, score: map[string]int{}}
+	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, ranked: map[string]bool{}, score: map[string]int{}}
 	for _, s := range screens {
 		if s.Status != StatusResolved || s.Abstract {
 			continue
 		}
 		x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
+		if s.Dialect == DialectReact {
+			x.ranked[s.ID] = true
+		}
 		segs := splitSegments(s.Key)
 		x.score[s.ID] = reactRouteScore(segs)
 		if len(segs) > 0 && segs[len(segs)-1] == "{*}" {
@@ -515,8 +519,7 @@ func pick(ids []string, reason string) (string, string) {
 // whole-segment ${} substitution and match only parameter segments; a partial substitution
 // cannot be placed and is UNKNOWN.
 func (x *screenIndex) byURL(raw string) (string, string) {
-	ids, reason := x.urlMatches(raw)
-	return pick(x.rank(ids), reason)
+	return pick(x.urlMatches(raw))
 }
 
 // rank keeps the single best-scoring candidate when every candidate is a ranked react-router/0
@@ -566,23 +569,25 @@ func reactRouteScore(segs []string) int {
 	return score
 }
 
-// rankReact marks the screens only react-router/0 files declared, from each router file's span of
-// raw states, so byURL may rank them (AMAP-V0-600).
-func (x *screenIndex) rankReact(app string, routers []RouterFile, raws []rawState, spans [][2]int) {
-	react, other := map[string]bool{}, map[string]bool{}
+// markDialects records on each screen the dialect of the router file that declared its state, from
+// each router file's span of raw states; a state that files of more than one dialect declared
+// records none (AMAP-V0-881).
+func markDialects(app string, routers []RouterFile, raws []rawState, spans [][2]int, screens []Screen) {
+	dialects := map[string]map[string]bool{}
 	for i, span := range spans {
 		for _, raw := range raws[span[0]:span[1]] {
-			if routers[i].Dialect == DialectReact {
-				react[screenID(app, raw.name)] = true
-			} else {
-				other[screenID(app, raw.name)] = true
+			id := screenID(app, raw.name)
+			if dialects[id] == nil {
+				dialects[id] = map[string]bool{}
 			}
+			dialects[id][routers[i].Dialect] = true
 		}
 	}
-	x.ranked = map[string]bool{}
-	for id := range react {
-		if !other[id] {
-			x.ranked[id] = true
+	for i := range screens {
+		if set := dialects[screens[i].ID]; len(set) == 1 {
+			for d := range set {
+				screens[i].Dialect = d
+			}
 		}
 	}
 }
@@ -665,7 +670,7 @@ func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 		}
 	}
 	sort.Strings(matches)
-	return matches, ""
+	return x.rank(matches), ""
 }
 
 func segmentsMatch(template, concrete []string) bool {

@@ -18,7 +18,7 @@ const (
 	// change to what BuildRoots derives from the same inputs, so `--from` rebuilds a map an
 	// earlier compiler wrote instead of carrying it forward. A binary built from a VCS checkout
 	// also binds its revision (builderIdentity), so an unbumped compiler change still rebuilds.
-	BuilderVersion = "appmap-builder/2"
+	BuilderVersion = "appmap-builder/3"
 
 	DialectUIRouter = "ui-router-states/0"
 	DialectRails    = "rails-routes/0"
@@ -161,7 +161,11 @@ type Screen struct {
 	// Entry records static entry constraints; absent in older maps (AMAP-V0-053/058).
 	Entry *EntryDeclaration `json:"entry,omitempty"`
 	// SplatNonEmpty preserves Rails required-glob semantics while sharing collision keys (AMAP-V0-046).
-	SplatNonEmpty   bool     `json:"splat_nonempty,omitempty"`
+	SplatNonEmpty bool `json:"splat_nonempty,omitempty"`
+	// Dialect is the route dialect of the router file that declared the screen; absent when files
+	// of more than one dialect declared its state, and in maps an earlier builder wrote, whose
+	// readers then rank no candidate (AMAP-V0-881).
+	Dialect         string   `json:"dialect,omitempty"`
 	ID              string   `json:"id"`
 	State           string   `json:"state"`
 	Status          string   `json:"status"`
