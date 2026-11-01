@@ -13,12 +13,13 @@ import (
 
 const okEnvelope = `{"codes":[],"command":["ticket","search"],"items":[{"title":"Alpha"}],"outcome":"OK","page":{"limit":"1","offset":"0","total":"2","truncated":true},"profile":"taskman-command-result/0"}` + "\n"
 
-// TMR-V0-951: exactly five closed, read-only tool descriptors.
+// TMR-V0-951: exactly five closed tool descriptors (toolgroup.Tasks adds
+// the read-only annotations, which TestTMRV0950TasksGroupRunsTheInstalledReadVerb checks).
 func TestTMRV0951FiveReadOnlyDescriptors(t *testing.T) {
 	var names []string
-	for _, tool := range (Group{}).Tools() {
+	for _, tool := range (Group{}).Descriptors() {
 		names = append(names, tool.Name)
-		if tool.InputSchema["additionalProperties"] != false || !tool.Annotations.ReadOnlyHint || tool.Annotations.DestructiveHint || !tool.Annotations.IdempotentHint {
+		if tool.InputSchema["additionalProperties"] != false || tool.InputSchema["$schema"] == nil {
 			t.Fatalf("%s descriptor %+v", tool.Name, tool)
 		}
 	}

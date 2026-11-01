@@ -190,7 +190,7 @@ func (handler *toolHandler) openGroups(groups []string, corpusRoot, corpusPath s
 				}
 				group = toolgroup.Docs{Registry: registry}
 			case toolProfileTasks:
-				group = tasksread.New(root) // TMR-V0-950
+				group = toolgroup.Tasks{Group: tasksread.New(root)} // TMR-V0-950
 			default:
 				continue
 			}

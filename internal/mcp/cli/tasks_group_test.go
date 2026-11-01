@@ -37,8 +37,9 @@ func TestTMRV0950TasksGroupRunsTheInstalledReadVerb(t *testing.T) {
 	for _, raw := range unavailableListed(t, responses[1]) {
 		tool := raw.(map[string]any)
 		names = append(names, tool["name"].(string))
-		if strings.HasPrefix(tool["name"].(string), "corvint.tasks.") && tool["outputSchema"] == nil {
-			t.Fatalf("%s declares no outputSchema", tool["name"])
+		annotations, _ := tool["annotations"].(map[string]any)
+		if strings.HasPrefix(tool["name"].(string), "corvint.tasks.") && (tool["outputSchema"] == nil || annotations["readOnlyHint"] != true || annotations["destructiveHint"] != false) {
+			t.Fatalf("%s descriptor %+v", tool["name"], tool)
 		}
 	}
 	if strings.Join(names, ",") != "corvint.help,corvint.impact,corvint.query,corvint.status,corvint.tasks.queue_status,corvint.tasks.receipt_audit,corvint.tasks.roadmap,corvint.tasks.ticket_search,corvint.tasks.ticket_show" {

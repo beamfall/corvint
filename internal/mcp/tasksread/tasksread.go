@@ -19,7 +19,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -78,18 +77,24 @@ func tools() []tool {
 	}
 }
 
-func (tool tool) descriptor() bridge.ToolDescriptor {
+// Descriptor is one tools/list entry; toolgroup.Tasks adapts it to the shared
+// descriptor, so this package links no repository-reading code.
+type Descriptor struct {
+	Name, Description string
+	InputSchema       map[string]any
+}
+
+func (tool tool) descriptor() Descriptor {
 	required := make([]any, len(tool.required))
 	for index, name := range tool.required {
 		required[index] = name
 	}
-	return bridge.ToolDescriptor{
+	return Descriptor{
 		Name: tool.name, Description: tool.description,
 		InputSchema: map[string]any{
 			"$schema": "https://json-schema.org/draft/2020-12/schema", "type": "object",
 			"properties": tool.properties, "required": required, "additionalProperties": false,
 		},
-		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, DestructiveHint: false, IdempotentHint: true, OpenWorldHint: false},
 	}
 }
 
@@ -183,13 +188,13 @@ type Group struct {
 // New binds the group to root with the installed corvint-tasks.
 func New(root string) Group { return Group{Root: root, Run: runInstalled} }
 
-// Tools lists the five descriptors in name order.
-func (group Group) Tools() []bridge.ToolDescriptor {
-	var descriptors []bridge.ToolDescriptor
+// Descriptors lists the five tools in name order; every one is read-only.
+func (group Group) Descriptors() []Descriptor {
+	var descriptors []Descriptor
 	for _, tool := range tools() {
 		descriptors = append(descriptors, tool.descriptor())
 	}
-	slices.SortFunc(descriptors, func(left, right bridge.ToolDescriptor) int {
+	slices.SortFunc(descriptors, func(left, right Descriptor) int {
 		if left.Name < right.Name {
 			return -1
 		}

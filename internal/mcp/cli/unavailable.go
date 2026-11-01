@@ -60,7 +60,7 @@ func (handler *toolHandler) startUnavailable(profile string, groups []string, re
 		case toolProfileDocs:
 			group = unavailableGroup{(&docsbridge.Registry{}).Tools, toolgroup.DocsErrorProfile, reason}
 		case toolProfileTasks:
-			group = unavailableGroup{tasksread.Group{}.Tools, tasksread.ToolErrorProfile, reason}
+			group = unavailableGroup{toolgroup.Tasks{}.Tools, tasksread.ToolErrorProfile, reason}
 		default:
 			continue
 		}
