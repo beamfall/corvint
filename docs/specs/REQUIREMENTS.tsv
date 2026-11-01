@@ -2536,6 +2536,7 @@ LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203)
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
 LGL-V0-004	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 LGL-V0-005	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew session (`transaction.LivenessLease`) M	unrecorded	-
+LGL-V0-780	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539; orchestrator decision 2026-10-31 choosing the claim staging-	standing	V1-2539; 2026-10-31; 2026-10-24; V1-2203; decision 0549
 LGL-V0-006	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A session MUST count the file and directory sync calls it ma	unrecorded	-
 LGL-V0-007	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) The only state a crash after a heartbeat or renew can leave	unrecorded	-
 LGL-V0-008	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destina	unrecorded	-
