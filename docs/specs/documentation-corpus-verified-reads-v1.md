@@ -549,7 +549,8 @@ V1-2657.
   revision. Checkouts are still verified in parallel, one process each. A revision that is not a
   full object ID refuses before Git starts; a missing or mismatched revision refuses with the
   message `CommitTree` gives, the first such revision in sorted order deciding; the primary
-  revision must still resolve to the recorded tree. Non-goals: no change to `gitauth.Open`, to the
+  revision must still resolve to the recorded tree, and a primary revision sorted before a refused
+  one still refuses as a recorded tree difference, as the per-revision order did. Non-goals: no change to `gitauth.Open`, to the
   checkout grouping or to any refusal. Failure mode: one malformed record fails the whole batch,
   as it failed the one revision it belonged to. Acceptance:
   `TestDCRV1975PinnedRevisionsOneBatchPerCheckout` (a checkout with six pinned revisions verifies
