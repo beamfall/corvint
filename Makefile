@@ -1033,7 +1033,7 @@ dogfood-change-test:
 
 .PHONY: runtime-environment-test
 runtime-environment-test:
-	@script/runtime-environment_test.sh
+	@bash script/runtime-environment_test.sh
 
 # Outside the gate: vscode-check-install-test runs npm ci, which needs the npm registry on an empty
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
@@ -1045,7 +1045,7 @@ public-release-check-test:
 
 .PHONY: release-env-compat-test
 release-env-compat-test:
-	@script/release-env-compat_test.sh
+	@bash script/release-env-compat_test.sh
 
 .PHONY: seed-planning-store-test
 seed-planning-store-test:
