@@ -343,7 +343,7 @@ sync_check() {
 # cat_skip, when set, is why capability-catalog-check is skipped, and sb_skip why
 # selection-baseline-check is (ASD-V0-944).
 sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why=''
-drift_on=() cat_skip='' sb_skip=''
+drift_on=() cat_skip='' sb_skip='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
@@ -375,6 +375,8 @@ select_plan() {
     { n = split($0, c, "/"); b = c[n]
       if ($0 ~ /\.go$/ || b == "go.mod" || b == "go.sum" || b == "go.work" || b == "go.work.sum") { print; next }
       d = $0; while (sub(/\/[^\/]*$/, "", d)) if (d in dirs) { print; next } }' "$dir/select-go" "$dir/select-changed") || { sel_why='the Go input match failed'; return 0; }
+  # The diff and its Go inputs are read: selection-baseline-check can decide without the plan.
+  sel_diff=1
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
@@ -437,6 +439,7 @@ select_report() {
   done
   if ((!sel_on)); then
     printf 'batch-precheck: batch-drift runs every drift test and capability-catalog-check runs (%s)\n' "$sel_why"
+    select_baseline
     return 0
   fi
   for ((i = 0; i < n; i++)); do ((drift_on[i])) && k=$((k + 1)); done
@@ -451,17 +454,36 @@ select_report() {
     cat_skip="no catalog input changed since $sel_sha: $why"
     printf 'batch-precheck: capability-catalog-check skipped: %s\n' "$cat_skip"
   fi
-  # ASD-V0-944: every package the selection-baseline-check recipe names, on any recipe line.
+  select_baseline
+}
+
+# select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
+# diff read but no usable plan, only when no Go input and no declared input changed at all.
+select_baseline() {
+  local pkgs tok p
+  grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
+  # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
-  if ! grep -q '^selection-baseline-check:' Makefile 2> /dev/null; then
-    :
-  elif [[ -z $pkgs ]]; then
+  if [[ -z $pkgs ]]; then
     printf 'batch-precheck: selection-baseline-check runs (the Makefile recipe names no package)\n'
-  elif wanted "$pkgs" "${SELECTION_BASELINE_INPUTS[@]}"; then
-    printf 'batch-precheck: selection-baseline-check runs (a selection-baseline input changed since %s)\n' "$sel_sha"
-  else
-    sb_skip="no selection-baseline input changed since $sel_sha: $why"
+  elif ((sel_on)); then
+    if wanted "$pkgs" "${SELECTION_BASELINE_INPUTS[@]}"; then
+      printf 'batch-precheck: selection-baseline-check runs (a selection-baseline input changed since %s)\n' "$sel_sha"
+    else
+      sb_skip="no selection-baseline input changed since $sel_sha: $why"
+      printf 'batch-precheck: selection-baseline-check skipped: %s\n' "$sb_skip"
+    fi
+  elif ((sel_diff)); then
+    [[ -z $sel_go ]] || { printf 'batch-precheck: selection-baseline-check runs (a Go input changed and the plan is not used)\n'; return 0; }
+    for tok in "${SELECTION_BASELINE_INPUTS[@]}"; do
+      case $tok in
+        @go) ;;
+        @root) grep -q '^[^/][^/]*$' <<< "$sel_changed" && { printf 'batch-precheck: selection-baseline-check runs (a top-level file changed and the plan is not used)\n'; return 0; } ;;
+        *) while IFS= read -r p; do [[ $p == "$tok"* ]] && { printf 'batch-precheck: selection-baseline-check runs (%s changed and the plan is not used)\n' "$tok"; return 0; }; done <<< "$sel_changed" ;;
+      esac
+    done
+    sb_skip="no Go or selection-baseline input changed since $sel_sha (the plan is not used: $sel_why)"
     printf 'batch-precheck: selection-baseline-check skipped: %s\n' "$sb_skip"
   fi
 }

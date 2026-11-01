@@ -1097,7 +1097,8 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 [[ $(grep -c FAIL "$tmp/out") == 2 ]] || fail "an allowed Mkfifo file was refused: $(cat "$tmp/out")"
 
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
-# first run's receipt, and selection-baseline-check is skipped when none of its inputs changed.
+# first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
+# or without a usable plan.
 grep -A4 '^dogfood-closeout:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
   fail "dogfood-closeout's second batch-precheck does not select since the receipt"
 rrepo=$tmp/rrepo
@@ -1123,7 +1124,20 @@ printf 'package golden\n' > "$rrepo/golden/extra.go"
 rrun --base "$rbase" || fail "Go change run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: selection-baseline-check runs (a selection-baseline input changed' "$tmp/out" || fail "selection-baseline skipped on a Go change: $(cat "$tmp/out")"
 grep -q '^make -s selection-baseline-check$' "$tmp/scalls" || fail "selection-baseline-check did not run: $(cat "$tmp/scalls")"
+# A planner that cannot narrow still lets the diff decide: a Go change runs it, a doc-only one skips it.
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan Go change run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: selection-baseline-check runs (a Go input changed and the plan is not used)' "$tmp/out" || fail "unusable plan skipped a Go change: $(cat "$tmp/out")"
+grep -q '^make -s selection-baseline-check$' "$tmp/scalls" || fail "selection-baseline-check did not run without a plan: $(cat "$tmp/scalls")"
 /bin/rm -f "$rrepo/golden/extra.go"
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan doc-only run failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: selection-baseline-check skipped: no Go or selection-baseline input changed since $rbase (the plan is not used: " "$tmp/out" || fail "unusable plan ran selection-baseline on a doc-only diff: $(cat "$tmp/out")"
+grep -q 'selection-baseline-check' "$tmp/scalls" && fail "a skipped selection-baseline-check ran without a plan: $(cat "$tmp/scalls")"
+printf 'x\n' > "$rrepo/top.txt"
+STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan top-level run failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: selection-baseline-check runs (a top-level file changed and the plan is not used)' "$tmp/out" || fail "a top-level change skipped selection-baseline: $(cat "$tmp/out")"
+/bin/rm -f "$rrepo/top.txt"
 # Restore the receipt for the work head, then commit only change evidence on top, as bind and seal do.
 rrun --base "$rbase" || fail "work head rerun failed: $(cat "$tmp/out")"
 mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$work.cem.json"
