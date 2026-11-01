@@ -29,7 +29,7 @@ func TestHoldIgnoredExclusionSkipsWalk_TJAA_V0_100(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		files, err := DiskSourceContext(context.Background(), root).Files(acceptEveryName)
+		files, err := DiskSourceContext(context.Background(), root).Files(ByName(acceptEveryName))
 		if err != nil {
 			t.Fatal(err)
 		}

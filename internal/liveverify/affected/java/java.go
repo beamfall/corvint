@@ -94,7 +94,7 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(name string) bool {
+	files, err := root.Files(func(_, name string) bool {
 		return strings.HasSuffix(name, ".java") || strings.HasSuffix(name, ".kt") || strings.HasSuffix(name, ".kts")
 	})
 	if err != nil {

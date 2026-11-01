@@ -132,7 +132,7 @@ func (language walking) Units(ctx context.Context, root string) (Result, error) 
 }
 
 func (language walking) UnitsSource(root *Source) (Result, error) {
-	files, err := root.Files(language.accept)
+	files, err := root.Files(ByName(language.accept))
 	*language.listed = files
 	if language.after != nil {
 		language.after()

@@ -107,7 +107,7 @@ func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	if err != nil {
 		return affected.Result{}, err
 	}
-	files, err := root.Files(func(name string) bool {
+	files, err := root.Files(func(_, name string) bool {
 		return strings.HasSuffix(name, ".rs")
 	})
 	if err != nil {
@@ -161,7 +161,7 @@ func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 			frontier[FrontierCucumberOwnership] = true
 		}
 	}
-	features, err := root.Files(func(name string) bool {
+	features, err := root.Files(func(_, name string) bool {
 		return strings.HasSuffix(name, ".feature")
 	})
 	if err != nil {
@@ -201,7 +201,7 @@ type manifest struct {
 }
 
 func readManifests(root *affected.Source) ([]manifest, error) {
-	paths, err := root.Files(func(name string) bool { return name == "Cargo.toml" })
+	paths, err := root.Files(func(_, name string) bool { return name == "Cargo.toml" })
 	if err != nil {
 		return nil, err
 	}
