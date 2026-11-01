@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -235,6 +235,15 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   entry SHALL have at least one bearer. `--format text` SHALL restate each bearer as one
   `bears <detail> <via> [language L] [unit U] [witness W] [dirty P] [count N]` line after the
   `unknown` lines. The list restates `unknown` and never changes selection, scope or verdict.
+- **TSP-V0-943:** (experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3351) The foreign-caller completeness scan SHALL read each caller candidate at most
+  once per graph build, by at most 8 concurrent readers on a disk source (serially on an FS source),
+  holding at most one body per reader, and SHALL return the verdict of the serial pass: any
+  unreadable candidate fails it. The candidate set is NOT narrowed to shell, Make and workflow files,
+  because a Go or other foreign source that names a script is a caller the declaration must list;
+  reuse across builds of one tree is the graph cache's (AFP-V0-391), not a second cache. Measured on
+  this repository (WSL, GOMAXPROCS 8, warm page cache): 7,150 candidates, 62.5 MB, 152-158 ms
+  serial before, 81-87 ms after.
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -405,6 +414,10 @@ rule (a `//line` directive is already a compared directive).
 plan is UNKNOWN. The unit test pins both directions (every bearer names an entry, every entry has a
 bearer), so a new frontier source added without a bearer fails it.
 
+(16) TSP-V0-943: the scan's cost is linear in the candidate bytes; a repository with far more
+foreign source pays proportionally. Narrowing the candidates would drop a real caller, so the floor
+is the full candidate set.
+
 ## Open questions
 
 These need an owner decision because no existing project-owned model bounds them; each frontier
@@ -449,6 +462,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-864 | `testSourceAdditive` and the `added`, `additive` and `seeds` handling in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0864DryRunSlicesAdditiveDeclarations` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a file comment, a new const no test names, a new const a changed function uses, and a new type with its new test slice; a new var, import, method on a new type, directive, `//+build ignore` without a space, swapped `//go:embed` bindings and a changed declaration stay whole); the "a comment outside functions" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-941 | `testSourceCodeLines` and the `moved` handling in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0941DryRunSeedsMovedDeclarations` in `cmd/corvint/test_source_slices_tspv0941_unix_test.go` (a const inserted above a `runtime.Caller` function and a body edit adding lines above it keep the line-asserting `TestLine`; an edit below leaves it unmoved and unselected; a shifted `var` keeps the package whole); the line-preserving edits of the "a comment outside functions" and linkname-prose cases |
 | TSP-V0-942 | `FrontierBearer`, `frontierBearerList` and the bearer records in `frontierUnknowns` in `internal/liveverify/affected/select.go`; the compact copy in `cmd/corvint/affected_compact.go`; the `bears` lines in `cmd/corvint/affected_text.go` | `TestFrontierBearersNameTheSource_TSP_V0_942` in `internal/liveverify/affected/frontier_bearers_test.go` (clean plan has none; bearers and frontier entries match both ways; reached, participating, unowned and omitted sources; the 16-unit cap); `TestAffectedTextNamesFrontierBearers_TSP_V0_942` in `cmd/corvint/affected_bearers_test.go` |
+| TSP-V0-943 | `foreignCallersComplete` and `foreignCallerWorkers` in `internal/liveverify/affected/shell/callers.go` | `TestForeignCallersScanVerdict_TSP_V0_943` in `internal/liveverify/affected/shell/callers_scan_test.go` (disk and FS sources agree: complete, an unlisted late candidate, an unreadable listed candidate; run under `-race`); `TestForeignCallerDeclaration_TSP_V0_005` unchanged |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-710 | `Moved`, `change.Recorded` and the `replay` call in `tools/selection-baseline/main.go`; the `recorded` member of every change in `benchmarks/selection-baseline/changes.json` | `TestSelectionBaselineNamesMovedVerdicts_V13501` (one recorded change flips each way and one carries no record; a move alone leaves the floor check passing) and the recorded-verdict check of `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the records come from the base replay at 12/19 narrowed, 0 misses (build log 2026-11-01-sel-w10) |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
@@ -479,6 +493,8 @@ change that itself plans `UNKNOWN`) and restore the ratchet test's `units` and `
 `.corvint/unbounded-readers.json`; every toolchain shell test is then an unbounded reader again.
 TSP-V0-942: drop `Plan.FrontierBearers` and the `bears` text lines; `unknown` is unchanged, so
 no consumer loses a verdict input. No stored state depends on it.
+TSP-V0-943: restore the serial loop in `foreignCallersComplete`; the verdict is unchanged and only
+the scan time returns. No stored state depends on it.
 TSP-V0-941: drop the `testSourceCodeLines` comparison in `testSourceSlice`; moved functions are
 then unseeded again (the V1-3507 miss returns). No stored state depends on it.
 TSP-V0-940: drop the `applyGatedLocators`
