@@ -314,6 +314,10 @@ cem-release-gate: go-version
 # Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
 # (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
 # three regenerate.
+# ASD-V0-572 (V1-3438): after the hard bound check, ocm-headroom names each spec whose
+# ## Requirements section holds at least OCM_HEADROOM_WARN_AT (default 240) of the 256 OCM
+# obligations, so a lane re-homes new requirements before the bound refuses them. It never fails.
+OCM_HEADROOM = env GOTOOLCHAIN=local go run ./tools/ocm-headroom
 .PHONY: spec-requirements
 # SRG-V0-922 (V1-3437): mid-merge, an unmerged generated file (or one staged with its conflict
 # markers) is refused with one line naming spec-requirements-resolve, before the generator reads it.
@@ -324,6 +328,7 @@ spec-requirements:
 	@script/gen-spec-requirements.sh --write
 	@test -d internal/lrfrepo || exit 0; out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
 	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
+	@test -d tools/ocm-headroom || exit 0; $(OCM_HEADROOM) || true
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
@@ -347,6 +352,7 @@ spec-requirements-check:
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
 	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
+	@$(OCM_HEADROOM) || true
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
