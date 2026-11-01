@@ -8,11 +8,11 @@ import (
 )
 
 // usageText is the synopsis text the command tree derives from (CAP-V0-972).
-const usageText = `corvint-pulse [--root ROOT] serve --stdio
+const usageText = `corvint-pulse --root ROOT serve --stdio
 `
 
 var commandSummaries = map[string]string{
-	"serve": "Serve the Pulse protocol over stdin and stdout for the repository at --root, which is required and comes first",
+	"serve": "Serve the Pulse protocol over stdin and stdout for the repository at --root, which comes first",
 }
 
 var commandExamples = map[string]string{"serve": "corvint-pulse --root . serve --stdio"}

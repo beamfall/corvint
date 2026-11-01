@@ -271,8 +271,9 @@ my ($dir, $n, $nice, @cmd) = @ARGV;
 # HEAVY_RUN_TAG the suffix that line ends with; neither reaches the command.
 my $log = delete $ENV{HEAVY_RUN_LOG} // "";
 my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
-# ASD-V0-970: HEAVY_RUN_QUEUE is the load wait and starting load the log line carries.
-my $queue = delete $ENV{HEAVY_RUN_QUEUE} // "loadwait=0s load=unknown";
+# ASD-V0-970: HEAVY_RUN_QUEUE is the load wait the log line carries; the load beside it is sampled
+# once the slot is held, just before the command starts.
+my $queue = delete $ENV{HEAVY_RUN_QUEUE} // "loadwait=0s";
 my $t0 = time;
 my ($lock, $slot, $told);
 until ($lock) {
@@ -288,6 +289,10 @@ until ($lock) {
 truncate($lock, 0);
 syswrite($lock, "$$\n");
 my $t1 = time;
+my $load = "unknown";
+if (qx{sysctl -n vm.loadavg 2>/dev/null} =~ /^\{?\s*([0-9]+)/) { $load = $1 }
+elsif (open(my $avg, "<", "/proc/loadavg")) { $load = $1 if <$avg> =~ /^([0-9]+)/; close $avg }
+$queue .= " load=$load";
 printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, $t1 - $t0;
 # The command inherits the locked descriptor, so the slot stays held until every process that
 # kept it has exited, even when the wrapper itself is killed.
@@ -1173,8 +1178,8 @@ load1() {
 }
 
 # load_wait: before a local run, wait while the load exceeds HEAVY_MAX_LOAD, for at most
-# HEAVY_LOAD_WAIT seconds (ASD-V0-030). It says so when the wait starts and leaves the starting load
-# and the seconds waited in heavy_load and heavy_load_wait for the run's log line (ASD-V0-970).
+# HEAVY_LOAD_WAIT seconds (ASD-V0-030). It says so when the wait starts and leaves the seconds waited
+# in heavy_load_wait for the run's log line; the slot holder samples the load itself (ASD-V0-970).
 load_wait() {
   local max=${HEAVY_MAX_LOAD:-10} limit=${HEAVY_LOAD_WAIT:-120} t0=$SECONDS l
   [[ $max =~ ^[0-9]{1,6}$ ]] || refuse "invalid-max-load HEAVY_MAX_LOAD=$max (want 0..999999)"
@@ -1312,7 +1317,7 @@ main() {
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" \
-    HEAVY_RUN_QUEUE="loadwait=${heavy_load_wait:-0}s load=${heavy_load:-unknown}" exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
+    HEAVY_RUN_QUEUE="loadwait=${heavy_load_wait:-0}s" exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
 }
 
 # heavy_exit RC: ASD-V0-940. The calling shell names the cause of a non-zero main; the remote half

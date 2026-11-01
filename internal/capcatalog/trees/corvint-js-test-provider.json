@@ -161,15 +161,36 @@
         "qualify-keep-reporters"
       ],
       "command": "corvint-js-test-provider qualify-keep-reporters",
-      "summary": "Print the keep-reporters qualification record from an --external-server e2e run",
+      "summary": "Print the keep-reporters qualification record from an --external-server e2e run; refuses --keep-reporters, --keep-reporters-qualification, --preflight and watch",
       "usage": [
-        "corvint-js-test-provider qualify-keep-reporters --external-server [e2e flags without --keep-reporters, --keep-reporters-qualification or --watch]"
+        "corvint-js-test-provider qualify-keep-reporters --external-server [--dir DIR] [--config FILE] [--package-json FILE] [--lockfile FILE] [--runner-version VERSION] [--app-build-dir DIR] [--app-identity ID] [--app-attestation-command FILE] [--app-attestation-config FILE] [--app-attestation-timeout DURATION] [--sensitive-input-redaction] [--sensitive-action-pattern PATTERN]... [--sensitive-field NAME]... [--retain-attempt-details] [--server-ready-url URL] [--server-ready-timeout DURATION] [--server-arg ARG]... [--test-arg ARG]... [--test-file FILE]... [--env-key KEY]... [--timeout DURATION] [--runner-output PATH] [--interrupt-grace DURATION] [--retain]"
       ],
       "flags": [
+        "--app-attestation-command",
+        "--app-attestation-config",
+        "--app-attestation-timeout",
+        "--app-build-dir",
+        "--app-identity",
+        "--config",
+        "--dir",
+        "--env-key",
         "--external-server",
-        "--keep-reporters",
-        "--keep-reporters-qualification",
-        "--watch"
+        "--interrupt-grace",
+        "--lockfile",
+        "--package-json",
+        "--retain",
+        "--retain-attempt-details",
+        "--runner-output",
+        "--runner-version",
+        "--sensitive-action-pattern",
+        "--sensitive-field",
+        "--sensitive-input-redaction",
+        "--server-arg",
+        "--server-ready-timeout",
+        "--server-ready-url",
+        "--test-arg",
+        "--test-file",
+        "--timeout"
       ],
       "required": [
         "--external-server"

@@ -15,7 +15,9 @@ corvint-js-test-provider bun [--dir DIR] [--bun FILE] [--package-json FILE] [--l
 corvint-js-test-provider e2e [--dir DIR] [--config FILE] [--package-json FILE] [--lockfile FILE] [--runner-version VERSION] [--app-build-dir DIR] [--external-server] [--app-identity ID] [--app-attestation-command FILE] [--app-attestation-config FILE] [--app-attestation-timeout DURATION]
     [--sensitive-input-redaction] [--sensitive-action-pattern PATTERN]... [--sensitive-field NAME]... [--retain-attempt-details] [--keep-reporters] [--keep-reporters-qualification FILE] [--server-ready-url URL] [--server-ready-timeout DURATION] [--preflight FILE]
     [--server-arg ARG]... [--test-arg ARG]... [--test-file FILE]... [--env-key KEY]... [--timeout DURATION] [--runner-output PATH] [--interrupt-grace DURATION] [--retain] [--watch RELPATH... --foreground --experimental --trusted-local]
-corvint-js-test-provider qualify-keep-reporters --external-server [e2e flags without --keep-reporters, --keep-reporters-qualification or --watch]
+corvint-js-test-provider qualify-keep-reporters --external-server [--dir DIR] [--config FILE] [--package-json FILE] [--lockfile FILE] [--runner-version VERSION] [--app-build-dir DIR] [--app-identity ID] [--app-attestation-command FILE] [--app-attestation-config FILE] [--app-attestation-timeout DURATION]
+    [--sensitive-input-redaction] [--sensitive-action-pattern PATTERN]... [--sensitive-field NAME]... [--retain-attempt-details] [--server-ready-url URL] [--server-ready-timeout DURATION]
+    [--server-arg ARG]... [--test-arg ARG]... [--test-file FILE]... [--env-key KEY]... [--timeout DURATION] [--runner-output PATH] [--interrupt-grace DURATION] [--retain]
 corvint-js-test-provider negate --root DIR --spec FILE --test TITLE [--project NAME] [--step N | --all-steps] [--max-runs N] [--baseline-repeat N] [--dir DIR] [--config FILE] [--package-json FILE] [--lockfile FILE] [--runner-version VERSION]
     [--app-build-dir DIR] [--external-server] [--app-identity ID] [--app-attestation-command FILE] [--app-attestation-config FILE] [--app-attestation-timeout DURATION] [--server-ready-url URL] [--server-ready-timeout DURATION] [--timeout DURATION] [--test-file FILE]... [--env-key KEY]...
 corvint-js-test-provider external-origins --policy FILE --network FILE...
@@ -25,7 +27,7 @@ var commandSummaries = map[string]string{
 	"unit":                   "Run the bound Vitest adapter and print the receipt document",
 	"bun":                    "Run bun test with the JUnit reporter and print the receipt document; refuses an unqualified bun version or lockfile",
 	"e2e":                    "Run the bound Playwright adapter and print the receipt document; with --external-server the canonical qualified receipt",
-	"qualify-keep-reporters": "Print the keep-reporters qualification record from an --external-server e2e run",
+	"qualify-keep-reporters": "Print the keep-reporters qualification record from an --external-server e2e run; refuses --keep-reporters, --keep-reporters-qualification, --preflight and watch",
 	"negate":                 "Generate step-level negative controls for one Playwright test",
 	"external-origins":       "Print the external-origin dependence report from a project policy and network evidence of 1..16 runs; runs no test",
 }

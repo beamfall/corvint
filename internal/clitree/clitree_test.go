@@ -438,3 +438,22 @@ func TestCAPV0973HelpServe(t *testing.T) {
 		}
 	}
 }
+
+// TestCAPV0972RequiredLeadingOptions skips an unbracketed --option VALUE pair before the
+// subcommand word, lists it as required, and leaves a form without a following word unchanged.
+func TestCAPV0972RequiredLeadingOptions(t *testing.T) {
+	builder := NewBuilder("demo")
+	builder.AddText("demo --root ROOT --mode M serve --stdio\ndemo [--root ROOT] list\ndemo --version VALUE\n", "")
+	tree := builder.Tree("demo help --json", "test", []string{"cmd/demo"}, nil, nil)
+	serve, ok := tree.Find([]string{"serve"})
+	if !ok || !slices.Equal(serve.Required, []string{"--root ROOT", "--mode M", "--stdio"}) {
+		t.Fatalf("serve: %v %v", ok, serve.Required)
+	}
+	list, ok := tree.Find([]string{"list"})
+	if !ok || len(list.Required) != 0 {
+		t.Fatalf("list: %v %v", ok, list.Required)
+	}
+	if len(tree.Nodes) != 2 {
+		t.Fatalf("nodes %v", tree.Nodes)
+	}
+}

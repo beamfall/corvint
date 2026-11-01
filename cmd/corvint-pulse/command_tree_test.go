@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"slices"
 	"strings"
 	"testing"
 
@@ -14,4 +15,12 @@ func TestCAPV0974EveryNodeAnswersHelp(t *testing.T) {
 	clitreetest.CheckCompanion(t, func(args []string, stdout, stderr io.Writer) int {
 		return run(args, strings.NewReader(""), stdout, stderr)
 	}, "../../internal/capcatalog/trees/corvint-pulse.json")
+}
+
+// TestCAPV0972ServeRequiresRoot keeps --root ROOT, which serve needs before its word, required.
+func TestCAPV0972ServeRequiresRoot(t *testing.T) {
+	node, ok := companionHelp().Tree.Find([]string{"serve"})
+	if !ok || !slices.Equal(node.Required, []string{"--root ROOT", "--stdio"}) || !slices.Contains(node.Flags, "--root") {
+		t.Fatalf("serve node %v: required %v, flags %v", ok, node.Required, node.Flags)
+	}
 }

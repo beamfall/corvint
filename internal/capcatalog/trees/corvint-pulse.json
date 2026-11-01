@@ -14,15 +14,16 @@
         "serve"
       ],
       "command": "corvint-pulse serve",
-      "summary": "Serve the Pulse protocol over stdin and stdout for the repository at --root, which is required and comes first",
+      "summary": "Serve the Pulse protocol over stdin and stdout for the repository at --root, which comes first",
       "usage": [
-        "corvint-pulse [--root ROOT] serve --stdio"
+        "corvint-pulse --root ROOT serve --stdio"
       ],
       "flags": [
         "--root",
         "--stdio"
       ],
       "required": [
+        "--root ROOT",
         "--stdio"
       ],
       "example": "corvint-pulse --root . serve --stdio",

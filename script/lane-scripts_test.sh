@@ -918,7 +918,7 @@ ok
 # prototype's fields; HEAVY_REMOTE=0 needs HEAVY_LOCAL_REASON; a local run waits out a high load.
 pol=$tmp/policy
 mkdir -p "$pol/bin" && printf '#!/bin/sh\nexit 0\n' > "$pol/bin/go" &&
-  printf '#!/bin/sh\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$STUB_LOAD"\n' > "$pol/bin/sysctl" &&
+  printf '#!/bin/sh\nl=$STUB_LOAD\n[ -n "$STUB_LOAD_HELD" ] && [ -s "$STUB_LOAD_SLOT" ] && l=$STUB_LOAD_HELD\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$l"\n' > "$pol/bin/sysctl" &&
   chmod +x "$pol/bin/go" "$pol/bin/sysctl" || fail "policy fixture setup failed"
 pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log" HEAVY_FALLBACK_LOG="$pol/fb.log" \
   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD="${STUB_LOAD:-1.00}" HEAVY_SLOTS=1 "$heavy" "$@"); }
@@ -1038,6 +1038,13 @@ STUB_LOAD=50.00 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" || fai
 grep -B1000 '^heavy.sh: waited' "$pol/err" | grep -qx 'heavy.sh: queued for host load 50 > HEAVY_MAX_LOAD=10 (at most 1s)' &&
   tail -n 1 "$pol/sel.log" | grep -Eq " rc=0 loadwait=[1-3]s load=50 pwd=$pol cmd=true " ||
   fail "heavy.sh did not report the load queue: $(cat "$pol/err"; tail -n 1 "$pol/sel.log")"
+# ASD-V0-970: the logged load is the one the command started under, sampled once the slot is held
+# (the stub answers 5 once the slot file names a holder), not the 50 the wait began at.
+: > "$pol/slots/slot1"
+STUB_LOAD=50.00 STUB_LOAD_HELD=5.00 STUB_LOAD_SLOT=$pol/slots/slot1 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" &&
+  grep -q '^heavy.sh: queued for host load 50 ' "$pol/err" &&
+  tail -n 1 "$pol/sel.log" | grep -Eq " rc=0 loadwait=[1-3]s load=5 pwd=$pol cmd=true " ||
+  fail "heavy.sh logged the load the wait began at: $(cat "$pol/err"; tail -n 1 "$pol/sel.log")"
 STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q 'waited\|queued' "$pol/err" ||
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
 HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
