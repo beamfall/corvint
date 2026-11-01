@@ -220,8 +220,9 @@ requirement is stated in its revised form. CEM2-V0-023 to -025 are new.
   1.0 input whose hunk ids, paths or ranges differ from the rebuilt ones
   (`cem2-hunk-identity-mismatch`) and any other projection difference (`cem2-projection-mismatch`);
   pinned mode also refuses a stale or forged blob id or span hash (`cem2-pinned-mismatch`). Signing
-  binds the exact authored bytes; an unauthorized alteration is a signature failure, which is
-  distinct from a false claim. A recomputed span hash after a range edit and swapped evidence
+  binds the projected cem/1.0 bytes, so an unauthorized alteration of them is a signature failure,
+  which is distinct from a false claim; equivalent transport encodings of one map (derived or
+  pinned) project to the same bytes and are not authenticated byte-for-byte. A recomputed span hash after a range edit and swapped evidence
   indices remain admissible claims; whether they are semantic tampers stays a V1-3771 decision.
 - `CEM2-V0-020`: KEEP. The prototype encoder abstains with UNSUPPORTED on any map it cannot encode
   losslessly: non-empty criterion, receipt, link or artifact arrays, coverage or discrimination

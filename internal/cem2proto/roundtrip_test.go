@@ -47,6 +47,18 @@ func TestCEM2V0001PrototypeIsUnwired(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// Root-level Go files sit in no named tree.
+	roots, err := filepath.Glob(filepath.FromSlash("../../*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range roots {
+		if data, err := os.ReadFile(path); err != nil {
+			t.Fatal(err)
+		} else if bytes.Contains(data, self) {
+			t.Errorf("%s imports cem2proto; wiring the prototype needs owner acceptance", path)
+		}
+	}
 }
 
 // CEM2-V0-003: the header is closed, canonical and typed.
