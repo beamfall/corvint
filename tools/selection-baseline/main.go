@@ -34,8 +34,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -271,14 +274,33 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 		return r, err
 	}
 	defer os.RemoveAll(tmp)
-	clone := filepath.Join(tmp, "repo")
-	if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
-		return r, err
+	// ASD-V0-925 (V1-3469): the changes replay on jobs workers, each in its own shared clone, so
+	// doc-gates stays inside a lane tool window; results and their lines keep the change-set order.
+	jobs := replayJobs(len(set.Changes))
+	clones := make(chan string, jobs)
+	for i := range jobs {
+		clone := filepath.Join(tmp, fmt.Sprintf("repo%d", i))
+		if _, err := run(ctx, root, "git", "clone", "--quiet", "--shared", "--no-checkout", ".", clone); err != nil {
+			return r, err
+		}
+		clones <- clone
 	}
-	for _, c := range set.Changes {
-		res, err := measure(ctx, clone, tmp, module, corvint, selector, c, costs)
-		if err != nil {
-			return r, fmt.Errorf("%s: %w", c.ID, err)
+	measured := make([]Result, len(set.Changes))
+	errs := make([]error, len(set.Changes))
+	var wg sync.WaitGroup
+	for i, c := range set.Changes {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			clone := <-clones
+			defer func() { clones <- clone }()
+			measured[i], errs[i] = measure(ctx, clone, tmp, module, corvint, selector, c, costs)
+		}()
+	}
+	wg.Wait()
+	for i, res := range measured {
+		if errs[i] != nil {
+			return r, fmt.Errorf("%s: %w", set.Changes[i].ID, errs[i])
 		}
 		r.Results = append(r.Results, res)
 		fmt.Fprintf(os.Stderr, "selection-baseline: %s plan=%s verdict=%s ci=%s packages=%d cost=%.3f whole=%d misses=%d\n",
@@ -287,6 +309,18 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	r.Summary = Summarize(r.Results)
 	r.Verdicts = verdictLines(r.Summary, set.Floor)
 	return r, nil
+}
+
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else max(1, CPUs/3), at
+// most 4 and at most n.
+func replayJobs(n int) int {
+	jobs := max(1, runtime.NumCPU()/3)
+	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
+		jobs = v
+	} else {
+		jobs = min(jobs, 4)
+	}
+	return max(1, min(jobs, n))
 }
 
 func measure(ctx context.Context, clone, tmp, module, corvint, selector string, c change, costs map[string]float64) (Result, error) {

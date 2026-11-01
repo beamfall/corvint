@@ -31,10 +31,10 @@ func (s *leaseStore) timedLease(t *testing.T, requestID string, l transaction.Le
 }
 
 // TestLGLV0006_OnlyLivenessWritesSkipStagingSync: on both lease routes a
-// heartbeat and a renew make two sync calls per artifact they publish
-// (receipt, request entry, attempt, head: each file and its destination
-// directory, plus a new request shard's two), while a claim and a release
-// make four per artifact, the staging directory's two included.
+// heartbeat, a renew and (LGL-V0-780) a claim make two sync calls per
+// artifact they publish (each file and its destination directory, plus a new
+// request shard's two), while a release makes four per artifact, the staging
+// directory's two included.
 func TestLGLV0006_OnlyLivenessWritesSkipStagingSync(t *testing.T) {
 	t.Parallel()
 	for _, route := range leaseRoutes {
@@ -54,10 +54,11 @@ func TestLGLV0006_OnlyLivenessWritesSkipStagingSync(t *testing.T) {
 					t.Errorf("%s made %d sync calls, want 8, or 10 with a new request shard", verb, n)
 				}
 			}
-			for verb, n := range map[string]int{"claim": claimSyncs, "release": release} {
-				if n < 16 || (n%4 != 0 && (n-2)%4 != 0) {
-					t.Errorf("%s made %d sync calls, want four per artifact (at least 16)", verb, n)
-				}
+			if claimSyncs < 8 || claimSyncs%2 != 0 || claimSyncs >= release {
+				t.Errorf("claim made %d sync calls, want two per artifact, fewer than the release's %d", claimSyncs, release)
+			}
+			if release < 16 || (release%4 != 0 && (release-2)%4 != 0) {
+				t.Errorf("release made %d sync calls, want four per artifact (at least 16)", release)
 			}
 			auditOK(t, s.repo)
 		})
@@ -170,6 +171,54 @@ func TestLGLV0007_LivenessStagingResidueIsAnOrphan(t *testing.T) {
 				s.consistent(t)
 			})
 		}
+	}
+}
+
+// TestLGLV0780_ClaimStagingResidueIsAnOrphan: a claim that skipped its
+// staging syncs can leave, after a crash, only staging slot names holding
+// second links to the artifacts it published. With the writer lock free the
+// audit sets them aside and verifies, the claim reads as acknowledged, a
+// second holder cannot claim the same ticket, and the next writer clears the
+// residue and commits (LGL-V0-780, as LGL-V0-007 for liveness writes).
+func TestLGLV0780_ClaimStagingResidueIsAnOrphan(t *testing.T) {
+	t.Parallel()
+	for _, route := range leaseRoutes {
+		t.Run(route.name, func(t *testing.T) {
+			t.Parallel()
+			s := newLeaseStore(t)
+			if route.lower {
+				store.LowerWriterCheckpointForTest(t, s.repo)
+			}
+			id := s.ticket(t, "one")
+			claim := s.claim(t, "claim-1", id, 0, "src/")
+			acknowledged := s.attempt(t, claim.AttemptID)
+			staging := filepath.Join(s.repo.StateDir, "staging")
+			if names := dirNames(t, staging); len(names) != 0 {
+				t.Fatalf("a claim left staging entries: %v", names)
+			}
+			for i, path := range livenessArtifacts(t, s.repo.StateDir) {
+				if err := os.Link(path, filepath.Join(staging, fmt.Sprintf("a%02d", i))); err != nil {
+					t.Fatal(err)
+				}
+			}
+			auditOK(t, s.repo)
+			sameLiveness(t, "residue", acknowledged, s.attempt(t, claim.AttemptID))
+			other := s.lease(t, "claim-other", transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: id, Holder: "agent-2", LeaseMinutes: "60"}, 1, nil)
+			if other.Outcome.Outcome == mutation.OutcomeCompleted {
+				t.Fatalf("a second holder claimed the live lease: %+v", other)
+			}
+			next := s.lease(t, "heartbeat-1", heartbeatOf(claim), 2, nil)
+			if next.Outcome.Outcome != mutation.OutcomeCompleted || next.AttemptID != claim.AttemptID || next.Generation != claim.Generation {
+				t.Fatalf("heartbeat after residue: %+v", next)
+			}
+			if names := dirNames(t, staging); len(names) != 0 {
+				t.Fatalf("the next writer left the residue: %v", names)
+			}
+			if held := s.attempt(t, claim.AttemptID); held.Lease == nil || held.Lease.Holder != acknowledged.Lease.Holder {
+				t.Fatalf("lease holder moved: %+v", held.Lease)
+			}
+			s.consistent(t)
+		})
 	}
 }
 

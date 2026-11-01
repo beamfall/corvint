@@ -94,9 +94,12 @@ type TestLayout struct {
 	Repo        string   `json:"repo,omitempty"`
 	Root        string   `json:"root"`
 	Specs       []string `json:"specs"`
-	PageObjects []string `json:"page_objects"`
+	PageObjects []string `json:"page_objects,omitempty"`
 	Workflows   []string `json:"workflows,omitempty"`
 	Scenarios   []string `json:"scenarios,omitempty"`
+	// WebRoot is the dev-server root browser-context root-relative specifiers resolve against
+	// (AMAP-V0-782); empty leaves them unknown.
+	WebRoot string `json:"web_root,omitempty"`
 }
 
 // PageObjectScreen declares the router state a page object models.
@@ -341,6 +344,7 @@ const (
 	importResolved   = "resolved"
 	importExternal   = "external"
 	importUnresolved = "unresolved"
+	importBrowser    = "browser-context" // runs in the page, not a Node import of the test file (AMAP-V0-781)
 )
 
 // File roles.

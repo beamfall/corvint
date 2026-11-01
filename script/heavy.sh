@@ -21,6 +21,9 @@
 #                   priority; a caller already nicer than HEAVY_NICE is never raised.
 #   HEAVY_CONFIG    optional KEY=VALUE file read for any HEAVY_* setting the environment leaves
 #                   unset; default ${XDG_CONFIG_HOME:-$HOME/.config}/corvint/heavy.env.
+#                   Every run prints `heavy.sh: host=H why=W` first (ASD-V0-920): the host the
+#                   command is routed to (`local` or HEAVY_REMOTE_HOST) and why, naming whether the
+#                   host came from the environment or this file, or that neither set it.
 #
 # Lane policy (ASD-V0-030, ported from the lane prototype so its cutover loses nothing):
 #   HEAVY_WHOLE_REASON   a `go test` without `-run` (a whole package) is refused with exit 2 unless
@@ -272,7 +275,18 @@ my ($dir, $n, $nice, @cmd) = @ARGV;
 my $log = delete $ENV{HEAVY_RUN_LOG} // "";
 my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
 my $t0 = time;
-my ($lock, $slot);
+my ($lock, $slot, $held);
+# ASD-V0-926: a run inside an enclosing heavy.sh workload reuses that slot instead of waiting for
+# another (nested wrappers would deadlock at HEAVY_SLOTS=1), but only when the inherited descriptor
+# is the slot file of this lock directory and its lock is held through it; anything else queues.
+my ($hk, $hfd) = (delete $ENV{HEAVY_SLOT} // "", delete $ENV{HEAVY_SLOT_FD} // "");
+if ($hk =~ /^[1-9][0-9]{0,3}$/ && $hfd =~ /^[0-9]{1,4}$/ && open(my $dup, ">>&", $hfd)) {
+    my @a = stat($dup);
+    my @b = stat("$dir/slot$hk");
+    if (@a && @b && $a[0] == $b[0] && $a[1] == $b[1] && flock($dup, LOCK_EX | LOCK_NB)) {
+        ($lock, $slot, $held) = ($dup, $hk, 1);
+    }
+}
 until ($lock) {
     for my $i (1 .. $n) {
         open(my $fh, ">>", "$dir/slot$i") or die "heavy.sh: REFUSE lock-open-failed $dir/slot$i: $!\n";
@@ -281,10 +295,14 @@ until ($lock) {
     }
     select(undef, undef, undef, 1) unless $lock;
 }
-truncate($lock, 0);
-syswrite($lock, "$$\n");
 my $t1 = time;
-printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, $t1 - $t0;
+if ($held) {
+    printf STDERR "heavy.sh: slot %d/%d held by an enclosing heavy.sh\n", $slot, $n;
+} else {
+    truncate($lock, 0);
+    syswrite($lock, "$$\n");
+    printf STDERR "heavy.sh: slot %d/%d after %ds\n", $slot, $n, $t1 - $t0;
+}
 # The command inherits the locked descriptor, so the slot stays held until every process that
 # kept it has exited, even when the wrapper itself is killed.
 fcntl($lock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
@@ -293,6 +311,7 @@ die "heavy.sh: fork failed: $!\n" unless defined $pid;
 if ($pid == 0) {
     setpgid(0, 0);
     setpriority(0, 0, $nice) if $nice > getpriority(0, 0);
+    @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = ($slot, fileno($lock));
     no warnings "exec";
     exec { $cmd[0] } @cmd or print STDERR "heavy.sh: cannot run $cmd[0]: $!\n";
     POSIX::_exit(127);
@@ -1225,8 +1244,10 @@ main() {
     return 0
   fi
   # ASD-V0-070 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
-  local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}}
-  load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
+  local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}} host_src=environment config_file
+  config_file=${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}
+  [[ -n ${HEAVY_REMOTE_HOST-} ]] || host_src="config ${config_file:-(none)}"
+  load_config "$config_file"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
   if [[ $1 == --plan ]]; then
@@ -1258,6 +1279,7 @@ main() {
     heavy_cause=refused
     return 2
   fi
+  host_choice "$@"
   if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
     if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
       fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
@@ -1303,6 +1325,29 @@ main() {
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" \
     exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
+}
+
+# host_choice COMMAND...: ASD-V0-920 (V1-3518). One stderr line names the host this command is
+# routed to first and why, including where HEAVY_REMOTE_HOST came from (the environment or the config
+# file) or that neither set it; a later fallback (unavailable, CI busy) prints its own line.
+host_choice() {
+  local cfg=${config_file:-(none)} host=local why
+  [[ $cfg != '(none)' && ! -r $cfg ]] && cfg="$cfg (absent)"
+  if [[ -z ${HEAVY_REMOTE_HOST-} ]]; then
+    why="HEAVY_REMOTE_HOST unset in the environment and in config $cfg"
+  elif ! offloadable "$@"; then
+    why="not an offloadable command"
+    if [[ ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
+      host=$HEAVY_REMOTE_HOST why="build offload, HEAVY_REMOTE_HOST from $host_src"
+    fi
+  elif [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
+    why="HEAVY_REMOTE=0"
+  elif writes_files "$@" "GOFLAGS=${GOFLAGS-}"; then
+    why="file-writing flag"
+  else
+    host=$HEAVY_REMOTE_HOST why="offloadable command, HEAVY_REMOTE_HOST from $host_src"
+  fi
+  printf 'heavy.sh: host=%s why=%s\n' "$host" "$why" >&2
 }
 
 # heavy_exit RC: ASD-V0-940. The calling shell names the cause of a non-zero main; the remote half

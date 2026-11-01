@@ -206,6 +206,9 @@ HEAVY_SLOTS=1 "$heavy" sh -c 'kill -TERM $$' 2> "$tmp/err"
 [[ $? == 143 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=143 cause=signal-TERM cmd=sh' ]] ||
   fail "heavy.sh signalled command: no exit cause line: $(cat "$tmp/err")"
 HEAVY_SLOTS=1 "$heavy" true 2> "$tmp/err" && ! grep -q 'exit rc=' "$tmp/err" || fail "heavy.sh true printed an exit line: $(cat "$tmp/err")"
+# ASD-V0-920 (V1-3518): every run names its host and why; here no host is configured anywhere.
+grep -qx "heavy.sh: host=local why=HEAVY_REMOTE_HOST unset in the environment and in config $tmp/no-heavy-config (absent)" "$tmp/err" ||
+  fail "heavy.sh did not say why it ran locally: $(cat "$tmp/err")"
 (cd "$pin/mod" && env -u HEAVY_WHOLE_REASON HEAVY_SLOTS=1 "$heavy" go test ./sub > /dev/null 2> "$tmp/err")
 [[ $? == 2 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=2 cause=refused' ]] ||
   fail "heavy.sh refusal: no exit cause line: $(cat "$tmp/err")"
@@ -240,6 +243,32 @@ wait_for "$tmp/g.pid"
 kill -TERM "$holder"
 wait "$holder" 2> /dev/null
 gone "$(cat "$tmp/g.pid")" || { kill "$(cat "$tmp/g.pid")" 2> /dev/null; fail "heavy.sh did not forward TERM to the workload's group"; }
+ok
+# ASD-V0-926: a heavy.sh nested in another one's workload (BATCH_PRECHECK_GO_WRAPPER=script/heavy.sh
+# around a make recipe that runs DOC_GATE_GO_TEST) runs in the enclosing slot, so at one slot it
+# completes instead of deadlocking; a watchdog bounds the case, and its TERM reaches the whole group.
+# A forged HEAVY_SLOT_FD (an own descriptor on slot1, not the holder's) still waits for the slot.
+# The watchdog is a perl alarm, since macOS has no GNU timeout: SECONDS CMD... runs CMD in its own
+# process group and, past SECONDS, sends TERM to that group and exits 124 as timeout(1) does.
+watchdog=$tmp/watchdog
+cat > "$watchdog" << 'PERL'
+#!/usr/bin/perl
+my $seconds = shift;
+my $pid = fork // exit 125;
+if (!$pid) { setpgrp(0, 0); exec @ARGV or exit 127 }
+$SIG{ALRM} = sub { kill 'TERM', -$pid; waitpid $pid, 0; exit 124 };
+alarm $seconds;
+waitpid $pid, 0;
+exit($? & 127 ? 128 + ($? & 127) : $? >> 8);
+PERL
+chmod +x "$watchdog"
+got=$(HEAVY_SLOTS=1 "$watchdog" 20 "$heavy" bash -c '"$1" echo nested-ran' _ "$heavy" 2> "$tmp/err")
+[[ $? == 0 && $got == nested-ran ]] && grep -qx 'heavy.sh: slot 1/1 held by an enclosing heavy.sh' "$tmp/err" ||
+  fail "nested heavy.sh at HEAVY_SLOTS=1 did not run in the enclosing slot: $got $(cat "$tmp/err")"
+got=$(perl -MFcntl=:flock,F_SETFD -e 'open(my $h, ">>", $ARGV[0]) or exit 9; flock($h, LOCK_EX) or exit 9;
+  open(my $f, ">>", $ARGV[0]) or exit 9; fcntl($f, F_SETFD, 0); @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = (1, fileno $f);
+  exit(system($ARGV[1], "3", @ARGV[2 .. $#ARGV]) >> 8)' "$HEAVY_LOCK_DIR/slot1" "$watchdog" env HEAVY_SLOTS=1 "$heavy" echo forged-ran 2> /dev/null)
+[[ $? == 124 && -z $got ]] || fail "a forged HEAVY_SLOT_FD bypassed a held slot: $got"
 ok
 # ASD-V0-028: a go test offloads to HEAVY_REMOTE_HOST at the checkout's exact tree (an unpushed
 # commit as a bundle, the uncommitted diff, untracked files, the working directory), returns its
@@ -503,6 +532,14 @@ ok
 printf '# lane host\nHEAVY_REMOTE_HOST=box\nHEAVY_REMOTE_SHELL="bash -s"\nNOT_HEAVY=1\n' > "$off/heavy.env"
 out=$(HEAVY_CONFIG=$off/heavy.env hv go test ./... 2> "$off/err")
 [[ $out == where=remote* ]] && grep -q 'ignoring config line .*NOT_HEAVY=1' "$off/err" || fail "heavy.sh ignored HEAVY_CONFIG: $out"
+# ASD-V0-920 (V1-3518): with no export, the config file's host is chosen and the line says so.
+grep -qx "heavy.sh: host=box why=offloadable command, HEAVY_REMOTE_HOST from config $off/heavy.env" "$off/err" ||
+  fail "heavy.sh did not name the config-file host choice: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box hv go test ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: host=box why=offloadable command, HEAVY_REMOTE_HOST from environment' "$off/err" ||
+  fail "heavy.sh did not name the environment host choice: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 HEAVY_LOCAL_REASON=t hv go test ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: host=local why=HEAVY_REMOTE=0' "$off/err" || fail "heavy.sh HEAVY_REMOTE=0 host line: $(cat "$off/err")"
 out=$(HEAVY_CONFIG=$off/heavy.env HEAVY_REMOTE_HOST=down hv go test ./... 2> /dev/null)
 [[ $out == where=local* ]] || fail "heavy.sh HEAVY_CONFIG overrode the environment: $out"
 ok

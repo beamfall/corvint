@@ -58,6 +58,10 @@ type chain struct {
 	// prefetch holds receipts a complete walk read and decoded ahead of
 	// step (V1-1701); nil on every other route.
 	prefetch *receiptPrefetch
+	// atSealed is the state a complete walk of a segmented store held as it
+	// passed the sealed sequence, from which its writer checkpoint keeps a
+	// base there (JSG-V0-780); nil on every other walk.
+	atSealed *sealedCapture
 	// posted names every path a ModeWriter walk's tail posted; the writer
 	// checkpoint and the liveness intent summary adjust only these
 	// (JSG-V0-001). Nil on every other walk.
@@ -243,6 +247,10 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		return result, wire.Errorf(wire.CodeRedoPending, "receipts", "this observation requires a settled journal")
 	}
 	st := &chain{canonical: map[string]latest{}, restore: &snapshot.ReceiptRestorer{}, prefetch: newReceiptPrefetch()}
+	sealedAt := uint64(0)
+	if o.head != nil && o.head.Segments != nil && o.head.Segments.Through.Uint64() < headSeq {
+		sealedAt = o.head.Segments.Through.Uint64()
+	}
 	for i, name := range o.receipts {
 		if i%abortEvery == abortEvery-1 && r.headMoved(o) {
 			return result, moved("head.json")
@@ -250,6 +258,9 @@ func (r Reader) walk(o *observation, selected map[string]bool, request string, l
 		r.prefetchFrom(st.prefetch, o.receipts, i)
 		if err := r.step(o, st, result, name, uint64(i+1), headSeq, selected, request, lim); err != nil {
 			return result, err
+		}
+		if uint64(i+1) == sealedAt {
+			st.atSealed = st.captureSealed(result)
 		}
 	}
 	if err := st.restore.Superseded(); err != nil {

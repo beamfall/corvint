@@ -303,7 +303,7 @@ the slot it holds, and only later commands see a new lock directory. `script/hea
 Host check (V1-3605). `~/lanes/heavy.sh` delegates only when the lane's checkout carries a
 `script/heavy.sh` that knows `--print-lock-dir`; for any older checkout (and outside a checkout) it
 runs the old prototype, kept as `~/lanes/heavy.sh.bak-*-prototype`, which keeps its own `mkdir`
-slots and writes none of the `script/heavy.sh` log lines (the host line of the unmerged ASD-V0-920
+slots and writes none of the `script/heavy.sh` log lines (the host line of ASD-V0-920
 work of lane scripts-w5 never prints from it). A lane on an older base therefore sees the prototype
 even after the wrapper was updated. Check from the lane worktree: `~/lanes/heavy.sh --print-lock-dir`
 prints the lock directory when the delegated script runs, and fails or runs a command when it is the
@@ -311,6 +311,15 @@ prototype.
 On the Unraid host the wrapper read on 2026-10-31 (read-only) is the delegating form, so the
 prototype seen by `scripts-w5` came from a checkout whose base predated `--print-lock-dir`. The
 orchestrator refreshes the lane base, or the host wrapper, between batches; no lane changes a host.
+A lane's focused checks include `make line-citations-selects BASE=<base>` (`DCG-V0-921`, V1-3323):
+when it names a pinned citation into a file the change touched, run `make line-citations-check`
+then, not only at doc-gates.
+
+A lane host that offloads (the Mac lane host, for example) sets `HEAVY_REMOTE_HOST` in this file, not
+in a lane charter or a session's environment: a worktree session started from the standard charter
+then offloads with no export (V1-3518). Every run prints `heavy.sh: host=H why=W` first
+(`ASD-V0-920`), so a lane whose runs stay local reads, for example, `host=local why=HEAVY_REMOTE_HOST
+unset in the environment and in config /Users/x/.config/corvint/heavy.env (absent)`.
 
 ### Small packages run whole without a reason (ASD-V0-074, V1-3120)
 

@@ -689,6 +689,37 @@ case $output in
 *'1 citation(s) do not resolve'*"$body"*'cited content changed'*) ;;
 *) fail "after --repin, anything but the changed span failed: $output" ;;
 esac
+# DCG-V0-920 (V1-3408): the changed-content refusal names the --hash command for the cited span
+# and the --repin --changed rewrite.
+case $output in
+*'print the new anchor with script/check-line-citations.sh --hash internal/demo/shift.go:10-11,'*'--repin --changed --base <rev>'*) ;;
+*) fail "the changed-content refusal does not name --hash path:span and --repin --changed: $output" ;;
+esac
+# DCG-V0-921 (V1-3323): a script edit that shifted cited lines selects line-citations-check.
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 3 pinned citation(s) cite a file changed since HEAD'*'docs/agent-memory/fixture.md:3'*internal/demo/shift.go*) ;;
+*) fail "--selects did not select line-citations-check for the shifted script: $out" ;;
+esac
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --changed 2>&1) || rc=$?
+[ "$rc" != 0 ] && case $out in *'--changed needs --repin'*) true ;; *) false ;; esac || fail "--changed without --repin was not refused: $out"
+# DCG-V0-920 (V1-3342, V1-3413): --repin --changed re-anchors the changed span to the lines the diff
+# maps it to, lists it for a read, and the check then passes.
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>/dev/null) || rc=$?
+[ "$rc" = 0 ] || fail "--repin --changed exited $rc: $out"
+case $out in
+*"$body"*' --changed re-anchored it as `'"$suggested"'`'*) ;;
+*) fail "--repin --changed did not list the re-anchored changed span: $out" ;;
+esac
+grep -qF "$suggested" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed did not rewrite the span: $(cat "$test_root/docs/agent-memory/fixture.md")"
+run >/dev/null || fail "the check failed after --repin --changed"
+# A later commit holds every cited file unchanged: nothing is selected.
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m changed
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in *'no pinned citation cites a file changed since HEAD'*) ;; *) fail "--selects on an unchanged tree: $out" ;; esac
 printf '%s\n' '// unstaged' >> "$test_root/internal/demo/shift.go"
 output=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || true
 case $output in
@@ -702,6 +733,86 @@ output=$(cd "$test_root" && script/check-line-citations.sh --repin --base no-suc
 case $output in *'--base no-such-rev does not name a commit'*) ;; *) fail "the bad --base was not named: $output" ;; esac
 git -C "$test_root" rm -q --cached internal/demo/shift.go
 rm -f "$test_root/internal/demo/shift.go"
+# DCG-V0-921 (review fix): a deleted cited file still selects line-citations-check; its citations
+# are collected before the target is resolved.
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 3 pinned citation(s) cite a file changed since HEAD'*internal/demo/shift.go*) ;;
+*) fail "--selects missed the citations into a deleted file: $out" ;;
+esac
+cite "$single"
+
+# 32b. DCG-V0-920 (review fix): a single-line citation whose cited line was deleted (a zero-length
+#      new hunk) is never re-anchored to the following surviving line; it stays a failure.
+printf '%s\n' 'package demo' '' 'func Keep() {}' 'func Gone() {}' 'func Next() {}' > "$test_root/internal/demo/del.go"
+stage internal/demo/del.go
+gone=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/del.go:4)
+cite "$gone"
+run >/dev/null || fail "the deletion fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m deletion
+printf '%s\n' 'package demo' '' 'func Keep() {}' 'func Next() {}' > "$test_root/internal/demo/del.go"
+stage internal/demo/del.go
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>&1) || true
+case $out in *'re-anchored'* | *'the diff maps it to'*) fail "--repin --changed mapped a deleted line to another line: $out" ;; esac
+grep -qF "$gone" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed rewrote a deleted line's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] && case $output in *"$gone"*'cited content changed'*) true ;; *) false ;; esac ||
+  fail "a citation of a deleted line did not stay a failure (exit $rc): $output"
+git -C "$test_root" rm -q --cached internal/demo/del.go
+rm -f "$test_root/internal/demo/del.go"
+cite "$single"
+
+# 32c. DCG-V0-920 (review fix): a deleted two-line block that also occurs elsewhere in the file is
+#      not moved to the surviving copy: the deletion guard runs before the hash relocation.
+printf '%s\n' 'package demo' '' 'func Twin() {' '  return' 'func Mid() {}' 'func Twin() {' '  return' 'func End() {}' \
+  > "$test_root/internal/demo/dup.go"
+stage internal/demo/dup.go
+twin=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/dup.go:3-4)
+cite "$twin"
+run >/dev/null || fail "the duplicate-block fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m duplicate
+printf '%s\n' 'package demo' '' 'func Mid() {}' 'func Twin() {' '  return' 'func End() {}' > "$test_root/internal/demo/dup.go"
+stage internal/demo/dup.go
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || true
+case $out in *'moved unchanged to'* | *'re-anchored as'*) fail "--repin moved a deleted block to its surviving twin: $out" ;; esac
+grep -qF "$twin" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a deleted block's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>&1) || true
+case $out in *'re-anchored'* | *'the diff maps it to'*) fail "--repin --changed mapped a deleted block to other lines: $out" ;; esac
+grep -qF "$twin" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed rewrote a deleted block's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+rc=0
+output=$(run) || rc=$?
+# Without a base the plain check cannot see the deletion, so it may report the twin as a move; it
+# still fails, and only --repin consults the diff.
+[ "$rc" = 1 ] && case $output in *"$twin"*) true ;; *) false ;; esac ||
+  fail "a citation of a deleted duplicate block did not stay a failure (exit $rc): $output"
+git -C "$test_root" rm -q --cached internal/demo/dup.go
+rm -f "$test_root/internal/demo/dup.go"
+cite "$single"
+
+# 32d. DCG-V0-921 (review fix): a deleted root basename (README.md) and a deleted extensionless file
+#      (Makefile) still select line-citations-check through --selects.
+printf '%s\n' '# Readme' 'The readme claim line.' > "$test_root/README.md"
+stage README.md
+printf '%s\n' 'all:' 'echo build the selected target' > "$test_root/Makefile"
+stage Makefile
+readme=$(cd "$test_root" && script/check-line-citations.sh --hash README.md:2)
+make_pin=$(cd "$test_root" && script/check-line-citations.sh --hash Makefile:2)
+printf '# Fixture\n\nThe claims rest on `%s` and `%s`.\n' "$readme" "$make_pin" > "$test_root/docs/agent-memory/fixture.md"
+stage docs/agent-memory/fixture.md
+run >/dev/null || fail "the root-file fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m root-files
+git -C "$test_root" rm -q README.md Makefile
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 2 pinned citation(s)'*"$readme"*"$make_pin"*) ;;
+*) fail "--selects missed the citations into a deleted README.md and Makefile: $out" ;;
+esac
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m root-files-gone
 cite "$single"
 
 # 33. DCG-V0-047 (V1-3124), DCG-V0-048 (V1-3228): a transitive chain repins in one --repin call
