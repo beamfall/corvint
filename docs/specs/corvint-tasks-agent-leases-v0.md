@@ -7676,7 +7676,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
   coverage is admissible under such a scope regardless of the policy's `serialFallback`, because
   the scope is enforced at submit (CAL-V0-024).
 - A13: S5 for `external-agent` attempts. A `gate run` supports `COMMAND` gates with an expected
-  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource`, no declared `inputs` and no
+  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource` (amended by LGL-V0-885: such a gate
+  runs, one run per resource at a time), no declared `inputs` and no
   evidence label beyond the captured output; any other gate refuses `UNSUPPORTED` before it runs.
   The gate runs in the caller's worktree (`executedCwd` `WORKTREE`) with only the environment
   names the gate's `env` declares, taken from the caller, so a gate whose commands need `PATH`

@@ -2973,6 +2973,7 @@ LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203,
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
 LGL-V0-890	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203; experimental under the standing lane auto-accept and the own	standing	V1-2203
 LGL-V0-891	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2621; experimental under the standing lane auto-accept and the own	standing	V1-2621
+LGL-V0-885	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3950; experimental under the standing lane auto-accept) `gate run`	standing	V1-3950
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
 LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757
@@ -3105,6 +3106,7 @@ ON-V0-871	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owne
 ON-V0-872	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0814) A note c	standing	2026-10-11; V1-0814
 ON-V0-873	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0814) An archi	standing	2026-10-11; V1-0814
 ON-V0-874	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0814) A note e	standing	2026-10-11; V1-0814
+ON-V0-885	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-3591; experimental under the standing lane auto-accept) A `NOTE_SE	standing	V1-3591
 ON-V0-009	docs/specs/corvint-tasks-operator-notes-v0.md	The codec/transition foundation and integrated capability MUST have distinct evi	unrecorded	-
 ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	Promotion and rollback MUST preserve all existing evidence and explicit integrat	unrecorded	-
 ON-V0-012	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-116 decline list) A writer audit resumed f	unrecorded	-
