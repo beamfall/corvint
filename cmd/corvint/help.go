@@ -938,7 +938,9 @@ in this bounded snapshot profile; existing profiles are unchanged.
 --base joins the committed tree diff FULL_COMMIT_ID..HEAD (renames listed as
 both paths) to the worktree dirty set, so a branch is selected as a whole; the
 receipt's range member records the base and exactly the committed paths that
-joined. The base must be a full commit id present in the repository.
+joined. The base is a commit present in the repository: a full id, an
+unambiguous prefix of at least 7 hex digits, or a revision such as HEAD~1 or
+origin/main, which the receipt records as the full id it resolves to.
 plan.dirty is that union ("dirty" means changed since the base), so a clean
 worktree still lists its committed range paths there (range.paths names them);
 UNOWNED_DIRTY_PATH marks the union's unowned paths from either component.

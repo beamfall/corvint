@@ -38,31 +38,79 @@ const affectedAmbiguousCandidateLimit = 5
 // affectedAmbiguousObjectLimit bounds the objects inspected for one ambiguous prefix.
 const affectedAmbiguousObjectLimit = 64
 
-// resolveAffectedAbbrevBase replaces an abbreviated --base with the one commit it names in
-// the root repository. An unknown or non-commit prefix is refused with the full-id hint, and a
-// prefix naming several commits with ambiguous-affected-base, never guessed (AFP-V0-230,
-// AFP-V0-232).
-func resolveAffectedAbbrevBase(invocation *affectedInvocation) error {
-	if invocation.Base == "" || validGitObjectID(invocation.Base) { // a prefix is the only other admitted shape
-		return nil
+// baseRevisionMaxBytes bounds a --base revision expression (TSP-V0-720).
+const baseRevisionMaxBytes = 256
+
+// validBaseRevision reports a --base revision expression such as HEAD, HEAD^, HEAD~3 or
+// origin/main (TSP-V0-720): printable ref and suffix characters only, not starting with "-",
+// with no ":" (a path or message search), no ".." (a range) and at least one character that
+// is not a hex digit, so every all-hex value keeps the AFP-V0-230 prefix rules.
+func validBaseRevision(value string) bool {
+	if value == "" || len(value) > baseRevisionMaxBytes || value[0] == '-' || strings.Contains(value, "..") {
+		return false
 	}
-	prefix := invocation.Base
-	refuse := func() error {
-		return argumentError("--base " + prefix + " is not a unique commit prefix in this repository; pass the full commit id (git rev-parse " + prefix + "^{commit})")
-	}
-	stdout, err := affectedAbbrevGit(invocation.Root, "rev-parse", "--verify", "--quiet", "--end-of-options", prefix+"^{commit}")
-	if err != nil {
-		if candidates := affectedAmbiguousCommits(invocation.Root, prefix); len(candidates) > 1 {
-			return &gokernel.Error{Code: affectedAmbiguousBaseCode, Message: "--base " + prefix + " matches more than one commit (" + strings.Join(candidates, ", ") + "); pass the full commit id"}
+	hexOnly := true
+	for _, character := range value {
+		switch {
+		case character >= '0' && character <= '9', character >= 'a' && character <= 'f', character >= 'A' && character <= 'F':
+		case character >= 'g' && character <= 'z', character >= 'G' && character <= 'Z', strings.ContainsRune("._/@^~{}+-", character):
+			hexOnly = false
+		default:
+			return false
 		}
-		return refuse()
 	}
-	full := strings.TrimSpace(stdout)
-	if !validGitObjectID(full) || !strings.HasPrefix(full, prefix) {
-		return refuse()
+	return !hexOnly
+}
+
+// validBaseArgument reports any --base shape affected and test admit: a full commit id, an
+// abbreviated one (AFP-V0-230) or a revision expression (TSP-V0-720).
+func validBaseArgument(value string) bool {
+	return validGitObjectID(value) || validAbbreviatedObjectID(value) || validBaseRevision(value)
+}
+
+// resolveAffectedAbbrevBase replaces an abbreviated --base or a revision expression with the
+// full id of the one commit it names in the root repository (resolveBaseArgument).
+func resolveAffectedAbbrevBase(invocation *affectedInvocation) error {
+	full, err := resolveBaseArgument(invocation.Root, invocation.Base)
+	if err != nil {
+		return err
 	}
 	invocation.Base = full
 	return nil
+}
+
+// resolveBaseArgument returns the full commit id value names in root. A full id or "" is
+// returned unchanged. An unknown or non-commit prefix is refused with the full-id hint, and a
+// prefix naming several commits with ambiguous-affected-base, never guessed (AFP-V0-230,
+// AFP-V0-232). A revision expression resolves through one `git rev-parse --verify` to the
+// commit it peels to, so the receipt records that id, never the expression (TSP-V0-720).
+func resolveBaseArgument(root, value string) (string, error) {
+	if value == "" || validGitObjectID(value) {
+		return value, nil
+	}
+	if validBaseRevision(value) {
+		stdout, err := affectedAbbrevGit(root, "rev-parse", "--verify", "--quiet", "--end-of-options", value+"^{commit}")
+		if full := strings.TrimSpace(stdout); err == nil && validGitObjectID(full) {
+			return full, nil
+		}
+		return "", argumentError("--base " + value + " does not name a commit in this repository; pass a full commit id, an unambiguous prefix of at least 7 hex digits, or a revision such as HEAD~1 (git rev-parse " + value + "^{commit})")
+	}
+	prefix := value
+	refuse := func() error {
+		return argumentError("--base " + prefix + " is not a unique commit prefix in this repository; pass the full commit id (git rev-parse " + prefix + "^{commit})")
+	}
+	stdout, err := affectedAbbrevGit(root, "rev-parse", "--verify", "--quiet", "--end-of-options", prefix+"^{commit}")
+	if err != nil {
+		if candidates := affectedAmbiguousCommits(root, prefix); len(candidates) > 1 {
+			return "", &gokernel.Error{Code: affectedAmbiguousBaseCode, Message: "--base " + prefix + " matches more than one commit (" + strings.Join(candidates, ", ") + "); pass the full commit id"}
+		}
+		return "", refuse()
+	}
+	full := strings.TrimSpace(stdout)
+	if !validGitObjectID(full) || !strings.HasPrefix(full, prefix) {
+		return "", refuse()
+	}
+	return full, nil
 }
 
 // affectedAbbrevGit runs one read-only git command in root with a scrubbed configuration.
