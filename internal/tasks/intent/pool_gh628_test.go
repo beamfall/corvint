@@ -34,7 +34,7 @@ func TestPSRV0011PoolCommandBound(t *testing.T) {
 		ok      bool
 	}{{"1", true}, {"300", true}, {"301", true}, {"3600", true}, {"0", false}, {"3601", false}} {
 		for _, kind := range []string{"health", "cleanup"} {
-			command := `{"argv":["/bin/true"],"cwd":"REPOSITORY","env":[],"timeoutSeconds":"` + tc.timeout + `"}`
+			command := `{"argv":["/usr/bin/true"],"cwd":"REPOSITORY","env":[],"timeoutSeconds":"` + tc.timeout + `"}`
 			got, e := gh628Pools(t, `{"`+kind+`":`+command+`}`)
 			if (e == nil) != tc.ok {
 				t.Fatalf("%s %s: %v", kind, tc.timeout, e)
@@ -62,7 +62,7 @@ func TestPSRV0011PoolCommandBound(t *testing.T) {
 func TestPSRV0012PinnedCwdShape(t *testing.T) {
 	rev := strings.Repeat("a", 40)
 	pin := func(body string) string {
-		return `{"health":{"argv":["/bin/true"],"cwd":` + body + `,"env":[],"timeoutSeconds":"3"}}`
+		return `{"health":{"argv":["/usr/bin/true"],"cwd":` + body + `,"env":[],"timeoutSeconds":"3"}}`
 	}
 	for _, tc := range []struct {
 		name, member string
@@ -95,7 +95,7 @@ func TestPSRV0012PinnedCwdShape(t *testing.T) {
 			}
 		})
 	}
-	reuse := `{"safeReuse":{"argv":["/bin/true"],"cwd":{"kind":"PINNED_REPOSITORY","path":"/srv/tools","revision":"` + rev + `"},"envKeys":[],"maxAttempts":"1","timeoutSeconds":"3","verify":{"argv":["/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"ok"}}}`
+	reuse := `{"safeReuse":{"argv":["/usr/bin/true"],"cwd":{"kind":"PINNED_REPOSITORY","path":"/srv/tools","revision":"` + rev + `"},"envKeys":[],"maxAttempts":"1","timeoutSeconds":"3","verify":{"argv":["/usr/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"ok"}}}`
 	got, e := gh628Pools(t, reuse)
 	if e != nil {
 		t.Fatal(e)
