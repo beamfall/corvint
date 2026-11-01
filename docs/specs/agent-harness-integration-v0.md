@@ -2120,8 +2120,9 @@ isolated `CODEX_HOME`, branch-built binaries).
   Offline replay on the 142 replayable ContextBench SWE-bench-Pro rows (2026-10-31,
   `docs/experiments/v2755/frame_replay.py`, results in
   `docs/experiments/v2755-contextbench-pro-frame-replay-20261031.json`): the frame emits on 1 task
-  (P@2 0.0) and abstains on 141 (77 `prompt-context-syntax-only`, 56 `prompt-context-withheld`, 8
-  `prompt-names-path`); the candidates it withholds would have had P@2 0.381 against 0.315 for the
+  (P@2 0.0) and abstains on 141 (in the delivered order, where `AHI-247` checks named paths
+  before any query: 77 `prompt-context-syntax-only`, 56 `prompt-context-withheld`, 8
+  `prompt-names-path`; in `candidateFrame`'s readiness-first order: 82 and 59, none); the candidates it withholds would have had P@2 0.381 against 0.315 for the
   idf-weighted identifier rg top 2 on the same 135 tasks, and on 67 of 142 tasks held a gold file
   absent from the rg-idf top 5. That is measured evidence for revisiting the syntax-only rule, not
   a change to it.

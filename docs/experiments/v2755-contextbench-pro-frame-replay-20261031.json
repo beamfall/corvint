@@ -6281,7 +6281,13 @@
    "prompt-context-syntax-only": 77,
    "prompt-context-withheld": 56,
    "prompt-names-path": 8
-  }
+  },
+  "withheld_in_candidateFrame_order": {
+   "None": 1,
+   "prompt-context-syntax-only": 82,
+   "prompt-context-withheld": 59
+  },
+  "withheld_order_note": "`withheld` follows the delivered path: onPrompt checks prompt-names-path before any query (AHI-247, integrations/opencode/src/index.js:575), so a BUDGETED packet whose prompt names a path is prompt-names-path. withheld_in_candidateFrame_order applies candidateFrame's readiness-first order to the same rows; frames emitted and P@2 are identical under both."
  },
  "ticket": "V1-2755"
 }
