@@ -164,6 +164,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `roadmap --status S[,S...]` MUST keep only rows whose status is listed, with the `ticket list`
   status grammar (a closed status set, each named once), applied from the ticket summary so a
   closed ticket is never decoded; paging, facets and counts apply to the kept rows.
+- `TCL-V0-865`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3534) A
+  `ticket show` item MUST carry `intentChecksFailed`, the codes of its blockers in blocker order,
+  each once (empty when `intentChecks` is `PASSED`), so every failing intent check is named
+  beside the verdict. Intent checks are admission checks: a COMPLETED or ARCHIVED ticket fails
+  them by its status alone, and its `TICKET_STATE` blocker detail MUST say so, that the
+  completion itself is not in question and that `reopen` is only for rework.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -220,7 +226,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `tools/capabilities-check` and the command-tree snapshot (TCL-V0-013).
 - `internal/tasks/cli/cli_papercuts_test.go`: `TestTCLV0860_PositionalAndCurrentRevision`,
   `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
-  `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`.
+  `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
+  `TestTCLV0865_ShowNamesFailingIntentChecks`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
