@@ -27,6 +27,9 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "verify-candidate" {
 		runCandidateCLI(os.Args[2:])
 	}
+	if len(os.Args) > 1 && os.Args[1] == "read-verdict-ledger" {
+		runVerdictLedgerCLI(os.Args[2:])
+	}
 	code, status := retiredRoute(os.Args[1:])
 	_, _ = fmt.Fprintf(os.Stderr, "cem01-go: %s; fix: %s\n", code, refusalFix(code))
 	_, _ = fmt.Fprintln(os.Stdout, `{"accept":false,"spec":"`+stableSpec+`","code":"`+code+`"}`)
