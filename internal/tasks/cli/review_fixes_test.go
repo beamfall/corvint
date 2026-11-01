@@ -36,6 +36,31 @@ func TestTCLV0860_CurrentRevisionRetryReplays(t *testing.T) {
 	}
 }
 
+// TestTCLV0822_DefaultRevisionHoldRetryReplays: a hold given no
+// --expected-revision reads the live revision; its retry under the same
+// request ID and issued-at replays rather than conflicting on the revision
+// the first write advanced.
+func TestTCLV0822_DefaultRevisionHoldRetryReplays(t *testing.T) {
+	r, local, _ := papercutRepo(t)
+	args := []string{"ticket", "hold", "--request-id", "hold-1", "--target", local,
+		"--issued-at", "2026-09-07T12:05:00Z", "--payload", `{"holdId":"owner-wait","reason":"waits for owner"}`}
+	first := atm(t, r.Root, nil, args...)
+	if first.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("first: %s", first.stdout)
+	}
+	retry := atm(t, r.Root, nil, args...)
+	if retry.res.Outcome != wire.OutcomeOK || hasCode(retry.res, wire.CodeRequestIDConflict) {
+		t.Fatalf("retry of an applied default-revision hold: %s", retry.stdout)
+	}
+	if a, b := field(first.res.Items[0], "resultingRevision").Str, field(retry.res.Items[0], "resultingRevision").Str; a != b {
+		t.Fatalf("retry resultingRevision %q, first %q", b, a)
+	}
+	other := append(append([]string{}, args[:len(args)-1]...), `{"holdId":"owner-wait","reason":"another reason"}`)
+	if x := atm(t, r.Root, nil, other...); x.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("a changed payload replayed: %s", x.stdout)
+	}
+}
+
 // claimedRepo is papercutRepo with the tree committed and the ticket
 // claimed, so its attempt is live in the journal's reservation set.
 func claimedRepo(t *testing.T) (string, string) {

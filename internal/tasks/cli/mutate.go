@@ -142,6 +142,8 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
 		}
+		// TCL-V0-822: a retry of an applied hold replays as TCL-V0-860 does.
+		flags.expected = recordedCurrentRevision(env, operation, actor, flags, payload)
 	}
 	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
