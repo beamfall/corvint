@@ -24,8 +24,9 @@ unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promot
 
 Every subcommand at every depth, with its flags, required inputs and an example, is in one
 `corvint-command-tree/0` document per binary, derived from the help that binary prints
-(CAP-V0-040 to CAP-V0-048): `corvint help --tree`, `corvint-tasks help --json` and `corvint-test
-help --json`, committed as `internal/capcatalog/trees/BINARY.json` and linked from the
+(CAP-V0-040 to CAP-V0-048, CAP-V0-930): `corvint help --tree`, `corvint-tasks help --json`,
+`corvint-test help --json`, `corvint-cem-candidate help --json` and `corvint-cem-experiments help
+--json`, committed as `internal/capcatalog/trees/BINARY.json` and linked from the
 `commandTrees` member of `corvint help --json`. Any node answers `--help` and `-h` with its own help
 and exits 0. `tools/capabilities-check` fails when a binary dispatches a subcommand or option its
 tree lacks, when a node has no usage, example or help, and when a new `cmd/` binary has neither a

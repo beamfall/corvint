@@ -361,3 +361,49 @@ func dispatch(argv []string) {
 		t.Errorf("flags %v, want only --real-flag", flags)
 	}
 }
+
+// TestCAPV0931AnswerRoutesHelpOnly checks that Answer serves help --json, root help, help PATH and
+// a node's --help or -h, refuses an unknown help path, and leaves every other invocation alone.
+func TestCAPV0931AnswerRoutesHelpOnly(t *testing.T) {
+	tree := sampleTree()
+	const root = "sample root help\n"
+	encoded, err := Encode(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	build := Render(tree, node(t, tree, "build"))
+	clear := Render(tree, node(t, tree, "cache", "clear"))
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"help", "--json"}, string(encoded)},
+		{[]string{"help"}, root},
+		{[]string{"--help"}, root},
+		{[]string{"-h"}, root},
+		{[]string{"help", "build"}, build},
+		{[]string{"help", "cache", "clear", "--help"}, clear},
+		{[]string{"build", "--help"}, build},
+		{[]string{"build", "--out", "x", "-h"}, build},
+		{[]string{"cache", "clear", "--all", "--help"}, clear},
+	} {
+		var out strings.Builder
+		handled, err := Answer(tree, tc.args, root, &out)
+		if !handled || err != nil || out.String() != tc.want {
+			t.Fatalf("%v: handled=%t err=%v\n%s", tc.args, handled, err, out.String())
+		}
+	}
+	for _, args := range [][]string{{"help", "nope"}, {"help", "build", "extra"}, {"nope", "--help"}} {
+		var out strings.Builder
+		handled, err := Answer(tree, args, root, &out)
+		if !handled || err == nil || !strings.Contains(err.Error(), "run `sample help`") || out.Len() != 0 {
+			t.Fatalf("%v: handled=%t err=%v out=%q", args, handled, err, out.String())
+		}
+	}
+	for _, args := range [][]string{nil, {}, {"build", "--out", "x"}, {"build", "--", "--help"}, {"help-me"}} {
+		var out strings.Builder
+		if handled, err := Answer(tree, args, root, &out); handled || err != nil || out.Len() != 0 {
+			t.Fatalf("%v answered: handled=%t err=%v out=%q", args, handled, err, out.String())
+		}
+	}
+}
