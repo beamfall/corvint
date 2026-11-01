@@ -311,6 +311,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 		return map[string]any{}
 	}
 	defer func() { recordAdapterDegradation(ctx, root, "codex", event, hookOutput) }()
+	ctx = withDogfoodEventProbe(ctx)
 	normalized, reason := normalizeAdapterInput("codex", event, payload, root)
 	if reason != "" {
 		return codexDegraded(eventName, reason)
@@ -319,7 +320,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	kernel := experimentalKernelContext(ctx, event, root)
 	result, reason := invokeDogfoodEvent(ctx, root, "codex", event, normalized, adapterOutputLimit-promptBoundReserve(disclosure)-promptBoundReserve(kernel))
 	if reason != "" {
-		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
 	}
 	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
@@ -347,6 +348,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		return map[string]any{}
 	}
 	defer func() { recordAdapterDegradation(ctx, root, "claude-code", event, hookOutput) }()
+	ctx = withDogfoodEventProbe(ctx)
 	normalized, reason := normalizeAdapterInput("claude-code", event, payload, root)
 	if reason != "" {
 		refuseUndeliveredPacket(root, event, payload)
@@ -383,7 +385,8 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
 		refuse()
-		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
+		notice := withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
+		return withReducedPacket(ctx, root, event, reason, normalized, disclosure+guidance, notice)
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
@@ -932,14 +935,14 @@ func withCodexSnapshotRemediation(ctx context.Context, root, reason string, outp
 // (LCP-V0-008, AHI-031).
 const claudeDeadlineReason = "corvint-event-rejected:dogfood-event-deadline"
 
-// deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). The hook
-// has no time left to measure this event's cause, so it names the cause a measured reproduction
-// found (V1-1524: machine load, while 1,266 dirty task-store projection paths under .taskman/
-// added no measurable time) and a remediation that never touches the store's own files.
-func deadlineRemediation(root string) string {
+// deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). It names
+// the phase that ran out of time and the measurements the event already took, and a dominant
+// cause only when a measurement supports it (AHI-800, V1-1496), then a remediation that never
+// touches the store's own files.
+func deadlineRemediation(ctx context.Context, root string) string {
 	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
 	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
-		"\nA measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause." +
+		deadlineMeasuredLines(ctx) +
 		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
 		"\nIf machine load caused the timeout, waiting for it to drop may help. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging."
 }
@@ -948,20 +951,21 @@ func deadlineRemediation(root string) string {
 // dogfood-event-deadline notice already uses, after its unchanged frame (AHI-055). A root long
 // enough to push the encoded output past adapterOutputLimit keeps the frame-only notice, since
 // emitAdapterOutput would otherwise replace the frame with corvint-output-too-large.
-func withDeadlineRemediation(root, reason string, output map[string]any) map[string]any {
+func withDeadlineRemediation(ctx context.Context, root, reason string, output map[string]any) map[string]any {
 	if reason != claudeDeadlineReason {
 		return output
 	}
+	remediation := deadlineRemediation(ctx, root)
 	remediated := map[string]any{}
 	for key, value := range output {
 		remediated[key] = value
 	}
 	if text, ok := output["systemMessage"].(string); ok {
-		remediated["systemMessage"] = text + deadlineRemediation(root)
+		remediated["systemMessage"] = text + remediation
 	}
 	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
 		if text, ok := hook["additionalContext"].(string); ok {
-			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + deadlineRemediation(root)}
+			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + remediation}
 		}
 	}
 	if raw, err := json.Marshal(remediated); err != nil || len(raw)+1 > adapterOutputLimit {

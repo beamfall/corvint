@@ -642,9 +642,11 @@ func assertDeadlineRemediation(t *testing.T, text, frame, root string) {
 	for _, want := range []string{
 		"did not finish within the hook time limit",
 		"this event got no Corvint context; coding continues",
-		// V1-1524: the measured cause is load; store-owned .taskman/ churn is not, and the
-		// remediation never asks the operator to touch it.
-		"A measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause.",
+		// AHI-800 (V1-1496): the notice names the phase and measurements it has, and a cause only
+		// when a measurement supports it; the remediation never asks the operator to touch .taskman/.
+		"\nPhase that ran out of time: ",
+		"\nMeasured: git status: ",
+		"\nDominant cause: ",
 		"read-only command outside the hook:\n" + string(status) + "\n",
 		"If machine load caused the timeout, waiting for it to drop may help. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging.",
 	} {
@@ -664,11 +666,11 @@ func TestDeadlineRemediationKeepsFrameWithinLimit(t *testing.T) {
 	root := "/" + strings.Repeat(strings.Repeat("&", 240)+"/", 5)
 	for _, output := range []map[string]any{codexDegraded("Stop", claudeDeadlineReason), degradedAdapterOutput(claudeDeadlineReason)} {
 		frame := output["systemMessage"]
-		if got := withDeadlineRemediation(root, claudeDeadlineReason, output); got["systemMessage"] != frame {
+		if got := withDeadlineRemediation(context.Background(), root, claudeDeadlineReason, output); got["systemMessage"] != frame {
 			t.Fatalf("over-limit remediation was not dropped: %q", got["systemMessage"])
 		}
 	}
-	short := withDeadlineRemediation("/repo", claudeDeadlineReason, claudeContextOutput("UserPromptSubmit", "Corvint FALLBACK degraded: "+claudeDeadlineReason+"; coding continues"))
+	short := withDeadlineRemediation(context.Background(), "/repo", claudeDeadlineReason, claudeContextOutput("UserPromptSubmit", "Corvint FALLBACK degraded: "+claudeDeadlineReason+"; coding continues"))
 	var stdout bytes.Buffer
 	emitAdapterOutput(&stdout, short)
 	if !strings.Contains(stdout.String(), "hook time limit") {

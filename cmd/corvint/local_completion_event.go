@@ -130,12 +130,16 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		emitError(stderr, dogfoodEventError("invalid-dogfood-event-budget"))
 		return 2
 	}
-	ctx, cancel := context.WithTimeout(parent, dogfoodEventDeadlineOf(parent, options.host, options.event))
+	limit := dogfoodEventDeadlineOf(parent, options.host, options.event)
+	ctx, cancel := context.WithTimeout(parent, limit)
 	defer cancel()
+	probe := dogfoodEventProbeOf(parent)
+	probe.begin(limit)
 	missed := new(atomic.Bool)
 	ctx = context.WithValue(ctx, dogfoodEventMissKey{}, missed)
 	raw, err := readInput(ctx, stdin)
 	if err != nil {
+		probe.freeze()
 		emitError(stderr, dogfoodEventError(dogfoodInputFailureCode(ctx, missed)))
 		return 2
 	}
@@ -144,7 +148,9 @@ func runLocalCompletionEvent(parent context.Context, root string, args []string,
 		emitError(stderr, err)
 		return 2
 	}
+	probe.enter("repository-observation")
 	result, err := dogfoodEventWithin(ctx, options, input)
+	probe.freeze()
 	if err != nil && (errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, errDogfoodSnapshotStale) || probeExpired(err)) {
 		// An expired deadline surfaces in later reads as unrelated drift or unavailability, and a
 		// skipped miss build (AHI-031) forecasts one; report the time bound, not a diagnosed fault.
@@ -352,7 +358,11 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	if pending, ok := ctx.Value(dogfoodSnapshotPrefetchKey{}).(*snapshotPrefetch); ok {
 		prefetch = pending.start
 	}
+	probe := dogfoodEventProbeOf(ctx)
 	after, err := gokernel.ProbeRepositoryAroundPrefetching(ctx, options.root, prefetch, func(ctx context.Context, observation gokernel.Observation) error {
+		// AHI-800: the opening observation's status read is done; record what it measured.
+		probe.observed(len(observation.DirtyPaths), observation.CommitRevision)
+		probe.enter("policy-evaluation")
 		var err error
 		if before, err = observation.Repository(); err != nil {
 			return err
@@ -370,14 +380,17 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 		}
 		result = envelope(options, input, before, evaluation)
 		if options.event == "user-prompt" || options.event == "session-start" {
+			probe.enter("context-packet")
 			packet, err := contextPacket(ctx, options, input, evaluation, result, before, observation)
 			if err != nil {
 				return err
 			}
 			result["context"] = packet
 		}
+		probe.enter("closing-observation")
 		return nil
 	})
+	probe.enter("policy-reevaluation")
 	if errors.Is(err, gokernel.ErrRepositoryDrift) {
 		return nil, dogfoodEventError("dogfood-event-repository-drift")
 	}
