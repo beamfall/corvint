@@ -76,3 +76,40 @@ func TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976(t *test
 		t.Fatalf("results = %v, want the referencing spec before the referencing decision", ids)
 	}
 }
+
+// TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975: two tracked paths that
+// differ only in case both answer a lowercased full-path mention, in sorted
+// order, on every ranking, and a basename they share names neither.
+func TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975(t *testing.T) {
+	t.Parallel()
+	root, _ := caseFoldRepository(t)
+	index, err := Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"internal/token/Token.go", "internal/token/token.go"}
+	const task = "Why does internal/token/Token.go mint the wrong token?"
+	first, err := EvalQuery(context.Background(), index, task, 10, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstBytes, err := CanonicalJSON(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 32 {
+		if named := evalNamedPaths(index, pythonLower(task)); !slices.Equal(named, want) {
+			t.Fatalf("named paths = %v, want %v", named, want)
+		}
+		packet, err := EvalQuery(context.Background(), index, task, 10, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if data, err := CanonicalJSON(packet); err != nil || string(data) != string(firstBytes) {
+			t.Fatalf("repeated ranking differs (err %v)", err)
+		}
+	}
+	if named := evalNamedPaths(index, "see token.go"); len(named) != 0 {
+		t.Fatalf("an ambiguous basename named %v", named)
+	}
+}

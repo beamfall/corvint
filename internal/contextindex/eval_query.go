@@ -751,19 +751,22 @@ const evalNamedPathCredit = 40
 
 // evalNamedPaths is the sorted indexed paths the task names by full path or by
 // an unambiguous basename carrying a dot after its first byte (GPK-V0-975),
-// the reading TCP-V0-003's `mentioned` rule gives a task.
+// the reading TCP-V0-003's `mentioned` rule gives a task. The task is read
+// lowercased, so a full path names every indexed path it case-folds to
+// (`src/Foo.go` and `src/foo.go` alike), never one picked by map order.
 func evalNamedPaths(index *Index, queryText string) []string {
 	byBase := map[string][]string{}
-	lowered := map[string]string{}
+	lowered := map[string][]string{}
 	for candidate := range index.Sources {
-		lowered[pythonLower(candidate)] = candidate
+		folded := pythonLower(candidate)
+		lowered[folded] = append(lowered[folded], candidate)
 		base := pythonLower(path.Base(candidate))
 		byBase[base] = append(byBase[base], candidate)
 	}
 	named := make([]string, 0)
 	for _, token := range contextPathTokens(pythonLower(queryText)) {
-		if candidate, ok := lowered[token]; ok {
-			named = append(named, candidate)
+		if candidates, ok := lowered[token]; ok {
+			named = append(named, candidates...)
 			continue
 		}
 		if !strings.Contains(token, ".") || strings.HasPrefix(token, ".") {
