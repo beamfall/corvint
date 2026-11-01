@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -88,6 +89,7 @@ type options struct {
 	captureInfo      *os.FileInfo
 	budgetBytes      int
 	windowBytes      int
+	dataRoot         string
 }
 
 // arm is one retriever's answer for one sample: a ranked file list and
@@ -151,7 +153,41 @@ func main() {
 	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
 }
 
+// dataRootEnv names the held-out data root when --data-root is absent (CEP-V0-961).
+const dataRootEnv = "CORVINT_RETRIEVAL_BENCH_DATA"
+
+// usageText is the --help text: the required inputs, where the bench data lives, and an example.
+const usageText = `retrieval-bench runs Agent Retrieval Bench or ContextBench rows against corvint and lexical baselines.
+
+Usage:
+  retrieval-bench --samples FILE (--corpus DIR | --snapshot OWNER/NAME@COMMIT=PATH ...)
+                  [--data-root DIR] [--corvint PATH] [--arms LIST] [--limit K] [--output FILE]
+  retrieval-bench --summarize REPORT [--summarize REPORT ...] [--output FILE]
+
+Required inputs:
+  --samples FILE   bench JSONL rows (Agent Retrieval Bench, or ContextBench rows)
+  --corpus DIR     chunk-file corpus of the same release, or --snapshot per repository
+
+Bench data (downloaded once, never fetched by this tool):
+  --data-root DIR  directory holding the extracted releases; when given, a relative --samples or
+                   --corpus resolves under it. Defaults to $CORVINT_RETRIEVAL_BENCH_DATA when set.
+                   A data root that is not an existing directory is refused, naming this input.
+                   Layout: DIR/benchmark/<release>/<task>.jsonl for samples and
+                   DIR/corpus/<release>/OWNER__NAME/COMMIT.chunks.jsonl for the corpus, as the
+                   release archive extracts (for example release v2_code2test). The owner's
+                   held-out copy lives outside the repository on the benchmark host.
+
+Example:
+  retrieval-bench --data-root ~/agent-retrieval-bench-data \
+    --samples benchmark/v2_code2test/code2test.jsonl --corpus corpus/v2_code2test \
+    --corvint /tmp/corvint --output report.json
+`
+
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int {
+	if slices.ContainsFunc(arguments, func(argument string) bool { return argument == "-h" || argument == "--help" || argument == "-help" }) {
+		fmt.Fprint(stdout, usageText)
+		return 0
+	}
 	configuration, err := parseOptions(arguments)
 	if err != nil {
 		fmt.Fprintln(stderr, "retrieval-bench:", err)
@@ -202,6 +238,24 @@ func (values *stringsFlag) Set(value string) error {
 	return nil
 }
 
+// resolveDataRoot refuses a data root that is not an existing directory and resolves a relative
+// --samples or --corpus under it (CEP-V0-961). No data root leaves the paths as given.
+func resolveDataRoot(configuration *options) error {
+	if configuration.dataRoot == "" {
+		return nil
+	}
+	info, err := os.Stat(configuration.dataRoot)
+	if err != nil || !info.IsDir() {
+		return fmt.Errorf("data root %q (--data-root or $%s) is not an existing directory; it must hold benchmark/<release>/ and corpus/<release>/ as the release archive extracts", configuration.dataRoot, dataRootEnv)
+	}
+	for _, path := range []*string{&configuration.samples, &configuration.corpus} {
+		if *path != "" && !filepath.IsAbs(*path) {
+			*path = filepath.Join(configuration.dataRoot, *path)
+		}
+	}
+	return nil
+}
+
 func parseOptions(arguments []string) (options, error) {
 	flags := flag.NewFlagSet("retrieval-bench", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
@@ -222,7 +276,11 @@ func parseOptions(arguments []string) (options, error) {
 	flags.Var(&summaries, "summarize", "existing report to re-summarize, merging arms by sample id (repeatable; runs nothing)")
 	flags.IntVar(&configuration.budgetBytes, "budget-bytes", 0, "score every arm through identical text windows under this byte budget (0 = off)")
 	flags.IntVar(&configuration.windowBytes, "window-bytes", defaultWindowBytes, "text window per ranked file under --budget-bytes")
+	flags.StringVar(&configuration.dataRoot, "data-root", os.Getenv(dataRootEnv), "directory of extracted bench releases that a relative --samples or --corpus resolves under (default $"+dataRootEnv+")")
 	if err := flags.Parse(arguments); err != nil {
+		return options{}, err
+	}
+	if err := resolveDataRoot(&configuration); err != nil {
 		return options{}, err
 	}
 	if flags.NArg() != 0 {
