@@ -1,7 +1,5 @@
 package wire
 
-import "unicode/utf8"
-
 // Encode returns the canonical body of a value (WQO §4.1): closed objects with
 // keys in UTF-8 byte order, no insignificant whitespace, only `\t`, `\n`,
 // `\r`, `\"` and `\\` as short escapes, `\u00xx` (lowercase) for any other
@@ -56,35 +54,45 @@ func appendValue(b []byte, v Value) []byte {
 
 const hexdigits = "0123456789abcdef"
 
+// escapedByte marks the bytes a canonical string never holds as written:
+// '"', '\\' and the controls below 0x20. The parser's escape-free scan stops
+// at the same bytes.
+var escapedByte = func() (t [256]bool) {
+	for c := 0; c < 0x20; c++ {
+		t[c] = true
+	}
+	t['"'], t['\\'] = true, true
+	return t
+}()
+
 func appendString(b []byte, s string) []byte {
 	b = append(b, '"')
-	for i := 0; i < len(s); {
+	// Every byte other than '"', '\\' and a control is written as it is,
+	// UTF-8 or not, so each run of such bytes is copied whole (V1-3186):
+	// the byte-at-a-time append was a fifth of a receipt audit's CPU.
+	run := 0
+	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if c < utf8.RuneSelf {
-			switch c {
-			case '"':
-				b = append(b, '\\', '"')
-			case '\\':
-				b = append(b, '\\', '\\')
-			case '\t':
-				b = append(b, '\\', 't')
-			case '\n':
-				b = append(b, '\\', 'n')
-			case '\r':
-				b = append(b, '\\', 'r')
-			default:
-				if c < 0x20 {
-					b = append(b, '\\', 'u', '0', '0', hexdigits[c>>4], hexdigits[c&0xF])
-				} else {
-					b = append(b, c)
-				}
-			}
-			i++
+		if !escapedByte[c] {
 			continue
 		}
-		_, size := utf8.DecodeRuneInString(s[i:])
-		b = append(b, s[i:i+size]...)
-		i += size
+		b = append(b, s[run:i]...)
+		run = i + 1
+		switch c {
+		case '"':
+			b = append(b, '\\', '"')
+		case '\\':
+			b = append(b, '\\', '\\')
+		case '\t':
+			b = append(b, '\\', 't')
+		case '\n':
+			b = append(b, '\\', 'n')
+		case '\r':
+			b = append(b, '\\', 'r')
+		default:
+			b = append(b, '\\', 'u', '0', '0', hexdigits[c>>4], hexdigits[c&0xF])
+		}
 	}
+	b = append(b, s[run:]...)
 	return append(b, '"')
 }
