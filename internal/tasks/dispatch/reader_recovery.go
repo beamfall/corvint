@@ -97,8 +97,11 @@ func rebootProof(m readerMarker) (currentBoot string, ok bool) {
 // resolveReaderByReboot applies the reboot proof. The caller holds the
 // program lock. A marker without the proof is left untouched for
 // checkReaderQuarantine to refuse; a proof that cannot be recorded is an
-// error, and the marker stays.
-func resolveReaderByReboot(dir, program string, now time.Time) (*ReaderRecovery, error) {
+// error, and the marker stays. beforeClear, when not nil, runs after the
+// record is durable and before the marker goes: an error from it keeps the
+// marker, so the next attempt finds the same record and runs it again
+// (CAL-V0-227, V1-3635).
+func resolveReaderByReboot(dir, program string, now time.Time, beforeClear func(*ReaderRecovery) error) (*ReaderRecovery, error) {
 	mark, err := readReaderMarker(dir, program)
 	if err != nil {
 		return nil, nil
@@ -125,6 +128,11 @@ func resolveReaderByReboot(dir, program string, now time.Time) (*ReaderRecovery,
 		rec = *prior
 	} else if err != nil {
 		return nil, err
+	}
+	if beforeClear != nil {
+		if err := beforeClear(&rec); err != nil {
+			return nil, err
+		}
 	}
 	if err := clearReaderMarker(mark, program); err != nil {
 		return nil, err

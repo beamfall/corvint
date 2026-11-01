@@ -426,3 +426,52 @@ func TestCALV0227_StandaloneReaderRebootEmitsEvent(t *testing.T) {
 	}
 	t.Fatalf("no reader-recovered event: %+v", events)
 }
+
+// CAL-V0-227 (V1-3635 review): when the standalone reader cannot append its
+// reader-recovered event, the quarantine marker stays and the read refuses;
+// the next read finds the same HOST_REBOOT record, appends the event once and
+// only then lifts the quarantine.
+func TestCALV0227_StandaloneReaderKeepsQuarantineUntilEventLands(t *testing.T) {
+	if !platformSupported {
+		t.Skip("reader ownership is unsupported here")
+	}
+	const program = "work-state-reader"
+	machine, boot1, boot2 := digestHex("m"), digestHex("b1"), digestHex("b2")
+	fakeHost(t, machine, boot1)
+	c, dir, mark := quarantinedProgram(t, program)
+	fakeHost(t, machine, boot2)
+	t.Cleanup(func() { appendEvent = appendEventLog })
+	appendEvent = func(string, Event) error { return errors.New("event log unwritable") }
+	argv := []string{"/bin/sh", "-c", "exit 0"}
+	if _, err := standaloneStateCommand(context.Background(), c, argv); !errors.Is(err, ErrReaderQuiescence) {
+		t.Fatalf("read with an unwritable event log: %v", err)
+	}
+	if _, err := os.Lstat(mark.path); err != nil {
+		t.Fatal("the marker went although its event was not written", err)
+	}
+	if _, err := ReadReaderRecovery(dir, "reboot-"+mark.marker.Run+".json"); err != nil {
+		t.Fatal("the reboot record was not kept for the retry", err)
+	}
+	appendEvent = appendEventLog
+	for range 2 {
+		if _, err := standaloneStateCommand(context.Background(), c, argv); errors.Is(err, ErrReaderQuiescence) {
+			t.Fatal("retry refused", err)
+		}
+	}
+	if _, err := os.Lstat(mark.path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("marker survived the retried proof", err)
+	}
+	events, err := ReadEvents(dir, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, e := range events {
+		if e.Kind == "reader-recovered" && e.Detail["run"] == mark.marker.Run {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Fatalf("reader-recovered events = %d, want 1: %+v", count, events)
+	}
+}

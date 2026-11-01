@@ -6450,7 +6450,9 @@ hand, which the #464 amendment says proves nothing.
   (a new member of the CAL-V0-058 event set). The standalone `work-state-reader` (a direct
   `ReadStates` caller with no dispatch start) applies the same proof under its own program lock and
   MUST append the same `reader-recovered` event to its own event log, numbered after the log's last
-  event; when that event cannot be written the read refuses (V1-3635). Absent evidence MUST never be a proof: a legacy
+  event, after the `HOST_REBOOT` record and before the marker is removed; when that event cannot be
+  written the marker stays and the read refuses, and the next read finds the same record and retries,
+  appending nothing when the run's event is already logged (V1-3635). Absent evidence MUST never be a proof: a legacy
   `/0` marker, a marker or host without a boot identity, another machine, or the same boot keeps
   the refusal; a recorded pid that has exited lifts nothing by itself, because its descendants
   may survive it. A reboot record that attests a different marker refuses the start.
@@ -8019,7 +8021,7 @@ and removes the new configuration members.
 | CAL-V0-224 | `TestCALV0224_WriterAuditWorkIsHistoryIndependent`, `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing`, `TestCALV0224_ListingNeverOutlivesItsAttempt` (`internal/tasks/journal`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-v1-0887-liveness-o1.md`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md` |
 | CAL-V0-225 | `TestCALV0225_DispatchConfigPathForms` (`internal/tasks/cli`), `TestCALV0225_RelativeReadIsMalformed` (`internal/tasks/intent`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-gh-899-900-dispatch.md` |
 | CAL-V0-226 | `TestCALV0226_OperatorRecovery`, `TestCALV0226_LiveEvidenceKeepsQuarantine`, `TestCALV0226_UnreadableMarkers`, `TestCALV0226_ClearTakesMarkerAside` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0226_DispatchRecoverReaderOperator`, `TestCALV0226_DispatchRecoverReaderLiveEvidence`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`) |
-| CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker`, `TestCALV0227_StandaloneReaderRebootEmitsEvent` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
+| CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker`, `TestCALV0227_StandaloneReaderRebootEmitsEvent`, `TestCALV0227_StandaloneReaderKeepsQuarantineUntilEventLands` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
 | CAL-V0-228 | `TestCALV0228_DispatchHelpNamesRecovery` (`internal/tasks/cli`); diagnostic text asserted in `TestCALV0227_RebootProofLiftsQuarantine` and `TestCALV0226_LiveEvidenceKeepsQuarantine` |
 | CAL-V0-229 | `TestCALV0229_RecoverRefusesNewerVersions` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
 | CAL-V0-236 | `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`); `TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`) |
