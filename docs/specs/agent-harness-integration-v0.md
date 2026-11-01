@@ -722,6 +722,20 @@ separate exact extension tuple remains governed by AHI-024.
   `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket` and
   `TestAHI801UserPromptDeadlineEmitsReducedPacket` (`cmd/corvint`). Rollback: drop
   `withReducedPacket` so an expired event carries the notice alone.
+- `AHI-802`: (experimental under the standing lane auto-accept (2026-11-01); V1-3676; amends
+  `AHI-970`) When a Claude Code or Codex hook falls back with `dogfood-event-unavailable` and the
+  repository's Git directory or common directory holds `objects/info/alternates` or
+  `objects/info/http-alternates` (a `git clone --shared` or `--reference` clone), the cause line
+  MUST name `unsupported-object-alternates` and the read-only fix: clone again with
+  `git clone --no-local`, or run `git repack -a -d`, remove the alternates files and
+  `objects/info/commit-graphs`, then `git commit-graph write --reachable`. The check is a bounded
+  `lstat` of those paths on the failure path only; it runs no Git process and writes nothing. The
+  frame line and the `SOL-V0-010` reason stay `dogfood-event-unavailable`, so the ledger and
+  conformance codes are unchanged. Non-goals: supporting alternates-backed clones; naming other
+  refused repository shapes. Failure modes: an alternates file in a repository whose read failed
+  for another reason is still named, which is the observed shape, not a diagnosis. Evidence:
+  `TestAHI802SharedCloneFallbackNamesObjectAlternates` (`cmd/corvint`). Rollback: drop
+  `alternatesCauseLine` so the generic AHI-970 cause line returns.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2706,6 +2720,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-970` (experimental under the standing lane auto-accept; V1-3255) | `cmd/corvint/host_adapter.go` (`withCauseRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery`, `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` |
 | `AHI-800` (experimental under the standing lane auto-accept (2026-11-01); V1-1496) | `cmd/corvint/host_adapter_deadline.go` (`deadlineMeasuredLines`), `cmd/corvint/local_completion_event.go` | `TestAHI800DeadlineNamesLoadDominatedCause`, `TestAHI800DeadlineNamesDirtySetDominatedCause`, `TestAHI800DeadlineWithoutMeasurementsSaysNotMeasured`, `TestAHI800HostLoadMeasurementIsBounded` |
 | `AHI-801` (experimental under the standing lane auto-accept (2026-11-01); V1-3556) | `cmd/corvint/host_adapter_deadline.go` (`withReducedPacket`) | `TestAHI801CompactSessionStartDeadlineEmitsReducedPacket`, `TestAHI801UserPromptDeadlineEmitsReducedPacket` |
+| `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
