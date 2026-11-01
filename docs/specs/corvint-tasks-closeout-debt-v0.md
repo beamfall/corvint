@@ -387,7 +387,7 @@ closeout step is missing.
   `diff-tree` query between two full tree OIDs is immutable and served from the pre-lock probe.
 
 - `TCD-V0-176`: `ticket complete-manual` of an OPEN ticket whose `ticket show` `intentChecks` is
-  `FAILED` (for example `COVERAGE_UNKNOWN` from `INCOMPLETE` effects, or a MANUAL ticket) stays
+  `FAILED` (for example a MANUAL ticket; `INCOMPLETE` effects are an advisory since TCL-V0-868) stays
   admitted, because complete-manual is the operator's close for work that cannot pass the
   autonomous checks. Its `reason` must then be nonblank after trimming white space; otherwise the
   CLI refuses `MALFORMED` at `/payload/reason` naming the failed check codes, before any write. A
@@ -438,8 +438,8 @@ closeout step is missing.
   returns the stored claim. A replay whose REV resolves to another tree, including the same
   symbolic name after it moved, or that adds or drops the flag, refuses `REQUEST_ID_CONFLICT` before
   any write. An unresolvable REV stays `MALFORMED` (TCD-V0-175).
-- `TCD-V0-182`: `ticket show` and `ticket list` items of an `OPEN` ticket whose blockers are all
-  `COVERAGE_UNKNOWN` carry `alternativeActions: ["claim --scope-from-diff"]` beside
+- `TCD-V0-182`: `ticket show` and `ticket list` items of an `OPEN` ticket with no blocker whose
+  only advisory is `COVERAGE_UNKNOWN` (TCL-V0-868) carry `alternativeActions: ["claim --scope-from-diff"]` beside
   `nextAction: "set-effects"`. Every other item omits the member. `nextAction`, its closed enum and
   the `--facets` `byNextAction` counts are unchanged (CAL-V0-206), so the facets still equal the
   per-ticket `nextAction` of `ticket show`.
@@ -644,9 +644,10 @@ closeout step is missing.
 - The claim reserves the diff at claim time. A lane that claims before committing has no diff to
   scope (`MALFORMED`). It either claims after the change is committed, which is the closeout use, or
   claims with `--scope`.
-- `ticket show` still reports an `INCOMPLETE` ticket as BLOCKED with next action `set-effects`, and
-  `plan preview` plans it as a WHOLE_REPOSITORY claim. The claim is admitted all the same (claim
-  eligibility skips `COVERAGE_UNKNOWN`), so that view is advisory for this path. Changing the facet
+- `ticket show` reports an `INCOMPLETE` ticket's coverage as a `COVERAGE_UNKNOWN` advisory, not a
+  blocker (TCL-V0-868), with next action `set-effects`, and `plan preview` plans it as a
+  WHOLE_REPOSITORY claim. The claim is admitted all the same (claim eligibility skips
+  `COVERAGE_UNKNOWN`). Changing the facet
   would change the `nextAction` wire enum. Both name the claim in `alternativeActions`
   (TCD-V0-182, TCD-V0-184). A plan entry that is BLOCKED for another reason omits it, because the
   named claim would be refused too.

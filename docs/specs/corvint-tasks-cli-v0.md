@@ -181,6 +181,18 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   attempt liveness is observed and no `no journal available to this reader` unknown or
   CAL-V0-173 store-wide warning appears. When that reservation set cannot be read, the
   store-wide ATTEMPT_LIVE warning MUST name the read failure rather than a missing journal.
+- `TCL-V0-868`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket
+  view MUST list a non-`QUALIFIED` effects coverage under policy `serialFallback: BLOCK` as a
+  `COVERAGE_UNKNOWN` entry in a separate `advisories` array, never in `blockers`, because no queue
+  policy makes coverage a claim prerequisite: claim admission and `plan preview` already skip it
+  and reserve `WHOLE_REPOSITORY` (CAL-V0-014, TCD-V0-174). `intentChecks`, `eligibility` and the
+  `roadmap` row are therefore derived from the other checks alone, so such a ticket reads `PASSED`
+  and `UNKNOWN` rather than `FAILED` and `BLOCKED`. The `advisories` member is present only when
+  non-empty. An OPEN ticket with no blocker and that advisory keeps `nextAction: "set-effects"`
+  and `alternativeActions: ["claim --scope-from-diff"]` (TCD-V0-182), so the `byNextAction` facet
+  is unchanged. Under `serialFallback: WHOLE_REPOSITORY` the view carries no coverage entry at all.
+  A policy that makes coverage a claim prerequisite would render it as a blocker again; none
+  exists in this contract.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -239,7 +251,7 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
   `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
   `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`,
-  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`.
+  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`, `TestTCLV0868_CoverageIsAdvisoryUnderEveryPolicy`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
