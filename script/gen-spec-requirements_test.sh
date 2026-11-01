@@ -592,4 +592,30 @@ stage docs/specs/placed.md
 run > /dev/null || fail "a spec without a Requirements section was refused"
 git -C "$test_root" rm -q --cached -- docs/specs/placed.md
 
+# 15. SRG-V0-790/791 (V1-3793): an ID of four or more digits under a prefix with a three-digit
+# definition is indexed and ordered by number; ticket and record IDs of other prefixes stay text;
+# a malformed definition-shaped ID of a known prefix is refused with its line, and a lettered
+# sub-requirement passes.
+printf '# Long ids\n\n## Requirements\n\n- **CIN-V0-999:** (proposed) Three digits.\n- **CIN-V0-1010:** (proposed) Four digits.\n\n| Ticket | Note |\n|---|---|\n| V1-0789 | a ticket |\n| DR-0046 | a record |\n' > "$test_root/docs/specs/longid.md"
+stage docs/specs/longid.md
+lid_out=$(run) || fail "a four-digit requirement ID was refused"
+test "$(printf '%s\n' "$lid_out" | grep '^CIN-V0-' | cut -f1 | tr '\n' ' ')" = 'CIN-V0-999 CIN-V0-1010 ' ||
+  fail "the four-digit ID is not indexed after CIN-V0-999: $(printf '%s\n' "$lid_out" | grep '^CIN-V0-')"
+case $lid_out in *V1-0789* | *DR-0046*) fail "a ticket or record ID became a requirement row" ;; esac
+test "$(lines | grep '^CIN-V0-' | cut -f1 | tr '\n' ' ')" = 'CIN-V0-999 CIN-V0-1010 ' ||
+  fail "--lines does not order CIN-V0-999 before CIN-V0-1010: $(lines | grep '^CIN-V0-' | cut -f1)"
+printf '# Long ids\n\n## Requirements\n\n- **CIN-V0-999:** (proposed) Three digits.\n- **CIN-V0-01:** (proposed) Two digits.\n- **CIN-V0-1010a:** (proposed) A lower-case tail.\n- **CIN-V0-999A:** (proposed) A lettered sub-requirement.\n' > "$test_root/docs/specs/longid.md"
+stage docs/specs/longid.md
+lid_err=$(run 2>&1 > /dev/null) && fail "a malformed requirement definition was accepted"
+case $lid_err in
+  *'docs/specs/longid.md:6: CIN-V0-01 looks like a requirement definition'*'docs/specs/longid.md:7: CIN-V0-1010a looks like a requirement definition'*'(SRG-V0-791)'*) ;;
+  *) fail "the malformed-definition refusal lacks the lines and IDs: $lid_err" ;;
+esac
+case $lid_err in *CIN-V0-999A*) fail "a lettered sub-requirement was refused: $lid_err" ;; esac
+lid_dir="$test_root/lid-out"
+mkdir "$lid_dir"
+(cd "$test_root" && script/gen-spec-requirements.sh --all "$lid_dir") > /dev/null 2>&1 && fail "--all accepted a malformed definition"
+test -z "$(ls -A "$lid_dir")" || fail "a refused malformed definition wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/longid.md
+
 printf 'ok\n'

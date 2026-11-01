@@ -255,7 +255,7 @@ sub line_of {
     return 1 + (substr($blob, 0, $-[0]) =~ tr/\n//);
 }
 
-my (%best, %header, %definitions, %section, @outside_section);
+my (%best, %header, %definitions, %section, @outside_section, @malformed);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
     # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
@@ -308,12 +308,19 @@ for my $file (sort @specs) {
             } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
-            } elsif (!$in_section && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+            } elsif (!$in_section && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
                 push @outside, [$1 // $2, $line_number];
+            }
+            # SRG-V0-791: a definition-shaped bold or backticked id the token scan cannot read; a lettered
+            # sub-requirement (`VAF-009A`) stays unindexed under its parent row.
+            if ($definition_boundary && !$wrapped
+                && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*([A-Z][A-Z0-9-]*-[0-9][A-Za-z0-9_-]*)[:.]\*\*|`([A-Z][A-Z0-9-]*-[0-9][A-Za-z0-9_-]*)`:\s)/) {
+                my $id = $1 // $2;
+                push @malformed, [$file, $line_number, $id] if $id !~ /-[0-9]{3,}[A-Z]?\z/;
             }
         }
 
-        while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
+        while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3,})\b/g) {
             my $id = $1;
             my $quoted = quotemeta($id);
             my $is_period = $definition_boundary && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?\.(?:\*\*)?\s/;
@@ -365,6 +372,37 @@ for my $file (sort @specs) {
     }
 }
 
+# SRG-V0-790 (V1-3793): an id of four or more digits is a requirement only under a prefix that
+# also defines a three-digit id on a rank 0 line, so ticket ids (`V1-0789`) and record ids
+# (`DR-0046`) in tables and prose stay text, as they were when the scan read three digits only.
+my %known_prefix;
+for my $id (keys %best) {
+    my ($prefix) = $id =~ /\A(.*-)[0-9]{3}\z/;
+    $known_prefix{$prefix} = 1 if defined $prefix && $best{$id}{key} =~ /\A0\0/;
+}
+sub id_prefix { return $_[0] =~ /\A(.*-)[0-9][^-]*\z/ ? $1 : '' }
+sub requirement_id { return $_[0] =~ /-[0-9]{3}\z/ || $known_prefix{id_prefix($_[0])} }
+for my $id (grep { !requirement_id($_) } keys %best) {
+    delete $best{$id};
+    delete $definitions{$id};
+}
+@outside_section = grep { requirement_id($_->[1]) } @outside_section;
+# SRG-V0-791 (V1-3793): a definition-shaped id under a known prefix that is not the prefix and three
+# or more digits (`CIN-V0-01`, `CIN-V0-1010a`) is refused with its file and line, never dropped.
+if (my @refused = grep { $known_prefix{id_prefix($_->[2])} } @malformed) {
+    print STDERR "$_->[0]:$_->[1]: $_->[2] looks like a requirement definition of prefix "
+        . id_prefix($_->[2]) . " but is not that prefix followed by three or more digits\n" for @refused;
+    die "write each requirement id as PREFIX-NNN with three or more digits, then rerun make "
+        . "spec-requirements (SRG-V0-791)\n";
+}
+# id_order sorts requirement ids by prefix, then by number, so CIN-V0-999 precedes CIN-V0-1010.
+sub id_order {
+    my ($left, $right) = @_;
+    my ($left_prefix, $left_number) = $left =~ /\A(.*-)([0-9]+)\z/ ? ($1, $2) : ($left, -1);
+    my ($right_prefix, $right_number) = $right =~ /\A(.*-)([0-9]+)\z/ ? ($1, $2) : ($right, -1);
+    return $left_prefix cmp $right_prefix || $left_number <=> $right_number || $left cmp $right;
+}
+
 # where_requirements FILE: where a new requirement of FILE is defined, for the refusals below.
 sub where_requirements {
     my ($file) = @_;
@@ -379,7 +417,7 @@ sub where_requirements {
 # `--lines` is the derived locator view with the line column, ordered by id; it is never committed.
 sub tsv_text {
     my @ids = sort {
-        $best{$a}{file} cmp $best{$b}{file} || $best{$a}{line} <=> $best{$b}{line} || $a cmp $b
+        $best{$a}{file} cmp $best{$b}{file} || $best{$a}{line} <=> $best{$b}{line} || id_order($a, $b)
     } keys %best;
     return join '', "id\tfile\ttitle\tacceptance\tacceptedBy\n",
         map { join("\t", $_, @{$best{$_}}{qw(file title acceptance accepted_by)}) . "\n" } @ids;
@@ -399,9 +437,9 @@ for my $file (sort @specs) {
 sub status_ids {
     my ($text) = @_;
     my @ids;
-    while ($text =~ /\b([A-Z][A-Z0-9-]*-)([0-9]{3})((?:(?:\.\.|\/)[0-9]{3}\b)*)\b/g) {
+    while ($text =~ /\b([A-Z][A-Z0-9-]*-)([0-9]{3,})((?:(?:\.\.|\/)[0-9]{3,}\b)*)\b/g) {
         my ($prefix, $first, $rest) = ($1, $2, $3);
-        push @ids, map { "$prefix$_" } $first, $rest =~ /([0-9]{3})/g;
+        push @ids, grep { requirement_id($_) } map { "$prefix$_" } $first, $rest =~ /([0-9]{3,})/g;
     }
     return @ids;
 }
@@ -492,7 +530,7 @@ if ($mode eq 'tsv') {
 }
 if ($mode eq 'lines') {
     print "id\tfile\tline\ttitle\tacceptance\tacceptedBy\n";
-    for my $id (sort keys %best) {
+    for my $id (sort { id_order($a, $b) } keys %best) {
         my $row = $best{$id};
         print join("\t", $id, @{$row}{qw(file line title acceptance accepted_by)}), "\n";
     }
@@ -524,7 +562,7 @@ sub default_prefix {
     my ($file) = @_;
     return $header{$file}{prefix} if defined $header{$file}{prefix};
     my ($id) = grep { $best{$_}{file} eq $file && $best{$_}{key} =~ /\A0\0/ } sort keys %best;
-    return defined $id ? $id =~ s/-[0-9]{3}\z//r : '';
+    return defined $id ? $id =~ s/-[0-9]{3,}\z//r : '';
 }
 
 sub new_spec_title {
@@ -622,10 +660,10 @@ sub readme_text {
         $rowed{$path} = 1;
         # SRG-V0-043: a requirement range written right after the link, alone or before a `;`, is
         # the span of the ids of that prefix the spec defines, so it cannot drift from the TSV.
-        if ($columns[2] =~ /\A(.*?\]\([^)]+\)\s+)([A-Z][A-Z0-9-]*-)([0-9]{3})(?:\.\.([0-9]{3}))?(?=\s*(?:;|\z))/s) {
+        if ($columns[2] =~ /\A(.*?\]\([^)]+\)\s+)([A-Z][A-Z0-9-]*-)([0-9]{3,})(?:\.\.([0-9]{3,}))?(?=\s*(?:;|\z))/s) {
             my ($lead, $prefix) = ($1, $2);
-            my @numbers = sort map { substr $_, length $prefix }
-                grep { $best{$_}{file} eq $path && /\A\Q$prefix\E[0-9]{3}\z/ } keys %best;
+            my @numbers = sort { $a <=> $b } map { substr $_, length $prefix }
+                grep { $best{$_}{file} eq $path && /\A\Q$prefix\E[0-9]{3,}\z/ } keys %best;
             @numbers or die "$path: its README row shows a $prefix range but the spec defines no $prefix id\n";
             my $range = $prefix . $numbers[0] . ($numbers[-1] ne $numbers[0] ? "..$numbers[-1]" : '');
             substr($columns[2], length $lead, $+[0] - length $lead) = $range;
