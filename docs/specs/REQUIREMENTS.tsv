@@ -1207,6 +1207,10 @@ CEM-V1-983	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-984	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) `cem cite` MUST	standing	V1-2752
 CEM-V1-985	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The binary	standing	V1-2752
 CEM-V1-986	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The frozen	standing	V1-2752
+CEM-V1-930	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3404)) Amends `CEM-V1-301`	standing	V1-3404
+CEM-V1-931	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3404)) Base simulation	standing	V1-3404
+CEM-V1-932	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3404)) The frozen	standing	V1-3404
+CEM-V1-933	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3404)) A commit that chang	standing	V1-3404
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
