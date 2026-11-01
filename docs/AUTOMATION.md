@@ -137,7 +137,7 @@ recipe exit as 2, which the worked example observed.
 **Fresh-clone limitation (V1-0182, by design).** The task-store title of ticket V1-0182 states it
 verbatim: "dogfood-check: in a fresh clone the check fails `dogfood-report-missing` before any
 verifier runs, so a reviewer cannot reproduce the override-verifier comparison". The worked example
-reproduces it: `internal/dogfoodflow/check.go:378-388@ed02dc63` exits 1 with `FAIL dogfood-report-missing` because
+reproduces it: `internal/dogfoodflow/check.go:380-390@ed02dc63` exits 1 with `FAIL dogfood-report-missing` because
 `.corvint/dogfood-report.json` is gitignored and only the author's `dogfood-change` writes it. A
 fresh-clone trigger can therefore verify a sealed CEM with `cem verify`, but cannot reproduce the
 author's dogfood-check verifier comparison. That comparison is author-only evidence

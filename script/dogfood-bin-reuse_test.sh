@@ -69,12 +69,13 @@ cd "$repo"
 # expect_builds ACTION COUNT CASE runs one wrapper and checks how many builds it ran.
 expect_builds() {
   : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
-  # Literal wrapper names, not a built one, so the TSP-V0-005 caller declaration stays literal.
+  # Each wrapper is named in full, so the shell plugin links it as a literal
+  # target rather than a constructed dogfood-*.sh name (TSP-V0-960, V1-3898).
   local wrapper
   case $1 in
     change) wrapper=script/dogfood-change.sh ;;
     check) wrapper=script/dogfood-check.sh ;;
-    *) printf 'unknown action %s\n' "$1" >&2; exit 1 ;;
+    *) printf "expect_builds: unknown action %s\n" "$1" >&2; exit 1 ;;
   esac
   bash "$wrapper" "$base" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
   local builds

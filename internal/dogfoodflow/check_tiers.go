@@ -170,6 +170,7 @@ func (tally belowAnchored) aggregated(list string) []string {
 // file, and the bounded per-hunk form when it cannot be (DCW-V0-344), so no
 // warning is ever dropped.
 func (c *check) tierWarnings(cemLine []byte) []string {
+	defer c.clock.enter("binding", "tiers")()
 	quiet := c.quietHunks(cemLine)
 	if c.evidence == "" {
 		return belowAnchoredWarnings(cemLine, quiet)

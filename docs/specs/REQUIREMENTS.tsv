@@ -269,6 +269,7 @@ AFP-V0-615	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-817	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3326)	standing	2026-10-11; V1-3326
 AFP-V0-818	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906;	standing	2026-10-11; V1-2906
 AFP-V0-819	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906)	standing	2026-10-11; V1-2906
+AFP-V0-987	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3898;	standing	2026-10-11; V1-3898
 AFP-V0-640	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;	standing	2026-10-11; V1-2647
 AFP-V0-641	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2979;	standing	2026-10-11; V1-2979
 AFP-V0-650	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2980)	standing	2026-10-11; V1-2980
@@ -3620,12 +3621,14 @@ DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the o
 DCW-V0-940	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`	standing	V1-2445
 DCW-V0-941	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3036; refines `DCW-V0-370`	standing	V1-3036
 DCW-V0-942	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3625; refines	standing	2026-10-31; V1-3625
+DCW-V0-984	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3810; refines	standing	2026-11-01; V1-3810
 DCW-V0-943	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3627; refines	standing	2026-10-31; V1-3627
 DCW-V0-944	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines	standing	2026-10-31; V1-3550
 DCW-V0-945	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3633; refines	standing	2026-11-01; V1-3633
 DCW-V0-948	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3633; refines	standing	2026-11-01; V1-3633
 DCW-V0-946	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3633 acceptanc	standing	2026-11-01; V1-3633
 DCW-V0-947	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3638; refines	standing	2026-11-01; V1-3638
+DCW-V0-982	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; lane dck-u24	standing	2026-11-01
 DCW-V0-960	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines	standing	2026-10-31; V1-3047
 DCW-V0-961	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines	standing	2026-10-31; V1-3047
 DCW-V0-962	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3284, V1-3428;	standing	2026-10-31; V1-3284; V1-3428
@@ -4264,6 +4267,7 @@ DCR-V1-557	docs/specs/documentation-corpus-verified-reads-v1.md	The claim-audit 
 DCR-V1-558	docs/specs/documentation-corpus-verified-reads-v1.md	The recorded-identity check of `DCR-V1-410` does not validate the manifest again	unrecorded	-
 DCR-V1-559	docs/specs/documentation-corpus-verified-reads-v1.md	A streamed decode whose boundary scan has more than one segment pre-scans each	unrecorded	-
 DCR-V1-975	docs/specs/documentation-corpus-verified-reads-v1.md	The pinned-revision verification resolves every pinned revision of one checkout	unrecorded	-
+DCR-V1-985	docs/specs/documentation-corpus-verified-reads-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2745)	standing	2026-10-11; V1-2745
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-

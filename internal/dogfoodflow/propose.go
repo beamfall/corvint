@@ -985,7 +985,7 @@ func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map
 			":(exclude,glob)**/raw/**", ":(exclude,glob)**/*.stdout", ":(exclude,glob)**/*.stderr")
 		arguments = append(arguments, draftDataExcludes...)
 	}
-	out, status, bounded := p.boundedGit(arguments...)
+	out, status, bounded := p.anchorGrep(arguments, sorted)
 	// git grep exits 1 when nothing matches: a complete read with no candidates.
 	if status > 1 || !bounded {
 		return false

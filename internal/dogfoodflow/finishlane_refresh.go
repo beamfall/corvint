@@ -104,6 +104,7 @@ func (l *finishLane) refreshMovedPlan() {
 			}
 		}
 		l.say("  fix: review the drafted rows in %s (a drafted citation is a proposal, not evidence), then rerun with CITATIONS=%s\n", name, name)
+		l.say("  install: after that review, cp -f -- %s %s installs the candidate as the plan CITATIONS names, so the same rerun binds it (DCW-V0-982)\n", shellQuote(name), shellQuote(plan))
 		l.exit(2)
 	}
 	l.say("%s: NOTE citations-refreshed plan=%s carried=%d rekeyed=%d\n", l.prefix, name, carried, rekeyed)
