@@ -4,6 +4,9 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -110,9 +113,23 @@ func buildWrapper(t *testing.T) string {
 
 func requireLandlock(t *testing.T) {
 	t.Helper()
-	if abi := testconfine.ABI(); abi < 2 {
-		t.Skipf("AFP-V0-767: landlock ABI %d is below 2 on this kernel, so a declared package cannot be confined here", abi)
+	if reason := landlockUnavailable(); reason != "" {
+		t.Skip(reason)
 	}
+}
+
+// landlockUnavailable names why a nested wrapper cannot confine here, or "". A
+// test binary that CI's wrapper already confines cannot list "/" or the
+// repository root's other ancestors, and the wrapper's rules need every
+// ancestor's entries, so a nested wrapper exits 2 before any test runs.
+func landlockUnavailable() string {
+	if abi := testconfine.ABI(); abi < 2 {
+		return fmt.Sprintf("AFP-V0-767: landlock ABI %d is below 2 on this kernel, so a declared package cannot be confined here", abi)
+	}
+	if _, err := os.ReadDir(string(filepath.Separator)); errors.Is(err, fs.ErrPermission) {
+		return "AFP-V0-767: nested confinement; this test binary already runs confined, so a nested wrapper cannot list the ancestors its rules need"
+	}
+	return ""
 }
 
 func readExecution(t *testing.T, o options) execution {
@@ -362,8 +379,8 @@ func campaignRefusesDeclarationWithoutConfine(t *testing.T) {
 	}
 
 	// With the real wrapper the campaign starts and freezes a confined identity.
-	if testconfine.ABI() < 2 {
-		t.Logf("AFP-V0-768: landlock ABI %d below 2; the confined freeze is not observed here", testconfine.ABI())
+	if reason := landlockUnavailable(); reason != "" {
+		t.Logf("AFP-V0-768: the confined freeze is not observed here: %s", reason)
 		return
 	}
 	confined := o

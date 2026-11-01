@@ -543,6 +543,7 @@
     ],
     "tools/corvint-pr-tests": [
       ".github/cishards/",
+      ".github/testconfine/",
       "cmd/",
       "go.mod",
       "go.sum",
