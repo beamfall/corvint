@@ -58,6 +58,7 @@ const (
 )
 
 func TestMain(m *testing.M) {
+	pinTestUmask()
 	if len(os.Args) == 2 && os.Args[1] == "version" && filepath.Base(os.Args[0]) == "corvint-nested-go" {
 		os.Exit(runNestedAuthorityGoHelper())
 	}
