@@ -1939,6 +1939,9 @@ ASD-V0-970	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-996	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `make fl	standing	2026-11-01; V1-3239
 ASD-V0-997	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) The same	standing	2026-11-01; V1-3239
 ASD-V0-998	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3239) `dogfood	standing	2026-11-01; V1-3239
+ASD-V0-950	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-2909, V1-1	standing	2026-11-01; V1-2909; V1-1009
+ASD-V0-951	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-1009, V1-2	standing	2026-11-01; V1-1009; V1-2909
+ASD-V0-952	docs/specs/corvint-self-development-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3614; exte	standing	2026-11-01; V1-3614
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -5297,6 +5300,8 @@ OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane au
 OCM-V0-900	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3455; refines	standing	2026-10-31; V1-3455
 OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
+OCM-V0-950	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3455;	standing	2026-11-01; V1-3455
+OCM-V0-951	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-0585)	standing	2026-11-01; V1-0585
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -6304,6 +6309,11 @@ SRG-V0-920	docs/specs/spec-requirement-index-generator-v0.md	(experimental under
 SRG-V0-921	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3338; exte	standing	2026-10-31; V1-3338
 SRG-V0-922	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3437) `mak	standing	2026-10-31; V1-3437
 SRG-V0-923	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3362; refi	standing	2026-10-31; V1-3362
+SRG-V0-950	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3575;	standing	2026-11-01; V1-3575
+SRG-V0-951	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3602) One	standing	2026-11-01; V1-3602
+SRG-V0-952	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3563) An	standing	2026-11-01; V1-3563
+SRG-V0-953	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3553;	standing	2026-11-01; V1-3553
+SRG-V0-954	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3617, V1-3	standing	2026-11-01; V1-3617; V1-3510
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -7022,6 +7032,7 @@ TTG-V0-009	docs/specs/traceability-test-gate-v0.md	When one or more names fail T
 TTG-V0-010	docs/specs/traceability-test-gate-v0.md	The gate MUST be wired as the `traceability-tests-check` `make` target and MUST	unrecorded	-
 TTG-V0-011	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3143; refines	standing	2026-10-29; V1-3143
 TTG-V0-012	docs/specs/traceability-test-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3235; refines	standing	2026-10-30; V1-3235
+TTG-V0-950	docs/specs/traceability-test-gate-v0.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3586)	standing	2026-11-01; V1-3586
 TRJ-V0-001	docs/specs/trial-replay-journal-v0.md	Both dispatchers MUST implement `--resume` and `--reuse` through one shared pack	unrecorded	-
 TRJ-V0-002	docs/specs/trial-replay-journal-v0.md	The replay key MUST be the SHA-256 of the canonical JSON (`gokernel.CanonicalJSO	unrecorded	-
 TRJ-V0-003	docs/specs/trial-replay-journal-v0.md	The key MUST NOT include a filesystem path, host, user, clock time, worker count	unrecorded	-

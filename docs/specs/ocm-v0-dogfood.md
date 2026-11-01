@@ -342,6 +342,33 @@ claim, and mutation ordering deltas below.
   Non-goals: enumerating such lines as OCM obligations (that amends `OCM-V0-001`). Evidence:
   `TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection`. Rollback: drop
   `requirementSection.outside` and the note.
+- `OCM-V0-950`: (experimental under the owner's standing auto-accept (2026-11-01); V1-3455;
+  amends `OCM-V0-019` and `OCM-V0-025`) The `OCM-V0-019` traced test MUST also accept a `|` table
+  row of the target intent, outside its requirements section, that holds a range token
+  `PREFIX-NNN..NNN` or `PREFIX-NNN..PREFIX-NNN` over the ID with the ID's own prefix, bounded by the
+  `OCM-V0-017` adjoining-byte rule, and a line of a `*_test.go` or `*_test.sh` file at the target
+  that holds the ID's test-name spelling (`TCP-V0-991` as `TCPV0991` or `TCP_V0_991`) with no
+  upper-case letter or digit before it and no digit after it, as in `TestX_TCPV0991`. The
+  `untraced-requirements` note MUST end with `; traced by:` and these accepted forms. The
+  aggregate, the verdict and the populations are unchanged. Failure mode: the ctxpkt-w1 closeout
+  named TCP-V0-991..993 untraced although its traceability row named `TCP-V0-990..993` and its
+  tests ended in `_TCPV0991`. Non-goals: reading test bodies; a range over a different prefix.
+  Evidence: `TestOCMV0950TracesTestNameSuffixesAndTableRanges`. Rollback: drop the two matchers
+  and the note tail.
+- `OCM-V0-951`: (experimental under the owner's standing auto-accept (2026-11-01); V1-0585)
+  `corvint ocm link` MUST replace an obligation's earlier claims only for the test path it links,
+  keeping every earlier claim of the obligation from another test path, so one requirement keeps
+  real assertions in several test files, each linked by its own invocation with its own pinned
+  path, blob, selector and span. While any earlier claim is kept, the recorded hunk set is the
+  union of the earlier and the new hunks; with none kept the link records exactly its own hunks
+  and claims, as before. A link whose kept and new references exceed 64 is refused
+  `invalid-claim-references`. Re-extraction, exact requirement-ID checks, the closure check of the
+  whole map and the CEM binding are unchanged, and a linked obligation's claims remain structural
+  linkage to test anchors, not proof that the assertions cover the requirement. Failure mode: a
+  second `--test-path` link erased the first file's supported claims, so multi-file evidence could
+  not be represented. Non-goals: one invocation over several paths; removing a kept claim (mark the
+  obligation and relink). Evidence: `TestOCMV0951LinkKeepsOtherTestPaths` (kept claims and the hunk union over two paths, and a relinked path). Rollback: revert to the
+  whole-obligation replacement.
 
 ## Wire profile
 
@@ -647,6 +674,8 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-027 | `internal/lrfrepo/stable_reuse.go` (`StableReuse`, `acceptedStableReused`, `verifierIdentity`), `internal/lrfrepo/stable_reuse_change_darwin.go` (`fileChangedBefore`), `internal/lrfrepo/ocm_read.go` (`verifyStableOCMCEM`), `internal/cem/verify/stable_artifacts.go` (`RecheckStableArtifacts`), `internal/dogfoodocm/aggregate.go` (`Status`), `internal/dogfoodflow/flow.go` (`childEnvironment`) | `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027RunVerifiesUnchangedCEMOnce`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ChangedDigestForcesReverification`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReuseMissesOnVerifierOrArtifactChange`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReplacedExecutableHasNoIdentity`, `internal/dogfoodflow/stable_reuse_test.go:TestOCMV0027ChildrenShareOnlyTheirRunStore` |
 | OCM-V0-028 | `internal/dogfoodflow/obligation_precheck.go` (`precheckIntentObligations`, `manifestIntents`), `internal/lrfrepo/ocm_obligation_count.go` (`IntentObligationCounts`), `internal/dogfoodflow/change.go` (`fitHint`) | `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028OverBoundIntentsRefuseBeforeAnyStep`, `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028DerivedBoundAdmitsSummedScopes` |
 | OCM-V0-900 | `internal/dogfoodflow/ocm_coverage.go` (`testsNaming`, `namesCompactRequirement`, `rowRangeNames`) | `internal/dogfoodflow/ocm_coverage_test.go:TestOCMV0900TracesCompactTestSuffixesAndRowRanges` |
+| OCM-V0-950 | `internal/dogfoodflow/ocm_coverage.go` (`rangeNamesRequirement`, `namesRequirementSuffix`, `testsNaming`, `tracedForms`) | `internal/dogfoodflow/check_test.go:TestOCMV0950TracesTestNameSuffixesAndTableRanges` |
+| OCM-V0-951 | `internal/lrfrepo/ocm_write.go` (`linkObligation`, `existingClaimPaths`) | `internal/lrfrepo/ocm_multifile_test.go:TestOCMV0951LinkKeepsOtherTestPaths` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
 | OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
 

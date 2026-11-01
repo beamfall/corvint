@@ -902,6 +902,11 @@ func matchClaims(claims []ocmClaim, selector string) []ocmClaim {
 // claim set. A claim id that already exists with different fields is a conflict,
 // not an overwrite: the id is content-derived, so disagreement means one of the
 // two was not derived from what it claims to describe.
+//
+// OCM-V0-951 (V1-0585): a link replaces the obligation's earlier claims from its
+// own test path and keeps those from every other test path, so one requirement
+// can carry assertions in several test files, linked one path per invocation;
+// while any are kept, the hunk set is the union of the earlier and new hunks.
 func linkObligation(document wire.Value, obligationID string, hunkIDs []string, claims []ocmClaim) (wire.Value, error) {
 	unique := map[string]struct{}{}
 	for _, id := range hunkIDs {
@@ -917,6 +922,7 @@ func linkObligation(document wire.Value, obligationID string, hunkIDs []string, 
 	if len(claimIDs) == 0 || len(claimIDs) > maxReferences {
 		return wire.Value{}, &Error{Code: "invalid-claim-references", Message: "claim references must be non-empty and unique"}
 	}
+	claimPaths := existingClaimPaths(document)
 	merged, err := mergeClaims(document, claims)
 	if err != nil {
 		return wire.Value{}, err
@@ -925,6 +931,10 @@ func linkObligation(document wire.Value, obligationID string, hunkIDs []string, 
 	obligations, err := requireArray(document.Obj, "obligations")
 	if err != nil {
 		return wire.Value{}, err
+	}
+	linkedPaths := map[string]bool{}
+	for _, claim := range claims {
+		linkedPaths[claim.path] = true
 	}
 	matched := 0
 	for _, item := range obligations {
@@ -935,15 +945,69 @@ func linkObligation(document wire.Value, obligationID string, hunkIDs []string, 
 			continue
 		}
 		matched++
+		keptClaims := []string{}
+		for _, id := range memberStrings(item.Obj, "claimIds") {
+			if path, known := claimPaths[id]; known && !linkedPaths[path] && !containsString(claimIDs, id) {
+				keptClaims = append(keptClaims, id)
+			}
+		}
+		recordedHunks, recordedClaims := hunkIDs, claimIDs
+		if len(keptClaims) > 0 {
+			recordedClaims = append(append([]string(nil), claimIDs...), keptClaims...)
+			recordedHunks = append([]string(nil), hunkIDs...)
+			for _, id := range memberStrings(item.Obj, "hunkIds") {
+				if !containsString(recordedHunks, id) {
+					recordedHunks = append(recordedHunks, id)
+				}
+			}
+		}
+		if len(recordedClaims) > maxReferences || len(recordedHunks) > maxReferences {
+			return wire.Value{}, &Error{Code: "invalid-claim-references", Message: "the kept and new references exceed the per-obligation limit"}
+		}
 		objectMember(item.Obj, "disposition", stringValue("linked"))
 		objectMember(item.Obj, "reason", stringValue("change-and-test-linked"))
-		objectMember(item.Obj, "hunkIds", stringArray(sortedCopy(hunkIDs)))
-		objectMember(item.Obj, "claimIds", stringArray(sortedCopy(claimIDs)))
+		objectMember(item.Obj, "hunkIds", stringArray(sortedCopy(recordedHunks)))
+		objectMember(item.Obj, "claimIds", stringArray(sortedCopy(recordedClaims)))
 	}
 	if matched != 1 {
 		return wire.Value{}, &Error{Code: "unknown-obligation-id", Message: "obligation ID must select exactly one row"}
 	}
 	return document, nil
+}
+
+// existingClaimPaths maps each claim id already in the map to its test path.
+func existingClaimPaths(document wire.Value) map[string]string {
+	paths := map[string]string{}
+	existing, ok := document.Obj.Get("claims")
+	if !ok || existing.Kind != wire.KindArray {
+		return paths
+	}
+	for _, claim := range existing.Arr {
+		if claim.Kind != wire.KindObject {
+			continue
+		}
+		id, hasID := claim.Obj.Get("id")
+		path, hasPath := claim.Obj.Get("path")
+		if hasID && hasPath && id.Kind == wire.KindString && path.Kind == wire.KindString {
+			paths[id.Str] = path.Str
+		}
+	}
+	return paths
+}
+
+// memberStrings is an object's string-array member, skipping non-strings.
+func memberStrings(object *wire.Object, key string) []string {
+	value, ok := object.Get(key)
+	if !ok || value.Kind != wire.KindArray {
+		return nil
+	}
+	result := []string{}
+	for _, item := range value.Arr {
+		if item.Kind == wire.KindString {
+			result = append(result, item.Str)
+		}
+	}
+	return result
 }
 
 func mergeClaims(document wire.Value, incoming []ocmClaim) (wire.Value, error) {

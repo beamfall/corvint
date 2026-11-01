@@ -444,6 +444,17 @@ file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` li
 section, never into the frozen header `Intent status:` or Agent digest `Status:` line, which
 `make spec-requirements` refuses (`SRG-V0-980`, `SRG-V0-890`), nor after that section
 (`SRG-V0-891`).
+`ASD-V0-960`); with a `RANGE` the same target also checks every unmerged local branch and worktree
+and names each ID one of them defines as `used ID NAME (SHA) FILE` (`ASD-V0-952`). The charter tells
+the lane to run `make requirement-id-collisions` after staging a spec that adds an ID and before its
+final commit, and the orchestrator runs it in the batch checkout before integrating each lane
+(`ASD-V0-950`, `ASD-V0-951`).
+
+A charter also tells the lane where a new requirement range goes: on each requirement's own
+definition line (its leading note), in the spec's acceptance and traceability rows and in the
+build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
+so `make spec-requirements` refuses a new ID or range named there, naming that line as `path:line`
+(`SRG-V0-980`, `SRG-V0-950`).
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a

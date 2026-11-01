@@ -99,6 +99,18 @@ arguments, and requires only `git` and `perl` on `PATH`.
   (`git add -- FILE`). A name no working-tree file declares keeps the plain `path:line: Name` line.
   Non-goals: reading working-tree content as evidence. Failure mode: a name declared only in a
   Git-ignored file gets no hint.
+- `TTG-V0-950`: (experimental under the owner's standing auto-accept (2026-11-01); V1-3586)
+  `script/check-traceability-tests.sh --range BASE..HEAD` (`make traceability-tests-check
+  TRACE_RANGE=BASE..HEAD`) MUST check the traceability rows of every first-parent commit of the
+  range, each read from that commit's tree, against the test functions declared in HEAD's tree, so
+  a spec-first commit may cite a test that a later commit of the same change adds. A cited name
+  that HEAD does not declare MUST fail, named once as `COMMIT path:line: Name` at the first commit
+  that cites it; a malformed range or a range with no commit exits 2. The index check without
+  `--range` is unchanged except that its failure report MUST name the range form as the route for
+  a spec-first commit. Failure mode: the spec-first commit order that `SPEC-DRIVEN-DEVELOPMENT.md`
+  requires failed the index check whenever the trace row cited the next commit's test, so lanes
+  broke the order or squashed. Non-goal: proving the test asserts the requirement. Rollback: drop
+  the option and the hint.
 
 ## Non-goals and simpler baseline
 
@@ -130,6 +142,7 @@ exit code.
 | Cited identifier marked `(PLANNED)` immediately after the token | pass; counted in the summary total, not checked for existence |
 | A capitalized table-row word that happens to start with the matched prefix but names no verification function | fail, indistinguishable from a real citation; see TTG-V0-005 |
 | An untracked or Git-ignored `_test.go` file declares the only matching function | its declarations are invisible to TTG-V0-001; the citing row fails, naming the untracked file and the staging fix (TTG-V0-012); an ignored file gets no hint |
+| A spec-first commit cites a test its change adds in the next commit | the index check fails at that commit naming the row and the `TRACE_RANGE=BASE..HEAD` route; the range check passes once the test is in HEAD, and fails naming the first citing commit when it never lands (TTG-V0-950) |
 | An unstaged edit adds or removes a declaration in a tracked `_test.go` file | the edit is invisible; the gate continues to evaluate the indexed blob per TTG-V0-002; an added declaration's failure names the file and the staging fix (TTG-V0-012) |
 
 ## Acceptance criteria
@@ -149,6 +162,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-010 | `Makefile` targets `traceability-tests-check` and `traceability-tests-test` and their membership in the `gate` target's prerequisite list |
 | TTG-V0-011 | `script/check-traceability-tests_test.sh` qualified fixture: `toolgroup.TestValidity` and `(*v).TestRun` pass, a bare undeclared name of that word on the same row is still reported (the fixture fails on the base checker) |
 | TTG-V0-012 | `script/check-traceability-tests_test.sh` untracked and unstaged-edit fixtures: each failure names the working-tree file and `git add`; a never-declared name carries no hint; staging resolves the row (the fixture fails on the base checker) |
+| TTG-V0-950 | `script/check-traceability-tests_test.sh` spec-first fixture: the spec-only index check fails with the range hint, `--range BASE..HEAD` passes once the next commit adds the test and fails for a range that ends before it, and a never-landing test is named once at its first citing commit |
 
 ## Traceability
 
@@ -161,6 +175,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-010 | `traceability-tests-check` and `traceability-tests-test` in `Makefile` and their place in the `gate` prerequisite list | `Makefile` |
 | TTG-V0-011 | the selector skip in the per-line match loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 | TTG-V0-012 | `unstaged_hint` in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
+| TTG-V0-950 | the `--range` option and the per-commit loop in `script/check-traceability-tests.sh`; `TRACE_RANGE` in `Makefile` | `script/check-traceability-tests_test.sh` |
 
 ## Rollout, rollback, and drift
 
@@ -172,6 +187,8 @@ renaming or deleting a cited function without updating or re-marking its row is 
 this gate exists to catch, so such a change MUST update the citing row in the same commit. Roll back
 TTG-V0-011 by removing the selector skip and its fixture; qualified identifiers then fail again.
 Roll back TTG-V0-012 by removing `unstaged_hint` and its fixture cases; failures lose the hint only.
+Roll back TTG-V0-950 by removing `--range`, `TRACE_RANGE` and the hint; a spec-first commit can
+then use `(PLANNED)` until its test lands.
 
 ## Unresolved
 

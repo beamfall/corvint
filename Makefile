@@ -304,20 +304,17 @@ cem-release-gate: go-version
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the
-# Git index, so stage the changed spec first. One generator pass writes all three (SRG-V0-018);
-# nothing is copied unless all three regenerate.
-SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
-SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
-
+# Git index, so stage the changed spec first: `--write` refuses an unstaged or untracked spec
+# (SRG-V0-954). One generator pass builds all three (SRG-V0-018); nothing is copied unless all
+# three regenerate.
 .PHONY: spec-requirements
 # SRG-V0-922 (V1-3437): mid-merge, an unmerged generated file (or one staged with its conflict
 # markers) is refused with one line naming spec-requirements-resolve, before the generator reads it.
 spec-requirements:
-	@u=$$(git diff --name-only --diff-filter=U -- $(addprefix docs/specs/,$(SPEC_GENERATED)); \
-	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- $(addprefix docs/specs/,$(SPEC_GENERATED)) 2>/dev/null); \
+	@u=$$(git diff --name-only --diff-filter=U -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md; \
+	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
-	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
+	@script/gen-spec-requirements.sh --write
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
@@ -337,9 +334,7 @@ repin:
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
 .PHONY: spec-requirements-check
 spec-requirements-check:
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; stale=0; \
-	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
-	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
+	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
 	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
@@ -355,6 +350,7 @@ spec-requirements-test:
 	@script/gen-spec-requirements_test.sh
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
+	@script/requirement-id-collisions_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
@@ -377,9 +373,10 @@ requirement-definitions-check:
 requirement-definitions-test:
 	@script/check-requirement-definitions_test.sh
 
+# TRACE_RANGE=BASE..HEAD checks every commit's rows against the change head (TTG-V0-950).
 .PHONY: traceability-tests-check
 traceability-tests-check:
-	@script/check-traceability-tests.sh
+	@script/check-traceability-tests.sh $(if $(TRACE_RANGE),--range "$(TRACE_RANGE)")
 
 .PHONY: traceability-tests-test
 traceability-tests-test:
@@ -1033,12 +1030,21 @@ dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
-# for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit).
+# for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
+# with RANGE it then checks the block is free on every unmerged local branch and worktree too
+# (ASD-V0-952, V1-3614).
 # Without RANGE it checks PREFIX as a new family and names the next free one (ASD-V0-962, V1-3472).
 .PHONY: requirement-ids-free
 requirement-ids-free:
 	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
+	@$(if $(RANGE),script/requirement-id-collisions.sh --block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),--base "$(REF)"),true)
+
+# ASD-V0-950 (V1-2909, V1-1009): names each requirement ID this checkout's staged specs and another
+# local branch or worktree not yet in origin/main (REF= names another base) define differently.
+.PHONY: requirement-id-collisions
+requirement-id-collisions:
+	@script/requirement-id-collisions.sh $(if $(REF),--base "$(REF)")
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 .PHONY: lane-scripts-test
