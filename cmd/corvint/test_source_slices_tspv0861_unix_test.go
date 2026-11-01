@@ -85,7 +85,7 @@ func TestTSPV0861DryRunSlicesSourceAndTestChanges(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			stderr, units := plan(t, tc.edits)
 			got := units[tc.id]
-			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, Slice: sessiontest.SliceSelected, Unit: tc.id}
+			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, ReasonCode: sessiontest.ReasonCode(tc.reason), Slice: sessiontest.SliceSelected, Unit: tc.id}
 			if got != want {
 				t.Fatalf("unit %+v, want %+v (stderr %q)", got, want, stderr)
 			}
@@ -185,7 +185,7 @@ func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := plan(t, tc.edits)[id]
-			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, Slice: sessiontest.SliceSelected, Unit: id}
+			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, ReasonCode: sessiontest.ReasonCode(tc.reason), Slice: sessiontest.SliceSelected, Unit: id}
 			if got != want {
 				t.Fatalf("unit %+v, want %+v", got, want)
 			}
