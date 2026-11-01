@@ -79,6 +79,11 @@
 # that cannot be checked out and a failed mechanical repin, stays an introduced FAIL. A run with a
 # base-present WARN writes no receipt, since not every step passed.
 #
+# Missing node (ASD-V0-973, V1-3801, V1-3241): when BATCH_PRECHECK_NODE (default node) is not on
+# PATH, host-adapter-node-test does not run; its row prints NOT_AVAILABLE with the reason, it counts
+# as neither passed nor failed, and a receipt otherwise written records it as a trailing
+# `not-run TARGET REASON` line, which --verify-receipt accepts and prints. A host with node runs it.
+#
 # Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
 # the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
 # must name, as NAME, a full commit in HEAD's history; a seal made on another lineage (a pre-rewrite
@@ -131,6 +136,7 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 # so nothing else changes its result (ASD-V0-944, V1-3550).
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
 planner=${BATCH_PRECHECK_PLANNER-corvint}
+node_tool=${BATCH_PRECHECK_NODE:-node}
 # Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
 # (ASD-V0-047, V1-3142).
 SERIAL_TARGETS=(host-adapter-node-test)
@@ -589,6 +595,8 @@ steps() {
   for t in "${EXTRA_TARGETS[@]}"; do
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
       printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "skipped: $cat_skip"
+    elif [[ $t == host-adapter-node-test ]] && ! command -v "$node_tool" > /dev/null 2>&1; then
+      printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "NOT_AVAILABLE: $node_tool is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it"
     else
       printf 'make %s\t%senv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$go_wrap" "$gocache" "$t"
     fi
@@ -628,16 +636,19 @@ verify_receipt() {
   receipt=$(receipt_path) || return 2
   want=$(git rev-parse --verify --quiet "${1:-HEAD}^{commit}") || { printf 'batch-precheck: %s is not a commit\n' "${1:-HEAD}" >&2; return 2; }
   [[ -f $receipt ]] || { printf 'batch-precheck: refused: no precheck receipt; run make batch-precheck at %s first\n' "$want" >&2; return 1; }
-  # The whole receipt must be well formed: five lines in order, every step passed.
+  # The whole receipt must be well formed: five lines in order, then any `not-run TARGET REASON`
+  # lines (ASD-V0-973); every step passed or is one of those.
   awk 'NR == 1 && $0 != "corvint-batch-precheck-receipt/0" { bad = 1 }
     NR == 2 && !($1 == "head" && $2 ~ /^[0-9a-f]+$/ && NF == 2) { bad = 1 }
     NR == 3 && !($1 == "steps" && $2 ~ /^[1-9][0-9]*$/ && NF == 2) { bad = 1 } NR == 3 { steps = $2 }
-    NR == 4 && !($1 == "passed" && $2 == steps && NF == 2) { bad = 1 }
+    NR == 4 && !($1 == "passed" && $2 ~ /^[0-9]+$/ && NF == 2) { bad = 1 } NR == 4 { passed = $2 }
     NR == 5 && !($1 == "finished" && NF == 2) { bad = 1 }
-    END { exit (bad || NR != 5) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
+    NR > 5 && !($1 == "not-run" && $2 ~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/ && NF >= 3) { bad = 1 }
+    END { exit (bad || NR < 5 || passed + NR - 5 != steps) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
   head=$(awk '$1 == "head" { print $2 }' "$receipt")
   [[ $head == "$want" ]] || { printf 'batch-precheck: refused: the precheck receipt names %s, not %s; rerun make batch-precheck\n' "${head:-nothing}" "$want" >&2; return 1; }
   printf 'batch-precheck: receipt matches %s (%s)\n' "$want" "$(awk '$1 == "finished" { print $2 }' "$receipt")"
+  awk 'NR > 5 { $1 = ""; sub(/^ /, ""); print "batch-precheck: receipt records NOT_RUN " $0 }' "$receipt"
 }
 
 tracked_clean() { [[ -z $(git status --porcelain --untracked-files=no 2> /dev/null) ]]; }
@@ -1065,14 +1076,19 @@ if [[ -n $base ]]; then
   done
 fi
 
-pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0
-# row NAME RCFILE prints one table row; a step that left no rc file failed. A reused ledger pass
-# prints REUSE and counts as passed.
+pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0 notrun=()
+# row NAME RCFILE [CMD] prints one table row; a step that left no rc file failed. A reused ledger
+# pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_AVAILABLE
+# prints NOT_AVAILABLE and counts as not run (ASD-V0-973).
 row() {
-  local rc secs flag
+  local rc secs flag why=
   read -r rc secs flag < "$2" 2> /dev/null || { rc=1 secs=0 flag=; }
   summed=$((summed + secs))
-  if [[ $rc == 0 && $flag == flaky ]]; then
+  [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && why=$(sed -n '1s/^NOT_AVAILABLE: //p' "${2%.rc}.log" 2> /dev/null)
+  if [[ -n $why ]]; then
+    notrun+=("${1#make } $why")
+    printf 'batch-precheck: | NOT_AVAILABLE | %5ss | %s: %s\n' "$secs" "$1" "$why"
+  elif [[ $rc == 0 && $flag == flaky ]]; then
     pass=$((pass + 1))
     printf 'batch-precheck: | FLAKY | %5ss | %s\n' "$secs" "$1"
   elif [[ $rc == 0 && $flag == reuse ]]; then
@@ -1095,8 +1111,8 @@ row() {
 printf 'batch-precheck: | result | seconds | step\n'
 [[ -f $dir/repin.rc ]] && row 'repin (mechanical)' "$dir/repin.rc"
 [[ -f $dir/sealed.rc ]] && row 'sealed-cem-names' "$dir/sealed.rc"
-for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc"; done
-printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" "$fail" $((SECONDS - start)) "$summed"
+for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc" "$(sed -n "${i}p" "$dir/steps" | cut -f2-)"; done
+printf 'batch-precheck: %d passed, %d failed%s in %ss wall, %ss summed\n' "$pass" "$fail" "$( ((${#notrun[@]})) && printf ', %d not run' ${#notrun[@]})" $((SECONDS - start)) "$summed"
 ((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]}")"
 ((reused)) && printf 'batch-precheck: %d of %d steps reused a ledger pass on identical inputs (CORVINT_GATE_LEDGER=off reruns them)\n' "$reused" "$n"
 if ((warn)); then
@@ -1128,8 +1144,9 @@ elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
   printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps\n'
 elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]]; then
   # Written beside the receipt and renamed over it, so a failed write leaves no receipt.
-  if printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
-    "$head_before" "$((pass + fail))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
+  if { printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
+    "$head_before" "$((pass + fail + ${#notrun[@]}))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    for x in ${notrun[@]+"${notrun[@]}"}; do printf 'not-run %s\n' "$x"; done; } > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
   else
     /bin/rm -f "$receipt.tmp"

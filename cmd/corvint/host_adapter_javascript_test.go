@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func testHostAdapterJavaScriptHosts(t *testing.T) {
@@ -23,10 +24,7 @@ func testHostAdapterJavaScriptHosts(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("host adapters explicitly refuse unsupported Windows process-tree cleanup")
 	}
-	node, err := exec.LookPath("node")
-	if err != nil {
-		t.Fatal("Node is required to verify the optional Gemini/OpenCode host adapters")
-	}
+	node := testsupport.NodeOrSkip(t, "the Gemini/OpenCode host adapter harness")
 	path, err := filepath.Abs("../../integrations/host-adapters.test.mjs")
 	if err != nil {
 		t.Fatal(err)
@@ -67,6 +65,8 @@ func TestHostAdapterJavaScriptHarnessInterruption(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("host adapters explicitly refuse Windows process-tree cleanup")
 	}
+	// The child harness skips without node, which would end it before the witness (V1-3801).
+	testsupport.NodeOrSkip(t, "the host adapter harness interruption witness")
 	witness := filepath.Join(t.TempDir(), "descendant.pid")
 	directory, err := os.Getwd()
 	if err != nil {
