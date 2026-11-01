@@ -63,7 +63,7 @@ func importWith(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 		}
 		return out, err
 	}
-	if _, err = authority.Qualify(repo.CommonDir); err != nil {
+	if _, err = authority.QualifyReused(repo.CommonDir); err != nil {
 		return out, err
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

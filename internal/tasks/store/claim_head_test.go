@@ -192,9 +192,10 @@ func TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance(t *testing.T) {
 		return []string{"src/"}, string(wire.Sum([]byte("src/"))), true
 	}
 	done := make(chan writerRun, 1)
+	var timing LeaseTiming
 	go func() {
 		done <- stagedWrite(func(ctx context.Context) (*Report, error) {
-			return Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "moved-head", Root: root, Derive: derive,
+			return Lease(WithLeaseTiming(ctx, &timing), repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: "moved-head", Root: root, Derive: derive,
 				Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: ticketID, Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
 		}, nil)
 	}()
@@ -224,8 +225,13 @@ func TestPSRV0224_ClaimRebindsMovedHeadWithoutJournalAdvance(t *testing.T) {
 	if !run.completed() {
 		t.Fatalf("claim not committed: %+v %v %v", run.rep, run.err, run.stages)
 	}
-	if n := claimDeclines(run); n != 2 || run.fast() {
-		t.Fatalf("writer route deferred the claim observation %d times (fast %v), want 2 then the complete route: %v", n, run.fast(), run.stages)
+	// Each round's writer route declines at most twice (the deferral, then
+	// the refusal of the base observed before the commit) before the
+	// complete route. A complete-route round a loaded host ends
+	// SNAPSHOT_MOVED retries the writer route, so the count is bounded by
+	// the rounds rather than fixed (V1-2764); one round is exactly 2.
+	if n := claimDeclines(run); n < 2 || n > 2*timing.Rounds || run.fast() {
+		t.Fatalf("writer route deferred the claim observation %d times over %d rounds (fast %v), want 2 per round then the complete route: %v", n, timing.Rounds, run.fast(), run.stages)
 	}
 	proof, err := readLeaseProof(context.Background(), repo)
 	if err != nil {

@@ -515,8 +515,22 @@ func TestJSGV0020_HarnessRunsBothModes(t *testing.T) {
 			if mode == "moved" && (st.Audits != iterations || st.Resumed != iterations) {
 				t.Errorf("moved %s: %d audits and %d resumed over %d calls, want one of each per call", verb, st.Audits, st.Resumed, iterations)
 			}
-			if mode == "quiet" && (st.Audits < iterations || st.Resumed != 0) {
-				t.Errorf("quiet %s: %d audits and %d resumed over %d calls, want at least one audit per call and no resume", verb, st.Audits, st.Resumed, iterations)
+			// Quiet mode makes no dispatcher write, so on a qualified host
+			// no round moves and nothing resumes. On an overloaded host
+			// (CI at load 40-80, V1-2773) a quiet round was once seen to end
+			// SNAPSHOT_MOVED and the next to resume; resuming after a move is
+			// the correct route (PSR-V0-052), so no-resume is a property of
+			// the measurement's qualification, not of correctness, and is
+			// asserted only when the series is qualified.
+			if mode == "quiet" && st.Audits < iterations {
+				t.Errorf("quiet %s: %d audits over %d calls, want at least one audit per call", verb, st.Audits, iterations)
+			}
+			if mode == "quiet" && st.Resumed != 0 {
+				if strings.HasPrefix(s.Qualification, "UNQUALIFIED") {
+					t.Logf("quiet %s: %d resumed over %d calls on an unqualified host (%s); not asserted", verb, st.Resumed, iterations, s.Qualification)
+				} else {
+					t.Errorf("quiet %s: %d resumed over %d calls, want no resume on a qualified host", verb, st.Resumed, iterations)
+				}
 			}
 		}
 	}

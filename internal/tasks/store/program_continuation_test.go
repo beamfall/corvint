@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -32,6 +34,10 @@ type continuationOptions struct {
 	programTurns  string
 	programWall   string
 	wallSeconds   int
+	// realWall keeps the real stage wall; otherwise a stage ends as at its
+	// wall when the host stalls (stallWalls), and the real wall is
+	// stallWallBackstop.
+	realWall bool
 }
 
 type continuationFixture struct {
@@ -49,7 +55,9 @@ type continuationFixture struct {
 // supervisor's drain, which stops the newest group member first, leaves no
 // shell to finish the stage after the wall. A resume records its argv, its
 // prompt, the hello.txt it finds and its working directory, then (unless
-// "stuck" exists, which makes it never finish) completes the stage.
+// "stuck" exists, which makes it never finish) completes the stage. Every
+// stall first appends a line to "stalls", which the stage-wall stand-in
+// (stallWalls) takes as the stage reaching its wall.
 func codexContinuationHost(scripts, claim string) string {
 	return `#!/bin/sh
 input="$(cat)"
@@ -63,14 +71,14 @@ case " $* " in
   *" resume integrate-session "*)
     echo '{"type":"thread.started","thread_id":"integrate-session"}'
     echo '{"type":"turn.started"}'
-    if [ -f "$S/stuck" ]; then exec sleep 120; fi
+    if [ -f "$S/stuck" ]; then echo >> "$S/stalls"; exec sleep 120; fi
     echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"HANDOFF\",\"summary\":\"verified\",\"nextAction\":\"integrate\"}"}}'
     ;;
   *)
     cat hello.txt >> "$S/seen"
     echo '{"type":"thread.started","thread_id":"implement-session"}'
     echo '{"type":"turn.started"}'
-    if [ -f "$S/stuck" ]; then exec sleep 120; fi
+    if [ -f "$S/stuck" ]; then echo >> "$S/stalls"; exec sleep 120; fi
     printf 'changed\n' > hello.txt
     echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"BUILT\",\"summary\":\"continued\",\"nextAction\":\"review\"}"}}'
     ;;
@@ -81,7 +89,7 @@ case " $* " in
   *"Read-only integration verification"*)
     echo '{"type":"thread.started","thread_id":"integrate-session"}'
     echo '{"type":"turn.started"}'
-    if [ -f "$S/stall-integrate" ]; then : > "$S/started-integrate"; exec sleep 120; fi
+    if [ -f "$S/stall-integrate" ]; then : > "$S/started-integrate"; echo >> "$S/stalls"; exec sleep 120; fi
     echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"HANDOFF\",\"summary\":\"verified\",\"nextAction\":\"integrate\"}"}}'
     ;;
   *)
@@ -91,7 +99,7 @@ case " $* " in
       printf 'partial\n' > hello.txt
       echo '{"type":"thread.started","thread_id":"implement-session"}'
       echo '{"type":"turn.started"}'
-      if [ -f "$S/stall-implement" ]; then : > "$S/started"; exec sleep 600; fi
+      if [ -f "$S/stall-implement" ]; then : > "$S/started"; echo >> "$S/stalls"; exec sleep 600; fi
       printf 'changed\n' > hello.txt
       echo '{"type":"item.completed","item":{"type":"agent_message","text":"{\"kind\":\"BUILT\",\"summary\":\"built\",\"nextAction\":\"review\"}"}}'
       ;;
@@ -133,15 +141,77 @@ case " $* " in
   printf 'partial\n' > hello.txt
   printf '{"type":"step_start","timestamp":1,"sessionID":"ses_implement","part":{"type":"step-start"}}\n'
   : > "$S/started"
-  exec sleep 120
+  echo >> "$S/stalls"; exec sleep 120
   ;;
 esac
 `
 }
 
-// continuationResumeWall is the stage wall, in seconds, of a test whose
-// resumed turn must finish inside it under host load (V1-1516).
-const continuationResumeWall = 12
+// stallWallBackstop is the real stage wall, in seconds, of a fixture whose
+// stage walls are the host's stalls (V1-1516, V1-3046): a resumed turn on a
+// loaded host has minutes to finish, and a stall still ends its stage at once.
+const stallWallBackstop = 300
+
+// stallWall is the stage-wall stand-in stallWalls installs: its Done closes
+// when the host appends to "stalls" past the count found when the stage
+// began, and its Err is then context.DeadlineExceeded, as a real stage wall's
+// would be; otherwise it follows the caller's context.
+type stallWall struct {
+	context.Context
+	done  chan struct{}
+	fired atomic.Bool
+}
+
+func (c *stallWall) Done() <-chan struct{} { return c.done }
+
+func (c *stallWall) Err() error {
+	select {
+	case <-c.done:
+		if c.fired.Load() {
+			return context.DeadlineExceeded
+		}
+		return c.Context.Err()
+	default:
+		return nil
+	}
+}
+
+// stallCount is the number of stalls the host has recorded.
+func (f *continuationFixture) stallCount() int {
+	raw, _ := os.ReadFile(filepath.Join(f.scripts, "stalls"))
+	return strings.Count(string(raw), "\n")
+}
+
+// stallWalls makes each stage over the fixture's store end as at its own wall
+// once the host stalls, so no test depends on a real wall being short enough
+// to stop a stall yet long enough for a loaded host to finish a turn.
+func (f *continuationFixture) stallWalls(t *testing.T) {
+	t.Cleanup(store.SetStageWallForTest(f.s.repo.StateDir, func(parent context.Context) (context.Context, func()) {
+		c := &stallWall{Context: parent, done: make(chan struct{})}
+		base, stop := f.stallCount(), make(chan struct{})
+		go func() {
+			tick := time.NewTicker(20 * time.Millisecond)
+			defer tick.Stop()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-parent.Done():
+					close(c.done)
+					return
+				case <-tick.C:
+					if f.stallCount() > base {
+						c.fired.Store(true)
+						close(c.done)
+						return
+					}
+				}
+			}
+		}()
+		var once sync.Once
+		return c, func() { once.Do(func() { close(stop) }) }
+	}))
+}
 
 // newContinuationFixture is a real Git queue repository with a pinned fake
 // host and a pinned fake Core CLI under a supervision policy shaped by o.
@@ -160,6 +230,9 @@ func newContinuationFixture(t *testing.T, o continuationOptions) *continuationFi
 	}
 	if o.wallSeconds == 0 {
 		o.wallSeconds = 4
+		if !o.realWall {
+			o.wallSeconds = stallWallBackstop
+		}
 	}
 	s := newLeaseStore(t)
 	payload := createPayload("continuation")
@@ -216,7 +289,11 @@ func newContinuationFixture(t *testing.T, o continuationOptions) *continuationFi
 		t.Fatal(err)
 	}
 	c := store.ProgramConfig{Profile: snapshot.SupervisedProfile, Executable: host, ExecutableSHA256: supervisor.Digest(hostRaw), Model: model, Effort: "low", WorkRoot: fixture.TempDirOutside(t), WallSeconds: o.wallSeconds, CoreExecutable: core, CoreSHA256: supervisor.Digest(coreRaw), Host: o.host}
-	return &continuationFixture{s: s, ticketID: report.Ticket, scripts: scripts, config: c, self: self}
+	f := &continuationFixture{s: s, ticketID: report.Ticket, scripts: scripts, config: c, self: self}
+	if !o.realWall {
+		f.stallWalls(t)
+	}
+	return f
 }
 
 func (f *continuationFixture) open(t *testing.T) *store.Workflow {
@@ -310,12 +387,13 @@ func (f *continuationFixture) assertWaitingCheckpoint(t *testing.T, id, session 
 // wall-time checkpoint stays as a per-turn candidate ref, the continuation
 // prompt names the continuation, and integration lands exactly once.
 //
-// V1-1516: the stage wall bounds the resumed turn too, so a resume that
-// outlasts it is walled again and takes one more turn; at load 44 a resume
-// turn (host start, checkpoint commit, Core) outlasted the 4s default in 1 of
-// 5 runs. continuationResumeWall leaves a loaded resume room to finish.
+// V1-1516, V1-3046: the stage wall bounds the resumed turn too, so a resume
+// that outlasts it is walled again and takes one more turn; at load 44 a
+// resume turn (host start, checkpoint commit, Core) outlasted a 4s wall in 1
+// of 5 runs. The fixture's stage walls are now the host's stalls, with
+// stallWallBackstop as the real wall, so a loaded resume has room to finish.
 func TestCALV0089_CodexContinuationResumesPreservedSession(t *testing.T) {
-	f := newContinuationFixture(t, continuationOptions{continuations: "3", wallSeconds: continuationResumeWall})
+	f := newContinuationFixture(t, continuationOptions{continuations: "3"})
 	f.config.OwnIntegrationCheckout = true
 	f.touch(t, "stall-implement")
 	w := f.open(t)
@@ -500,13 +578,13 @@ func TestCALV0089_TurnCapsBoundContinuation(t *testing.T) {
 // admission refuses FENCED with no host turn.
 func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 	t.Run("while running", func(t *testing.T) {
-		f := newContinuationFixture(t, continuationOptions{continuations: "3", wallSeconds: 20})
+		f := newContinuationFixture(t, continuationOptions{continuations: "3", wallSeconds: stallWallBackstop, realWall: true})
 		f.touch(t, "stall-implement")
 		w := f.open(t)
 		drained := make(chan error, 1)
 		go func() {
 			started := filepath.Join(f.scripts, "started")
-			for i := 0; i < 150; i++ {
+			for i := 0; i < 1200; i++ {
 				if _, err := os.Stat(started); err == nil {
 					drained <- f.requestDrain()
 					return
@@ -520,7 +598,10 @@ func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 		if e := <-drained; e != nil {
 			t.Fatalf("drain request: %v", e)
 		}
-		if err == nil || errors.Is(err, context.DeadlineExceeded) || time.Since(begin) >= 20*time.Second {
+		// The drain cancels the stage; its real wall would end it with
+		// DeadlineExceeded. The wall is stallWallBackstop, not 20s, which a
+		// loaded host's setup alone outlasted (V1-3046).
+		if err == nil || errors.Is(err, context.DeadlineExceeded) || time.Since(begin) >= stallWallBackstop*time.Second {
 			t.Fatalf("drained stage error %v after %v, want a drain before the stage wall", err, time.Since(begin))
 		}
 		if args := f.lines(t, "resume-args"); len(args) != 0 {
@@ -545,7 +626,7 @@ func TestCALV0089_DrainStopsContinuation(t *testing.T) {
 			go func() {
 				drained <- f.requestDrain()
 			}()
-			for i := 0; i < 150; i++ {
+			for i := 0; i < 1200; i++ {
 				if f.program(t).Control == "DRAIN" {
 					return nil
 				}
@@ -665,28 +746,41 @@ func TestCALV0089_IntegrateCheckpointRestartKeepsGrant(t *testing.T) {
 // the shared program wall, not its own stage wall, does not continue, and a
 // later operator retry is refused by the expired program wall.
 //
-// V1-1324: the shared program wall runs from OpenWorkflow, so the stage is
-// stopped by it only when fixture setup and stage admission finish inside it.
-// With a one-minute wall that held only on a quiet host: at load 160-180 setup
-// took over a minute, so SPAWNING was refused LIMIT_EXCEEDED before the stage
-// ran (2 of 4 base runs). The wall is now three minutes, a test-only tolerance
-// for setup. The fresh implement stall now sleeps 600s, so it outlasts the
-// program wall and only a wall stops it, and the 600s stage wall stays above
-// the program wall, so the program wall is still what ends the stage. A setup
-// slower than three minutes still fails, as LIMIT_EXCEEDED, not silently.
+// V1-1324 and V1-2743: the store's clock is a test clock (SetStoreClockForTest)
+// that stands still unless the test moves it, so neither fixture setup nor
+// stage admission spends program wall however loaded the host is. The program
+// is opened at T0; the clock then reads programWallWindow short of the
+// three-minute wall, so admission is inside the wall and the stage's program
+// deadline is that window of real time, well under the 600s stage wall, so
+// the program wall is still what ends the stage. The fresh implement stall
+// sleeps 600s, so only a wall stops it. For the retry the clock reads past
+// the wall, so the shared cap refuses it whatever the real elapsed time.
 func TestCALV0089_ProgramWallExpiryEndsContinuation(t *testing.T) {
 	t.Parallel()
+	const programWallWindow = 4 * time.Second
 	f := newContinuationFixture(t, continuationOptions{continuations: "3", programWall: "3", wallSeconds: 600})
+	var mu sync.Mutex
+	at := time.Now().UTC().Truncate(time.Second)
+	set := func(v time.Time) { mu.Lock(); at = v; mu.Unlock() }
+	t.Cleanup(store.SetStoreClockForTest(f.s.repo.StateDir, func() time.Time { mu.Lock(); defer mu.Unlock(); return at }))
 	f.touch(t, "stall-implement")
-	a, err := f.open(t).RunRole(context.Background(), "implementer", "")
+	w := f.open(t)
+	t0 := at
+	set(t0.Add(3*time.Minute - programWallWindow))
+	begun := time.Now()
+	a, err := w.RunRole(context.Background(), "implementer", "")
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("program wall error %v", err)
+	}
+	if took := time.Since(begun); took < programWallWindow {
+		t.Fatalf("stage ended after %v, before the %v left of the program wall", took, programWallWindow)
 	}
 	f.assertWaitingCheckpoint(t, a.AttemptID, "implement-session", 1)
 	if args := f.lines(t, "resume-args"); len(args) != 0 {
 		t.Fatalf("stage stopped by the program wall continued: %q", args)
 	}
-	w := f.open(t)
+	set(t0.Add(3*time.Minute + time.Second))
+	w = f.open(t)
 	if err = w.Resume(true); err != nil {
 		t.Fatalf("operator retry: %v", err)
 	}

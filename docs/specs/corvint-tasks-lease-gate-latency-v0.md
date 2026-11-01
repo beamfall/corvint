@@ -180,6 +180,27 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   test. Only this harness reads it, so one test binary pairs serial and concurrent runs for
   `LGL-V0-003` and V1-0887 measurements; no production path reads it, the store format is
   unchanged, and the report names the mode in `publishSyncs`.
+- `LGL-V0-890`: (proposed; V1-2203; experimental under the standing lane auto-accept and the owner's
+  2026-11-01 allowance to change the heartbeat durability path) A writer MUST qualify the Git common
+  dir (the §5.1 probe: allowlisted type, a fully synced probe file, a working flock and a directory
+  sync) before its first write in a process, and MAY reuse that successful qualification for every
+  later write of the same process while the directory is the same file (`os.SameFile` on a fresh
+  `Lstat` before each write). A failed qualification MUST NOT be reused, and a directory replaced
+  or remounted at the same path MUST be qualified again. Reuse removes only the probe: every
+  artifact a write publishes keeps its file sync and its destination directory sync (LGL-V0-008),
+  so an acknowledged heartbeat is as durable as before. A one-shot command line still qualifies
+  once per process; a supervisor or other long-lived writer pays the probe once.
+- `LGL-V0-891`: (proposed; V1-2621; experimental under the standing lane auto-accept and the owner's
+  2026-11-01 direction to add a base-at-S capture) On a segmented store whose manifest seals through S,
+  a lease or Mutate write that takes the complete route while the bound writer checkpoint has
+  `FullSeq` S and its base at S MUST retain its complete audit's checkpoint re-based on that sealed
+  base (`WriterCheckpoint.RebaseOnSealedBase`): `FullSeq` S, every entry, request and note posted after
+  S in the delta. The re-base MUST refuse, and the write retain the complete audit's own checkpoint
+  (`FullSeq` at its head, as before), unless every entry, request and note that audit derived from
+  receipt 1 at or before S is exactly the sealed base's and the base's segment digests are the
+  manifest's; and it MUST NOT be used when that write's verify (JSG-V0-003) refuted the bound
+  checkpoint. The next pool acquire or release then still resumes from the sealed base (LGL-V0-009).
+  No store format changes and no process stays resident.
 - `LGL-V0-900`: (proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,
   its commit step MUST, under the writer lock, re-read the head and the segment manifest it binds;
   a manifest that is absent or whose SHA-256 differs from the head's binding MUST refuse at once

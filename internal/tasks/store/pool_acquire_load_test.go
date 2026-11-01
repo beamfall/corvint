@@ -54,7 +54,12 @@ type acquireLoadSample struct {
 	// client's PENDING), and Late one that completed only after its bound.
 	WatchMS, AuditMS float64
 	Audits           int
-	Bounded, Late    bool
+	// Watches is the most inotify watches this worker process held,
+	// read from its own /proc/self/fdinfo just after each change-guard
+	// registration of the call, while that guard is open (V1-2593); 0 when
+	// the call registered none or the platform has no inotify fdinfo.
+	Watches       int
+	Bounded, Late bool
 	// Windows is how many bounded client calls a detached acquire spanned:
 	// its wall time in CALL_SECONDS windows, rounded up (PSR-V0-111).
 	Windows    int
@@ -267,6 +272,25 @@ func TestPSRV0055_PoolAcquireLoad(t *testing.T) {
 	for key, v := range verbs {
 		v.WallP50, v.WallP99, v.WallMax = pct(wall[key], 0.5), pct(wall[key], 0.99), pct(wall[key], 1)
 	}
+	// V1-2593: each worker's peak inotify watch count, which it read in
+	// process at every guard registration; the sum of the per-process peaks
+	// bounds the user-wide count the kernel charges (fs.inotify.max_user_watches)
+	// from above, since the peaks need not coincide.
+	watchPeaks := map[int]int{}
+	for _, s := range samples {
+		watchPeaks[s.Worker] = max(watchPeaks[s.Worker], s.Watches)
+	}
+	watches := map[string]any{"observation": "NOT_OBSERVED: no inotify fdinfo on " + runtime.GOOS}
+	if runtime.GOOS == "linux" {
+		summed, peak := 0, 0
+		perProcess := map[string]int{}
+		for w, n := range watchPeaks {
+			perProcess[strconv.Itoa(w)] = n
+			summed += max(n, 0)
+			peak = max(peak, n)
+		}
+		watches = map[string]any{"observation": "each worker read /proc/self/fdinfo inotify wd lines just after every change-guard registration; summedPeak adds the per-process peaks, an upper bound on the simultaneous total", "perProcessPeak": perProcess, "processPeak": peak, "summedPeak": summed}
+	}
 	head, err := writerGuards(repo, "MUTATE")
 	if err != nil {
 		t.Fatal(err)
@@ -281,7 +305,7 @@ func TestPSRV0055_PoolAcquireLoad(t *testing.T) {
 		"elapsedMS": ms(elapsed), "setupMS": setupMS, "finalLastSeq": head.LastSeq.Uint64(), "workerFailures": failed,
 		"cpuCount": runtime.NumCPU(), "goVersion": runtime.Version(), "goos": runtime.GOOS,
 		"hostLoad": map[string]string{"before": loadBefore, "after": loadAfter},
-		"summary":  verbs, "samples": samples,
+		"summary":  verbs, "samples": samples, "inotifyWatches": watches,
 	}
 	// V1-1569: the run names its host and is labelled by the loads around it,
 	// as the B2 and B3 reports are (JSG-V0-021).
@@ -296,11 +320,29 @@ func TestPSRV0055_PoolAcquireLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("receipts=%d acquirers=%d elapsed=%s lastSeq=%s load %s -> %s", receipts, acquirers, elapsed, head.LastSeq, loadBefore, loadAfter)
+	t.Logf("inotify watches: %v", watches)
 	for _, verb := range []string{"claim", "acquire", "pool-release", "confirm-safe", "release", "dispatch", "heartbeat", "renew"} {
 		if v := verbs[verb]; v != nil {
 			t.Logf("%-12s calls=%d completed=%d unfinished=%d bounded=%d late=%d resumed=%d audits=%d codes=%v rounds max=%d windows max=%d wall p50/p99/max=%.0f/%.0f/%.0f ms audit max=%.0f ms watch max=%.0f ms", verb, v.Calls, v.Completed, v.Unfinished, v.Bounded, v.Late, v.Resumed, v.Audits, v.Codes, v.RoundsMax, v.WindowsMax, v.WallP50, v.WallP99, v.WallMax, v.AuditMSMax, v.WatchMSMax)
 		}
 	}
+}
+
+// inotifyWatchesInProcess counts the inotify watches this process holds, from
+// the "inotify wd:" lines of /proc/self/fdinfo, the count the kernel charges
+// against fs.inotify.max_user_watches; -1 when fdinfo cannot be read.
+func inotifyWatchesInProcess() int {
+	entries, err := os.ReadDir("/proc/self/fdinfo")
+	if err != nil {
+		return -1
+	}
+	n := 0
+	for _, e := range entries {
+		if raw, err := os.ReadFile(filepath.Join("/proc/self/fdinfo", e.Name())); err == nil {
+			n += strings.Count(string(raw), "inotify wd:")
+		}
+	}
+	return n
 }
 
 // TestPSRV0055_PoolAcquireLoadWorker is one process of
@@ -344,8 +386,10 @@ func TestPSRV0055_PoolAcquireLoadWorker(t *testing.T) {
 		ctx = context.WithValue(ctx, inventoryHooksKey{}, inventoryHooks{
 			watch: func(r *intent.Repository) (*authority.ChangeGuard, error) {
 				t0 := time.Now()
-				defer func() { s.WatchMS += ms(time.Since(t0)) }()
-				return authority.WatchChanges(r)
+				g, err := authority.WatchChanges(r)
+				s.WatchMS += ms(time.Since(t0))
+				s.Watches = max(s.Watches, inotifyWatchesInProcess())
+				return g, err
 			},
 			audit: func(r journal.Reader) (*journal.Result, journal.PhysicalObservation, error) {
 				t0 := time.Now()

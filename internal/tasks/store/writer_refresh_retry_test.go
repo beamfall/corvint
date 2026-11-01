@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -20,7 +21,7 @@ func TestPSRV0169_NonPublishingRefreshDoesNotRecurPerWrite(t *testing.T) {
 			wc:    &journal.WriterCheckpoint{Checkpoint: journal.Checkpoint{Seq: wire.SizeOf(lastSeq)}, FullSeq: full},
 			proof: &journal.Result{Head: &snapshot.Head{LastSeq: wire.SizeOf(lastSeq)}},
 		}
-		return advanceWriterCheckpoint(nil, w)
+		return advanceWriterCheckpoint(context.Background(), nil, w)
 	}
 	var scheduled []uint64
 	previous := false

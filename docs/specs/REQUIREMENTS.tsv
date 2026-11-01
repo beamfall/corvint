@@ -2531,6 +2531,7 @@ JSG-V0-012	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-013	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R13, amended 2026-10-21 in slice S4) `corvint-tasks jou	owner	decision 0549; 2026-10-21
 JSG-V0-014	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R14) Maintained tests assert counts, not durations, at	owner	decision 0549
 JSG-V0-015	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0850) A complet	standing	2026-10-11; V1-0850
+JSG-V0-891	docs/specs/corvint-tasks-journal-segments-v0.md	(proposed; V1-2358; experimental under the standing lane auto-accept and the own	standing	V1-2358; 2026-11-01
 JSG-V0-020	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204, V1-2278)	standing	2026-10-11; V1-2204; V1-2278
 JSG-V0-021	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2204) The B2 r	standing	2026-10-11; V1-2204
 KHN-V0-001	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST pin every `--anchor PATH` to the Git blob that path	unrecorded	-
@@ -2582,6 +2583,8 @@ LGL-V0-014	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539,
 LGL-V0-015	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2866; experimental under the standing lane auto-accept)	standing	V1-2866
 LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203, V1-2539; owner decision 2026-10-27 "Try concurrent publish	owner	V1-2203; V1-2539; 2026-10-27
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
+LGL-V0-890	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203; experimental under the standing lane auto-accept and the own	standing	V1-2203
+LGL-V0-891	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2621; experimental under the standing lane auto-accept and the own	standing	V1-2621
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
 LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757
@@ -2782,6 +2785,7 @@ PSR-V0-168	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-224	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2531) Amends	standing	2026-10-11; V1-2531
 PSR-V0-225	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2537) Amends	standing	2026-10-11; V1-2537
 PSR-V0-169	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1653) Amends t	standing	2026-10-11; V1-1653
+PSR-V0-891	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-0916; experimental under the standing lane auto-accept and the	standing	V1-0916
 PSR-V0-110	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) No tail	standing	2026-10-11; V1-1617
 PSR-V0-111	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) Progress	standing	2026-10-11; V1-1617
 PSR-V0-112	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1617) The `PEN	standing	2026-10-11; V1-1617
@@ -2824,6 +2828,7 @@ PSR-V0-220	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-221	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-0911, V1-1569)	standing	2026-10-11; V1-0911; V1-1569
 PSR-V0-222	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux	standing	2026-10-11; V1-2482
 PSR-V0-223	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2482) On Linux	standing	2026-10-11; V1-2482
+PSR-V0-890	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(experimental under the standing lane auto-accept (2026-10-11), V1-2530) On Linu	standing	2026-10-11; V1-2530
 PSR-V0-274	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(experimental under the standing lane auto-accept (2026-10-11), V1-2689) On Linu	standing	2026-10-11; V1-2689
 PSR-V0-226	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2554) Amends	standing	2026-10-11; V1-2554
 PSR-V0-247	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-2537) Amends PSR-V0-052's base receipt and base file stamp check.	unrecorded	-

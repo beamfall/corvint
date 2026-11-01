@@ -771,6 +771,28 @@ func (res *Result) WriterCheckpoint(physical map[string]PhysicalFile) (*WriterCh
 	return w, nil
 }
 
+// IncrementalWriterCheckpoint is the incremental scheduled refresh's
+// checkpoint (PSR-V0-891, extending CAL-V0-265): from a writer audit resumed
+// from a bound checkpoint and walked to its head with the complete audit's
+// per-receipt validators, it derives the checkpoint WriterCheckpoint derives
+// for that audit, but always on a new base rendered from every entry and with
+// FullSeq at the audited head, so it is the checkpoint a complete refresh at
+// that head retains. Any other observation returns an error.
+func (res *Result) IncrementalWriterCheckpoint(physical map[string]PhysicalFile) (*WriterCheckpoint, error) {
+	if res == nil || res.Mode != ModeWriter || res.writerBase == nil || res.Head == nil || res.Head.Segments != nil {
+		return nil, errCheckpoint("writer checkpoint", "observation is not an unsegmented writer audit")
+	}
+	rebase := res.sealRebase
+	res.sealRebase = true
+	w, err := res.WriterCheckpoint(physical)
+	res.sealRebase = rebase
+	if err != nil {
+		return nil, err
+	}
+	w.FullSeq = res.LastSeq.Uint64()
+	return w, nil
+}
+
 // extendDelta sets w's entries to old's delta with every non-request path
 // the tail posted merged in over it, on old's base.
 func (w *WriterCheckpoint) extendDelta(res *Result, old *WriterCheckpoint) error {

@@ -51,7 +51,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		}
 		return guardFailure(report, env.RequestID, err)
 	}
-	if _, err = authority.Qualify(repo.CommonDir); err != nil {
+	if _, err = authority.QualifyReused(repo.CommonDir); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
 	// The CAL-V0-070 change watch holds a descriptor per watched path on some
@@ -65,6 +65,11 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 			refreshWriterCheckpoint(ctx, repo)
 		}
 	}()
+	// The derived checkpoints are encoded and written after the lock is
+	// released, before the scheduled refresh (V1-2358, JSG-V0-891).
+	retention := &deferredRetention{}
+	defer retention.publish(ctx, repo)
+	ctx = withDeferredRetention(ctx, retention)
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
@@ -151,11 +156,25 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
-	retainCheckpoint(repo, canonical)
+	keepReadCheckpoint(ctx, repo, canonical)
+	read := token
 	token = verifyWriterCheckpoint(ctx, repo, token, audit.VerifyWriterCheckpoint)
-	if wc, err := audit.WriterCheckpoint(); err == nil {
-		retainWriterCheckpoint(repo, wc, token)
+	// On a segmented store the complete audit's checkpoint keeps the sealed
+	// base the bound checkpoint holds, unless the verify just refuted it
+	// (LGL-V0-891); the base is bound now, before the lock is released.
+	var sealed *journal.WriterCheckpoint
+	if token == read {
+		sealed, _ = boundWriterCheckpoint(repo)
 	}
+	auditHead := canonical.Head
+	keepWriterCheckpoint(ctx, repo, func() (*journal.WriterCheckpoint, error) {
+		if sealed != nil && auditHead != nil && auditHead.Segments != nil {
+			if rebased, err := audit.SealedBaseCheckpoint(sealed, auditHead.Segments.Through.Uint64()); err == nil {
+				return rebased, nil
+			}
+		}
+		return audit.WriterCheckpoint()
+	}, token)
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
 	}
