@@ -51,6 +51,12 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   `--template bug`) MUST be refused with a usage error that names the flag, says it takes no
   value, gives both accepted spellings and says the ticket kind is set in the payload's `kind`
   field, instead of the generic `unknown flag`. Help MUST advertise only the accepted spellings.
+- `TCT-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3515) A
+  single-target mutation whose `--request-id` is longer than `wire.MaxRequestIDBytes` (64 bytes)
+  MUST be refused `LIMIT_EXCEEDED` before any store read, with a message that names
+  `--request-id`, its length in bytes and the 64-byte maximum, and writes nothing. Every
+  mutation's `--help` (including `ticket create --help`) MUST state the limit in a `requestId`
+  member. Multi-target and `--batch` forms keep their derived-ID handling and limits.
 
 ## Non-goals
 
@@ -81,6 +87,9 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   problems with its shape and flagging no valid key; a non-object payload keeps the codec's error.
 - `TestTCTV0990_TemplateFlagsTakeNoValue` (`internal/tasks/cli/create_skeleton_test.go`): both
   accepted spellings print the template, and each valued spelling is refused naming the flag.
+- `TestTCTV0991_LongRequestIDNamesTheLimit` (`internal/tasks/cli/create_skeleton_test.go`): a
+  65-byte `--request-id` is refused naming the flag and its maximum, writes nothing, a 64-byte one
+  is accepted, and `ticket create --help` states the limit.
 
 ## Rollback
 
