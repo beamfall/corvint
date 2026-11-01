@@ -5714,6 +5714,7 @@ PUB-V0-051	docs/specs/public-release-v0.md	`--version --json` MUST omit `build` 
 PUB-V0-052	docs/specs/public-release-v0.md	A binary is a release build, `release: true`, only when it carries both a stampe	unrecorded	-
 PUB-V0-053	docs/specs/public-release-v0.md	(amended 2026-10-27, GitHub #1902, orchestrator decision for rc.3) The plain	unrecorded	-
 PUB-V0-054	docs/specs/public-release-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3221)	standing	2026-10-30; V1-3221
+PUB-V0-965	docs/specs/public-release-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3799; refines	standing	2026-10-11; V1-3799
 PUB-V0-027	docs/specs/public-release-v0.md	`corvint impact ... --producer` and `corvint test-validity ... --producer` MUST	unrecorded	-
 PUB-V0-028	docs/specs/public-release-v0.md	Each member MUST come from its own source only, and a member that source cannot	unrecorded	-
 PUB-V0-029	docs/specs/public-release-v0.md	Build `0` is correct only for an unstamped source build (for example the	unrecorded	-
