@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:404@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:407@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -550,6 +550,13 @@ No requirement below diverges from the implementation.
   sentence of every live spec's README row is projected from its digest and checked by
   `spec-requirements-check`; only superseded rows keep a hand-written retirement note. Rollback:
   drop the refusal; a claimless live spec's README description is again hand-written.
+- `SRG-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines
+  SRG-V0-965) Every generator mode MUST count each spec's `## Requirements` obligations as
+  `internal/lrfrepo/ocm.go` counts them, warn on standard error from 240 to 256 naming the spec,
+  its count and the companion-spec route, and refuse a section over 256 before printing or writing
+  anything, so the limit is seen at authoring time rather than first at the Go test after the TSV
+  is written. Rollback: drop the obligation count and its warning and refusal; SRG-V0-965 still
+  refuses after the write.
 
 ## Non-goals and simpler baseline
 
@@ -671,6 +678,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
+| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 241 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
@@ -737,6 +745,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-921 | `script/spec-requirements-resolve.sh` ledger reconcile and repin step | `spec-requirements-test` |
 | SRG-V0-922 | the `spec-requirements` target's unmerged check in `Makefile`; the staged-marker restart in `script/spec-requirements-resolve.sh` | `spec-requirements-test` |
 | SRG-V0-923 | the generated-file index comparison in `script/spec-requirements-worktree-check.sh` | `spec-requirements-test` |
+| SRG-V0-740 | `%obligations` and the obligation warning and refusal before the SRG-V0-547 check in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
@@ -772,6 +781,8 @@ spec-requirements`.
 SRG-V0-890 rolls back by restoring the refusal text in `script/gen-spec-requirements.sh` and case 13; SRG-V0-891 by removing the outside-section block, the baseline read and case 14.
 
 SRG-V0-968 rolls back by removing the claimless-digest refusal and case 16.
+
+SRG-V0-740 rolls back by removing the obligation count, its warning and refusal, and case 50.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.

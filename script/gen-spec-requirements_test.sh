@@ -794,4 +794,33 @@ stage docs/specs/retired.md
 run > /dev/null || fail "a superseded digest (Successor and Why) was refused for having no Claim"
 git -C "$test_root" rm -q --cached -- docs/specs/retired.md
 
+# 50. SRG-V0-740 (V1-3769): the OCM obligation limit is refused here, not first at the Go test:
+# 241 section definitions warn naming the count and the companion-spec route and still print, 257
+# are refused in the TSV and --all modes and --all writes nothing.
+obligation_spec() {
+  { printf '# Big\n\n## Requirements\n\n'
+    i=1
+    # shellcheck disable=SC2016
+    while [ "$i" -le "$1" ]; do printf -- '- `BIG-V0-%03d`: (proposed) Clause.\n' "$i"; i=$((i + 1)); done
+  } > "$test_root/docs/specs/big.md"
+  stage docs/specs/big.md
+}
+obligation_spec 241
+big_err=$(run 2>&1 > /dev/null) || fail "241 section definitions were refused: $big_err"
+case $big_err in
+  *'docs/specs/big.md: warning: its ## Requirements section holds 241 of the 256 obligations'*'companion spec with its own requirement prefix'*'(SRG-V0-740)'*) ;;
+  *) fail "241 section definitions gave no budget warning: $big_err" ;;
+esac
+obligation_spec 257
+big_err=$(run 2>&1 > /dev/null) && fail "257 section definitions were accepted"
+case $big_err in
+  *'docs/specs/big.md: its ## Requirements section holds 257 obligations; the limit is 256'*'(SRG-V0-740)'*) ;;
+  *) fail "the over-limit refusal lacks the spec, count or ID: $big_err" ;;
+esac
+big_dir="$test_root/big-out"
+mkdir "$big_dir"
+(cd "$test_root" && script/gen-spec-requirements.sh --all "$big_dir") > /dev/null 2>&1 && fail "--all accepted 257 obligations"
+test -z "$(ls -A "$big_dir")" || fail "a refused over-limit spec wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/big.md
+
 printf 'ok\n'

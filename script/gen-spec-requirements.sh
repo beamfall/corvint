@@ -320,7 +320,7 @@ push @reads, 'docs/specs/README.md'
     if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
 my $blobs = index_blobs(@reads);
 
-my (%best, %header, %definitions, %section, @outside_section, @continuation_notes);
+my (%best, %header, %definitions, %section, @outside_section, @continuation_notes, %obligations);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
     # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
@@ -342,6 +342,8 @@ for my $file (sort @specs) {
     # script/check-requirement-definitions.sh (RDG-V0-021) tracks it, so the generator refuses an
     # OCM-form definition after that section before doc-gates does.
     my ($in_section, $sections, $section_fence, @outside) = (0, 0, '');
+    # SRG-V0-740: the OCM obligations of the section, counted as internal/lrfrepo/ocm.go counts them.
+    my %section_ids;
     my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
@@ -389,8 +391,9 @@ for my $file (sort @specs) {
             } elsif ($line =~ /^##(?: |\r?\n?\z)/) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
-            } elsif (!$in_section && !$rollback && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
-                push @outside, [$1 // $2, $line_number];
+            } elsif ($line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3})[:.]\*\* )/) {
+                if ($in_section) { $section_ids{$1 // $2} = 1 }
+                elsif (!$rollback) { push @outside, [$1 // $2, $line_number] }
             }
         }
         if ($fence ne '' || $run ne '' || $line =~ /^ {0,3}#/) {
@@ -452,6 +455,7 @@ for my $file (sort @specs) {
     $section{$file}[1] ||= $line_number if $in_section;
     if ($sections == 1) {
         push @outside_section, [$file, @$_] for @outside;
+        $obligations{$file} = scalar keys %section_ids;
     } else {
         delete $section{$file};
     }
@@ -576,6 +580,23 @@ sub status_ids {
         die "every spec's Agent digest states a one-sentence `- Claim:`, which README.md and INDEX.json "
             . "project (a superseded spec's digest holds Successor and Why instead), then rerun make "
             . "spec-requirements (SRG-V0-968)\n";
+    }
+}
+# SRG-V0-740 (V1-3769): `ocm prepare` refuses a ## Requirements section with more than 256
+# obligations, which otherwise surfaces only at spec-requirements-check's Go test after the TSV is
+# written (SRG-V0-965). Refuse it here in every mode, and warn from 240 so the companion spec is
+# planned before the limit.
+{
+    my $route = 'define new requirements in a companion spec with its own requirement prefix, never '
+        . 'in the frozen Intent status header (SRG-V0-980)';
+    my @over = grep { $obligations{$_} > 256 } sort keys %obligations;
+    print STDERR "$_: warning: its ## Requirements section holds $obligations{$_} of the 256 obligations "
+        . "`ocm prepare` admits; $route (SRG-V0-740)\n"
+        for grep { $obligations{$_} >= 240 && $obligations{$_} <= 256 } sort keys %obligations;
+    if (@over) {
+        print STDERR "$_: its ## Requirements section holds $obligations{$_} obligations; the limit is 256\n" for @over;
+        die "`ocm prepare` refuses a Requirements section over 256 obligations; $route, then rerun "
+            . "make spec-requirements (SRG-V0-740)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
