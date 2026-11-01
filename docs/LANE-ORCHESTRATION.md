@@ -308,8 +308,14 @@ work of lane scripts-w5 never prints from it). A lane on an older base therefore
 even after the wrapper was updated. Check from the lane worktree: `~/lanes/heavy.sh --print-lock-dir`
 prints the lock directory when the delegated script runs, and fails or runs a command when it is the
 prototype.
-On the Unraid host the wrapper read on 2026-10-31 (read-only) is the delegating form, so the
-prototype seen by `scripts-w5` came from a checkout whose base predated `--print-lock-dir`. The
+On the Unraid host the delegating wrapper was installed at 2026-11-01T01:16Z (`~/lanes/heavy.sh`,
+with the prototype kept as `~/lanes/heavy.sh.bak-20261101-prototype`, last changed 2026-10-31
+18:36Z), so lane scripts-w5 on 2026-10-31 most likely ran the prototype itself; a checkout whose
+base predates `--print-lock-dir` still gets it. Observed 2026-11-01 from the lane spectool-r
+worktree: each run printed `heavy.sh: script sha256=... <worktree>/script/heavy.sh` and took a
+slot of `HEAVY_LOCK_DIR=/home/agent/lanes/.flock-slots` from `~/.config/corvint/heavy.env`
+(`HEAVY_SLOTS=2`), so it delegated; the host line of the unmerged ASD-V0-920 work does not print
+because that work is not on this base. The
 orchestrator refreshes the lane base, or the host wrapper, between batches; no lane changes a host.
 
 ### Small packages run whole without a reason (ASD-V0-074, V1-3120)
