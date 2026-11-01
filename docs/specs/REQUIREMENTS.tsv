@@ -264,6 +264,8 @@ AFP-V0-601	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-602	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2941,	standing	2026-10-11; V1-2941
 AFP-V0-603	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3067;	standing	2026-10-11; V1-3067
 AFP-V0-620	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2973)	standing	2026-10-11; V1-2973
+AFP-V0-820	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;	standing	2026-11-01; V1-4185
+AFP-V0-821	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;	standing	2026-11-01; V1-4185
 AFP-V0-615	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)	standing	2026-10-11; V1-2952
 AFP-V0-817	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3326)	standing	2026-10-11; V1-3326
 AFP-V0-818	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906;	standing	2026-10-11; V1-2906
@@ -2521,6 +2523,7 @@ TCL-V0-859	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-820	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3559)	standing	2026-11-01; V1-3559
 TCL-V0-821	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0896; refines	standing	2026-11-01; V1-0896
 TCL-V0-822	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3925; refines	standing	2026-11-01; V1-3925
+TCL-V0-815	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4184; refines	standing	2026-11-01; V1-4184
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
 TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-

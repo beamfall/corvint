@@ -279,6 +279,17 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   so a retry of an applied hold replays its recorded result instead of refusing
   `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
 
+- `TCL-V0-815`: (experimental under the standing lane auto-accept (2026-11-01); V1-4184; refines
+  CAL-V0-131) `tools/tasks-profiles-check` (`make tasks-profiles-check`, a `DOC_GATE_TARGETS`
+  entry, so CI doc gates and `make batch-precheck` run it) MUST exit 1, naming the profile and its
+  file, when a `taskman-NAME/N` literal in the non-test sources under `internal/tasks` is not in
+  exactly one of `cli.LiveFormats`, `outputOnlyProfiles` and `adoptOnlyProfiles`. It reads
+  `LiveFormats` from source, resolving an identifier or package selector to the literal its
+  constant or variable is declared with, and leaves an unresolvable entry and the stale-entry check
+  to `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`. It runs in about a second, so the
+  `46e9ee1fd` shape (an output-only `taskman-closed-index-rebuild/0` constant no list registers)
+  fails before the long `internal/tasks/cli` package runs.
+
 ## Non-goals
 
 - Embeddings, learned similarity or any network service (invariant 7).
@@ -308,6 +319,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `headSeq` is SEQ, not the store head (TCL-V0-820).
 - A dry run is read as a committed update: its item says `dryRun: true` and carries no outcome, and
   the store bytes are unchanged (TCL-V0-821).
+- A profile only a computed `LiveFormats` entry names is not resolved statically: the runtime
+  CAL-V0-131 test still covers it (TCL-V0-815).
 
 ## Acceptance evidence
 
@@ -354,6 +367,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
 - `internal/tasks/cli/review_fixes_test.go`:
   `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
+- `tools/tasks-profiles-check/main_test.go`: `TestTCLV0815_UnregisteredProfileFailsUntilRegistered`,
+  `TestTCLV0815_ProfileInTwoListsFails` (TCL-V0-815).
 
 ## Rollback
 
