@@ -350,6 +350,13 @@ on a fixture queue remain non-goals.
   keep their message. Rollback: revert the commit; an older binary's report of a newer policy
   reads `MALFORMED` again, and no state format changes.
 
+- `CTS-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-3562) A
+  sorted-set refusal from `wire.CheckSortedUnique` (the import map's sorted arrays among them)
+  MUST name the order it expects (canonical JSON bytes; for objects, members in key byte order,
+  so first by the smallest key) and the two out-of-order elements by index and clipped canonical
+  text, so the operator can repair the file without reading the decoder. Rollback: restore the
+  terse message; the accepted order is unchanged.
+
 ## Import export and batching
 
 The export (profile `corvint-tasks-import/0`, at most `MaxIntentTreeBytes`) is JSON lines, each
@@ -641,3 +648,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-871 | `internal/tasks/cli/cli.go` (`Run`, `globalRoot`), `internal/tasks/cli/compact.go` (`compactRead`), `internal/tasks/cli/command_help.go` | TestCTSV0871_JSONIsANoOpAndRootPrecedesTheVerb, TestCTSV0871_RootGovernsRelativeFileArguments |
 | CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
+| CTS-V0-780 | `internal/tasks/wire/value.go` (`CheckSortedUnique`, `clip`) | TestCTSV0780UnsortedSetNamesTheOrderAndTheEntry |

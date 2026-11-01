@@ -665,6 +665,13 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   file keeps its `TCP-V0-272`/`TCP-V0-274` `reason` (batch 1101a, 2026-11-01). Rollback: drop the two
   members.
 
+- `LCP-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-4053) The
+  strict storage decoder MUST admit an absent member exactly when its Go field carries the struct
+  tag `localcompletion:"optional"`, replacing the hand-kept allowlist; every `omitempty` member
+  of `Plan` and the completion state MUST carry the tag, so a new optional member cannot be
+  refused as missing on a file an older binary wrote. Rollback: restore the allowlist; the
+  tags are inert without the decoder check.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -877,6 +884,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
+| LCP-V0-780 | `TestLCPV0780OptionalTagAdmitsAnAbsentMember`, `TestLCPV0780OmitemptyFieldsAreTaggedOptional` (`internal/localcompletion/optional_tag_test.go`: a tagged absent member decodes; every `omitempty` field of `Plan` and the state is tagged) |
 
 ## Rollout, rollback and remaining gates
 
