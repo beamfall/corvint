@@ -135,6 +135,10 @@ for module in process core tasks operations cockpit workflow; do
     commit "bump Pi after $module" "2026-01-01T02:0${i}:00"
     output=$(run) || fail "Pi bump did not clear $module: $output"
 done
+# AHI-954 / V1-3409: a Pi README-only edit needs no bump, though the files list names README.md.
+printf '# pi fixture\n' >"$test_root/integrations/pi/README.md"
+commit "edit Pi README only" 2026-01-01T03:00:00
+output=$(run) || fail "a Pi README.md-only change failed the gate: $output"
 
 # AHI-020 / V1-0452: OpenCode's explicit shipped set must cover its package.json files list,
 # including a skills-only addition and an mcp.example.json-only edit.
@@ -168,6 +172,10 @@ done
 printf 'development-only test\n' >"$test_root/integrations/opencode/fixture.test.ts"
 commit "change unpublished OpenCode test only" 2026-01-02T01:00:00
 output=$(run) || fail "unpublished OpenCode change failed the gate: $output"
+# AHI-954 / V1-3409: an OpenCode README-only edit needs no bump either.
+printf '# opencode fixture\n' >"$test_root/integrations/opencode/README.md"
+commit "edit OpenCode README only" 2026-01-02T01:01:00
+output=$(run) || fail "an OpenCode README.md-only change failed the gate: $output"
 # AHI-020 / V1-2184: the Spec Kit extension reads its version from extension.yml's extension block,
 # and the failure names the bump command (AHI-173).
 mkdir -p "$test_root/protocol/integrations/speckit/corvint/commands"
