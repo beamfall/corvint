@@ -42,6 +42,7 @@
         "cmd/corvint/test_whole_reason.go",
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
+        "internal/dogfoodflow/verify_coverage_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",
