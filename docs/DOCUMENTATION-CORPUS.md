@@ -471,6 +471,13 @@ editor that held it open. Keep that file until other editors have closed it; rem
 is a separate operator action. Publication uses a pinned directory and never overwrites a competing
 new page. There is a brief absent-path window; this is not a crash-atomic filesystem transaction.
 
+The separate source-draft session `corvint docs maintain` keeps the block below, a GENERATED
+orientation of `internal/docmaintain` drafted from its owner spec, in sync with committed source
+(SDD-V0-007). Refresh it with `corvint docs maintain --page docs/DOCUMENTATION-CORPUS.md --source
+docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --enable --apply`.
+
+<!-- corvint:docmaintain:insertion-point -->
+
 ## Separate MCP profile
 
 Build `./cmd/corvint-corpus-mcp` explicitly and start it with `--root /absolute/repository --artifact
