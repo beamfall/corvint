@@ -356,6 +356,9 @@ func runTrial(ctx context.Context, arguments []string) (*report, string, error) 
 			if err := registeredPrior(document, checkpoint, checkpointPath(configuration.output)); err != nil {
 				return nil, "", err
 			}
+			if err := resumeReRegistration(document, checkpoint, checkpointPath(configuration.output)); err != nil {
+				return nil, "", err
+			}
 			prior = prior.merge(checkpoint)
 		}
 	}
@@ -1540,13 +1543,21 @@ func assign(guard *sync.Mutex, write func()) {
 	write()
 }
 
-// reuseSource is a prior report's lanes keyed by change, arm, and repeat. A
-// reply is reused only for a byte-identical prompt, and only for a lane that
-// actually finished, so --resume reruns exactly what never completed.
+// reuseSource is the prior reports' lanes keyed by change, arm, and repeat,
+// each key holding every candidate in load order (--reuse, then the --resume
+// checkpoint). A reply is reused only for a byte-identical prompt, and only for
+// a lane that actually finished, so --resume reruns exactly what never
+// completed; an ineligible candidate never shadows a later eligible one.
 type reuseSource struct {
-	identity   string
-	lanes      map[string]*lane
-	identities map[string]string
+	lanes map[string][]reuseCandidate
+}
+
+// reuseCandidate is one prior lane with the manifest and registration digests
+// of the report it first ran in (CRT-V0-016).
+type reuseCandidate struct {
+	lane         *lane
+	manifest     string
+	registration string
 }
 
 func loadReuse(configuration options, run *report) (*reuseSource, error) {
@@ -1570,14 +1581,18 @@ func loadReuse(configuration options, run *report) (*reuseSource, error) {
 }
 
 func newReuseSource(document *report) *reuseSource {
-	source := &reuseSource{identity: document.ManifestSHA256, lanes: map[string]*lane{}, identities: map[string]string{}}
+	source := &reuseSource{lanes: map[string][]reuseCandidate{}}
+	registration := ""
+	if document.Registration != nil {
+		registration = document.Registration.SHA256
+	}
 	for _, item := range document.Lanes {
-		source.lanes[laneKey(item)] = item
 		// A lane a checkpoint already reused keeps the report it first ran in.
-		source.identities[laneKey(item)] = document.ManifestSHA256
+		candidate := reuseCandidate{lane: item, manifest: document.ManifestSHA256, registration: registration}
 		if item.ReusedFrom != "" {
-			source.identities[laneKey(item)] = item.ReusedFrom
+			candidate.manifest, candidate.registration = item.ReusedFrom, item.ReusedRegistration
 		}
+		source.lanes[laneKey(item)] = append(source.lanes[laneKey(item)], candidate)
 	}
 	return source
 }
@@ -1587,11 +1602,8 @@ func (source *reuseSource) merge(document *report) *reuseSource {
 	if source == nil {
 		return other
 	}
-	for key, item := range other.lanes {
-		if _, present := source.lanes[key]; !present {
-			source.lanes[key] = item
-			source.identities[key] = other.identities[key]
-		}
+	for key, candidates := range other.lanes {
+		source.lanes[key] = append(source.lanes[key], candidates...)
 	}
 	return source
 }
@@ -1604,15 +1616,18 @@ func (source *reuseSource) apply(record *lane) bool {
 	if source == nil {
 		return false
 	}
-	prior := source.lanes[laneKey(record)]
-	if prior == nil || laneFailed(prior) || prior.PromptSHA256 != record.PromptSHA256 || !observedNumber(prior.WallMs) {
-		return false
+	for _, candidate := range source.lanes[laneKey(record)] {
+		prior := candidate.lane
+		if laneFailed(prior) || prior.PromptSHA256 != record.PromptSHA256 || !observedNumber(prior.WallMs) {
+			continue
+		}
+		record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
+		record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
+		record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
+		record.ReusedFrom, record.ReusedRegistration = candidate.manifest, candidate.registration
+		return true
 	}
-	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
-	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
-	record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
-	record.ReusedFrom = source.identities[laneKey(record)]
-	return true
+	return false
 }
 
 func observedNumber(value any) bool {

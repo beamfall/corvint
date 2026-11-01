@@ -68,7 +68,11 @@ type lane struct {
 	PromptSHA256 string `json:"prompt_sha256"`
 	PromptBytes  int    `json:"prompt_bytes"`
 	ReusedFrom   string `json:"reused_from,omitempty"`
-	Error        string `json:"error,omitempty"`
+	// ReusedRegistration is the sha256 of the registration the reused lane
+	// first ran under, so a lane reused across a scorer-only re-registration of
+	// an unchanged manifest is told apart from a resumed one (CRT-V0-016).
+	ReusedRegistration string `json:"reused_registration,omitempty"`
+	Error              string `json:"error,omitempty"`
 }
 
 type report struct {
