@@ -903,7 +903,30 @@ if (defined $selects_base) {
     if (@selected) {
         print "line citations: selects line-citations-check: " . scalar(@selected)
             . " pinned citation(s) cite a file changed since $selects_base; run make line-citations-check\n";
-        print "  $_\n" for @selected;
+        # DCG-V0-980 (lane cit-u18 friction): each selected citation the index already breaks is
+        # labelled moved (a mechanical --repin) or with its reason, and one in a document the change
+        # does not edit is marked, so a lane sees before the seal which out-of-scope specs it moves.
+        my %reason;
+        for my $failure (@failures) {
+            my ($key, $why) = $failure =~ /\A(\S+  `[^`]*`)  (.*)\z/s or next;
+            $reason{$key} //= $why;
+        }
+        my ($broken, $moved, $outside) = (0, 0, 0);
+        for my $entry (@selected) {
+            my ($doc) = $entry =~ /\A(.*):\d+  /;
+            my $line = "  $entry";
+            if (defined(my $why = $reason{$entry})) {
+                $broken++;
+                if ($why =~ /--repin rewrites it\)\z/) { $moved++; $line .= "  [moved: --repin rewrites it]" }
+                else { $line .= "  [breaks: $why]" }
+                if (!$selects_changed{$doc}) { $outside++; $line .= "  [outside this change]" }
+            }
+            print "$line\n";
+        }
+        print "line citations: selects hint: $broken of " . scalar(@selected) . " selected citation(s) break at the "
+            . "index ($moved moved, " . ($broken - $moved) . " need a read); $outside sit in documents this change does "
+            . "not edit; run script/check-line-citations.sh --repin and commit the rewritten documents before sealing "
+            . "(DCG-V0-980)\n" if $broken;
     } else {
         print "line citations: no pinned citation cites a file changed since $selects_base\n";
     }
