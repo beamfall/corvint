@@ -22,9 +22,9 @@ func TestDCWV0343WindowNoteIsOneLineWithList(t *testing.T) {
 	evidence := t.TempDir()
 	var stderr bytes.Buffer
 	run := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", stderr: &stderr, base: "b"}, evidence: evidence}
-	run.windowNote("unbound-commits", "unbound", commits, "p")
+	run.windowNote("unbound-commits", "unbound", commits, "x", "p")
 	list := evidence + "/dogfood-check.unbound-commits"
-	want := fmt.Sprintf("dogfood-check: NOTE unbound-commits count=91 window=p..b newest=%s oldest=%s before-base list=%s\n", commits[0], commits[90], list)
+	want := fmt.Sprintf("dogfood-check: NOTE unbound-commits count=91 window=p..b window-start=cem-base-of:x newest=%s oldest=%s before-base list=%s\n", commits[0], commits[90], list)
 	if stderr.String() != want {
 		t.Fatalf("note = %q, want %q", stderr.String(), want)
 	}
@@ -35,13 +35,13 @@ func TestDCWV0343WindowNoteIsOneLineWithList(t *testing.T) {
 	// Retroactive rows keep their binding in the list; newest and oldest name
 	// the commits alone.
 	stderr.Reset()
-	run.windowNote("retroactive-bound-commits", "retroactive", []string{commits[0] + " binding=x", commits[1] + " binding=x"}, "p")
-	if !strings.HasPrefix(stderr.String(), "dogfood-check: NOTE retroactive-bound-commits count=2 window=p..b newest="+commits[0]+" oldest="+commits[1]+" before-base list=") {
+	run.windowNote("retroactive-bound-commits", "retroactive", []string{commits[0] + " binding=x", commits[1] + " binding=x"}, "x", "p")
+	if !strings.HasPrefix(stderr.String(), "dogfood-check: NOTE retroactive-bound-commits count=2 window=p..b window-start=cem-base-of:x newest="+commits[0]+" oldest="+commits[1]+" before-base list=") {
 		t.Fatalf("retroactive note = %q", stderr.String())
 	}
 	// No commits print nothing.
 	stderr.Reset()
-	run.windowNote("unbound-commits", "unbound", nil, "p")
+	run.windowNote("unbound-commits", "unbound", nil, "x", "p")
 	if stderr.Len() != 0 {
 		t.Fatalf("empty window printed %q", stderr.String())
 	}
@@ -52,8 +52,8 @@ func TestDCWV0343WindowNoteIsOneLineWithList(t *testing.T) {
 	}
 	stderr.Reset()
 	run.evidence = blocked
-	run.windowNote("unbound-commits", "unbound", commits[:2], "p")
-	if stderr.String() != "dogfood-check: NOTE unbound-commits count=2 window=p..b\n  unbound "+commits[0]+"\n  unbound "+commits[1]+"\n" {
+	run.windowNote("unbound-commits", "unbound", commits[:2], "x", "p")
+	if stderr.String() != "dogfood-check: NOTE unbound-commits count=2 window=p..b window-start=cem-base-of:x\n  unbound "+commits[0]+"\n  unbound "+commits[1]+"\n" {
 		t.Fatalf("fallback = %q", stderr.String())
 	}
 }
@@ -103,5 +103,30 @@ func TestDCWV0344TierWarningsAggregateWithCause(t *testing.T) {
 	run.evidence = blocked
 	if got := run.tierWarnings(line); len(got) != maxTierWarnings+1 || got[maxTierWarnings] != "dogfood-check: WARN tier-below-anchored more=11" {
 		t.Fatalf("fallback: %d lines", len(got))
+	}
+}
+
+// DCW-V0-903 (V1-3447): a lane rebased onto a newer BASE whose committed CEM
+// was bound against an older base gets a window that starts at that older
+// base; the NOTE names the binding the start comes from.
+func TestDCWV0903UnboundCommitsNoteNamesTheWindowStart(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"a.txt": "a\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "old base")
+	old := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{".corvint/change.cem.json": `{"baseRevision":"` + old + `"}` + "\n", "a.txt": "b\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "bound change")
+	writeTree(t, root, map[string]string{"a.txt": "c\n"})
+	testGit(t, root, "commit", "-q", "-am", "unbound")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	var stderr bytes.Buffer
+	run := &check{flow: flow{ctx: context.Background(), prefix: "dogfood-check", root: root, stderr: &stderr, base: base}, evidence: t.TempDir()}
+	run.reportUnboundCommits()
+	want := "dogfood-check: NOTE unbound-commits count=1 window=" + old + ".." + base + " window-start=cem-base-of:" + base + " newest=" + base + " oldest=" + base + " before-base list="
+	if !strings.HasPrefix(stderr.String(), want) {
+		t.Fatalf("note = %q, want prefix %q", stderr.String(), want)
 	}
 }

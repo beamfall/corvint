@@ -214,8 +214,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
    window since the previous bound CEM contains commits no sidecar covers instead prints one
-   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE newest=SHA oldest=SHA
-   before-base list=FILE` line whose private list file names every commit (`DCW-V0-343`);
+   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE
+   window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE` line whose private
+   list file names every commit (`DCW-V0-343`); BINDING is the previous binding (the CEM committed
+   at BASE, else the bind commit under the newest seal reachable from BASE) whose CEM base starts
+   the window, so a rebased lane's window may start before its own BASE (`DCW-V0-903`);
    neither note changes the verdict.
 10. Run `make dogfood-seal BASE=$BASE`. Expected: the step 9 lines, then `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit. When the step 9
@@ -640,7 +643,7 @@ the sidecar commit and the commits after that CEM's own `baseRevision`. A seal c
 only renames its parent's CEM to `.corvint/changes/<parent>.cem.json`, is covered by that parent;
 any other commit that removes the CEM is not a seal. Every other commit is
 reported on stderr in one line, `dogfood-check: NOTE unbound-commits count=N window=PREV..BASE
-newest=SHA oldest=SHA before-base list=FILE`, where the private file
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where the private file
 `<git-dir>/corvint/dogfood-check.unbound-commits` holds one `unbound SHA` line per commit, newest
 first (`DCW-V0-343`); when that file cannot be written the `  unbound SHA` lines print inline
 instead. Nothing is printed when all are bound. When the
@@ -652,8 +655,8 @@ the check's verdict or exit status. It looks only at the window before this base
 reported by the check of the first change that follows it; merge commits and history before the
 previous binding are not examined. A commit covered only by a retroactive binding (below) is not
 unbound and is not normally bound: it is reported on stderr as
-`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE newest=SHA oldest=SHA
-before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
+`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
 `retroactive SHA binding=BINDING_SHA` line per commit, newest first, naming the newest such
 binding (inline when the file cannot be written). A normal binding of the same commit takes precedence. The retroactive label is read from
 the binding commit's trailer and is not re-verified by the check, just as window CEMs are not.

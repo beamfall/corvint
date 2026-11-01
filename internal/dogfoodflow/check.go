@@ -1162,8 +1162,10 @@ func nonEmpty(lines []string) []string {
 // The line carries the count, the newest and oldest commit and the private file
 // that lists every commit, newest first, one "<label> SHA..." line each. When
 // that file cannot be written the commits are listed inline instead, so the
-// list is never dropped.
-func (c *check) windowNote(note, label string, commits []string, previousBase string) {
+// list is never dropped. window-start names the previous binding whose CEM
+// base starts the window, so a window that starts before a rebased lane's
+// BASE is explained (DCW-V0-903).
+func (c *check) windowNote(note, label string, commits []string, previous, previousBase string) {
 	if len(commits) == 0 {
 		return
 	}
@@ -1175,10 +1177,10 @@ func (c *check) windowNote(note, label string, commits []string, previousBase st
 	newest := strings.Fields(commits[0])[0]
 	oldest := strings.Fields(commits[len(commits)-1])[0]
 	if os.MkdirAll(c.evidence, 0o700) == nil && removeFile(list) == nil && writePrivate(list, []byte(body.String())) == nil {
-		c.say("dogfood-check: NOTE %s count=%d window=%s..%s newest=%s oldest=%s before-base list=%s\n", note, len(commits), previousBase, c.base, newest, oldest, list)
+		c.say("dogfood-check: NOTE %s count=%d window=%s..%s window-start=cem-base-of:%s newest=%s oldest=%s before-base list=%s\n", note, len(commits), previousBase, c.base, previous, newest, oldest, list)
 		return
 	}
-	c.say("dogfood-check: NOTE %s count=%d window=%s..%s\n", note, len(commits), previousBase, c.base)
+	c.say("dogfood-check: NOTE %s count=%d window=%s..%s window-start=cem-base-of:%s\n", note, len(commits), previousBase, c.base, previous)
 	for _, commit := range commits {
 		c.say("  %s %s\n", label, commit)
 	}
@@ -1252,8 +1254,8 @@ func (c *check) reportUnboundCommits() {
 			unbound = append(unbound, commit)
 		}
 	}
-	c.windowNote("unbound-commits", "unbound", unbound, previousBase)
-	c.windowNote("retroactive-bound-commits", "retroactive", retroactive, previousBase)
+	c.windowNote("unbound-commits", "unbound", unbound, previous, previousBase)
+	c.windowNote("retroactive-bound-commits", "retroactive", retroactive, previous, previousBase)
 }
 
 func (c *check) enableAggregateCapture() {
