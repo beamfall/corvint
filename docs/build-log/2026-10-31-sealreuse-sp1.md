@@ -19,10 +19,11 @@ by sampling. Nested phases (`report` inside `precheck`, each verifier call insid
 outer segment and resume it afterwards. Verifier rows are taken in `check.verify`, which both the
 runner and the aggregate worker paths pass through, so every gate replay gets a
 `verifier-base|tree|override <command label>` row. The wrapper times `setup`, `build-tree` and
-`build-base`, each with `reuse` or `build`, into `dogfood-check.build.tsv` bound to `$$`. `exec`
-keeps the PID, so the Go check adopts the file only when it names `os.Getpid()`, and it starts its
-own first phase where the wrapper's rows end, which counts the exec gap. Both files are excluded
-from the `DCW-V0-347` inputs digest, so writing them never defeats seal reuse.
+`build-base`, each with `reuse` or `build`, into `dogfood-check.build.<pid>.tsv`, named and headed
+with `$$`. `exec` keeps the PID, so the Go check adopts only its own file, and it starts its own
+first phase where the wrapper's rows end, which counts the exec gap. The timings file is written
+only while the run holds the local-completion operation lock. Every timing file is excluded from
+the `DCW-V0-347` inputs digest, so writing them never defeats seal reuse.
 
 The first draft also printed a `dogfood-check: TIMING total` stderr line. The filtered
 `cmd/corvint` dogfood tests compare check stderr exactly
@@ -53,8 +54,17 @@ which units read `.corvint/` paths.
 `selection-baseline-check`, the dominant step, also gets declared inputs (`ASD-V0-944`): the Go
 source of the packages its recipe builds (`@go`), top-level files (`@root`, which includes the
 Makefile), `.github/cishards/` and `benchmarks/selection-baseline/`. It replays fixed historical
-commits with binaries built from those inputs, so a doc-only or script-only diff skips it under any
-base, which is what brings a script/doc-only closeout well under 600 s.
+commits with binaries built from those inputs.
+
+The first measurement showed that the plan-based skip alone never fires on this repository's real
+diffs. `corvint affected` against origin/main carries `LANGUAGE_FRONTIER` unknowns that
+`FRONTIER_OK` does not list (TypeScript `dynamic-import`, C-family `link-graph-unmodelled` and
+`unresolved-include`, .NET `dynamic-test-discovery`): 86 of them for this lane's diff, and some
+even for a one-line doc edit. So `ASD-V0-050` selection is off, and every step runs. The spec was
+amended, in its own commit, so that once the diff is read but the plan cannot narrow,
+`selection-baseline-check` is decided on the diff alone: it is skipped only when no Go input changed
+anywhere and no declared input changed. That needs no plan, since its inputs are fully declared.
+Widening `FRONTIER_OK` is a separate decision, left out here (see Friction).
 
 ## V1-3627: one base binary per base per host, shared gate results
 
@@ -82,6 +92,63 @@ a bound of two. Every surviving entry verifies; the count stays within the bound
 concurrent writer, and a later serial store restores the bound. A reuse racing a prune printed a
 `cat` error inside the writer; that read is now quiet.
 
+## Measurements
+
+All closeout measurements ran on a throwaway local clone of this branch
+(`~/.cache/sealreuse-sp1/measure`, never pushed) on the WSL host, with
+`TMPDIR=$HOME/.cache/corvint-tmp`.
+
+- Real check and seal (V1-3625 AC b): `make dogfood-finish` with this lane's inputs, 43.9 s wall,
+  bound, checked and sealed. Its finish-lane `TIMING check-seal seconds=7.73` step against the
+  check's `dogfood-check.timings.tsv` rows, which sum to 7.734 s (0.1%): `binding` 5.469,
+  `verifier-tree dogfood-ocm status` 0.735, `verifier-tree cem status` 0.517,
+  `verifier-base cem status` 0.504, `precheck` 0.473, `seal` 0.030, the rest under 0.01. Before
+  this change, the finish-lane rows named only the three verifier commands (about 1.8 s); the
+  5.5 s `binding` phase, in-process OCM, coverage and record work, was the unattributed share.
+- Wrapper-level check of the same bind commit: `make dogfood-check`, 8.629 s by `date` around the
+  make call, against rows summing to 8.517 s (98.7%; make start and process exit are outside the
+  rows). The rows included `setup` 0.023, `build-tree reuse` 0.538 and `build-base reuse` 0.187:
+  the clone, a different repository from the worktree that first built this BASE, reused the
+  host-shared base verifier (V1-3627 AC a).
+- Closeout prechecks for this Go change (V1-3550). The first run (`make batch-precheck
+  BASE=<base>` at the work head) took 464.7 s wall (790 s summed; `selection-baseline-check`
+  393 s); the plan was not usable, so everything ran. The sealed-head run with
+  `BATCH_PRECHECK_SINCE_RECEIPT=1` took 38.4 s: since-receipt base = the work head; 1 of 15 drift
+  tests; catalog and selection-baseline checks skipped; 35 passed; receipt written for the sealed
+  head. Before, the second run repeated the full set (about 465 s). Closeout for this change by
+  parts: 4.5 s inputs-check + 464.7 s + 43.9 s finish + 38.4 s, about 552 s, against about 980 s
+  before.
+- Doc-only first precheck (a one-line `docs/build-log/README.md` commit on BASE, cold, with
+  `CORVINT_GATE_LEDGER=off`): 487.1 s before the diff-only rule (`selection-baseline-check` ran
+  because the plan was unusable), 111.3 s after (297 s summed; the longest step was
+  `TestCorvintBundledBinariesBuildTwiceIdentically` at 96 s). A warm rerun on the same tree
+  reused every ledger step and took 24.9 s. Doc-only closeout by parts: about 5 + 111 + 44 + 38,
+  about 200 s, well under 600 s. That sum is assembled from separately measured steps; no single
+  end-to-end doc-only `make dogfood-closeout` was timed, because a closeout seals and this lane
+  does not seal.
+
+## Independent review
+
+One read-only review subagent found no high- or medium-severity defects. Its four low-severity
+findings:
+
+1. The since-receipt base also replaced the base for the base-present rerun, so a failure R would
+   now also show would downgrade to a WARN. Fixed: R is only the selection base (`since_base`);
+   the base-present rerun and trailer ranges keep the given base.
+2. The receipt does not record the base its run selected against. Not fixed: recording it changes
+   the five-line `ASD-V0-035` receipt. Recorded as an `ASD-V0-943` failure mode; inside the
+   closeout, the first run always rewrites the receipt against the same base.
+3. The timings could be written outside the operation lock, and two wrappers in one git directory
+   shared one build file. Fixed: the timings file is written only while the lock is held, and the
+   build file is per PID.
+4. `CORVINT_DOGFOOD_BIN_CACHE_MAX=08` printed a bash base error. Fixed: the bound must match
+   `^[1-9][0-9]*$`.
+
+The first measurement precheck also caught five `docs/AUTOMATION.md` line citations whose cited
+lines in `script/dogfood-check.sh` and `internal/dogfoodflow/check.go` changed. They were reread
+and repinned to the same blocks (the build steps; the report-missing path), whose claims still
+hold.
+
 ## Evidence
 
 - `TestDCWV0942CheckWritesPhaseTimings` (`internal/dogfoodflow`): a foreign-PID build file is
@@ -90,11 +157,20 @@ concurrent writer, and a later serial store restores the bound. A reuse racing a
   are not reuse inputs. `internal/dogfoodflow` whole package PASS.
 - `cmd/corvint`, filtered to every test in `dogfood*_test.go` and `local_completion_test.go`: PASS.
 - `script/dogfood-bin-reuse_test.sh` (DCW-V0-942/943 cases; fails on BASE with no build timings),
-  `script/batch-precheck_test.sh` group 15 (fails on BASE at the closeout recipe),
+  `script/batch-precheck_test.sh` group 15 (fails on BASE at the closeout recipe; covers the
+  since-receipt base, the receipt-at-HEAD skip, a dirty checkout, no receipt, and the
+  selection-baseline skip with and without a usable plan),
   `script/dogfood-cache_test.sh`, `script/dogfood-change_test.sh`,
   `script/dogfood-bind-range_test.sh`: PASS.
 
 ## Friction
+
+- `FRONTIER_OK` in `script/batch-precheck.sh` lists three `LANGUAGE_FRONTIER` details, but
+  `corvint affected` against origin/main now reports TypeScript, C-family and .NET frontier details
+  on ordinary diffs, a one-line doc commit included. `ASD-V0-050`/`ASD-V0-051` selection therefore
+  never narrows a first precheck on this repository. Repro: on a doc-only commit over origin/main,
+  `make batch-precheck BASE=<origin/main sha>` prints `batch-drift runs every drift test ... (the
+  plan has unknowns: LANGUAGE_FRONTIER typescript:dynamic-import...`.
 
 - Host /tmp (a 16 GB tmpfs on this WSL host) filled to 100% during the lane. It holds an 11 GB
   `/tmp/corvint-go-build-cache` from another caller, which put ENOSPC in two batch-drift steps
