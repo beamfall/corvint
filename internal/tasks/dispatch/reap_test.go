@@ -15,6 +15,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 )
 
 // launchedGroup is one worker process group a test started: launch makes
@@ -398,7 +400,7 @@ func failOnStrays(t *testing.T, root string) {
 func TestStrayCheckFindsAnUnrecordedProcessRunningFromTheTestDirectory(t *testing.T) {
 	root := t.TempDir()
 	script := filepath.Join(root, "stray.sh")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nwhile :; do /bin/sleep 1; done\n"), 0o700); err != nil {
+	if err := fixture.WriteExecutable(script, []byte("#!/bin/sh\nwhile :; do /bin/sleep 1; done\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("/bin/sh", script)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/mcp/tasksbridge"
 	"github.com/Beamfall/corvint/internal/repoenvelope"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -349,7 +350,7 @@ func TestTAWV0025_Locate(t *testing.T) {
 	executable := filepath.Join(install, "corvint-mcp")
 	sibling := filepath.Join(install, tasksbridge.BinaryName)
 	for _, path := range []string{executable, sibling} {
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

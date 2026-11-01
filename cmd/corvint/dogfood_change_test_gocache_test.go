@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -37,7 +38,7 @@ func TestDogfoodChangeTestHonoursTheCallerGoCache(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(root, "script", name), body, 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(root, "script", name), body, 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -47,7 +48,7 @@ func TestDogfoodChangeTestHonoursTheCallerGoCache(t *testing.T) {
 	}
 	record := filepath.Join(root, "gocache.txt")
 	fakeGo := "#!/bin/sh\nprintf '%s' \"${GOCACHE-UNSET}\" > " + record + "\nexit 3\n"
-	if err := os.WriteFile(filepath.Join(root, "bin", "go"), []byte(fakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(root, "bin", "go"), []byte(fakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var base []string

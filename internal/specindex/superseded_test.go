@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestSRGV0979SupersededSpecRegeneratesToACheckedIndex supersedes a live spec in a fixture
@@ -52,7 +54,7 @@ func TestSRGV0979SupersededSpecRegeneratesToACheckedIndex(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "script", "gen-spec-requirements.sh"), body, 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(root, "script", "gen-spec-requirements.sh"), body, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	git("add", "--", "docs/specs")

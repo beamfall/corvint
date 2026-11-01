@@ -2,11 +2,12 @@ package testsupport
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fakeTB records a skip or fatal and, like testing.T, ends its goroutine.
@@ -63,7 +64,7 @@ func TestASDV0973NodeOrSkip(t *testing.T) {
 		}
 		dir := t.TempDir()
 		node := filepath.Join(dir, "node")
-		if err := os.WriteFile(node, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(node, []byte("#!/bin/sh\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", dir)

@@ -472,7 +472,7 @@ func TestExpandNegotiatesBeforeQuerying_EEPV0821(t *testing.T) {
 	}
 	crashing := filepath.Join(t.TempDir(), "gopls")
 	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=gopls LSPPROVIDER_FAKE_CAPABILITIES='{\"definitionProvider\":true}' LSPPROVIDER_FAKE_CRASH=1 exec %q \"$@\"\n", binary)
-	if err := os.WriteFile(crashing, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(crashing, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	crashed := Expand(context.Background(), m.request(t, crashing, "a/a.go"))
