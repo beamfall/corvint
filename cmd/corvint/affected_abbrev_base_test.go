@@ -103,3 +103,35 @@ func TestAFPV0232AmbiguousAbbreviatedBase(t *testing.T) {
 		}
 	}
 }
+
+// ACX-V0-854 (V1-3727): --base HEAD~1 and a remote-tracking ref resolve to the full commit id
+// the receipt records; an unresolvable revision, an all-hex miss and a range share one hint.
+func TestACXV0854RevisionBase(t *testing.T) {
+	root := materializationFixture(t)
+	head := strings.TrimSpace(materializationGit(t, root, "rev-parse", "HEAD"))
+	if err := os.WriteFile(filepath.Join(root, "second.txt"), []byte("second\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	materializationGit(t, root, "add", "second.txt")
+	materializationGit(t, root, "commit", "-qm", "second")
+	materializationGit(t, root, "update-ref", "refs/remotes/origin/main", head)
+	for _, value := range []string{"HEAD~1", "origin/main", "HEAD^"} {
+		invocation, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", value})
+		if err != nil || invocation.Base != head {
+			t.Fatalf("--base %s: base=%q err=%v, want %s", value, invocation.Base, err, head)
+		}
+	}
+	code, stdout, stderr := runCLI(t, "--root", root, "affected", "--base", "HEAD~1")
+	if code != 0 || !strings.Contains(stdout, `"base":"`+head+`"`) && !strings.Contains(stdout, `"base": "`+head+`"`) {
+		t.Fatalf("receipt does not record the full base: code=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	for _, value := range []string{"HEAD~9", "origin/missing", "0000000", "HEAD..main", "-p", ":/second", "a b"} {
+		_, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", value})
+		if err == nil || !strings.Contains(err.Error(), "git rev-parse --verify '"+value+"^{commit}'") || !strings.Contains(err.Error(), "full commit id") {
+			t.Fatalf("--base %q: err=%v, want the uniform rev-parse hint", value, err)
+		}
+	}
+	if _, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", "it's"}); err == nil || !strings.Contains(err.Error(), `git rev-parse --verify 'it'\''s^{commit}'`) {
+		t.Fatalf("--base with a quote: err=%v, want the POSIX-quoted hint", err)
+	}
+}

@@ -128,19 +128,19 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(name string) bool {
+	files, err := root.Files(func(_, name string) bool {
 		return strings.HasSuffix(name, ".rb")
 	})
 	if err != nil {
 		return affected.Result{}, err
 	}
-	features, err := root.Files(func(name string) bool {
+	features, err := root.Files(func(_, name string) bool {
 		return strings.HasSuffix(name, ".feature")
 	})
 	if err != nil {
 		return affected.Result{}, err
 	}
-	everything, err := root.Files(func(string) bool { return true })
+	everything, err := root.Files(func(_, _ string) bool { return true })
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -758,7 +758,7 @@ func aliasesFor(item observation, loadRoots []string) []string {
 }
 
 func rakeLoadRoots(root *affected.Source, frontier map[string]bool) ([]string, error) {
-	files, err := root.Files(func(name string) bool { return name == "Rakefile" })
+	files, err := root.Files(func(_, name string) bool { return name == "Rakefile" })
 	if err != nil {
 		return nil, err
 	}

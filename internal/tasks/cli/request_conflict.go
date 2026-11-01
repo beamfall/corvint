@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -63,4 +64,51 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 		}
 	}
 	return generic
+}
+
+// recordedCurrentRevision is the revision `--expected-revision current`
+// submits (TCL-V0-860). The live revision is flags.expected; after a
+// recorded write it has advanced past the one the original request was
+// digested with, so a retry with the same --request-id and --issued-at
+// would conflict. When the request index records this request ID, the
+// envelope is rebuilt at each earlier revision, and the one whose digest
+// equals the recorded digest is submitted, so the store replays the
+// recorded result. Without --issued-at, a recorded entry or a matching
+// digest, the live revision stands and the store judges it as before.
+func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) string {
+	live := flags.expected
+	n, err := strconv.ParseUint(live, 10, 64)
+	if flags.issuedAt == "" || err != nil {
+		return live
+	}
+	issued, err := wire.ParseTimestamp("issuedAt", flags.issuedAt)
+	if err != nil {
+		return live
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return live
+	}
+	st, err := intent.Load(repo.IntentRoot())
+	if err != nil {
+		return live
+	}
+	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	entry, found, err := idx.Lookup(flags.requestID)
+	if err != nil || !found {
+		return live
+	}
+	for r := n; r >= 1; r-- {
+		f := flags
+		f.expected = strconv.FormatUint(r, 10)
+		envelope, err := buildEnvelope(operation, st.Queue.QueueID.Raw, actor, f, payload, issued)
+		if err != nil {
+			return live
+		}
+		d, err := transaction.Digest(transaction.Request{Operation: transaction.Mutate, QueueID: st.Queue.QueueID.Raw, RequestID: flags.requestID, Actor: actor, Envelope: envelope})
+		if err == nil && d == entry.MutationSha256 {
+			return f.expected
+		}
+	}
+	return live
 }

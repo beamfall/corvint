@@ -2,6 +2,7 @@ package docmaintain
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -836,5 +837,38 @@ func TestDuplicateAndOrphanMarkersAreRefused(t *testing.T) {
 				t.Fatal("refused session changed the page")
 			}
 		})
+	}
+}
+
+// SDD-V0-632: a declaration that falls on a later page still changes the page-1
+// block, because the page now carries a TRUNCATED limitation it did not before.
+func TestSDDV0632MaintainDigestCoversTruncation(t *testing.T) {
+	root := fixtureRepo(t, digestV1)
+	for n := range 63 {
+		name := filepath.Join(root, "widget", fmt.Sprintf("a%02d.go", n))
+		if err := os.WriteFile(name, []byte(fmt.Sprintf("package widget\n\n// F%02d is entry %d.\nfunc F%02d() {}\n", n, n, n)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writePage(t, root, "# Page\n\n"+insertionPoint+"\n")
+	commit(t, root, "64 declarations")
+	selector := []Selector{{Source: "owner.md", Package: "widget"}}
+	first, err := Run(context.Background(), root, "docs/page.md", selector, alwaysPolicy())
+	if err != nil || !first.Receipt.Applied || strings.Contains(string(first.ProposedPage), "TRUNCATED") {
+		t.Fatalf("64 declarations: err=%v receipt=%+v", err, first.Receipt)
+	}
+	if err := os.WriteFile(pagePath(root), first.ProposedPage, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "widget", "z.go"), []byte("package widget\n\n// Z is the 65th entry.\nfunc Z() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	commit(t, root, "65th declaration on page 2")
+	second, err := Run(context.Background(), root, "docs/page.md", selector, alwaysPolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !second.Receipt.Applied || second.Receipt.Blocks[0].Skipped != "" || !strings.Contains(string(second.ProposedPage), "TRUNCATED: declarations 1–64 of 65") {
+		t.Fatalf("65th declaration did not refresh the block: %+v", second.Receipt.Blocks[0])
 	}
 }

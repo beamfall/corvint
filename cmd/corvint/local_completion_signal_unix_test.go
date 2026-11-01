@@ -12,13 +12,28 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/localcompletion"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
+
+// V1-1498: the finish-signal helper is bound to its parent's lifetime, so one
+// whose named parent is not its parent exits 3 before it runs finish.
+func TestLocalCompletionFinishSignalHelperExitsWhenParentGone(t *testing.T) {
+	command := exec.Command(os.Args[0], "-test.run=^TestLocalCompletionFinishSignalHelper$")
+	command.Env = append(os.Environ(), "CORVINT_FINISH_SIGNAL_ROOT="+t.TempDir(), "CORVINT_FINISH_SIGNAL_MARKER="+filepath.Join(t.TempDir(), "held"), testsupport.ParentPIDEnv+"="+strconv.Itoa(os.Getppid()))
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	err := command.Run()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 3 || !strings.Contains(stderr.String(), "parent gone") {
+		t.Fatalf("helper with a gone parent: %v, stderr %q; want exit 3 naming the parent", err, stderr.String())
+	}
+}
 
 // TestLocalCompletionFinishSignalHelper is the re-executed `corvint dogfood
 // finish` for LCP-V0-060: the real CLI argv through runProfiledContext under the
@@ -29,6 +44,8 @@ func TestLocalCompletionFinishSignalHelper(t *testing.T) {
 	if root == "" {
 		return
 	}
+	// The helper holds until its parent signals it; it exits if the parent dies first (V1-1498).
+	testsupport.ExitWhenParentGone()
 	marker := os.Getenv("CORVINT_FINISH_SIGNAL_MARKER")
 	wrapFinishCommand = func(next localcompletion.PublicCommand) localcompletion.PublicCommand {
 		statuses := 0
@@ -65,7 +82,7 @@ func assertFinishSignalCLI(t *testing.T, root, key, statePath string) {
 	for _, sig := range []syscall.Signal{syscall.SIGINT, syscall.SIGTERM} {
 		marker := filepath.Join(t.TempDir(), "held")
 		command := exec.Command(os.Args[0], "-test.run=^TestLocalCompletionFinishSignalHelper$")
-		command.Env = append(os.Environ(), "CORVINT_FINISH_SIGNAL_ROOT="+root, "CORVINT_FINISH_SIGNAL_KEY="+key, "CORVINT_FINISH_SIGNAL_MARKER="+marker)
+		command.Env = append(os.Environ(), "CORVINT_FINISH_SIGNAL_ROOT="+root, "CORVINT_FINISH_SIGNAL_KEY="+key, "CORVINT_FINISH_SIGNAL_MARKER="+marker, testsupport.ParentPIDEntry())
 		command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		var stdout, stderr bytes.Buffer
 		command.Stdout = &stdout

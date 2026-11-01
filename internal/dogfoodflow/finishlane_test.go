@@ -317,7 +317,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	for _, tc := range []struct {
 		name, verifyFile, verify, reason string
 	}{
-		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^Test.*' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "env-quoted", verify: "go test -run \"Test.*\" ./internal/a", reason: "unsupported-verify-syntax"},
 		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test.*)$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "unquoted-run-alternation", verifyFile: write("unquoted.txt", []byte("go test -count=1 ./internal/b\ngo test -count=1 -run TestA|TestB ./internal/a\n")), reason: "unsupported-verify-syntax"},
@@ -739,7 +739,8 @@ func TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare(t *testing.T
 		preflight                      bool
 	}{
 		{name: "finish-both", missing: "--verify,--outcome"},
-		{name: "preflight-both", missing: "--verify,--outcome", preflight: true},
+		// DCW-V0-848: the pre-flight binds nothing, so it needs no outcome.
+		{name: "preflight-both", missing: "--verify", preflight: true},
 		{name: "finish-outcome", verify: "go version", missing: "--outcome"},
 		{name: "preflight-verify", outcome: "passed", missing: "--verify", preflight: true},
 	} {
@@ -840,5 +841,38 @@ func TestInputsCheckDCWV0810NotesAStaleSidecar(t *testing.T) {
 	}
 	if _, err := os.Lstat(stale); err != nil {
 		t.Fatalf("the pre-flight moved the sidecar: %v", err)
+	}
+}
+
+func TestFinishLaneDCWV0816BindAdmitsAReplacedTrackedSidecar(t *testing.T) {
+	failing := func(row step) bool { return row.status != "PRODUCED" }
+	replaced := []step{
+		{"cem-prepare", "PRODUCED", ""},
+		{"cem-cite", "PRODUCED", ""},
+		{"ocm-prepare-001", "NOT_PRODUCED", "excluded-artifact-mismatch"},
+		{"ocm-status-001", "NOT_PRODUCED", "map-unavailable"},
+		{"ocm-aggregate", "NOT_PRODUCED", "intent-scope-drift"},
+		{"cem-status", "NOT_PRODUCED", "not-ready"},
+	}
+	if !bindAdmits(replaced, failing, true) {
+		t.Fatal("a bind after an earlier in-branch bind commit was refused; want it committed and rebound")
+	}
+	if bindAdmits(replaced, failing, false) {
+		t.Fatal("excluded-artifact-mismatch was admitted although HEAD does not track the sidecar")
+	}
+	for _, other := range []step{
+		{"cem-cite", "NOT_PRODUCED", "cite-span-not-stable"},
+		{"ocm-prepare-002", "NOT_PRODUCED", "invalid-requirements-section"},
+		{"guarding-tests", "NOT_PRODUCED", "missing"},
+	} {
+		if bindAdmits(append(append([]step{}, replaced...), other), failing, true) {
+			t.Fatalf("%v was admitted beside the replaced sidecar; only its consequences may be", other)
+		}
+	}
+	if !bindAdmits([]step{{"local-outcome", "NOT_PRODUCED", "record-index-failed"}}, failing, false) {
+		t.Fatal("record-index-failed alone must stay admitted (DCW-V0-015)")
+	}
+	if bindAdmits([]step{{"ocm-status-001", "NOT_PRODUCED", "map-unavailable"}}, failing, true) {
+		t.Fatal("an ocm-status failure without the excluded-artifact-mismatch cause was admitted")
 	}
 }

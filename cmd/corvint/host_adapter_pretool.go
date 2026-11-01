@@ -1,0 +1,91 @@
+package main
+
+import (
+	"context"
+	"maps"
+	"path/filepath"
+	"strings"
+)
+
+// runClaudePreToolRead is the `claude-code pre-tool` hook event for Read and Grep (AHI-805,
+// V1-0402). Corvint holds no authority over a read, so the answer never carries a permission
+// decision: `defer` is not neutral (the host honours it only under -p, where it ends the turn and
+// drops additionalContext), so the host's own permission flow always runs unchanged. A Read
+// file_path or Grep path inside the project is compiled as a one-path user-prompt anchor, adding
+// that path's evidence as PreToolUse additionalContext or a named degradation; any other tool or
+// target gets {}. It records nothing the user-prompt path does not already record: unplanned-read
+// rows stay gated on the operator marker (AGENTS.md invariant 4, SOL-V0-010). An ExitPlanMode call
+// gets the same answer for its plan text (AHI-806): evidence, never approval.
+func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[string]any {
+	text, ok := preToolPrompt(ctx, payload)
+	if !ok {
+		return map[string]any{}
+	}
+	prompt := maps.Clone(payload)
+	prompt["prompt"] = text
+	prompt["hook_event_name"] = "UserPromptSubmit"
+	output := runClaudeAdapter(ctx, "user-prompt", prompt)
+	for _, member := range []string{"decision", "reason", "continue", "stopReason"} {
+		delete(output, member)
+	}
+	hook, isHook := output["hookSpecificOutput"].(map[string]any)
+	if !isHook {
+		return output
+	}
+	contextText, _ := hook["additionalContext"].(string)
+	if contextText == "" {
+		delete(output, "hookSpecificOutput")
+		return output
+	}
+	// Only the event name and the context are kept: no decision, reason or updated input.
+	output["hookSpecificOutput"] = map[string]any{"hookEventName": "PreToolUse", "additionalContext": contextText}
+	return output
+}
+
+// preToolPrompt is the prompt text a pre-tool call compiles: the backticked target of a Read or
+// Grep, or the submitted plan of an ExitPlanMode call (AHI-806, V1-0878), whose path, requirement
+// ID and identifier anchors resolve as a prompt's do. False means no output.
+func preToolPrompt(ctx context.Context, payload map[string]any) (string, bool) {
+	if payload["tool_name"] == "ExitPlanMode" {
+		input, _ := payload["tool_input"].(map[string]any)
+		plan, _ := input["plan"].(string)
+		return plan, strings.TrimSpace(plan) != ""
+	}
+	target, ok := preToolReadTarget(ctx, payload)
+	return "`" + target + "`", ok
+}
+
+// preToolReadTarget is the project-relative path a Read or Grep call names, or false for another
+// tool, an absent path, the project root itself, or a path outside the project.
+func preToolReadTarget(ctx context.Context, payload map[string]any) (string, bool) {
+	input, _ := payload["tool_input"].(map[string]any)
+	var target string
+	switch payload["tool_name"] {
+	case "Read":
+		target, _ = input["file_path"].(string)
+	case "Grep":
+		target, _ = input["path"].(string)
+	}
+	if strings.TrimSpace(target) == "" {
+		return "", false
+	}
+	root, err := claudeAdapterRoot(ctx)
+	if err != nil {
+		return "", false
+	}
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	if !filepath.IsAbs(target) {
+		target = filepath.Join(root, target)
+	}
+	resolved, ok := resolvePostToolTarget(target)
+	if !ok {
+		return "", false
+	}
+	relative, err := filepath.Rel(root, resolved)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return filepath.ToSlash(relative), true
+}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -91,13 +92,14 @@ func identityClass(stdout []byte) (string, *intent.PoolSource) {
 	}
 	d := json.NewDecoder(bytes.NewReader(stdout))
 	d.DisallowUnknownFields()
-	if d.Decode(&out) != nil || out.Revision == nil || out.Tree == nil || d.More() {
+	if d.Decode(&out) != nil || out.Revision == nil || out.Tree == nil {
 		return "MALFORMED_OUTPUT", nil
 	}
-	// Only white space may follow: a stray '}' or ']' is a syntax error,
-	// not the end of input (PSR-V0-084).
-	var rest json.RawMessage
-	if d.Decode(&rest) != io.EOF {
+	// Only white space may follow: a stray '}' or ']' is trailing content,
+	// not the end of input, so More() alone cannot decide it (PSR-V0-084,
+	// V1-3358). The check is inline because Tasks imports no Core package,
+	// internal/jsonend included (TestImportDirection).
+	if _, err := d.Token(); !errors.Is(err, io.EOF) {
 		return "MALFORMED_OUTPUT", nil
 	}
 	s, e := intent.ParsePoolSource("identity", *out.Revision+":"+*out.Tree)

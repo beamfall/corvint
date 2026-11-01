@@ -207,7 +207,10 @@ func TestAFPV0054WindowsVetTargetMatchesTheCIStep(t *testing.T) {
 		}
 	}
 	lines := readRepositoryFile(t, "Makefile")
-	if !slices.Contains(lines, "windows-vet: go-version") {
+	// ACX-V0-857: the rule line may carry the help target's `## ` description.
+	if !slices.ContainsFunc(lines, func(line string) bool {
+		return line == "windows-vet: go-version" || strings.HasPrefix(line, "windows-vet: go-version ## ")
+	}) {
 		t.Error("Makefile windows-vet does not depend on go-version")
 	}
 	start := slices.Index(lines, "go-version:")

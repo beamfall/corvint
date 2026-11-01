@@ -136,7 +136,7 @@ above stands with that substitution.
   both exit 2 with `output-failed` (`cmd/corvint/prove.go:575-579@4c0799f8`, `cmd/corvint/prove.go:587-589@ea3220b5`). A failed write
   MAY leave partial bytes on stdout, so a consumer MUST read the exit status, never stdout
   emptiness, as the signal that no verdict was produced — the same exit-2 signal the harness
-  gives for its own write failure (`cmd/corvint/main.go:1395-1397@f3b5fd7c`), which the adapter contract
+  gives for its own write failure (`cmd/corvint/main.go:1400-1402@f3b5fd7c`), which the adapter contract
   converts into a visible host-valid no-op (`docs/specs/agent-harness-integration-v0.md:68-69`).
   This clause's code list is also extended, under `--checkpoint` only, by the six codes FPK-V0-024
   enumerates: `unreadable-checkpoint-document`, `invalid-checkpoint-document`,
@@ -443,7 +443,7 @@ above stands with that substitution.
   (`internal/liveverify/affected/dirty.go:46@abebde5b` is the entry point; the deduplication and sort happen
   in `DecodeStatus` at `internal/liveverify/affected/dirty.go:229@a543bfa1` via `NormalizePaths`,
   `internal/liveverify/affected/select.go:1135-1148@eadff8fe`), by the same construction
-  `internal/gokernel/repository.go:416-417@425ed3ff` and `internal/gokernel/repository.go:427@54fe2926` already take — cited as a construction
+  `internal/gokernel/repository.go:424-425@425ed3ff` and `internal/gokernel/repository.go:435@54fe2926` already take — cited as a construction
   precedent only, since that digest's input is gokernel's own status list, whereas this digest's
   input is the `affected.DirtyPaths` list the run already reads (`cmd/corvint/prove.go:618-620@70263bb7`). It hashes
   path names, never
@@ -582,7 +582,7 @@ above stands with that substitution.
   `dirty-set-moved` (FPK-V0-020's digest, recomputed by that one construction over the current
   dirty path list, differs from the checkpoint's `dirty_paths_sha256`; both hash names only,
   never content, the digest being taken over the path list alone
-  (`internal/gokernel/repository.go:416-417@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:238@e2af9ea7`), so
+  (`internal/gokernel/repository.go:424-425@425ed3ff`), which collects status path names (`internal/gokernel/repository.go:238@e2af9ea7`), so
   equal dirty sets yield equal digests and the flag is not set);
   `authority-changed` (the current blob of a `critical` handle differs from `blob_hash` AND
   the handle's authority class — re-derived at the CURRENT snapshot from the live classifier
@@ -726,22 +726,22 @@ above stands with that substitution.
   unchanged, which `--checkpoint` MUST NOT re-code, so the exact expected code is
   whatever `Build` returns for that repository. A `Build` error can carry no code at all
   (`internal/contextindex/git.go:514-515@bf504d51`), and `emitError` deliberately prints such an error without
-  a `code` member (`cmd/corvint/main.go:1659-1666@22dfe31e`); because this clause requires every checkpoint
+  a `code` member (`cmd/corvint/main.go:1664-1671@22dfe31e`); because this clause requires every checkpoint
   refusal to bear a code, a code-less `Build` error MUST be reported as `unsupported-prove-index`,
   a checkpoint-only mapping that preserves the `Build` message verbatim as the refusal's `error`
   member — for an error carrying no `DRC-V0` diagnostic, which this refusal never does, the only
   members `emitError` writes are `code`, `error`, and `ok`
-  (`cmd/corvint/main.go:1668-1672@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
+  (`cmd/corvint/main.go:1673-1677@b96186e4`), so there is no `reason` member on this wire — and MUST NOT
   change what plain `prove` emits for the same error. The mapping MUST construct a
   fresh `&gokernel.Error{Code: "unsupported-prove-index", Message: buildErr.Error()}` that does
   NOT wrap the `*contextindex.Error`: `emitError` prints without a `code` member for an error
-  that unwraps to a code-less context error (`cmd/corvint/main.go:1641-1655@40f3e6b1`), so wrapping to preserve the message
+  that unwraps to a code-less context error (`cmd/corvint/main.go:1646-1660@40f3e6b1`), so wrapping to preserve the message
   would still emit an uncoded refusal, which this clause forbids. That mapping MUST live in the
   checkpoint branch's own compile function — `compileCheckpointProof` (`cmd/corvint/prove.go:705@01d34b22`), the sibling of
   `compileCEMProof` (`cmd/corvint/prove.go:922@e469a50d`) that `compileProof` dispatches to on the
   checkpoint mode (`cmd/corvint/prove.go:613@6d433de3`, `cmd/corvint/prove.go:622-624@acc310b7`) — between its
   index build and its return to `runProve` (`cmd/corvint/prove.go:718-728@5563dd2e`, `cmd/corvint/prove.go:558-566@73e66e84`). It MUST NOT be placed in
-  `emitError` (`cmd/corvint/main.go:1653-1655@4f554a82`), which plain `prove` shares, so plain `prove`'s
+  `emitError` (`cmd/corvint/main.go:1658-1660@4f554a82`), which plain `prove` shares, so plain `prove`'s
   stderr for the same code-less `Build` error stays byte-unchanged, which FPK-V0-026 requires as a
   named test; (11) `repository.object_format` differs from the object format of the index
   built at the current revision (FPK-V0-021) — `object-format-mismatch`, decided after the index
@@ -794,10 +794,10 @@ above stands with that substitution.
   (`internal/contextindex/index.go:311@1cafb447`) directly, as prove's impact and change modes did until `IDX-SNAP-V0-020`, which
   left them `Build` only on a snapshot miss (`cmd/corvint/prove.go:1129@a1c6494d`, `cmd/corvint/index_snapshot.go:107@90129c09`), and MUST NOT read an on-disk index snapshot. `prove --task` is not the model
   for this: its project-operations query profile acquires through `standaloneQueryContext`
-  (`cmd/corvint/prove.go:1112-1114@d473eb95`, `cmd/corvint/main.go:1441-1456@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
-  (`cmd/corvint/index_snapshot.go:95-96@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1477-1478@c39315fe` and
+  (`cmd/corvint/prove.go:1112-1114@d473eb95`, `cmd/corvint/main.go:1446-1461@501b9e1b`), which reaches `deferredSnapshotIndex` and `snapshotIndex`
+  (`cmd/corvint/index_snapshot.go:95-96@5959c784`, `cmd/corvint/index_snapshot.go:61-62@123f0830`) at `cmd/corvint/main.go:1482-1483@c39315fe` and
   `cmd/corvint/harness_context.go:70-71@70282d2c` and only builds (`BuildQuery`, `internal/contextindex/index.go:435-437@cb623283`, called at
-  `cmd/corvint/main.go:1470@33d39726`; `BuildEval`, `internal/contextindex/index.go:337-338@b1c33c59`, called at `cmd/corvint/harness_context.go:68@4dbd8b14`) on a miss — so plain
+  `cmd/corvint/main.go:1475@33d39726`; `BuildEval`, `internal/contextindex/index.go:337-338@b1c33c59`, called at `cmd/corvint/harness_context.go:68@4dbd8b14`) on a miss — so plain
   `prove --task` does read the snapshot today, which a run of the binary confirms: with a
   populated `.corvint/index/`, the snapshot file's access time advances under `prove --task` and
   did not under `prove PATH...` before `IDX-SNAP-V0-020` (decision 0180) gave impact and change modes the same read. `IDX-SNAP-V0-008` (`docs/specs/index-snapshot-v0.md:79-81`)
@@ -862,7 +862,7 @@ above stands with that substitution.
   partial one: it consults the `cat-file` map alone (`cmd/corvint/prove.go:1189-1200@c20da0d4`) and makes no
   `ls-tree` check, so the tree-entry half of the FPK-V0-021 test is new work here. Neither rests
   on index omission; `dirty_paths_sha256` itself hashes path names only, not content
-  (`internal/gokernel/repository.go:417@8febb932`).
+  (`internal/gokernel/repository.go:425@8febb932`).
 - **FPK-V0-025:** (accepted 2026-09-04 for AT-06 by decision 0052) This clause activates no SESSION-V0 lifecycle: SESSION-V0-001 through SESSION-V0-016
   stay deferred and unimplemented (`docs/specs/session-context-dividend-v0.md:6`, `:29`), and
   `prove --checkpoint` MUST NOT persist, cache, or index a checkpoint document server-side. The
@@ -877,7 +877,7 @@ above stands with that substitution.
   refusal, and each other case FPK-V0-024 enumerates yields the exact code that clause names for
   it, an invented code being a failure; a `Build` error carrying its own code yields that code
   unchanged, and a code-less `Build` error yields `unsupported-prove-index` carrying the `Build`
-  message verbatim as its `error` member (`cmd/corvint/main.go:1668-1672@b96186e4`), an uncoded refusal
+  message verbatim as its `error` member (`cmd/corvint/main.go:1673-1677@b96186e4`), an uncoded refusal
   being a failure; and a checkpoint whose
   `repository.object_format` is `sha256` replayed in a sha1 repository refuses
   `object-format-mismatch` before any handle verdict, a confident all-`blob-changed` document being

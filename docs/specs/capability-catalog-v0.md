@@ -361,6 +361,15 @@ cannot silently go missing or outlive its command.
   2 before it reads a repository or listens; `corvint-update` MUST refuse an action other than
   `check`, `apply` or `rollback` (including none) with its usage on stderr and exit 2 before it reads
   state, and its usage names every action, `--allow-network` and `--component core|tasks`.
+- `CAP-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-3902; refines
+  `CAP-V0-060`) An unknown verb, at the first word or after any verb group (`ticket`, `queue`,
+  `plan`, `policy`, `service`, `slots` and the rest), MUST
+  exit nonzero with outcome `ERROR` and the stable code `MALFORMED`, so a caller tells a typo from
+  a help request by its codes alone. The envelope's command names the group and the unknown word
+  when that word is an identifier (`help` stands in otherwise), and the warning quotes the word and
+  suggests the nearest implemented verb by edit distance (at most 2, or a third of the word's
+  length when longer; no verb within that distance means no suggestion) after the CAP-V0-060 last-word routes; with neither, it keeps the plain
+  `corvint-tasks help` pointer.
 - `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
   `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
   kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
@@ -462,6 +471,13 @@ cannot silently go missing or outlive its command.
   the verb, the span and the row line, and such detail goes inside parentheses, which the reader
   skips. CAP-V0-961 then reads names rather than relying on the first-word prose convention.
   Rollback: drop `checkSubcommandSpans` and its call; the CAP-V0-961 reader is unchanged.
+- `CAP-V0-650`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-01)
+  The root-help parsers (`capcatalog.Build` and `tools/capabilities-check`) MUST accept the job
+  groups of CCF-V1-008: every header after the Core group starts `Experimental`, a line naming
+  verbs separated by ` | ` labels each verb, and a Core header after an experimental one fails. The
+  registry's `HiddenCommands` verbs MUST appear in the catalog and in the capabilities inventory as
+  experimental with their gloss, though root help does not list them. Rollback: drop the family
+  split and the hidden-verb merge and regenerate the catalog.
 
 ## Boundaries and failure modes
 
@@ -586,6 +602,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-961 | `documentedSubcommands`, `checkStaleSubcommands` | `TestCAPV0961StaleDocumentedSubcommandFails`, `TestCAPV0961DocumentedSubcommandsParse` |
 | CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
+| CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
 | CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")`, `capcatalog.requiredFlags`, `capcatalog.FormKey` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep`, `TestCAPV0017RequiredFlagsAreDerivedFromUsageForms`, `TestCAPV0017GuideExamplesCarryRequiredOptions` |
@@ -619,6 +636,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) |
 | CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
+| CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |

@@ -344,7 +344,7 @@
       "usage": [
         "corvint affected --path PATH [PATH ...] plans a transitive selection at HEAD.",
         "corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR | --no-cache] [--format json|text]",
-        "corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...] [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]",
+        "corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...] [--paths-from FILE] [--worktree] [--cache DIR | --no-cache] [--format json|text]",
         "corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]",
         "corvint [--root PATH] affected [--full] --snapshot RECEIPT",
         "corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH",
@@ -374,7 +374,8 @@
         "--require-clean",
         "--root",
         "--selection-profile",
-        "--snapshot"
+        "--snapshot",
+        "--worktree"
       ],
       "required": [],
       "example": "corvint affected --path PATH plans a transitive selection at HEAD.",
@@ -447,7 +448,7 @@
         "answerability"
       ],
       "command": "corvint answerability",
-      "summary": "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON:",
+      "summary": "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] answerability --task TEXT [--subject PATH] [--limit N]"
       ],
@@ -533,7 +534,7 @@
         "calibrate"
       ],
       "command": "corvint calibrate",
-      "summary": "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text:",
+      "summary": "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text",
       "usage": [
         "corvint [--root PATH] calibrate [--since REV | --window N] [--exclude-producer NAME]... [--format json|table]"
       ],
@@ -1273,7 +1274,7 @@
         "depsource"
       ],
       "command": "corvint depsource",
-      "summary": "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON:",
+      "summary": "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] depsource MODULE [--file PATH] [--limit N]"
       ],
@@ -1295,7 +1296,8 @@
       "command": "corvint docs",
       "summary": "Experimental source documentation orientation",
       "usage": [
-        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
+        "corvint [--root PATH] docs citations check [PATH...]",
+        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md",
         "corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)",
         "corvint [--root PATH] docs corpus OPERATION [OPTIONS]",
         "corvint docs corpus OPERATION --help",
@@ -1358,8 +1360,8 @@
         "corvint [--root PATH] docs corpus vocabulary --artifact CORPUS.json --query TEXT [--limit N] [--offset N] [--retirement POLICY.json] [--caller-revision FULL_COMMIT] [--verify-rederive] [--timings] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json",
         "corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
-        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
-        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
+        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain",
         "corvint [--root PATH] docs flows check ... (corvint help docs flows)",
         "corvint [--root PATH] docs flows check --revision FULL_SHA --previous FILE [--output-dir DIR]",
@@ -1406,6 +1408,7 @@
         "--no-workspace",
         "--offset",
         "--output-dir",
+        "--owner-section",
         "--owner-stdin",
         "--package",
         "--page",
@@ -1452,8 +1455,43 @@
         "--workspace"
       ],
       "required": [],
-      "example": "corvint docs consume --source PATH --package DIRECTORY --task TEXT < draft.md",
+      "example": "corvint docs citations check",
       "help": "corvint docs --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations"
+      ],
+      "command": "corvint docs citations",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint docs citations check",
+      "help": "corvint docs citations --help"
+    },
+    {
+      "path": [
+        "docs",
+        "citations",
+        "check"
+      ],
+      "command": "corvint docs citations check",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] docs citations check [PATH...]"
+      ],
+      "flags": [
+        "--root"
+      ],
+      "required": [],
+      "example": "corvint docs citations check",
+      "help": "corvint docs citations check --help"
     },
     {
       "path": [
@@ -1463,10 +1501,12 @@
       "command": "corvint docs consume",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md"
+        "corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md"
       ],
       "flags": [
+        "--owner-section",
         "--package",
+        "--page",
         "--root",
         "--source",
         "--task"
@@ -2795,14 +2835,16 @@
       "command": "corvint docs draft",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY",
-        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY",
+        "corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
+        "corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]",
         "corvint docs draft --dry-run --source docs/new-owner.md --package internal/docmaintain"
       ],
       "flags": [
         "--dry-run",
+        "--owner-section",
         "--owner-stdin",
         "--package",
+        "--page",
         "--root",
         "--source"
       ],
@@ -2984,7 +3026,7 @@
         "corvint [--root PATH] dogfood import --input FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
         "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
         "corvint [--root PATH] dogfood status [--session-key HASH]",
@@ -2998,6 +3040,7 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--from-cem",
         "--input",
         "--intents",
         "--outcome",
@@ -3312,9 +3355,10 @@
       "command": "corvint dogfood propose-citations",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE"
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE"
       ],
       "flags": [
+        "--from-cem",
         "--refresh",
         "--root"
       ],
@@ -3499,7 +3543,7 @@
         "features"
       ],
       "command": "corvint features",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] features"
       ],
@@ -3543,6 +3587,7 @@
         "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
         "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
+        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]",
         "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]",
@@ -3716,6 +3761,29 @@
       "required": [],
       "example": "corvint flows appmap build --manifest FILE",
       "help": "corvint flows appmap build --help"
+    },
+    {
+      "path": [
+        "flows",
+        "appmap",
+        "coverage"
+      ],
+      "command": "corvint flows appmap coverage",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]"
+      ],
+      "flags": [
+        "--budget",
+        "--full",
+        "--map",
+        "--root"
+      ],
+      "required": [
+        "--map FILE"
+      ],
+      "example": "corvint flows appmap coverage --map FILE",
+      "help": "corvint flows appmap coverage --help"
     },
     {
       "path": [
@@ -4746,6 +4814,33 @@
     },
     {
       "path": [
+        "how"
+      ],
+      "command": "corvint how",
+      "summary": "Answer \"how do I GOAL\" from an application map (SKH-V0, experimental)",
+      "usage": [
+        "corvint [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL"
+      ],
+      "flags": [
+        "--budget",
+        "--condition",
+        "--corpus",
+        "--full",
+        "--ledger",
+        "--map",
+        "--repo",
+        "--root",
+        "--source"
+      ],
+      "required": [
+        "--map FILE",
+        "--source GOAL"
+      ],
+      "example": "corvint how --map FILE --source GOAL",
+      "help": "corvint how --help"
+    },
+    {
+      "path": [
         "impact"
       ],
       "command": "corvint impact",
@@ -4825,7 +4920,7 @@
         "kernel"
       ],
       "command": "corvint kernel",
-      "summary": "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text:",
+      "summary": "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text",
       "usage": [
         "corvint [--root PATH] kernel [--requirements IDS]"
       ],
@@ -4861,7 +4956,7 @@
         "lease"
       ],
       "command": "corvint lease",
-      "summary": "Scope lease (experimental, SCL-V0 proposed), JSON:",
+      "summary": "Scope lease (experimental, SCL-V0 proposed), JSON",
       "usage": [
         "corvint [--root PATH] lease acquire --holder NAME --ttl DURATION [--path GLOB]... [--ticket ID] [--note TEXT]",
         "corvint [--root PATH] lease list",
@@ -5396,7 +5491,7 @@
         "overview"
       ],
       "command": "corvint overview",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] overview"
       ],
@@ -5503,7 +5598,7 @@
         "reads"
       ],
       "command": "corvint reads",
-      "summary": "Unplanned reads (experimental, URE-V0 proposed), JSON:",
+      "summary": "Unplanned reads (experimental, URE-V0 proposed), JSON",
       "usage": [
         "corvint [--root PATH] reads [--limit N]"
       ],
@@ -5650,7 +5745,7 @@
         "review"
       ],
       "command": "corvint review",
-      "summary": "Experimental inferred repository guidance (read-only, clean HEAD only;",
+      "summary": "Experimental inferred repository guidance: features, overview and review",
       "usage": [
         "corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]"
       ],
@@ -6023,7 +6118,7 @@
         "skill-export"
       ],
       "command": "corvint skill-export",
-      "summary": "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only:",
+      "summary": "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only",
       "usage": [
         "corvint [--root PATH] skill-export --out DIR"
       ],
@@ -6131,7 +6226,7 @@
         "surprise"
       ],
       "command": "corvint surprise",
-      "summary": "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON:",
+      "summary": "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON",
       "usage": [
         "corvint [--root PATH] surprise --task TEXT --base REV --target REV [--subject PATH] [--limit N]"
       ],

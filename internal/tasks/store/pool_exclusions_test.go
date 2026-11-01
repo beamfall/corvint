@@ -46,7 +46,7 @@ func TestCALV0065_HealthFiltersEveryRound(t *testing.T) {
 	}
 	forbidden := filepath.Join(markers, "excluded")
 	allowed := filepath.Join(markers, "allowed")
-	exclusionPolicy(t, s, obj("review", obj("health", command("/usr/bin/touch", forbidden)), "a", obj("health", command("/bin/false")), "b", obj("health", command("/usr/bin/touch", allowed))))
+	exclusionPolicy(t, s, obj("review", obj("health", command("/usr/bin/touch", forbidden)), "a", obj("health", command("/bin/sh", "-c", "exit 1")), "b", obj("health", command("/usr/bin/touch", allowed)))) // portable: macOS has no /bin/false
 	id := s.ticket(t, "health-exclusion")
 	c := claimOf(id, "health")
 	c.Pool, c.Stage = "db", "review"

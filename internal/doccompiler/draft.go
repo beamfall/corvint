@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"path"
@@ -42,14 +43,72 @@ type SourceDraft struct {
 	// DryRun marks a draft over untracked or inline owner bytes (SDD-V0-019):
 	// NOT_ADMISSIBLE, never governing, and refused by ConsumeDraft.
 	DryRun bool
+	// OwnerRelation is NAMES_PACKAGE or OWNER_UNRELATED (SDD-V0-630).
+	OwnerRelation string
+	// Page of Pages (SDD-V0-632); Pages is 1 when every list fits one page.
+	Page, Pages int
+	// OwnerSection is the named owner heading, empty for the default (SDD-V0-633).
+	OwnerSection string
+}
+
+// Owner relations (SDD-V0-630).
+const (
+	OwnerNamesPackage = "NAMES_PACKAGE"
+	OwnerUnrelated    = "OWNER_UNRELATED"
+)
+
+const ownerUnrelatedLimitation = "OWNER_UNRELATED: the owner excerpt does not name this package; its prose may describe a different capability and governs nothing here."
+
+// ownerRelation reports whether excerpt names directory as a whole path token:
+// not preceded by a path character and followed by end, "/", a non-name byte,
+// or a '.' that is not followed by a name byte.
+func ownerRelation(excerpt, directory string) string {
+	pathByte := func(b byte) bool {
+		return b == '_' || b == '-' || b == '.' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z' || b >= 0x80
+	}
+	for offset := 0; ; {
+		found := strings.Index(excerpt[offset:], directory)
+		if found < 0 {
+			return OwnerUnrelated
+		}
+		start, end := offset+found, offset+found+len(directory)
+		before := start == 0 || !(pathByte(excerpt[start-1]) || excerpt[start-1] == '/')
+		// A '.' ends the token as prose punctuation unless a name byte follows it.
+		after := end == len(excerpt) || excerpt[end] == '/' || !pathByte(excerpt[end]) ||
+			excerpt[end] == '.' && (end+1 == len(excerpt) || !pathByte(excerpt[end+1]) || excerpt[end+1] == '.')
+		if before && after {
+			return OwnerNamesPackage
+		}
+		offset = start + 1
+	}
 }
 
 // draftDryRunProfile names the dry-run page; IsDryRunDraft reads this exact line.
 const draftDryRunProfile = "corvint-source-documentation-draft-dry-run/0"
 
+// DraftOptions selects a draft page (SDD-V0-632). The zero value is page 1.
+type DraftOptions struct {
+	// Page is the 1-based page of declarations and importers; 0 means 1.
+	Page int
+	// OwnerSection names the owner's H2 section (SDD-V0-633); empty means
+	// the default "Agent digest", whose excerpt keeps the preamble.
+	OwnerSection string
+}
+
+// defaultOwnerSection is the Corvint owner heading drafted when no section is named.
+const defaultOwnerSection = "Agent digest"
+
+// draftPageSize bounds each of the declaration and importer lists per page.
+const draftPageSize = 64
+
 // DraftSources compiles orientation only. It never creates an HDC plan, grants
 // authority, or interprets source prose as proof of implementation behavior.
 func DraftSources(index *contextindex.Index, sourcePath, directory string) (SourceDraft, error) {
+	return DraftSourcesWith(index, sourcePath, directory, DraftOptions{})
+}
+
+// DraftSourcesWith is DraftSources with explicit options.
+func DraftSourcesWith(index *contextindex.Index, sourcePath, directory string, options DraftOptions) (SourceDraft, error) {
 	if err := draftDirectory(directory); err != nil {
 		return SourceDraft{}, err
 	}
@@ -57,11 +116,11 @@ func DraftSources(index *contextindex.Index, sourcePath, directory string) (Sour
 	if !ok || !strings.HasSuffix(sourcePath, ".md") {
 		return SourceDraft{}, failure("unsupported-documentation-source", "owner source must be admitted tracked Markdown")
 	}
-	owner, err := ownerEntry(source)
+	owner, err := ownerEntry(source, options.OwnerSection)
 	if err != nil {
 		return SourceDraft{}, err
 	}
-	return compileDraft(index, owner, sourcePath, directory, false)
+	return compileDraft(index, owner, sourcePath, directory, false, options)
 }
 
 // DraftDryRun previews a draft whose owner Markdown is untracked or inline
@@ -69,6 +128,11 @@ func DraftSources(index *contextindex.Index, sourcePath, directory string) (Sour
 // admitted index. The owner entry carries no Git blob, the page is marked
 // NOT_ADMISSIBLE, and ConsumeDraft and maintenance never accept it.
 func DraftDryRun(index *contextindex.Index, sourcePath string, owner []byte, directory string) (SourceDraft, error) {
+	return DraftDryRunWith(index, sourcePath, owner, directory, DraftOptions{})
+}
+
+// DraftDryRunWith is DraftDryRun with explicit options.
+func DraftDryRunWith(index *contextindex.Index, sourcePath string, owner []byte, directory string, options DraftOptions) (SourceDraft, error) {
 	if err := draftDirectory(directory); err != nil {
 		return SourceDraft{}, err
 	}
@@ -78,11 +142,11 @@ func DraftDryRun(index *contextindex.Index, sourcePath string, owner []byte, dir
 	if len(owner) > DraftMaxBytes {
 		return SourceDraft{}, failure("documentation-limit-exceeded", "dry-run owner source exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes", DraftMaxBytes, len(owner))
 	}
-	entry, err := ownerEntry(contextindex.Source{Path: sourcePath, Data: owner})
+	entry, err := ownerEntry(contextindex.Source{Path: sourcePath, Data: owner}, options.OwnerSection)
 	if err != nil {
 		return SourceDraft{}, err
 	}
-	return compileDraft(index, entry, sourcePath, directory, true)
+	return compileDraft(index, entry, sourcePath, directory, true, options)
 }
 
 // ReadDryRunOwner reads the working-tree bytes of one repository-relative
@@ -133,12 +197,19 @@ func draftDirectory(directory string) error {
 	return nil
 }
 
-func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, directory string, dryRun bool) (SourceDraft, error) {
+func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, directory string, dryRun bool, options DraftOptions) (SourceDraft, error) {
 	draft := SourceDraft{Commit: index.CommitRevision, Tree: index.Revision, Entries: []DraftEntry{owner}, DryRun: dryRun, Limitations: []string{
 		"GENERATED orientation; original owner prose retains its authority; indexed syntax does not validate behavior.",
 		"Build applicability, runtime callers, behavioral validation and completeness outside admitted tracked sources are UNKNOWN.",
 		fmt.Sprintf("Index coverage: %d exclusions, %d unparsed diagnostics; affected unparsed declarations and imports omitted. Dirty worktree bytes are not source evidence.", len(index.Exclusions), len(index.Unparsed)),
 	}}
+	draft.OwnerRelation = ownerRelation(owner.Excerpt, directory)
+	if options.OwnerSection != defaultOwnerSection {
+		draft.OwnerSection = options.OwnerSection
+	}
+	if draft.OwnerRelation == OwnerUnrelated {
+		draft.Limitations = append([]string{ownerUnrelatedLimitation}, draft.Limitations...)
+	}
 	if dryRun {
 		draft.Limitations = append([]string{"DRY RUN: NOT_ADMISSIBLE. The owner source is untracked or inline bytes, not admitted immutable Git content; this draft governs nothing, cannot be cited as authority, and docs consume refuses it. Commit the owner source and draft again."}, draft.Limitations...)
 	}
@@ -147,10 +218,11 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 		return SourceDraft{}, failure("unsupported-documentation-source", "unsupported language: the native index extracts no declarations from %s", strings.Join(refused, ", "))
 	}
 	draft.Limitations = append(draft.Limitations, languageLimitations(languages, unsupported)...)
-	declarations, err := declarationEntries(index, directory)
+	declarations, spanLimitations, err := declarationEntries(index, directory)
 	if err != nil {
 		return SourceDraft{}, err
 	}
+	draft.Limitations = append(draft.Limitations, spanLimitations...)
 	if len(declarations) == 0 {
 		return SourceDraft{}, failure("unsupported-documentation-source", "package has no supported tracked non-test exported-name declarations")
 	}
@@ -158,6 +230,17 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	if err != nil {
 		return SourceDraft{}, err
 	}
+	// SDD-V0-632: each list pages independently; an entry off this page is UNKNOWN here.
+	page := max(options.Page, 1)
+	draft.Pages = max(pageCount(len(declarations)), pageCount(len(importers)), 1)
+	if options.Page < 0 || page > draft.Pages {
+		return SourceDraft{}, failure("documentation-limit-exceeded", "page %d is outside the draft's pages 1..%d (%d declarations, %d importers, %d entries per list per page)", options.Page, draft.Pages, len(declarations), len(importers), draftPageSize)
+	}
+	draft.Page = page
+	var truncated []string
+	declarations, truncated = pageEntries("declarations", declarations, page, draft.Pages, truncated)
+	importers, truncated = pageEntries("importers", importers, page, draft.Pages, truncated)
+	draft.Limitations = append(draft.Limitations, truncated...)
 	draft.Entries = append(draft.Entries, declarations...)
 	draft.Entries = append(draft.Entries, importers...)
 	draft.Markdown = renderDraft(draft, sourcePath, directory)
@@ -167,7 +250,14 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	return draft, nil
 }
 
-func ownerEntry(source contextindex.Source) (DraftEntry, error) {
+// ownerEntry excerpts the owner. The default Agent digest keeps the preamble
+// through the digest; a named section (SDD-V0-633) is that section alone.
+func ownerEntry(source contextindex.Source, section string) (DraftEntry, error) {
+	if section == "" {
+		section = defaultOwnerSection
+	} else if err := ownerSectionHeading(section); err != nil {
+		return DraftEntry{}, err
+	}
 	text, valid, loaded := source.Text()
 	if !loaded || !valid || strings.Contains(text, "\r") {
 		return DraftEntry{}, failure("unsupported-documentation-source", "owner source must be loaded UTF-8 LF text")
@@ -188,7 +278,7 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 			fence = marker
 			continue
 		}
-		if line == "## Agent digest" {
+		if line == "## "+section {
 			start = n
 			count++
 			continue
@@ -201,26 +291,45 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 		return DraftEntry{}, failure("unsupported-documentation-source", "owner source has an unclosed fenced code block")
 	}
 	if count != 1 {
-		return DraftEntry{}, failure("unsupported-documentation-source", "exactly one Agent digest is required")
+		if section == defaultOwnerSection {
+			return DraftEntry{}, failure("unsupported-documentation-source", "exactly one Agent digest is required")
+		}
+		return DraftEntry{}, failure("unsupported-documentation-source", "exactly one literal ## %s heading outside fenced code is required: observed %d", draftMetadata(section), count)
 	}
-	if end > 64 {
-		return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed the limit of 64 lines: observed %d lines", end)
+	first := 0
+	if section != defaultOwnerSection {
+		first = start
+	}
+	if end-first > 64 {
+		if section == defaultOwnerSection {
+			return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed the limit of 64 lines: observed %d lines", end)
+		}
+		return DraftEntry{}, failure("documentation-limit-exceeded", "owner section exceeds the limit of 64 lines: observed %d lines", end-first)
 	}
 	if source.BlobHash == "" {
-		return dryRunOwnerEntry(source, strings.TrimPrefix(lines[start], "## "), lines[:end])
+		return dryRunOwnerEntry(source, section, first, lines[first:end])
 	}
-	return sourceEntry(source, "owner", strings.TrimPrefix(lines[start], "## "), 1, end)
+	return sourceEntry(source, "owner", section, first+1, end)
+}
+
+// ownerSectionHeading admits 1..200 bytes of printable UTF-8 with no newline.
+func ownerSectionHeading(section string) error {
+	printable := utf8.ValidString(section) && !strings.ContainsFunc(section, func(r rune) bool { return !unicode.IsPrint(r) })
+	if len(section) > 200 || !printable || strings.TrimSpace(section) != section {
+		return failure("unsupported-documentation-source", "owner section must be 1..200 bytes of printable UTF-8 without a newline or surrounding spaces")
+	}
+	return nil
 }
 
 // dryRunOwnerEntry is the owner entry over bytes with no Git object: Blob stays
 // empty so the page renders no immutable original route.
-func dryRunOwnerEntry(source contextindex.Source, title string, lines []string) (DraftEntry, error) {
+func dryRunOwnerEntry(source contextindex.Source, title string, first int, lines []string) (DraftEntry, error) {
 	excerpt := strings.Join(lines, "\n")
 	if len(excerpt) > 4<<10 {
 		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds the limit of %d bytes (4 KiB): observed %d bytes", 4<<10, len(excerpt))
 	}
 	digest := sha256.Sum256(source.Data)
-	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, 1, title), Kind: "dry-run-owner", Title: title, Excerpt: excerpt, Path: source.Path, SHA256: hex.EncodeToString(digest[:]), StartLine: 1, EndLine: len(lines)}, nil
+	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, first+1, title), Kind: "dry-run-owner", Title: title, Excerpt: excerpt, Path: source.Path, SHA256: hex.EncodeToString(digest[:]), StartLine: first + 1, EndLine: first + len(lines)}, nil
 }
 
 // Only top-level fences with up to three leading spaces can hide literal H2
@@ -538,9 +647,11 @@ func languageLimitations(languages, unsupported []string) []string {
 	return limitations
 }
 
-func declarationEntries(index *contextindex.Index, directory string) ([]DraftEntry, error) {
+func declarationEntries(index *contextindex.Index, directory string) ([]DraftEntry, []string, error) {
 	entries := []DraftEntry{}
 	lines := map[string][]string{}
+	spans := map[string]map[int]goSpan{}
+	clipped := 0
 	for _, symbol := range index.Symbols {
 		language, drafted := sourceLanguage(symbol.Path)
 		if path.Dir(symbol.Path) != directory || !drafted || draftTestSource(symbol.Path) || !sourceParsed(index, symbol.Path) {
@@ -551,18 +662,143 @@ func declarationEntries(index *contextindex.Index, directory string) ([]DraftEnt
 		}
 		source, ok := index.Sources[symbol.Path]
 		if !ok {
-			return nil, failure("unsupported-documentation-source", "indexed declaration source unavailable")
+			return nil, nil, failure("unsupported-documentation-source", "indexed declaration source unavailable")
 		}
 		if !language.byName && !language.exported(symbol.Name, declarationLine(lines, source, symbol.Line)) {
 			continue
 		}
-		entry, err := sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, symbol.Line, symbol.Line)
+		start, end := symbol.Line, symbol.Line
+		if span, ok := goDeclarationSpans(spans, source)[symbol.Line]; ok {
+			start, end = span.start, span.end
+		}
+		entry, err := sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, start, end)
+		if err != nil && (start != symbol.Line || end != symbol.Line) {
+			// SDD-V0-631: a span over the excerpt bound or holding a carriage return cites
+			// only its indexed line, which must itself pass; the fallback is counted below.
+			clipped++
+			entry, err = sourceEntry(source, "declaration", symbol.Kind+" "+symbol.Name, symbol.Line, symbol.Line)
+		}
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		entries = append(entries, entry)
 	}
-	return boundedEntries(entries)
+	limitations := []string{}
+	if len(entries) != 0 {
+		packageDoc, omitted, err := packageDocEntry(index, directory)
+		if err != nil {
+			return nil, nil, err
+		}
+		if packageDoc != nil {
+			entries = append(entries, *packageDoc)
+		}
+		if omitted != "" {
+			limitations = append(limitations, fmt.Sprintf("The package doc comment in %s exceeds the 4 KiB excerpt bound and is omitted.", omitted))
+		}
+	}
+	if clipped != 0 {
+		limitations = append(limitations, fmt.Sprintf("%d declarations cite only their indexed line: their doc-comment and declaration span exceeds the 4 KiB excerpt bound or contains a carriage return.", clipped))
+	}
+	sort.Slice(entries, func(a, b int) bool { return entries[a].ID < entries[b].ID })
+	return entries, limitations, nil
+}
+
+// goSpan is one declaration's doc-comment-through-surface line span (SDD-V0-631).
+type goSpan struct{ start, end int }
+
+// goDeclarationSpans parses each Go source once per draft and maps every
+// declared name's line to its span. A non-Go or unparsable source maps nothing,
+// so its declarations keep their indexed line.
+func goDeclarationSpans(cache map[string]map[int]goSpan, source contextindex.Source) map[int]goSpan {
+	if spans, ok := cache[source.Path]; ok {
+		return spans
+	}
+	spans := map[int]goSpan{}
+	cache[source.Path] = spans
+	if path.Ext(source.Path) != ".go" {
+		return spans
+	}
+	set := token.NewFileSet()
+	file, err := parser.ParseFile(set, source.Path, source.Data, parser.ParseComments|parser.SkipObjectResolution)
+	if err != nil {
+		return spans
+	}
+	line := func(position token.Pos) int { return set.Position(position).Line }
+	from := func(doc *ast.CommentGroup, fallback token.Pos) int {
+		if doc != nil {
+			return line(doc.Pos())
+		}
+		return line(fallback)
+	}
+	for _, declaration := range file.Decls {
+		switch declaration := declaration.(type) {
+		case *ast.FuncDecl:
+			end := line(declaration.End())
+			if declaration.Body != nil {
+				end = line(declaration.Body.Lbrace)
+			}
+			span := goSpan{from(declaration.Doc, declaration.Pos()), end}
+			spans[line(declaration.Pos())] = span
+			spans[line(declaration.Name.Pos())] = span
+		case *ast.GenDecl:
+			grouped := declaration.Lparen.IsValid()
+			for _, spec := range declaration.Specs {
+				var doc *ast.CommentGroup
+				var names []*ast.Ident
+				switch spec := spec.(type) {
+				case *ast.TypeSpec:
+					doc, names = spec.Doc, []*ast.Ident{spec.Name}
+				case *ast.ValueSpec:
+					doc, names = spec.Doc, spec.Names
+				default:
+					continue
+				}
+				span := goSpan{from(doc, spec.Pos()), line(spec.End())}
+				if grouped && doc == nil && declaration.Doc != nil && len(declaration.Specs) == 1 {
+					// A single-spec group's comment documents its spec, as in go/doc.
+					span.start = line(declaration.Doc.Pos())
+				}
+				if !grouped {
+					span = goSpan{from(declaration.Doc, declaration.Pos()), line(declaration.End())}
+				}
+				for _, name := range names {
+					spans[line(name.Pos())] = span
+				}
+			}
+		}
+	}
+	return spans
+}
+
+// packageDocEntry is the first non-test Go file in path order, in exactly
+// directory, whose package clause carries a doc comment (SDD-V0-631). It
+// returns the omitted path instead when that comment exceeds the excerpt bound.
+func packageDocEntry(index *contextindex.Index, directory string) (*DraftEntry, string, error) {
+	paths := []string{}
+	for sourcePath := range index.Sources {
+		if path.Dir(sourcePath) == directory && nonTestGo(sourcePath) && sourceParsed(index, sourcePath) {
+			paths = append(paths, sourcePath)
+		}
+	}
+	sort.Strings(paths)
+	for _, sourcePath := range paths {
+		source := index.Sources[sourcePath]
+		set := token.NewFileSet()
+		file, err := parser.ParseFile(set, sourcePath, source.Data, parser.PackageClauseOnly|parser.ParseComments)
+		if err != nil || file.Doc == nil {
+			continue
+		}
+		entry, err := sourceEntry(source, "package-doc", "package "+file.Name.Name, set.Position(file.Doc.Pos()).Line, set.Position(file.Name.End()).Line)
+		var problem *Error
+		if errors.As(err, &problem) && problem.Code == "documentation-limit-exceeded" {
+			return nil, sourcePath, nil
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		return &entry, "", nil
+	}
+	return nil, "", nil
 }
 
 // declarationLine splits each source once per draft, caching it in lines.
@@ -607,7 +843,7 @@ func importerEntries(index *contextindex.Index, directory string) ([]DraftEntry,
 		}
 		entries = append(entries, entry)
 	}
-	return boundedEntries(entries)
+	return entries, nil
 }
 
 // Re-open the exact import syntax only to recover its location; membership came
@@ -627,12 +863,23 @@ func importLine(source contextindex.Source, target string) (int, error) {
 	return 0, failure("unsupported-documentation-source", "indexed import anchor unavailable")
 }
 
-func boundedEntries(entries []DraftEntry) ([]DraftEntry, error) {
-	if len(entries) > 64 {
-		return nil, failure("documentation-limit-exceeded", "declarations or importers exceed the limit of 64 entries: observed %d entries", len(entries))
-	}
+func pageCount(entries int) int { return (entries + draftPageSize - 1) / draftPageSize }
+
+// pageEntries returns one page of an ID-sorted list and, when entries fall
+// outside that page, appends its TRUNCATED limitation.
+func pageEntries(name string, entries []DraftEntry, page, pages int, truncated []string) ([]DraftEntry, []string) {
 	sort.Slice(entries, func(a, b int) bool { return entries[a].ID < entries[b].ID })
-	return entries, nil
+	first := min((page-1)*draftPageSize, len(entries))
+	last := min(first+draftPageSize, len(entries))
+	shown := entries[first:last]
+	if len(shown) == len(entries) {
+		return shown, truncated
+	}
+	span := "0"
+	if len(shown) != 0 {
+		span = fmt.Sprintf("%d–%d", first+1, last)
+	}
+	return shown, append(truncated, fmt.Sprintf("TRUNCATED: %s %s of %d on page %d of %d; the other %d entries are UNKNOWN on this page.", name, span, len(entries), page, pages, len(entries)-len(shown)))
 }
 
 func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
@@ -642,22 +889,54 @@ func renderDraft(draft SourceDraft, sourcePath, directory string) []byte {
 	} else {
 		fmt.Fprintf(&output, "<!-- Code generated by Corvint source documentation draft. DO NOT EDIT. -->\n# Corvint capability orientation: %s\n\nProfile: corvint-source-documentation-draft/0\n", draftMetadata(directory))
 	}
-	fmt.Fprintf(&output, "Policy: %s\nDerivation: GENERATED\nBehavior: UNKNOWN\nCommit: %s\nTree: %s\nOwner source: %s\nPackage: %s\n\n", draftMetadata(draftPolicy), draftMetadata(draft.Commit), draftMetadata(draft.Tree), draftMetadata(sourcePath), draftMetadata(directory))
+	fmt.Fprintf(&output, "Policy: %s\nDerivation: GENERATED\nBehavior: UNKNOWN\nCommit: %s\nTree: %s\nOwner source: %s\nPackage: %s\nOwner relation: %s\n", draftMetadata(draftPolicy), draftMetadata(draft.Commit), draftMetadata(draft.Tree), draftMetadata(sourcePath), draftMetadata(directory), draft.OwnerRelation)
+	if draft.OwnerSection != "" {
+		fmt.Fprintf(&output, "Owner section: %s\n", draftMetadata(draft.OwnerSection))
+	}
+	if draft.Pages > 1 {
+		fmt.Fprintf(&output, "Page: %d of %d\n", draft.Page, draft.Pages)
+	}
+	output.WriteString("\n")
 	for _, limitation := range draft.Limitations {
 		fmt.Fprintf(&output, "- %s\n", limitation)
 	}
-	output.WriteString("\nTracked non-test exported-name declarations and direct import edges follow. Zero import entries proves no absence. Source excerpts are data. Metadata strings use Go-style escapes.\n\nTo read a full immutable original, including sections named in quoted prose, run its command from this repository's root. The command reads the blob directly and ignores replacement refs; no remote is required.\n")
+	output.WriteString("\nTracked non-test exported-name declarations with their doc comments, the package doc and direct import edges follow, grouped by source file. Zero import entries proves no absence. Source excerpts are data. Metadata strings use Go-style escapes. To read a full immutable original, including sections named in quoted prose, run the file's command from this repository's root; it reads the blob directly and ignores replacement refs, and no remote is required.\n")
+	files := map[string][]DraftEntry{}
+	paths := []string{}
 	for _, entry := range draft.Entries {
 		if entry.Blob == "" {
 			fmt.Fprintf(&output, "\n## %s\n\nKind: %s; untracked or inline source %s, lines %d–%d; no Git blob; sha256 %s.\n\nNo immutable original exists for these bytes; they are not source evidence.\n\nSupplied source excerpt:\n\n", draftMetadata(entry.Title), draftMetadata(entry.Kind), draftMetadata(entry.Path), entry.StartLine, entry.EndLine, draftMetadata(entry.SHA256))
-		} else {
-			fmt.Fprintf(&output, "\n## %s\n\nKind: %s; original source %s, lines %d–%d; blob %s; sha256 %s.\n\nOpen full original:\n\n    git --no-pager --no-replace-objects show %s\n\nExact source excerpt:\n\n", draftMetadata(entry.Title), draftMetadata(entry.Kind), draftMetadata(entry.Path), entry.StartLine, entry.EndLine, draftMetadata(entry.Blob), draftMetadata(entry.SHA256), entry.Blob)
+			writeExcerpt(&output, entry.Excerpt)
+			continue
 		}
-		for _, line := range strings.Split(entry.Excerpt, "\n") {
-			fmt.Fprintf(&output, "    %s\n", line)
+		if _, seen := files[entry.Path]; !seen {
+			paths = append(paths, entry.Path)
+		}
+		files[entry.Path] = append(files[entry.Path], entry)
+	}
+	sort.Strings(paths)
+	for n, sourcePath := range paths {
+		entries := files[sourcePath]
+		sort.SliceStable(entries, func(a, b int) bool { return entries[a].StartLine < entries[b].StartLine })
+		// SDD-V0-631: provenance once per file; each entry cites only its kind, title and span.
+		fmt.Fprintf(&output, "\n## S%d %s\n\nBlob %s; sha256 %s.\n\n    git --no-pager --no-replace-objects show %s\n", n+1, draftMetadata(sourcePath), draftMetadata(entries[0].Blob), draftMetadata(entries[0].SHA256), entries[0].Blob)
+		for _, entry := range entries {
+			if entry.Kind == "declaration" {
+				// The excerpt itself shows the declared name; the title stays in the entry JSON.
+				fmt.Fprintf(&output, "\nLines %d–%d:\n\n", entry.StartLine, entry.EndLine)
+			} else {
+				fmt.Fprintf(&output, "\n%s %s, lines %d–%d:\n\n", draftMetadata(entry.Kind), draftMetadata(entry.Title), entry.StartLine, entry.EndLine)
+			}
+			writeExcerpt(&output, entry.Excerpt)
 		}
 	}
 	return []byte(output.String())
+}
+
+func writeExcerpt(output *strings.Builder, excerpt string) {
+	for _, line := range strings.Split(excerpt, "\n") {
+		fmt.Fprintf(output, "    %s\n", line)
+	}
 }
 
 func draftMetadata(value string) string {

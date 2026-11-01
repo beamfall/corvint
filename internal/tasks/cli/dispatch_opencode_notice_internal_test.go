@@ -103,6 +103,11 @@ setInterval(() => {}, 1000)
 			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil && pid > 1 {
 				syscall.Kill(-pid, syscall.SIGKILL)
 				syscall.Kill(pid, syscall.SIGKILL)
+				// V1-3832: SIGKILL is asynchronous. On a loaded host the
+				// session's members (node and any context-hook child) can
+				// still be running when ReapWorkersOnCleanup reads the
+				// process table, which it reports as a leaked group.
+				awaitGroupExit(t, pid, 30*time.Second)
 			}
 		}
 	})

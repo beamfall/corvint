@@ -55,7 +55,7 @@ func freshLivePath() string {
 }
 
 func freshLiveEnvironment() []string {
-	return []string{"PATH=" + freshLivePath(), "LANG=C", "LC_ALL=C", "TMPDIR=/tmp"}
+	return []string{"PATH=" + freshLivePath(), "LANG=C", "LC_ALL=C", "TMPDIR=/tmp"} // fixed-tmp: live-only environment of a real npm toolchain
 }
 
 // freshLiveRunnerVersion is the Playwright release the live fixture pins,

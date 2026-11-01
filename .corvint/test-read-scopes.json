@@ -114,6 +114,13 @@
     "cmd/corvint-work-queue": [
       ".corvint/work-queue-policy.json"
     ],
+    "conformance/cli-errors-v0": [
+      ".github/cishards/",
+      "cmd/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "conformance/go-live-test-v0": [
       "cmd/corvint-go-test-provider/",
       "go.mod",
@@ -273,6 +280,21 @@
     "internal/cem/workflow": [
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
+    "internal/cem2proto": [
+      ".corvint/changes/",
+      ".github/",
+      "benchmarks/",
+      "cmd/",
+      "conformance/",
+      "examples/",
+      "experimental/",
+      "integrations/",
+      "internal/",
+      "interop/",
+      "protocol/",
+      "script/",
+      "tools/"
+    ],
     "internal/cemcandidate": [
       "interop/cem01-go/testdata/multi-runner/",
       "interop/cem01-go/testdata/omission/",
@@ -307,6 +329,10 @@
       "examples/documentation-corpus/",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
       "protocol/cem-1.0/structural-tuples/"
+    ],
+    "internal/docmaintain": [
+      "cmd/corvint/",
+      "docs/specs/INDEX.json"
     ],
     "internal/docviews": [],
     "internal/dogfoodflow": [
@@ -523,10 +549,13 @@
       "go.mod"
     ],
     "tools/capabilities-check": [
+      ".github/workflows/",
       "AGENTS.md",
+      "Makefile",
       "README.md",
       "cmd/",
       "docs/",
+      "go.mod",
       "integrations/",
       "internal/",
       "llms.txt",

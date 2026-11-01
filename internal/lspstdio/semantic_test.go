@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -96,7 +97,13 @@ func TestSemanticHost(t *testing.T) {
 			reply(os.Stdout, m.ID, nil, 0, "")
 		case "exit":
 			os.Exit(0)
-		case "textDocument/didOpen":
+		case "textDocument/didOpen", "textDocument/didChange", "textDocument/didClose":
+			if mode == "diagnostics" {
+				publishFakeDiagnostics(m.Params)
+			}
+			if m.Method != "textDocument/didOpen" {
+				continue
+			}
 			var p struct {
 				TextDocument struct{ URI, LanguageID string }
 			}
@@ -124,6 +131,9 @@ func TestSemanticHost(t *testing.T) {
 			}
 			if mode == "crash" {
 				os.Exit(7)
+			}
+			if mode == "diagnostics" {
+				publishFakeDiagnostics(m.Params)
 			}
 			reply(os.Stdout, m.ID, []any{map[string]any{"uri": uri, "range": goplsclient.Range{Start: goplsclient.Position{Line: 1, Character: 11}, End: goplsclient.Position{Line: 1, Character: 12}}}}, 0, "")
 		}
@@ -262,6 +272,7 @@ func (h *semanticHarness) init(t *testing.T) {
 	if _, advertised := result.Capabilities["definitionProvider"]; advertised {
 		t.Fatal("unqualified standard definition capability advertised")
 	}
+	assertTestedCapabilitySubset(t, result.Capabilities)
 	var experimental map[string]json.RawMessage
 	if err := json.Unmarshal(result.Capabilities["experimental"], &experimental); err != nil || string(experimental["corvintDefinitionProbe"]) != "true" {
 		t.Fatal("missing explicit development probe marker", err)
@@ -409,5 +420,100 @@ func TestSemanticShutdownReplyBeforeExit(t *testing.T) {
 		h.done <- e
 	case <-time.After(3 * time.Second):
 		t.Fatal("exit did not retire session")
+	}
+}
+
+// assertTestedCapabilitySubset pins LQP-V0-012 (V1-0481): the companion
+// advertises only the tested standard members. Any new standard provider,
+// diagnostics included, must first gain transcript tests and be added here.
+func assertTestedCapabilitySubset(t *testing.T, capabilities map[string]json.RawMessage) {
+	t.Helper()
+	for name := range capabilities {
+		switch name {
+		case "positionEncoding", "textDocumentSync", "experimental":
+		default:
+			t.Fatalf("untested standard capability %q advertised", name)
+		}
+	}
+	var sync map[string]json.RawMessage
+	if err := json.Unmarshal(capabilities["textDocumentSync"], &sync); err != nil {
+		t.Fatal("textDocumentSync is not an options object", err)
+	}
+	for name := range sync {
+		switch name {
+		case "openClose", "change", "save":
+		default:
+			t.Fatalf("untested textDocumentSync member %q advertised", name)
+		}
+	}
+	if string(sync["openClose"]) != "true" || string(sync["change"]) != "1" {
+		t.Fatalf("textDocumentSync must be full open/close sync: %s", capabilities["textDocumentSync"])
+	}
+}
+
+// publishFakeDiagnostics makes the fake backend push an upstream diagnostic
+// for the document named in params, as real gopls does after each sync.
+func publishFakeDiagnostics(params json.RawMessage) {
+	var p struct {
+		TextDocument struct{ URI string }
+	}
+	json.Unmarshal(params, &p)
+	b, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": p.TextDocument.URI, "diagnostics": []any{map[string]any{"range": goplsclient.Range{}, "message": "upstream diagnostic"}}}})
+	fmt.Fprint(os.Stdout, frame(string(b)))
+	f, _ := os.OpenFile(filepath.Join(os.Getenv("CORVINT_SEMANTIC_SCRATCH"), "diagnostics-published"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	fmt.Fprintln(f, p.TextDocument.URI)
+	f.Close()
+}
+
+// TestSemanticWithholdsUpstreamDiagnostics pins the diagnostics clause of
+// LQP-V0-012 for the unqualified companion (V1-0481): diagnostics are not a
+// qualified method, so across open, change, definition and close the client
+// receives no publishDiagnostics, even when the backend pushes them. With
+// none published there is no stale diagnostic left to withdraw. The unsaved
+// change and the read leave the root's files byte-identical (V1-0481: no read
+// writes source).
+func TestSemanticWithholdsUpstreamDiagnostics(t *testing.T) {
+	h := semanticHarnessNew(t, "diagnostics")
+	if err := os.WriteFile(filepath.Join(h.root, "main.go"), []byte("package p\nvar disk int\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	beforeFiles := fixtureContents(t, h.root)
+	h.bound(t, time.Minute)
+	h.init(t)
+	h.open(t)
+	h.send(t, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didChange", "params": map[string]any{"textDocument": map[string]any{"uri": h.uri, "version": 2}, "contentChanges": []any{map[string]string{"text": "package p\n/*😀*/ var x int\nvar y = x\n"}}}})
+	h.definition(t)
+	until := func(id string) map[string]json.RawMessage {
+		for {
+			m := h.recv(t)
+			var method string
+			json.Unmarshal(m["method"], &method)
+			if strings.Contains(method, "iagnostic") {
+				t.Fatalf("companion forwarded %s: %s", method, m["params"])
+			}
+			if string(m["id"]) == id {
+				return m
+			}
+		}
+	}
+	if m := until("2"); m["error"] != nil {
+		t.Fatalf("definition: %s", m["error"])
+	}
+	h.send(t, map[string]any{"jsonrpc": "2.0", "method": "textDocument/didClose", "params": map[string]any{"textDocument": map[string]any{"uri": h.uri}}})
+	h.send(t, map[string]any{"jsonrpc": "2.0", "id": 3, "method": "shutdown"})
+	if m := until("3"); string(m["result"]) != "null" || m["error"] != nil {
+		t.Fatalf("shutdown: %s", m)
+	}
+	// The backend pushed a diagnostic after open, change, definition and close.
+	published, _ := os.ReadFile(filepath.Join(h.scratch, "diagnostics-published"))
+	if n := strings.Count(string(published), "\n"); n < 4 {
+		t.Fatalf("backend published %d diagnostics, want at least 4", n)
+	}
+	// The fake backend logs into the shared scratch root; only its logs may be new.
+	afterFiles := fixtureContents(t, h.root)
+	delete(afterFiles, "diagnostics-published")
+	delete(afterFiles, "backend-pid")
+	if !reflect.DeepEqual(beforeFiles, afterFiles) {
+		t.Fatalf("the session changed a file under the root: before %x after %x", beforeFiles, afterFiles)
 	}
 }

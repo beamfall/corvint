@@ -102,7 +102,7 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(name string) bool { return hasAnySuffix(name, Suffixes) })
+	files, err := root.Files(func(_, name string) bool { return hasAnySuffix(name, Suffixes) })
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -111,7 +111,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		return affected.Result{}, err
 	}
 	files = append(files, hidden...)
-	foreign, err := root.Files(func(name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
+	foreign, err := root.Files(func(_, name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
 	if err != nil {
 		return affected.Result{}, err
 	}

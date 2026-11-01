@@ -24,6 +24,47 @@
       "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
       "mentions": null
     },
+    "script/check-cem-base-retained.sh": {
+      "callers": [
+        "Makefile",
+        "script/check-cem-base-retained_test.sh"
+      ],
+      "reason": "Every tracked file naming check-cem-base-retained.sh: make cem-base-retention-check and its shell test run it (decision 0588) (TSP-V0-005; V1-3571)."
+    },
+    "script/check-fixed-tmp-paths.sh": {
+      "callers": [
+        "Makefile",
+        "script/batch-precheck_test.sh"
+      ],
+      "reason": "Every tracked file naming check-fixed-tmp-paths.sh: make fixed-tmp-paths-check and the batch-precheck shell test run it (ASD-V0-720) (TSP-V0-005; V1-3571)."
+    },
+    "script/check-install-lifecycle.sh": {
+      "callers": [
+        "script/check-install-lifecycle_test.sh"
+      ],
+      "reason": "Every tracked file in the source universe naming check-install-lifecycle.sh: its shell test runs it. The release-gates workflow also runs it through run-gate; .github is outside the source universe and holds no test unit, so it adds no edge (TSP-V0-005; V1-3571)."
+    },
+    "script/dogfood-bind-coverage.sh": {
+      "callers": [
+        "script/dogfood-bind-range_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571)."
+    },
+    "script/dogfood-seal.sh": {
+      "callers": [
+        "Makefile",
+        "script/dogfood-change_test.sh"
+      ],
+      "mentions": [
+        "internal/console/chain.go",
+        "internal/console/chain_stable_test.go",
+        "internal/console/chain_test.go",
+        "internal/liveverify/affected/replay_v12941_test.go",
+        "script/pre-push-dogfood-seal.sh",
+        "script/pre-push-dogfood-seal_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
+    },
     "script/heavy.sh": {
       "callers": [
         "Makefile",
@@ -60,6 +101,12 @@
         "script/lane-scripts_test.sh"
       ],
       "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005)."
+    },
+    "script/pr-landing-watch.sh": {
+      "callers": [
+        "script/lane-scripts_test.sh"
+      ],
+      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data (TSP-V0-005; V1-3571)."
     },
     "script/proof-tour.sh": {
       "callers": [

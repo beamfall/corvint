@@ -188,6 +188,7 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 	res := success(cmd, rc)
 	res.Items = []wire.Value{batchCloseValue(in, rows, merge, runURL, evidence, string(issued), dryRun, gb)}
 	res.Untrusted = true
+	res.Warnings = append(res.Warnings, in.laneWarnings()...)
 	if w := in.excludedWarning(); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
@@ -236,6 +237,9 @@ func planClose(h batchHit, rec *ticket.Record, cur *transaction.AttemptSummary, 
 // records its outcome on the row; a refusal stays on this row only.
 func (r *closeRow) submit(env Env, cmd []string, actor mutation.Binding, issued string, in *batchInput, merge, runURL string, evidence []wire.Digest) {
 	reason := "Delivered in batch PR #" + strconv.FormatInt(in.number, 10) + "; merged at " + merge + "; CI green: " + runURL
+	if r.hit.commit != "" {
+		reason = "Delivered by lane commit " + r.hit.commit + "; merged in batch PR #" + strconv.FormatInt(in.number, 10) + " at " + merge + "; CI green: " + runURL
+	}
 	if r.hit.lane != 0 {
 		reason = "Delivered by lane PR #" + strconv.FormatInt(r.hit.lane, 10) + "; merged in batch PR #" + strconv.FormatInt(in.number, 10) + " at " + merge + "; CI green: " + runURL
 	}

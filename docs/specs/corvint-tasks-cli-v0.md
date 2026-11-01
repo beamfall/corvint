@@ -121,8 +121,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   A reader MUST refuse a newer `taskman-intent-snapshot/N` as `UNSUPPORTED_VERSION` (CAL-V0-131).
 - `TCL-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3223) When the
   environment variable `CORVINT_TASKS_SNAPSHOT` names a snapshot file, the inventory reads
-  `ticket search`, `ticket show`, `ticket export`, `ticket similar`, `ticket digest`, `roadmap`
-  and `queue status` MUST be served from it without resolving a repository or journal, with every
+  `ticket search`, `ticket show`, `ticket blockers` (TCL-V0-869), `ticket export`, `ticket similar`,
+  `ticket digest`, `roadmap` and `queue status` MUST be served from it without resolving a repository or journal, with every
   journal fact `NOT_OBSERVED` as for an absent journal (`ticket list` reads attempt history, so it
   is refused as in TCL-V0-012; `ticket search --status S` lists the same tickets): every
   file's sha256 and the tree digest are verified first (a mismatch is `MALFORMED`), and each
@@ -141,6 +141,77 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `corvint-tasks` CLI requirement that would extend `CAL-V0` MUST take the next `TCL-V0` number in
   this spec; requirements already numbered elsewhere (for example `CAP-V0-060`) stay where they
   are and are cross-referenced.
+- `TCL-V0-860`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714) A
+  `ticket` mutation verb given a positional argument or an unknown flag MUST refuse `MALFORMED`
+  with that code in the top-level `codes`; a positional argument's refusal names
+  `--target TICKET` and `--expected-revision N|current`. `--expected-revision current` on a
+  single-target mutation other than CREATE reads the target's revision from the intent store
+  and submits it, so the store's revision check still refuses `STALE_TICKET` when the ticket
+  changes between that read and the write; with several `--target` values it is refused as a
+  number is. A retry of a recorded request with the same `--request-id` and `--issued-at`
+  submits the revision the recorded request was digested with, not the advanced live revision,
+  so it replays the recorded result instead of being refused `REQUEST_ID_CONFLICT`.
+- `TCL-V0-861`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714) The
+  usage of every single-target mutation other than CREATE and HOLD MUST mark `--target` and
+  `--expected-revision` as required, so the derived help example names both and, with its
+  placeholders filled, runs.
+- `TCL-V0-862`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `ticket list` and `ticket search` `--fields` MUST accept every key a `ticket show` item
+  carries, `record.` keys included: when a requested key is not in the list item, each page
+  item is the `ticket show` item of that ticket, projected to the requested keys. Without such a
+  key the items stay the CAL-V0-173 list items (no `record` member).
+- `TCL-V0-863`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `ticket search --query` MUST refuse `MALFORMED` naming `--text T` as the text filter.
+- `TCL-V0-864`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3714)
+  `roadmap --status S[,S...]` MUST keep only rows whose status is listed, with the `ticket list`
+  status grammar (a closed status set, each named once), applied from the ticket summary so a
+  closed ticket is never decoded; paging, facets and counts apply to the kept rows.
+- `TCL-V0-865`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3534) A
+  `ticket show` item MUST carry `intentChecksFailed`, the codes of its blockers in blocker order,
+  each once (empty when `intentChecks` is `PASSED`), so every failing intent check is named
+  beside the verdict. Intent checks are admission checks: a COMPLETED or ARCHIVED ticket fails
+  them by its status alone, and its `TICKET_STATE` blocker detail MUST say so, that the
+  completion itself is not in question and that `reopen` is only for rework.
+- `TCL-V0-866`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3597) `claim`
+  MUST refuse `--whole-repository` at parse time, `MALFORMED` before any store read, naming
+  `widen --attempt A --generation G --whole-repository` as the verb that takes it and saying that
+  a claim without `--scope` of a ticket that declares no scope already claims
+  `WHOLE_REPOSITORY`. The claim usage never lists the flag.
+- `TCL-V0-867`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3715) Where
+  the journal at `<git-common-dir>/taskman` exists, `ticket list`, `ticket search` and their
+  facets MUST judge each ticket with the journal's reservation set, as `ticket show` does, so
+  attempt liveness is observed and no `no journal available to this reader` unknown or
+  CAL-V0-173 store-wide warning appears. When that reservation set cannot be read, the
+  store-wide ATTEMPT_LIVE warning MUST name the read failure rather than a missing journal.
+  `roadmap` rows MUST be judged with the same reservation set as its facets, so a row and the
+  facet it is counted in agree, and a `--count` read of `ticket list`, `ticket search` or
+  `roadmap` MUST carry the same store-wide ATTEMPT_LIVE warning when that set cannot be read.
+- `TCL-V0-868`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3794) A ticket
+  view MUST list a non-`QUALIFIED` effects coverage under policy `serialFallback: BLOCK` as a
+  `COVERAGE_UNKNOWN` entry in a separate `advisories` array, never in `blockers`, because no queue
+  policy makes coverage a claim prerequisite: claim admission and `plan preview` already skip it
+  and reserve `WHOLE_REPOSITORY` (CAL-V0-014, TCD-V0-174). `intentChecks`, `eligibility` and the
+  `roadmap` row are therefore derived from the other checks alone, so such a ticket reads `PASSED`
+  and `UNKNOWN` rather than `FAILED` and `BLOCKED`. The `advisories` member is present only when
+  non-empty. An OPEN ticket with no blocker and that advisory keeps `nextAction: "set-effects"`
+  and `alternativeActions: ["claim --scope-from-diff"]` (TCD-V0-182), so the `byNextAction` facet
+  is unchanged. Under `serialFallback: WHOLE_REPOSITORY` the view carries no coverage entry at all.
+  A policy that makes coverage a claim prerequisite would render it as a blocker again; none
+  exists in this contract.
+- `TCL-V0-869`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3173)
+  `corvint-tasks queue snapshot --worktree DIR [--out FILE]` MUST read the intent tree at
+  `DIR/.taskman` itself, without resolving a repository or reading any journal, so a linked or
+  pruned worktree's store can be validated instead of the primary checkout's: every record is
+  decoded and checked as a store load is (a malformed record is refused, nothing is written), the
+  snapshot's `primaryWorktree` is the absolute `DIR` and its `journal` is `null`. Served with
+  `CORVINT_TASKS_SNAPSHOT` (TCL-V0-011), `ticket show`, `ticket blockers` (also served),
+  `queue status` and `roadmap` then report that tree's blockers and dependency closure, such as
+  `DEPENDENCY_MISSING` for a dependency the tree no longer holds. `receipt audit` audits journal
+  receipts, which a worktree tree does not own, so it stays refused under the snapshot and is run
+  against the owning journal. A `DIR` without a `.taskman` directory MUST be refused
+  `UNINITIALIZED`. The `DIR` tree is digested again after the snapshot is built, as an inventory
+  read is: a changed tree is read afresh, and after four changed reads the command is refused
+  `SNAPSHOT_MOVED` with nothing written.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -169,6 +240,44 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   the store decides the replay on the complete audit or on the writer checkpoint. A fresh
   commit's envelope is unchanged and has no `originalReceipt`. The mutation help (`replay`
   member of `--help --verbose`) MUST document this envelope. `--batch` entries are out of scope.
+- `TCL-V0-859`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3736) An
+  unknown first word MUST put the closed code `MALFORMED` in the result's `codes`, and its hint
+  MUST also name the first verb words within edit distance 2 of it, so `tikcet` suggests
+  `ticket`. A read refusal for a ticket or escalation that does not exist in the queue
+  (`ticket show`, `ticket note show`, `ticket note history`, `critical-path`,
+  `ticket escalation show`, `ticket escalation history`) MUST carry `MALFORMED`, as the review and
+  obligation reads already do. No new code is added.
+- `TCL-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-3559)
+  `receipt audit --through SEQ` MUST walk receipts 1..SEQ only, with the same per-receipt checks
+  as the complete walk (the CAL-V0-265 prefix walk, bounded at SEQ), and its item MUST add
+  `throughSeq` naming that bound; `headSeq` and `lastReceiptSha256` then name receipt SEQ.
+  Receipts after SEQ are not validated, so a store whose later receipts are inconsistent still
+  reports `structuralConsistency: CONSISTENT` for the bound, and `projectionAgreement` stays
+  `NOT_OBSERVED` because the current projection is not compared with the state at SEQ. The
+  bounded read decodes `head.json` but MUST NOT require the head receipt to verify, so a corrupt
+  receipt after SEQ, the head receipt included, never refuses the bound. Elided liveness receipts
+  (CAL-V0-300) within the bound MUST be restored as the complete walk restores them; only a walk
+  that reaches the head applies the check that each elided receipt is superseded. A SEQ of
+  0, above the head, or not a decimal sequence MUST be refused `MALFORMED` before any walk;
+  `--through` with `--witness-receipts` MUST be refused `MALFORMED`; a store with a retired
+  prefix or staged names is refused as the prefix walk refuses it. Without `--through` the
+  command is the unchanged complete audit.
+- `TCL-V0-821`: (experimental under the standing lane auto-accept (2026-11-01); V1-0896; refines
+  CAL-V0-124) `policy update --dry-run --expected-policy-version N --file PATH` MUST decode the
+  file as `policy.json` and check that its `policyVersion` is N+1, then return one item with
+  `dryRun: true`, `newPolicySha256` and the CAL-V0-124 `handoffFences` preview, and write
+  nothing: the journal, receipts, head, checkpoints, the intent `policy.json` and the derived
+  closed-ticket index stay byte-identical, even when another writer advances the head during the
+  preview. `--request-id` and `--role` are accepted and unused. A file that does not decode
+  or carries another version is refused with the decoder's code or `MALFORMED`. Over a pending
+  receipt `handoffFences` is `null` with a `NOT_OBSERVED` warning, as for a committed update. The
+  preview is advisory: the later write still takes its own version check under the writer lock.
+- `TCL-V0-822`: (experimental under the standing lane auto-accept (2026-11-01); V1-3925; refines
+  TCL-V0-860) A single-target `ticket hold` given no `--expected-revision` reads the live revision
+  as before, and when it is given `--issued-at` and the request index records its `--request-id`,
+  it MUST submit the earlier revision whose rebuilt envelope digest equals the recorded digest,
+  so a retry of an applied hold replays its recorded result instead of refusing
+  `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
 
 ## Non-goals
 
@@ -195,6 +304,10 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - A stale snapshot is read as current: every result names its `producedAt` and journal sequence.
 - A tampered snapshot: file and tree digests are verified before decoding.
 - A write on a snapshot host: refused before any read, naming the owning store.
+- A bounded audit is read as a whole-store verdict: the item names `throughSeq`, and its
+  `headSeq` is SEQ, not the store head (TCL-V0-820).
+- A dry run is read as a committed update: its item says `dryRun: true` and carries no outcome, and
+  the store bytes are unchanged (TCL-V0-821).
 
 ## Acceptance evidence
 
@@ -216,11 +329,31 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
   (TCL-V0-003).
 - `tools/capabilities-check` and the command-tree snapshot (TCL-V0-013).
+- `internal/tasks/cli/cli_papercuts_test.go`: `TestTCLV0860_PositionalAndCurrentRevision`,
+  `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
+  `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
+  `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`,
+  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`, `TestTCLV0868_CoverageIsAdvisoryUnderEveryPolicy`,
+  `TestTCLV0869_SnapshotValidatesAWorktreeStore`; `review_fixes_test.go`:
+  `TestTCLV0860_CurrentRevisionRetryReplays`, `TestTCLV0867_RoadmapRowsMatchFacets`,
+  `TestTCLV0867_CountWarnsWhenReservationsUnreadable`; `snapshot_worktree_internal_test.go`:
+  `TestTCLV0869_WorktreeSnapshotRefusesAMovingTree`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
   `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
   (TCL-V0-870).
+- `internal/tasks/cli/refusal_codes_test.go`: `TestTCLV0859_UnknownVerbAndMissingTicketCarryCodes`;
+  `conformance/cli-errors-v0`: `TestCLIErrorContracts_ACXV0859` (TCL-V0-859).
+- `internal/tasks/cli/receipt_audit_through_test.go`:
+  `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt`,
+  `TestTCLV0820_BoundedAuditIgnoresCorruptHeadReceipt`; `internal/tasks/cli/receipt_compact_test.go`:
+  `TestTCLV0820_BoundedAuditRestoresElidedReceipts` (TCL-V0-820).
+- `internal/tasks/cli/policy_dry_run_test.go`:
+  `TestTCLV0821_PolicyDryRunPreviewsFencesAndWritesNothing`,
+  `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
+- `internal/tasks/cli/review_fixes_test.go`:
+  `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
 
 ## Rollback
 

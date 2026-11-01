@@ -24,6 +24,7 @@ fix	prove.use-repository-object-format-checkpoint	prove --checkpoint document	a 
 fix	surprise.use-commit-revision	surprise --base or --target operand	a revision that resolves to a commit in this repository
 fix	git.clean-tracked-worktree	tracked worktree files	git status --porcelain --untracked-files=no prints no entries
 fix	impact.omit-unadmitted-path	impact path operand, batch impact paths entry, or harness file-change paths entry	the refused path is omitted and every remaining path carries a suffix the repository index admits
+fix	affected.use-path	affected --path operand	the refused tracked file or directory is passed to corvint affected --path, which plans a transitive test selection for it at HEAD
 fix	prove.use-diff-bounded-base	prove --base operand	a commit whose range diff to HEAD over Go and Python paths is within the byte bound
 fix	attest.use-ed25519-private-key	prove --attest-key operand	a PEM file of at most 16 KiB holding exactly one PKCS#8 PRIVATE KEY block for an Ed25519 key
 fix	attest.use-ed25519-public-key	prove --attest-public-key operand	a PEM file of at most 16 KiB holding exactly one PKIX PUBLIC KEY block for an Ed25519 key

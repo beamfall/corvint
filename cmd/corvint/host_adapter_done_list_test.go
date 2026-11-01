@@ -329,3 +329,49 @@ func TestAHI196DoneListRunsNoRepositoryFilter(t *testing.T) {
 		t.Fatalf("the fixture is not adversarial: a raw git status did not run the filter: %v", err)
 	}
 }
+
+// AHI-807 (V1-2514): the plugin declares a boolean stop_done_list userConfig option; the hook
+// honours it as the host exports it, and a set CORVINT_STOP_DONE_LIST keeps precedence.
+func TestAHI807StopDoneListPluginOptionAndPrecedence(t *testing.T) {
+	t.Parallel()
+	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".claude-plugin", "plugin.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var manifest struct {
+		UserConfig map[string]struct {
+			Type    string `json:"type"`
+			Default *bool  `json:"default"`
+		} `json:"userConfig"`
+	}
+	if err := json.Unmarshal(raw, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if option, ok := manifest.UserConfig["stop_done_list"]; !ok || option.Type != "boolean" || option.Default == nil || *option.Default {
+		t.Fatalf("plugin.json stop_done_list option: %+v", manifest.UserConfig)
+	}
+	for _, test := range []struct {
+		env, option string
+		want        bool
+	}{{"", "", false}, {"", "true", true}, {"", "1", true}, {"", "false", false}, {"1", "", true}, {"1", "false", true}, {"0", "true", false}, {"true", "true", false}} {
+		values := map[string]string{}
+		if test.env != "" {
+			values[doneListOptIn] = test.env
+		}
+		if test.option != "" {
+			values[doneListPluginOpt] = test.option
+		}
+		if got := doneListOptedIn(adapterEnvContext(context.Background(), values)); got != test.want {
+			t.Fatalf("env=%q option=%q: opted in %v, want %v", test.env, test.option, got, test.want)
+		}
+	}
+	// End to end: the option alone yields the done-list on a dirty tree.
+	root := cliRepository(t)
+	if err := os.WriteFile(filepath.Join(root, "README.md"), []byte("# changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root, doneListPluginOpt: "true"})
+	if output := runClaudeAdapter(ctx, "stop-done-list", map[string]any{"session_id": "s", "hook_event_name": "Stop", "stop_hook_active": false}); output["systemMessage"] == nil {
+		t.Fatalf("the plugin option did not enable the done-list: %v", output)
+	}
+}

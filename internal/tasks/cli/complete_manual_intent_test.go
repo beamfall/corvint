@@ -12,7 +12,7 @@ import (
 
 // TestTCDV0176_CompleteManualOverridesFailedIntentChecksOnlyWithAReason
 // (V1-2535): complete-manual stays the close for a ticket whose intent checks
-// FAILED (here COVERAGE_UNKNOWN from INCOMPLETE effects), but a blank reason
+// FAILED (here TICKET_STATE of a MANUAL ticket), but a blank reason
 // refuses MALFORMED at /payload/reason naming the failed checks and writes
 // nothing; a nonblank reason commits and warns with each overridden check,
 // and an exact replay does not repeat the warning. A ticket whose checks
@@ -25,7 +25,12 @@ func TestTCDV0176_CompleteManualOverridesFailedIntentChecksOnlyWithAReason(t *te
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %s", x.stdout)
 	}
-	incomplete, _ := effectsTicket(t, r.Root, "incomplete", "P2", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":[]}`)
+	manual := strings.Replace(strings.Replace(createPayloadJSON, `"title":"Console ticket"`, `"title":"manual"`, 1), `"executionClass":"AUTONOMOUS"`, `"executionClass":"MANUAL"`, 1)
+	mx := atm(t, r.Root, nil, "ticket", "create", "--request-id", "create-manual", "--issued-at", "2026-10-08T12:00:00Z", "--payload", manual)
+	if mx.res.Outcome != wire.OutcomeOK || field(mx.res.Items[0], "outcome").Str != "COMPLETED" {
+		t.Fatalf("create manual: %s", mx.stdout)
+	}
+	incomplete := field(mx.res.Items[0], "ticketId").Str
 	qualified, _ := effectsTicket(t, r.Root, "qualified", "P2", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
 	checks := func(id string) string {
 		t.Helper()
@@ -53,7 +58,7 @@ func TestTCDV0176_CompleteManualOverridesFailedIntentChecksOnlyWithAReason(t *te
 	for _, blank := range []string{"", "  "} {
 		x := complete("blank", incomplete, blank)
 		if x.res.Outcome == wire.OutcomeOK || !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "/payload/reason") ||
-			!strings.Contains(string(x.stdout), wire.CodeCoverageUnknown) {
+			!strings.Contains(string(x.stdout), wire.CodeTicketState) {
 			t.Fatalf("blank reason %q over FAILED checks: %s", blank, x.stdout)
 		}
 	}
@@ -65,7 +70,7 @@ func TestTCDV0176_CompleteManualOverridesFailedIntentChecksOnlyWithAReason(t *te
 	if done.res.Outcome != wire.OutcomeOK || field(done.res.Items[0], "outcome").Str != "COMPLETED" {
 		t.Fatalf("override with a reason: %s", done.stdout)
 	}
-	if w := overrides(done); len(w) != 1 || !strings.Contains(w[0], wire.CodeCoverageUnknown+": ") {
+	if w := overrides(done); len(w) != 1 || !strings.Contains(w[0], wire.CodeTicketState+": ") {
 		t.Fatalf("override warning: %q", w)
 	}
 	replay := complete("override", incomplete, "delivered in batch #1; effects never qualified")

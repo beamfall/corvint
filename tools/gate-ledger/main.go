@@ -7,8 +7,10 @@
 // Usage:
 //
 //	gate-ledger run STEP -- CMD [ARG...]   run CMD unless the ledger holds a pass for STEP's inputs
-//	gate-ledger go-test -- GO_TEST [FLAG...] run the resolved packages through Go's own test cache
-//	                                        and the unresolved packages under a tree-keyed record
+//	gate-ledger go-test [--packages LIST] -- GO_TEST [FLAG...]
+//	                                        run the resolved packages through Go's own test cache
+//	                                        and the unresolved packages under a tree-keyed record;
+//	                                        --packages limits the run to LIST's go list patterns
 //	gate-ledger plan STEP...                print HIT or RUN per step; reads nothing but the ledger
 //
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
@@ -102,6 +104,7 @@ type record struct {
 	Host       string   `json:"host"`
 	Packages   []string `json:"packages,omitempty"`
 	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
+	Scope      []string `json:"scope,omitempty"` // the --packages patterns of a scoped go-test (GL-V0-720)
 }
 
 // packageKey is one resolved package's per-package content key, or the reason
@@ -138,6 +141,7 @@ type ledger struct {
 	dir       string
 	dirErr    string
 	identity  string
+	scope     []string // go-test --packages patterns; nil means ./... (GL-V0-720)
 	stdout    io.Writer
 	stderr    io.Writer
 }
@@ -163,11 +167,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return open(stdout, stderr).runStep(step, nil, command)
 	case "go-test":
-		_, command, ok := splitCommand(append([]string{unresolved}, args[1:]...))
+		scope, rest, ok := packagesFlag(args[1:])
 		if !ok {
 			return usage(stderr)
 		}
-		return open(stdout, stderr).goTest(command)
+		_, command, ok := splitCommand(append([]string{unresolved}, rest...))
+		if !ok {
+			return usage(stderr)
+		}
+		l := open(stdout, stderr)
+		l.scope = scope
+		return l.goTest(command)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
@@ -178,8 +188,35 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(stderr io.Writer) int {
-	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test -- GO_TEST [FLAG...] | plan STEP...")
+	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP...")
 	return 2
+}
+
+// packagesFlag strips a leading `--packages LIST` or `--packages=LIST` (GL-V0-720): LIST's
+// whitespace- or comma-separated go list patterns. It refuses an empty LIST and a pattern
+// that looks like a flag; without the flag it returns args unchanged and a nil scope.
+func packagesFlag(args []string) ([]string, []string, bool) {
+	var list string
+	switch {
+	case len(args) > 1 && args[0] == "--packages":
+		list, args = args[1], args[2:]
+	case len(args) > 0 && strings.HasPrefix(args[0], "--packages="):
+		list, args = strings.TrimPrefix(args[0], "--packages="), args[1:]
+	case len(args) > 0 && args[0] == "--packages":
+		return nil, nil, false
+	default:
+		return nil, args, true
+	}
+	scope := strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+	if len(scope) == 0 {
+		return nil, nil, false
+	}
+	for _, pattern := range scope {
+		if strings.HasPrefix(pattern, "-") {
+			return nil, nil, false
+		}
+	}
+	return scope, args, true
 }
 
 // splitCommand parses `STEP -- CMD ARG...`.
@@ -254,7 +291,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	if code != 0 {
 		return code
 	}
-	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages}); err != nil {
+	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}
@@ -267,12 +304,22 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 // and the unresolved packages, which run with -count=1 under a tree-keyed
 // record (GL-V0-004). When the partition cannot be computed every package runs
 // with -count=1 under the tree key; when the bounds cannot be computed the
-// resolved packages run through the Go test cache alone, unrecorded.
+// resolved packages run through the Go test cache alone, unrecorded. A --packages
+// scope (GL-V0-720) replaces `./...` with its patterns throughout.
 func (l *ledger) goTest(goTest []string) int {
-	resolved, unresolvedPkgs, reason := l.partition()
+	patterns := []string{"./..."}
+	if l.scope != nil {
+		patterns = l.scope
+		fmt.Fprintf(l.stdout, "%sSCOPE packages %s\n", prefixOut, strings.Join(patterns, " "))
+	}
+	resolved, unresolvedPkgs, reason := l.partition(patterns)
 	if reason != "" {
 		fmt.Fprintf(l.stdout, "%sPARTITION unavailable: %s; every package runs uncached\n", prefixOut, reason)
-		return l.runStep(unresolved, []string{"./..."}, append(append([]string{}, goTest...), "-count=1", "./..."))
+		return l.runStep(unresolved, patterns, append(append(append([]string{}, goTest...), "-count=1"), patterns...))
+	}
+	if l.scope != nil && len(resolved)+len(unresolvedPkgs) == 0 {
+		fmt.Fprintf(l.stderr, "%sSCOPE packages %s matches no packages to test\n", prefixOut, strings.Join(patterns, " "))
+		return 1
 	}
 	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages under per-package keys, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
 	code := 0
@@ -296,7 +343,7 @@ func (l *ledger) goTest(goTest []string) int {
 	return code
 }
 
-func (l *ledger) partition() (resolved, unresolvedPkgs []string, reason string) {
+func (l *ledger) partition(patterns []string) (resolved, unresolvedPkgs []string, reason string) {
 	if l.root == "" {
 		return nil, nil, "no repository root"
 	}
@@ -304,9 +351,9 @@ func (l *ledger) partition() (resolved, unresolvedPkgs []string, reason string) 
 	if err != nil {
 		return nil, nil, err.Error()
 	}
-	listed, err := output(l.root, "go", "list", "./...")
+	listed, err := output(l.root, "go", append([]string{"list"}, patterns...)...)
 	if err != nil {
-		return nil, nil, "go list ./... failed: " + err.Error()
+		return nil, nil, "go list " + strings.Join(patterns, " ") + " failed: " + err.Error()
 	}
 	flagged, err := output(l.root, "go", "run", "./tools/gate-affected-select", "-unresolved", module, l.root)
 	if err != nil {
@@ -613,7 +660,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 		if p.reason != "" || !passes[p.pkg] || code >= 128 {
 			continue
 		}
-		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound}
+		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound, Scope: l.scope}
 		if err := l.record(rec); err != nil {
 			fmt.Fprintf(l.stderr, "%sRECORD %s %s failed: %s\n", prefixOut, packageStep, p.pkg, err)
 			continue

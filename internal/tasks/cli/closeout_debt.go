@@ -381,11 +381,54 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		return snapshot.DecodeGateResult(raw)
 	}
+	// A merge commit's citation of a ticket that a non-merge scanned commit
+	// also cites repeats that constituent's row, and one that a merge commit
+	// it merged also cites repeats that inner merge's row, so both are
+	// dropped (TCD-V0-731); separate merges and a sole citer still list.
+	cites := make([][]closeoutCite, len(scan.Commits))
+	constituent := map[string]bool{}
+	mergeCiters := map[string][]int{} // ticket ID -> scan indexes of citing merges
+	for i, c := range scan.Commits {
+		cites[i] = index.cites(c.Message)
+		for _, cite := range cites[i] {
+			if c.Parents < 2 {
+				constituent[cite.ticketID] = true
+			} else {
+				mergeCiters[cite.ticketID] = append(mergeCiters[cite.ticketID], i)
+			}
+		}
+	}
+	enclosing := map[[2]int]bool{} // {outer, inner} scan indexes
+	encloses := func(outer, inner int) bool {
+		k := [2]int{outer, inner}
+		if v, ok := enclosing[k]; ok {
+			return v
+		}
+		o, ic := scan.Commits[outer].Commit, scan.Commits[inner].Commit
+		first, err := store.CloseoutRevision(root, o+"^1")
+		v := err == nil && store.IsAncestor(root, ic, o) && !store.IsAncestor(root, ic, first)
+		enclosing[k] = v
+		return v
+	}
+	repeatsInner := func(i int, id string) bool {
+		if constituent[id] {
+			return true
+		}
+		for _, j := range mergeCiters[id] {
+			if j != i && encloses(i, j) {
+				return true
+			}
+		}
+		return false
+	}
 	collected := closeoutRows{max: maxCloseoutRows}
-	for _, c := range scan.Commits {
+	for i, c := range scan.Commits {
 		subject := truncateUTF8(c.Subject, maxCloseoutSubjectBytes)
 		var refs map[string]string
-		for _, cite := range index.cites(c.Message) {
+		for _, cite := range cites[i] {
+			if c.Parents > 1 && repeatsInner(i, cite.ticketID) {
+				continue
+			}
 			if local, open := locals[cite.ticketID]; open {
 				if prsGiven && refs == nil {
 					refs = index.commitReferences(c.Message)
@@ -426,6 +469,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		p := closeoutProposals(root, index, prs, scan.Commits, locals, rows)
 		p.render(item, rows, len(prs), name)
+		res.Warnings = append(res.Warnings, p.warnings...)
 		debt += len(p.byPR)
 	}
 	res.Items = []wire.Value{item}
@@ -440,6 +484,9 @@ type closeoutPlan struct {
 	prOf    map[string]int64   // ticket ID -> proposing PR
 	prsOf   map[string][]int64 // ticket ID -> every delivering PR, ascending (TCD-V0-874)
 	reviews []string           // locals, sorted
+	// warnings name each proposing PR whose lane commit scan was cut at
+	// the bound (TCD-V0-731).
+	warnings []string
 }
 
 type closeoutPRProposal struct {
@@ -450,7 +497,8 @@ type closeoutPRProposal struct {
 
 // closeoutProposals derives the TCD-V0-871 proposals: each exported MERGED
 // PR whose merge commit was scanned proposes batch-close for the OPEN
-// tickets its batch-delivered set delivers; other candidate rows propose
+// tickets its batch-delivered set delivers, lane commits included
+// (TCD-V0-731); other candidate rows propose
 // COMMIT_DELIVERED or REVIEW. It writes nothing.
 func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []store.ScannedCommit, locals map[string]string, rows []closeoutRow) *closeoutPlan {
 	scanned := make(map[string]bool, len(commits))
@@ -472,6 +520,10 @@ func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []
 	for _, n := range numbers {
 		in := &batchInput{number: n, batch: byNumber[n], byNumber: byNumber}
 		in.deriveLanes(root)
+		in.scanLanes(root)
+		if in.laneScan != nil && in.laneScan.Truncated {
+			plan.warnings = append(plan.warnings, "PR #"+strconv.FormatInt(n, 10)+": "+in.laneWarnings()[0])
+		}
 		delivered, _ := in.hits(index)
 		pp := closeoutPRProposal{number: n, merge: in.batch.mergeOid()}
 		for _, h := range delivered {

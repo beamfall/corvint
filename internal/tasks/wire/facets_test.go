@@ -114,6 +114,14 @@ func TestCALV0206_FacetsMemberIsTheClosedSummary(t *testing.T) {
 		"omitted under cap":    edit(func(o *Object) { o.Set("labelsOmitted", String("1")) }),
 		"omitted not count":    edit(func(o *Object) { o.Set("milestonesOmitted", Null()) }),
 		"label map not object": edit(func(o *Object) { o.Set("byLabel", String("bugs")) }),
+		"lifecycle missing state": edit(func(o *Object) {
+			o.Set("byLifecycle", ObjectValue(NewObject().Set("OPEN", String("3"))))
+		}),
+		"lifecycle unknown state": edit(func(o *Object) {
+			o.Set("byLifecycle", lifecycleCounts("OPEN", "3"))
+			o.Vals["byLifecycle"].Obj.Set("DELIVERED", String("0"))
+		}),
+		"lifecycle sum mismatch": edit(func(o *Object) { o.Set("byLifecycle", lifecycleCounts("OPEN", "2")) }),
 	}
 	for name, f := range cases {
 		if raw, err := encode(f); err == nil {
@@ -128,8 +136,22 @@ func TestCALV0206_FacetsMemberIsTheClosedSummary(t *testing.T) {
 			t.Errorf("%s: decoded (%v)", name, err)
 		}
 	}
+	// TLC-V0-009: byLifecycle is optional and, when present, closed.
+	if _, err := encode(edit(func(o *Object) { o.Set("byLifecycle", lifecycleCounts("OPEN", "3")) })); err != nil {
+		t.Fatalf("byLifecycle summary refused: %v", err)
+	}
 	// The cap itself is admitted: 64 labels with one omitted.
 	if _, err := encode(edit(func(o *Object) { o.Set("byLabel", labels(64)); o.Set("labelsOmitted", String("1")) })); err != nil {
 		t.Fatalf("64 labels with one omitted refused: %v", err)
 	}
+}
+
+// lifecycleCounts is a byLifecycle map with n in state and zero elsewhere.
+func lifecycleCounts(state, n string) Value {
+	o := NewObject()
+	for _, s := range FacetLifecycles {
+		o.Set(s, String("0"))
+	}
+	o.Set(state, String(n))
+	return ObjectValue(o)
 }

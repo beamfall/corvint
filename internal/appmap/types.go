@@ -69,6 +69,16 @@ type Manifest struct {
 	// Registries declares string-key registries and their accessors for non-Go syntax impact
 	// (NGI-V0-007); the application map itself does not read them.
 	Registries []contextindex.RegistryDeclaration `json:"registries,omitempty"`
+	// ImpactExempt declares the non-UI paths `flows appmap impact` counts under ignored_paths
+	// instead of unknown non-ui-path (ANL-V0-810); empty exempts none.
+	ImpactExempt []ImpactExemptEntry `json:"impact_exempt,omitempty"`
+}
+
+// ImpactExemptEntry is one project-declared impact exemption: a repository-relative glob in the
+// router_globs syntax and the reason it cannot affect a screen (ANL-V0-810).
+type ImpactExemptEntry struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
 }
 
 // RouterFile names one router definition file and its dialect. Mount, for a React file, names

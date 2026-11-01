@@ -9,7 +9,7 @@ Authoritative inputs: native tickets V1-3101, V1-3102 and V1-3103 and GitHub iss
 [#1998](https://github.com/beamfall/corvint/issues/1998),
 [#1999](https://github.com/beamfall/corvint/issues/1999) and
 [#2000](https://github.com/beamfall/corvint/issues/2000), with V1-3112 to V1-3115 and GitHub #2006 to #2009
-for `DCI-V1-020..026`, and V1-3162 and GitHub #2021 for `DCI-V1-027..030`, and V1-3106 for `DCI-V1-230`. This companion extends the repository
+for `DCI-V1-020..026`, and V1-3162 and GitHub #2021 for `DCI-V1-027..030`, and V1-3106 for `DCI-V1-230`, and V1-3762 for `DCI-V1-630`. This companion extends the repository
 inventory of the [documentation corpus contract](documentation-corpus-v1.md) (`DCP-V1-700..706`),
 whose Requirements section is at the 256-obligation OCM limit (`maxObligations`). The parent's
 input and authority boundary, failure codes and acceptance gates govern these requirements.
@@ -341,6 +341,14 @@ not the records a build derives, so the derivation is unchanged.
   refusals. Acceptance: `TestDCIV1230ExplicitEmptyDeclarationsStayDistinct`, which finds every such
   field by reflection, so a new one fails until its refusal is added.
 
+- `DCI-V1-630`: (experimental under the standing lane auto-accept (2026-11-01); V1-3762; refines
+  the parent's `DCP-V1-158`) The `corpus-capacity-exceeded` message for an exhausted Git operation
+  budget MUST name the bound in force, read from the `gitrun` refusal (`at its N-operation bound`),
+  not the default 1,024; when the refusal names no bound it says `Git operation budget exhausted`
+  with no number. Rollback: restore the `gitrun.DefaultOperations` format. Acceptance:
+  `TestDCIV1630BudgetRefusalNamesBoundInForce` (the `gitrun` refusal at bound 1, the no-bound
+  fallback, and pinned-revision verification at bound 0).
+
 ## Non-goals
 
 - Raising the eight-revision bound of `DCP-V1-175`, or a higher bound for inventory-only
@@ -424,3 +432,4 @@ them. `DCI-V1-020` and `DCI-V1-025` revert with no stored state.
 | DCI-V1-027 | `deployJobName`, `environmentWords` in `internal/doccorpus/inventory_ci.go`; `workflow` in `repository_inventory.go` | `TestDCIV1027DeployWordsAndShortEnvironments` |
 | DCI-V1-028..029 | `RepositoryInventory`, `DeployJobDeclaration`, `validateRepositoryInventory`, `deployJob` in `internal/doccorpus/repository_inventory.go`; `namedEnvironment` in `inventory_ci.go`; `docs/DOCUMENTATION-CORPUS.md` | `TestDCIV1028DeclaredEnvironmentWords`, `TestDCIV1029DeclaredDeployJob` |
 | DCI-V1-030 | `DerivationVersion` in `internal/doccorpus/encoding.go`; `docs/RELEASE-NOTES.md` | `TestDCXV1471DerivationVersionGuard`, `TestDCXV1564ReleaseNotesListEveryDerivation` |
+| DCI-V1-630 | `operationBound`, `gitCapacity` in `internal/doccorpus/capacity.go` | `TestDCIV1630BudgetRefusalNamesBoundInForce` |

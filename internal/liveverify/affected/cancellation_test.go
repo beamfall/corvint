@@ -100,7 +100,7 @@ func TestAFUV1059SourceWalkCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	source := affected.DiskSourceContext(ctx, root)
-	if _, err := source.Files(func(string) bool { return true }); !errors.Is(err, context.Canceled) {
+	if _, err := source.Files(func(_, _ string) bool { return true }); !errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 	if _, err := source.Read("dir00/source.txt"); !errors.Is(err, context.Canceled) {
@@ -139,7 +139,7 @@ func TestAFUV1059IncludedAndDirectWalkCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	injected := &walkCancelContext{Context: ctx, cancel: cancel}
-	files, _, err := affected.DiskSourceContext(injected, root).FilesIncluding(func(string) bool { return true }, "build")
+	files, _, err := affected.DiskSourceContext(injected, root).FilesIncluding(func(_, _ string) bool { return true }, "build")
 	if injected.visits.Load() != 10 || files != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("visits=%d files=%v error=%v", injected.visits.Load(), files, err)
 	}

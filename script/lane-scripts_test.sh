@@ -7,9 +7,10 @@
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
-# (ASD-V0-955). No Go build runs. The Python operator tool lane-transcript-metrics.py
-# (ASD-V0-834, ASD-V0-836) is tested by script/lane-transcript-metrics_test.py, not here: a
-# script/*.sh test may not name Python (GOC-V0-008).
+# (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go
+# build runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is
+# tested by script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name
+# Python (GOC-V0-008).
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -353,7 +354,7 @@ printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
 printf 'untracked\n' > "$off/lc/sub/untracked.txt"
 printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
 # shellcheck disable=SC2088 # the remote expands ~
-hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="${PICK_SSH:-$off/bin/ssh}" \
+hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS ${HV_GOMAXPROCS:+GOMAXPROCS=$HV_GOMAXPROCS} PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="${PICK_SSH:-$off/bin/ssh}" \
   HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
   HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
 out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
@@ -388,6 +389,13 @@ HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=0 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $(cat "$off/gmp.last") == unset ]] && grep -q 'GOMAXPROCS=unset$' "$off/err" ||
   fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=0 still set one: $(cat "$off/gmp.last")"
+# A GOMAXPROCS the caller exported travels with the command (the ssh stub, like ssh, drops the
+# local environment) and wins over the default and HEAVY_REMOTE_GOMAXPROCS.
+HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 1 ]] && grep -q 'GOMAXPROCS=1$' "$off/err" ||
+  fail "heavy.sh lost the caller's exported GOMAXPROCS=1: $(cat "$off/gmp.last")"
+HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 1 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS beat the caller's GOMAXPROCS: $(cat "$off/gmp.last")"
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=x hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $? == 2 ]] && grep -q 'invalid-remote-gomaxprocs' "$off/err" ||
   fail "heavy.sh did not refuse HEAVY_REMOTE_GOMAXPROCS=x: $(cat "$off/err")"
@@ -892,6 +900,9 @@ out=$(finish '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
 out=$(finish 1 '' '' '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "lane finish refusal: $out"
+# DCW-V0-848 (V1-3836): the pre-flight binds nothing, so LANE=1 inputs-check needs no OUTCOME.
+out=$(DOGFOOD_FINISH_PREFLIGHT=1 finish 1 '' '' '' '' '')
+[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY'$'\n'* ]] || fail "inputs-check required OUTCOME: $out"
 # ASD-V0-903: a plan needs a row to count as supplied.
 printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
 out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
@@ -1148,6 +1159,43 @@ $q -skip '^(TestB)\$' ./w
 printf '{}' > "$sel/bad.json"
 sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
+# ASD-V0-722 (V1-3851): a manifest that admits nothing says why on one stderr line, and a relative
+# .git/REL manifest of a linked worktree resolves to Git's own path for REL.
+nadm="heavy.sh: HEAVY_SELECTION=$sel"
+for c in "old.json|./x|/old.json not admitted: source.head 0000000000000000000000000000000000000000 is not HEAD $selhead (regenerate the manifest after this commit)" \
+  "m.json|./y|/m.json not admitted: unit go:example.com/m/y is not selected whole" \
+  "m.json|-skip=^(TestC)\$ ./w|/m.json not admitted: unit go:example.com/m/w has no -skip ^(TestC)\$ slice" \
+  "gone.json|./x|/gone.json not admitted: manifest-unreadable $sel/gone.json" \
+  "m.json|./missing|/m.json not admitted: argument ./missing is not a ./REL directory"; do
+  IFS='|' read -r cm ca cw <<< "$c"
+  HEAVY_SELECTION="$sel/$cm" sv go test $ca > /dev/null 2> "$sel/err"
+  [[ $? == 2 && $(grep -c 'not admitted' "$sel/err") == 1 ]] && grep -qxF "$nadm$cw" "$sel/err" ||
+    fail "heavy.sh did not name why $cm refused $ca: $(cat "$sel/err")"
+done
+selwt=$tmp/selection-wt
+git -C "$sel" worktree add -q "$selwt" 2> /dev/null && mkdir -p "$selwt/x" && cp "$sel/go.mod" "$selwt/go.mod" &&
+  manifest "$selhead" > "$(git -C "$selwt" rev-parse --absolute-git-dir)/sel.json" && [[ -f $selwt/.git ]] ||
+  fail "linked-worktree selection fixture setup failed"
+(cd "$selwt" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
+  HEAVY_WHOLE_REASON= HEAVY_SELECTION=.git/sel.json "$heavy" go test -count=1 ./x) > /dev/null 2> "$sel/err" &&
+  grep -Eq "^$d whole reason=corvint-selection:0123456789ab pwd=$selwt cmd=go test -count=1 \./x$h" "$sel/sel.log" ||
+  fail "heavy.sh did not resolve a linked worktree's .git/sel.json: $(cat "$sel/err")"
+# ASD-V0-721 (V1-3845): go test -c only compiles, so it needs no reason; a -c of another command does not count.
+sv go test -c -o /dev/null ./x > /dev/null 2> "$sel/err" &&
+  grep -Eq "^$d whole reason=compile-only pwd=.* cmd=go test -c -o /dev/null \./x$h" "$sel/sel.log" ||
+  fail "heavy.sh refused or mislogged go test -c: $(cat "$sel/err")"
+sv go test ./x -args -c > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated a -c after -args as compile-only"
+sv bash -c 'go test ./x' > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$sel/err" ||
+  fail "heavy.sh treated bash -c 'go test' as compile-only: $(cat "$sel/err")"
+# The last -c=BOOL wins, and a -c that is another flag's value is not the compile flag.
+sv go test -c -c=false ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -c -c=false as compile-only"
+sv go test -skip -c ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -skip -c as compile-only"
+sv go test -c=false -c ./x > /dev/null 2> "$sel/err" ||
+  fail "heavy.sh refused go test -c=false -c: $(cat "$sel/err")"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits, and
 # (ASD-V0-970) its load wait and starting load.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
@@ -1717,6 +1765,19 @@ printf 'ABC-V0-104\n' > "$ids/uncommitted.txt"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tmp/ids.err")
 [[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-105 b.txt:1' && $(cat "$tmp/ids.err") == *'2 of 6 IDs in ABC-V0-100..ABC-V0-105 are used at HEAD'* ]] ||
   fail "used IDs: $out $(cat "$tmp/ids.err")"
+# ASD-V0-660 (V1-3876): a used block names the first same-width block free at REF above HI, then
+# below LO, or NONE; stdout and the exit code stay as before.
+[[ $(cat "$tmp/ids.err") == *'next free block ABC-V0-106..ABC-V0-111 at HEAD ('*'); check open refs with make requirement-ids-free PREFIX=ABC-V0 RANGE=106..111'* ]] ||
+  fail "used block names no next free block: $(cat "$tmp/ids.err")"
+printf 'ABC-V0-998\n' > "$ids/top.txt" && git -C "$ids" add top.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm top || fail "top fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 996 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == 'used ABC-V0-998 top.txt:1' && $(cat "$tmp/ids.err") == *'next free block ABC-V0-000..ABC-V0-003 at HEAD'* ]] ||
+  fail "full upper range does not wrap below LO: $out $(cat "$tmp/ids.err")"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 0 999 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $(cat "$tmp/ids.err") == *'next free block NONE: no block of 1000 IDs is free at HEAD ('* ]] ||
+  fail "full namespace does not print NONE: $(cat "$tmp/ids.err")"
+git -C "$ids" rm -q top.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm untop || fail "top fixture removal"
 # Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
 # byte is a colon (`:ABC-V0-103`) keeps its path and line.
 mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" && git -C "$ids" add sub/colon.txt &&
@@ -1844,6 +1905,47 @@ out=$(lwr --act 10); rc=$?
 [[ ! -e $lw/s/calls ]] || fail "a human dequeue was re-armed"
 grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "human dequeue not alerted"
 lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
+# A listed flake beside a build failure, or beside a failed step that names no test, is real.
+/bin/rm -f "$lw/s/calls" "$lw/s/event"
+printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
+echo 99 > "$lw/s/runs"
+printf -- '--- FAIL: TestFlakyThing (0.1s)\nFAIL\texample.com/p [build failed]\n' > "$lw/s/log"
+out=$(lwr --act 11); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 build, setup or timeout failure' ]] || fail "flake beside a build failure: rc=$rc $out"
+printf 'test\tgo test\t--- FAIL: TestFlakyThing (0.1s)\nvet\tgo vet\tvet: x.go:1: bad\n' > "$lw/s/log"
+out=$(lwr --act 11); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 step=vet/go vet names no failing Go test' ]] || fail "flake beside a failed step: rc=$rc $out"
+[[ ! -e $lw/s/calls ]] || fail "a mixed failure was rerun: $(cat "$lw/s/calls")"
+printf 'test\tgo test\t--- FAIL: TestFlakyThing (0.1s)\n' > "$lw/s/log"
+[[ $(lwr 11) == 'RERUN run=99 attempt=1/3' ]] || fail "a step-prefixed listed flake was not rerun"
+# An invalid pattern is refused before any gh call instead of matching every test.
+printf '[\n' > "$lw/badflakes"
+out=$(GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/badflakes" --act 12 2> "$lw/err"); rc=$?
+[[ $rc == 2 && -z $out ]] && grep -q 'not a valid extended regular expression' "$lw/err" && [[ ! -e $lw/s/calls ]] ||
+  fail "invalid flake pattern: rc=$rc out=$out $(cat "$lw/err")"
+# A pass whose PR lock a running pass holds exits 2 without acting; a dead holder's lock is taken over.
+echo $$ > "$lw/state/pr-12.lock"
+out=$(lwr --act 12); rc=$?
+[[ $rc == 2 && -z $out && ! -e $lw/s/calls ]] && grep -q 'another pass holds' "$lw/err" || fail "held lock: rc=$rc $out $(cat "$lw/err")"
+(exit 0) & dead=$!; wait "$dead"
+echo "$dead" > "$lw/state/pr-12.lock"
+[[ $(lwr --act 12) == 'RERUN run=99 attempt=1/3' && ! -e $lw/state/pr-12.lock ]] || fail "stale lock not taken over: $(cat "$lw/err")"
+# Concurrent passes on one PR never spend a count twice: of 6 racing passes, every RERUN has a
+# distinct attempt and the reruns issued equal the attempts recorded.
+/bin/rm -f "$lw/s/calls"
+for k in 1 2 3 4 5 6; do lwr --act 14 > "$lw/race.$k" 2> /dev/null & done
+wait
+attempts=$(cat "$lw"/race.* | sed -n 's/^RERUN run=99 attempt=\([0-9]\)\/3$/\1/p' | sort)
+[[ -n $attempts && $(sort -u <<< "$attempts") == "$attempts" ]] || fail "racing passes reused an attempt: $(cat "$lw"/race.*)"
+[[ $(grep -c 'run rerun 99' "$lw/s/calls") == $(wc -l <<< "$attempts" | tr -d ' ') ]] || fail "reruns differ from attempts: $(cat "$lw/s/calls")"
+# Without --repo (bash 3.2 rejected the empty repo_args under set -u) the PR's repository is used.
+[[ $(GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" 15 2> "$lw/err") == 'RERUN run=99 attempt=1/3' ]] ||
+  fail "a pass without --repo: $(cat "$lw/err")"
+# A count that cannot be recorded exits 2 before the rerun.
+/bin/rm -f "$lw/s/calls"
+mkdir -p "$lw/state/pr-13.tmp"
+out=$(lwr --act 13); rc=$?
+[[ $rc == 2 && -z $out && ! -e $lw/s/calls ]] || fail "unrecorded count still acted: rc=$rc $out $(cat "$lw/err")"
 ok
 
 # ASD-V0-990 (V1-3258): docs/DOGFOOD.md and the Makefile agree on the dogfood-inputs-check variable names. The
@@ -1898,6 +2000,123 @@ out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" 2>&1)
 [[ $? == 0 && $out == 'dogfood-change-runs: lanes=0 median=NOT_OBSERVED '* ]] || fail "dogfood-change-runs no ledger: $out"
 out=$(cd "$dcr/none" && "$script/dogfood-change-runs.sh" yesterday 2>&1)
 [[ $? == 2 && $out == 'dogfood-change-runs: REFUSE bad-since SINCE=yesterday:'* ]] || fail "dogfood-change-runs bad SINCE: $out"
+ok
+
+# ASD-V0-645 (V1-3768, V1-3770): lane-dispatch-check screens a batch's ticket files before lanes
+# start: an empty ticket fails unless waived, two lanes touching one file (or a directory key that
+# holds it) and one ticket in two lanes always fail, an absent path fails only under --base, and a
+# malformed file or usage error exits 2.
+ldc=$tmp/ldc
+mkdir -p "$ldc/repo/pkg" && printf 'x\n' > "$ldc/repo/pkg/a.go" && printf 'y\n' > "$ldc/repo/README.md"
+git -C "$ldc/repo" init -q && git -C "$ldc/repo" add -A &&
+  git -C "$ldc/repo" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "lane-dispatch-check fixture repo"
+tk() { printf '{"ticketId":"%s","record":{"effects":{"touchPaths":[%s]}}}' "$1" "$2"; }
+printf '[%s]\n' "$(tk T:V1-1 '"pkg/a.go"')" > "$ldc/a.json"
+printf '[%s]\n' "$(tk T:V1-2 '"README.md"')" > "$ldc/b.json"
+printf '[%s]\n' "$(tk T:V1-3 '')" > "$ldc/empty.json"
+printf '[%s]\n' "$(tk T:V1-4 '"pkg/"')" > "$ldc/dir.json"
+printf '[%s]\n' "$(tk T:V1-1 '"docs/x.md"')" > "$ldc/dup.json"
+printf '[%s]\n' "$(tk T:V1-5 '"new/file.go"')" > "$ldc/new.json"
+printf '{"ticketId":1}\n' > "$ldc/bad.json"
+ldcrun() { (cd "$ldc/repo" && "$script/lane-dispatch-check.sh" "$@" 2>&1); }
+out=$(ldcrun --base HEAD a="$ldc/a.json" b="$ldc/b.json")
+[[ $? == 0 && $out == 'lane-dispatch-check: PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check pass: $out"
+out=$(ldcrun a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 1 && $out == *'EMPTY lane=e ticket=T:V1-3: no touchPaths'*'--waive V1-3'* && $out == *'FAIL 1 finding(s) in 2 lanes, 2 tickets' ]] ||
+  fail "lane-dispatch-check empty: $out"
+out=$(ldcrun --waive V1-3 a="$ldc/a.json" e="$ldc/empty.json")
+[[ $? == 0 && $out == *'PASS 2 lanes, 2 tickets' ]] || fail "lane-dispatch-check empty waived: $out"
+out=$(ldcrun a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *'OVERLAP lanes a (T:V1-1 pkg/a.go) and d (T:V1-4 pkg/)'* ]] || fail "lane-dispatch-check overlap: $out"
+out=$(ldcrun --waive V1-4 a="$ldc/a.json" d="$ldc/dir.json")
+[[ $? == 1 && $out == *OVERLAP* ]] || fail "lane-dispatch-check overlap is never waived: $out"
+out=$(ldcrun a="$ldc/a.json" x="$ldc/dup.json")
+[[ $? == 1 && $out == *'DUPLICATE ticket=V1-1 is in lanes a,x'* && $out != *OVERLAP* ]] || fail "lane-dispatch-check duplicate: $out"
+out=$(ldcrun n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent without --base: $out"
+out=$(ldcrun --base HEAD n="$ldc/new.json")
+[[ $? == 1 && $out == *'ABSENT lane=n ticket=T:V1-5 path=new/file.go is not at the lane base'* ]] || fail "lane-dispatch-check absent: $out"
+out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
+[[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
+out=$(ldcrun a="$ldc/bad.json")
+[[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
+# A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
+# of two lanes on one file, so the ID is refused.
+printf '[%s]\n' "$(tk 'T:V1-1\tx' '"pkg/a.go"')" > "$ldc/tab.json"
+printf '[%s]\n' "$(tk 'T:V1-6\nx' '"pkg/a.go"')" > "$ldc/nl.json"
+printf '[%s]\n' "$(tk T:V1-2 '"pkg/a.go"')" > "$ldc/same.json"
+out=$(ldcrun a="$ldc/tab.json" b="$ldc/same.json")
+[[ $? == 2 && $out == *'lane a: ticketId "T:V1-1\tx" in '*'holds a control character'* ]] || fail "lane-dispatch-check tab in a ticket ID: $out"
+out=$(ldcrun b="$ldc/same.json" n="$ldc/nl.json")
+[[ $? == 2 && $out == *'lane n: ticketId "T:V1-6\nx" in '* ]] || fail "lane-dispatch-check newline in a ticket ID: $out"
+out=$(ldcrun a="$ldc/a.json" a="$ldc/b.json")
+[[ $? == 2 && $out == *'lane a is named twice'* ]] || fail "lane-dispatch-check duplicate lane: $out"
+out=$(ldcrun --base nope a="$ldc/a.json")
+[[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
+out=$(ldcrun)
+[[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+ok
+
+# ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the
+# line, and a directory digest is stable and independent of file write order.
+rdd=$tmp/rdd
+mkdir -p "$rdd/a/sub" "$rdd/b/sub"
+out=$("$script/retained-data-digest.sh" --check "$script/../benchmarks/retained-data.tsv" 2>&1)
+[[ $? == 0 && $out == *'PASS '*'retained-data rows' ]] || fail "retained-data manifest: $out"
+grep -q $'^v2716f\tV1-2761\t' "$script/../benchmarks/retained-data.tsv" || fail "retained-data manifest has no V1-2761 row"
+head -n 1 "$script/../benchmarks/retained-data.tsv" > "$rdd/bad.tsv"
+printf 'x\tV1-1\th\tp\tabc\t1\t2\tNOT_OBSERVED\t2026-11-01\t\nx\tV1-1\th\tp\tNOT_OBSERVED\t1\t2\t%040d\t2026-11-01\twhy\nshort\n' 0 >> "$rdd/bad.tsv"
+out=$("$script/retained-data-digest.sh" --check "$rdd/bad.tsv" 2>&1)
+[[ $? == 1 && $out == *'bad.tsv:2 sha256 abc is not 64 hex digits'* && $out == *'bad.tsv:2 a NOT_OBSERVED value needs its reason'* &&
+  $out == *'bad.tsv:3 id x repeats line 2'* && $out == *'bad.tsv:4 has 1 columns, want 10'* ]] || fail "retained-data bad manifest: $out"
+printf 'one\n' > "$rdd/a/1.txt" && printf 'two\n' > "$rdd/a/sub/2.txt"
+printf 'two\n' > "$rdd/b/sub/2.txt" && printf 'one\n' > "$rdd/b/1.txt"
+da=$("$script/retained-data-digest.sh" "$rdd/a") db=$(cd "$rdd" && "$script/retained-data-digest.sh" b)
+[[ $da == "$db" && $da =~ ^sha256=[0-9a-f]{64}\ files=2\ bytes=8$ ]] || fail "retained-data digest order or mount dependent: $da / $db"
+printf 'three\n' > "$rdd/b/sub/2.txt"
+[[ $("$script/retained-data-digest.sh" "$rdd/b") != "$da" ]] || fail "retained-data digest ignored a content change"
+out=$("$script/retained-data-digest.sh" "$rdd/missing" 2>&1)
+[[ $? == 2 && $out == *'is not a readable directory'* ]] || fail "retained-data missing directory: $out"
+# A failed byte count (cat fails) or listing hash (sha256sum on stdin fails) exits 2, never
+# printing bytes=0 or an empty sha256 with exit 0.
+mkdir -p "$rdd/bin-cat" "$rdd/bin-hash"
+printf '#!/bin/sh\nexit 1\n' > "$rdd/bin-cat/cat"
+real_sha=$(command -v sha256sum)
+printf '#!/bin/sh\n[ $# -gt 0 ] && exec %s "$@"\nexit 1\n' "$real_sha" > "$rdd/bin-hash/sha256sum"
+chmod +x "$rdd/bin-cat/cat" "$rdd/bin-hash/sha256sum"
+out=$(PATH="$rdd/bin-cat:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot read the files under'* && $out != *bytes=* ]] || fail "retained-data failed byte count: $out"
+out=$(PATH="$rdd/bin-hash:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot hash the listing of'* && $out != *sha256=* ]] || fail "retained-data failed listing hash: $out"
+ok
+
+# ASD-V0-641 (V1-3745): check-test-script-refs matches the full file name (a test naming
+# exists.sh.bak is not read as exists.sh), scans a tracked test whose name Git would quote
+# (core.quotePath), and exits 2 when git ls-files fails instead of scanning nothing and passing. The
+# references are assembled, so this file does not itself name a missing script.
+tsr=$tmp/tsr
+mkdir -p "$tsr/script" && printf '#!/bin/sh\n' > "$tsr/script/exists.sh"
+printf '"$%s/exists.sh" --check\n' script > "$tsr/script/a_test.sh"
+git -C "$tsr" init -q && git -C "$tsr" add -A &&
+  git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "check-test-script-refs fixture repo"
+sref='$'script
+tsrrun() { (cd "$tsr" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.quotePath GIT_CONFIG_VALUE_0=true "$script/check-test-script-refs.sh" 2>&1); }
+out=$(tsrrun)
+[[ $? == 0 && $out == 'check-test-script-refs: PASS 1 script references resolve' ]] || fail "check-test-script-refs pass: $out"
+printf '"$%s/exists.sh.bak" --check\n' script > "$tsr/script/b_test.sh"
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm bak || fail "check-test-script-refs bak commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *"FAIL script/b_test.sh:1 names $sref/exists.sh.bak, but script/exists.sh.bak does not exist"* ]] ||
+  fail "check-test-script-refs read exists.sh.bak as exists.sh: $out"
+git -C "$tsr" rm -q script/b_test.sh && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm 'drop bak' || fail "check-test-script-refs bak cleanup"
+printf '"$%s/gone.sh"\n' script > "$tsr/script/"$'caf\303\251_test.sh'
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm cafe || fail "check-test-script-refs quoted-name commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *$'FAIL script/caf\303\251_test.sh:1 names '"$sref/gone.sh, but script/gone.sh does not exist"* ]] ||
+  fail "check-test-script-refs skipped a quoted file name: $out"
+printf 'not an index' > "$tsr/.git/index"
+out=$(tsrrun)
+[[ $? == 2 && $out == *'git ls-files failed'* && $out != *PASS* ]] || fail "check-test-script-refs passed when git ls-files failed: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

@@ -12,7 +12,7 @@ func TestPSRSafeReuseBounds(t *testing.T) {
 		timeout, attempts, literal string
 		valid                      bool
 	}{{"1", "1", "literal.*", true}, {"900", "2", "yes", true}, {"0", "1", "yes", false}, {"901", "1", "yes", false}, {"1", "3", "yes", false}, {"1", "1", strings.Repeat("x", 4097), false}} {
-		raw := `{"argv":["/bin/true"],"envKeys":[],"maxAttempts":"` + test.attempts + `","timeoutSeconds":"` + test.timeout + `","verify":{"argv":["/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"` + test.literal + `"}}`
+		raw := `{"argv":["/usr/bin/true"],"envKeys":[],"maxAttempts":"` + test.attempts + `","timeoutSeconds":"` + test.timeout + `","verify":{"argv":["/usr/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"` + test.literal + `"}}`
 		v, e := wire.Parse([]byte(raw + "\n"))
 		if e != nil {
 			t.Fatal(e)
@@ -47,7 +47,7 @@ func TestPSRPolicyLegacyAndOccupiedDefinition(t *testing.T) {
 	if p.MemberDefinition("db", "a") != want {
 		t.Fatal("legacy member definition changed")
 	}
-	valid := `{"argv":["/bin/true"],"envKeys":[],"maxAttempts":"2","timeoutSeconds":"900","verify":{"argv":["/bin/true"],"envKeys":[],"expectExit":"255","expectStdout":"literal.*"}}`
+	valid := `{"argv":["/usr/bin/true"],"envKeys":[],"maxAttempts":"2","timeoutSeconds":"900","verify":{"argv":["/usr/bin/true"],"envKeys":[],"expectExit":"255","expectStdout":"literal.*"}}`
 	for _, tc := range []struct {
 		name, raw string
 		ok        bool
@@ -55,7 +55,7 @@ func TestPSRPolicyLegacyAndOccupiedDefinition(t *testing.T) {
 		{"maximum", valid, true}, {"minimum", strings.ReplaceAll(strings.ReplaceAll(valid, `"900"`, `"1"`), `"255"`, `"0"`), true},
 		{"null", "null", false}, {"unknown", strings.Replace(valid, `"argv":`, `"extra":true,"argv":`, 1), false},
 		{"missing-timeout", strings.Replace(valid, `"timeoutSeconds":"900",`, "", 1), false},
-		{"null-verify", strings.Replace(valid, `{"argv":["/bin/true"],"envKeys":[],"expectExit":"255","expectStdout":"literal.*"}`, "null", 1), false},
+		{"null-verify", strings.Replace(valid, `{"argv":["/usr/bin/true"],"envKeys":[],"expectExit":"255","expectStdout":"literal.*"}`, "null", 1), false},
 		{"exit-overflow", strings.Replace(valid, `"255"`, `"256"`, 1), false},
 		{"timeout-overflow", strings.Replace(valid, `"900"`, `"901"`, 1), false},
 		{"attempt-overflow", strings.Replace(valid, `"maxAttempts":"2"`, `"maxAttempts":"3"`, 1), false},

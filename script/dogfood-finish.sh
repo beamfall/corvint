@@ -29,7 +29,8 @@ verify=${4-}
 outcome=${5-}
 # Every missing or unusable input is named in one refusal before any build runs (ASD-V0-015).
 # DOGFOOD_FINISH_LANE=1 (`make dogfood-finish LANE=1`) also requires INTENTS, VERIFY and OUTCOME,
-# the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md).
+# the inputs a lane must supply up front, and BASE as a full commit ID (docs/LANE-ORCHESTRATION.md);
+# the pre-flight binds nothing, so it does not require OUTCOME (DCW-V0-848).
 missing=()
 [[ -n $base_arg ]] || missing+=(BASE)
 [[ -n $citations ]] || missing+=(CITATIONS)
@@ -37,7 +38,9 @@ if [[ ${DOGFOOD_FINISH_LANE-} == 1 ]]; then
   [[ -z $base_arg || $base_arg =~ ^[0-9a-f]{40}$ ]] || missing+=(BASE:not-full-sha)
   [[ -n $intents ]] || missing+=(INTENTS)
   [[ -n $verify ]] || missing+=(VERIFY)
-  [[ -n $outcome ]] || missing+=(OUTCOME)
+  # dogfood-closeout runs this pre-flight first and still refuses a missing OUTCOME before any
+  # build (DCW-V0-848).
+  [[ -n $outcome || (${DOGFOOD_FINISH_PREFLIGHT-} == 1 && ${DOGFOOD_FINISH_ENTRY-} != dogfood-closeout) ]] || missing+=(OUTCOME)
 fi
 for pair in "CITATIONS=$citations" "INTENTS=$intents" "VERIFY=$verify"; do
   [[ -z ${pair#*=} || (-f ${pair#*=} && -r ${pair#*=}) ]] || missing+=("${pair%%=*}:unreadable")
@@ -64,6 +67,23 @@ fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
+# DCW-V0-815 (V1-3594): the cheap static doc checks that batch-precheck would otherwise fail minutes
+# in run here, before any build: every requirement definition, and, when the change touches a test
+# file or the declared read scopes, the test read scopes. A fixture without the checks skips them.
+if [[ -x $repo/script/check-requirement-definitions.sh ]] &&
+  ! static_out=$(cd "$repo" && script/check-requirement-definitions.sh 2>&1); then
+  printf '%s: REFUSE requirement-definitions-invalid\n%s\n' "$prefix" "$(head -n 5 <<< "$static_out")" >&2
+  printf 'fix: correct the definitions make requirement-definitions-check names, commit, then rerun make %s (nothing was built, prepared or bound)\n' "$entry" >&2
+  exit 2
+fi
+if [[ -d $repo/tools/test-read-scopes-check ]] &&
+  [[ -n $(git -C "$repo" diff --name-only "$base" -- '*_test.go' .corvint/test-read-scopes.json) ]] &&
+  ! static_out=$(cd "$repo" && GOCACHE=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}} \
+    GOTOOLCHAIN=local go run ./tools/test-read-scopes-check 2>&1 > /dev/null); then
+  printf '%s: REFUSE test-read-scopes-invalid\n%s\n' "$prefix" "$(head -n 5 <<< "$static_out")" >&2
+  printf 'fix: declare the read in .corvint/test-read-scopes.json or mark a fixture path //corvint:fixture-path, as make test-read-scopes-check names, commit, then rerun make %s (nothing was built, prepared or bound)\n' "$entry" >&2
+  exit 2
+fi
 # DCW-V0-090: a change that touches docs/specs/ must commit the regenerated spec indexes. The
 # generator reads a private index of HEAD, so staged or worktree edits cannot hide a stale commit.
 if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then

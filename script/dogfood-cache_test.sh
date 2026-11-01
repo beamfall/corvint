@@ -282,7 +282,7 @@ done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head, that run selecting since the first run's
 # receipt (DCW-V0-944, V1-3550).
-recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@([A-Z_]+=[^ ]+ )?\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
@@ -375,4 +375,29 @@ done
   done
   dogfood_version_matches "Corvint 0.4.0a4-dev (commit unknown)" 0.4.0a4 || exit 1
 ) || { printf 'dogfood_version_matches: FAIL\n' >&2; exit 1; }
+# DCW-V0-815 (V1-3594): dogfood-inputs-check runs the requirement-definitions check, and the test
+# read-scopes check when a test file changed, before any build; a failure refuses naming the check.
+(
+  cd "$root/repo" || exit 1
+  inputs=(BASE="$base" CITATIONS="$root/closeout-cites.tsv" INTENTS="$root/closeout-cites.tsv" VERIFY="$root/closeout-cites.tsv" OUTCOME=passed)
+  printf '#!/bin/sh\necho "docs/specs/x.md:9: X-V0-1 is defined after ## Requirements" >&2\nexit 1\n' > script/check-requirement-definitions.sh
+  chmod +x script/check-requirement-definitions.sh
+  : > "$TEST_BUILD_LOG"
+  status=0
+  make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: REFUSE requirement-definitions-invalid$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qF 'X-V0-1 is defined after ## Requirements' "$root/output" || exit 1
+  rg -q '^fix: correct the definitions make requirement-definitions-check names, commit, then rerun make dogfood-inputs-check ' "$root/output" || exit 1
+  printf '#!/bin/sh\nexit 0\n' > script/check-requirement-definitions.sh
+  mkdir -p tools/test-read-scopes-check
+  printf 'package a\n' > scope_test.go
+  git add scope_test.go
+  status=0
+  make -s dogfood-inputs-check "${inputs[@]}" > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q '^dogfood-inputs-check: REFUSE test-read-scopes-invalid$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  git rm -q --cached scope_test.go && /bin/rm -f scope_test.go script/check-requirement-definitions.sh
+  rmdir tools/test-read-scopes-check tools
+) || { printf 'DCW-V0-815 inputs-check static doc checks: FAIL\n' >&2; exit 1; }
 printf 'DCW-V0-038 dogfood cache selection: PASS\n'

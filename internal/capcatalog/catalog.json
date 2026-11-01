@@ -62,7 +62,7 @@
     {
       "name": "init",
       "helpTopic": "corvint help init",
-      "purpose": "first repository inventory",
+      "purpose": "alias of adopt",
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
@@ -108,7 +108,7 @@
     {
       "name": "adopt",
       "helpTopic": "corvint help adopt",
-      "purpose": "recoverable repository inventory",
+      "purpose": "bounded repository inventory; --setup lists setup gaps",
       "maturity": "core",
       "owningSpec": null,
       "freezeContract": "CCF-V1",
@@ -205,7 +205,7 @@
     {
       "name": "feature",
       "helpTopic": "corvint help feature",
-      "purpose": "bounded feature context",
+      "purpose": "one declared feature's context",
       "maturity": "experimental",
       "owningSpec": "GPK-V0",
       "freezeContract": null,
@@ -366,7 +366,7 @@
     {
       "name": "lrf",
       "helpTopic": "corvint help lrf",
-      "purpose": "lexical relevance floor",
+      "purpose": "lexical relevance floor, historical only",
       "maturity": "experimental",
       "owningSpec": "LRF-V0",
       "freezeContract": null,
@@ -1146,6 +1146,7 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--from-cem",
         "--input",
         "--intents",
         "--outcome",
@@ -1181,7 +1182,7 @@
         "batch-check is read-only.",
         "propose-citations is read-only.",
         "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
-        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr, a re-keyed unknown row's NOTE marked stale for review (DCW-V0-884); only the remaining hunks are drafted afresh.",
+        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr, a re-keyed unknown row's NOTE marked stale for review when its hunk's content changed (DCW-V0-884, DCW-V0-842); a plan drafted at another BASE is re-pinned to the BASE lines holding the same text, and a new hunk of a file whose other hunks carry a citation is proposed that citation, carried forward (DCW-V0-842); only the remaining hunks are drafted afresh.",
         "It refuses prechange-after-change once the change began, and prechange-receipt-exists rather than overwrite a receipt it did not write."
       ],
       "unknowns": [
@@ -1406,7 +1407,8 @@
         "--repository-base",
         "--require-clean",
         "--selection-profile",
-        "--snapshot"
+        "--snapshot",
+        "--worktree"
       ],
       "schemaIds": [
         "affected-by-path/1",
@@ -1764,6 +1766,7 @@
       "owningSpec": "SDD-V0",
       "freezeContract": null,
       "operations": [
+        "citations",
         "consume",
         "corpus",
         "draft",
@@ -2033,6 +2036,7 @@
         "--no-workspace",
         "--offset",
         "--output-dir",
+        "--owner-section",
         "--owner-stdin",
         "--package",
         "--page",
@@ -2099,6 +2103,7 @@
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [
+        0,
         1
       ],
       "writes": "mode-dependent",
@@ -2175,7 +2180,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON:",
+        "Pinned dependency source (experimental, DSE-V0 proposed), read-only, JSON.",
         "Never fetches and never writes."
       ],
       "unknowns": [
@@ -2253,7 +2258,13 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
-      "requiredFlags": {},
+      "requiredFlags": {
+        "surprise": [
+          "--base",
+          "--target",
+          "--task"
+        ]
+      },
       "flags": [
         "--base",
         "--limit",
@@ -2268,7 +2279,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON:"
+        "Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON."
       ],
       "unknowns": [
         {
@@ -2298,7 +2309,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
-      "requiredFlags": {},
+      "requiredFlags": {
+        "answerability": [
+          "--task"
+        ]
+      },
       "flags": [
         "--limit",
         "--subject",
@@ -2311,7 +2326,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON:"
+        "Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON."
       ],
       "unknowns": [
         {
@@ -2356,7 +2371,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text:",
+        "Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text.",
         "Both paths are read-only."
       ],
       "unknowns": [
@@ -2389,7 +2404,24 @@
         "status"
       ],
       "nestedOperations": {},
-      "requiredFlags": {},
+      "requiredFlags": {
+        "lease acquire": [
+          "--holder",
+          "--ttl"
+        ],
+        "lease release": [
+          "--holder",
+          "--id"
+        ],
+        "lease renew": [
+          "--holder",
+          "--id",
+          "--ttl"
+        ],
+        "lease status": [
+          "--id"
+        ]
+      },
       "flags": [
         "--holder",
         "--id",
@@ -2493,7 +2525,7 @@
       "writes": null,
       "selfObservationLedger": "best-effort-append",
       "writeStatements": [
-        "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text:",
+        "Outcome calibration (experimental, OCL-V0 proposed), read-only, JSON/text.",
         "--exclude-producer NAME Leave out records from cli, dogfood, pi-tool or UNKNOWN (rows written before producer provenance) before selecting; repeatable."
       ],
       "unknowns": [
@@ -2718,7 +2750,7 @@
     {
       "name": "features",
       "helpTopic": "corvint help features",
-      "purpose": "inferred feature candidates",
+      "purpose": "inferred repository guidance",
       "maturity": "experimental",
       "owningSpec": "RGV-V0",
       "freezeContract": null,
@@ -2742,7 +2774,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
+        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2767,7 +2799,7 @@
     {
       "name": "overview",
       "helpTopic": "corvint help overview",
-      "purpose": "immutable repository guidance",
+      "purpose": "inferred repository guidance",
       "maturity": "experimental",
       "owningSpec": "RGV-V0",
       "freezeContract": null,
@@ -2791,7 +2823,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
+        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -2816,7 +2848,7 @@
     {
       "name": "review",
       "helpTopic": "corvint help review",
-      "purpose": "range advice and branch overlaps",
+      "purpose": "inferred repository guidance",
       "maturity": "experimental",
       "owningSpec": "RGV-V0",
       "freezeContract": null,
@@ -2844,7 +2876,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Experimental inferred repository guidance (read-only, clean HEAD only; features and overview degrade to a MIXED unknown when the only dirt is untracked).",
+        "All three are read-only and need a clean HEAD; features and overview degrade to a MIXED unknown when the only dirt is untracked.",
         "No index, trace or observation ledger is written."
       ],
       "unknowns": [
@@ -3162,7 +3194,11 @@
       "freezeContract": null,
       "operations": [],
       "nestedOperations": {},
-      "requiredFlags": {},
+      "requiredFlags": {
+        "skill-export": [
+          "--out"
+        ]
+      },
       "flags": [
         "--out"
       ],
@@ -3173,7 +3209,7 @@
       "writes": null,
       "selfObservationLedger": "not-listed",
       "writeStatements": [
-        "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only:",
+        "Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only.",
         "Writes one Agent Skills directory per admitted learned trace (a stored row with outcome passed that the trace reader re-validated) under DIR: DIR/<name>/SKILL.md carries YAML frontmatter (name, description) and a short body; DIR/<name>/references/trace.md carries the full paths and commands.",
         "It reads the pinned local trace store and the committed index only and never writes repository or trace state."
       ],
@@ -3905,6 +3941,59 @@
           "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
+    },
+    {
+      "name": "how",
+      "helpTopic": "corvint help how",
+      "purpose": "how do I GOAL: alias of flows appmap how",
+      "maturity": "experimental",
+      "owningSpec": "SKH-V0",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {
+        "how": [
+          "--map",
+          "--source"
+        ]
+      },
+      "flags": [
+        "--budget",
+        "--condition",
+        "--corpus",
+        "--full",
+        "--ledger",
+        "--map",
+        "--repo",
+        "--source"
+      ],
+      "schemaIds": [
+        "site-knowledge-how/0"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "It writes nothing."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
     }
   ],
   "workflows": [
@@ -4510,7 +4599,8 @@
       "tests",
       "repro",
       "graph",
-      "mcp"
+      "mcp",
+      "how"
     ],
     "default": "off",
     "knobs": [

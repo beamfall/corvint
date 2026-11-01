@@ -172,6 +172,9 @@ func batchCandidates(inv *ticket.Inventory, attempts map[string]*snapshot.Attemp
 type batchGit struct {
 	ctx    context.Context
 	gitDir string
+	// commits maps a tree to the view-only parentless commit that wraps it
+	// for merge-tree (NTP-V0-022, V1-3901).
+	commits map[string]string
 }
 
 func (g batchGit) run(args ...string) ([]byte, int, error) {
@@ -217,7 +220,9 @@ func batchGitEnvironment() []string {
 	}
 	return append(environment, "LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
 		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1",
-		"GIT_NO_REPLACE_OBJECTS=1", "GCM_INTERACTIVE=never", "GIT_ASKPASS=", "GIT_ALLOW_PROTOCOL=")
+		"GIT_NO_REPLACE_OBJECTS=1", "GCM_INTERACTIVE=never", "GIT_ASKPASS=", "GIT_ALLOW_PROTOCOL=",
+		"GIT_AUTHOR_NAME=corvint-tasks", "GIT_AUTHOR_EMAIL=corvint-tasks@invalid", "GIT_AUTHOR_DATE=@0 +0000",
+		"GIT_COMMITTER_NAME=corvint-tasks", "GIT_COMMITTER_EMAIL=corvint-tasks@invalid", "GIT_COMMITTER_DATE=@0 +0000")
 }
 
 // boundedBuffer keeps at most max bytes and records an overflow.
@@ -252,7 +257,15 @@ func (g batchGit) resolve(rev, kind string) (string, error) {
 // the merged tree and the conflicted paths; the merged tree lives only in
 // the throw-away object directory.
 func (g batchGit) merge(base, acc, tree string) (string, []string, error) {
-	out, code, err := g.run("merge-tree", "--write-tree", "-z", "--name-only", "--no-messages", "--merge-base="+base, acc, tree)
+	accCommit, err := g.wrap(acc)
+	if err != nil {
+		return "", nil, err
+	}
+	treeCommit, err := g.wrap(tree)
+	if err != nil {
+		return "", nil, err
+	}
+	out, code, err := g.run("merge-tree", "--write-tree", "-z", "--name-only", "--no-messages", "--merge-base="+base, accCommit, treeCommit)
 	if err != nil {
 		return "", nil, err
 	}
@@ -272,6 +285,27 @@ func (g batchGit) merge(base, acc, tree string) (string, []string, error) {
 		conflicts = []string{}
 	}
 	return merged, conflicts, nil
+}
+
+// wrap answers a parentless commit of tree, written only to the view with a
+// fixed identity and date, because merge-tree before Git 2.45 refuses a tree
+// as a side ("expected commit type"); the merge result is unchanged.
+func (g batchGit) wrap(tree string) (string, error) {
+	if oid, ok := g.commits[tree]; ok {
+		return oid, nil
+	}
+	out, code, err := g.run("commit-tree", "-m", "plan-batches", tree)
+	if err != nil {
+		return "", err
+	}
+	oid, perr := wire.ParseOID("commit-tree", strings.TrimSpace(string(out)))
+	if code != 0 || perr != nil {
+		return "", wire.Errorf(wire.CodeUnsupported, "git commit-tree", "git commit-tree exited %d", code)
+	}
+	if g.commits != nil {
+		g.commits[tree] = oid
+	}
+	return oid, nil
 }
 
 func nonEmpty(in []string) []string {
@@ -395,7 +429,7 @@ func batchView(repo batchGit, tmp, alternate string) (batchGit, error) {
 			return batchGit{}, wire.Errorf(wire.CodeUnsupported, "plan batches", "temporary repository view: %v", err)
 		}
 	}
-	return batchGit{ctx: repo.ctx, gitDir: view}, nil
+	return batchGit{ctx: repo.ctx, gitDir: view, commits: map[string]string{}}, nil
 }
 
 // resolveCandidate fills the candidate's base tree, candidate tree and changed

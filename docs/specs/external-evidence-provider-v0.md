@@ -257,6 +257,23 @@ each cited path still exists at that revision, and what was omitted or could not
   sum to `omitted_rows`. Distinct relations are counted once, so a repeated answer is not an
   omission. Falsifier: a summary whose causes do not sum to the total, or a bound-dropped
   relation counted as unpinned. Rollback: delete the three members; `omitted_rows` is unchanged.
+- `EEP-V0-821`: (experimental under the standing lane auto-accept, 2026-11-01; V1-0479) The Go
+  provider MUST negotiate before it queries. Its `initialize` offers only the `utf-16` position
+  encoding; a server that answers with another `positionEncoding` is refused (`gopls negotiated
+  an unsupported position encoding; refused`) before any query, and an omitted encoding keeps
+  its protocol-defined UTF-16 meaning. A method is queried only when the server advertises its
+  provider (`definitionProvider`, `referencesProvider` as `true` or an options object); a server
+  that advertises neither is refused (`gopls advertised neither definition nor references;
+  refused`). Once the encoding is accepted, the query summary MUST report `position_encoding`, the
+  admitted `methods` and the `unavailable_methods` it skips; a refused encoding reports none of
+  them. The summary MUST report `executable_sha256`, the SHA-256 of the executable bytes read
+  before launch, and a read failure is `gopls executable unreadable`. Only a regular file is
+  read; a FIFO, device or directory is that same failure, so the read cannot block before the
+  session's cancellation and timeout apply. The query digest
+  and every relation are unchanged. The digest is observed, not authenticated: a binary replaced
+  between the read and the launch is not detected. Falsifier: a query sent after a non-UTF-16
+  encoding or for an unadvertised method, or a summary without the four members. Rollback:
+  restore the empty client capabilities and delete the four members.
 
 - `EEP-V0-770`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
   Every other product ancestry read below MUST consult the same `internal/gitancestry` guard
@@ -444,6 +461,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-027` | `rootCommit`, `environment`, `run` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`, `TestContextLSPEnvironmentDropsRelativePATH` |
 | `EEP-V0-028` | `Freshness` in `internal/extevidence/freshness.go`; `Rewritten` in `internal/gitancestry/gitancestry.go` | `TestFreshnessDistrustsRewrittenAncestry_EEPV0028`, `TestRewrittenNamesGraftsShallowAndUnreadable_EEPV0028` |
 | `EEP-V0-820` | `record` in `internal/lspprovider/provider.go` | `TestRecordExplainsOmissions_EEPV0820` |
+| `EEP-V0-821` | `negotiate`, `executableDigest`, `dialogue`, `walker.expand` in `internal/lspprovider/provider.go` | `TestExpandNegotiatesBeforeQuerying_EEPV0821`, `TestContextLSPRefusesNonRegularExecutable` |
 | `EEP-V0-770` | `internal/appflows/review.go`, `internal/appflows/selection.go`, `impactRangeAncestryRefusal` in `cmd/corvint/impact_range_ancestry.go`, `admit` in `internal/witness/witness.go`, `cmd/corvint/runs_baseline.go`, `internal/breakagemap/read.go`, `internal/dashboard/repository/trace.go`, `internal/upgradechanges/changes.go`; fixtures `internal/gitancestry/ancestrytest` | `TestRootAncestryRewrittenIsUnknown_EEPV0770`, `TestImpactRangeRefusesGraftedAncestry_EEPV0770`, `TestAdmitRefusesGraftedAncestry_EEPV0770`, `TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770`, `TestBreakageRefusesRewrittenAncestry_EEPV0770`, `TestQualifyTraceRefusesRewrittenAncestry_EEPV0770`, `TestCompileRefusesGraftedCheckout_EEPV0770` |
 | `EEP-V0-771` | comments at each read; `GIT_GRAFT_FILE` in `internal/sharedpath/sharedpath.go` and `internal/jstestprovider/application_attestation.go` | `TestBaseTreeShallowBoundaryRefuses_EEPV0771`, `TestBaseTreeIgnoresGraftedAncestry`, `TestProbeGitAncestorUnderRewrittenAncestry_EEPV0771`, `TestRefTipStateUnderRewrittenAncestry_EEPV0771`, `TestAncestryReadsIgnoreGraftsAndRefuseShallow_EEPV0771`, `TestObserveTestRepositoryIgnoresGrafts_EEPV0771`, `TestOpenGuidanceRefusesRewrittenAncestry_EEPV0771` |
 | `EEP-V0-772` | `requireTrustedAncestry` in `internal/dogfoodflow/flow.go` | `TestFlowsRefuseRewrittenAncestry_EEPV0772` |

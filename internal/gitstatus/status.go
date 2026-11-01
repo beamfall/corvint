@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -158,7 +159,7 @@ var (
 	errScratchInside = unsupported(classScratchDir, "scratch directory (TMPDIR) is inside the repository or its Git directory")
 	errScratchCreate = unsupported(classScratchDir, "private metadata scratch directory cannot be created")
 	// errScratchNowhere names every location Status tried and the remedy (GPK-V0-336).
-	errScratchNowhere = unsupported(classScratchDir, "private metadata scratch directory cannot be created in TMPDIR, /tmp or the user cache directory; set TMPDIR to a writable directory outside the repository")
+	errScratchNowhere = unsupported(classScratchDir, "private metadata scratch directory cannot be created in TMPDIR, the user cache directory or /tmp; set TMPDIR to a writable directory outside the repository")
 	errIndexTime      = unsupported(classScratchDir, "private index copy cannot preserve the index modification time")
 )
 
@@ -231,21 +232,30 @@ type capturedFile struct {
 //
 // The scratch parent is the ambient temporary directory; when a private
 // directory cannot be created there (a read-only filesystem sandbox), Status
-// falls back to /tmp and then the user cache directory, each still outside the
+// falls back to the user cache directory and then /tmp, each still outside the
 // repository, and refuses naming all of them when none is writable (GPK-V0-336).
+// With TMPDIR unset off Windows the user cache directory comes first, so a full
+// shared /tmp on a lane host is not the default scratch (GPK-V0-882).
 func Status(ctx context.Context, root string, limit int, run Runner, arguments ...string) ([]byte, error) {
-	return statusIn(ctx, root, ambientScratchParents(), limit, run, arguments...)
+	parents, explicit := ambientScratchParents()
+	return statusIn(ctx, root, parents, explicit, limit, run, arguments...)
 }
 
-// ambientScratchParents is the ordered fallback list for Status: os.TempDir(),
-// then /tmp off Windows, then the user cache directory, without duplicates.
-func ambientScratchParents() []string {
-	parents := []string{os.TempDir()}
-	if runtime.GOOS != "windows" {
-		parents = append(parents, "/tmp")
+// ambientScratchParents is the ordered fallback list for Status: os.TempDir()
+// when TMPDIR names it (always on Windows), then the user cache directory, then
+// /tmp off Windows, without duplicates. explicit reports that the first entry is
+// the operator's TMPDIR, whose own refusals (inside the repository, not absolute)
+// stand instead of falling back.
+func ambientScratchParents() (parents []string, explicit bool) {
+	explicit = runtime.GOOS == "windows" || os.Getenv("TMPDIR") != ""
+	if explicit {
+		parents = append(parents, os.TempDir())
 	}
 	if cache, err := os.UserCacheDir(); err == nil {
 		parents = append(parents, cache)
+	}
+	if runtime.GOOS != "windows" {
+		parents = append(parents, "/tmp")
 	}
 	unique := parents[:0]
 	seen := map[string]bool{}
@@ -255,16 +265,16 @@ func ambientScratchParents() []string {
 			unique = append(unique, parent)
 		}
 	}
-	return unique
+	return unique, explicit
 }
 
 // StatusIn preserves a caller's existing scratch ownership instead of consulting
 // ambient TMPDIR. The parent must remain outside the observed repository.
 func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run Runner, arguments ...string) ([]byte, error) {
-	return statusIn(ctx, root, []string{temporaryParent}, limit, run, arguments...)
+	return statusIn(ctx, root, []string{temporaryParent}, true, limit, run, arguments...)
 }
 
-func statusIn(ctx context.Context, root string, temporaryParents []string, limit int, run Runner, arguments ...string) ([]byte, error) {
+func statusIn(ctx context.Context, root string, temporaryParents []string, explicit bool, limit int, run Runner, arguments ...string) ([]byte, error) {
 	if !Isolated(ctx) {
 		ctx = WithIsolation(ctx)
 	}
@@ -291,7 +301,7 @@ func statusIn(ctx context.Context, root string, temporaryParents []string, limit
 	if err != nil {
 		return nil, err
 	}
-	temp, err := scratchUnder(ctx, temporaryParents, root, gitdir, common)
+	temp, err := scratchUnder(ctx, temporaryParents, explicit, root, gitdir, common)
 	if err != nil {
 		return nil, err
 	}
@@ -329,11 +339,11 @@ func statusIn(ctx context.Context, root string, temporaryParents []string, limit
 		// Mkdir, not MkdirAll: a read abandoned at exit must not recreate the scratch CloseScratch removed.
 		if dir := filepath.Dir(target); dir != private {
 			if err := os.Mkdir(dir, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
-				return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
+				return nil, copyWriteRefusal(item.name, err)
 			}
 		}
 		if err := os.WriteFile(target, file.data, 0o600); err != nil {
-			return nil, unsupported(classScratchDir, "private copy of metadata file "+item.name+" cannot be written")
+			return nil, copyWriteRefusal(item.name, err)
 		}
 		// Git uses the index timestamp to detect racily clean entries. A fresh
 		// timestamp on the copy could hide worktree changes or change status
@@ -710,14 +720,24 @@ func (reader *metadataReader) unchanged(files []capturedFile) error {
 	return reader.unchangedDirectories()
 }
 
+// copyWriteRefusal is the typed refusal for a private metadata copy that could
+// not be written; a full scratch filesystem gets its own fixed reason and
+// remedy instead of surfacing a bare ENOSPC (GPK-V0-882).
+func copyWriteRefusal(name string, err error) error {
+	if errors.Is(err, syscall.ENOSPC) {
+		return unsupported(classScratchDir, "private copy of metadata file "+name+" cannot be written: the scratch filesystem is full; set TMPDIR to a writable directory with free space outside the repository")
+	}
+	return unsupported(classScratchDir, "private copy of metadata file "+name+" cannot be written")
+}
+
 // scratchUnder creates the private scratch directory under the first usable
 // parent. The first parent keeps its exact refusals for a relative path or a
 // parent inside the repository; a parent that cannot be resolved or written
 // moves on to the next, and a fallback that fails any check is skipped
 // (GPK-V0-336).
-func scratchUnder(ctx context.Context, parents []string, roots ...string) (string, error) {
+func scratchUnder(ctx context.Context, parents []string, explicit bool, roots ...string) (string, error) {
 	for index, parent := range parents {
-		first := index == 0
+		first := index == 0 && explicit
 		if !filepath.IsAbs(parent) {
 			if first {
 				return "", unsupported(classScratchDir, "scratch directory is not an absolute path")

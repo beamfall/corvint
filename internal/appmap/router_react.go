@@ -476,7 +476,7 @@ func reactRoutesBinding(ts []token, name string, use int, exported bool) (jsValu
 	decl, depth := -1, 0
 	var ref *reactImportRef
 	for j, t := range ts {
-		if t.subst || t.kind == tokPunct && t.text == "\\" {
+		if t.subst || t.escaped || t.kind == tokPunct && t.text == "\\" {
 			return jsValue{}, nil, "computed-react-routes" // a ${} expression or escaped identifier could touch NAME unseen
 		}
 		if t.kind == tokPunct {

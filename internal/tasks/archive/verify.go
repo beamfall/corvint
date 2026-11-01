@@ -163,7 +163,7 @@ func verifyLimit(input io.Reader, limit uint64) (result *VerifyResult, retErr er
 		}
 		total += uint64(hdr.Size)
 		if total > wire.MaxArchiveBytes {
-			return nil, wire.Errorf(wire.CodeLimitExceeded, fe.Path, "archive larger than %d bytes", wire.MaxArchiveBytes)
+			return nil, wire.Errorf(wire.CodeLimitExceeded, fe.Path, "archive larger than %d bytes", int64(wire.MaxArchiveBytes))
 		}
 		dataEnd = tail.n + (512-hdr.Size%512)%512
 	}

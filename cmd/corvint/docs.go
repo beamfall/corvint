@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/doccitations"
 	"github.com/Beamfall/corvint/internal/doccompiler"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
@@ -17,6 +20,9 @@ import (
 type docsOptions struct {
 	root, mode, source, directory, task, request, inspectPython string
 	trusted, dryRun, ownerStdin                                 bool
+	page                                                        int
+	ownerSection                                                string
+	citationPaths                                               []string
 }
 
 func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
@@ -41,6 +47,11 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 		options, err = parseTrustedNavArgs(options, arguments[position+2:])
 		return options, true, err
 	}
+	if options.mode == "citations" {
+		var err error
+		options, err = parseDocsCitationsArgs(options, arguments[position+2:])
+		return options, true, err
+	}
 	if options.mode != "draft" && options.mode != "consume" {
 		// A listed subcommand whose own parser did not claim it is a dispatch defect.
 		return options, true, errors.New("docs " + options.mode + " is listed but has no parser")
@@ -57,7 +68,7 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 			options.ownerStdin = options.ownerStdin || flag == "--owner-stdin"
 			continue
 		}
-		if flag != "--source" && flag != "--package" && flag != "--task" {
+		if flag != "--source" && flag != "--package" && flag != "--task" && flag != "--page" && flag != "--owner-section" {
 			return options, true, argumentError("unrecognized docs argument: " + flag)
 		}
 		if seen[flag] {
@@ -77,6 +88,14 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 			options.directory = value
 		case "--task":
 			options.task = value
+		case "--page":
+			page, err := strconv.Atoi(value)
+			if err != nil || page < 1 || page > 9999 || strconv.Itoa(page) != value {
+				return options, true, argumentError("docs --page requires a decimal page number from 1 to 9999")
+			}
+			options.page = page
+		case "--owner-section":
+			options.ownerSection = value
 		}
 	}
 	if options.source == "" || options.directory == "" {
@@ -99,7 +118,51 @@ func parseDocsInvocation(arguments []string) (docsOptions, bool, error) {
 	return options, true, err
 }
 
+// parseDocsCitationsArgs parses `docs citations check [PATH...]` (SDD-V0-633).
+func parseDocsCitationsArgs(options docsOptions, arguments []string) (docsOptions, error) {
+	if len(arguments) == 0 || arguments[0] != "check" {
+		return options, argumentError("docs citations requires check")
+	}
+	for _, argument := range arguments[1:] {
+		if strings.HasPrefix(argument, "-") {
+			return options, argumentError("unrecognized docs citations argument: " + argument)
+		}
+		if clean := path.Clean(argument); clean != argument || clean == "." || path.IsAbs(argument) || strings.HasPrefix(argument, "../") {
+			return options, argumentError("docs citations check paths must be repository-relative: " + argument)
+		}
+	}
+	options.citationPaths = arguments[1:]
+	root, err := resolveExplicitRoot(options.root)
+	options.root = root
+	return options, err
+}
+
+// runDocsCitations prints one line per failure and a summary; exit 1 on any failure.
+func runDocsCitations(ctx context.Context, options docsOptions, stdout, stderr io.Writer) int {
+	report, err := doccitations.Check(gitstatus.WithIsolation(ctx), options.root, options.citationPaths)
+	if err != nil {
+		emitError(stderr, &gokernel.Error{Code: "citations-check-failed", Message: err.Error()})
+		return 2
+	}
+	var output strings.Builder
+	for _, failure := range report.Failures {
+		output.WriteString(failure.String() + "\n")
+	}
+	fmt.Fprintf(&output, "docs citations check: %d citations in %d documents, %d failures\n", report.Citations, report.Documents, len(report.Failures))
+	if _, err := io.WriteString(stdout, output.String()); err != nil {
+		emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write docs output"})
+		return 2
+	}
+	if len(report.Failures) != 0 {
+		return 1
+	}
+	return 0
+}
+
 func runDocs(ctx context.Context, options docsOptions, stdin io.Reader, stdout, stderr io.Writer) int {
+	if options.mode == "citations" {
+		return runDocsCitations(ctx, options, stdout, stderr)
+	}
 	output, err := compileDocs(ctx, options, stdin)
 	if err != nil {
 		var problem *doccompiler.Error
@@ -162,13 +225,13 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 		return nil, err
 	}
 	if options.dryRun {
-		draft, err := doccompiler.DraftDryRun(index, options.source, owner, options.directory)
+		draft, err := doccompiler.DraftDryRunWith(index, options.source, owner, options.directory, doccompiler.DraftOptions{Page: options.page, OwnerSection: options.ownerSection})
 		if err != nil {
 			return nil, err
 		}
 		return draft.Markdown, nil
 	}
-	draft, err := doccompiler.DraftSources(index, options.source, options.directory)
+	draft, err := doccompiler.DraftSourcesWith(index, options.source, options.directory, doccompiler.DraftOptions{Page: options.page, OwnerSection: options.ownerSection})
 	if err != nil {
 		return nil, err
 	}
@@ -198,20 +261,21 @@ func compileDocs(ctx context.Context, options docsOptions, stdin io.Reader) ([]b
 // runs after those parsers, refuses any name outside this table with a refusal built from it,
 // so a name dispatches only if listed. docsHelp lists every entry with its maturity, and
 // TestDocsHelpListsEveryDispatchedSubcommand drives each entry into its own parser (V1-2134).
-var docsSubcommands = []string{"nav", "draft", "consume", "corpus", "maintain", "flows"}
+var docsSubcommands = []string{"nav", "draft", "consume", "citations", "corpus", "maintain", "flows"}
 
-const docsHelp = `Experimental source documentation orientation
+const docsHelp = `Experimental source documentation orientation.
 
 Usage:
   corvint [--root PATH] docs nav --trusted-project --request FILE
   corvint [--root PATH] docs nav --trusted-project --inspect-python ABSOLUTE_PYTHON
-  corvint [--root PATH] docs draft --source PATH --package DIRECTORY
-  corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY
-  corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
+  corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+  corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+  corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
+  corvint [--root PATH] docs citations check [PATH...]
   corvint [--root PATH] docs corpus OPERATION ...      (corvint help docs corpus)
   corvint [--root PATH] docs maintain --page PATH ...  (corvint help docs maintain)
   corvint [--root PATH] docs flows generate|check|finalize ...  (corvint help docs flows)
-Maturity: every docs subcommand (nav, draft, consume, corpus, maintain, flows) is experimental.
+Maturity: every docs subcommand (nav, draft, consume, citations, corpus, maintain, flows) is experimental.
 
 Navigation is the separate explicitly trusted pinned MkDocs profile. It stages committed
 source, emits an exact proposal patch, and validates navigation by a full candidate reload.
@@ -233,6 +297,20 @@ Prerequisites:
   native index extracts declarations from (Go, Python, TypeScript/JavaScript, Rust,
   C#, Swift, Kotlin, Ruby), with tracked non-test exported-name declarations;
   other languages are refused by name. Dirty worktree edits are not source evidence.
+
+Owner section (SDD-V0-633): --owner-section HEADING drafts an owner with no Agent digest:
+  exactly one literal "## HEADING" outside fenced code, excerpted alone (64 lines, 4 KiB),
+  and the header names it. The default keeps the preamble through ## Agent digest.
+
+Citations (SDD-V0-633): docs citations check scans tracked Markdown (or the named tracked
+  files) for backticked path:N, path:N-M or path:N,M tokens with an optional @HEX anchor and
+  reports out-of-range, trivial-span, anchor-mismatch and missing-file citations against
+  the index blobs. Exit 0 clean, 1 on failures, 2 on errors. It reads only.
+
+Paging (SDD-V0-632): declarations and importers each show at most 64 entries per page.
+  A larger package prints "Page: N of P" and a TRUNCATED limitation naming the shown
+  range; entries on other pages are UNKNOWN there. --page N (default 1) selects a page;
+  an out-of-range page is refused. Consume a page with the same --page.
 
 Dry run (SDD-V0-019): --dry-run previews a first draft before the owner is committed.
   It reads the owner from the working-tree file at --source, or from stdin with

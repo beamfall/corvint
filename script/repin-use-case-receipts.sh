@@ -22,6 +22,10 @@ set -eu
 # A receipt that left its ledger pin is refused with the exact `git restore --source=REV` and
 # repin command when a recent commit holds the pinned bytes (UCV0-019).
 #
+# A subject with `lines` pins only that span and one with `symbol` only that Go declaration
+# (UCV0-630): a symbol is repinned by the digest `go run ./conformance/use-cases-v0 -subject-digest`
+# prints, while a span whose own lines changed is refused, since the same numbers may hold other text.
+#
 # It also lists, for information only, each changed path that no receipt pins (UCV0-018): the
 # paths `git diff --name-only HEAD` names, or the `--changed` paths. "All receipts current" says
 # nothing about such a path, for example help text no receipt covers. The listing never changes
@@ -105,6 +109,24 @@ sub pinned_recovery {
         . "then restore the receipt or record the change by hand";
 }
 
+# span_bytes returns lines N-M of a file with their terminators (UCV0-630), or undef.
+sub span_bytes {
+    my ($bytes, $span) = @_;
+    my ($first, $last) = ($span // '') =~ /\A([1-9][0-9]{0,8})-([1-9][0-9]{0,8})\z/ or return undef;
+    my @lines = split /(?<=\n)/, $bytes;
+    return undef if $first > $last || $last > @lines;
+    return join '', @lines[$first - 1 .. $last - 1];
+}
+
+# symbol_digest asks the conformance runner for one Go declaration's digest (UCV0-630), or undef.
+sub symbol_digest {
+    my ($subject, $symbol) = @_;
+    open my $run, '-|', 'go', 'run', './conformance/use-cases-v0', '-subject-digest', "$subject#$symbol" or return undef;
+    chomp(my $out = do { local $/; <$run> } // '');
+    close $run or return undef;
+    return $out =~ /\A[0-9a-f]{64}\z/ ? $out : undef;
+}
+
 my $ledger_raw = slurp($ledger_path) // die "repin: $ledger_path is missing\n";
 my $ledger = JSON::PP->new->decode($ledger_raw);
 
@@ -142,7 +164,30 @@ for my $row (@{ $ledger->{useCases} }) {
                 && defined $extract->{spec} && !ref $extract->{spec}) {
                 $pinned{ $extract->{spec} } = 1;
             }
-            my $digest = sha256_hex($bytes);
+            # UCV0-630: a span subject pins its lines, a symbol subject one Go declaration.
+            my $digest;
+            if (defined $subject->{lines} && defined $subject->{symbol}) {
+                push @refusals, "$path: subject $subject->{path} pins both lines and a symbol (UCV0-630)";
+                next;
+            } elsif (defined $subject->{lines}) {
+                my $span = span_bytes($bytes, $subject->{lines});
+                if (!defined $span) {
+                    push @refusals, "$path: subject $subject->{path} lines $subject->{lines} is not a span of the file (UCV0-630)";
+                } elsif (sha256_hex($span) ne $subject->{sha256}) {
+                    push @refusals, "$path: subject $subject->{path} lines $subject->{lines} changed; the same numbers may "
+                        . "now hold other text, so read them and repin the span by hand (UCV0-630)";
+                }
+                next;
+            } elsif (defined $subject->{symbol}) {
+                $digest = symbol_digest($subject->{path}, $subject->{symbol});
+                if (!defined $digest) {
+                    push @refusals, "$path: subject $subject->{path} symbol $subject->{symbol} has no digest: "
+                        . "go run ./conformance/use-cases-v0 -subject-digest refused it (UCV0-630)";
+                    next;
+                }
+            } else {
+                $digest = sha256_hex($bytes);
+            }
             push @changed, [$subject->{path}, $subject->{sha256}, $digest] if $digest ne $subject->{sha256};
         }
         push @stale, [$path, $ref->{sha256}, $raw, \@changed] if @changed;

@@ -44,7 +44,7 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	}
 
 	source := affected.DiskSourceContext(context.Background(), root)
-	files, err := source.Files(func(string) bool { return true })
+	files, err := source.Files(func(_, _ string) bool { return true })
 	if err != nil {
 		t.Fatal(err)
 	}

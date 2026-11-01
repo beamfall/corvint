@@ -2,8 +2,10 @@ package cli_test
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -291,12 +293,29 @@ func compactListRepo(t *testing.T) *fixture.Repo {
 	return r
 }
 
+// unreadableJournal corrupts receipt 1, below the head, so the journal
+// audit a read shares fails while the outer snapshot still verifies. Since
+// V1-3903 the fixture journal is readable, so tests that pin the unaudited
+// path break it on purpose.
+func unreadableJournal(t *testing.T, r *fixture.Repo) {
+	t.Helper()
+	names, err := filepath.Glob(filepath.Join(r.StateDir, "receipts", "*"))
+	if err != nil || len(names) < 2 {
+		t.Fatalf("receipts: %v %v", names, err)
+	}
+	sort.Strings(names)
+	if err := os.WriteFile(names[0], []byte("{"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestCALV0173_ListItemsDropTerminalAndStoreWideNoise: list items carry no
 // record member, terminal items no blockers or unknowns, and the reader-wide
 // attempt-liveness unknown appears once as an envelope warning.
 func TestCALV0173_ListItemsDropTerminalAndStoreWideNoise(t *testing.T) {
 	t.Run("CAL-V0-173", func(t *testing.T) {
 		r := compactListRepo(t)
+		unreadableJournal(t, r)
 		state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
 		for _, args := range [][]string{{"ticket", "search", "--label", "agent-memory"}, {"ticket", "list"}} {
 			x := atm(t, r.Root, nil, args...)
@@ -379,7 +398,9 @@ func TestCALV0174_SearchAndRoadmapCompact(t *testing.T) {
 		if with == 0 || with == len(f.res.Items) {
 			t.Fatalf("expected mixed projection, %d of %d with blockers", with, len(f.res.Items))
 		}
-		compactRefused(t, r.Root, append(search, "--fields", "record")...)
+		// TCL-V0-862 admits show keys such as record; a key neither item
+		// carries still refuses.
+		compactRefused(t, r.Root, append(search, "--fields", "recordz")...)
 		compactRefused(t, r.Root, "roadmap", "--fields", "nope")
 		// A value of the read's own flag is passed through, not taken as a
 		// projection option: this searches for the literal text.

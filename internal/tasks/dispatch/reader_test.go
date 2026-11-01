@@ -411,7 +411,7 @@ func TestCALV0053_ReaderMarkerIdentityAndSetup(t *testing.T) {
 	}
 	starts := 0
 	d.readerStart = func(*exec.Cmd) (*groupreap.Owner, error) { starts++; return nil, errors.New("must not start") }
-	if _, err := d.stateCommand(context.Background(), d.Config.WorkRoot, []string{"/bin/true"}); !errors.Is(err, ErrReaderQuiescence) || starts != 0 {
+	if _, err := d.stateCommand(context.Background(), d.Config.WorkRoot, []string{"/usr/bin/true"}); !errors.Is(err, ErrReaderQuiescence) || starts != 0 {
 		t.Fatal("marker setup did not refuse before Start", err, starts)
 	}
 }

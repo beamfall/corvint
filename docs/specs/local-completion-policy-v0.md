@@ -447,6 +447,18 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   `invalid-preservation-hold`. The hold is the agent-facing check that compares a proposed cancel
   with the coordinator's governing instruction before any lifecycle mutation; it is separate from
   Core's technical capability, which `LCP-V0-038` already admits with a reason.
+- `LCP-V0-810`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3735; refines
+  `LCP-V0-002`) Without `--session-key`, a manual `corvint dogfood` command run inside Claude Code
+  (`CLAUDECODE=1` with a nonempty `CLAUDE_CODE_SESSION_ID` of at most 4096 bytes) MUST derive its
+  default key exactly as the Claude native hook does (lowercase SHA-256 of
+  `corvint-local-completion-session/claude-code/0`, one NUL byte, and the identifier), so it
+  resumes the enrollment that hook reports. When a `CODEX_THREAD_ID` or `CODEX_SESSION_ID` is also
+  set the host is ambiguous and the command MUST refuse `session-identity-ambiguous` rather than
+  pick one; with neither host identity it refuses `session-identity-required`. Both refusals MUST
+  name `--session-key KEY` as the fix. Codex's hash domain and precedence are otherwise unchanged.
+  Evidence: `TestLCPV0810SessionKeyAdmitsClaudeCode` (`internal/localcompletion`),
+  `TestLCPV0810SessionRefusalsNameSessionKey` (`cmd/corvint`). Rollback: drop the Claude branch,
+  the ambiguity refusal and the two remedies.
 - `LCP-V0-881`: (experimental under the standing lane auto-accept; V1-0581)
   `dogfood hold --session-key K --release-authorization TEXT` MUST remove the hold only after
   writing it, with the authorization, as the next `holds/K.releases/release-NNN.json`; release
@@ -665,6 +677,18 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   file keeps its `TCP-V0-272`/`TCP-V0-274` `reason` (batch 1101a, 2026-11-01). Rollback: drop the two
   members.
 
+- `LCP-V0-800`: (proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no
+  `LCP-V0-010` anchor, automatic prompt context MAY fall back to the task-context compiler
+  (`context --task`) with the prompt text as its subject, and a bare ticket ID (for example
+  `V1-0320`) MAY resolve to task evidence through the project's own roadmap rows. The fallback
+  stays bounded by `LCP-V0-012`, keeps `explicit-task-anchor-required` visible beside any
+  fallback rows, never counts a roadmap row as authority, and abstains when the ID has no row.
+  Non-goals: pronoun resolution, transcript reconstruction, a hosted ticket lookup. Failure
+  modes: an unpromoted `context --task` (the fallback stays off), an ambiguous ticket ID (named
+  `ambiguous`), a roadmap read that fails (named, never silent). Acceptance requires reversing
+  the accepted `LCP-V0-010` withholding, so it needs an owner decision and the `context --task`
+  promotion first; until then no code implements it. Rollback: delete this entry.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -798,7 +822,8 @@ elsewhere are not repeated.
 | `repository-unavailable` | `internal/localcompletion/storage.go` (`open`) | the Git authority for the repository root cannot be opened; the session key was already checked |
 | `secret-shaped-plan` | `internal/localcompletion/storage.go` (`validatePlan`) | a plan intent matches the secret screen |
 | `selected-check-unverified` | `internal/localcompletion/finish.go` (`revalidate`) | a plan check has no qualifying observation for the current snapshot |
-| `session-identity-required` | `internal/localcompletion/types.go` (`SessionKey`) | no explicit session key and neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set |
+| `session-identity-ambiguous` | `internal/localcompletion/types.go` (`SessionKey`) | no explicit session key, and both a Codex identity variable and a Claude Code session identity are set (`LCP-V0-810`) |
+| `session-identity-required` | `internal/localcompletion/types.go` (`SessionKey`) | no explicit session key, neither `CODEX_THREAD_ID` nor `CODEX_SESSION_ID` is set, and no Claude Code session identity (`CLAUDECODE=1` with `CLAUDE_CODE_SESSION_ID`) is set (`LCP-V0-810`) |
 | `uncommitted-work` | `internal/localcompletion/lifecycle.go` (`Verify`) | the tree is not clean before verification |
 | `unknown-selected-check` | `internal/localcompletion/lifecycle.go` (`Verify`) | the selected check id is not in the plan |
 | `verification-attempt-bound-exceeded` | `internal/localcompletion/lifecycle.go` | Verify refuses at 64 saved observations; evaluation also exposes this unmet reason when any selected check remains unqualified |
@@ -867,6 +892,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-036 | `requireBaseAncestor` in `internal/localcompletion/storage.go` calling `gitancestry.RewrittenAt`; `TestRewrittenAtMatchesRewrittenWithoutGit_LCPV0036` (`internal/gitancestry`: same reason as the Git-asking guard for plain, shallow and grafted checkouts); `TestEvaluateAgainstChangedBase` still counts four Git calls; `TestAncestryRewrittenCheckoutRefusesBaseProbe` (`internal/localcompletion/lifecycle_test.go`: `info/grafts` and `.git/shallow` fixtures; `begin` refuses with no `state.json`, and after a valid enrollment status and finish refuse with the state bytes unchanged) |
 | LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
 | LCP-V0-038 | `Cancel` in `internal/localcompletion/lifecycle.go`; `CancelReasonError` in `internal/localcompletion/types.go`; `--reason` in `cmd/corvint/local_completion.go` | `TestCancelActiveEnrollmentRequiresReason` (`internal/localcompletion/lifecycle_test.go`: a bare cancel of an active enrollment refuses with the check and observation counts and unchanged state, a reasoned cancel closes it, a repeat bare cancel succeeds; fails without the check); `TestDogfoodCancelActiveEnrollmentRequiresReason` (`cmd/corvint/local_completion_test.go`: exit 2 envelope names `--reason TEXT` and the fresh-worktree route, status stays active, `cancel --reason` echoes `cancelReason`); V1-0953 staged route: `TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt` (`internal/localcompletion/lifecycle_test.go`: a stage-2 begin after a satisfied stage refuses `prior-completion-stale` and keeps the stage-1 state bytes) and `TestDogfoodPriorCompletionStaleNamesStagedRoute` |
+| LCP-V0-810 | `SessionKey` in `internal/localcompletion/types.go`; the `session-identity-*` remedies in `cmd/corvint/local_completion.go` | `TestLCPV0810SessionKeyAdmitsClaudeCode`, `TestLCPV0810SessionRefusalsNameSessionKey` |
 | LCP-V0-880..882 | `Hold`, `HoldError` in `internal/localcompletion/hold.go`; the hold check in `Cancel`; the `hold` subverb in `cmd/corvint/local_completion.go` | `TestLCPV0880PreservationHoldGuardsCancel` (`internal/localcompletion/hold_test.go`) |
 | LCP-V0-883..885 | `Export`, `Import`, `relocateState` in `internal/localcompletion/export.go`; the `export` and `import` subverbs in `cmd/corvint/local_completion.go` | `TestLCPV0883ExportImportRestoresActiveEnrollment`, `TestLCPV0884ImportRefusesPlanNamingSourceRoot`, `TestLCPV0883RestoredHoldStillGuardsCancel`, `TestLCPV0885RelocationNeverLaundersAStaleReportSet` (`internal/localcompletion/export_test.go`); `TestLocalCompletionRealEvidenceWorkflow/LCP-V0-883_restore_satisfied` (`cmd/corvint/local_completion_test.go`) |
 | LCP-V0-039 | `selector`, `explicitPaths`, `anchorIdentifiers`, `crowded` and `pathCandidates` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0039ProseIsNotAnAnchor` (`internal/contextindex/local_completion_context_test.go`: a path among URL, number, version, slash-prose, markup and status-word noise resolves alone; absolute and slash-stripped root paths rebase; prose-only prompts abstain; backticked, missing-path and qualified cases keep their outcome; 129 `main.go` files and two crowded base names count ambiguous without refusing); frozen `TestDogfoodPromptFrozenAnchors`, `TestDogfoodPromptMentionAnchors` and `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` unchanged; end to end through the Claude Code hook, `TestV12762CorvintShapedPromptEnvelopesResolveOrAbstain` (`cmd/corvint/host_adapter_prompt_resolution_test.go`: a path or requirement ID among URL, version, percentage and slash-prose noise yields its one row with no `resolution` member, and anchorless prompts are silent) |
@@ -877,6 +903,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
+| LCP-V0-800 | none (proposed; implementation waits for acceptance and the `context --task` promotion) | NOT_PRODUCED: a test that a natural-language prompt and a ticket ID each get task evidence follows acceptance |
 
 ## Rollout, rollback and remaining gates
 

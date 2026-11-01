@@ -1,14 +1,16 @@
 #!/bin/sh
 set -eu
 
-# Nine cases, on a fixture repository with one receipt pinning one subject: a current tree
+# Ten cases, on a fixture repository with one receipt pinning one subject: a current tree
 # passes --check; a changed unpinned path passes --check and is listed as unpinned (UCV0-018);
 # a changed subject fails --check with the receipt named and nothing written, and only the
 # unpinned path is listed; --changed replaces the worktree diff;
 # a repin rewrites the subject digest, repositoryRevision and ledger digest and nothing else;
 # a missing subject and a hand-edited receipt are each refused with nothing written; a receipt
 # that left its ledger pin names the commit holding the pinned bytes and the exact restore and
-# repin command, shell-quoted, or asks for review when no recent commit holds them (UCV0-019).
+# repin command, shell-quoted, or asks for review when no recent commit holds them (UCV0-019);
+# a span subject ignores edits elsewhere and is refused when its lines change, and a symbol
+# subject is repinned by the runner's digest (UCV0-630).
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-repin-receipts-test.XXXXXX")
@@ -127,4 +129,50 @@ if output=$(run); then fail "an unpinned receipt was repinned"; fi
 case $output in *"no commit among the last 50"*"review the edit"*) ;; *) fail "no-history refusal: $output" ;; esac
 case $output in *"git restore"*) fail "a restore was named with no pinned commit: $output" ;; esac
 
-printf 'repin-use-case-receipts_test: 9 cases passed\n'
+# 10. UCV0-630: a span subject stays current when other lines change and is refused, not
+#     repinned, when its own lines change; a symbol subject is repinned by the digest
+#     `go run ./conformance/use-cases-v0 -subject-digest` prints (a stub `go` here).
+git -C "$test_root" checkout -q -- conformance
+mkdir -p "$test_root/bin"
+x=1111111111111111111111111111111111111111111111111111111111111111
+y=2222222222222222222222222222222222222222222222222222222222222222
+printf '%s\n' "$x" > "$test_root/bin/digest"
+cat > "$test_root/bin/go" <<'STUB'
+#!/bin/sh
+[ "$*" = "run ./conformance/use-cases-v0 -subject-digest docs/demo.go#Cited" ] || exit 2
+cat "$(dirname "$0")/digest"
+STUB
+chmod +x "$test_root/bin/go"
+printf 'a\nb\nc\n' > "$test_root/docs/span.md"
+printf 'package demo\n' > "$test_root/docs/demo.go"
+span=$(printf 'b\n' | perl -MDigest::SHA=sha256_hex -0777 -ne 'print sha256_hex($_)')
+cat > "$test_root/$receipts/contract.json" <<EOF
+{
+  "repositoryRevision": "0000000000000000000000000000000000000000",
+  "subjects": [
+    {"lines": "2-2", "path": "docs/span.md", "sha256": "$span"},
+    {"path": "docs/demo.go", "sha256": "$x", "symbol": "Cited"}
+  ]
+}
+EOF
+perl -0pi -e 's/("sha256": ")[0-9a-f]{64}/${1}'"$(sha "$receipts/contract.json")"'/' "$test_root/conformance/use-cases-v0/ledger.json"
+git -C "$test_root" add -A
+git -C "$test_root" commit -qm pins
+srun() { (cd "$test_root" && PATH="$test_root/bin:$PATH" script/repin-use-case-receipts.sh "$@" 2>&1); }
+printf 'a\nb\nz\n' > "$test_root/docs/span.md"
+output=$(srun --check) || fail "an edit outside a pinned span made the receipt stale: $output"
+case $output in *"all 1 receipts current"*) ;; *) fail "span output: $output" ;; esac
+printf '%s\n' "$y" > "$test_root/bin/digest"
+if output=$(srun --check); then fail "a changed symbol digest passed --check: $output"; fi
+case $output in *"stale $receipts/contract.json"*"subject docs/demo.go"*) ;; *) fail "symbol --check output: $output" ;; esac
+output=$(srun) || fail "the symbol repin failed: $output"
+grep -q "\"sha256\": \"$y\", \"symbol\": \"Cited\"" "$test_root/$receipts/contract.json" ||
+  fail "the symbol subject was not repinned: $(cat "$test_root/$receipts/contract.json")"
+output=$(srun --check) || fail "the symbol repin left a stale tree: $output"
+git -C "$test_root" commit -qam symbol
+printf 'a\nB\nz\n' > "$test_root/docs/span.md"
+if output=$(srun); then fail "a changed span was repinned: $output"; fi
+case $output in *"subject docs/span.md lines 2-2 changed"*"repin the span by hand"*) ;; *) fail "span refusal: $output" ;; esac
+unchanged "a changed span"
+
+printf 'repin-use-case-receipts_test: 10 cases passed\n'

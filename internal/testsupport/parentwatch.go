@@ -16,7 +16,8 @@ const ParentPIDEnv = "CORVINT_TEST_HELPER_PARENT"
 // otherwise wait forever once the parent dies without running its cleanup
 // (a timeout panic, SIGKILL, an interrupted lane). Reparenting is the observed
 // event: once the pid in ParentPIDEnv is no longer this process's parent, the
-// helper exits 3. Without the variable it does nothing. Windows does not
+// helper exits 3, at once when the parent is already gone at the call. Without
+// the variable it does nothing. Windows does not
 // reparent, so there it bounds nothing; the helpers that need it are unix.
 func ExitWhenParentGone() {
 	value := os.Getenv(ParentPIDEnv)
@@ -28,13 +29,17 @@ func ExitWhenParentGone() {
 		fmt.Fprintf(os.Stderr, "test helper: invalid parent pid %q\n", value)
 		os.Exit(3)
 	}
+	exitIfGone := func() {
+		if os.Getppid() != want {
+			fmt.Fprintln(os.Stderr, "test helper: parent gone; exiting")
+			os.Exit(3)
+		}
+	}
+	exitIfGone()
 	go func() {
 		for {
-			if os.Getppid() != want {
-				fmt.Fprintln(os.Stderr, "test helper: parent gone; exiting")
-				os.Exit(3)
-			}
 			time.Sleep(50 * time.Millisecond)
+			exitIfGone()
 		}
 	}()
 }

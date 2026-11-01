@@ -354,7 +354,8 @@ func (l *finishLane) requireIntentsInput() {
 // a run without a verification command or an outcome: the rebind's
 // local-outcome row records both, so without them it can only refuse
 // outcome-input-not-provided after the bind commit exists (DCW-V0-800). The
-// refusal names both inputs, as the rebind's fix line does.
+// refusal names both inputs, as the rebind's fix line does. The pre-flight
+// binds nothing, so it does not require the outcome (DCW-V0-848).
 func (l *finishLane) requireOutcomeInputs() {
 	verify, _ := verifyInput(l.options.Change)
 	// DCW-V0-960: the full pass's ocm-aggregate refuses missing-intent-scope
@@ -368,7 +369,7 @@ func (l *finishLane) requireOutcomeInputs() {
 	if len(verify) == 0 {
 		missing = append(missing, "--verify")
 	}
-	if l.options.Change.Outcome == "" {
+	if l.options.Change.Outcome == "" && !l.options.Preflight {
 		missing = append(missing, "--outcome")
 	}
 	if len(missing) == 0 {
@@ -660,10 +661,9 @@ func (l *finishLane) bind() {
 	}
 	code, run, output := l.pass("bind", citations)
 	if code == 1 {
-		for _, row := range run.rows {
-			if run.rowFailing(row) && row != (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
-				l.stop("bind", code, output)
-			}
+		tracked := l.gitSucceeds("cat-file", "-e", "HEAD:"+finishLaneSidecar)
+		if !bindAdmits(run.rows, run.rowFailing, tracked) {
+			l.stop("bind", code, output)
 		}
 	} else if code != 0 {
 		l.stop("bind", code, output)
@@ -672,6 +672,33 @@ func (l *finishLane) bind() {
 	l.accept(output)
 	l.line("bind PASS%s", last)
 	l.stage = ""
+}
+
+// bindAdmits reports whether a bind pass that exited 1 may still be committed.
+// The recorder's record-index-failed, which the uncommitted sidecar causes, is
+// always admitted (DCW-V0-015). When HEAD already tracks the sidecar, from an
+// earlier bind commit in the branch, the OCM rows that refuse the replaced
+// sidecar as excluded-artifact-mismatch, and the status and aggregate rows that
+// follow from them, are admitted too: the bind commit commits the new sidecar
+// and the full rebind recomputes every row (DCW-V0-115, DCW-V0-816).
+func bindAdmits(rows []step, failing func(step) bool, sidecarTracked bool) bool {
+	replaced := false
+	for _, row := range rows {
+		if sidecarTracked && strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "excluded-artifact-mismatch" {
+			replaced = true
+		}
+	}
+	for _, row := range rows {
+		if !failing(row) || row == (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
+			continue
+		}
+		if replaced && (strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "excluded-artifact-mismatch" ||
+			strings.HasPrefix(row.name, "ocm-status-") || row.name == "ocm-aggregate" || row.name == "cem-status") {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // bindStage cites one earlier stage's plan into the retained map, which cem

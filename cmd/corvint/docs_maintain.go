@@ -199,8 +199,9 @@ still equals the bytes read at session start (refusing with no write on any
 difference) and then replaces the page atomically (temp file + rename).
 Content outside generated markers, including a missing block for another
 selector, is never touched. This is a maintenance session, not a renderer:
-docs/specs/human-documentation-compiler-v0.md remains not-started, and no
-generated block is promoted to accepted intent (AGENTS.md invariant 8).
+docs/specs/human-documentation-compiler-v0.md remains partial (HDCV0-023..029,
+HDCV0-041), and no generated block is promoted to accepted intent (AGENTS.md
+invariant 8).
 
 --watch is Unix-only, requires --apply and stays in the foreground, polling committed HEAD
 once per second. It stops on any human page edit, source drift, signal, or bound.

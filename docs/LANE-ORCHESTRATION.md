@@ -434,8 +434,18 @@ The charter or the lane's first step fixes every dogfood input before work start
   allowed main merge);
 - `CITATIONS`: the citation plan file (distinct spans, anchored on BASE lines the diff does not edit;
   a `drafted proposal` row citing the hunk's own file is confirmed or replaced, `DCW-V0-962`);
-- `INTENTS`: the governing spec paths; `VERIFY`: one shell-free command per line;
+- `INTENTS`: the governing spec paths, each a spec Markdown file with one `## Requirements`
+  heading, or the one line `#no-intent-declared`; a `docs/build-log/*.md` entry or
+  `docs/decisions/*.md` file is an intent only of a record change, one that touches nothing but
+  those records and CEM sidecars (`DCW-V0-058`, `DCW-V0-817`); `VERIFY`: one shell-free command per
+  line;
 - `OUTCOME`: `passed`, `failed` or `blocked`.
+
+A reseal, which binds commits a lane made after its own earlier seal, takes the previous seal
+head (the last seal commit on `HEAD`'s first-parent path) as `BASE`, not the merge base: the range
+then holds only the new commits, so the plan stays inside the 256-row bound, and
+`dogfood batch-check` verifies each chained seal against its own base (docs/DOGFOOD.md section 4,
+"Resealing after a seal").
 
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
@@ -449,6 +459,22 @@ and names each ID one of them defines as `used ID NAME (SHA) FILE` (`ASD-V0-952`
 the lane to run `make requirement-id-collisions` after staging a spec that adds an ID and before its
 final commit, and the orchestrator runs it in the batch checkout before integrating each lane
 (`ASD-V0-950`, `ASD-V0-951`).
+
+A charter that lets a lane add divergence-register entries hands it a DR-number block the same way,
+because each lane would otherwise take the next free `DR-` number from its own base. The batch
+precheck's `dr-numbers` step (`make dr-numbers-check`, `script/check-dr-numbers.sh`, `ASD-V0-642`)
+fails when the merged `conformance/divergence-register.md` defines one `DR-` heading number twice,
+naming every defining line; renumber the later entry before the batch push.
+
+Before any lane starts, the orchestrator screens the batch's ticket files with
+`make lane-dispatch-check BASE=<sha> LANES="lane-a=tickets-a.json lane-b=tickets-b.json"`
+(`script/lane-dispatch-check.sh`, `ASD-V0-645`). Each file is one lane's JSON ticket array. The
+check fails (exit 1) on `EMPTY`, a ticket without `record.effects.touchPaths`; `DUPLICATE`, one
+ticket in two lanes; `OVERLAP`, two lanes whose tickets name the same path or a directory key (ending
+in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at the lane base. `WAIVE=V1-N`
+(space separated) waives `EMPTY` and `ABSENT` for a ticket that creates its paths; an overlap is
+never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
+not a commit exits 2.
 
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
@@ -477,8 +503,8 @@ that touches `docs/specs/` without committing regenerated spec indexes also refu
 finish attempts are allowed; a second failure stops the lane with the exact command and output in
 its report. Then one `make dogfood-batch-check BASE=<origin/main tip>` from a clean checkout.
 Rerunning `dogfood-change` to "see where it stands" between edits is not part of the loop.
-Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= main` default
-(local `main`, which may not be `origin/main`) is refused, not used (`ASD-V0-019`).
+Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= origin/main` default
+(a moving ref, not a pinned sha) is refused, not used (`ASD-V0-019`, `ACX-V0-857`).
 
 - Windows vet before push (ASD-V0-023, V1-1725): install the pre-push hook once in the shared lane
   repository (its hooks serve every linked worktree):
@@ -604,6 +630,10 @@ every gap above the threshold with the time the watchdog would have flagged it.
   patch file kept outside the checkout (`git diff > ../p.patch`, then `git apply -R ../p.patch`;
   restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
   `script/lane-clean.sh` keeps any checkout that still has a stash entry.
+  A lane charter template carries this line verbatim (V1-3767; a charter that omitted it let a
+  lane stash in a shared-object worktree): "Never run `git stash` in a lane: the stash is shared
+  by every worktree of the clone. Park work in a named WIP commit on the lane branch, a patch file
+  outside the checkout, or a scratch `git worktree add` off the lane branch."
 - Scratch logs go outside the checkout (untracked files make dogfood report
   `record-index-failed`), into a directory only this lane writes (ASD-V0-108, V1-3156):
   `"$(git rev-parse --absolute-git-dir)/corvint/lane-logs/"`, unique per worktree like
@@ -701,6 +731,14 @@ integrator therefore:
   A lane runs it as `make batch-precheck BASE=<lane base sha>` (ASD-V0-032): a failure the base
   already shows prints as a base-present `WARN` and does not fail the lane, but it still fails
   batch CI, so the lane names it in its report for the integrator to fix or file;
+- relies on the precheck's `make lane-scripts-test` step (ASD-V0-640, V1-3744) to run the lane
+  shell tests on the merged tree, where two lanes' fixtures first meet: it runs alone after the
+  parallel steps, and under `BASE` only when a `script/`, `Makefile` or `docs/DOGFOOD.md` path
+  changed (a print-only skip row says so otherwise);
+- runs `go vet` through `script/heavy.sh` like any heavy Go command, from the batch worktree:
+  `set -o pipefail; script/heavy.sh env GOTOOLCHAIN=local go vet ./... 2>&1 | tail -n 40` for the
+  root module, and `(cd interop/cem01-go && ../../script/heavy.sh env GOTOOLCHAIN=local go vet ./...)`
+  for the interop module (heavy.sh runs it in the same subdirectory of its tree);
 - after a CI failure, fixes every failure the run reported, then pushes once more (one push per
   failure round);
 - never pushes a partial batch to "start CI early"; a constituent that arrives late joins the next

@@ -31,6 +31,9 @@ type ProposeOptions struct {
 	// current hunks by hunk ID, else by path and content or BASE range
 	// (DCW-V0-442).
 	Refresh string
+	// FromCEM names a sealed CEM whose hunks seed the refresh rows in place
+	// of a --refresh plan (DCW-V0-843).
+	FromCEM string
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -38,6 +41,15 @@ type proposal struct {
 	flow
 	options ProposeOptions
 	stdout  io.Writer
+	// siblingDirs caches each parent's BASE directories (DCW-V0-841).
+	siblingDirs map[string][]string
+	// priorBase is the BASE the --refresh plan was drafted at when it is not
+	// BASE, the map's baseRevision; carriedFiles holds the first cite row
+	// carried to each file (DCW-V0-842).
+	priorBase    string
+	carriedFiles map[string]string
+	// cemBase is the --from-cem CEM's baseRevision (DCW-V0-843).
+	cemBase string
 	blobs   map[string][]byte
 	lines   map[string][][]byte
 	// derived holds the canonical patch's hunks by ID and by path and old
@@ -152,6 +164,12 @@ func (p *proposal) run() int {
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
 	p.requireBaseAncestor(p.base, p.target)
+	if p.cemBase != "" {
+		// The sealed CEM's base is the BASE its rows were cited at (DCW-V0-843).
+		if prior, status := p.git(true, "rev-parse", "--verify", "-q", p.cemBase+"^{commit}"); status == 0 {
+			p.priorBase = chomp(prior)
+		}
+	}
 	mapPath := filepath.Join(p.root, ".corvint", "change.cem.json")
 	if _, err := os.Lstat(mapPath); errors.Is(err, fs.ErrNotExist) {
 		return p.template("NOT_PREPARED")
@@ -166,10 +184,21 @@ func (p *proposal) run() int {
 		return p.template("UNREADABLE")
 	}
 	if baseRevision != p.base {
+		if p.options.Refresh != "" && p.options.FromCEM == "" {
+			// The map's BASE is the plan's BASE only when the last bind
+			// recorded this plan against this map; a plan refreshed since
+			// already cites another BASE, and re-pinning it from the map's
+			// would move valid spans onto other text (DCW-V0-842).
+			if !p.boundToMap(hunks) {
+				p.say("%s: NOTE refresh-base-unproven\n  no citation-plan binding records this --refresh plan against the map, so its BASE is not proven to be the map's baseRevision=%s; cite rows are carried as written, not re-pinned, and the vet judges them at BASE %s (DCW-V0-842)\n", p.prefix, baseRevision, p.base)
+			} else if prior, status := p.git(true, "rev-parse", "--verify", "-q", baseRevision+"^{commit}"); status == 0 {
+				p.priorBase = chomp(prior)
+			}
+		}
 		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
 		return p.template("OTHER_BASE")
 	}
-	if p.options.Refresh != "" {
+	if p.refreshing() {
 		// A refreshed plan is keyed by hunk ID, so it survives later reordering.
 		p.keyByID = true
 	}
@@ -403,12 +432,19 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			uniform = false
 			continue
 		}
-		if p.carried != nil {
-			// Drafted afresh: no row was carried, or a carried all-unknown row
-			// on a sealed CEM is redrafted (DCW-V0-966).
-			p.redrafted = append(p.redrafted, hunk)
+		row, cite, fellBack := "", "", ""
+		ordinal := fmt.Sprint(hunk.ordinal)
+		if p.keyByID {
+			ordinal = hunk.id
 		}
-		row, cite, fellBack := p.propose(hunk, edited, used)
+		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
+			if p.carried != nil {
+				// Drafted afresh: no row was carried, or a carried all-unknown row
+				// on a sealed CEM is redrafted (DCW-V0-966).
+				p.redrafted = append(p.redrafted, hunk)
+			}
+			row, cite, fellBack = p.propose(hunk, edited, used)
+		}
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
 		}
@@ -430,6 +466,8 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		delete(p.proposals, ordinal)
 		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
+	rows, refused := p.vetRows(owed, rows)
+	notes = append(notes, refused...)
 	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
@@ -454,6 +492,12 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
 		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+			return row, cite, ""
+		}
+		// A new file following a BASE sibling's pattern is proposed that
+		// sibling's contract (DCW-V0-841, amending DCW-V0-440).
+		if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+			p.reasons[ordinal] = "the hunk names requirement " + id + ", which this change itself adds in " + where + " (DCW-V0-440); " + p.reasons[ordinal]
 			return row, cite, ""
 		}
 		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
@@ -482,13 +526,24 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
-	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
+	row, cite, filtered := p.anchoredProposal(hunk, ordinal, edited, used)
+	if row != "" {
 		return row, cite, ""
+	}
+	if filtered != "" {
+		// The set-aside candidates are named for a same-file proposal too.
+		p.weak = append(p.weak, "row "+ordinal+": no anchor was drafted"+filtered)
 	}
 	// A draft anchors only on files the change leaves untouched (DCW-V0-393):
 	// a hunk with no anchor elsewhere gets its own file's nearest stable line
 	// as a marked proposal, or stays unknown (DCW-V0-962).
-	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds"
+	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds" + filtered
+	if dataPath(hunk.path) {
+		missing += "; a data record is never cited, so cite the BASE contract of the code that writes or reads it (DCW-V0-841)"
+	}
+	if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, ""
+	}
 	if _, ok := p.blob(p.base, hunk.path); !ok {
 		// An added file has no BASE line of its own; it reaches the verdict
 		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
@@ -571,16 +626,26 @@ func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[
 // anchoredProposal returns the first row, on a span no other row cites, whose stable
 // BASE line earns hunk a CEM-V1-081 anchor (DCW-V0-161): the line defining a
 // requirement ID the hunk adds, then a line naming the hunk path, a
-// specification first. It returns "" when there is none.
-func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string) {
+// specification first. It returns "" when there is none, with a note naming
+// the candidates DCW-V0-847 set aside.
+func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	derived := p.derivedHunk(hunk)
 	_, ids := verify.SpanAnchors(derived, nil)
+	filtered := ""
+	if !p.basenames {
+		// An ID a test or data hunk names only as fixture text anchors
+		// nothing (DCW-V0-847).
+		var fixture []string
+		if ids, fixture = p.ownRequirementIDs(hunk.path, ids); len(fixture) > 0 {
+			filtered += "; " + hunk.path + " names " + strings.Join(fixture, ", ") + " only in test or fixture text, which is not an anchor (DCW-V0-847)"
+		}
+	}
 	candidates := []spanLine{}
 	for _, id := range ids {
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	definitions := len(candidates)
-	families := p.hunkFamilies(derived)
+	families, changeWide := p.hunkFamiliesScope(derived)
 	if p.basenames {
 		candidates = append(candidates, p.matches[anchorPath(derived)]...)
 	} else {
@@ -592,6 +657,8 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[name]...)
 	}
 	for index, candidate := range candidates {
+		// A large candidate set honours the deadline (DCW-V0-818).
+		p.checkpoint()
 		cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
 		// The hunk's own file is a proposal, never an anchor (DCW-V0-962).
 		if candidate.path == hunk.path || used[cite] || !p.stable(candidate.path, candidate.line, edited) {
@@ -607,6 +674,10 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 {
 			continue
 		}
+		// A mention inside a test or data file is not an anchor (DCW-V0-847).
+		if !p.basenames && testSourcePath(candidate.path) {
+			continue
+		}
 		// A path match inside a longer path, such as README.md within
 		// docs/specs/README.md, names another file (DCW-V0-381).
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
@@ -616,17 +687,32 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		// line of its dominant family, never by another spec's row, a bare
 		// list naming its path, or the definition of an ID it only mentions
 		// in passing (DCW-V0-404).
-		if !p.basenames && !relevantRequirementLine(families, text) {
+		// Families named only by the change's other files do not stop a line
+		// of an untouched file naming the hunk's whole path from anchoring it
+		// (DCW-V0-841).
+		// DCW-V0-847: that admission never covers a line carrying another
+		// requirement's IDs, such as a traceability row of another spec, and
+		// a line naming requirement IDs anchors a hunk that names IDs only
+		// when it carries one of them, never a neighbouring requirement's row.
+		pathLine := index >= definitions && changeWide && !p.changed[candidate.path] && namesWholePath(text, anchorPath(derived)) &&
+			!requirementToken.Match(text)
+		if !p.basenames && !pathLine && !relevantRequirementLine(families, text) {
 			continue
+		}
+		if index >= definitions && !p.basenames {
+			if foreign := foreignRequirementLine(ids, text); foreign != "" {
+				filtered += fmt.Sprintf("; %s:%d names %s but none of the hunk's %s, so it is another requirement's line (DCW-V0-847)", candidate.path, candidate.line, foreign, strings.Join(ids, ", "))
+				continue
+			}
 		}
 		relation := proposalRelation(candidate.path)
 		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
 		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
 			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
 		}
-		return row, cite
+		return row, cite, ""
 	}
-	return "", ""
+	return "", "", filtered
 }
 
 // requirementToken is one requirement ID, such as DCW-V0-402, whose family
@@ -668,15 +754,22 @@ func dominantFamilies(text []byte) map[string]bool {
 // added and removed lines name, else its context lines, else the edits to the
 // same file, else the whole change's edits. It is empty when nothing names one.
 func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
+	families, _ := p.hunkFamiliesScope(hunk)
+	return families
+}
+
+// hunkFamiliesScope is hunkFamilies, also reporting whether the families came
+// only from the whole change's edits (DCW-V0-841).
+func (p *proposal) hunkFamiliesScope(hunk *patch.Hunk) (map[string]bool, bool) {
 	if hunk == nil {
-		return nil
+		return nil, false
 	}
 	edits, around := hunkText(hunk)
 	if changed := dominantFamilies(edits); len(changed) > 0 {
-		return changed
+		return changed, false
 	}
 	if context := dominantFamilies(around); len(context) > 0 {
-		return context
+		return context, false
 	}
 	// The fallbacks count every ID of the other edits together, so the
 	// family they name most often wins (DCW-V0-404).
@@ -692,9 +785,10 @@ func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
 		}
 	}
 	if families := dominantFamilies(file); len(families) > 0 {
-		return families
+		return families, false
 	}
-	return dominantFamilies(all)
+	families := dominantFamilies(all)
+	return families, len(families) > 0
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path
@@ -726,6 +820,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
 			for _, hunk := range parsed.Hunks {
+				p.checkpoint()
 				p.derived[hunk.ID] = hunk
 				patched[hunk.DisplayPath] = true
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
@@ -804,6 +899,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		return false
 	}
 	for _, record := range strings.Split(out, "\n") {
+		p.checkpoint()
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)

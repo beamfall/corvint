@@ -386,7 +386,7 @@ func lineStarts(body string) []int {
 }
 
 func (language Language) observe(root *affected.Source, resolveAliases bool) (affected.Result, frontierSet, error) {
-	files, err := root.Files(observedName)
+	files, err := root.Files(affected.ByName(observedName))
 	if err != nil {
 		return affected.Result{}, nil, err
 	}

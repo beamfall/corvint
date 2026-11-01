@@ -77,3 +77,28 @@ func TestContextLSPEnvironmentDropsRelativePATH(t *testing.T) {
 		t.Fatal(env)
 	}
 }
+
+// EEP-V0-821: a FIFO named gopls is refused before any read. Opening it for
+// reading would block until a writer appears, before the session's
+// cancellation or timeout supervise anything.
+func TestContextLSPRefusesNonRegularExecutable(t *testing.T) {
+	m := newModule(t)
+	fifo := filepath.Join(t.TempDir(), "gopls")
+	if err := syscall.Mkfifo(fifo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan Result, 1)
+	go func() { done <- Expand(context.Background(), m.request(t, fifo, "a/a.go")) }()
+	select {
+	case result := <-done:
+		if result.Failure != "gopls executable unreadable" || result.Record != nil {
+			t.Fatalf("FIFO executable: failure %q", result.Failure)
+		}
+	case <-time.After(10 * time.Second):
+		// Unblock the stuck open so the goroutine can finish.
+		if writer, err := os.OpenFile(fifo, os.O_WRONLY|syscall.O_NONBLOCK, 0); err == nil {
+			writer.Close()
+		}
+		t.Fatal("Expand blocked on a FIFO executable")
+	}
+}

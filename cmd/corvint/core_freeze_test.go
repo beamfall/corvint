@@ -228,13 +228,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			return []string{"--root", impactCLIRepository(t), "dogfood", "status", "--session-key", strings.Repeat("a", 64)}
 		}, 0, map[string]any{"tool": "dogfood-status", "profile": "corvint-local-completion/0", "claim": "caller-owned-selected-workflow-only"}},
 	}
-	register := observeCoreEnumerations(t)
+	register := observeCoreEnumerations(t, len(cases))
 	previous := os.Getenv("CORVINT_CORE_N1_BINARY")
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			document := runCoreMode(t, test.invoke, test.exit)
 			register.observe(t, document)
+			register.modeRan()
 			golden := filepath.Join("testdata", "core-freeze", strings.ReplaceAll(test.name, " ", "-")+".json")
 			if os.Getenv("CORVINT_UPDATE_GOLDEN") == "1" {
 				time.Sleep(1100 * time.Millisecond) // a later second gives the second fixture new commit ids
@@ -724,23 +725,46 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 	}
 }
 
-// maturityLabel matches one Experimental line of the root-help Commands list: the verb, its
-// gloss, and the owning spec prefix in trailing parentheses.
-var maturityLabel = regexp.MustCompile(`^    ([a-z][a-z-]*) .* \(([A-Z][A-Z0-9-]*)\)$`)
+// maturityLabel matches one Experimental line of the root-help Commands list: the verb or a
+// " | "-joined verb family, its gloss, and the owning spec prefix in trailing parentheses.
+var maturityLabel = regexp.MustCompile(`^    ([a-z][a-z-]*(?: \| [a-z][a-z-]*)*)(?: event)?  .* \(([A-Z][A-Z0-9-]*)\)$`)
 
-// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008: the root-help Commands list
-// names each dispatched verb once, under either the Core group, which holds exactly the frozen
-// Core verbs, or the Experimental group, where every verb carries an owning spec prefix that
-// docs/specs/INDEX.json indexes, so no companion or research verb is frozen by omission.
+// rootHelpGroups splits the root-help Commands list into its group headers, in order, and the
+// lines each heads.
+func rootHelpGroups(t *testing.T) ([]string, map[string][]string) {
+	t.Helper()
+	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
+	headers, lines := []string{}, map[string][]string{}
+	for _, line := range strings.Split(strings.TrimSuffix(commands, "\n"), "\n") {
+		if !strings.HasPrefix(line, "    ") {
+			if !strings.HasPrefix(line, "  ") || !strings.HasSuffix(line, ":") {
+				t.Fatalf("Commands line %q is neither a group header nor a verb line", line)
+			}
+			headers = append(headers, line)
+			continue
+		}
+		if len(headers) == 0 {
+			t.Fatalf("verb line %q precedes every group header", line)
+		}
+		lines[headers[len(headers)-1]] = append(lines[headers[len(headers)-1]], line)
+	}
+	return headers, lines
+}
+
+// TestRootHelpLabelsEveryVerbWithMaturityAndOwner pins CCF-V1-008 as amended by V1-3730: the
+// root-help Commands list opens with the Core group, which holds exactly the frozen Core verbs,
+// then groups every other listed verb by job under Experimental headers, each verb or verb family
+// carrying an owning spec prefix that docs/specs/INDEX.json indexes. Every dispatched verb is
+// exactly one of Core, labelled experimental, or a hiddenCommands verb, which root help omits
+// and whose catalog line names an indexed owner too.
 func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	t.Parallel()
-	commands, _, _ := strings.Cut(strings.SplitN(rootHelp, "\nCommands:\n", 2)[1], "\nGlobal options:")
-	core, experimental, found := strings.Cut(commands, "\n  Experimental, no stability promise; owning spec in parentheses:\n")
-	if !found || !strings.HasPrefix(core, "  Core (decision 0332;") {
-		t.Fatalf("Commands has no Core and Experimental groups:\n%s", commands)
+	headers, lines := rootHelpGroups(t)
+	if len(headers) < 2 || !strings.HasPrefix(headers[0], "  Core (decision 0332;") {
+		t.Fatalf("Commands has no leading Core group and Experimental groups: %q", headers)
 	}
 	coreVerbs := []string{}
-	for _, line := range strings.Split(core, "\n")[1:] {
+	for _, line := range lines[headers[0]] {
 		coreVerbs = append(coreVerbs, strings.Fields(line)[0])
 	}
 	if !slices.Equal(coreVerbs, frozenCoreVerbs) {
@@ -766,28 +790,56 @@ func TestRootHelpLabelsEveryVerbWithMaturityAndOwner(t *testing.T) {
 	}
 
 	labelled := map[string]string{}
-	for _, line := range strings.Split(strings.TrimSuffix(experimental, "\n"), "\n") {
-		match := maturityLabel.FindStringSubmatch(line)
+	label := func(verbs, owner, line string) {
+		for _, verb := range strings.Split(verbs, " | ") {
+			if _, repeated := labelled[verb]; repeated {
+				t.Errorf("verb %q is labelled twice", verb)
+			}
+			labelled[verb] = owner
+		}
+		if !indexed[owner] {
+			t.Errorf("line %q names owner %q, which docs/specs/INDEX.json does not index", line, owner)
+		}
+	}
+	for _, header := range headers[1:] {
+		if !strings.HasPrefix(header, "  Experimental, ") {
+			t.Errorf("group header %q is not an Experimental job group", header)
+		}
+		for _, line := range lines[header] {
+			match := maturityLabel.FindStringSubmatch(line)
+			if match == nil {
+				t.Errorf("experimental line %q carries no owning spec prefix", line)
+				continue
+			}
+			label(match[1], match[2], line)
+		}
+	}
+	hidden := map[string]bool{}
+	for verb, line := range hiddenCommands {
+		match := maturityLabel.FindStringSubmatch("    " + verb + "  " + line)
 		if match == nil {
-			t.Errorf("experimental line %q carries no owning spec prefix", line)
+			t.Errorf("hidden verb %q line %q carries no owning spec prefix", verb, line)
 			continue
 		}
-		if _, repeated := labelled[match[1]]; repeated {
-			t.Errorf("verb %q is labelled twice", match[1])
-		}
-		labelled[match[1]] = match[2]
+		hidden[verb] = true
 		if !indexed[match[2]] {
-			t.Errorf("verb %q names owner %q, which docs/specs/INDEX.json does not index", match[1], match[2])
+			t.Errorf("hidden verb %q names owner %q, which docs/specs/INDEX.json does not index", verb, match[2])
 		}
 	}
 	for _, command := range topLevelCommands {
 		_, isExperimental := labelled[command]
-		if slices.Contains(frozenCoreVerbs, command) == isExperimental {
-			t.Errorf("verb %q must be exactly one of Core or labelled experimental", command)
+		kinds := 0
+		for _, is := range []bool{slices.Contains(frozenCoreVerbs, command), isExperimental, hidden[command]} {
+			if is {
+				kinds++
+			}
+		}
+		if kinds != 1 {
+			t.Errorf("verb %q must be exactly one of Core, labelled experimental or hidden", command)
 		}
 	}
-	if len(labelled)+len(frozenCoreVerbs) != len(topLevelCommands) {
-		t.Errorf("%d labelled + %d Core verbs, want the %d dispatched verbs", len(labelled), len(frozenCoreVerbs), len(topLevelCommands))
+	if len(labelled)+len(frozenCoreVerbs)+len(hidden) != len(topLevelCommands) {
+		t.Errorf("%d labelled + %d Core + %d hidden verbs, want the %d dispatched verbs", len(labelled), len(frozenCoreVerbs), len(hidden), len(topLevelCommands))
 	}
 }
 
@@ -838,6 +890,9 @@ type coreEnumerationObserver struct {
 	rows    []coreEnumeration
 	mu      sync.Mutex
 	reached map[int]bool
+	// modes is how many frozen modes the parent declares and ran how many observed a document; the
+	// coverage check needs them equal, since a -run filter or an earlier failure leaves rows unseen.
+	modes, ran int
 }
 
 var registerCell = regexp.MustCompile("`([^`]+)`")
@@ -878,24 +933,66 @@ func coreEnumerationRegister(t *testing.T) []coreEnumeration {
 
 // observeCoreEnumerations pins CCF-V1-007 (d) and the CCF-V1-006 enumeration rule: a value outside
 // its register row fails the observing mode, and once every mode has run, a row no mode reached
-// fails the parent test, so the register cannot list a member the frozen modes never emit.
-func observeCoreEnumerations(t *testing.T) *coreEnumerationObserver {
+// fails the parent test, so the register cannot list a member the frozen modes never emit. When
+// fewer than all modes observed a document (a filtered -run such as a golden regeneration of two
+// modes, or a mode that already failed), the coverage half is skipped with a log line (V1-3908).
+func observeCoreEnumerations(t *testing.T, modes int) *coreEnumerationObserver {
 	t.Helper()
-	observer := &coreEnumerationObserver{rows: coreEnumerationRegister(t), reached: map[int]bool{}}
+	observer := &coreEnumerationObserver{rows: coreEnumerationRegister(t), reached: map[int]bool{}, modes: modes}
 	t.Cleanup(func() {
-		for index, row := range observer.rows {
-			if !observer.reached[index] {
-				t.Errorf("CCF-V1-007 register row %s (%v) is reached by no frozen Core mode", row.member, row.tools)
-			}
+		unreached, complete := observer.unreached()
+		if !complete {
+			t.Logf("CCF-V1-007 register coverage skipped: %d of %d frozen Core modes ran (filtered -run or an earlier failure)", observer.ran, observer.modes)
+			return
+		}
+		for _, row := range unreached {
+			t.Errorf("CCF-V1-007 register row %s (%v) is reached by no frozen Core mode", row.member, row.tools)
 		}
 	})
 	return observer
+}
+
+// unreached lists the register rows no mode reached; complete is false, and the list empty, when
+// fewer than all declared modes ran, since then an unreached row proves nothing.
+func (observer *coreEnumerationObserver) unreached() (rows []coreEnumeration, complete bool) {
+	observer.mu.Lock()
+	defer observer.mu.Unlock()
+	if observer.ran < observer.modes {
+		return nil, false
+	}
+	for index, row := range observer.rows {
+		if !observer.reached[index] {
+			rows = append(rows, row)
+		}
+	}
+	return rows, true
+}
+
+// V1-3908: register coverage is judged only when every declared frozen mode ran, so a filtered
+// golden regeneration passes, while a full run still names each unreached row.
+func TestCoreEnumerationCoverageNeedsEveryMode(t *testing.T) {
+	observer := &coreEnumerationObserver{rows: []coreEnumeration{{member: "a"}, {member: "b"}}, reached: map[int]bool{0: true}, modes: 2}
+	observer.modeRan()
+	if rows, complete := observer.unreached(); complete || len(rows) != 0 {
+		t.Fatalf("filtered run: rows=%v complete=%v, want skipped", rows, complete)
+	}
+	observer.modeRan()
+	if rows, complete := observer.unreached(); !complete || len(rows) != 1 || rows[0].member != "b" {
+		t.Fatalf("full run: rows=%v complete=%v, want row b", rows, complete)
+	}
 }
 
 // provePacketTools maps the mode of the packet `prove` embeds to the tool whose register rows govern
 // it (accepted 2026-09-26, decision 0422; from decision 0398): `prove` embeds the query or impact
 // packet unchanged as `packet`.
 var provePacketTools = map[string]string{"query": "query", "impact": "impact", "range-impact": "impact"}
+
+// modeRan records that one declared frozen mode observed its document.
+func (observer *coreEnumerationObserver) modeRan() {
+	observer.mu.Lock()
+	observer.ran++
+	observer.mu.Unlock()
+}
 
 func (observer *coreEnumerationObserver) observe(t *testing.T, document map[string]any) {
 	t.Helper()

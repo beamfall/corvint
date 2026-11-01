@@ -1051,6 +1051,19 @@ Each row cites the first emitting site and states only the condition checked the
   affected` (`AFP-V0-356`); or `git status`. Falsifier: a MIXED binding that carries a path, a
   path fragment or any member beyond the seven. Rollback: delete this requirement; a path member
   would then need its own wire revision.
+- `MCPV0-650`: (experimental under the standing lane auto-accept; V1-3705) The `corvint.query`
+  tool description MUST state the narrow accepted task class before a caller spends a call: it
+  names the project-operations terms that `contextindex.ValidateQueryAuthorityStart` counts, gives
+  one example task that this validator accepts, names the `UNSUPPORTED_QUERY_INTENT` reason code
+  and names the alternative for a code, test or bug task (`corvint.context` in the task-review
+  profile, or the `corvint context` command). The abstention object stays the closed
+  `{active, reason}` shape: shipped VS Code clients check its keys exactly, so the alternative
+  lives in the description that every profile's `tools/list` returns, not in a new member. The
+  tool's acceptance rule is unchanged. Falsifier: the description's example abstains, the
+  description omits the reason code or the alternative, or an abstention gains a member.
+  Rollback: restore the previous description string in `internal/mcp/bridge`, the tools-list
+  goldens and the VS Code mirrors.
+
 
 ## Acceptance matrix
 
@@ -1112,6 +1125,7 @@ result again, and no state depends on it. Protocol and conformance paths retain 
 |---|---|---|
 | `MCPV0-001..006` | `internal/mcp/cli`, `internal/mcp/protocol`, `internal/mcp/server` | protocol/discovery/framing/version vectors; `TestDuplicateInFlightIDOmitsID`, `TestIDReusableOnceResponseIsRead`, `TestUnencodableResultIsRequestError`, and `TestLegacyLifecycleMethodsWithoutMetadataAreNotFound` observed; official-schema digest pinned; opt-in `TestServerTrafficMatchesOfficialSchema` passed on 2026-09-23 |
 | `MCPV0-820` | `internal/mcp/cli`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` (`NameLegacyFlag`) | `TestMCPV0820DefaultProfileNamesLegacyFlag`, `TestMCPV0820DocsAndTestValidityNameLegacyFlag`; live Claude Code `claude mcp list` receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
+| `MCPV0-650` | `internal/mcp/bridge` (`corvint.query` description), `extensions/vscode/src/mcp.ts`, `conformance/vscode-extension-v0` | `TestQueryDescriptionNamesAcceptedIntentsAndTheAlternative`; `internal/mcp/cli/testdata/tools-list-*.golden.jsonl` |
 | `MCPV0-007..010` | `internal/mcp/bridge` | tool registry, closed-schema, receipt, budget, and abstention tests |
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
 | `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; no promisor fetch (V1-0349) observed by `TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching` (every read tool over a blob:none sparse clone, also through a Git that drops `GIT_NO_LAZY_FETCH`) `TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching` (`corvint.flows.coverage`, with a full blob:none clone as the serving control) and `TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching` (V1-1039: `corvint.cem.report` with a present map and a missing cited base blob, with an unfiltered clone as the serving control); fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |

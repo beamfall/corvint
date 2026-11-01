@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -158,6 +158,23 @@ therefore come from something keyed on content, not from Go's cache.
   salt never hits. An undeclared NAME with a salt MUST key on the whole tree; an unsalted
   undeclared name still runs and records nothing (GL-V0-003), and `never` scopes still always
   run. `make batch-precheck` is the caller (`corvint-self-development-v0.md` `ASD-V0-042`).
+- `GL-V0-720`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends
+  `GL-V0-005` for a scoped run) `gate-ledger go-test --packages LIST -- go test FLAGS` MUST run
+  only the packages that LIST names. LIST is one or more `go list` patterns, separated by
+  whitespace or commas. The run partitions them as GL-V0-005 partitions `./...`, prints
+  `gate-ledger: SCOPE packages LIST` first, and adds `"scope":[...]` to each record it writes.
+  The unresolved key already includes the package names, so a scoped run never matches a
+  whole-tree record. When the `go list` or selector partition fails, it MUST fall back to one
+  uncached run of LIST, not `./...`. An empty LIST, or a pattern that starts with `-`, MUST be
+  refused with usage and exit 2 before anything runs. A LIST that partitions to no package (for
+  example `./docs/...`) MUST fail with exit 1 and `gate-ledger: SCOPE packages LIST matches no
+  packages to test` before anything runs, as `go test` fails with no packages to test. Without `--packages`, `go-test` behaves
+  exactly as before. Design: the flag belongs to the tool, not to the Makefile, because
+  `ledger/go-test` is pinned by `STR-V0-006`. A lane that changes three packages can now record
+  a ledger run of only those, where before it needed a full-tree run of about 25 minutes.
+  Non-goals: choosing the packages; a Makefile scope variable. Failure mode: a scope that
+  leaves out an affected package does not test it. The SCOPE line and the record show what ran. Rollback: remove
+  `--packages` and `record.Scope`; `go-test` then runs `./...` only.
 
 ## Non-goals and simpler baseline
 
@@ -256,6 +273,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
+| GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
 
 ## Rollout, rollback, and drift
 

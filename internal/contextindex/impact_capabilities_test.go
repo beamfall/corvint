@@ -59,3 +59,18 @@ func TestGPKV0085ImpactCapabilitiesAgreeWithAdmission(t *testing.T) {
 		t.Fatalf("limits disagree with the admission bounds: %v", limits)
 	}
 }
+
+// TestGPKV0881ImpactCapabilitiesStateTheReverseImportClosure is V1-2081: the
+// listing states the one-hop closure, the Ruby advisory second hop and that a
+// READY receipt is no closed test selection, machine-readably.
+func TestGPKV0881ImpactCapabilitiesStateTheReverseImportClosure(t *testing.T) {
+	reverse, ok := ImpactCapabilities(10)["reverseImports"].(map[string]any)
+	if !ok {
+		t.Fatal("listing has no reverseImports member")
+	}
+	advisory, _ := reverse["advisoryClosureDepth"].(map[string]any)
+	if reverse["closureDepth"] != 1 || len(advisory) != 1 || advisory[".rb"] != 2 ||
+		reverse["closedTestSelection"] != false || reverse["transitiveSelection"] != "corvint affected --path" {
+		t.Fatalf("reverseImports = %#v", reverse)
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -56,9 +57,15 @@ func TestSourceDraftOwnerPhysicalLines(t *testing.T) {
 				if owner.StartLine != 1 || owner.EndLine != tc.end {
 					t.Fatalf("owner span = %d:%d, want 1:%d", owner.StartLine, owner.EndLine, tc.end)
 				}
-				citation := fmt.Sprintf("source `%q`, lines 1–%d;", source.Path, tc.end)
-				if !strings.Contains(string(draft.Markdown), citation) {
-					t.Fatalf("draft missing owner citation %q", citation)
+				citations := []string{fmt.Sprintf("source `%q`, lines 1–%d;", source.Path, tc.end)}
+				if !dryRun {
+					// SDD-V0-631: the owner cites its source-table ID; the table names the path once.
+					citations = []string{fmt.Sprintf("\n## S3 `%q`\n\nBlob ", source.Path), fmt.Sprintf("\n`\"owner\"` `\"Agent digest\"`, lines 1–%d:\n", tc.end)}
+				}
+				for _, citation := range citations {
+					if !strings.Contains(string(draft.Markdown), citation) {
+						t.Fatalf("draft missing owner citation %q:\n%s", citation, draft.Markdown)
+					}
 				}
 				wantExcerpt := sevenLines
 				if tc.end == 8 {
@@ -214,10 +221,87 @@ func TestSourceDraftUnsupportedCoverageAndLimits(t *testing.T) {
 		for n := range 65 {
 			index.Symbols = append(index.Symbols, contextindex.Symbol{Path: "compiler/api.go", Name: fmt.Sprintf("Plan%d", n), Kind: "func", Line: 2})
 		}
-		if _, err := DraftSources(index, "docs/owner.md", "compiler"); err == nil {
-			t.Fatal("truncated declaration limit")
+		if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 3}); err == nil || !strings.Contains(err.Error(), "page 3 is outside the draft's pages 1..2") {
+			t.Fatalf("out-of-range page admitted: %v", err)
 		}
 	})
+}
+
+func countKind(entries []DraftEntry, kind string) int {
+	count := 0
+	for _, entry := range entries {
+		if entry.Kind == kind {
+			count++
+		}
+	}
+	return count
+}
+
+// SDD-V0-632: 110 declarations draft over two pages; nothing off a page is invented.
+func TestSDDV0632PagesOverSixtyFourEntries(t *testing.T) {
+	index := draftFixture()
+	index.Symbols = nil
+	for n := range 110 {
+		index.Symbols = append(index.Symbols, contextindex.Symbol{Path: "compiler/api.go", Name: fmt.Sprintf("Plan%03d", n), Kind: "func", Line: 2})
+	}
+	seen := map[string]bool{}
+	for page, want := range map[int]int{1: 64, 2: 46} {
+		draft, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: page})
+		if err != nil {
+			t.Fatalf("page %d: %v", page, err)
+		}
+		if got := countKind(draft.Entries, "declaration"); got != want || draft.Page != page || draft.Pages != 2 {
+			t.Fatalf("page %d: %d declarations page %d of %d", page, got, draft.Page, draft.Pages)
+		}
+		for _, entry := range draft.Entries {
+			if entry.Kind == "declaration" {
+				if seen[entry.ID] {
+					t.Fatalf("declaration %s on two pages", entry.ID)
+				}
+				seen[entry.ID] = true
+			}
+		}
+		first := (page-1)*64 + 1
+		line := fmt.Sprintf("TRUNCATED: declarations %d–%d of 110 on page %d of 2; the other %d entries are UNKNOWN on this page.", first, first+want-1, page, 110-want)
+		if !slices.Contains(draft.Limitations, line) || !strings.Contains(string(draft.Markdown), fmt.Sprintf("Page: %d of 2\n", page)) {
+			t.Fatalf("page %d missing TRUNCATED/page header: %q", page, draft.Limitations)
+		}
+	}
+	if len(seen) != 110 {
+		t.Fatalf("pages covered %d of 110 declarations", len(seen))
+	}
+	if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 0}); err != nil {
+		t.Fatalf("page 0 is page 1: %v", err)
+	}
+	if _, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: -1}); err == nil {
+		t.Fatal("negative page admitted")
+	}
+	small, err := DraftSources(draftFixture(), "docs/owner.md", "compiler")
+	if err != nil || small.Pages != 1 || strings.Contains(string(small.Markdown), "Page: ") {
+		t.Fatalf("single-page draft printed a page header: %v", err)
+	}
+}
+
+// SDD-V0-632: importers page independently of declarations.
+func TestSDDV0632ImportersCountSeparately(t *testing.T) {
+	index := draftFixture()
+	for n := range 70 {
+		path := fmt.Sprintf("caller%02d/main.go", n)
+		index.Sources[path] = contextindex.Source{Path: path, BlobHash: strings.Repeat("a", 40), Data: []byte("package main\nimport \"example.test/m/compiler\"\n"), Mode: "100644"}
+		index.Imports[path] = map[string]struct{}{"example.test/m/compiler": {}}
+	}
+	draft, err := DraftSourcesWith(index, "docs/owner.md", "compiler", DraftOptions{Page: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if countKind(draft.Entries, "import") != 7 || countKind(draft.Entries, "declaration") != 0 || draft.Pages != 2 {
+		t.Fatalf("page 2: %d importers %d declarations of %d pages", countKind(draft.Entries, "import"), countKind(draft.Entries, "declaration"), draft.Pages)
+	}
+	for _, line := range []string{"TRUNCATED: importers 65–71 of 71 on page 2 of 2; the other 64 entries are UNKNOWN on this page.", "TRUNCATED: declarations 0 of 1 on page 2 of 2; the other 1 entries are UNKNOWN on this page."} {
+		if !slices.Contains(draft.Limitations, line) {
+			t.Fatalf("missing %q in %q", line, draft.Limitations)
+		}
+	}
 }
 
 func TestSourceDraftPureConsumptionDoesNotAssertFreshGitValidation(t *testing.T) {
@@ -293,8 +377,18 @@ func assertDraftMarkdownStructure(t *testing.T, draft SourceDraft) {
 			t.Fatalf("raw HTML escaped metadata: %q", line)
 		}
 	}
-	if headings != len(draft.Entries)+1 {
-		t.Fatalf("metadata injected heading: got %d, want %d", headings, len(draft.Entries)+1)
+	// SDD-V0-631: one title heading, one heading per cited source file, and one per blobless entry.
+	want, files := 1, map[string]bool{}
+	for _, entry := range draft.Entries {
+		if entry.Blob == "" {
+			want++
+		} else if !files[entry.Path] {
+			files[entry.Path] = true
+			want++
+		}
+	}
+	if headings != want {
+		t.Fatalf("metadata injected heading: got %d, want %d", headings, want)
 	}
 }
 
@@ -569,5 +663,184 @@ func TestSDDV0019ReadDryRunOwnerIsConfined(t *testing.T) {
 		if _, err := ReadDryRunOwner(root, name); !errors.As(err, &problem) || problem.Code != code {
 			t.Fatalf("%s: %v, want %s", name, err, code)
 		}
+	}
+}
+
+// SDD-V0-630 (V1-3719): an owner whose excerpt does not name the package is
+// labelled OWNER_UNRELATED; naming it as a whole path token is NAMES_PACKAGE.
+func TestSDDV0630OwnerRelationLabelsUnrelatedOwner(t *testing.T) {
+	for _, tc := range []struct {
+		name, digest, want string
+	}{
+		{"unrelated", "- Claim: drafts for internal/docviews", OwnerUnrelated}, //corvint:fixture-path
+		{"prefix-only", "- Implementation: `compilerx/api.go`", OwnerUnrelated},
+		{"suffix-of-longer-path", "- Implementation: `internal/compiler/api.go`", OwnerUnrelated},
+		{"file-under-package", "- Implementation: `compiler/api.go`", OwnerNamesPackage},
+		{"bare-directory", "- Package: compiler.", OwnerNamesPackage},
+		{"sibling-file", "- Implementation: `compiler.go`", OwnerUnrelated},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			index := draftFixture()
+			source := index.Sources["docs/owner.md"]
+			source.Data = []byte("# Owner\n\n## Agent digest\n" + tc.digest + "\n")
+			index.Sources[source.Path] = source
+			draft, err := DraftSources(index, source.Path, "compiler")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if draft.OwnerRelation != tc.want {
+				t.Fatalf("relation = %q, want %q", draft.OwnerRelation, tc.want)
+			}
+			if !strings.Contains(string(draft.Markdown), "\nOwner relation: "+tc.want+"\n") {
+				t.Fatalf("draft missing relation line:\n%s", draft.Markdown)
+			}
+			labelled := slices.Contains(draft.Limitations, ownerUnrelatedLimitation)
+			if labelled != (tc.want == OwnerUnrelated) {
+				t.Fatalf("unrelated limitation present = %t for %s", labelled, tc.want)
+			}
+		})
+	}
+}
+
+// richFixture is one Go package with a package doc, a documented struct, an
+// interface, a grouped constant block and a function with a multi-line doc.
+func richFixture() *contextindex.Index {
+	index := draftFixture()
+	api := "// Package compiler plans offline builds.\npackage compiler\n\n// Plan builds a plan.\n// It never runs a build.\nfunc Plan() {\n\treturn\n}\n\n// Options configures Plan.\ntype Options struct {\n\t// Name is the target.\n\tName string\n\tlimit int\n}\n\n// Runner runs plans.\ntype Runner interface {\n\tRun() error\n}\n\nconst (\n\t// Fast is quick.\n\tFast = \"fast\"\n\tSlow = \"slow\"\n)\n"
+	extra := "package compiler\n\n// Extra is a second-file declaration.\nvar Extra = 1\n\n// Settings controls execution.\ntype (\n\tSettings struct{ Enabled bool }\n)\n"
+	index.Sources["compiler/api.go"] = contextindex.Source{Path: "compiler/api.go", BlobHash: strings.Repeat("a", 40), Data: []byte(api), Mode: "100644"}
+	index.Sources["compiler/extra.go"] = contextindex.Source{Path: "compiler/extra.go", BlobHash: strings.Repeat("d", 40), Data: []byte(extra), Mode: "100644"}
+	index.Symbols = []contextindex.Symbol{
+		{Path: "compiler/api.go", Name: "Plan", Kind: "func", Line: 6},
+		{Path: "compiler/api.go", Name: "Options", Kind: "type", Line: 11},
+		{Path: "compiler/api.go", Name: "Runner", Kind: "type", Line: 18},
+		{Path: "compiler/api.go", Name: "Fast", Kind: "const", Line: 24},
+		{Path: "compiler/api.go", Name: "Slow", Kind: "const", Line: 25},
+		{Path: "compiler/extra.go", Name: "Extra", Kind: "var", Line: 4},
+		{Path: "compiler/extra.go", Name: "Settings", Kind: "type", Line: 8},
+	}
+	return index
+}
+
+// SDD-V0-631 (V1-3717): Go entries carry doc comments, struct fields,
+// interface methods and the package doc, each as an exact source span.
+func TestSDDV0631DeclarationsCarryDocCommentsAndFields(t *testing.T) {
+	draft, err := DraftSources(richFixture(), "docs/owner.md", "compiler")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		start, end int
+		excerpt    string
+	}{
+		"package compiler": {1, 2, "// Package compiler plans offline builds.\npackage compiler"},
+		"func Plan":        {4, 6, "// Plan builds a plan.\n// It never runs a build.\nfunc Plan() {"},
+		"type Options":     {10, 15, "// Options configures Plan.\ntype Options struct {\n\t// Name is the target.\n\tName string\n\tlimit int\n}"},
+		"type Runner":      {17, 20, "// Runner runs plans.\ntype Runner interface {\n\tRun() error\n}"},
+		"const Fast":       {23, 24, "\t// Fast is quick.\n\tFast = \"fast\""},
+		"const Slow":       {25, 25, "\tSlow = \"slow\""},
+		"var Extra":        {3, 4, "// Extra is a second-file declaration.\nvar Extra = 1"},
+		// A single-spec group keeps the GenDecl doc comment, as go/doc does.
+		"type Settings": {6, 8, "// Settings controls execution.\ntype (\n\tSettings struct{ Enabled bool }"},
+	}
+	seen := 0
+	for _, entry := range draft.Entries {
+		expected, ok := want[entry.Title]
+		if !ok {
+			continue
+		}
+		seen++
+		if entry.StartLine != expected.start || entry.EndLine != expected.end || entry.Excerpt != expected.excerpt {
+			t.Errorf("%s = %d–%d %q, want %d–%d %q", entry.Title, entry.StartLine, entry.EndLine, entry.Excerpt, expected.start, expected.end, expected.excerpt)
+		}
+		if entry.Title == "package compiler" && entry.Kind != "package-doc" {
+			t.Errorf("package doc kind = %q", entry.Kind)
+		}
+	}
+	if seen != len(want) {
+		t.Fatalf("saw %d of %d expected entries: %+v", seen, len(want), draft.Entries)
+	}
+	assertDraftMarkdownStructure(t, draft)
+	result, err := ConsumeDraft(draft, draft.Markdown, "target name")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rows := result["results"].([]DraftEntry); len(rows) == 0 || rows[0].Title != "type Options" {
+		t.Fatalf("field doc comment not consumable: %+v", rows)
+	}
+}
+
+// SDD-V0-631 (V1-3717): blob, sha256 and the immutable route print once per
+// file, however many entries cite that file.
+func TestSDDV0631ProvenanceOncePerFile(t *testing.T) {
+	draft, err := DraftSources(richFixture(), "docs/owner.md", "compiler")
+	if err != nil {
+		t.Fatal(err)
+	}
+	markdown := string(draft.Markdown)
+	files := map[string]DraftEntry{}
+	for _, entry := range draft.Entries {
+		files[entry.Path] = entry
+	}
+	if len(files) != 4 {
+		t.Fatalf("fixture cites %d files, want 4", len(files))
+	}
+	if got := strings.Count(markdown, "git --no-pager --no-replace-objects show "); got != len(files) {
+		t.Fatalf("route printed %d times, want once per file (%d)", got, len(files))
+	}
+	for sourcePath, entry := range files {
+		if got := strings.Count(markdown, "sha256 `\""+entry.SHA256+"\"`"); got != 1 {
+			t.Errorf("%s sha256 printed %d times", sourcePath, got)
+		}
+		if got := strings.Count(markdown, "`"+fmt.Sprintf("%q", sourcePath)+"`\n\nBlob "); got != 1 {
+			t.Errorf("%s path printed %d times", sourcePath, got)
+		}
+	}
+}
+
+// SDD-V0-633: a foreign owner drafts from a named section without any Agent digest.
+func TestSDDV0633OwnerSectionDraftsWithoutAgentDigest(t *testing.T) {
+	const owner = "# Upstream\n\nIntro prose that stays out.\n\n## Overview\nThe compiler package plans.\n\n## Install\nnot excerpted\n"
+	index := draftFixture()
+	source := index.Sources["docs/owner.md"]
+	source.Data = []byte(owner)
+	index.Sources[source.Path] = source
+	if _, err := DraftSources(index, source.Path, "compiler"); err == nil {
+		t.Fatal("default heading admitted an owner without an Agent digest")
+	}
+	for _, dryRun := range []bool{false, true} {
+		var draft SourceDraft
+		var err error
+		if dryRun {
+			draft, err = DraftDryRunWith(index, source.Path, source.Data, "compiler", DraftOptions{OwnerSection: "Overview"})
+		} else {
+			draft, err = DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: "Overview"})
+		}
+		if err != nil {
+			t.Fatalf("dry-run=%t: %v", dryRun, err)
+		}
+		entry := draft.Entries[0]
+		if entry.StartLine != 5 || entry.EndLine != 7 || entry.Excerpt != "## Overview\nThe compiler package plans.\n" || entry.Title != "Overview" {
+			t.Fatalf("dry-run=%t owner entry %+v", dryRun, entry)
+		}
+		markdown := string(draft.Markdown)
+		if !strings.Contains(markdown, "\nOwner section: `\"Overview\"`\n") || strings.Contains(markdown, "Intro prose") || strings.Contains(markdown, "not excerpted") {
+			t.Fatalf("dry-run=%t section draft:\n%s", dryRun, markdown)
+		}
+	}
+	plain, err := DraftSources(draftFixture(), "docs/owner.md", "compiler")
+	named, namedErr := DraftSourcesWith(draftFixture(), "docs/owner.md", "compiler", DraftOptions{OwnerSection: "Agent digest"})
+	if err != nil || namedErr != nil || !bytes.Equal(plain.Markdown, named.Markdown) || strings.Contains(string(plain.Markdown), "Owner section:") {
+		t.Fatalf("default section changed bytes: %v %v", err, namedErr)
+	}
+	for _, section := range []string{"Missing", "Install\n", " Overview", strings.Repeat("x", 201), "Tab\there"} {
+		if _, err := DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: section}); err == nil {
+			t.Fatalf("section %q admitted", section)
+		}
+	}
+	source.Data = []byte("## Overview\n" + strings.Repeat("line\n", 64) + "## Next\n")
+	index.Sources[source.Path] = source
+	if _, err := DraftSourcesWith(index, source.Path, "compiler", DraftOptions{OwnerSection: "Overview"}); err == nil || !strings.Contains(err.Error(), "owner section exceeds the limit of 64 lines") {
+		t.Fatalf("65-line section admitted: %v", err)
 	}
 }

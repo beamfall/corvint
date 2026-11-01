@@ -294,7 +294,7 @@ func Export(opts ExportOptions) (result *ExportResult, retErr error) {
 			digests[f.path] = d
 			sum += uint64(len(raw))
 			if sum > wire.MaxArchiveBytes {
-				return wire.Errorf(wire.CodeLimitExceeded, repo.StateDir, "archive larger than %d bytes", wire.MaxArchiveBytes)
+				return wire.Errorf(wire.CodeLimitExceeded, repo.StateDir, "archive larger than %d bytes", int64(wire.MaxArchiveBytes))
 			}
 			m.Files = append(m.Files, FileEntry{Path: f.path, Sha256: d, Bytes: wire.SizeOf(uint64(len(raw)))})
 			if strings.HasPrefix(f.path, "receipts/") {

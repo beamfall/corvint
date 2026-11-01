@@ -43,7 +43,7 @@ At `978b37b`:
 
 - `corvint flows` dispatched only `record` beside its report, created its output without root or
   symlink confinement, and opened an input before the regular-file check. S1 adds the `export` and
-  `import` subcommands (`cmd/corvint/flows.go:40-41@97eb5689`), routes `record` through the
+  `import` subcommands (`cmd/corvint/flows.go:43-44@97eb5689`), routes `record` through the
   root-confined exclusive writer (`internal/appflows/report.go:324@18a159fa`,
   `internal/appflows/input.go:161-174@06fa25b5`), and checks Lstat before open
   (`internal/appflows/input.go:135-142@8ab13087`).
@@ -1361,8 +1361,8 @@ auto-accept (2026-10-11).
 
 Failure modes: a stale inventory naming renamed declarations reports them unresolved rather than
 guessing the rename; overlapping members across different flows are allowed and give each flow its
-own identities for the shared declaration; flow-diagram call lines name lines without a path, so a
-multi-file flow's diagram is read with the member paragraphs. Rollback: revert this section,
+own identities for the shared declaration; a multi-file flow's diagram names each call's path
+(AFU-V1-811). Rollback: revert this section,
 `flowinventory.go`, `flowbuild.go` and the `--flows` flag; the declaration-per-flow path is unchanged
 and manifests without an inventory remain valid.
 
@@ -1706,3 +1706,50 @@ Playwright counts it green.
 
 Rollback: revert this section, the `ParsePlaywrightJSON` expected-status check and the shared
 fixture test. `ParsePlaywrightJSON` then reports a passing `test.fail()` test as `passed` again.
+
+## Frontier exclusions in the e2e-safe selection (V1-2907)
+
+Human-owned intent: when the affected plan leaves a plugin's frontier out of `unknown` because the
+change reaches only terminal units of it (`frontierExcluded`, AFP-V0-560), the e2e-safe selection
+does not silently treat that frontier as resolved: it states the exclusion it relied on. Accepted
+under the owner's standing auto-accept (2026-10-11).
+
+- **AFU-V1-810**: `e2e-safe-selection/1` MUST carry `frontier_excluded`, one entry per plan
+  `frontierExcluded` entry with the plan's `language` and `units` (the `ACX-V0-856` entry shape,
+  which carries no `reason`), and with `frontier`
+  narrowed to the excluded frontier reasons that would have widened the selection to every changed
+  path had the plan listed them as `language-frontier` unknowns (the same test `unmapped` and
+  `unexplained` apply). An exclusion none of whose frontier reasons would have done so is left out,
+  and the member is omitted when no exclusion is left. The member only states the plan's
+  exclusion; it does not change the selection state, the selected tests or the fallback codes, so
+  a plan without `frontierExcluded` yields the same document as before.
+
+Acceptance: `TestAFUV1810FrontierExclusionNamed` selects with a plan whose `frontierExcluded` holds a
+TypeScript exclusion with one bounding reason (`typescript:dynamic-import`) and one e2e-runtime
+reason that the selection already tolerates, and checks that `frontier_excluded` names the
+TypeScript exclusion with only the bounding reason, and that a plan without the exclusion omits the
+member.
+
+Non-goals: re-deciding the plan's exclusion; changing `internal/liveverify/affected`.
+
+Rollback: remove the member and its field; the selection decision is unchanged.
+
+## Multi-file flow-diagram call lines (V1-2338)
+
+Human-owned intent: a flow whose members span several files has a diagram whose call lines can be
+traced to source without reading the member paragraphs. Accepted under the owner's standing
+auto-accept (2026-10-11).
+
+- **AFU-V1-811**: When a flow's static calls are anchored in more than one path, each flow-diagram
+  call line MUST name the call's path and line (`Source contains call NAME in PATH at line N`),
+  with PATH reduced to `[A-Za-z0-9_./-]` (any other byte becomes `_`) so it stays inside the
+  Mermaid note. A flow whose calls are all in one path renders exactly as before, so its pages and
+  `check` freshness are byte-identical.
+
+Acceptance: `TestAFUV1811MultiFileDiagramCallsNamePath` generates the inventory fixture, whose
+`checkout` flow spans `app/a.rb` and `app/b.js`, and checks that every call line of its diagram
+names its path and line, and that a single-file flow's diagram has no path in its call lines.
+
+Non-goals: ordering calls or joining them across files; a path in single-file diagrams.
+
+Rollback: revert the render change; manifests and bindings are unchanged.

@@ -450,6 +450,9 @@ func Decode(data []byte) (*Envelope, error) {
 // returned value is re-encoded canonically into the envelope, which Decode
 // then checks strictly, so the wire rule and digests are unchanged.
 func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
+	if op == OpProgressSet && v.Kind == wire.KindObject && v.Obj != nil {
+		v = fillNullProgressKeys(v)
+	}
 	// Two passes: a set of objects that themselves hold a set (the
 	// executionPrerequisites stages, CAL-V0-099) is sorted before its inner
 	// sets are, so the second pass re-sorts the outer set by the final
@@ -460,6 +463,23 @@ func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
 		}
 	}
 	return v, nil
+}
+
+// fillNullProgressKeys returns a copy of a PROGRESS_SET payload with every
+// absent nullable key set to null, so the omitted and the spelled-null form
+// are one canonical request; an absent phase stays absent and refuses
+// (TLF-V0-820).
+func fillNullProgressKeys(v wire.Value) wire.Value {
+	out := wire.NewObject()
+	for _, k := range v.Obj.Keys {
+		out.Set(k, v.Obj.Vals[k])
+	}
+	for _, k := range ticket.ProgressMarkKeys {
+		if _, ok := v.Obj.Vals[k]; !ok && k != "phase" {
+			out.Set(k, wire.Null())
+		}
+	}
+	return wire.ObjectValue(out)
 }
 
 // PayloadEffects is the effects a valid CREATE or SET_EFFECTS payload

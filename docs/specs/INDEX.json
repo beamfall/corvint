@@ -4250,6 +4250,42 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/affected-cli-consistency-v0.md",
+    "title": "Affected and CLI Consistency V0",
+    "reqPrefix": "ACX-V0",
+    "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)",
+    "delivery": "experimental",
+    "claim": "Affected source walks, worktree path plans, test-file readers, revspec bases and the CLI flag, error and Makefile surface follow one contract.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-delivery-lifecycle-v0.md",
+    "title": "Corvint Tasks delivery lifecycle V0",
+    "reqPrefix": "TLC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Show, search, roadmap and release readiness report one derived delivery lifecycle per ticket, with evidence from status, holds, attempts, progress and Git.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/cem-2.0-intent.md",
+    "title": "CEM 2.0 intent",
+    "reqPrefix": "CEM2-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "CEM 2.0 is the V1-2609 counterfactual-receipt plan; cheaper closeout and a kill-gated value replay come first, a compact 1.0 codec is optional.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/local-model-gateway-v0.md",
     "title": "Local Model Gateway V0",
     "reqPrefix": "LMG-V0",
