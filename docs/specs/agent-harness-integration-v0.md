@@ -1128,13 +1128,18 @@ separate exact extension tuple remains governed by AHI-024.
   that no native frame was captured (and whether the witness plugin logged `loaded`), or the
   captured frame's width and height, the expected width when it differs, each quoted expected
   string the frame lacks, each forbidden string it still shows, the last `error` the witness plugin
-  logged (for example a failed fixture session create), and the saved `failed-frame.txt` path.
+  logged (for example a failed fixture session create), and the saved `failed-frame.txt` path,
+  or, when that save fails, `frame not saved to PATH: ERROR` instead. The witness log read MUST be
+  bounded by the package evidence limit and MUST admit only an in-run regular file: a symlink, a
+  FIFO or another non-regular file reads as no log, without following it or blocking.
   Why the sidebar witness cannot pass here: no lane host has OpenCode 2.1.3 or 2.2.0 installed, so
   the cause of the 2026-10-28 `sidebar` failure and OpenTUI 0.7 rendering of the TUI plugin stay
   `NOT_OBSERVED` until a live campaign on a supported host reports the named cause. Non-goals: any
   change to the witnessed strings, the inspector's steps or the adapter's sidebar. Failure mode: a
   cause that names the wrong string would misdirect the fix, so the cause lists the frame's own
-  checks verbatim. Acceptance evidence: `TestAHI620InspectorWitnessNamesPreciseCause`
+  checks verbatim. Acceptance evidence: `TestAHI620InspectorWitnessNamesPreciseCause`,
+  `TestAHI620WitnessLogReadIsBounded`, `TestAHI620WitnessLogRefusesSymlink`,
+  `TestAHI620WitnessLogRefusesFIFO` and `TestAHI620WitnessCauseReportsSaveFailure`
   (`internal/opencodequalification`). Rollback: return the bare prefix.
 - `AHI-248`: (experimental under the standing lane auto-accept (2026-10-11); V1-2972) A well-formed
   OpenCode user-prompt envelope that holds an exact copy of the task MUST be withheld as the
