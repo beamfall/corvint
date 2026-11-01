@@ -317,6 +317,10 @@ func (l *ledger) goTest(goTest []string) int {
 		fmt.Fprintf(l.stdout, "%sPARTITION unavailable: %s; every package runs uncached\n", prefixOut, reason)
 		return l.runStep(unresolved, patterns, append(append(append([]string{}, goTest...), "-count=1"), patterns...))
 	}
+	if l.scope != nil && len(resolved)+len(unresolvedPkgs) == 0 {
+		fmt.Fprintf(l.stderr, "%sSCOPE packages %s matches no packages to test\n", prefixOut, strings.Join(patterns, " "))
+		return 1
+	}
 	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages under per-package keys, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
 	code := 0
 	if len(resolved) > 0 {

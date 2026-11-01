@@ -599,6 +599,9 @@ func TestGoTestScopedPackages(t *testing.T) {
 			t.Fatalf("%q: code %d, %q", bad, code, out)
 		}
 	}
+	if code, out := ledgerRun(t, append([]string{"go-test", "--packages", "./docs/..."}, command...)...); code != 1 || !strings.Contains(out, "gate-ledger: SCOPE packages ./docs/... matches no packages to test") {
+		t.Fatalf("a scope matching no package: code %d, %q", code, out)
+	}
 	if _, err := os.Stat(log); !os.IsNotExist(err) {
 		t.Fatalf("a refused scope ran the command: %v", err)
 	}
