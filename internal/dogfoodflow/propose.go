@@ -189,6 +189,11 @@ func (p *proposal) run() int {
 // drafted row's hunk edits, so a reviewer need not rebuild the mapping from
 // git diff; the rows themselves keep the four-field plan grammar (DCW-V0-382).
 func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
+	if len(rows) > 0 {
+		// DCW-V0-730: stdout stays the four-field plan, which admits no
+		// header row, so the column names are printed here.
+		p.say("  %s\n", planColumnsNote)
+	}
 	if len(p.proposals) > 0 {
 		p.say("  proposals=%d rows are drafted proposals, each marked drafted proposal below with why it was chosen; review each before binding (DCW-V0-962, DCW-V0-967)\n", len(p.proposals))
 	}
@@ -212,6 +217,9 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 		_, _ = fmt.Fprintln(p.stdout, row)
 	}
 }
+
+// planColumnsNote names the plan's columns on stderr (DCW-V0-730).
+const planColumnsNote = "columns: HUNK<TAB>CITED_PATH<TAB>START:END<TAB>RELATION; CITED_PATH is the BASE file cited as evidence, which may be any file, not the path the hunk edits (each hunk N edits line names that); the plan file takes no header row (DCW-V0-730)"
 
 // canonicalPatch reads and parses the canonical BASE..HEAD patch the map is
 // derived from, or reports it unreadable within its bound.

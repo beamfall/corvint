@@ -112,7 +112,10 @@ pins this agreement (group V1-3258).
    that hunk's path or defines a requirement ID it adds, an untouched file's line first, or leaving
    it `unknown`; it never anchors a hunk on its own file or on the change's own text
    (`DCW-V0-150`, `DCW-V0-393`, `DCW-V0-966`). A hunk naming a requirement this change adds cites
-   the BASE requirement the new entry refines, as a marked proposal (`DCW-V0-967`). It is not a plan until you have checked that every cited line is the evidence
+   the BASE requirement the new entry refines, as a marked proposal (`DCW-V0-967`). The plan file
+   takes no header row; stderr names its columns, `HUNK<TAB>CITED_PATH<TAB>START:END<TAB>RELATION`,
+   where `CITED_PATH` is the BASE evidence file, which may be any file, and each `hunk N edits` line
+   names the path the hunk edits (`DCW-V0-730`). It is not a plan until you have checked that every cited line is the evidence
    the hunk relies on. Run before any map exists, or with an unreadable or other-base map
    (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
