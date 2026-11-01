@@ -590,6 +590,11 @@ copy_back() {
   local dst
   while IFS= read -r -d '' p; do
     dst=$(build_dest "$top" "$p") || return 96
+    # A file the run rewrote with the same content and mode here is not a change: it is neither
+    # installed nor listed (V1-4063, ASD-V0-824).
+    if [[ -f $dst && ! -L $dst ]] && cmp -s "$d/files/$p" "$dst"; then
+      { [[ -x $d/files/$p ]] && [[ -x $dst ]]; } || { [[ ! -x $d/files/$p ]] && [[ ! -x $dst ]]; } && continue
+    fi
     # A fresh mktemp sibling, never a predictable name an existing file or symlink could occupy.
     if ! { mkdir -p "$(dirname "$dst")" && tmp=$(mktemp "$dst.heavy-new.XXXXXX") &&
       /bin/cp -p "$d/files/$p" "$tmp" && /bin/mv -f "$tmp" "$dst"; }; then
@@ -1220,7 +1225,7 @@ print_plan() {
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
 # that matches every test) without HEAVY_WHOLE_REASON (ASD-V0-030, ASD-V0-860). Returns 1 on refusal.
 selection_policy() {
-  local now
+  local now cause='it names no -run, so every test in the package runs'
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   case " $* " in
@@ -1229,6 +1234,7 @@ selection_policy() {
         selection_log "$now selected pwd=$PWD cmd=$*"
         return 0
       fi
+      cause='its -run pattern matches every test name, such as ., .*, Test or an empty pattern (ASD-V0-860)'
       ;;
   esac
   local small digest
@@ -1241,7 +1247,7 @@ selection_policy() {
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; an internal/ or cmd/ package always needs a selection or a reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
@@ -1454,6 +1460,19 @@ darwin_local() {
   selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) darwin-local n=$n first=$first pwd=$PWD cmd=$*"
 }
 
+# foreign_notice COMMAND...: on a host that is not Darwin, before a local run, name the darwin-only
+# files under the command's packages, which this run neither builds nor runs, so its pass is never
+# read as darwin evidence (V1-4063, ASD-V0-823).
+foreign_notice() {
+  local files os
+  os=$(uname -s 2> /dev/null) || os=unknown
+  [[ $os != Darwin ]] || return 0
+  files=$(darwin_only "$@")
+  [[ -n $files ]] || return 0
+  printf 'heavy.sh: this %s host neither builds nor runs %s darwin-only file(s), first %s; this run is no darwin evidence (run it on a darwin host)\n' \
+    "$os" "$(grep -c . <<< "$files")" "$(head -n 1 <<< "$files")" >&2
+}
+
 # script_hash FILE: FILE's SHA-256 in hex, or unknown.
 script_hash() {
   local h
@@ -1608,7 +1627,7 @@ main() {
   [[ ${HEAVY_HELD-} == "$lock_dir"/slot* ]] || load_wait "$cpus"
   pin_go
   bound_parallelism "$par"
-  [[ -n $heavy_admit_only ]] || local_identity "$@"
+  [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default /tmp/corvint-go-build-cache), so a
   # plain go test and a make target do not fill two caches.
