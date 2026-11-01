@@ -189,13 +189,14 @@ none of them writes test temporaries to tmpfs. The hosted `ubuntu-24.04` runner'
 filesystem has not been observed; a test that depends on filesystem type (rename atomicity,
 `O_DIRECT`, inode reuse, free space) must not assume either.
 
-Observation procedure (V1-2563 AC1). On any host, `stat -f -c %T "${TMPDIR:-/tmp}"` prints the
+Observation procedure (V1-2563 AC1). On a Linux host, `stat -f -c %T "${TMPDIR:-/tmp}"` prints the
 temporary filesystem type (`tmpfs`, `ext2/ext3` for ext4) and `findmnt -T "${TMPDIR:-/tmp}"` the
-mount; a hosted runner needs one step that prints both for `$RUNNER_TEMP`, and that is a
+mount; on macOS use `df "${TMPDIR:-/tmp}"` and `mount` (`stat -f` there means something else, and
+`findmnt` is absent); a hosted runner needs one step that prints both for `$RUNNER_TEMP`, and that is a
 `.github/` change for the orchestrator's own PR. NOT OBSERVED for the hosted runner as of this
 entry; the box side stays the declared difference above. The box divergence is declared where lanes
 and CI owners read it (AC2, second branch), so a box-only failure on a filesystem-dependent test is
-first checked against `stat -f -c %T` before it is filed as a product bug.
+first checked against the Linux command above before it is filed as a product bug.
 
 ### CI guard and build offload (ASD-V0-040, ASD-V0-041)
 
@@ -774,7 +775,11 @@ One lane runs this flow, in order; each step names the command and the section t
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
-   INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). Seal only when the charter says so.
+   INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
+   After the last commit, run `script/heavy.sh make dogfood-finish LANE=1 BASE=.. CITATIONS=..
+   INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
+   finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
+   passing `dogfood-inputs-check` and reports the input file paths.
 6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
 
 Common refusals and their recovery:
@@ -782,9 +787,9 @@ Common refusals and their recovery:
 | Refusal | Recovery |
 |---|---|
 | `heavy.sh: REFUSED local-reason-missing` | run on the offload host, or set `HEAVY_LOCAL_REASON='darwin-only: <why>'` for a command that needs this OS |
-| `heavy.sh: REFUSED whole-reason-missing` | add `-run`/`-short` selection from `corvint affected`, or set `HEAVY_WHOLE_REASON` with the evidence |
+| `heavy.sh: REFUSED whole-reason-missing` | use a selective `-run '<selected>'` from `corvint test --base SHA --dry-run`, or set `HEAVY_WHOLE_REASON` with the evidence (Corvint selected the package whole, or UNKNOWN/FALLBACK); `-short` does not clear it |
 | `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
-| `reused-worktree-state` | `corvint migrate-traces --apply`, then rerun |
+| `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
 | `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
 | `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
@@ -825,7 +830,7 @@ the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the la
 Closeout channel. A remote lane writes its final report and the full numbered Friction list
 (section 11 format) to `~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md`
 before wrap_up, and names both paths in its last message. The orchestrator fetches them with
-`ssh HOST cat ~/lane-reports/<lane>/final.md` (or `scp`) in the round the lane ends and treats the
+`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted so the remote shell expands `$HOME`; or `scp`) in the round the lane ends and treats the
 files as the section 11 message. NOT DELIVERED: AC2 of V1-3620, a delivered test message from a live
 SSH lane; it needs a lane host and an orchestrator session, and this lane changes no host. The
 orchestrator verifies the route with the first remote lane of the next batch.
