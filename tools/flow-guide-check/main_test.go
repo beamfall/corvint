@@ -29,7 +29,7 @@ func TestASDV0997RepositoryRefusalsAreHintedOrListed(t *testing.T) {
 	}
 }
 
-const tree = `{"schema":"corvint-command-tree/0","binary":"%s","globalFlags":["--root"],"nodes":[{"path":["dogfood","propose-citations"],"command":"corvint dogfood propose-citations","flags":["--refresh"]}]}`
+const tree = `{"schema":"corvint-command-tree/0","binary":"%s","globalFlags":["--root"],"nodes":[{"path":["dogfood"],"command":"corvint dogfood","flags":["--refresh"]},{"path":["dogfood","propose-citations"],"command":"corvint dogfood propose-citations","flags":["--refresh"]}]}`
 
 const guide = "# Lane orchestration\n\n## 13. Lane flow guide\n\nRun `corvint dogfood propose-citations --refresh PLAN BASE > draft.tsv`,\n`make doc-gates BASE=..`, `script/heavy.sh make doc-gates` and `git status`; bare `corvint`, `make` and `script/*.sh` are prose.\n\n| Refusal | Recovery |\n|---|---|\n| `heavy.sh: REFUSED whole-reason-missing` | set the reason |\n\n## 14. Next\n\n`corvint missing-verb` outside the section is not checked.\n"
 
@@ -81,6 +81,8 @@ func TestASDV0996DriftFails(t *testing.T) {
 	for _, test := range []struct{ file, old, replacement, want string }{
 		{guidePath, "propose-citations --refresh", "propose-citations --rerfesh", "corvint dogfood propose-citations has no flag --rerfesh"},
 		{guidePath, "corvint dogfood propose-citations", "corvint dogfood propose", "no corvint subcommand dogfood propose"},
+		// The dogfood dispatcher owns --refresh, but propose is no child of it (ASD-V0-996).
+		{guidePath, "corvint dogfood propose-citations --refresh", "corvint dogfood propose --refresh", "no corvint subcommand dogfood propose"},
 		{guidePath, "`make doc-gates BASE=..`", "`make doc-gate BASE=..`", "no Makefile rule doc-gate"},
 		{guidePath, "script/heavy.sh make doc-gates", "script/heavy.sh make docgates", "no Makefile rule docgates"},
 		{guidePath, "`script/heavy.sh make", "`script/light.sh make", "no such script script/light.sh"},

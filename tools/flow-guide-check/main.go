@@ -283,6 +283,16 @@ func checkCommand(tree clitree.Tree, binary string, arguments []string) string {
 			}
 		}
 	}
+	// A literal word after the matched node that is no child of it is an unknown subcommand
+	// when the node dispatches children: a dispatcher's flags do not make it a valid one.
+	if node != nil && len(node.Path) < len(words) {
+		next := append(slices.Clone(node.Path), words[len(node.Path)])
+		for index := range tree.Nodes {
+			if path := tree.Nodes[index].Path; len(path) > len(node.Path) && slices.Equal(path[:len(node.Path)], node.Path) {
+				return "no " + binary + " subcommand " + strings.Join(next, " ")
+			}
+		}
+	}
 	if node == nil {
 		if len(words) == 0 {
 			return "names no " + binary + " subcommand"
