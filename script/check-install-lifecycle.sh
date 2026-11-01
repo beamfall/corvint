@@ -4,7 +4,7 @@
 # private temporary directory, it performs: verified install into store A, first index and read
 # on a fixture repository, upgrade into store B, rollback to A, uninstall with repository,
 # `.corvint` and snapshot-store retention, backup and restore of both, and corrupted-snapshot
-# recovery. The snapshot store is the directory of the path the first `corvint index` receipt
+# recovery, plus an MCP handshake on a non-repository root (MCPV0-950). The snapshot store is the directory of the path the first `corvint index` receipt
 # reports: `.git/corvint/index` for a build with DIRTY-CACHE-013, `.corvint/index` for 0.7.0.
 # Local evidence only: it never publishes, signs, tags, or writes into the repository it is run
 # from.
@@ -191,6 +191,25 @@ else
   cmp -s "$work/packet1.json" "$work/packet-b.json" || fail upgrade-b "packet bytes changed across the upgrade"
   say "step upgrade-b: ok version=$version_b same-bytes"
 fi
+
+# 3b. MCP handshake on a non-repository root (MCPV0-950), run by B, which is this build in both
+#     release runs: `corvint mcp` answers initialize and tools/list, refuses a repository call as
+#     invalid-root, and names the reason on stderr instead of exiting before the handshake.
+mkdir -p "$work/not-a-repository"
+printf '%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"lifecycle","version":"1"}}}' \
+  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"corvint.status","arguments":{}}}' |
+  "$store/b/corvint" mcp --root "$work/not-a-repository" --protocol-version 2025-11-25 > "$work/mcp.jsonl" 2> "$work/mcp.err" ||
+  fail mcp-unavailable-root "corvint mcp exited before serving a non-repository root"
+grep '"id":1,' "$work/mcp.jsonl" | grep -q '"serverInfo"' || fail mcp-unavailable-root "initialize was not answered"
+grep '"id":2,' "$work/mcp.jsonl" | grep -q '"tools":\[{' || fail mcp-unavailable-root "tools/list listed no tools"
+grep '"id":3,' "$work/mcp.jsonl" | grep '"isError":true' | grep -q '"code":"invalid-root"' ||
+  fail mcp-unavailable-root "a repository call was not refused invalid-root"
+grep -q 'repository unavailable: --root is not inside a Git worktree' "$work/mcp.err" ||
+  fail mcp-unavailable-root "stderr does not name the root failure reason"
+say "step mcp-unavailable-root: ok"
 
 # 4. Rollback: A still runs and still produces the same packet.
 test -x "$store/a/corvint" || fail rollback-a "store A was disturbed by the upgrade"

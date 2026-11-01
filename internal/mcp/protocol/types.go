@@ -90,6 +90,30 @@ func InvalidParams(message string) *RPCError {
 	return NewError(CodeInvalidParams, message)
 }
 
+// InvalidParamsData is the closed data member of a -32602 error (MCPV0-952):
+// a reason code, the offending field as a dotted path, and when known the
+// values or the rule it must meet.
+type InvalidParamsData struct {
+	Reason  string `json:"reason"`
+	Field   string `json:"field"`
+	Allowed []any  `json:"allowed,omitempty"`
+	Rule    string `json:"rule,omitempty"`
+}
+
+// MaxInvalidParamsField bounds the request-supplied field path an
+// invalid-params error echoes (MCPV0-952); a longer one drops the data, so an
+// oversized key can never grow the error past the output frame.
+const MaxInvalidParamsField = 1024
+
+// InvalidParamsAt is InvalidParams with its reason and offending field.
+func InvalidParamsAt(message, reason, field string) *RPCError {
+	failure := InvalidParams(message)
+	if len(field) <= MaxInvalidParamsField {
+		failure.Data = InvalidParamsData{Reason: reason, Field: field}
+	}
+	return failure
+}
+
 func MethodNotFound() *RPCError {
 	return NewError(CodeMethodNotFound, "Method not found")
 }

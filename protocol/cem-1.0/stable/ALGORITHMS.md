@@ -152,7 +152,10 @@ and 0.2 specifications remain their historical identities; the text below is the
    canonical object `{"blobOid","path","span":{"end","start"},"spanSha256"}`.
 5. Hunk identity. `id` is `hunk:sha256:` followed by the digest of the canonical
    object `{"contentSha256","newPath","newRange":{"count","start"},"oldPath",
-   "oldRange":{"count","start"}}`.
+   "oldRange":{"count","start"}}`. The map's `hunks` array lists the patch's
+   hunks in patch order: position `i` holds the `i`-th `@@` hunk of the
+   canonical patch. A map naming the right hunks in another order fails
+   verification with `invalid-field` (CEM-V1-750, revision r3).
 6. Canonical patch profile. `patchSha256` is the SHA-256 of the canonical patch
    bytes produced by the CEM-V1-023 diff recipe: at most 8 MiB and at most
    262,144 LF-terminated records. The parser is a `diff --git` state machine.

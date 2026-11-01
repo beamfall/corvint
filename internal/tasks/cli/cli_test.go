@@ -55,14 +55,7 @@ func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, 
 	return r
 }
 
-func hasCode(res *wire.Result, c string) bool {
-	for _, x := range res.Codes {
-		if x == c {
-			return true
-		}
-	}
-	return false
-}
+func hasCode(res *wire.Result, c string) bool { return wire.HasCode(res, c) }
 
 func field(v wire.Value, key string) wire.Value {
 	x, _ := v.Obj.Get(key)

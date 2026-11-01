@@ -125,6 +125,10 @@ type finding struct {
 	// built marks a dependency directory a go build, run, vet, test or install
 	// of repository source by the test loads (AFP-V0-847).
 	built bool
+	// own marks a built dependency that a go command on the package's own
+	// directory loads: its import closure, which a confined run must read
+	// too, but which a re-executed test binary never reads (V1-3658).
+	own bool
 	// sandbox is the reason a declared package's tests launch a nested
 	// sandbox (AFP-V0-615); file and path are then empty.
 	sandbox string
@@ -132,6 +136,9 @@ type finding struct {
 	// root-relative, when path is reached only from the repository root
 	// (V1-3234); it is empty when the package directory resolves it.
 	rootedBy string
+	// stat names, as file:line, a test's existence check of a repository
+	// path it read from data (AFP-V0-981); path is then empty.
+	stat string
 }
 
 // rootLocator names the first test-file literal of a package that locates the
@@ -315,6 +322,58 @@ func joinRuns(name string, body []byte) ([]string, error) {
 		return true
 	})
 	return runs, nil
+}
+
+// statReaders returns, as "file:line", every os.Stat, os.Lstat or os.Readlink
+// call of a test file on a filepath.Join or path.Join whose first argument is a
+// parent-only string literal and some later argument is no string literal
+// (AFP-V0-981): the test tests the existence of a repository path it read from
+// data, which neither the read scope nor Landlock bounds.
+func statReaders(name string, body []byte) ([]string, error) {
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, name, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	var sites []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) != 1 {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if pkg, isIdent := selectorPackage(selector, ok); !isIdent || pkg != "os" || selector.Sel.Name != "Stat" && selector.Sel.Name != "Lstat" && selector.Sel.Name != "Readlink" {
+			return true
+		}
+		join, ok := call.Args[0].(*ast.CallExpr)
+		if !ok || len(join.Args) < 2 {
+			return true
+		}
+		joinSelector, ok := join.Fun.(*ast.SelectorExpr)
+		if pkg, isIdent := selectorPackage(joinSelector, ok); !isIdent || pkg != "filepath" && pkg != "path" || joinSelector.Sel.Name != "Join" {
+			return true
+		}
+		if first, ok := stringLiteral(join.Args[0]); !ok || !parentOnly(first) {
+			return true
+		}
+		if slices.ContainsFunc(join.Args[1:], func(argument ast.Expr) bool { _, literal := stringLiteral(argument); return !literal }) {
+			sites = append(sites, fmt.Sprintf("%s:%d", name, fileSet.Position(call.Pos()).Line))
+		}
+		return true
+	})
+	return sites, nil
+}
+
+// selectorPackage returns the identifier a selector expression selects from.
+func selectorPackage(selector *ast.SelectorExpr, ok bool) (string, bool) {
+	if !ok {
+		return "", false
+	}
+	ident, isIdent := selector.X.(*ast.Ident)
+	if !isIdent {
+		return "", false
+	}
+	return ident.Name, true
 }
 
 // goListTargets returns the package patterns of every `go list` command a test
@@ -621,6 +680,29 @@ func dependencyCovered(directory, dependency string, entries []string) bool {
 	return false
 }
 
+// buildGroup is one set of go command targets a test file spells; test marks
+// verbs that also load test-file imports, and own marks targets naming the
+// package's own directory.
+type buildGroup struct {
+	targets   []string
+	test, own bool
+}
+
+// splitOwnTargets separates the "." targets, the package's own directory,
+// from the others, so their findings can name the own-package remedies.
+func splitOwnTargets(group buildGroup) []buildGroup {
+	own, other := group, group
+	own.targets, other.targets, own.own = nil, nil, true
+	for _, target := range group.targets {
+		if target == "." || target == "./" {
+			own.targets = append(own.targets, target)
+		} else {
+			other.targets = append(other.targets, target)
+		}
+	}
+	return []buildGroup{other, own}
+}
+
 // recordedAbove returns the recorded path of a package that is dependency or a
 // directory above it (AFP-V0-847).
 func recordedAbove(recorded map[string]string, dependency string) (string, bool) {
@@ -659,6 +741,7 @@ func check(root string) ([]finding, []string, error) {
 	}
 	used := map[string]bool{}
 	var findings []finding
+	existence := graph.ExistenceReaderPackages()
 	for _, id := range graph.UnitIDs() {
 		unit, _ := graph.Unit(id)
 		// A read-scoped shell test (TSP-V0-950) is declared elsewhere; this
@@ -685,6 +768,15 @@ func check(root string) ([]finding, []string, error) {
 			if runs[index], err = joinRuns(file, body); err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
+			if !slices.Contains(existence, directory) {
+				sites, err := statReaders(file, body)
+				if err != nil {
+					return nil, nil, fmt.Errorf("%s: %w", file, err)
+				}
+				for _, site := range sites {
+					findings = append(findings, finding{pkg: directory, file: file, stat: site})
+				}
+			}
 			targets, err := goListTargets(file, body)
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
@@ -704,10 +796,11 @@ func check(root string) ([]finding, []string, error) {
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
-			for _, group := range []struct {
-				targets []string
-				test    bool
-			}{{builds, false}, {tests, true}} {
+			var groups []buildGroup
+			for _, group := range []buildGroup{{targets: builds}, {targets: tests, test: true}} {
+				groups = append(groups, splitOwnTargets(group)...)
+			}
+			for _, group := range groups {
 				if len(group.targets) == 0 {
 					continue
 				}
@@ -725,7 +818,7 @@ func check(root string) ([]finding, []string, error) {
 						used[directory+" "+target] = true
 						continue
 					}
-					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true})
+					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true, own: group.own})
 				}
 			}
 		}
@@ -864,9 +957,21 @@ func run(root string, stdout, stderr io.Writer) int {
 				found.pkg, affected.ReadScopesPath, sandboxesPath, found.sandbox, unboundedPath)
 			continue
 		}
+		if found.stat != "" {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s stats a repository path read from data, which neither its entries in %s nor the confined shard bound; declare the package and the manifest naming the paths in %s (AFP-V0-980, AFP-V0-981)\n",
+				found.pkg, found.stat, affected.ReadScopesPath, affected.ExistenceReadersPath)
+			continue
+		}
 		if found.listed {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s runs go list -deps, which loads %s, outside its entries in %s; declare the directory there (AFP-V0-023)\n",
 				found.pkg, found.file, found.path, affected.ReadScopesPath)
+			continue
+		}
+		if found.built && found.own {
+			// V1-3658: a build of the package itself reads its whole import
+			// closure under confinement; name the two cheaper remedies.
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s builds its own package with go, which reads its import closure, including %s, outside its entries in %s; declare the directory there (AFP-V0-023), or run the already-built test binary instead of rebuilding the package (re-execute os.Args[0] with a marker environment variable, which reads no source), or, when the confined shard never runs that test, record %s for the package in %s with that reason (AFP-V0-847)\n",
+				found.pkg, found.file, found.path, affected.ReadScopesPath, found.path, literalsPath)
 			continue
 		}
 		if found.built {

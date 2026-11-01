@@ -12,9 +12,10 @@ when a listed refusal code no longer appears in the source.
 
 The binary carries two more views of the same surface. `corvint help --json` prints a
 machine-readable command catalog (`corvint-capability-catalog/0`) derived from the command
-registry: fields the registry cannot answer are `null` and named under `unknowns`. `corvint help
-guide` prints a task-indexed guide with runnable examples and the non-capabilities each tracked
-by an issue (CAP-V0-015 to CAP-V0-021).
+registry: fields the registry cannot answer are `null` and named under `unknowns`; `corvint help
+--json COMMAND` prints one command's entry, under 5 KB (`corvint-capability-command/0`,
+CAP-V0-950). `corvint help guide` prints a task-indexed guide with runnable examples and the
+non-capabilities each tracked by an issue (CAP-V0-015 to CAP-V0-021).
 
 For a dated, counted snapshot of this page by maturity, with the first promotion batch and its
 unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promotion-inventory.md)
@@ -24,13 +25,18 @@ unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promot
 
 Every subcommand at every depth, with its flags, required inputs and an example, is in one
 `corvint-command-tree/0` document per binary, derived from the help that binary prints
-(CAP-V0-040 to CAP-V0-048, CAP-V0-930, CAP-V0-972): `corvint help --tree`, `corvint-tasks help
---json`, `corvint-test help --json`, `corvint-cem-candidate help --json`, `corvint-cem-experiments
-help --json`, and `help --json` of each companion with subcommands (`corvint-corpus-republish`,
+(CAP-V0-040 to CAP-V0-048, CAP-V0-930, CAP-V0-950, CAP-V0-972): `corvint help --tree`,
+`corvint-tasks help --json` and `corvint-test help --json` (both also answer `help --tree`,
+CAP-V0-950), `corvint-cem-candidate help --json`, `corvint-cem-experiments help --json`, and
+`help --json` of each companion with subcommands (`corvint-corpus-republish`,
 `corvint-dashboard-snapshot`, `corvint-go-test-provider`, `corvint-intake`,
 `corvint-js-test-provider`, `corvint-postmerge-connect`, `corvint-postmerge-metrics`,
 `corvint-postmerge-workflow`, `corvint-pulse` and `corvint-ruby-test-provider`), committed as `internal/capcatalog/trees/BINARY.json` and linked from the
-`commandTrees` member of `corvint help --json`. Any node answers `--help` and `-h` with its own help
+`commandTrees` member of `corvint help --json`. The companion binaries without a tree (`corvint-console`,
+`corvint-update`, the MCP servers, `corvint-web-flows`) each answer
+`--help`, `help`, `help --json` (`corvint-companion-help/0`), `--version` and `--version --json`
+(`corvint-companion-version/0`) on stdout with exit 0 and without touching a repository (CAP-V0-700);
+`corvint-dashboard-snapshot` answers help from its tree and takes only the `--version` forms. Any node answers `--help` and `-h` with its own help
 and exits 0. `tools/capabilities-check` fails when a binary dispatches a subcommand or option its
 tree lacks, when a node has no usage, example or help, and when a new `cmd/` binary has neither a
 tree nor a row in the shrink-only `internal/capcatalog/CLI-RATCHET.tsv`. The repository's root
@@ -241,7 +247,8 @@ metadata) unless started with `--protocol-version 2025-11-25` for an `initialize
 `corvint.status`.
 `--tool-profile task-review` and `task-review-lsp` add `corvint.context` and `corvint.cem.report`. The separate `--tool-profile import-graph` adds `corvint.graph.imports`.
 `--tool-profile flows` adds the five `corvint.flows.*` tools. `corvint-docs-mcp`,
-`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `corvint-corpus-mcp` lists only the
+`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `--tool-profile tasks` adds
+the five read-only `corvint.tasks.*` tools, which run the installed `corvint-tasks` read verbs (`TMR-V0`). `corvint-corpus-mcp` lists only the
 tools that the artifact's capabilities support; `corvint.map_plan` and `corvint.map_knowledge` also
 need `--map`, `corvint.consolidate_tests` needs `--consolidation`, and `corvint.docs_search_cases`
 needs `--legacy-cases`.
@@ -253,7 +260,7 @@ needs `--legacy-cases`.
 | `corvint.graph.imports` | `corvint-mcp --tool-profile import-graph` | Pinned whole-tree import JSONL pages; required full `revision`, optional `kinds` and `offset`; concatenate `jsonl` following `nextOffset` until `done` | experimental | Named graph revision/kind refusals; invalid arguments/offset; per-record `OUTPUT_BUDGET_EXCEEDED`; no runtime closure | [Non-Go impact](specs/non-go-impact-v0.md) |
 | `corvint.impact` | `corvint-mcp` (all profiles) | Same receipt as `corvint impact`, path requests for Go, Ruby, JS and TS | experimental | Other suffixes and range requests | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.status` | `corvint-mcp` (all profiles) | Repository status receipt | experimental | Unavailable repository state | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
-| `corvint.help` | `corvint-mcp` (all profiles), `corvint-docs-mcp`, `corvint-corpus-mcp`, `corvint-test-validity-mcp` | Same bytes as `corvint help --json` or `corvint help guide` | experimental | Arguments other than `topic` `catalog` or `guide` | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
+| `corvint.help` | `corvint-mcp` (all profiles), `corvint-docs-mcp`, `corvint-corpus-mcp`, `corvint-test-validity-mcp` | Same bytes as `corvint help guide` (default), `corvint help --json COMMAND` (`command`) or `corvint help --json` (`topic` `catalog`) | experimental | Arguments other than `topic` `guide`, `command` or `catalog` and a catalogued `command` | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.context` | `corvint-mcp` task-review, task-review-lsp | Same packet as `corvint context` | experimental | Same codes as the CLI | [MCPV0](specs/mcp-server-2026-07-28-v0.md) |
 | `corvint.cem.report` | `corvint-mcp` task-review, task-review-lsp | Read a CEM report | experimental | Maps the verifier does not accept | [CEM-V1](specs/cem-stable-v1.md) |
 | `corvint.flows.coverage` | `corvint-mcp` flows | Flow variation coverage | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |
@@ -263,6 +270,11 @@ needs `--legacy-cases`.
 | `corvint.flows.navigate` | `corvint-mcp` flows | Navigation within the flow map | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |
 | `corvint.docs_draft` | `corvint-docs-mcp` | Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; `dry_run` previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019) | experimental | Paths outside the root, unsupported sources, languages the index reads only as text (named) | [MCP guide](MCP-SERVER.md) |
 | `corvint.docs_consume` | `corvint-docs-mcp` | Recheck a draft's exact bytes against source | experimental | Drafts that no longer match | [MCP guide](MCP-SERVER.md) |
+| `corvint.tasks.queue_status` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks queue status` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.roadmap` | `corvint-mcp --tool-profile tasks` | One `offset`/`limit` page of `corvint-tasks roadmap` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.ticket_search` | `corvint-mcp --tool-profile tasks` | One page of `corvint-tasks ticket search` by status, kind, priority, owner, milestone, label or text | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.ticket_show` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks ticket show ID` | experimental | An unknown ticket is `CLI_REFUSED` | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.receipt_audit` | `corvint-mcp --tool-profile tasks` | Same envelope as `corvint-tasks receipt audit` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
 | `corvint.test_validity` | `corvint-test-validity-mcp` | Five-axis projection of retained test evidence | experimental | `UNPROVEN`, `STALE`, `NOT_PRODUCED` axes | [MTV-V0](specs/mcp-test-validity-profile-v0.md) |
 | `corvint.docs_inventory` | `corvint-corpus-mcp` (`/2` artifacts) | Page through the corpus inventory | experimental | Capability absent from the artifact | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_info` | `corvint-corpus-mcp` | Corpus header, revision and capabilities | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |

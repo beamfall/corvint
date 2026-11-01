@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -69,6 +70,28 @@ func readTargetRevision(env Env, arg string) (string, error) {
 	return ts[0].revision, ts[0].err
 }
 
+// landedRevision keeps a retried hold on the revision its original envelope
+// named (TCD-V0-967): when requestID already completed, every ticket
+// mutation sets its resulting revision to the expected one plus one, so the
+// original expected revision is that minus one. A request not yet landed, or
+// one whose lookup fails, keeps current; the writer's mutation digest still
+// refuses a retry whose other inputs changed (REQUEST_ID_CONFLICT).
+func landedRevision(env Env, requestID, current string) string {
+	expected := current
+	_, _ = withInventoryStore(env, func(rc *readCtx) error {
+		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+		entry, found, err := idx.Lookup(requestID)
+		if err != nil || !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
+			return nil
+		}
+		if rev := entry.Outcome.ResultingRevision.Int(); rev > 1 {
+			expected = string(wire.CountOf(rev - 1))
+		}
+		return nil
+	})
+	return expected
+}
+
 // targetRequestID derives one target's request id from the caller's.
 func targetRequestID(base, ticketID, local string) string {
 	id := base + "-" + local
@@ -114,7 +137,7 @@ func multiTargetSubmit(env Env, cmd []string, operation string, actor mutation.B
 			f.target, f.issuedAt = t.id, issued
 			f.requestID = targetRequestID(base.requestID, t.id, t.local)
 			if readRevision {
-				f.expected = t.revision
+				f.expected = landedRevision(env, f.requestID, t.revision)
 			}
 			requestID, expected = f.requestID, f.expected
 			res := submitMutation(env, cmd, operation, actor, f, payload)

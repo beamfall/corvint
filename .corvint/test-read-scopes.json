@@ -339,6 +339,7 @@
       "internal/cem/wire/",
       "internal/groupreap/",
       "internal/jsonend/",
+      "interop/cem01-go/",
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
@@ -362,7 +363,8 @@
     ],
     "internal/lrfrepo": [
       "docs/specs/",
-      "interop/spec-toolchains/"
+      "interop/spec-toolchains/",
+      "script/spec-toolchain-conformance.sh"
     ],
     "internal/lspevidence": [],
     "internal/mcp/bridge": [

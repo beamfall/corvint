@@ -152,6 +152,23 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `UNCERTAIN_EFFECT`, `REQUEST_ID_CONFLICT` → `REQUEST_ID_CONFLICT`, `STORAGE_FAILED` →
   `UNSUPPORTED_FILESYSTEM`. The item's `outcome` field still names the store outcome. The
   derivation happens only in the CLI envelope: receipts and recorded outcome codes are unchanged.
+- `TCL-V0-990`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The
+  duplicate threshold of `TCL-V0-004` MUST also require at least one matched query term in the
+  candidate's title or ID field (a title anchor). A candidate whose matches all come from its
+  body, labels or paths, such as a long ticket that holds the query's vocabulary in unrelated
+  prose or one shared rare term among common words, MUST NOT reach a duplicate verdict, however
+  much of the query's idf mass it covers; `ticket similar` still ranks and lists it. An absolute
+  idf floor is not used, because idf scales with the store's size and a small store has no term
+  above it. The frozen evaluation of `TCL-V0-009` MUST keep its recall, refusal count and
+  precision.
+- `TCL-V0-991`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A
+  single mutation replayed by its recorded `--request-id` MUST report `replayed: true`, an empty
+  `receipt` (it wrote none, which existing callers and tests read as the no-write marker), and an
+  added `originalReceipt` member naming (`<seq as 12 digits>.json`) the receipt that committed
+  the original, so a caller that confirms a write by its receipt can find it on replay, whether
+  the store decides the replay on the complete audit or on the writer checkpoint. A fresh
+  commit's envelope is unchanged and has no `originalReceipt`. The mutation help (`replay`
+  member of `--help --verbose`) MUST document this envelope. `--batch` entries are out of scope.
 
 ## Non-goals
 
@@ -183,6 +200,7 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 
 - `internal/tasks/similar/similar_test.go`: `TestTCLV0002_RankIsDeterministicWithEvidence`,
   `TestTCLV0008_RecurrenceLines`, `TestTCLV0006_DigestRoundTrip`;
+  `internal/tasks/similar/anchor_test.go`: `TestTCLV0990_OneRareTermIsNotDuplicate`;
   `internal/tasks/similar/eval_test.go`: `TestTCLV0009_FrozenDuplicateEval` (recall@3 and @5, known
   misses, precision, latency).
 - `internal/contextindex/lexrank_test.go`: `TestTCLV0003_ScoreMatchesContextCompiler` (the
@@ -190,6 +208,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/similar_test.go`: `TestTCLV0001_SimilarRanksWithEvidence`,
   `TestTCLV0004_CreateGuard`, `TestTCLV0005_DigestAndOfflineMatch`,
   `TestTCLV0007_RecurAppendsOneLine`.
+- `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
+- `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
+  (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).
 - `internal/tasks/cli/snapshot_bundle_test.go`: `TestTCLV0010_QueueSnapshot`,
   `TestTCLV0011_SnapshotReads`, `TestTCLV0012_SnapshotRefusesWrites`.
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls

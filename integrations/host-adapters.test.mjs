@@ -984,7 +984,9 @@ test('AHI-198 Claude Code plugin declares the read-only corvint-mcp server at th
  const root='claude-code/plugins/corvint',servers=read(`${root}/.mcp.json`).mcpServers
  assert.deepEqual(Object.keys(servers),['corvint'])
  // AHI-373: the release core binary serves it as `corvint mcp`; corvint-mcp is not shipped.
- assert.deepEqual(servers.corvint,{command:'corvint',args:['mcp','--root','${CLAUDE_PROJECT_DIR}','--protocol-version','2025-11-25','--tool-profile','test-validity,docs']})
+ // MCPV0-951: env declares the plugin version and expected tools for corvint.status compatibility.
+ assert.deepEqual(servers.corvint,{command:'corvint',args:['mcp','--root','${CLAUDE_PROJECT_DIR}','--protocol-version','2025-11-25','--tool-profile','test-validity,docs'],
+  env:{CORVINT_PLUGIN_VERSION:`claude-code/${read(`${root}/.claude-plugin/plugin.json`).version}`,CORVINT_PLUGIN_TOOLS:'corvint.docs_consume,corvint.docs_draft,corvint.help,corvint.impact,corvint.query,corvint.status,corvint.test_validity'}})
  const compat=read(`${root}/compatibility.json`)
  assert.equal(compat.surfaces.mcp,'FALLBACK')
  assert.equal(compat.mcpServer.command,servers.corvint.command)

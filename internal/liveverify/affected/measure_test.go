@@ -394,6 +394,10 @@ func witnessResolves(graph *affected.Graph, selection affected.Selection) bool {
 		unit, found := graph.Unit(selection.UnitID)
 		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
 		return found && unit.ReadScoped && len(files) != 0 && affected.InReadScope(path.Dir(files[0]), unit.ReadScope, witness.DirtyPath)
+	case affected.WitnessDeclaredExistenceReader:
+		unit, found := graph.Unit(selection.UnitID)
+		files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+		return found && len(files) != 0 && slices.Contains(graph.ExistenceReaderPackages(), path.Dir(files[0]))
 	}
 	if len(witness.Via) == 0 || witness.Via[len(witness.Via)-1] != selection.UnitID || !viaEdges(graph, witness.Via) {
 		return false

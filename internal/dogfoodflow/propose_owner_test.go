@@ -92,8 +92,11 @@ func TestDCWV0886AModifiedSpecGovernsTheChange(t *testing.T) {
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	if got := strings.Count(stderr.String(), "outside the change's governing spec docs/specs/own-v0.md (modified by this change)"); got != 3 {
-		t.Errorf("low-confidence notes naming the amended spec = %d, want 3:\n%s", got, stderr.String())
+	// V1-3640: the note gives the DCW-V0-886 reason, the same as for an
+	// untouched spec, never the pre-amendment "which a draft never cites".
+	if got := strings.Count(stderr.String(), "outside the change's governing spec docs/specs/own-v0.md (modified by this change), no stable line of which names it; review the cite, or keep the row unknown"); got != 3 ||
+		strings.Contains(stderr.String(), "never cites") {
+		t.Errorf("low-confidence notes naming the amended spec = %d, want 3 with the DCW-V0-886 reason:\n%s", got, stderr.String())
 	}
 	if strings.Contains(stderr.String(), "governing spec docs/specs/broad-v0.md") {
 		t.Errorf("the untouched spec was named governing:\n%s", stderr.String())

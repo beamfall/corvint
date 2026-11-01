@@ -281,11 +281,11 @@ func TestGoBuildDependencyOutsideScopeFails_V1_3210(t *testing.T) {
 		code              int
 		want, never       string
 	}{
-		"undeclared":         {`"go.mod","internal/hidden/","internal/procgroup/"`, "", 1, "package tools/trial: tools/trial/runner_test.go builds repository source with go, which reads internal/archivepath, outside its entries in .corvint/test-read-scopes.json; declare the directory there (AFP-V0-023)", "reads internal/hidden"},
+		"undeclared":         {`"go.mod","internal/hidden/","internal/procgroup/"`, "", 1, "package tools/trial: tools/trial/runner_test.go builds its own package with go, which reads its import closure, including internal/archivepath, outside its entries in .corvint/test-read-scopes.json; declare the directory there (AFP-V0-023)", "reads internal/hidden"},
 		"fixture undeclared": {`"go.mod","internal/archivepath/","internal/procgroup/"`, "", 1, "which reads internal/hidden, outside", "reads internal/archivepath"},
 		"declared":           {`"go.mod","internal/archivepath/","internal/hidden/","internal/procgroup/"`, "", 0, "test-read-scopes-check: ok", "builds repository source"},
 		"recorded":           {`"go.mod","internal/hidden/","internal/procgroup/"`, head + `{"tools/trial":{"internal/archivepath":"a build the confined shard never runs"}}}`, 0, "test-read-scopes-check: ok", "which no test file of the package names"},
-		"parent entry only":  {`"go.mod","internal/archivepath/x.json","internal/hidden/","internal/procgroup/"`, "", 1, "which reads internal/archivepath, outside", "reads internal/hidden"},
+		"parent entry only":  {`"go.mod","internal/archivepath/x.json","internal/hidden/","internal/procgroup/"`, "", 1, "including internal/archivepath, outside", "reads internal/hidden"},
 	} {
 		files := map[string]string{
 			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
@@ -327,7 +327,7 @@ func TestGoTestDependencyAndFlagValues_V1_3210(t *testing.T) {
 		want, never string
 	}{
 		"test-only import undeclared": {`"go.mod","internal/built/"`, 1, "which reads internal/testonly, outside", "reads internal/built"},
-		"flags-only build undeclared": {`"go.mod","internal/testonly/"`, 1, "which reads internal/built, outside", "reads internal/testonly"},
+		"flags-only build undeclared": {`"go.mod","internal/testonly/"`, 1, "including internal/built, outside", "reads internal/testonly"},
 		"declared":                    {`"go.mod","internal/built/","internal/testonly/"`, 0, "test-read-scopes-check: ok", "builds repository source"},
 	} {
 		files := map[string]string{
@@ -375,6 +375,44 @@ func TestUnsupportedReadScopeKeysNameTheirReason_V1_3326(t *testing.T) {
 		code := run(writeRepository(t, files), &stdout, &stderr)
 		output := stdout.String() + stderr.String()
 		if code != c.code || !strings.Contains(output, c.want) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+	}
+}
+
+// AFP-V0-981 (V1-3772): a declared package whose test stats a repository path
+// joined from a parent-only literal and a value read from data fails the check,
+// naming the file and line, until the package is declared an existence reader
+// (AFP-V0-980). A stat of a temporary directory, or of a join of literals only,
+// is no such check.
+func TestStatOfDataDerivedPathFails_V1_3772(t *testing.T) {
+	test := "package idx\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\n" +
+		"func TestPaths(t *testing.T) {\n\tfor _, p := range []string{} {\n" +
+		"\t\tif _, err := os.Stat(filepath.Join(\"" + up + strings.TrimSuffix(up, "/") + "\", p)); err != nil {\n\t\t\tt.Error(err)\n\t\t}\n\t}\n" +
+		"\t_, _ = os.Lstat(filepath.Join(t.TempDir(), \"x\"))\n}\n"
+	for name, c := range map[string]struct {
+		existence string
+		code      int
+		want      string
+	}{
+		"undeclared": {"", 1, "package idx: idx/idx_test.go:11 stats a repository path read from data"},
+		"declared":   {`{"profile":"corvint-existence-readers/0","entries":[{"package":"idx","manifests":["specs/INDEX.json"],"reason":"stats implementation paths"}]}`, 0, "test-read-scopes-check: ok"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"specs/INDEX.json":               "[]\n",
+			"idx/idx.go":                     "package idx\n",
+			"idx/idx_test.go":                test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"idx":["specs/"]}}`,
+		}
+		if c.existence != "" {
+			files[".corvint/existence-readers.json"] = c.existence
+		}
+		root := writeRepository(t, files)
+		var stdout, stderr bytes.Buffer
+		code := run(root, &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Count(output, "stats a repository path") > 1 {
 			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
 		}
 	}
@@ -431,6 +469,46 @@ func TestFixtureMarkedLiteralNamesNoRead_V1_3391(t *testing.T) {
 		if c.code == 1 && !strings.Contains(stderr.String(), "names docs/specs/a.md") ||
 			c.code == 1 && !strings.Contains(stderr.String(), "or end the line of a fixture-only literal with "+marker+" (ASD-V0-895)") {
 			t.Errorf("%s: refusal %q lacks the path or the marker hint", name, stderr.String())
+		}
+	}
+}
+
+// V1-3658: a test that runs `go build .` of its own package reads the
+// package's import closure under confinement, so the finding stays, but it
+// names the own-package remedies (re-executing the test binary, or recording
+// a build the confined shard never runs), and the recorded exemption keeps it
+// quiet.
+func TestOwnPackageBuildNamesRemedies_V1_3658(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package main\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestTree(t *testing.T) {\n\t_ = exec.Command(\"go\", \"build\", \"-o\", \"bin\", \".\")\n}\n"
+	const head = `{"profile":"corvint-test-read-scope-literals/0","literals":`
+	for name, c := range map[string]struct {
+		literals    string
+		code        int
+		want, never string
+	}{
+		"undeclared": {"", 1, "builds its own package with go, which reads its import closure, including internal/dep, outside", "builds repository source with go"},
+		"remedies":   {"", 1, "re-execute os.Args[0]", "builds repository source with go"},
+		"recorded":   {head + `{"tools/trial":{"internal/dep":"the confined shard skips the tree build"}}}`, 0, "test-read-scopes-check: ok", "builds its own package"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/dep/d.go":              "package dep\n",
+			"tools/trial/main.go":            "package main\n\nimport _ \"example.test/m/internal/dep\"\n\nfunc main() {}\n",
+			"tools/trial/tree_test.go":       test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"tools/trial":["go.mod"]}}`,
+		}
+		if c.literals != "" {
+			files[literalsPath] = c.literals
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
 		}
 	}
 }

@@ -12,133 +12,209 @@
       "kind": "merged",
       "base": "9477995d776ddf88d7f6a82790dd9c22d51da765",
       "head": "6394d6fdc94d0a7a15c5a46b7fdc0eaddc75b9c0",
-      "pr": 2
+      "pr": 2,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-3",
       "kind": "merged",
       "base": "6394d6fdc94d0a7a15c5a46b7fdc0eaddc75b9c0",
       "head": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
-      "pr": 3
+      "pr": 3,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-4",
       "kind": "merged",
       "base": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
       "head": "bb943b524e700840ec0ba78a36563087a1b45671",
-      "pr": 4
+      "pr": 4,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-6",
       "kind": "merged",
       "base": "bb943b524e700840ec0ba78a36563087a1b45671",
       "head": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
-      "pr": 6
+      "pr": 6,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-5",
       "kind": "merged",
       "base": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
       "head": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
-      "pr": 5
+      "pr": 5,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-8",
       "kind": "merged",
       "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
       "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
-      "pr": 8
+      "pr": 8,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-10",
       "kind": "merged",
       "base": "93b9f5b08ce841875c9c81d17905908d91346f99",
       "head": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
-      "pr": 10
+      "pr": 10,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-11",
       "kind": "merged",
       "base": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
       "head": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
-      "pr": 11
+      "pr": 11,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-12",
       "kind": "merged",
       "base": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
       "head": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
-      "pr": 12
+      "pr": 12,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-13",
       "kind": "merged",
       "base": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
       "head": "e00e20d2c5c10c98e3ae80d8e12bb9470adc95ab",
-      "pr": 13
+      "pr": 13,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-14",
       "kind": "merged",
       "base": "e00e20d2c5c10c98e3ae80d8e12bb9470adc95ab",
       "head": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
-      "pr": 14
+      "pr": 14,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "FALLBACK"
+      }
     },
     {
       "id": "pr-15",
       "kind": "merged",
       "base": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
       "head": "531ddd61937484045f0356eb986dcd038eaa9ebe",
-      "pr": 15
+      "pr": 15,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-16",
       "kind": "merged",
       "base": "531ddd61937484045f0356eb986dcd038eaa9ebe",
       "head": "960e05bcc4442e2222d0bf99df5279d35a01a1b5",
-      "pr": 16
+      "pr": 16,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-17",
       "kind": "merged",
       "base": "960e05bcc4442e2222d0bf99df5279d35a01a1b5",
       "head": "f586f8a69c52180b1cbd6efceb1566d3f5f2cfd3",
-      "pr": 17
+      "pr": 17,
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-18",
       "kind": "merged",
       "base": "f586f8a69c52180b1cbd6efceb1566d3f5f2cfd3",
       "head": "b623665f250ec2ab70691577fd5f5d0dabdf8f36",
-      "pr": 18
+      "pr": 18,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-20",
       "kind": "merged",
       "base": "b623665f250ec2ab70691577fd5f5d0dabdf8f36",
       "head": "82c235f95bf8b6a1fa77077925f647be063a97b8",
-      "pr": 20
+      "pr": 20,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-23",
       "kind": "merged",
       "base": "82c235f95bf8b6a1fa77077925f647be063a97b8",
       "head": "6a00a0043887a99b8947128c9f5971a8e5b2ec4b",
-      "pr": 23
+      "pr": 23,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-24",
       "kind": "merged",
       "base": "6a00a0043887a99b8947128c9f5971a8e5b2ec4b",
       "head": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
-      "pr": 24
+      "pr": 24,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "pr-22",
       "kind": "merged",
       "base": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
       "head": "85d5ad4b758193ef702a83632f4cb8c573b91933",
-      "pr": 22
+      "pr": 22,
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-e09dae910",
@@ -151,7 +227,11 @@
           "job": 124349635629,
           "package": "github.com/Beamfall/corvint/internal/tasks/similar"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-d2115e21f",
@@ -169,7 +249,11 @@
           "job": 124337110338,
           "package": "github.com/Beamfall/corvint/cmd/corvint"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "FULL",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-5d73b89f4",
@@ -192,7 +276,11 @@
           "job": 124232755197,
           "unattributed": "the job's annotations name no failing package (the failure is outside a go test package line)"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-79300f5ed",
@@ -205,7 +293,11 @@
           "job": 124223719665,
           "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-1ceb4ee33",
@@ -218,7 +310,11 @@
           "job": 124185848607,
           "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-045ca9b32",
@@ -231,7 +327,11 @@
           "job": 124172432360,
           "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     },
     {
       "id": "ci-8de253042",
@@ -249,7 +349,11 @@
           "job": 123870927746,
           "package": "github.com/Beamfall/corvint/internal/companionrelease"
         }
-      ]
+      ],
+      "recorded": {
+        "ciScope": "NARROW",
+        "verdict": "run"
+      }
     }
   ]
 }

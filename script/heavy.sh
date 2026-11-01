@@ -1342,7 +1342,7 @@ for (my $i = 0; $i < length $s; $i++) {
         next;
     }
     if ($c eq " " || $c eq "\t") { push @w, $cur if $have; ($cur, $have) = ("", 0); next }
-    exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/;
+    exit 3 if $c =~ /[|&;<>()\$`*?\[\]{}~#!\n]/; # bash32: allow
     ($cur, $have) = ($cur . $c, 1);
 }
 exit 3 if length $q;

@@ -1,0 +1,20 @@
+{
+  "profile": "corvint-existence-readers/0",
+  "entries": [
+    {
+      "package": "internal/observations",
+      "manifests": ["internal/observations/observations.go"],
+      "reason": "TestFixedFrontierDegradationIsReportedByDesign stats every decision record degradationByDesign names (found by AFP-V0-981, V1-3772)"
+    },
+    {
+      "package": "internal/specindex",
+      "manifests": ["docs/specs/INDEX.json"],
+      "reason": "TestIndexImplementationPathsExist stats every implementation path the index names (V1-1342, V1-3772)"
+    },
+    {
+      "package": "tools/capabilities-check",
+      "manifests": ["docs/CAPABILITIES.md"],
+      "reason": "Check stats every catalog link relative to docs/, so a deleted linked file fails TestCatalogMatchesCode (V1-3772)"
+    }
+  ]
+}

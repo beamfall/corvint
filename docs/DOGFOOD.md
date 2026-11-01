@@ -129,10 +129,22 @@ pins this agreement (group V1-3258).
    `corvint dogfood propose-citations $BASE --refresh plan.tsv > plan.new`, which carries every
    current row verbatim, re-keys a re-hunked row by path and content or BASE range with a
    `re-keyed OLD -> NEW` note to review, and drafts any other hunk afresh (`DCW-V0-442`).
+   `make dogfood-finish` and `make dogfood-inputs-check` run that refresh themselves when a row
+   names a hunk ID HEAD no longer has: a refresh that only carries and re-keys continues on
+   `<git-dir>/corvint/dogfood-finish.refreshed-plan.tsv` with a `NOTE citations-refreshed` line,
+   and one that would draft a hunk afresh stops with `REFUSE citations-refresh-incomplete`, naming
+   that file to review (`DCW-V0-947`). `propose-citations`, `finish-lane` and `inputs-check` refuse
+   a BASE that HEAD does not contain as `base-not-ancestor`, naming the merge-base to pass instead,
+   since such a BASE..HEAD diff reverts the BASE commits HEAD lacks (`DCW-V0-946`).
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
-   needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
-   after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
+   needs a binary built from the change's own tree. `make dogfood-inputs-check` builds the
+   lane binary only after it has a readable `CITATIONS` file, so bootstrap in this order from a
+   clean worktree: (1) draft the first plan from the tree itself with
+   `GOTOOLCHAIN=local go run ./cmd/corvint dogfood propose-citations $BASE > plan.tsv`;
+   (2) run `make dogfood-inputs-check` with that plan, which builds
+   `"$(git rev-parse --absolute-git-dir)/corvint/corvint"`; (3) redraft or `--refresh` later plans
+   with that lane-built binary. Leave `CORVINT_BIN` unset for closeout, which otherwise refuses
+   `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
    Go build stamp is `HEAD` with no uncommitted change, or only `*_test.go` tooling files changed
    (`ASD-V0-901`). A plan with no row is refused up front as `CITATIONS:empty` (`ASD-V0-903`), and
    every up-front refusal names the target you ran (`ASD-V0-902`).
@@ -504,11 +516,21 @@ refused row and its recovery span before any bind (`DCW-V0-334`, `DCW-V0-335`). 
 refuses every other input the bind would refuse before its first cite, naming the file and row: an
 invalid intents manifest, a plan the bind's shape step refuses (`citation-plan-uniform`, an ordinal
 past the prepared map or a hunk ID it no longer has as `citation-plan-map-mismatch`, the latter
-with a `--refresh` fix, `DCW-V0-441`), and an over-bound intent set
-(`DCW-V0-379`); a verify refusal names the offending line (`input: --verify FILE line N`). Stderr carries one
+with a `--refresh` fix, `DCW-V0-441`), an over-bound intent set
+(`DCW-V0-379`), and an intent `ocm-prepare` cannot derive at HEAD (`REFUSE intent-invalid`, with
+the code the bind would print: not a blob, not UTF-8, no single Requirements section;
+`DCW-V0-945`); a verify refusal names the offending line (`input: --verify FILE line N`). Stderr carries one
 `TIMING <step> seconds=S commands=N` line per step and a `TIMING total` line naming
 `<git-dir>/corvint/dogfood-finish-lane.timings.tsv`, the per-command times. An interrupted run
-prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`).
+prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`). Every check
+and seal, the check-seal step included, also writes `<git-dir>/corvint/dogfood-check.timings.tsv`:
+one `phase`, `detail`, `seconds` row per contiguous phase (lock wait, report, outcome replay, each
+verifier command, binding, seal), so the rows sum to its wall time; under `make dogfood-check` the
+first rows are the wrapper's setup and its tree and base verifier builds, each marked `reuse` or
+`build` (`DCW-V0-942`). The verifier builds come from a per-user, per-host cache outside the
+repository (`CORVINT_DOGFOOD_BIN_CACHE`), so a second worktree on the same BASE and toolchain
+reuses the base verifier; it keeps the `CORVINT_DOGFOOD_BIN_CACHE_MAX` (default 16) most recent
+entries (`DCW-V0-943`).
 
 Before the costly base verifier build, `make dogfood-finish` runs `corvint dogfood inputs-check`
 with the same inputs: the input checks and prepare pass alone, which bind and commit nothing and
@@ -525,7 +547,12 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
 
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
-first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). CI and the
+first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). Its
+sealed-head `batch-precheck` runs with `BATCH_PRECHECK_SINCE_RECEIPT=1`: it selects against the
+head the first run's passing receipt names, so a step the bind and seal commits cannot reach does
+not run twice, and a receipt that already names the clean HEAD runs nothing (`DCW-V0-944`,
+`ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
+(`ASD-V0-944`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
 use-case conformance command. The precheck also retains its other drift checks. Its drift tests
 run through `script/heavy.sh` (`BATCH_PRECHECK_HEAVY`); set `BATCH_PRECHECK_GO_WRAPPER` to one
@@ -891,7 +918,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
   requested span from `baseRevision` (`internal/cem/workflow/commands.go:489-506@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
-  (`internal/cem/verify/verify.go:422-482@166fa7f2`). A backlog entry that was the only recorded
+  (`internal/cem/verify/verify.go:428-488@166fa7f2`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
   invented citation, with an unknown `no-evidence` row. Its detail is the
   `removed-intent.<blob OID>.<start>-<end>` pin that the refused `cem cite` names (`CEM-CB-005`,

@@ -60,18 +60,22 @@ func TestRecordChangeDCWV0057Classifies(t *testing.T) {
 // touches, or a decision present at the target, as its intent, published as
 // the no-intent declaration; a mixed change, an absent decision or an entry the
 // change does not touch keeps the named intent as a path intent, and a manifest
-// changed during the run is drift, never published.
+// changed during the run is drift, never published. Such a path intent that
+// ocm-prepare cannot derive (a build-log entry or a decision is no
+// requirements spec, an absent one is no blob) now refuses before any step,
+// as the bind would after it (DCW-V0-945).
 func TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent(t *testing.T) {
 	for _, tc := range []struct {
 		name, extra, intents string
 		drift                bool
 		record, recordIntent bool
+		invalid              bool
 	}{
 		{name: "record", intents: "docs/build-log/2026-10-13-x.md\n", record: true, recordIntent: true},
 		{name: "record naming a decision", intents: "docs/build-log/2026-10-13-x.md\ndocs/decisions/0001-x.md\n", record: true, recordIntent: true},
-		{name: "mixed", extra: "a.txt", intents: "docs/build-log/2026-10-13-x.md\n"},
-		{name: "absent decision", intents: "docs/decisions/0002-never.md\n", record: true},
-		{name: "untouched entry", intents: "docs/build-log/2026-10-01-old.md\n", record: true},
+		{name: "mixed", extra: "a.txt", intents: "docs/build-log/2026-10-13-x.md\n", invalid: true},
+		{name: "absent decision", intents: "docs/decisions/0002-never.md\n", record: true, invalid: true},
+		{name: "untouched entry", intents: "docs/build-log/2026-10-01-old.md\n", record: true, invalid: true},
 		{name: "drift", intents: "docs/build-log/2026-10-13-x.md\n", drift: true, record: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -127,8 +131,15 @@ func TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent(t *testing.T) {
 				t.Fatal(err)
 			}
 			var stderr bytes.Buffer
-			if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents}, &stderr); err != nil {
+			code, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents}, &stderr)
+			if err != nil {
 				t.Fatal(err)
+			}
+			if tc.invalid {
+				if code != 2 || cites != 0 || !strings.Contains(stderr.String(), "dogfood-change: REFUSE intent-invalid\n  intent="+strings.TrimSpace(tc.intents)+" code=") {
+					t.Errorf("an underivable path intent was not refused before any step: code=%d cites=%d\n%s", code, cites, &stderr)
+				}
+				return
 			}
 			report, err := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json"))
 			if err != nil {

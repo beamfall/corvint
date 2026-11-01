@@ -1,6 +1,9 @@
 package wire
 
-import "sort"
+import (
+	"slices"
+	"sort"
+)
 
 // ProfileCommandResult is the stdout envelope of every corvint-tasks command (§3.3).
 const ProfileCommandResult = "taskman-command-result/0"
@@ -163,8 +166,17 @@ func (r *Result) Value() Value {
 	return ObjectValue(o)
 }
 
+// HasCode reports whether r carries code (TCD-V0-965). A nil result
+// carries none.
+func HasCode(r *Result, code string) bool {
+	return r != nil && slices.Contains(r.Codes, code)
+}
+
 // Encode validates the envelope against its closed schema and the §1 size
 // bounds and returns the on-disk/transport bytes (canonical body plus LF).
+// It is the one encoder and returns bytes because every writer emits bytes;
+// a caller comparing envelope text converts the result once with string()
+// rather than through a second string-returning encoder (TCD-V0-965).
 func (r *Result) Encode() ([]byte, error) {
 	if r.MaxNodes > MaxResultNodes {
 		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d above %d", r.MaxNodes, MaxResultNodes)

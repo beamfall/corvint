@@ -87,7 +87,7 @@ func (registry *Registry) Tools() []bridge.ToolDescriptor {
 			"properties": map[string]any{
 				"receipt": map[string]any{
 					"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-					"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*(?:^|/)[.]git(?:/|$))(?!.*//)(?!.*\\).+$`,
+					"pattern": bridge.PathRule{Excluded: `\n\r`, GitSegment: "lower", TrailingSlash: true}.Pattern(), // MCPV0-954
 				},
 				"discover": map[string]any{"type": "boolean"},
 			},

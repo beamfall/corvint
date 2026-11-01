@@ -21,6 +21,8 @@
 // --out writes the corvint-selection-baseline/0 results. --check fails (exit 1)
 // when the number of narrowed merged changes is below the file's floor or any
 // miss appears, so a regression in either is caught on the same fixed set.
+// Every change whose CI scope or verdict moved from the one recorded beside it
+// in FILE is named with its fallback reason (TSP-V0-710).
 package main
 
 import (
@@ -68,6 +70,14 @@ type change struct {
 	Head     string    `json:"head"`
 	PR       int       `json:"pr,omitempty"`
 	Failures []failure `json:"failures,omitempty"`
+	// Recorded is the CI scope and verdict of the replay the floor was last
+	// measured on (TSP-V0-710).
+	Recorded *recorded `json:"recorded,omitempty"`
+}
+
+type recorded struct {
+	CIScope string `json:"ciScope"`
+	Verdict string `json:"verdict"`
 }
 
 type failure struct {
@@ -307,7 +317,7 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 			res.ID, res.PlanScope, res.Verdict, res.CIScope, len(res.Packages), res.CostShare, res.WholePackages, len(res.Misses))
 	}
 	r.Summary = Summarize(r.Results)
-	r.Verdicts = verdictLines(r.Summary, set.Floor)
+	r.Verdicts = append(Moved(set.Changes, r.Results), verdictLines(r.Summary, set.Floor)...)
 	return r, nil
 }
 
@@ -545,6 +555,41 @@ func Summarize(rs []Result) Summary {
 		}
 	}
 	return s
+}
+
+// Moved names each change whose replayed CI scope or verdict differs from the
+// one recorded for it, with the selector's reason, and counts the changes
+// without a record (TSP-V0-710).
+func Moved(changes []change, rs []Result) []string {
+	byID := make(map[string]Result, len(rs))
+	for _, r := range rs {
+		byID[r.ID] = r
+	}
+	var lines []string
+	unrecorded := 0
+	for _, c := range changes {
+		r, ok := byID[c.ID]
+		if !ok {
+			continue
+		}
+		if c.Recorded == nil {
+			unrecorded++
+			continue
+		}
+		if c.Recorded.CIScope == r.CIScope && c.Recorded.Verdict == r.Verdict {
+			continue
+		}
+		reason := ""
+		if r.VerdictReason != "" {
+			reason = ": " + r.VerdictReason
+		}
+		lines = append(lines, fmt.Sprintf("selection-baseline: MOVED %s ci %s -> %s (verdict %s -> %s%s)",
+			c.ID, c.Recorded.CIScope, r.CIScope, c.Recorded.Verdict, r.Verdict, reason))
+	}
+	if unrecorded > 0 {
+		lines = append(lines, fmt.Sprintf("selection-baseline: UNRECORDED %d change(s) carry no recorded verdict", unrecorded))
+	}
+	return lines
 }
 
 // Failures names each way the summary breaks the floor.

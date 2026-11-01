@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/lrfrepo"
 )
 
 // obligationRepository commits one intent document under dir per count, each
@@ -165,5 +167,49 @@ func TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep(t *testing.T) {
 	}
 	if strings.Contains(stderr.String(), "intent-2.md") {
 		t.Errorf("the intent within the bound was named:\n%s", &stderr)
+	}
+}
+
+// TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses (V1-3633): a manifest
+// naming an intent ocm-prepare would refuse to derive (not UTF-8, absent at
+// HEAD) refuses before any step, naming each intent with the refusal code
+// lrfrepo.DeriveIntentAt, the derivation prepare runs, returns for it.
+func TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses(t *testing.T) {
+	root, base, _ := obligationRepository(t, "docs/specs", 2)
+	if err := os.WriteFile(filepath.Join(root, "docs/specs/latin1.md"), []byte("# Intent\n\n## Requirements\n\n- `LAT-V0-001`: caf\xe9.\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "latin1 intent")
+	head := testGit(t, root, "rev-parse", "HEAD")
+	manifest := filepath.Join(t.TempDir(), "intents")
+	if err := os.WriteFile(manifest, []byte("docs/specs/absent.md\ndocs/specs/intent-1.md\ndocs/specs/latin1.md\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stderr bytes.Buffer
+	code, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, IntentsFile: manifest}, &stderr)
+	if err != nil || code != 2 || calls != 0 {
+		t.Fatalf("code=%d err=%v calls=%d stderr:\n%s", code, err, calls, &stderr)
+	}
+	if !strings.Contains(stderr.String(), "dogfood-change: REFUSE intent-invalid\n") {
+		t.Fatalf("no intent-invalid refusal:\n%s", &stderr)
+	}
+	for _, intent := range []string{"docs/specs/absent.md", "docs/specs/latin1.md"} {
+		_, deriveErr := lrfrepo.DeriveIntentAt(context.Background(), root, head, intent)
+		refusal := intentRefusal(deriveErr)
+		if refusal == nil {
+			t.Fatalf("%s: prepare's derivation admitted it: %v", intent, deriveErr)
+		}
+		if want := "  intent=" + intent + " code=" + refusal.Code + ": "; !strings.Contains(stderr.String(), want) {
+			t.Errorf("refusal lacks %q:\n%s", want, &stderr)
+		}
+	}
+	if strings.Contains(stderr.String(), "intent=docs/specs/intent-1.md") {
+		t.Errorf("the valid intent was named:\n%s", &stderr)
 	}
 }

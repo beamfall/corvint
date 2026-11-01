@@ -4236,5 +4236,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/tasks-mcp-read-profile-v0.md",
+    "title": "Tasks MCP read profile V0",
+    "reqPrefix": "TMR-V0",
+    "intent": "experimental under the standing lane auto-accept (V1-3707, 2026-11-01)",
+    "delivery": "experimental",
+    "claim": "The `corvint mcp` tasks group: five typed, paged read-only tools that run the installed `corvint-tasks` read verbs and return their envelopes.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

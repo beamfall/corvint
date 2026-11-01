@@ -6,8 +6,10 @@
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
-# heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py
-# (ASD-V0-834, ASD-V0-836), dogfood-change-runs.sh (ASD-V0-955). No Go build runs.
+# heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
+# (ASD-V0-955). No Go build runs. The Python operator tool lane-transcript-metrics.py
+# (ASD-V0-834, ASD-V0-836) is tested by script/lane-transcript-metrics_test.py, not here: a
+# script/*.sh test may not name Python (GOC-V0-008).
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -283,6 +285,8 @@ ok
 # shell on this host with its own HOME and TMPDIR; go is a stub reporting where and on what it ran.
 off=$tmp/off
 mkdir -p "$off/bin" "$off/rhome" "$off/rtmp" "$off/ltmp"
+# Like a real ssh, the fake forwards neither of the caller's Go cache variables, so a lane's exported
+# GOCACHE and CORVINT_GOCACHE never reach the remote command (V1-3822).
 cat > "$off/bin/ssh" << SSH
 #!/usr/bin/env bash
 while [[ \$1 == -o ]]; do shift 2; done
@@ -1652,7 +1656,12 @@ rc=$?
 [[ $rc == 2 && $out == *'lane-setup: REFUSE shallow-repository'*'fetch --unshallow origin'* ]] || fail "shallow lane setup (rc $rc): $out"
 [[ ! -e $tmp/lane-a ]] || fail "a refused lane setup created its directory"
 git clone -q "file://$ls_src" "$tmp/lane-setup-full" 2> /dev/null || fail "lane-setup full clone"
+git -C "$tmp/lane-setup-full" config rerere.enabled true
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/a 2>&1) || fail "lane setup: $out"
+# ASD-V0-965 (V1-3651): the lane records no rerere resolution into the shared rr-cache; the shared
+# checkout keeps its own setting.
+[[ $(git -C "$tmp/lane-a" config --get rerere.enabled) == false && $(git -C "$tmp/lane-setup-full" config --get rerere.enabled) == true ]] ||
+  fail "lane rerere not disabled per worktree: lane=$(git -C "$tmp/lane-a" config --get rerere.enabled) shared=$(git -C "$tmp/lane-setup-full" config --get rerere.enabled)"
 [[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
   fail "lane worktree not on claude/a at origin/main: $out"
 printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"
@@ -1837,48 +1846,6 @@ grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "hu
 lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
 ok
 
-# ASD-V0-834 (V1-1630): lane-transcript-metrics.py aggregates several project directories and, with
-# --sessions, counts top-level session transcripts with the subagent rules and names each row's kind.
-ltm=$tmp/transcripts
-mkdir -p "$ltm/p1/s1/subagents" "$ltm/p2"
-printf '%s\n' '{"timestamp":"2026-10-31T01:00:00Z","message":{"content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"ls"}}]}}' \
-  > "$ltm/p1/s1/subagents/agent-sub1.jsonl"
-printf '%s\n' '{"timestamp":"2026-10-31T02:00:00Z","message":{"content":[{"type":"tool_use","id":"b","name":"Bash","input":{"command":"git commit -m x"}}]}}' \
-  '{"timestamp":"2026-10-31T02:10:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"b","content":"Command timed out after 10m 0s"}]}}' \
-  > "$ltm/p2/sess1.jsonl"
-printf '%s\n' '{"timestamp":"2026-11-02T00:00:00Z","message":{"content":[]}}' > "$ltm/p2/late.jsonl"
-ltm_q() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
-ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01) ||
-  fail "lane-transcript-metrics without --sessions failed"
-[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"])' <<< "$ltm_out") == '(1, 0, 0)' ]] ||
-  fail "lane-transcript-metrics counted sessions without --sessions: $ltm_out"
-ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01 --sessions) ||
-  fail "lane-transcript-metrics --sessions failed"
-[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"], sorted(r["kind"] for r in d["perSubagent"]))' <<< "$ltm_out") == "(1, 1, 1, ['session', 'subagent'])" ]] ||
-  fail "lane-transcript-metrics --sessions counts or kinds: $ltm_out"
-[[ $(ltm_q '[(r["harnessTimeouts600s"], r["lane"]) for r in d["perSubagent"] if r["kind"] == "session"]' <<< "$ltm_out") == '[(1, True)]' ]] ||
-  fail "lane-transcript-metrics session timeout or lane: $ltm_out"
-ok
-
-# ASD-V0-836 (V1-3549): only the harness's own timeout result counts, never the phrase quoted in
-# output, and a session that starts sessions (or one named by --orchestrator) is reported apart.
-ltm=$tmp/transcripts2
-mkdir -p "$ltm/p"
-printf '%s\n' '{"timestamp":"2026-10-31T03:00:00Z","message":{"content":[{"type":"tool_use","id":"c","name":"Bash","input":{"command":"cat x.sh"}},{"type":"tool_use","id":"d","name":"Bash","input":{"command":"git commit -m y"}},{"type":"tool_use","id":"e","name":"Bash","input":{"command":"make t"}}]}}' \
-  '{"timestamp":"2026-10-31T03:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"c","content":"echo timed out at 1800s; agent-x did not complete within its 600s timeout\nCommand timed out after 10m 0s"},{"type":"tool_result","tool_use_id":"d","content":"Exit code 143\nCommand timed out after 3m 0s"},{"type":"tool_result","tool_use_id":"e","content":"Command did not complete within its 600s timeout and was moved to the background"}]}}' \
-  > "$ltm/p/lane1.jsonl"
-printf '%s\n' '{"timestamp":"2026-10-31T04:00:00Z","message":{"content":[{"type":"tool_use","id":"f","name":"mcp__ccd_session__start_session","input":{}},{"type":"tool_use","id":"g","name":"Bash","input":{"command":"git commit -m z"}}]}}' \
-  '{"timestamp":"2026-10-31T04:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"g","content":"Command timed out after 10m 0s"}]}}' \
-  > "$ltm/p/orch.jsonl"
-cp "$ltm/p/lane1.jsonl" "$ltm/p/named.jsonl"
-ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p" --since 2026-10-30 --until 2026-11-01 --sessions --orchestrator named) ||
-  fail "lane-transcript-metrics --orchestrator failed"
-[[ $(ltm_q '[(r["agent"], r["harnessTimeouts"], r["harnessTimeouts600s"]) for r in d["perSubagent"]]' <<< "$ltm_out") == "[('lane1', 2, 1)]" ]] ||
-  fail "lane-transcript-metrics counted a quoted timeout phrase: $ltm_out"
-[[ $(ltm_q '(d["sessions"], d["lanes"], d["harnessTimeoutsAllSubagents"], d["harnessTimeouts600sLanes"])' <<< "$ltm_out") == '(1, 1, 2, 1)' ]] ||
-  fail "lane-transcript-metrics orchestrator leaked into totals: $ltm_out"
-[[ $(ltm_q 'sorted((r["agent"], r["kind"], r["lane"]) for r in d["orchestratorSessions"])' <<< "$ltm_out") == "[('named', 'orchestrator', False), ('orch', 'orchestrator', False)]" ]] ||
-  fail "lane-transcript-metrics orchestrator not reported apart: $ltm_out"
 # ASD-V0-990 (V1-3258): docs/DOGFOOD.md and the Makefile agree on the dogfood-inputs-check variable names. The
 # target reads CITATIONS, INTENTS, VERIFY and OUTCOME, and the Inputs section maps each
 # DOGFOOD_* name to them and shows the same make invocation.

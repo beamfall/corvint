@@ -192,8 +192,8 @@ func TestMMRV0003StartupRefusals(t *testing.T) {
 		{"more roots than the cap", tooMany, "invalid arguments"},
 		{"plain and aliased", []string{"--root", root, "--root", "web=" + other}, "invalid arguments"},
 		{"relative aliased root", []string{"--root", "core=relative/path"}, "repository unavailable: --root must be an absolute path"},
-		{"one unavailable root", []string{"--root", "core=" + root, "--root", "web=/nonexistent"}, "repository unavailable"},
-		{"invalid alias is a path", []string{"--root", "Core=" + root}, "repository unavailable: --root must be an absolute path"},
+		// MCPV0-950: the refusal names the reason.
+		{"one unavailable root", []string{"--root", "core=" + root, "--root", "web=/nonexistent"}, "repository unavailable: --root does not exist"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var stdout, stderr bytes.Buffer
@@ -202,6 +202,13 @@ func TestMMRV0003StartupRefusals(t *testing.T) {
 				t.Fatalf("exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 			}
 		})
+	}
+	// An invalid alias leaves a plain, non-absolute root, which MCPV0-950 serves
+	// unavailable while naming the absolute-path requirement.
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", "Core=" + root}, bytes.NewReader(nil), &stdout, &stderr); exit != 0 || stdout.Len() != 0 ||
+		stderr.String() != "corvint-mcp: repository unavailable: --root must be an absolute path; serving tools/list, and every repository tool call answers invalid-root\n" {
+		t.Fatalf("invalid alias exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 }
 

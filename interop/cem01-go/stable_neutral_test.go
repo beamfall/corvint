@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -102,6 +103,14 @@ func neutralCaseFiles(t *testing.T) string {
 // recipe's fixed identity and returns its directory and commits.
 func neutralRepository(t *testing.T, dir string) (repo, base, target string) {
 	t.Helper()
+	return neutralRepositoryWith(t, dir, 0)
+}
+
+// neutralRepositoryWith is neutralRepository with bulk unchanged entries added
+// to every commit: `bulk/fNNNNN` files sharing one blob, so the patch and its
+// evidence are the recipe's own while each snapshot grows by bulk entries.
+func neutralRepositoryWith(t *testing.T, dir string, bulk int) (repo, base, target string) {
+	t.Helper()
 	var recipe struct {
 		Identity struct{ Name, Email, Date string } `json:"identity"`
 		Commits  []struct {
@@ -155,6 +164,14 @@ func neutralRepository(t *testing.T, dir string) (repo, base, target string) {
 				mode, content = "120000", link
 			}
 			tree.WriteString(mode + " blob " + git(content, "hash-object", "-w", "--stdin") + "\t" + name + "\n")
+		}
+		if bulk > 0 {
+			blob := git("bulk\n", "hash-object", "-w", "--stdin")
+			var entries strings.Builder
+			for i := range bulk {
+				fmt.Fprintf(&entries, "100644 blob %s\tf%05d\n", blob, i)
+			}
+			tree.WriteString("040000 tree " + git(entries.String(), "mktree") + "\tbulk\n")
 		}
 		args := []string{"commit-tree", git(tree.String(), "mktree"), "-m", commit.Message}
 		if target != "" {

@@ -11,7 +11,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -136,7 +135,8 @@ func Run(env Env) int {
 		return emit(env.Stdout, res)
 	}
 	args := env.Args
-	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
+	// --tree is the command-tree spelling corvint itself uses (CAP-V0-950).
+	if len(args) == 2 && args[0] == "help" && (args[1] == "--json" || args[1] == "--tree") {
 		_, _ = env.Stdout.Write(CommandTreeJSON())
 		return 0
 	}
@@ -144,6 +144,9 @@ func Run(env Env) int {
 		return emit(env.Stdout, helpResult())
 	}
 	if result := commandHelp(args); result != nil {
+		return emit(env.Stdout, result)
+	}
+	if result := requestIDLimitRefusal(args); result != nil {
 		return emit(env.Stdout, result)
 	}
 	if result := platformRefusal(args); result != nil {
@@ -485,14 +488,13 @@ func globalRoot(env *Env) *wire.Result {
 	if dir == "" || strings.HasPrefix(dir, "--") {
 		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
 	}
-	if !filepath.IsAbs(dir) {
-		dir = filepath.Join(env.Cwd, dir)
-	}
+	dir = commandPath(env.Cwd, dir)
 	env.Cwd, env.Args = dir, rest
 	return nil
 }
 
 func emit(w io.Writer, res *wire.Result) int {
+	binaryVersionWarning(res)
 	data, err := res.Encode()
 	if err != nil {
 		fallback := errorResult(res.Command, err)
@@ -510,8 +512,22 @@ func emit(w io.Writer, res *wire.Result) int {
 	return 1
 }
 
+// binaryVersionWarning names this binary's version on an envelope that
+// reports UNSUPPORTED_VERSION, so version skew between hosts is visible
+// (CTS-V0-991).
+func binaryVersionWarning(res *wire.Result) {
+	for _, c := range res.Codes {
+		if c == wire.CodeUnsupportedVersion {
+			res.Warnings = append(res.Warnings, "this binary is corvint-tasks "+Version+"+build."+Build+"; compare it with the build that wrote the store")
+			return
+		}
+	}
+}
+
+// usage is a refusal before any store read. It carries MALFORMED like every
+// other coded refusal, so callers branch on codes alone (TCD-V0-965).
 func usage(cmd []string, msg string) *wire.Result {
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Warnings: []string{prose(msg)}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeMalformed}, Warnings: []string{prose(msg)}}
 }
 
 func notRun(cmd []string) *wire.Result {
@@ -591,7 +607,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
-		"corvint-tasks help --json   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
+		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))
 	return &wire.Result{Command: []string{"help"}, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
@@ -1198,7 +1214,31 @@ func labelFlag(fl map[string]string, name string) (*string, error) {
 	return &l, nil
 }
 
-func parseSearchFilter(fl map[string]string) (searchFilter, error) {
+// searchAllFlag removes the valueless --all (TCD-V0-966) from args. A value
+// flag's value that happens to read --all is left for the flag parser.
+func searchAllFlag(args []string) (bool, []string, error) {
+	all := false
+	rest := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--all" {
+			if all {
+				return false, nil, wire.Errorf(wire.CodeMalformed, "--all", "--all given more than once")
+			}
+			all = true
+			continue
+		}
+		rest = append(rest, args[i])
+		if slices.Contains(searchValueFlags, args[i]) && i+1 < len(args) {
+			i++
+			rest = append(rest, args[i])
+		}
+	}
+	return all, rest, nil
+}
+
+// parseSearchFilter reads the filter flags; all is --all, the explicit
+// unfiltered listing, which no filter may accompany (TCD-V0-966).
+func parseSearchFilter(fl map[string]string, all bool) (searchFilter, error) {
 	var f searchFilter
 	var err error
 	if f.status, err = enumFlag(fl, "status", ticket.Statuses); err != nil {
@@ -1236,8 +1276,12 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 	if f.phase, err = enumFlag(fl, "phase", searchPhases); err != nil {
 		return f, err
 	}
-	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil && f.phase == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase); `ticket list` is the unfiltered read")
+	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil
+	if all && filtered {
+		return f, wire.Errorf(wire.CodeMalformed, "--all", "--all lists every ticket and takes no filter flag")
+	}
+	if !all && !filtered {
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
 	}
 	return f, nil
 }
@@ -1320,6 +1364,10 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
+	all, args, err := searchAllFlag(args)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
 	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase")
 	if err == nil {
 		err = fm.checkCount(fl)
@@ -1327,7 +1375,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	f, err := parseSearchFilter(fl)
+	f, err := parseSearchFilter(fl, all)
 	if err != nil {
 		return failure(cmd, nil, err)
 	}

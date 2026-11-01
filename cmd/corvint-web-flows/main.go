@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/appflows"
+	"github.com/Beamfall/corvint/internal/companioncli"
 )
 
 func run(ctx context.Context, args []string, out, diagnostic io.Writer) int {
@@ -82,7 +83,17 @@ func run(ctx context.Context, args []string, out, diagnostic io.Writer) int {
 	return 0
 }
 
+// usage is the companion contract's --help text (CAP-V0-700).
+const usage = `usage: corvint-web-flows --experimental --trusted-local --manifest FILE --assets DIR [--root DIR] [--observe]
+                         [--flows DIR] [--navigation FILE] [--execution FILE] [--fixtures FILE] [--max-effect EFFECT]
+Run the experimental web-flows profile over a committed intent manifest; --observe opts into starting the
+owned local server and browser.
+Example: corvint-web-flows --experimental --trusted-local --manifest flows.json --assets ~/.local/share/corvint/web-flows`
+
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-web-flows", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	code := run(ctx, os.Args[1:], os.Stdout, os.Stderr)
 	stop()

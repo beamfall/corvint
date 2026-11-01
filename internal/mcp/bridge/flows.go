@@ -68,7 +68,7 @@ func EnvelopeOnly(name string) bool { return flowsTools[name] }
 func flowsToolDescriptors() []ToolDescriptor {
 	relative := map[string]any{
 		"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-		"pattern": `^(?!/)(?!.*/$)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\)(?!(?:.*/)?[.][Gg][Ii][Tt](?:/|$))[^\x00-\x1f\x7f-\x9f]+$`,
+		"pattern": PathRule{Excluded: `\x00-\x1f\x7f-\x9f`, GitSegment: "fold"}.Pattern(), // MCPV0-954
 	}
 	files := map[string]any{"type": "array", "maxItems": maxFlowInputs, "items": relative}
 	return []ToolDescriptor{

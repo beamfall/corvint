@@ -737,7 +737,7 @@ done
 
 func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	// cost is the AFP-V0-483 cost artifact name the collector names next to a complete row.
-	type result struct{ name, cost, summary string }
+	type result struct{ name, cost, sample, summary string }
 	// changed is the compare API's file list of the run's change set.
 	changed := []any{doc{"filename": "internal/contextindex/index.go"}}
 	// jobs is the run-jobs API response served for the outcomes run, or nil for an unreadable list.
@@ -826,6 +826,8 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 				r.name = v
 			} else if v, ok := strings.CutPrefix(l, "cost="); ok {
 				r.cost = v
+			} else if v, ok := strings.CutPrefix(l, "sample="); ok {
+				r.sample = v
 			} else if l != "" {
 				t.Fatalf("collect.sh wrote the unexpected step output %q", l)
 			}
@@ -863,8 +865,40 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		t.Fatalf("queue row without outcomes = %q\n%s", r.name, r.summary)
 	}
 	if r := collect(t, prFixture(t), prRun, "pull_request", "claude/x", "868", nil); r.name !=
-		"ci-forward-CLEAN-pr868-"+queueSHA+"-e1-f0" {
-		t.Fatalf("pull-request row = %q\n%s", r.name, r.summary)
+		"ci-forward-CLEAN-pr868-"+queueSHA+"-e1-f0" || r.sample != "" {
+		t.Fatalf("pull-request row = %q sample %q\n%s", r.name, r.sample, r.summary)
+	}
+	// AFP-V0-984: a sampled pull-request run also names its sample: here a failed package lies
+	// outside the driver's (empty) selection, so m1.
+	f = prFixture(t)
+	failedOutside := strs(f.sel[0]["selected"])[0]
+	fail(f.out[0], failedOutside, "fail", "RAN", "fail")
+	f.nar = map[int]doc{}
+	for k := 0; k < shards; k++ {
+		f.nar[k] = narrowingRecord(k, "FULL", prRun, nil, nil)
+		f.nar[k]["sample"] = doc{"k": 10, "seed": 4, "selected": []string{}}
+	}
+	sampledFixture := f
+	first := collect(t, f, prRun, "pull_request", "claude/x", "868", nil)
+	if first.sample != "ci-forward-SAMPLE-pr868-"+prHead+"-e1-k10-m1" {
+		t.Fatalf("sampled pull-request row %q sample = %q\n%s", first.name, first.sample, first.summary)
+	}
+	// The same head tested against another base (another merge target) is the same sample, so
+	// the bar counts it once (Codex P2, AFP-V0-984 (4)).
+	otherTarget := strings.Repeat("e", 40)
+	for k := range sampledFixture.sel {
+		sampledFixture.sel[k]["target"] = otherTarget
+		sampledFixture.out[k]["target"] = otherTarget
+	}
+	second := collect(t, sampledFixture, prRun, "pull_request", "claude/x", "868", nil)
+	if second.sample != first.sample || second.name == first.name {
+		t.Fatalf("one head against two targets: rows %q and %q, samples %q and %q", first.name, second.name, first.sample, second.sample)
+	}
+	bar := run(t, nil, "sh", "-c", `printf '%s\n%s\n' "$1" "$2" | jq -R -s -r --arg epoch 1 --arg format json -f "$3"`, "sh",
+		second.sample, first.sample, script(t, "bar.jq"))
+	var verdict doc
+	if err := json.Unmarshal([]byte(bar), &verdict); err != nil || num(sub(verdict, "sampledMissRate")["sampled"]) != 1 {
+		t.Fatalf("bar over one head's two samples = %s (%v)", bar, err)
 	}
 	// AFP-V0-052: the real job list of run 38686348902, whose go-product-shard (5) failed at
 	// "Set up job" while every other shard succeeded, names shard 5 of the outcomes run.
@@ -1208,6 +1242,10 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 	one(ci, `(?m)^      CORVINT_TEST_SHADOW_SOURCE: "([0-9a-f]{40})"$`)
 	if e, f := one(ci, `(?m)^      CORVINT_PR_FORWARD_EPOCH: "([0-9]+)"$`), one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`); e != f {
 		t.Fatalf("FORWARD_EPOCH %s names rows of another epoch than CORVINT_PR_FORWARD_EPOCH %s", f, e)
+	}
+	// AFP-V0-983: the main-miss job names its rows with the same epoch.
+	if m := one(cp, `(?m)^          FORWARD_EPOCH: "([0-9]+)"$`); m != one(cp, `(?m)^      FORWARD_EPOCH: "([0-9]+)"$`) {
+		t.Fatalf("main-miss FORWARD_EPOCH %s differs from the forward-rows epoch", m)
 	}
 	job := one(cp, `(?ms)^  forward-rows:\n(.*?)\z`)
 	if one(job, `(?m)^    permissions:\n((?:      .*\n)+)`) != "      actions: read\n      contents: read\n" {

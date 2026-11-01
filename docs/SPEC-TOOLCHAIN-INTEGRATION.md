@@ -83,7 +83,7 @@ An adapter must map native identifiers and definition lines into that complete g
 
 ## The three constraints any integration must respect
 
-1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:409-412@2d724bbb`). A flow
+1. **CEM 0.1 cannot cite evidence introduced in the same commit** (`docs/DOGFOOD.md:421-424@2d724bbb`). A flow
    where the agent writes the spec and the code together needs a two-commit shape or an explicit
    bootstrap-unknown. This is a hard ordering constraint, not a preference.
 2. **Intent identity is a byte span, and specs get edited.** `ocmIntent` pins
@@ -127,7 +127,7 @@ The implemented advisory queue does not supply that host authority.
 ## Modelling debt to clear first
 
 `authorityClass` currently carries four incompatible value sets — in the MCP bridge
-(`internal/mcp/bridge/bridge.go:1063@982aa756`), in the frontier spec
+(`internal/mcp/bridge/bridge.go:1102@982aa756`), in the frontier spec
 (`docs/specs/change-frontier-v0.md:249-250@20d8f7d1`), as a lowercase constant in LRF (`internal/lrf/types.go:12@fc816169`), and as a
 seven-value lattice in the dashboard spec. The ordering between them is asserted per context and
 defined globally nowhere. Any spec-toolchain integration adds a fifth. One ordered lattice, one

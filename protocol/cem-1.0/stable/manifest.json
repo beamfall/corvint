@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "99771474da27547af48ff421475487e2d1db59590e9a9609362a1c93a0fa43bc",
-      "bytes": 57644
+      "sha256": "04b874b099e338432f104bd4ea187ea2ee4f7e4936c183efd9e7cd7227a805e1",
+      "bytes": 57894
     },
     {
       "path": "FIXTURES.pack.json",
@@ -43,8 +43,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "73e58dcaec67b4762f68893d2ce6a773163a4973cdffcac0e8217a358ee3ac46",
-      "bytes": 4893
+      "sha256": "157d67e7af3c53614057cc4b39f79f951389ee15efc9ca7d07c49aaf2b2a8cc7",
+      "bytes": 5253
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
@@ -612,19 +612,29 @@
       "bytes": 26448
     },
     {
+      "path": "revisions/r2/ALGORITHMS.md",
+      "sha256": "99771474da27547af48ff421475487e2d1db59590e9a9609362a1c93a0fa43bc",
+      "bytes": 57644
+    },
+    {
+      "path": "revisions/r2/manifest.json",
+      "sha256": "f4a7e85bfd334b5d67fc298bcc3951f5208cf46a9e80f89b314627abaf64a8b1",
+      "bytes": 26772
+    },
+    {
       "path": "stable.schema.json",
       "sha256": "e536b9ee1c579866b1b118229aab428926440e0c018642b0dd7a635a8bcfd1e3",
       "bytes": 22214
     },
     {
       "path": "tamper-matrix/EXPECTED.json",
-      "sha256": "808c6b6f4cf0a7d2a78c74081aaa818f6c74516a2399eb794c5919a5af2d6c64",
-      "bytes": 17048
+      "sha256": "44c69324122a0d435265ddc5447306a165b0f1580be7651cbf3296f14507d315",
+      "bytes": 15788
     },
     {
       "path": "tamper-matrix/README.md",
-      "sha256": "7a869475e1a2ba62b762c6d09f33776483c3244524df8c79c3d862d9906f2e54",
-      "bytes": 2407
+      "sha256": "67e3e416cf608682bf545e8ae41f37a001133db51f1721668ef96745a142abf2",
+      "bytes": 2843
     },
     {
       "path": "tamper-matrix/cases/basis-pair-duplicated.json",

@@ -48,7 +48,7 @@ const usage = "usage: corvint-test e2e <catalog|harvest|obligations|compile|prov
 	"       corvint-test minimize <plan|execute> --experimental [flags] < input.json (folded corvint-playwright-minimize, CTF-V0)\n" +
 	"       corvint-test accept plan|accept --plan FILE [flags] (folded corvint-tests-accept, CTF-V0)\n" +
 	"       accept and falsify against a caller-owned authenticated-disposable app: docs/EXTERNAL-APP-ACCEPTANCE.md\n" +
-	"       corvint-test help [--json] | corvint-test COMMAND --help (each command's usage, flags, required inputs and example)"
+	"       corvint-test help [--json | --tree] | corvint-test COMMAND --help (each command's usage, flags, required inputs and example)"
 
 // acceptWorker selects the accept group's worker when the executable re-enters itself.
 var acceptWorker = []string{"accept", "worker"}

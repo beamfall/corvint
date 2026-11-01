@@ -40,6 +40,10 @@ func (c *change) precheckIntentObligations() {
 	if overMapBound(err) {
 		c.refuseOverBoundIntents(intents)
 	}
+	if intentRefusal(err) != nil {
+		c.refuseInvalidIntents(intents)
+		return
+	}
 	if err != nil || len(shares) != len(intents) {
 		return
 	}
@@ -82,6 +86,68 @@ func (c *change) manifestIntents() []string {
 	}
 	if len(paths) > maxAggregateScopes || c.recordIntent(paths) {
 		return nil
+	}
+	return paths
+}
+
+// intentRefusal is the coded refusal an intent derivation returned, or nil
+// for success or an uncoded failure such as a Git read error, which stays with
+// the steps.
+func intentRefusal(err error) *lrfrepo.Error {
+	var refusal *lrfrepo.Error
+	if errors.As(err, &refusal) && refusal.Code != "" {
+		return refusal
+	}
+	return nil
+}
+
+// refuseInvalidIntents refuses, before any step runs, a manifest naming an
+// intent ocm-prepare would refuse to derive after the bind commit, with the
+// code and message it would print: lrfrepo.DeriveIntentAt is the derivation
+// prepare runs, so an INTENTS file this pass admits is not refused by the bind
+// for an intent derivation (DCW-V0-945). Each intent is derived alone, so every
+// failing one is named.
+func (c *change) refuseInvalidIntents(intents []string) {
+	failing := []string{}
+	deferred := c.deferredPlanPaths()
+	for _, intent := range intents {
+		// A kept intent the plan also defers keeps its own, more specific
+		// deferred-intent-kept refusal (DCW-V0-370).
+		if deferred[intent] {
+			continue
+		}
+		if _, err := lrfrepo.DeriveIntentAt(c.ctx, c.root, c.target, intent); intentRefusal(err) != nil {
+			refusal := intentRefusal(err)
+			failing = append(failing, fmt.Sprintf("  intent=%s code=%s: %s", intent, refusal.Code, refusal.Message))
+		}
+	}
+	if len(failing) == 0 {
+		return
+	}
+	c.say("%s: REFUSE intent-invalid\n", c.prefix)
+	for _, line := range failing {
+		c.say("%s\n", line)
+	}
+	c.say("  ocm-prepare refuses each of these after the bind commit with the same code; no step ran and the previous evidence is kept (DCW-V0-945)\n")
+	c.say("  fix: commit each intent as a UTF-8 Markdown spec with a Requirements section at HEAD, or drop it from DOGFOOD_INTENTS_FILE, then rerun\n")
+	c.exit(2)
+}
+
+// deferredPlanPaths are the paths the citation plan's deferred rows name, read
+// as the four-field grammar without validating the rest of the plan.
+func (c *change) deferredPlanPaths() map[string]bool {
+	paths := map[string]bool{}
+	if c.options.Citations == "" || !isRegular(c.options.Citations) {
+		return paths
+	}
+	data, err := readPrefix(c.options.Citations, maxPlanBytes)
+	if err != nil {
+		return paths
+	}
+	for _, line := range textLines(data) {
+		if fields := strings.Split(line, "\t"); len(fields) >= 2 && fields[0] == "deferred" {
+			paths[fields[1]] = true
+		}
 	}
 	return paths
 }

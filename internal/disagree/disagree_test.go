@@ -3,6 +3,7 @@ package disagree
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
@@ -39,7 +40,7 @@ func TestStructuralChannelLinksDeclaringAndImportingFiles(t *testing.T) {
 	if reason, ok := byPath["lib/util.go"]; !ok || reason != "imported by cache/demux.go" {
 		t.Fatalf("forward import missing or mislabeled: %v", byPath)
 	}
-	if reason, ok := byPath["app/caller.go"]; !ok || reason != "imports cache/demux.go" {
+	if reason, ok := byPath["app/caller.go"]; !ok || reason != "imports example.test/mod/cache" {
 		t.Fatalf("reverse import missing or mislabeled: %v", byPath)
 	}
 	if _, ok := byPath["ghost.go"]; ok {
@@ -227,7 +228,7 @@ func TestRankLinksOrdersByLinkCountThenPathAndTruncates(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := rankLinks(links, tc.limit); !reflect.DeepEqual(got, tc.want) {
+			if got := rankLinks(links, nil, tc.limit); !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("rankLinks() = %v, want %v", got, tc.want)
 			}
 		})
@@ -293,4 +294,118 @@ func overlappingCandidates(shared, lexicalOnly, structuralOnly int) ([]candidate
 		structural = append(structural, candidate{path: fmt.Sprintf("structural-%02d.go", i)})
 	}
 	return lexical, structural
+}
+
+// RDS-V0-961/RDS-V0-963 (V1-3708): a Go import names a package once, so an
+// import of a many-file package is one link to its representative source, not
+// one per file, and the file declaring the named symbol is seeded at rank 1
+// even when many importers tie on link count ahead of it by path.
+func TestStructuralChannelSeedsDeclarerAheadOfPackageFanOut(t *testing.T) {
+	index := &contextindex.Index{
+		Module:  "example.test/mod",
+		Symbols: []contextindex.Symbol{{Name: "EvalQuery", Path: "zz/eval/eval_query.go"}},
+		Sources: map[string]contextindex.Source{
+			"zz/eval/eval_query.go": {Path: "zz/eval/eval_query.go"},
+			"lib/doc.go":            {Path: "lib/doc.go"},
+			"lib/a.go":              {Path: "lib/a.go"},
+			"lib/b.go":              {Path: "lib/b.go"},
+			"lib/b_test.go":         {Path: "lib/b_test.go"},
+		},
+		Imports: map[string]map[string]struct{}{"zz/eval/eval_query.go": {"example.test/mod/lib": {}}},
+	}
+	for position := range 12 {
+		importer := fmt.Sprintf("app/a%02d.go", position)
+		index.Sources[importer] = contextindex.Source{Path: importer}
+		index.Imports[importer] = map[string]struct{}{"example.test/mod/zz/eval": {}}
+	}
+
+	rows := structuralChannel(index, "where is EvalQuery defined", "", 20)
+	if len(rows) == 0 || rows[0] != (candidate{path: "zz/eval/eval_query.go", reason: "declares EvalQuery"}) {
+		t.Fatalf("declaring file is not seeded first: %v", rows)
+	}
+	forward := 0
+	for _, row := range rows {
+		if strings.HasPrefix(row.path, "lib/") {
+			forward++
+			if row.path != "lib/doc.go" || row.reason != "imported by zz/eval/eval_query.go" {
+				t.Fatalf("package import did not resolve to its doc.go representative: %v", row)
+			}
+		}
+	}
+	if forward != 1 {
+		t.Fatalf("package import linked %d files, want exactly one: %v", forward, rows)
+	}
+}
+
+// RDS-V0-960: a file naming the declared symbol is a reference only where the
+// name resolves structurally (same Go package, or an importer of a definer);
+// the same word in an unrelated file, or an importer that never names it, is
+// not a reference.
+func TestStructuralChannelReferencesResolveStructurally(t *testing.T) {
+	source := func(name, text string) contextindex.Source {
+		return contextindex.Source{Path: name, Data: []byte(text)}
+	}
+	index := &contextindex.Index{
+		Module:  "example.test/mod",
+		Symbols: []contextindex.Symbol{{Name: "EvalQuery", Path: "ctx/eval_query.go"}},
+		Sources: map[string]contextindex.Source{
+			"ctx/eval_query.go":      source("ctx/eval_query.go", "func EvalQuery() {}"),
+			"ctx/eval_query_test.go": source("ctx/eval_query_test.go", "EvalQuery(); EvalQuery()"),
+			"ctx/other.go":           source("ctx/other.go", "EvalQueryish()"),
+			"app/main.go":            source("app/main.go", "ctx.EvalQuery()"),
+			"app/quiet.go":           source("app/quiet.go", "ctx.Other()"),
+			"docs/notes.go":          source("docs/notes.go", "EvalQuery is described here"),
+		},
+		Imports: map[string]map[string]struct{}{
+			"app/main.go":  {"example.test/mod/ctx": {}},
+			"app/quiet.go": {"example.test/mod/ctx": {}},
+		},
+	}
+	byPath := map[string]string{}
+	for _, row := range structuralChannel(index, "EvalQuery", "", 10) {
+		byPath[row.path] = row.reason
+	}
+	want := map[string]string{
+		"ctx/eval_query.go":      "declares EvalQuery",
+		"ctx/eval_query_test.go": "references EvalQuery",
+		"app/main.go":            "imports example.test/mod/ctx; references EvalQuery",
+		"app/quiet.go":           "imports example.test/mod/ctx",
+	}
+	if !reflect.DeepEqual(byPath, want) {
+		t.Fatalf("structural channel = %v, want %v", byPath, want)
+	}
+}
+
+// RDS-V0-962 (V1-3708): only identifier-shaped tokens vote. Prose words that
+// happen to spell a declared name (`signal`, `where`) and all-capital acronyms
+// stay silent unless quoted in backticks.
+func TestIdentifierTokensDropProse(t *testing.T) {
+	got := identifierTokens("where is the retriever signal for EvalQuery, CEM and `defined` or rank_links? Fetch it")
+	want := map[string]struct{}{"EvalQuery": {}, "defined": {}, "rank_links": {}, "Fetch": {}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("identifierTokens() = %v, want %v", got, want)
+	}
+	// Codex P2 (RDS-V0-962): an underscore anywhere marks code, including a
+	// leading, trailing or surrounding one, so Python's `_refresh`, `cache_` and
+	// `__init__` keep their structural vote.
+	for _, token := range []string{"_refresh", "cache_", "__init__"} {
+		if got := identifierTokens("fix " + token + " handling"); !reflect.DeepEqual(got, map[string]struct{}{token: {}}) {
+			t.Fatalf("identifierTokens(%q) = %v, want it kept", token, got)
+		}
+	}
+	python := &contextindex.Index{
+		Symbols: []contextindex.Symbol{{Name: "_refresh", Path: "pkg/cache.py"}, {Name: "__init__", Path: "pkg/model.py"}},
+		Sources: map[string]contextindex.Source{"pkg/cache.py": {Path: "pkg/cache.py"}, "pkg/model.py": {Path: "pkg/model.py"}},
+	}
+	for task, declarer := range map[string]string{"why does _refresh skip": "pkg/cache.py", "the __init__ order": "pkg/model.py"} {
+		if rows := structuralChannel(python, task, "", 10); len(rows) == 0 || rows[0].path != declarer {
+			t.Fatalf("%q: structural channel %v, want %s seeded first", task, rows, declarer)
+		}
+	}
+	index := &contextindex.Index{Symbols: []contextindex.Symbol{
+		{Name: "signal", Path: "a.go"}, {Name: "where", Path: "b.go"}, {Name: "CEM", Path: "c.go"},
+	}}
+	if rows := structuralChannel(index, "retriever disagreement answerability signal where CEM", "", 10); rows != nil {
+		t.Fatalf("prose words voted structurally: %v", rows)
+	}
 }

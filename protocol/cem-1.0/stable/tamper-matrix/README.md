@@ -44,3 +44,10 @@ record is still a real, digest-bound span of the base `SPEC.md`, and a
 support tier never changes the verdict (CEM-V1-080). The swap shows up only as
 the degraded tier: both hunks drop from `anchored` to `cited`, and
 `specificity` drops from 2 to -2 (CEM-V1-229).
+
+`span-hash-recomputed` is also an ACCEPT. Its edited span is re-hashed and
+its evidence ID recomputed, so the result is a different self-consistent map
+of real base spans. The verifier binds bytes and identities, not which span a
+producer chose to cite (CEM-V1-751). `hunk-reorder` is a REJECT: a map lists
+its hunks in canonical patch order, and another order fails verification with
+`invalid-field` (CEM-V1-750, packet revision r3).

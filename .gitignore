@@ -32,6 +32,7 @@ benchmarks/results/*.partial.json
 /corvint-tasks
 /corvint-companion-release
 /test-read-scopes-check
+/declaration-compat-check
 
 # Installed JavaScript dependencies (extensions/, integrations/).
 node_modules/

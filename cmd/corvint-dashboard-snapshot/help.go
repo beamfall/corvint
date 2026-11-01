@@ -19,9 +19,12 @@ var commandSummaries = map[string]string{
 	"cem-stable": "Compile the dashboard view of a cem/1.0 stable map and its OCM against an expected base and target",
 }
 
+// versionFlags are answered by the companion contract before the tree (CAP-V0-700).
+var versionFlags = []string{"--version"}
+
 // companionHelp is corvint-dashboard-snapshot's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {
-	return clitree.Help{Tree: clitree.CompanionTree("corvint-dashboard-snapshot", usageText, commandSummaries, nil, nil, nil),
+	return clitree.Help{Tree: clitree.CompanionTree("corvint-dashboard-snapshot", usageText, commandSummaries, nil, versionFlags, nil),
 		Title: "the local dashboard snapshot compiler"}
 })
 

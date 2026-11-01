@@ -6,9 +6,13 @@ import (
 	"context"
 	"os"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/mcp/cli"
 )
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-mcp", Version: companioncli.ExperimentalVersion, Usage: cli.Usage()}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	os.Exit(cli.ServeProfiled(context.Background(), os.Args[1:], os.Stdin, os.Stdout, os.Stderr))
 }

@@ -297,6 +297,18 @@ Evidence: `TestSDDV0019DryRunDraftIsMarkedAndNeverConsumed`, `TestSDDV0019ReadDr
 `TestSDDV0019DocsCLIDryRunUntrackedAndInlineOwner`, `TestDocsMCPDryRunAcceptsUntrackedOrInlineOwner`.
 Rollback: remove `DraftDryRun`, `ReadDryRunOwner` and the two flags/members; admitted drafts are
 unaffected. Status: experimental under the standing lane auto-accept (V1-3081).
+- `SDD-V0-700`: (experimental under the standing lane auto-accept; V1-3706) `corvint.docs_draft`
+without `dry_run` and `corvint.docs_consume`, in `corvint-docs-mcp` and the `docs` group of
+`corvint mcp`, MUST refuse before building the source index a package that is not one module
+directory and an owner source that is not Markdown or is not in the HEAD commit the index reads
+(`git cat-file -e HEAD:PATH`; untracked and staged-only files are absent), with exactly the
+`unsupported-documentation-source` code and message the full rederivation returns; every other
+input is decided by the index as before, and a Git probe that cannot run leaves the decision to
+it. Such a refusal answers in under 100 ms instead of after a full index build (about 2 s on this
+repository). Non-goals: pre-deciding package declarations (they need the index), the CLI `docs`
+verbs. Evidence: `TestSDDV0700AbsentOwnerSourceRefusesBeforeTheIndex` (missing, untracked, staged
+and non-Markdown sources, both tools: equal to `DraftSources` over a full index, under 100 ms, no
+build; a committed owner still builds). Rollback: drop `PrecheckDraft` and `Registry.precheck`.
 
 
 ## CLI contract

@@ -167,18 +167,14 @@ func doctorCommand(env Env, args []string) *wire.Result {
 	}
 	if pluginsSet {
 		given := plugins
-		if !filepath.IsAbs(plugins) {
-			plugins = filepath.Join(env.Cwd, plugins)
-		}
+		plugins = commandPath(env.Cwd, plugins)
 		if st, err := os.Stat(plugins); err != nil || !st.IsDir() {
 			return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "--plugins", "plugin directory %q is not a directory", given))
 		}
 	}
 	cfg := defaultDoctorConfig()
 	if configPath != "" {
-		if !filepath.IsAbs(configPath) {
-			configPath = filepath.Join(env.Cwd, configPath)
-		}
+		configPath = commandPath(env.Cwd, configPath)
 		var err error
 		if cfg, err = readDoctorConfig(configPath); err != nil {
 			return failure(cmd, nil, err)

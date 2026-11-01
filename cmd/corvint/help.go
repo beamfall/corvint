@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -53,6 +54,12 @@ func parseHelpInvocation(arguments []string) (string, bool, error) {
 	directTopic := ""
 	if len(rest) == 2 && rest[0] == "help" && rest[1] == "--json" {
 		return "catalog-json", true, nil
+	}
+	if len(rest) == 3 && rest[0] == "help" && rest[1] == "--json" { // CAP-V0-950: one command's catalog entry.
+		if !slices.Contains(topLevelCommands, rest[2]) {
+			return "", true, unknownCatalogCommand(rest[2])
+		}
+		return catalogCommandHelpPrefix + rest[2], true, nil
 	}
 	if len(rest) == 2 && rest[0] == "help" {
 		directTopic = capabilityOrPublicHelpTopic(rest[1])
@@ -193,6 +200,9 @@ func helpText(topic string) string {
 	if path, ok := strings.CutPrefix(topic, nodeHelpPrefix); ok {
 		return nodeHelpText(path)
 	}
+	if command, ok := strings.CutPrefix(topic, catalogCommandHelpPrefix); ok {
+		return catalogCommandJSON(command)
+	}
 	return topicText(topic) + helpExampleTrailer(topic)
 }
 
@@ -330,7 +340,7 @@ const rootHelp = `Corvint: proof-carrying context for coding agents
 
 Usage:
   corvint [--root PATH] COMMAND [OPTIONS]
-  corvint COMMAND --help | corvint help COMMAND | corvint help --json|guide
+  corvint COMMAND --help | corvint help COMMAND | corvint help --json [COMMAND]|--tree|guide
   corvint --version [--json]
 
 Commands:
@@ -853,13 +863,12 @@ Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
-          [--paths-from FILE] [--cache DIR | --no-cache]
-  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
+  corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
-          --base FULL_COMMIT_ID
+          --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
           [--playwright-env NAME[=VALUE] ...]

@@ -54,8 +54,12 @@ GATE_STEPS = \
   ai-coauthor-trailers-test \
   analyzer-schema-check \
   analyzer-schema-test \
+  bash32-check \
+  bash32-test \
   batch-precheck-test \
   binary-blobs-check \
+  cem-base-retention-check \
+  cem-base-retention-test \
   ci-least-privilege-check \
   ci-least-privilege-test \
   codex-review-test \
@@ -315,6 +319,8 @@ spec-requirements:
 	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
 	@script/gen-spec-requirements.sh --write
+	@test -d internal/lrfrepo || exit 0; out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
+	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
@@ -393,6 +399,17 @@ traceability-tests-test:
 .PHONY: decision-numbers-check
 decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
+
+# cem-base-retention-check (decision 0588, V1-3758) refuses a tracked .corvint/changes map whose
+# baseRevision origin/main does not reach unless .corvint/cem-lineage.tsv labels it; with no
+# origin/main (a shallow clone) it prints that it was skipped. cem-base-retention-test is its fixture test.
+.PHONY: cem-base-retention-check
+cem-base-retention-check:
+	@script/check-cem-base-retained.sh
+
+.PHONY: cem-base-retention-test
+cem-base-retention-test:
+	@script/check-cem-base-retained_test.sh
 
 .PHONY: decision-numbers-test
 decision-numbers-test:
@@ -518,6 +535,13 @@ unbounded-readers-check:
 test-read-scopes-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-read-scopes-check >/dev/null
 
+# declaration-compat-check fails, naming the file, position, member and pin, when a closed-shape
+# .corvint planner declaration holds a member the same file lacks at a CI planner pin in
+# .github/workflows/ci.yml, which that planner would refuse (AFP-V0-710, docs/specs/affected-plan-v0.md).
+.PHONY: declaration-compat-check
+declaration-compat-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/declaration-compat-check >/dev/null
+
 # test-commands-check reads this Makefile's text (not make's output) and fails unless the go-test
 # rule is exactly `go-test:` + `go run ./tools/test-commands-run` (the runner of the declaration
 # .github/cishards/test-commands.json), no line here or in an included file sets SHELL,
@@ -601,6 +625,16 @@ documentation-paths-check:
 .PHONY: documentation-paths-test
 documentation-paths-test:
 	@script/gen-documentation-paths_test.sh
+
+# ASD-V0-750 (V1-3812): no Bash 4+ construct in a tracked shell script, since macOS /bin/bash is
+# 3.2 and the Linux lane hosts run Bash 5. A doc gate, so CI and batch-precheck both run it.
+.PHONY: bash32-check
+bash32-check:
+	@script/check-bash32.sh
+
+.PHONY: bash32-test
+bash32-test:
+	@script/check-bash32_test.sh
 
 # ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
 # root build output ignored. A doc gate, so CI and batch-precheck both run it.
@@ -982,7 +1016,7 @@ shell-test-registration-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
@@ -993,9 +1027,11 @@ doc-gates:
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
-# receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
-# failing step. The first precheck leaves out the batch-drift go tests, which read the CEM the seal
-# adds, so each runs once, on the sealed head (ASD-V0-837, V1-3550).
+# receipt of the sealed head, selecting against the head the first run's receipt names, so a step the
+# bind and seal commits cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
+# batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
+# precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
+# on the sealed head (ASD-V0-837, V1-3550).
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
@@ -1006,7 +1042,7 @@ dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
-	@$(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:
@@ -1141,7 +1177,9 @@ shell-test: \
   agent-preflight-test \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
+  bash32-test \
   batch-precheck-test \
+  cem-base-retention-test \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \

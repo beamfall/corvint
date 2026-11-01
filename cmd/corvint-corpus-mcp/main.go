@@ -11,6 +11,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/doccorpus"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/corpusbridge"
@@ -39,9 +40,13 @@ const usage = "usage: corvint-corpus-mcp --root ROOT --artifact ARTIFACT [--map 
 	"A local read-only stdio MCP server for the documentation corpus ARTIFACT of the Git worktree at ROOT.\n" +
 	"Deprecated alias for the corpus tools, kept for one release:\n" +
 	"corvint-mcp --root ROOT --tool-profile corpus --corpus-artifact ARTIFACT serves the same corpus tools\n" +
-	"with the same results; --map, --consolidation, --legacy-cases and --outcome-log stay here."
+	"with the same results; --map, --consolidation, --legacy-cases and --outcome-log stay here.\n" +
+	"Example: corvint-corpus-mcp --root /absolute/repo --artifact corpus.json"
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-corpus-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
@@ -201,19 +206,14 @@ func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
 		tools = append(tools, handler.legacyCases.descriptor())
 	}
 	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
-	return tools
+	return bridge.WithOutputSchemas(tools) // MCPV0-953
 }
 
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
 	case "tools/list":
-		if !onlyKeys(request.Params, "_meta", "cursor") {
-			return nil, protocol.InvalidParams("Invalid params")
-		}
-		if cursor, present := request.Params["cursor"]; present {
-			if value, valid := cursor.(string); !valid || value != "" {
-				return nil, protocol.InvalidParams("Invalid params")
-			}
+		if refusal := toolgroup.ListParamsRefusal(request.Params); refusal != nil { // MCPV0-952
+			return nil, refusal
 		}
 		tools := handler.listedTools()
 		return map[string]any{
@@ -221,10 +221,12 @@ func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request
 		}, nil
 	case "tools/call":
 		if handler.outcomes == nil {
-			return handler.call(ctx, request.Params)
+			result, rpcErr := handler.call(ctx, request.Params)
+			return result, toolgroup.WithInvalidParamsData(handler.listedTools, request.Params, rpcErr) // MCPV0-952
 		}
 		started := time.Now()
 		result, rpcErr := handler.call(ctx, request.Params)
+		rpcErr = toolgroup.WithInvalidParamsData(handler.listedTools, request.Params, rpcErr)
 		name, _ := request.Params["name"].(string)
 		handler.outcomes.record(name, classifyOutcome(result, rpcErr), time.Since(started))
 		return result, rpcErr

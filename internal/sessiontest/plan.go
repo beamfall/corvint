@@ -4,14 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"path"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/gateselect"
 )
 
 // Unknown is one plan.unknown entry.
@@ -97,26 +96,7 @@ const moduleReason = "a nested Go module the root does not build: its packages a
 // whose path lies below it; anything else is not admitted, so the entry
 // stays outside the allowlist and the run is FULL.
 func moduleDirectory(entry Unknown) (string, bool) {
-	rest, ok := strings.CutPrefix(entry.Detail, "go:unobserved-module:")
-	if entry.Reason != "LANGUAGE_FRONTIER" || !ok {
-		return "", false
-	}
-	found, count := "", 0
-	for index := strings.IndexByte(rest, ':'); index >= 0; {
-		directory, dirty := rest[:index], rest[index+1:]
-		if strings.HasPrefix(dirty, directory+"/") {
-			found, count = directory, count+1
-		}
-		next := strings.IndexByte(rest[index+1:], ':')
-		if next < 0 {
-			break
-		}
-		index += next + 1
-	}
-	if count != 1 || found == "." || !filepath.IsLocal(found) || path.Clean(found) != found || strings.ContainsRune(found, '\\') {
-		return "", false
-	}
-	return found, true
+	return gateselect.UnobservedModule(entry.Reason, entry.Detail)
 }
 
 // ModuleCovered reports whether every dirty path is named by a well-formed
@@ -140,17 +120,11 @@ func ModuleCovered(dirty []string, unknown []Unknown) bool {
 	return len(dirty) != 0
 }
 
-// allowedUnknown is the closed AFP-V0-028 allowlist: every other plan.unknown
-// entry forces FULL (STR-V0-003).
+// allowedUnknown is the closed AFP-V0-028 allowlist, the one the deciding
+// driver shares (gateselect.AllowedUnknown, AFP-V0-982): every other
+// plan.unknown entry forces FULL (STR-V0-003).
 func allowedUnknown(entry Unknown) bool {
-	switch entry.Reason {
-	case "LANGUAGE_FRONTIER":
-		return !strings.HasPrefix(entry.Detail, "go:") ||
-			entry.Detail == "go:build-constraint-variants" || entry.Detail == "go:nested-module-frontier"
-	case "UNOWNED_DIRTY_PATH", "NO_SELECTABLE_TEST":
-		return true
-	}
-	return false
+	return gateselect.AllowedUnknown(entry.Reason, entry.Detail)
 }
 
 // PartitionDigest binds the cishards profile and the three repository

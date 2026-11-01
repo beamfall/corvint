@@ -15,8 +15,10 @@ import (
 	"errors"
 	"github.com/Beamfall/corvint/internal/mcp/rootbind"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -87,7 +89,7 @@ func (registry *Registry) Tools() []bridge.ToolDescriptor {
 	}
 	pathSchema := map[string]any{
 		"type": "string", "minLength": 1, "maxLength": maxPathRunes,
-		"pattern": `^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\).+$`,
+		"pattern": bridge.SubjectPathRule.Pattern(), // MCPV0-954
 	}
 	return []bridge.ToolDescriptor{
 		{
@@ -171,6 +173,11 @@ func (registry *Registry) callDraft(ctx context.Context, arguments []byte) (map[
 	if !registry.sameRoot() {
 		return nil, "", nil, failure("repository-unavailable")
 	}
+	if !input.DryRun {
+		if refusal := registry.precheck(ctx, input.Source, input.Package); refusal != nil {
+			return nil, "", refusal, nil
+		}
+	}
 	var owner []byte
 	if input.DryRun {
 		var err error
@@ -230,6 +237,9 @@ func (registry *Registry) callConsume(ctx context.Context, arguments []byte) (ma
 	if !registry.sameRoot() {
 		return nil, "", nil, failure("repository-unavailable")
 	}
+	if refusal := registry.precheck(ctx, input.Source, input.Package); refusal != nil {
+		return nil, "", refusal, nil
+	}
 	index, err := registry.build(ctx, registry.root, "")
 	if err != nil {
 		return nil, "", nil, transportOrToolFailure(ctx, err)
@@ -260,6 +270,27 @@ func (registry *Registry) callConsume(ctx context.Context, arguments []byte) (ma
 		return nil, "", nil, failure("internal-error")
 	}
 	return result, string(encoded), nil, nil
+}
+
+// precheck answers the refusals DraftSources would give without the index
+// (SDD-V0-700): an owner source absent from HEAD is never an admitted indexed
+// source. A Git probe that cannot run leaves the decision to the index.
+func (registry *Registry) precheck(ctx context.Context, source, directory string) *ToolFailure {
+	err := doccompiler.PrecheckDraft(source, directory, func(path string) bool {
+		probe, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		command := exec.CommandContext(probe, gitstatus.Executable(), "-C", registry.root, "cat-file", "-e", "HEAD:"+path)
+		command.Env = gokernel.SanitizedGitEnvironment()
+		var exit *exec.ExitError
+		if runErr := command.Run(); errors.As(runErr, &exit) && probe.Err() == nil {
+			return false
+		}
+		return true
+	})
+	if problem, ok := asDoccompilerError(err); ok {
+		return &ToolFailure{Code: problem.Code, Message: problem.Message}
+	}
+	return nil
 }
 
 func (registry *Registry) sameRoot() bool {

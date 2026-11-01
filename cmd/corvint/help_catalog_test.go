@@ -123,7 +123,7 @@ func TestCAPV0019CommittedCatalogMatchesTheBinary(t *testing.T) {
 
 func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	t.Parallel()
-	if !strings.Contains(rootHelp, " | corvint help --json|guide\n") || len(rootHelp) > rootHelpMaxBytes {
+	if !strings.Contains(rootHelp, " | corvint help --json [COMMAND]|--tree|guide\n") || len(rootHelp) > rootHelpMaxBytes { // CAP-V0-950 adds the slice and the tree
 		t.Fatalf("root help lacks the catalog topics or exceeds %d bytes (%d)", rootHelpMaxBytes, len(rootHelp))
 	}
 	err := unknownHelpTopic([]string{"nope"})
@@ -132,13 +132,18 @@ func TestCAPV0021RootHelpNamesTheCatalogTopicsWithinItsBound(t *testing.T) {
 	}
 }
 
+// catalogDriftHint names the recovery when the embedded catalog no longer
+// matches the CLI (V1-3659): the snapshot the help tool serves is regenerated,
+// not edited.
+const catalogDriftHint = "; the embedded catalog is stale: run `make capability-catalog` and commit internal/capcatalog/"
+
 // MCPV0-105: the corvint.help answer that corvint-docs-mcp, corvint-corpus-mcp
 // and corvint-test-validity-mcp return through bridge.HelpToolResult carries the
 // CLI's own stdout byte for byte, for both topics, in structuredContent. Each
 // server's wire test holds its answer equal to bridge.HelpToolResult's.
 func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
 	t.Parallel()
-	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
 		answer, callErr := bridge.HelpToolResult(context.Background(), []byte(arguments))
 		if callErr != nil {
 			t.Fatal(callErr)
@@ -146,7 +151,7 @@ func TestMCPV0105CompanionHelpMatchesTheCLI(t *testing.T) {
 		structured, _ := answer["structuredContent"].(map[string]any)
 		receipt, _ := structured["receipt"].(map[string]any)
 		if text, _ := receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("companion corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+			t.Fatalf("companion corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
 		}
 	}
 }
@@ -163,13 +168,43 @@ func TestMCPV0100HelpToolMatchesTheCLI(t *testing.T) {
 	if bridgeErr != nil {
 		t.Fatal(bridgeErr)
 	}
-	for arguments, cli := range map[string][]string{`{}`: {"help", "--json"}, `{"topic":"guide"}`: {"help", "guide"}} {
+	for arguments, cli := range map[string][]string{`{"topic":"catalog"}`: {"help", "--json"}, `{}`: {"help", "guide"}, `{"command":"impact"}`: {"help", "--json", "impact"}} {
 		result, callErr := registry.Call(context.Background(), bridge.ToolHelp, []byte(arguments))
 		if callErr != nil {
 			t.Fatal(callErr)
 		}
 		if text, _ := result.Receipt["text"].(string); text != runCatalogHelp(t, cli...) {
-			t.Fatalf("corvint.help %s differs from corvint %s", arguments, strings.Join(cli, " "))
+			t.Fatalf("corvint.help %s differs from corvint %s%s", arguments, strings.Join(cli, " "), catalogDriftHint)
 		}
+	}
+}
+
+// TestMCPV0100DriftFailureNamesTheRecovery (V1-3659): the MCPV0-100 and
+// MCPV0-105 drift failures name the regeneration command, not only the diff.
+func TestMCPV0100DriftFailureNamesTheRecovery(t *testing.T) {
+	t.Parallel()
+	if !strings.Contains(catalogDriftHint, "make capability-catalog") {
+		t.Fatalf("drift hint %q names no recovery command", catalogDriftHint)
+	}
+}
+
+// CAP-V0-950: `corvint help --json COMMAND` prints that command's catalog
+// entry under 5 KB, every command slices, an unknown name is refused naming
+// every command, and corvint-tasks and corvint-test accept the --tree spelling
+// of their command trees.
+func TestCAPV0950HelpJSONCommandSlice(t *testing.T) {
+	t.Parallel()
+	catalog := runCatalogHelp(t, "help", "--json")
+	for _, command := range topLevelCommands {
+		slice := runCatalogHelp(t, "help", "--json", command)
+		want, _, ok := capcatalog.Slice([]byte(catalog), command)
+		if !ok || slice != string(want) || len(slice) >= 5*1024 {
+			t.Fatalf("help --json %s: %d bytes, equal to the catalog slice %v", command, len(slice), slice == string(want))
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"help", "--json", "nope"}, strings.NewReader(""), &stdout, &stderr); code != 2 ||
+		!strings.Contains(stdout.String()+stderr.String(), "unknown command for help --json: 'nope' (choose from 'init',") {
+		t.Fatalf("unknown slice exit=%d stdout=%q stderr=%q", code, stdout.String(), stderr.String())
 	}
 }

@@ -63,7 +63,21 @@ type Candidate struct {
 
 // Duplicate reports whether c reaches the create guard's threshold.
 func (c Candidate) Duplicate() bool {
-	return c.Similarity >= DuplicateSimilarity && len(c.Matches) >= DuplicateMinTerms
+	return c.Similarity >= DuplicateSimilarity && len(c.Matches) >= DuplicateMinTerms && c.Anchored()
+}
+
+// Anchored reports whether a matched query term is in the candidate's title
+// or ID: a duplicate shares what the item is, not only body vocabulary
+// (TCL-V0-990).
+func (c Candidate) Anchored() bool {
+	for _, m := range c.Matches {
+		for _, f := range m.Fields {
+			if f == FieldTitle || f == FieldID {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Reason is the evidence line in the context compiler's form.

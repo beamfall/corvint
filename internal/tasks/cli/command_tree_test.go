@@ -59,6 +59,11 @@ func TestCAPV0046HelpJSONIsTheTree(t *testing.T) {
 	if !bytes.Equal(out.Bytes(), cli.CommandTreeJSON()) {
 		t.Fatal("help --json is not the command tree document")
 	}
+	// CAP-V0-950: `help --tree`, corvint's spelling, prints the same tree.
+	var tree bytes.Buffer
+	if code := cli.Run(cli.Env{Cwd: t.TempDir(), Args: []string{"help", "--tree"}, Stdin: unreadHelpInput{}, Stdout: &tree}); code != 0 || !bytes.Equal(tree.Bytes(), out.Bytes()) {
+		t.Fatalf("help --tree: exit %d, equal to help --json %v", code, bytes.Equal(tree.Bytes(), out.Bytes()))
+	}
 	want, err := os.ReadFile("../../capcatalog/trees/corvint-tasks.json")
 	if err != nil {
 		t.Fatal(err)

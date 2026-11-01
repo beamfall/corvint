@@ -682,6 +682,16 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   the byte-identity assertion is unchanged. Non-goals: reserving space against concurrent
   writers. Failure mode: another process fills the file system after the check and a build fails
   with its own error. Rollback: restore unbounded concurrency and drop the skip.
+- `PUB-V0-965`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3799; refines
+  PUB-V0-003) The closed Go build environment (`closedGoEnv`) MUST set `GOTMPDIR=<home>/gotmp`
+  under the build's own home, and every closed-environment Go invocation MUST create that
+  directory before it starts, so the build's `$WORK` lives beside its cold caches. The caller's
+  `TMPDIR` and `GOTMPDIR` MUST NOT enter the closed environment, which stays fixed. Failure mode:
+  before this, `$WORK` fell back to the host's default temp directory, so a full `/tmp` failed
+  the double build with `no space left on device` whatever the caller set. The PUB-V0-054
+  free-space guard MUST measure the file system of that same `GOTMPDIR` (its nearest existing
+  ancestor), not `TMPDIR`. Rollback: drop the `GOTMPDIR` entry, its directory creation and the
+  guard's measured path.
 
 ## Non-goals and failure modes
 
@@ -746,6 +756,7 @@ with named versions stays a separate, not-yet-exercised step that this command d
 | PUB-V0-024 | `internal/companionrelease/core_smoke.go`, `internal/companionrelease/smoke.go`, `internal/releasecandidate` (`buildQualification`, `validateQualification`) | `TestPUBV0024InstalledCoreDiscoveryWorkflows`, `TestPUBV0024DocumentationCorpusSearchProfiles` (supported profiles, rejection and trailing-byte controls, V1-0588/V1-0589), `TestInitSmokeRepoPinsIntentBranch`; retained-bundle tests require the five new `/2` steps while preserving legacy profiles |
 | PUB-V0-025 | `internal/releasecandidate/install.go`, `cmd/corvint-release-install` | `TestPUBV0025VersionedInstallCoexistsAndNeverReplaces`, `TestPUBV0025PromotionNeverReplacesExistingCandidate`, `TestPUBV0025RecoveryLifecycle`, `TestPUBV0025HostileStore` |
 | PUB-V0-026 | `cmd/corvint-release-candidate`, `cmd/corvint-release-install`, `internal/releasecandidate` | `TestPUBV0026FailedInputRetainsNoCandidate`, `TestPUBV0026CandidateVerifierRejectsChecksumDrift`, `TestPUBV0026ScratchAndOutputCannotOverlapInputs`, `TestPUBV0026ProbeFailureCleansInstall`, `TestPUBV0026InterruptedInstallReapsDescendant`, `TestPUBV0026CancelledInstallRetainsNothing`; completed staging is reverified before promotion, command errors precede retention and neither command has a publication operation |
+| PUB-V0-965 | `internal/companionrelease/toolchain.go` (`closedGoEnv`, `goTmpDir`, `ensureGoTmp`), `internal/companionrelease/proc.go`; the PUB-V0-054 guard in `TestCorvintBundledBinariesBuildTwiceIdentically` | `TestPUBV0965ClosedGoEnvPinsItsOwnGOTMPDIR` |
 
 ## Core release scope amendment (2026-09-16)
 

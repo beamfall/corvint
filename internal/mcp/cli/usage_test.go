@@ -17,9 +17,11 @@ func TestMCPV0113HelpAndRelativeRoot(t *testing.T) {
 			t.Fatalf("%s exit=%d stdout=%q stderr=%q", flag, exit, stdout.String(), stderr.String())
 		}
 	}
+	// MCPV0-950: the plain relative root now starts unavailable, naming the
+	// same requirement, instead of exiting before the handshake.
 	var stdout, stderr bytes.Buffer
 	exit := run(context.Background(), []string{"--root", "."}, bytes.NewReader(nil), &stdout, &stderr)
-	if exit != 2 || stdout.Len() != 0 || stderr.String() != "corvint-mcp: repository unavailable: --root must be an absolute path\n" {
+	if exit != 0 || stdout.Len() != 0 || stderr.String() != "corvint-mcp: repository unavailable: --root must be an absolute path; serving tools/list, and every repository tool call answers invalid-root\n" {
 		t.Fatalf("relative exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 	stdout.Reset()

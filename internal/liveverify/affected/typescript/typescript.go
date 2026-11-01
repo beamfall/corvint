@@ -126,6 +126,9 @@ type packageScope struct {
 	runners    map[string]bool
 	configured map[string]bool
 	packages   map[string]bool
+	// localSpecifiers holds the dependencies whose file:, link:, portal: or workspace:
+	// specifier names repository source (TJAA-V0-710): they are no external package.
+	localSpecifiers map[string]bool
 }
 
 // Units observes every owned module and every supported test runner that can
@@ -434,7 +437,7 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			if scope.configured[runnerMocha] {
 				frontier.at(FrontierConfig, relative, text, strings.Index(text, `"mocha"`))
 			}
-			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 {
+			if scope.name != "" || len(scope.runners) != 0 || len(scope.configured) != 0 || len(scope.packages) != 0 || len(scope.localSpecifiers) != 0 {
 				scopes = append(scopes, scope)
 			}
 			continue
@@ -2052,8 +2055,14 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		return packageScope{}, err
 	}
 	dependencies := make(map[string]bool)
+	local := make(map[string]bool)
 	for _, group := range []map[string]json.RawMessage{manifest.Dependencies, manifest.DevDependencies, manifest.PeerDependencies, manifest.OptionalDependencies} {
-		for dependency := range group {
+		for dependency, raw := range group {
+			var specifier string
+			if json.Unmarshal(raw, &specifier) == nil && repositorySpecifier(path.Dir(relative), specifier) {
+				local[dependency] = true
+				continue
+			}
 			dependencies[dependency] = true
 		}
 	}
@@ -2066,8 +2075,9 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		"testcafe": runnerTestCafe, "nightwatch": runnerNightwatch, "detox": runnerDetox,
 		"@storybook/test-runner": runnerStorybook, "@storybook/addon-vitest": runnerStorybookVitest,
 	}
+	// A runner declared by a local specifier is still that runner (TJAA-V0-710).
 	for dependency, runner := range dependencyRunners {
-		if dependencies[dependency] {
+		if dependencies[dependency] || local[dependency] {
 			runners[runner] = true
 		}
 	}
@@ -2081,13 +2091,40 @@ func readPackageScope(relative string, body []byte) (packageScope, error) {
 		configured[runnerDetox] = true
 	}
 	return packageScope{
-		directory:  path.Dir(relative),
-		manifest:   relative,
-		name:       manifest.Name,
-		runners:    runners,
-		configured: configured,
-		packages:   dependencies,
+		directory:       path.Dir(relative),
+		manifest:        relative,
+		name:            manifest.Name,
+		runners:         runners,
+		configured:      configured,
+		packages:        dependencies,
+		localSpecifiers: local,
 	}, nil
+}
+
+// repositorySpecifier reports a package.json dependency specifier that names repository source
+// rather than an external package (TJAA-V0-710): any workspace: specifier, and a file:, link: or
+// portal: path that, joined to the manifest's directory, stays inside the root and outside every
+// node_modules directory.
+func repositorySpecifier(directory, specifier string) bool {
+	if strings.HasPrefix(specifier, "workspace:") {
+		return true
+	}
+	for _, scheme := range []string{"file:", "link:", "portal:"} {
+		target, ok := strings.CutPrefix(specifier, scheme)
+		if !ok {
+			continue
+		}
+		target = strings.TrimPrefix(target, "//")
+		if target == "" || path.IsAbs(target) || strings.Contains(target, "\\") {
+			return false
+		}
+		joined := path.Join(directory, target)
+		if joined == ".." || strings.HasPrefix(joined, "../") {
+			return false
+		}
+		return !slices.Contains(strings.Split(joined, "/"), "node_modules")
+	}
+	return false
 }
 
 // dynamicConfigMarkers are the membership and project markers dynamicConfigMarker searches for.
@@ -2249,6 +2286,11 @@ func unresolvedBareImport(root *affected.Source, relative string, refs []string,
 		if localPackage(packageName, scopes) {
 			continue
 		}
+		// A dependency declared by a repository-source specifier is no external package, whatever
+		// node_modules holds for it (TJAA-V0-710).
+		if localSpecifier(relative, packageName, scopes) {
+			return ref, true
+		}
 		if declaredPackage(relative, packageName, scopes) || installedPackage(root, relative, packageName) {
 			continue
 		}
@@ -2310,6 +2352,17 @@ func importedPackage(reference string) string {
 func declaredPackage(relative, packageName string, scopes []packageScope) bool {
 	for _, scope := range scopes {
 		if inside(relative, scope.directory) && scope.packages[packageName] {
+			return true
+		}
+	}
+	return false
+}
+
+// localSpecifier reports whether a scope enclosing relative declares packageName by a
+// repository-source specifier (TJAA-V0-710).
+func localSpecifier(relative, packageName string, scopes []packageScope) bool {
+	for _, scope := range scopes {
+		if inside(relative, scope.directory) && scope.localSpecifiers[packageName] {
 			return true
 		}
 	}

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"path/filepath"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/evidencestore"
@@ -155,8 +154,8 @@ func receiptRetire(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	if archivePath != "" && !filepath.IsAbs(archivePath) {
-		archivePath = filepath.Join(env.Cwd, archivePath)
+	if archivePath != "" {
+		archivePath = commandPath(env.Cwd, archivePath)
 	}
 	var report *store.RetireReport
 	if verb == "retire" {

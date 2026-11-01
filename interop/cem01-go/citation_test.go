@@ -399,14 +399,25 @@ func TestCEMV1082CitationIsOrderIndependent(t *testing.T) {
 	m := f.stableMap(t, patch24Careful())
 	_, _, _, first := f.run(t, m)
 	_, _, _, again := f.run(t, m)
+	// Evidence order is free. Hunk order is fixed by CEM-V1-750, so a map whose
+	// hunks are reordered is refused before any citation block is computed.
 	rev := m
-	rev.Hunks = append([]hunk03(nil), m.Hunks...)
 	rev.Evidence = append([]evidence(nil), m.Evidence...)
-	sort.Slice(rev.Hunks, func(i, j int) bool { return rev.Hunks[i].ID > rev.Hunks[j].ID })
 	sort.Slice(rev.Evidence, func(i, j int) bool { return rev.Evidence[i].ID > rev.Evidence[j].ID })
 	_, _, _, reordered := f.run(t, rev)
 	if !bytes.Equal(first, again) || !bytes.Equal(first, reordered) {
 		t.Fatalf("citation bytes differ\n%s\n%s\n%s", first, again, reordered)
+	}
+	rev.Hunks = append([]hunk03(nil), m.Hunks...)
+	sort.Slice(rev.Hunks, func(i, j int) bool { return rev.Hunks[i].ID > rev.Hunks[j].ID })
+	raw, err := json.Marshal(rev)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, n := runStable(context.Background(), f.repo, raw, f.base, f.target, t.TempDir())
+	if n != 1 || r.Outcome != "REJECT" || r.Stage != "verification" || len(r.IssueCodes) != 1 || r.IssueCodes[0] != "invalid-field" {
+		b, _ := json.Marshal(r)
+		t.Fatalf("hunk-reordered map: exit=%d result=%s, want a verification REJECT with invalid-field", n, b)
 	}
 }
 

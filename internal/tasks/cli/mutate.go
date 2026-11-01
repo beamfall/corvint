@@ -134,8 +134,27 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		if flags.expected, err = readTargetRevision(env, flags.target); err != nil {
 			return errorResult(cmd, err)
 		}
+		flags.expected = landedRevision(env, flags.requestID, flags.expected)
 	}
 	return submitMutation(env, cmd, operation, actor, flags, payload)
+}
+
+// valuelessTemplateFlag reports whether arg is --template or --skeleton,
+// bare or spelled with an =VALUE, and returns the flag name (TCT-V0-990).
+func valuelessTemplateFlag(arg string) (string, bool) {
+	for _, name := range []string{"--template", "--skeleton"} {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// templateValueRefusal is the usage text for a valued --template or
+// --skeleton: both are switches, and the ticket kind lives in the payload
+// (TCT-V0-990).
+func templateValueRefusal(name string) string {
+	return name + " takes no value; use ticket create --template for the canonical CREATE payload, or ticket create --template --skeleton for the bare payload, and set the ticket kind in the payload's kind field"
 }
 
 func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
@@ -159,12 +178,15 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			f.verbose = true
 			continue
 		}
-		if args[i] == "--template" {
-			f.template = true
-			continue
-		}
-		if args[i] == "--skeleton" {
-			f.skeleton = true
+		if name, ok := valuelessTemplateFlag(args[i]); ok {
+			if strings.Contains(args[i], "=") || (i+1 < len(args) && !strings.HasPrefix(args[i+1], "--")) {
+				return f, usage(cmd, templateValueRefusal(name))
+			}
+			if name == "--template" {
+				f.template = true
+			} else {
+				f.skeleton = true
+			}
 			continue
 		}
 		if args[i] == "--batch" {
@@ -272,6 +294,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o := wire.NewObject()
 	o.Set("operation", wire.String(operation))
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
+	o.Set("replay", wire.String("Repeating a mutation with its recorded --request-id and the same payload replays it: the result is OK with replayed true, receipt is empty because no receipt is written, and originalReceipt names the receipt that committed the original (TCL-V0-991)."))
 	target := " [--target TICKET|LOCAL --expected-revision N]"
 	if operation == mutation.OpCreate {
 		target = ""
@@ -318,6 +341,9 @@ func mutateResult(cmd []string, report *store.Report) *wire.Result {
 	o.Set("outcome", wire.String(report.Outcome.Outcome))
 	o.Set("receipt", wire.String(report.Receipt))
 	o.Set("replayed", wire.Bool(report.Outcome.Replayed))
+	if report.Outcome.Replayed && report.OriginalReceipt != "" {
+		o.Set("originalReceipt", wire.String(report.OriginalReceipt))
+	}
 	o.Set("ticketId", wire.String(report.Ticket))
 	o.Set("releaseId", wire.String(report.Release))
 	o.Set("resultingRevision", nullableCount(report.Outcome.ResultingRevision))

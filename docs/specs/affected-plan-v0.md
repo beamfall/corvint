@@ -5593,6 +5593,190 @@ admit a selection that under-selects without detection.
   `script/dogfood-bind-coverage.sh`, whose name a shell file builds (TSP-V0-960); it keeps
   `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
   remove the exclusions declaration, `applyUnboundedExclusions`, `unboundedDirty` and the repository entries.
+### Declared existence readers (AFP-V0-980, AFP-V0-981; V1-3772)
+
+Intent (red-team test-selection audit, 2026-11-01; V1-3772): `git rm` of a skill file named in a
+`docs/specs/INDEX.json` implementation array planned neither `internal/specindex` nor any other
+unit that fails on it. `TestIndexImplementationPathsExist` stats every implementation path the
+index names; its declared read scope is `docs/specs/`, and Landlock does not confine `stat`, so
+the confined shard never shows the read. The deletion changed no file in that scope, so no rule
+selected the package, and the failure surfaced only in the nightly release gates.
+
+- **AFP-V0-980:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3772)
+  The repository MAY declare, in `.corvint/existence-readers.json` (closed profile
+  `corvint-existence-readers/0`: `{"profile", "entries": [{"package", "manifests", "reason"}]}`),
+  each Go package directory whose tests test the existence of paths named inside manifest files.
+  Entries are strictly ascending by `package`; each names a clean relative package directory, one
+  to eight distinct clean relative manifest paths, each read through the graph's source with a
+  4 MiB bound, and a non-empty printable reason of at most 512 bytes. The declaration is at most
+  64 KiB and holds at most 64 entries. Corvint SHALL read the declaration and its manifests when
+  the graph is built, and take from each manifest every maximal run of the bytes
+  `A-Za-z0-9._/@+-` as a name, kept when it is a valid repository path either as written or
+  joined to the manifest's directory (a Markdown link is relative to its file), at most 65536 names
+  per entry. The names enter the graph digest and cache entry, and the declaration's stamp is
+  required of a cached entry, so an entry recorded before the declaration rebuilds. A missing
+  declaration declares nothing; an invalid declaration, an unreadable or oversized manifest, a name
+  bound overrun, or a package the Go plugin does not observe fails the build. `Select` SHALL select
+  the Go unit of an entry, witness `DECLARED_EXISTENCE_READER` (a terminal witness, not traversed),
+  for the smallest dirty path that one of its manifests names and that is absent from the graph's
+  checkout (deleted or renamed away), or for any dirty path when the graph has no disk root; and
+  for any dirty path when the declaration itself is dirty. The rule only adds selections; no
+  unknown entry is added or removed. This repository declares `internal/specindex` (manifest
+  `docs/specs/INDEX.json`) and `tools/capabilities-check` (manifest `docs/CAPABILITIES.md`,
+  whose links `Check` stats relative to `docs/`). Non-goals: reading content through a computed
+  path (the read scope and Landlock already bound that read); inferring existence readers from
+  test source; selecting a reader for a path that is only edited, whose existence is unchanged.
+  Failure modes: a manifest that names a path in a form neither rule resolves (an absolute path or
+  one assembled from fragments) is not matched; a name that coincides with a deleted path selects
+  the reader although it does not stat it, which only adds a unit. Falsifier: a fixture that
+  deletes a file named in a declared manifest and is planned without the declared package.
+  Rollback: delete `.corvint/existence-readers.json` and `existence_readers.go`, and the
+  `ExistenceReaders` members of the digest and cache entry.
+- **AFP-V0-981:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3772)
+  `test-read-scopes-check` SHALL fail, naming the package, file and line, when a test file of a
+  package declared in `.corvint/test-read-scopes.json` calls `os.Stat`, `os.Lstat` or
+  `os.Readlink` on a `filepath.Join` or `path.Join` whose first argument is a string literal made
+  only of parent components (`..`, `../..`) and some later argument is not a string literal, unless
+  the package is an AFP-V0-980 entry: such a call tests the existence of a repository path the test
+  read from data, which neither the read scope nor Landlock bounds. Non-goals: following a
+  repository root held in a variable or passed to non-test code (such as `Check`'s `linkBase`
+  in `tools/capabilities-check`, which is declared by inspection instead); flagging stat calls on
+  temporary directories. Failure mode: a root-relative stat through any other expression shape is
+  not flagged. Rollback: delete `statReaders` and its call in `check`.
+
+### One unknown allowlist for the deciding driver and the shadow (AFP-V0-982; V1-3749)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3749): the deciding driver
+(`gateselect.Select`, CIN-V0-860) and the shadow `corvint test` (`sessiontest`, AFP-V0-028) each
+kept their own list of the `plan.unknown` entries a narrowed run may carry. The driver admitted
+every `LANGUAGE_FRONTIER` that is not module-level; the shadow admitted a `go:` frontier only for
+`go:build-constraint-variants` and `go:nested-module-frontier`. Both are built from the same pinned
+commit, so a defect in either list is shared, and nothing failed when they drifted.
+
+- **AFP-V0-982:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3749)
+  `gateselect.AllowedUnknown(reason, detail)` SHALL be the one allowlist of `plan.unknown` entries
+  a narrowed run may carry: a `LANGUAGE_FRONTIER` whose detail does not start with `go:`, or is
+  `go:build-constraint-variants` or `go:nested-module-frontier`; an `UNOWNED_DIRTY_PATH`; a
+  `NO_SELECTABLE_TEST`. CIN-V0-860's `unknownNarrowing` and `sessiontest`'s AFP-V0-028 check SHALL
+  both decide through it, so the driver now falls back on a `go:` frontier the shadow already ran
+  in full (`go:unobserved-directory`, `go:path-token-bound:<unit>`, a workspace frontier). Outside
+  the allowlist two named rules remain: the driver attributes a deleted Go source of a package that
+  still exists to that package (CIN-V0-860 (4)); and a well-formed
+  `go:unobserved-module:<directory>:<path>` frontier, parsed by `gateselect.UnobservedModule` for
+  both sides, is admitted by the driver (the nested module is no root package, and CI runs its own
+  suite outside the shards) and, outside the `ci` profile, makes `corvint test` run that module's
+  own suite (STR-V0-064), as before. A test over every
+  unknown reason and every Go frontier detail the planner emits SHALL fail when the two sides
+  decide one entry differently. Non-goals: an independently pinned shadow (a workflow pin change
+  that needs the owner's `ci-control-plane` review); widening either list. Failure modes: an
+  allowlist defect is now shared by both sides by design; the AFP-V0-098 superset rule already
+  narrowed CI only inside the shadow's list, so no CI outcome changes, while the local
+  `script/gate-affected.sh` falls back on the narrowed `go:` frontiers. Rollback: restore the two
+  local switches and delete `AllowedUnknown` and its test.
+
+### Main FULL failures linked back to narrowed pull requests (AFP-V0-983; V1-3750)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3750): a narrowed pull request merges
+and a later full run on `main` fails, but nothing records which narrowed pull request skipped the
+failing package, so selection misses are never counted.
+
+- **AFP-V0-983:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3750;
+  effective only after the owner's `ci-control-plane` review of the `.github` change)
+  (1) A `go-product-shard` of a `push` run on `refs/heads/main` that fails SHALL retain
+  `failed.jq`'s classification of its go test -json capture as the artifact
+  `ci-failed-push-<shard>` (`failed.json`); a failure to write it never changes the shard.
+  (2) The `ci-control-plane` `main-miss` job SHALL run `.github/forward-rows/mainmiss.sh` from the
+  default branch for every completed `push` run of `main` whose conclusion is `failure`, with gh and
+  jq only, executing no tested code. It reads the failed packages of that run, takes the newest
+  earlier successful `push` run of `ci.yml` on `main` as the last green full run, lists the commits
+  between them (at most 100) and the merged pull requests of each (at most 20), and reads the
+  `ci-narrowing-*` records of each pull request's newest `pull_request` run of its merged head.
+  (3) `mainmiss.jq` SHALL name a miss for each such pull request whose records include a
+  `NARROWED` shard and whose `NARROWED` records' `skipped` packages hold a failed package of the
+  main run, as `{pr, head, runId, packages}`; a pull request whose readable run kept no
+  `ci-narrowing-*` record, or whose records are all `FULL`, is no miss. When any input is
+  unavailable (a merged pull request with no readable `pull_request` run, an unreadable artifact
+  list, a record that cannot be downloaded or read, or unreadable pull requests of a commit) the
+  job SHALL abstain: no row, and a summary line naming every unavailable input, since the
+  missing pull request could have skipped a failed package. The job SHALL retain the result, `corvint-main-miss/0`, as
+  `ci-forward-MAINMISS-r<run>-<sha>-e<epoch>-n<misses>-pr<N>[_<N>...]` (pull request numbers
+  ascending, at most 10 named) when it names at least one miss, and SHALL say in its summary why it
+  wrote none otherwise. (4) `bar.jq` SHALL count the epoch's MAINMISS names (one per run; a re-run
+  replaces) and report the misses and the pull requests they name, in its markdown and as
+  `mainMiss` in its JSON form; the count is advisory and feeds neither the AFP-V0-029 status nor
+  the AFP-V0-030 kill switch, which stay the owner's. Non-goals: attributing a failure to the one
+  pull request that caused it; test-level (rather than package-level) misses; the merge-queue case
+  AFP-V0-099 already classifies. Failure modes: a failure caused by a later direct push or a flake
+  is still counted against every narrowed pull request that skipped the package (over-counting);
+  an expired or unreadable artifact, more than 100 commits or 20 pull requests writes no row and
+  says so; a pull request merged without any `pull_request` run makes every such run abstain.
+  Rollback: remove the
+  `main-miss` job, the `ci-failed-push` step, `mainmiss.sh`, `mainmiss.jq` and the MAINMISS
+  lines of `bar.jq`.
+
+### Sampled full runs estimate the narrowing miss rate (AFP-V0-984; V1-3751)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3751): nothing estimates how often
+narrowing misses a failing package without bias. Running the full suite on a seeded random sample
+of the pull requests that would narrow, and counting failures outside the driver's selection,
+gives that estimate with a confidence bound. Mutation-based measurement stays V1-2766.
+
+- **AFP-V0-984:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3751;
+  effective only after the owner's `ci-control-plane` review of the `.github` change and a
+  `CORVINT_PR_TOOL_SOURCE` re-pin carrying the new `narrow.sh` and `narrow.jq`)
+  (1) `ci.yml` SHALL set `CORVINT_PR_SAMPLE_K` (an integer of at least 2; empty turns sampling off)
+  and `CORVINT_PR_SAMPLE_SEED` (a non-negative integer) beside the tool pins; this repository sets
+  10 and 3751. (2) For a pull-request shard (not a merge-queue `SELECTION`) whose AFP-V0-098 record
+  would be `NARROWED`, `narrow.jq` SHALL sample the run when the first eight hex digits of the head
+  commit, read as a number, plus the seed is divisible by `k`; every shard of a run then decides
+  alike. A sampled shard SHALL be `FULL` with the reason `sampled for the AFP-V0-984 miss-rate
+  estimate (1 in <k>)` and record `sample: {k, seed, selected}`, `selected` being the driver's
+  selection within the universe; an unsampled record carries no `sample`. (3) `row.jq` SHALL add
+  `sample: {k, selected, failingOutside}` to a complete pull-request row whose every shard record is
+  sampled, `failingOutside` being the row's failed packages, less its FLAKY ones, outside
+  `selected`; `collect.sh` SHALL then write the step output `sample`, the name
+  `ci-forward-SAMPLE-pr<N>-<head>-e<epoch>-k<k>-m<0|1>` (`m1` when `failingOutside` is non-empty),
+  `<head>` being the run's validated pull-request head, never the tested merge commit, so one head
+  tested against two bases is one sample,
+  which the forward-rows job retains. (4) `bar.jq` SHALL count the epoch's SAMPLE names (one per
+  pull request and head) and report the sampled runs, the misses, the estimated miss rate and its
+  Wilson 95% upper bound, in its markdown and as `sampledMissRate` in its JSON form; the estimate is
+  advisory and feeds neither the AFP-V0-029 status nor the AFP-V0-030 kill switch. Non-goals:
+  sampling merge-queue runs; weighting the estimate by package cost; test-level misses. Failure
+  modes: a sampled run costs one full run, about `1/k` more CI time on narrowed pull requests; a
+  head commit chosen to avoid the sample can skip it, which a fixed public seed cannot prevent; a
+  flaky failure outside the selection that is not caught as FLAKY counts as a miss. Rollback: set
+  `CORVINT_PR_SAMPLE_K` empty, then remove the sample lines of `narrow.jq`, `row.jq`,
+  `collect.sh` and `bar.jq` and the upload step.
+
+### Closed declarations stay readable by the pinned planners (AFP-V0-710; V1-3600)
+
+Intent (lane affected-w3 finding, 2026-10-31; V1-3600): a new member in an existing closed
+`.corvint` declaration makes a planner pinned to an older commit (the CI driver and shadow pins)
+refuse the file and fall back from narrowing, and nothing warned when the member was added.
+
+- **AFP-V0-710:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)
+  `tools/declaration-compat-check`, run by `make declaration-compat-check` (one of
+  `DOC_GATE_TARGETS`), SHALL read the distinct `CORVINT_PR_TOOL_SOURCE` and
+  `CORVINT_TEST_SHADOW_SOURCE` pins from `.github/workflows/ci.yml` and, for every planner
+  declaration of its closed-shape table (each `.corvint/*.json` the planner or selector decodes
+  with unknown members refused, and the object positions inside it whose member set is closed),
+  compare the members at each closed position in the working tree with those the same file holds
+  at each pin. A member present now and absent at a pin SHALL fail the check with one line naming
+  the file, the position, the member and the pin, and the compatible alternatives: a new
+  declaration file, which an older planner never reads, or a new `profile` value, which an older
+  planner refuses as a whole declaration. A file absent at the pin, a changed `profile`, a member
+  removed, and new entries of known shape SHALL pass. Only the `.corvint/*.json` files Git tracks
+  are compared, the files a pinned planner reads in CI; a dogfood run's ignored local outputs
+  (`change.ocm.*.json`, `change.ocm-status.json`, `dogfood-report.json`) are never candidates. The
+  change-evidence map `change.cem.json`, tracked between a bind and its seal, and the evidence-reach
+  and work-queue files are no planner input. A tracked `.corvint/*.json` that is neither in the
+  table nor listed as no planner input SHALL fail the check, so a new declaration is classified
+  when it is added. A pin absent from the clone SHALL fail the check and name the fetch. Non-goals:
+  running a pinned binary; checking value types. Failure modes: a closed position missing from
+  the table is not compared; a pin that predates a planner's support for a whole file is not
+  modelled beyond "absent at the pin". Rollback: remove the target from `DOC_GATE_TARGETS` and
+  delete the tool.
 
 ## Non-goals and authority
 
@@ -5744,7 +5928,7 @@ traceability table.
 | AFP-V0-008 | `SourceFilesIncluding`, `MaxIncludedDirectoryEntries`, `FrontierIncludedDirectoryWalkBounded`, `observeModules`, `workspaceDirectories`, `enclosingModule`, `groupByDirectory`, `inTestdata`, `unitID`, `readModulePath` in `internal/liveverify/affected` | `TestIncludedDirectoryWalkBoundWidensInsteadOfRefusing_AFPV0008`, `TestWorkspaceModulesAreUnitsUnderTheirOwnModulePath`, `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` over `testdata/workspace` (a listed pair, an unlisted `stray`, an entry outside the root), `TestPackagesUnderBuildOutputDirectoryNamesAreSelected`, `TestNoGoRepositoryProducesNoUnitsOrFrontier`, `TestReadModulePathMatchesGoModEdit`, `TestReadModulePathAbstainsOnBOM`, `TestTestdataIsFixtureDataNotAPackage_AFPV0008`, `TestWorkspaceModuleBelowTestdataIsObserved_AFPV0008`, `TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008`, `TestTestOnlyImportSelectsTheTestUserButNotItsImporters`, `TestSourceParsedEdgesCoverEveryEdgeTheToolchainReports` (a non-test toolchain import must be an ordinary edge) |
 | AFP-V0-010 | `parseAffectedBase`, `affectedRangePaths`, `affectedRange` in `cmd/corvint/affected.go`; `RangePaths`, `DecodeNameList` in `internal/liveverify/affected/dirty.go` | `TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed` (committed edit with a clean worktree selects the dependents; `range.base`/`range.paths`; `main` and an unknown id exit 2 with no document), `TestDecodeNameListNormalizesAndFailsClosed`, `TestAffectedReceiptMembersAreClosedAndByteStable` (the closed member set includes `range`), `TestCommittedRangePathsClassifyExactlyAsWorktreePaths_V1_2073` (a clean worktree with a committed owned Go file, `Makefile`, `.github/workflows/ci.yml` and `.corvint/test-read-scope-literals.json`: the Go file is a `DIRECT_SOURCE_CHANGE`, the other three stay `UNOWNED_DIRTY_PATH`; the same change soft-reset to uncommitted gives the same paths and a byte-identical plan; an uncommitted `notes.txt` over the range is dirty, absent from the range paths and unowned) |
 | AFP-V0-011 | `gate-affected`, `gate-affected-test`, `GO_TEST_COMMAND` in `Makefile`; `script/gate-affected.sh`; its selection step `selectPackages` in `tools/gate-affected-select/main.go` (native Go, no Python runtime, decision 0088) | `script/gate-affected_test.sh` via `make gate-affected-test` (a shell test over `testdata/fixture` in a scratch repository with a recording go-test command: clean tree runs nothing; a core edit selects core and leaf; a deleted `core/core.go` is a `frontier` line for core, mid, and leaf; a document no package reads beside a core edit is `data`, does not fall back, and adds no package; a dirty `go.mod` falls back; a committed edit under `BASE` selects; an unresolvable base falls back; an interrupted planner exits nonzero without running go test); `TestSelectPackagesAttributesEveryDirtyPath` (a control character in a dirty path falls back) in `tools/gate-affected-select/main_test.go`; `TestSelectPackagesRejectsSiblingModulePrefix` (a package path that only shares the module's characters as a string prefix, with no `/` boundary, falls back instead of being selected); the 50-commit replay in AFP-V0-011 |
-| AFP-V0-012 | `indexRepository`, `scanSource`, `escapesPackage`, `dependents`, `readers`, `enclosing`, `unresolved`, `namesPath` in `tools/gate-affected-select/readers.go`; the per-path loop in `selectPackages` (decision 0131) | `TestSelectPackagesAttributesEveryDirtyPath` in `internal/gateselect/select_test.go` (a deleted source widens to its importers; a Go file read as data selects its reader; a document selects the package that names it; a testdata fixture selects its enclosing package; an `os.Getwd` package is selected on every dirty path; a nested module's literals select nothing); `TestSelectPackagesFallsBackWhenAttributionFails` (imports that do not parse fall back); `TestSelectPackagesReachesEmbeddingAncestorDependents` (a data path under an embedding ancestor reaches that ancestor's dependents); `TestSelectPackagesResolvesAliasedAndDotRootLocatorImports` (an aliased or dot-imported `os.Getwd` still marks the package unresolved, and an aliased or dot-imported `runtime.Caller` does not, AFP-V0-810); `TestIndexRepositoryFailsClosedOnSymlinkedGoFile` (a symlinked `.go` file falls back instead of being silently skipped) |
+| AFP-V0-012 | `indexRepository`, `scanSource`, `escapesPackage`, `dependents`, `readers`, `enclosing`, `unresolved`, `namesPath` in `internal/gateselect/readers.go`; the per-path loop in `selectPackages` in `internal/gateselect/select.go` (decision 0131) | `TestSelectPackagesAttributesEveryDirtyPath` in `internal/gateselect/select_test.go` (a deleted source widens to its importers; a Go file read as data selects its reader; a document selects the package that names it; a testdata fixture selects its enclosing package; an `os.Getwd` package is selected on every dirty path; a nested module's literals select nothing); `TestSelectPackagesFallsBackWhenAttributionFails` (imports that do not parse fall back); `TestSelectPackagesReachesEmbeddingAncestorDependents` (a data path under an embedding ancestor reaches that ancestor's dependents); `TestSelectPackagesResolvesAliasedAndDotRootLocatorImports` (an aliased or dot-imported `os.Getwd` still marks the package unresolved, and an aliased or dot-imported `runtime.Caller` does not, AFP-V0-810); `TestIndexRepositoryFailsClosedOnSymlinkedGoFile` (a symlinked `.go` file falls back instead of being silently skipped) |
 | AFP-V0-022 | `.github/cishards`, `tools/corvint-pr-tests`, `tools/ci-shard-costs`, CI and qualification workflows | `TestAFPMixedAdmissionPreservesSelectedUnion`, `TestAFPCompleteBalancedPartition`, `TestAFPIsolatedBuildIgnoresModuleRedirection`, `TestShardedPRExecution_AFPV0022`, `TestAFPV0022RefreshFromHostedOutcomes`, `TestAFPV0022RefreshRefusesUnusableInput`, `TestAFPV0022DriftCheck`, `TestAFPV0022OrderRunsSelectedUnitsFirstWithoutChangingTheSet`, `TestAFPV0022OrderFallsBackToTheCurrentOrder`; hosted timing and narrowing qualification NOT_RUN |
 | AFP-V0-023 | `ReadScopesPath`, `InReadScope`, `ValidReadScopeEntry`, `Graph.scopedReadersOf`, `WitnessDeclaredReadScope`, `Unit.ReadScoped`, `Unit.ReadScope` in `internal/liveverify/affected`; `readScopes`, `applyReadScopes`, `FrontierReadScopesInvalid` in `internal/liveverify/affected/golang/readscopes.go`; `readScopes`, `inReadScope` in `internal/gateselect/readscopes.go`; `.github/testconfine` (`Load`, `Rules`, `ExecConfined`, `ConfinedEnv`, `cmd`) and the full-run `-exec` in `.github/workflows/ci.yml` | `TestDeclaredReadScopeNarrowsAnUnboundedReader_AFPV0023`, `TestInvalidReadScopeDeclarationDeclaresNothing_AFPV0023`, `TestGraphDigestIsTheDomainTaggedProjection_V1_0299`, `TestSelectPackagesHonorsDeclaredReadScopes`, `TestLoadAcceptsOnlyTheExactGrammar_AFPV0023`, `TestRulesGrantOutsideRootPackageAndEntriesOnly_AFPV0023`, `TestSelectionOnTheLiveDirtyWorktree`, `TestConfinedEnvTurnsOffVCSStamping_AFPV0023`, `TestExecConfinedDeniesUndeclaredRepositoryReads_AFPV0023` (Linux; run on a kernel reporting Landlock ABI 4, including granted and refused reparenting); per-package declarations verified under the wrapper in a Linux container (build log 2026-10-01-declared-test-read-scopes); hosted confined full run NOT_RUN until the protected workflow change is admitted |
 | AFP-V0-013 | `tools/corvint-pr-tests` and `.github/workflows/ci.yml` | `TestSelectedFailureAndFallback`, `TestInterruptionLeavesNoLiveDescendant`; trusted pins empty, hosted execution unavailable |
@@ -5924,6 +6108,12 @@ traceability table.
 | AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
+| AFP-V0-980 | `readExistenceReaders`, `manifestNames`, `existenceReaderUnits`, `existenceReadersOf`, `absent` in `internal/liveverify/affected/existence_readers.go`; `declarations`, `digestBody.ExistenceReaders` in `graph.go`; `cacheEntry.ExistenceReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `terminalWitness` in `select.go`; the repository declaration `.corvint/existence-readers.json` | `TestDeletedManifestNameSelectsExistenceReader_AFPV0980`, `TestExistenceReadersDeclarationIsValidated_AFPV0980` (`internal/liveverify/affected/golang/existence_readers_test.go`, the first fails before the change); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980` (`cmd/corvint/affected_existence_readers_unix_test.go`: `corvint affected`, the gate selector the CI driver runs on its receipt, and the shadow `corvint test --dry-run` all select the reader; fails before the change); build log 2026-11-01-rts-w9 |
+| AFP-V0-981 | `statReaders` and its call in `check`, `tools/test-read-scopes-check/main.go` | `TestStatOfDataDerivedPathFails_V1_3772` (`tools/test-read-scopes-check/main_test.go`); on this repository the check found `internal/observations` (`TestFixedFrontierDegradationIsReportedByDesign` stats the decision records `degradationByDesign` names), now declared |
+| AFP-V0-982 | `AllowedUnknown` and `UnobservedModule` in `internal/gateselect/allowlist.go`, called by `unknownNarrowing` in `select.go` and `allowedUnknown`/`moduleDirectory` in `internal/sessiontest/plan.go`; `make selection-baseline-check` keeps its floor of 12 | `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest/allowlist_afpv0982_test.go`: every planner unknown reason against every Go frontier detail and non-Go frontiers; five entries diverged before the change); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` unchanged |
+| AFP-V0-983 | `.github/forward-rows/mainmiss.sh` and `mainmiss.jq`; the MAINMISS lines of `bar.jq`; the two `ci-failed-push` steps of `go-product-shard` in `.github/workflows/ci.yml`; the `main-miss` job of `.github/workflows/ci-control-plane.yml` | `TestAFPV0983MainFailureNamesTheNarrowedPullRequest` (`tools/ci-forward-row/mainmiss_test.go`: a failed main run names only the narrowed pull request that skipped its failed package, not one that skipped passing packages, one whose shards ran FULL or an unmerged one; the bar reports the miss outside its own MISS count; no miss and no artifact write no row); the main-miss epoch binding in `TestAFPV0047WorkflowBindings`; hosted run NOT_RUN (needs the owner's `ci-control-plane` review) |
+| AFP-V0-984 | `hexval`, `$sampled` and the `sample` member in `.github/forward-rows/narrow.jq`; `CORVINT_PR_SAMPLE_K`/`CORVINT_PR_SAMPLE_SEED` in `narrow.sh` and `.github/workflows/ci.yml`; `$sample` in `row.jq`; the `sample` output of `collect.sh`; the `sampledMissRate` lines of `bar.jq`; the sample upload step of `ci-control-plane.yml` | `TestAFPV0984SampledRunIsFullAndKeepsTheSelection`, `TestAFPV0984SampledRowNamesFailuresOutsideTheSelection`, `TestAFPV0984BarEstimatesTheMissRate` (`tools/ci-forward-row/sample_test.go`); the sampled case of `TestAFPV0047CollectorNamesRows`; hosted run NOT_RUN (needs the owner's `ci-control-plane` review and a `CORVINT_PR_TOOL_SOURCE` re-pin) |
+| AFP-V0-710 | `check`, `pins`, `members`, the `closed` and `notPlanner` tables in `tools/declaration-compat-check/main.go`; the `declaration-compat-check` target in `DOC_GATE_TARGETS` of `Makefile` | `TestClosedDeclarationMemberAgainstPin_V13600` in `tools/declaration-compat-check/main_test.go` (an additive entry, a new file and a profile bump pass; a new closed member fails naming file, position, member, pin and alternatives; an unclassified declaration and a missing pin fail) and `TestDogfoodMapsAreNoPlannerInput_V13600` (a tracked `change.cem.json` and the ignored `change.ocm.001.json`, `change.ocm-status.json` and `dogfood-report.json` pass; a tracked look-alike still fails; an untracked unclassified file is no CI input); `make declaration-compat-check` passes on this repository against pin `93b9f5b08` |
 | AFP-V0-640 | `compactAffectedSelections`, `linkAffectedChain`, `expandAffectedVia` in `cmd/corvint/affected_compact.go` | `TestAFPV0640CompactWitnessChainsAreSharedLinks`, `TestAFPV0640CompactWitnessKeepsAChainTheLinksCannotState` (`affected_via_links_test.go`); chain rebuild parity in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; core-freeze golden `affected-committed-range.json`; measured bytes and time in the build-log entry |
 | AFP-V0-641 | `SelectLinked`, `MaterializeVia`, `viaLink` and `ViaStep` in `internal/liveverify/affected/via.go`; `affectedSelect` in `cmd/corvint/affected.go`; `linkAffectedChain` in `cmd/corvint/affected_compact.go` | `TestAFPV0641LinkedPlanMaterializesToSelect`, `TestAFPV0641SharedPrefixSteps`, `TestAFPV0641LinkedSelectionMemoryIsLinear` (`internal/liveverify/affected/via_test.go`); `TestAFPV0641LinkedSelectionCompactsLikeSelect` (`affected_via_links_test.go`); measured RSS, time and byte identity in the build-log entry |
 | AFP-V0-650 | `Result.Runnable` in `internal/liveverify/affected/unit.go`; `Graph.runnable`, `digestBody.Runnable`, `Graph.admit`, `namespacedEntries` in `graph.go`; `cachedLanguage.Runnable`, `restoreGraph` in `graphcache.go`; `FrontierUnobservedModule`, `Graph.unobservedModule`, `Graph.unownedUnknown` and `seed` in `select.go`; `runnableModules` in `golang/golang.go`; `nestedReplacements` in `golang/nested.go` | `TestIndependentNestedModuleIsARunnableModuleFrontier_AFPV0650`, `TestNestedModuleTheRootBuildsOrCannotReadIsNotRunnable_AFPV0650` (`golang/nestedunit_test.go`); `TestRunnableDirectoriesAreValidatedAndDigested_AFPV0650` (`unobserved_test.go`); `TestNestedModuleChangeIsANestedModuleUnknown_AFPV0191`; `TestIndependentNestedModulesCloseTheFrontier_V1_0867`; replay counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-nested-module-test-unit.md` |
@@ -5939,7 +6129,7 @@ traceability table.
 | AFP-V0-810 | `rootLocatorFuncs` and `observeDirectory` in `internal/liveverify/affected/golang`; `rootLocatorFuncs` in `internal/gateselect/readers.go` | `TestFrameMetadataDoesNotReadFiles_AFPV0810`; `internal/gateselect/reach_parity_test.go` TestReachMatchesThePlannerGraph_V12727 (a frame-metadata-only package and its importer are in neither rule (d) set) |
 | AFP-V0-811 | existing rule (b) and `Graph.untested` | `TestEmbeddedJavaScriptKeepsUntestedLanguageUnknown_AFPV0811` |
 | AFP-V0-466 | Superseded by AFP-V0-810; historical implementation and replay retained in build log 2026-10-26-affected-caller-compile-checks | `TestFrameMetadataDoesNotReadFiles_AFPV0810` pins the replacement |
-| AFP-V0-467 | exact callee matching in `rootLocatorCall`; the divergence comment in `unbounded.go` | `TestFrameMetadataDoesNotReadFiles_AFPV0810` (the log fixture calls `Callers`, `CallersFrames` and `FuncForPC`); the measured widening in build log 2026-10-26-affected-caller-compile-checks |
+| AFP-V0-467 | exact callee matching in `rootLocatorCall` in `internal/liveverify/affected/golang/unbounded.go`; the selector's `rootLocatorFuncs` rule in `internal/gateselect/readers.go` (only `os.Getwd` locates the root; the runtime frame APIs are excluded, as the planner excludes them, AFP-V0-810) | `TestFrameMetadataDoesNotReadFiles_AFPV0810` (the log fixture calls `Callers`, `CallersFrames` and `FuncForPC`); the measured widening in build log 2026-10-26-affected-caller-compile-checks |
 | AFP-V0-468 | `Graph.UntestedCodeReached` in `internal/liveverify/affected/graph.go`; `providerGoUntested` and `advisoryAffectedChecks` in `cmd/corvint/affected.go` | `TestAffectedUntestedPackageGetsCompileCheck_AFP_V0_468`; flipt p07 replay in build log 2026-10-26-affected-caller-compile-checks |
 | AFP-V0-469 | `advisoryGoModuleChecks` and `goIgnoredDirectory` in `cmd/corvint/affected.go`; `GoverningWorkspace` in `internal/liveverify/affected/golang/golang.go` | `TestAffectedGoModuleChangeGetsModuleCheck_AFP_V0_469` (root and nested module, a `testdata` module ignored, a removed `go.mod` named); `TestAffectedGoModuleCheckFollowsWorkspace_AFP_V0_469` (a used `testdata` module vetted, a non-member vetted with `GOWORK=off`, an unparsable `go.work` named) |
 | AFP-V0-505 | the closing-tag branch of `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestLexiconClosingTagAndParentBackslash_AFPV0505` (`</script>` and `</b/c>` tokens; a test package carrying `</script>` is not selected for `script/heavy.sh` while the `script` package is); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-selection-precision-tags-writes-docs.md` |

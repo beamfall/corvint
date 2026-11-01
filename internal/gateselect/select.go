@@ -314,10 +314,11 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 }
 
 // unknownNarrowing is CIN-V0-860's rule for Select, the CI PR tier: a plan
-// may still run narrowed while it names unknowns only when each is a
-// LANGUAGE_FRONTIER (a module-level one falls back above), an
-// UNOWNED_DIRTY_PATH, a NO_SELECTABLE_TEST, or an UNINDEXED_SOURCE_PATH that
-// deletedGoSource admits. CI narrows only the Go shards; rules (b) and (c)
+// may still run narrowed while it names unknowns only when each is an entry
+// AllowedUnknown admits, the allowlist the shadow shares (AFP-V0-982), a
+// well-formed unobserved-module frontier (UnobservedModule: the nested module
+// is no root package, and CI runs its own suite outside the shards), or an
+// UNINDEXED_SOURCE_PATH that deletedGoSource admits. CI narrows only the Go shards; rules (b) and (c)
 // select every package that encloses or names a dirty path and rule (d) every
 // package whose reads no literal bounds, so every Go reader of an unowned path
 // is selected; a frontier names what a language model cannot see inside units
@@ -330,7 +331,9 @@ func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) string 
 	}
 	for _, entry := range plan.Plan.Unknown {
 		switch {
-		case entry.Reason == "LANGUAGE_FRONTIER", entry.Reason == "UNOWNED_DIRTY_PATH", entry.Reason == "NO_SELECTABLE_TEST":
+		case AllowedUnknown(entry.Reason, entry.Detail):
+			continue
+		case entry.Reason == "LANGUAGE_FRONTIER" && unobservedModule(entry.Detail):
 			continue
 		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
 			continue
@@ -354,6 +357,11 @@ func deletedGoSource(plan Receipt, index *repositoryIndex, root, p string) bool 
 	}
 	_, err := os.Lstat(filepath.Join(root, filepath.FromSlash(p)))
 	return errors.Is(err, fs.ErrNotExist)
+}
+
+func unobservedModule(detail string) bool {
+	_, ok := UnobservedModule("LANGUAGE_FRONTIER", detail)
+	return ok
 }
 
 var unknownReason = regexp.MustCompile(`^[A-Z][A-Z_]{0,63}$`)

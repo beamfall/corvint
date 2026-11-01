@@ -363,18 +363,7 @@ func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, 
 		return wire.Value{}, intentDerivation{}, "", err
 	}
 	reader := &ocmBlobReader{ctx: ctx, repository: repository, cache: map[string][]byte{}}
-	entry, exists, err := repository.LookupTreeEntry(ctx, target, options.IntentPath)
-	if err != nil {
-		return wire.Value{}, intentDerivation{}, "", err
-	}
-	if !exists || entry.Type != "blob" {
-		return wire.Value{}, intentDerivation{}, "", fail("repository-object-unavailable", "repository object unavailable: intent %s is not a blob at %s", options.IntentPath, target)
-	}
-	blob, err := reader.blob(target, options.IntentPath, entry.OID)
-	if err != nil {
-		return wire.Value{}, intentDerivation{}, "", err
-	}
-	derived, err := deriveIntent(options.IntentForm, options.IntentPath, entry.OID, blob)
+	derived, _, err := deriveIntentAt(ctx, repository, reader, target, options.IntentPath, options.IntentForm)
 	if err != nil {
 		return wire.Value{}, intentDerivation{}, "", err
 	}
@@ -868,14 +857,19 @@ func claimSelectorMissMessage(selector string) string {
 	message := "claim selector is outside the extracted worklist"
 	_, suffix, found := strings.Cut(selector, "/case:")
 	if !found {
-		return message
+		return message + claimSelectorRecovery
 	}
 	normalized := selectorFragment(suffix)
 	if normalized != suffix {
 		message += "; normalized case fragment: " + normalized
 	}
-	return message + goCaseAnchorShapes
+	return message + goCaseAnchorShapes + claimSelectorRecovery
 }
+
+// claimSelectorRecovery names where a valid selector comes from (V1-3659): the
+// prepared map's worklist, or enumerateClaims in a test, never a hand-written
+// t.Run case selector.
+const claimSelectorRecovery = "; fix: copy it from the corvint ocm status worklist (tests: enumerateClaims)"
 
 func matchClaims(claims []ocmClaim, selector string) []ocmClaim {
 	if decimalSelector.MatchString(selector) {

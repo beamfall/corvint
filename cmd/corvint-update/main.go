@@ -5,16 +5,31 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Beamfall/corvint/internal/update"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"github.com/Beamfall/corvint/internal/companioncli"
+	"github.com/Beamfall/corvint/internal/update"
 )
 
+// usage is the companion contract's --help text (CAP-V0-700).
+const usage = `usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--github-token-env NAME]
+                      [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM]
+                      [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]
+check reports whether a newer official release of the component exists; apply installs it with an atomic
+switch and keeps the previous binaries for rollback; rollback restores them. No request leaves the host
+without --allow-network.
+Example: corvint-update check --component core --allow-network`
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--github-token-env NAME] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]")
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
+		os.Exit(code)
+	}
+	// CAP-V0-701: an unknown action is refused before any state is read.
+	if len(os.Args) < 2 || (os.Args[1] != "check" && os.Args[1] != "apply" && os.Args[1] != "rollback") {
+		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(2)
 	}
 	home, err := os.UserHomeDir()

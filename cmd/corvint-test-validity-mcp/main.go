@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"sort"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
@@ -42,9 +43,13 @@ const usage = "usage: corvint-test-validity-mcp --root ROOT [--protocol-version 
 	"       corvint-test-validity-mcp --version\n" +
 	"A local read-only stdio MCP server for the experimental test-validity tools of the Git worktree at ROOT.\n" +
 	"Deprecated alias, kept for one release: corvint-mcp --root ROOT --tool-profile test-validity\n" +
-	"serves the same tools with the same results."
+	"serves the same tools with the same results.\n" +
+	"Example: corvint-test-validity-mcp --root /absolute/repo"
 
 func main() {
+	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-test-validity-mcp", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled { // CAP-V0-700
+		os.Exit(code)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), terminationSignals()...)
 	defer cancel()
 	os.Exit(runProfiled(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr, os.LookupEnv))
@@ -114,24 +119,26 @@ type toolHandler struct{ registry *testvaliditybridge.Registry }
 func (handler *toolHandler) Handle(ctx context.Context, request protocol.Request, _ server.Notifier) (map[string]any, *protocol.RPCError) {
 	switch request.Method {
 	case "tools/list":
-		if !onlyKeys(request.Params, "_meta", "cursor") {
-			return nil, protocol.InvalidParams("Invalid params")
+		if refusal := toolgroup.ListParamsRefusal(request.Params); refusal != nil { // MCPV0-952
+			return nil, refusal
 		}
-		if cursor, present := request.Params["cursor"]; present {
-			if value, valid := cursor.(string); !valid || value != "" {
-				return nil, protocol.InvalidParams("Invalid params")
-			}
-		}
-		tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-103
-		sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+		tools := handler.listedTools() // MCPV0-103
 		return map[string]any{
 			"cacheScope": "private", "tools": tools, "ttlMs": 300_000,
 		}, nil
 	case "tools/call":
-		return handler.call(ctx, request.Params)
+		result, rpcErr := handler.call(ctx, request.Params)
+		return result, toolgroup.WithInvalidParamsData(handler.listedTools, request.Params, rpcErr) // MCPV0-952
 	default:
 		return nil, protocol.MethodNotFound()
 	}
+}
+
+// listedTools is the tools/list surface, sorted by name.
+func (handler *toolHandler) listedTools() []bridge.ToolDescriptor {
+	tools := append(handler.registry.Tools(), bridge.HelpDescriptor()) // MCPV0-103
+	sort.Slice(tools, func(left, right int) bool { return tools[left].Name < tools[right].Name })
+	return bridge.WithOutputSchemas(tools) // MCPV0-953
 }
 
 func (handler *toolHandler) call(ctx context.Context, params map[string]any) (map[string]any, *protocol.RPCError) {

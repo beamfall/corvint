@@ -591,6 +591,13 @@ every gap above the threshold with the time the watchdog would have flagged it.
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
   (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-18-v1-1627-lane-orchestration.md`).
+- Lanes share `rr-cache`, `MERGE_RR` and its lock through the common directory (ASD-V0-965,
+  V1-3651). `lane-setup.sh` sets `rerere.enabled=false` in each lane worktree's own config
+  (`extensions.worktreeConfig`), so no lane records or replays another lane's resolution. A git
+  command that may land commits (merge, commit, cherry-pick, rebase) can still fail on a transient
+  lock after its commits landed: record HEAD before it, compare after a failure, and retry only when
+  HEAD did not move. When HEAD moved, verify the landed commits (`git log --oneline BEFORE..HEAD`)
+  instead of repeating the command, which would land them twice.
 - Never run `git stash` in a lane. The stash is one ref (`refs/stash`) in the clone's common
   directory, shared by every linked worktree, so one lane's `git stash pop` can apply another
   lane's stash (incident, 2026-10-21: the dogfood-flow lane's `git stash pop` applied the affected-selection lane's stash `723eec1`, V1-2161). Park work in a
@@ -903,6 +910,10 @@ One lane runs this flow, in order; each step names the command and the section t
 4. Doc gates before the final commit: `make doc-gates`, `make line-citations-check`, `gofmt -l`.
    Repins are mechanical: `make repin` (line citations and the analyzer-schema pin) and
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
+   Repin per commit, not once at the end (V1-3821): before each per-ticket commit, stage the
+   ticket's files, run `make line-citations-check`, and when it names a moved citation run
+   `make repin BASE=<lane-base>` and commit the staged repins with that ticket. A later
+   catch-up repin commit leaves every earlier commit red for anyone who checks it out or bisects.
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
@@ -924,7 +935,7 @@ Common refusals and their recovery:
 | `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
 | `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
 | `bootstrap-intent-not-unknown` | give the intent spec this change creates no row, or an `unknown` row |
-| line-citation or use-case receipt drift after an edit | `make repin`; `script/repin-use-case-receipts.sh` |
+| line-citation or use-case receipt drift after an edit | `make repin`; `script/repin-use-case-receipts.sh`; commit the repins with the edit that moved the text (step 4) |
 | `sealed-cem-in-change` | drop the seal from the diff, or for a batch of sealed leaves follow DOGFOOD "Integrating sealed branches" |
 | `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
 | `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |

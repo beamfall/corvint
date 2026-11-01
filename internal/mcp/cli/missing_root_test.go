@@ -112,22 +112,22 @@ func TestMCPV0115MissingRootServesLaunchWorktree(t *testing.T) {
 	}
 }
 
-// MCPV0-115: with no launch worktree to stand in, a missing --root refuses
-// startup with a reason that names neither path.
-func TestMCPV0115MissingRootOutsideWorktreeRefuses(t *testing.T) {
+// MCPV0-115 with MCPV0-950: with no launch worktree to stand in, a missing --root
+// keeps its MCPV0-950 outcome, served unavailable with a reason that names no path.
+func TestMCPV0115MissingRootOutsideWorktreeServesUnavailable(t *testing.T) {
 	outside := filepath.Clean(t.TempDir())
 	if _, inside := enclosingWorktree(outside); inside {
 		t.Skip("the temporary directory is inside a Git worktree")
 	}
 	t.Chdir(outside)
 	exit, stderr, responses := startupSession(t, []string{"--root", missingSpareRoot(t)}, toolCall(1, "corvint.status", map[string]any{}))
-	if exit != 2 || len(responses) != 0 ||
-		stderr != "corvint-mcp: repository unavailable: --root does not exist and the launch directory is not in a Git worktree\n" {
+	if exit != 0 || len(responses) == 0 ||
+		stderr != "corvint-mcp: repository unavailable: --root does not exist; serving tools/list, and every repository tool call answers invalid-root\n" {
 		t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
 	}
-	if _, _, refusal := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, false, false,
-		func() (string, error) { return "", errors.New("getwd") }); refusal != missingRootRefusal {
-		t.Fatalf("unobservable launch directory: refusal=%q", refusal)
+	if _, substituted := missingRootFallback([]rootDeclaration{{root: missingSpareRoot(t)}}, false, false,
+		func() (string, error) { return "", errors.New("getwd") }); substituted {
+		t.Fatal("unobservable launch directory substituted a root")
 	}
 }
 
@@ -143,19 +143,23 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 	}
 	missing := missingSpareRoot(t)
 	t.Chdir(main)
+	// The unchanged outcomes are MCPV0-950's: a plain unusable root is served
+	// unavailable with its reason, any other refusal names the reason and exits 2.
 	for _, tc := range []struct {
-		name      string
-		arguments []string
+		name       string
+		arguments  []string
+		wantExit   int
+		wantStderr string
 	}{
-		{"existing directory outside Git", []string{"--root", plain}},
-		{"path through a regular file", []string{"--root", filepath.Join(file, "repo")}},
-		{"aliased missing root", []string{"--root", "core=" + missing}},
-		{"missing root with --follow-ref", []string{"--root", missing, "--follow-ref", "feature"}},
-		{"missing root with --corpus-artifact", []string{"--root", missing, "--tool-profile", "test-validity,corpus", "--corpus-artifact", "corpus.json"}},
+		{"existing directory outside Git", []string{"--root", plain}, 0, "corvint-mcp: repository unavailable: --root is not inside a Git worktree; serving tools/list, and every repository tool call answers invalid-root\n"},
+		{"path through a regular file", []string{"--root", filepath.Join(file, "repo")}, 0, "corvint-mcp: repository unavailable: --root does not exist; serving tools/list, and every repository tool call answers invalid-root\n"},
+		{"aliased missing root", []string{"--root", "core=" + missing}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
+		{"missing root with --follow-ref", []string{"--root", missing, "--follow-ref", "feature"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
+		{"missing root with --corpus-artifact", []string{"--root", missing, "--tool-profile", "test-validity,corpus", "--corpus-artifact", "corpus.json"}, 2, "corvint-mcp: repository unavailable: --root does not exist\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			exit, stderr, responses := startupSession(t, tc.arguments, toolCall(1, "corvint.status", map[string]any{}))
-			if exit != 2 || len(responses) != 0 || stderr != "corvint-mcp: repository unavailable\n" {
+			if exit != tc.wantExit || (exit == 2) != (len(responses) == 0) || stderr != tc.wantStderr {
 				t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
 			}
 		})
@@ -172,12 +176,12 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 			t.Fatal(err)
 		}
 		t.Chdir(inner)
-		exit, stderr, responses := startupSession(t, []string{"--root", missing}, toolCall(1, "corvint.status", map[string]any{}))
-		if exit != 2 || len(responses) != 0 || stderr != "corvint-mcp: repository unavailable\n" {
-			t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
+		exit, stderr, _ := startupSession(t, []string{"--root", missing}, toolCall(1, "corvint.status", map[string]any{}))
+		if strings.Contains(stderr, "serving the Git worktree enclosing") {
+			t.Fatalf("the symlink-marker candidate was served as the launch worktree: exit=%d stderr=%q", exit, stderr)
 		}
 		direct, directStderr, _ := startupSession(t, []string{"--root", inner}, toolCall(1, "corvint.status", map[string]any{}))
-		if direct != 2 || directStderr != stderr {
+		if direct != exit || directStderr != stderr {
 			t.Fatalf("direct --root of the symlink-marker directory: exit=%d stderr=%q", direct, directStderr)
 		}
 	})

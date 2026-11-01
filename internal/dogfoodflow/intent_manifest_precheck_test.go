@@ -26,6 +26,17 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
+	// The sorted manifest below names these intents; inputs-check refuses an
+	// intent that is not a committed spec blob before any step (DCW-V0-945).
+	for _, name := range []string{"a", "b"} {
+		if err := os.MkdirAll(filepath.Join(root, "docs"), 0o777); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, "docs", name+".md"), []byte("# Intent\n\n## Requirements\n\n- `INT-V0-001`: "+name+".\n"), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testGit(t, root, "add", "docs")
 	testGit(t, root, "commit", "-q", "-am", "change")
 	scratch := t.TempDir()
 	plan := filepath.Join(scratch, "cites.tsv")

@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/companioncli"
 	"github.com/Beamfall/corvint/internal/dashboard/model"
 )
 
@@ -302,5 +303,12 @@ func runProcess(arguments []string, stdout, stderr io.Writer, compile compiler) 
 }
 
 func main() {
+	// The command tree answers the help forms (CAP-V0-972); the companion
+	// contract answers only --version and --version --json (CAP-V0-700).
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-dashboard-snapshot", Version: companioncli.ExperimentalVersion}, os.Args[1:], os.Stdout); handled {
+			os.Exit(code)
+		}
+	}
 	os.Exit(runProcess(os.Args[1:], os.Stdout, os.Stderr, compileSnapshot))
 }

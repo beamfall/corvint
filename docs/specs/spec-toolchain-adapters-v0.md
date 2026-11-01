@@ -114,6 +114,8 @@ Corvint at `d35b0ee3`:
 - `STA-V0-013`: `docs/SELF-DEVELOPMENT.md` gains a route for changes to these forms or integrations. The route uses `corvint affected`, the forms' focused tests and `make spec-toolchain-conformance`.
 - `STA-V0-014`: A tracked symlink at the root `AGENTS.md` is a Git blob (mode 120000) holding the target path, not an authority document, and no consumer follows it. The authority-start query refuses with `unsupported-query-authority` and a message that names the symlink; Codex governance context reports `AGENTS.md` unavailable. Keep the guide a regular file (or make the symlink the secondary name, for example `CLAUDE.md` pointing at `AGENTS.md`). Resolving a tracked symlink to a tracked regular file in the same tree at the same revision is a post-1.0 idea (V1-1272, V1-1325, V1-2181).
 
+- `STA-V0-965`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3657) `script/spec-toolchain-conformance.sh` MUST select its Python interpreter before any other check: `SPEC_TOOLCHAIN_PYTHON` when set, used as given; otherwise the first of `python3`, `python3.14`, `python3.13`, `python3.12` and `python3.11` on `PATH` whose `sys.version_info` is at least 3.11. When none qualifies (or the override is older) it MUST exit 1 naming each candidate it tried and the `SPEC_TOOLCHAIN_PYTHON=/path/to/python3.11+` override. `--print-python` MUST print the selected interpreter and exit 0, running nothing else, so the selection is testable offline.
+
 ## Non-goals
 
 - Bundling Node, Python, `openspec` or `specify` in, or calling them from, the Corvint binary.
@@ -164,6 +166,9 @@ Corvint at `d35b0ee3`:
   and again on 2026-10-31 with OpenSpec 1.16.0 and Spec Kit 1.2.5 over the same seven forms
   (`docs/build-log/2026-10-31-cmdcem-mac.md`); the first CI run is `NOT_RUN` until the
   workflow reaches GitHub.
+- `TestSTAV0965_ConformancePicksAPython311` (`internal/lrfrepo`) covers `STA-V0-965` with stub
+  interpreters on `PATH`: an old `python3` is skipped for `python3.12`, the override wins, and a
+  host with no qualifying interpreter is refused naming `SPEC_TOOLCHAIN_PYTHON`.
 - One `script/spec-toolchain-latest.sh` transcript covers `STA-V0-012`.
   Delivered: the 2026-10-18 transcript (`openspec 1.14.3 CURRENT`, `spec-kit 1.2.1 CURRENT`) in the
   build-log entry, the 2026-10-31 transcript (`openspec 1.16.0 CURRENT`, `spec-kit 1.2.5 CURRENT`) in
@@ -184,6 +189,7 @@ Corvint at `d35b0ee3`:
 
 ## Rollback
 
-Revert the lanes. Maps that declare these forms then fail `invalid-intent-form` on every OCM
+Roll back `STA-V0-965` by restoring `python=${SPEC_TOOLCHAIN_PYTHON:-python3}` and removing
+`--print-python` and its test. Revert the lanes. Maps that declare these forms then fail `invalid-intent-form` on every OCM
 action, fail-closed; remove them. The index falls back to `repository-spec` for the paths. Projects
 remove the extension with `specify extension remove corvint` and drop the OpenSpec `rules` snippet.
