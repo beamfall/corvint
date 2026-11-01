@@ -95,7 +95,7 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 	}
 	data := string(readFile(refreshed))
 	newID, rest, _ := strings.Cut(strings.TrimSuffix(data, "\n"), "\t")
-	if newID == oldID || !strings.HasPrefix(newID, "hunk:sha256:") || rest != "unknown\tinsufficient-evidence\treviewed" {
+	if newID == oldID || !strings.HasPrefix(newID, "hunk:sha256:") || rest != "unknown\tinsufficient-evidence\t"+staleNotePrefix+oldID+", review] reviewed" {
 		t.Fatalf("refreshed plan %q (old ID %s)", data, oldID)
 	}
 	if string(readFile(plan)) != original {
@@ -103,8 +103,12 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 	}
 	// The refreshed plan, reviewed and passed back as CITATIONS after HEAD moves
 	// again, is refreshed into the other file and kept byte-identical; the two
-	// files alternate, so a refresh never writes over its own input.
-	reviewed := strings.Replace(data, "\treviewed\n", "\treviewed again\n", 1)
+	// files alternate, so a refresh never writes over its own input. The review
+	// drops the stale mark the re-key added (V1-3289).
+	reviewed := strings.Replace(data, staleNotePrefix+oldID+", review] reviewed\n", "reviewed again\n", 1)
+	if reviewed == data {
+		t.Fatalf("no stale mark to review in %q", data)
+	}
 	if err := os.WriteFile(refreshed, []byte(reviewed), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +124,7 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 	if string(readFile(refreshed)) != reviewed {
 		t.Fatalf("the reviewed refreshed plan, the refresh's own input, was rewritten: %q", readFile(refreshed))
 	}
-	if _, rest, _ := strings.Cut(strings.TrimSuffix(string(readFile(alternate)), "\n"), "\t"); rest != "unknown\tinsufficient-evidence\treviewed again" {
+	if _, rest, _ := strings.Cut(strings.TrimSuffix(string(readFile(alternate)), "\n"), "\t"); rest != "unknown\tinsufficient-evidence\t"+staleNotePrefix+newID+", review] reviewed again" {
 		t.Fatalf("alternate plan %q", readFile(alternate))
 	}
 	plan = firstPlan

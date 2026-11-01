@@ -78,8 +78,8 @@ func TestDCWV0942CheckWritesPhaseTimings(t *testing.T) {
 	c.clock.to("lock-wait")
 	time.Sleep(5 * time.Millisecond)
 	c.clock.to("binding")
-	c.verifyAll("cem", "status", "--map", "x")
-	c.verifyAll("cem", "status", "--map", "x")
+	c.verifyAll(true, "cem", "status", "--map", "x")
+	c.verifyAll(true, "cem", "status", "--map", "x")
 	c.verify(tree, "dogfood-ocm", "status")
 	want := []string{"setup\t-", "build-tree\treuse", "build-base\tbuild", "startup\t-", "lock-wait\t-", "binding\t-",
 		"verifier-base\tcem status", "verifier-tree\tcem status", "verifier-tree\tdogfood-ocm status"}
