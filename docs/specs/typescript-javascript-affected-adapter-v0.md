@@ -1571,6 +1571,31 @@ cannot, from the same graph phase and closure walk the plan uses.
     loop, drop the allowJs condition in `resolveTypeScriptAliases` and `javaScriptConfigName` from
     `observedName`; no persisted format or receipt changes.
 
+- `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
+  plain name MUST key one symbol per bound name, each by its own declarator text split at commas
+  outside brackets, strings and templates, so a change to one initializer modifies only that name
+  and an added declarator adds only its name. A statement binding one name, or a destructuring
+  declarator, is keyed as before.
+- `TJAA-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-031`: a frontier reason other than a dynamic import (in the observed frontier
+  or the shared plan's `LANGUAGE_FRONTIER` unknowns) whose every recorded site is a file of the
+  TypeScript graph MUST NOT refuse the narrowing; instead the tests whose static import closure
+  reaches one of those files are added as candidates with witness `FRONTIER_SITE_REACH`, as a
+  dynamic import's are. A reason with no site, or with a site outside the graph, still gives
+  `NOT_NARROWED GRAPH_FRONTIER`. The narrowing stays advisory: a hidden edge the frontier stands for
+  can only reach a test through its site's file, but its recall stays `NOT_RUN`.
+- `TJAA-V0-763`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Decision on further profiles and runners, each deferred with its reason: `affected-plan/0` gets
+  no `narrowed` member, because its fallback is the plan's own `UNKNOWN` scope over every plugin,
+  and a TypeScript-only candidate set beside a multi-language plan would read as a selection of the
+  whole plan; Vitest, Jest and the Node test runner get none, because their plans have no
+  Playwright-style project fallback whose full-suite runs narrowing could shorten; other languages
+  get none, because each lacks a test-side/source-side split like `TJAA-V0-031`'s. Runtime loading
+  outside JavaScript module syntax (bundler globs and `import.meta.glob`, HTML script tags, file
+  reads, worker-shared state, server-side state) stays unmodelled and keeps refusing through the
+  existing frontiers and the not-test-side rule; no class of it is modelled by this amendment.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -1733,33 +1758,6 @@ Non-goals and named gaps:
   declarator binds no name there.
 - The narrowed set has no live recall measurement. Its recall stays `NOT_RUN`, and callers that run
   only the candidates plus the `UNRESOLVED` projects accept that risk themselves.
-
-V1-2060 amendments (experimental under the owner's standing lane auto-accept (2026-10-11)):
-
-- `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
-  Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
-  plain name MUST key one symbol per bound name, each by its own declarator text split at commas
-  outside brackets, strings and templates, so a change to one initializer modifies only that name
-  and an added declarator adds only its name. A statement binding one name, or a destructuring
-  declarator, is keyed as before.
-- `TJAA-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
-  Amending `TJAA-V0-031`: a frontier reason other than a dynamic import (in the observed frontier
-  or the shared plan's `LANGUAGE_FRONTIER` unknowns) whose every recorded site is a file of the
-  TypeScript graph MUST NOT refuse the narrowing; instead the tests whose static import closure
-  reaches one of those files are added as candidates with witness `FRONTIER_SITE_REACH`, as a
-  dynamic import's are. A reason with no site, or with a site outside the graph, still gives
-  `NOT_NARROWED GRAPH_FRONTIER`. The narrowing stays advisory: a hidden edge the frontier stands for
-  can only reach a test through its site's file, but its recall stays `NOT_RUN`.
-- `TJAA-V0-763`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
-  Decision on further profiles and runners, each deferred with its reason: `affected-plan/0` gets
-  no `narrowed` member, because its fallback is the plan's own `UNKNOWN` scope over every plugin,
-  and a TypeScript-only candidate set beside a multi-language plan would read as a selection of the
-  whole plan; Vitest, Jest and the Node test runner get none, because their plans have no
-  Playwright-style project fallback whose full-suite runs narrowing could shorten; other languages
-  get none, because each lacks a test-side/source-side split like `TJAA-V0-031`'s. Runtime loading
-  outside JavaScript module syntax (bundler globs and `import.meta.glob`, HTML script tags, file
-  reads, worker-shared state, server-side state) stays unmodelled and keeps refusing through the
-  existing frontiers and the not-test-side rule; no class of it is modelled by this amendment.
 
 ## Acceptance evidence and rollback
 
