@@ -150,11 +150,25 @@ func ReadDeclaredFile(name string) Declared {
 	return declared
 }
 
+// ParseDeclared parses declaration bytes the caller has already read under its own file rules
+// (adopt --setup, ADS-V0-802), with the same refusals as ReadDeclared.
+func ParseDeclared(raw []byte) Declared {
+	declared, err := parseDeclaration(raw)
+	if err != nil {
+		return Declared{GoEnv: []string{}, GoFlags: []string{}, Languages: []LanguageCommand{}, Unreadable: DeclarationPath + ": " + err.Error()}
+	}
+	return declared
+}
+
 func readDeclaration(name string) (Declared, error) {
 	raw, err := readRegular(name, MaxDocumentBytes)
 	if err != nil {
 		return Declared{}, err
 	}
+	return parseDeclaration(raw)
+}
+
+func parseDeclaration(raw []byte) (Declared, error) {
 	if len(raw) > MaxDocumentBytes {
 		return Declared{}, fmt.Errorf("exceeds %d bytes", MaxDocumentBytes)
 	}

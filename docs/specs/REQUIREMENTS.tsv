@@ -17,6 +17,9 @@ ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check
 ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
 ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
 ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
+ADS-V0-800	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends	standing	2026-11-01; V1-3725
+ADS-V0-801	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends	standing	2026-11-01; V1-3725
+ADS-V0-802	docs/specs/adoption-setup-report-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3725) a fifth	standing	2026-11-01; V1-3725
 ACX-V0-850	docs/specs/affected-cli-consistency-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)	standing	2026-10-11; V1-3583
 ACX-V0-851	docs/specs/affected-cli-consistency-v0.md	(experimental, amending AFP-V0-094, under the owner's standing lane	standing	-
 ACX-V0-852	docs/specs/affected-cli-consistency-v0.md	(experimental, narrowing AFP-V0-021, under the owner's standing lane	standing	-
@@ -352,6 +355,15 @@ AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decisio
 AHI-920	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3311; amends	standing	2026-10-31; V1-3311
 AHI-921	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2735) The	standing	2026-10-31; V1-2735
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
+AHI-800	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-1496; amends	standing	2026-11-01; V1-1496
+AHI-801	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3556; amends	standing	2026-11-01; V1-3556
+AHI-802	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3676; amends	standing	2026-11-01; V1-3676
+AHI-803	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3728; amends	standing	2026-11-01; V1-3728
+AHI-804	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0401) The Cla	standing	2026-11-01; V1-0401
+AHI-805	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0402) The Cla	standing	2026-11-01; V1-0402
+AHI-806	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-0878) A plan-	standing	2026-11-01; V1-0878
+AHI-807	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-2514; amends	standing	2026-11-01; V1-2514
+AHI-808	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3543)	standing	2026-11-01; V1-3543
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
@@ -4979,6 +4991,7 @@ LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every 
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
+LCP-V0-800	docs/specs/local-completion-policy-v0.md	(proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no	unrecorded	-
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-

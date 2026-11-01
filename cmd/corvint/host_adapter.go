@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +38,7 @@ const (
 
 func runHostAdapter(ctx context.Context, arguments []string, stdin io.Reader, stdout io.Writer) int {
 	if len(arguments) == 0 {
-		return emitAdapterOutput(stdout, degradedAdapterOutput("unsupported-hook-event"))
+		return emitAdapterOutput(stdout, unsupportedHookEvent(""))
 	}
 	if arguments[0] == "pi-tool" {
 		return runPiTool(ctx, arguments[1:], stdin, stdout)
@@ -67,6 +69,14 @@ var adapterDeclaredHostKill = map[string]time.Duration{
 	"claude-code post-compact":  2 * time.Second,
 }
 
+// adapterOptInHostKill bounds the opt-in events no shipped hooks.json registers (AHI-804, AHI-805):
+// an operator who wires one under a host timeout gets the same 2 s watchdog and degradation as a
+// registered event. It is kept apart from adapterDeclaredHostKill, which AHI-017 pins to hooks.json.
+var adapterOptInHostKill = map[string]time.Duration{
+	"claude-code subagent-start": 2 * time.Second,
+	"claude-code pre-tool":       2 * time.Second,
+}
+
 const (
 	// Wall time the process clock cannot see: exec and Go runtime start before package
 	// initialisation, then the stdout write and exit after emit. Measured 2026-09-12 on a
@@ -90,7 +100,11 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 	if len(arguments) < 2 || arguments[0] != "adapter" {
 		return parent, func() {}
 	}
-	kill, ok := adapterDeclaredHostKill[strings.Join(arguments[1:], " ")]
+	key := strings.Join(arguments[1:], " ")
+	kill, ok := adapterDeclaredHostKill[key]
+	if !ok {
+		kill, ok = adapterOptInHostKill[key]
+	}
 	if !ok {
 		return parent, func() {}
 	}
@@ -161,18 +175,18 @@ func hostAdapterOutput(ctx context.Context, arguments []string, stdin io.Reader)
 		// Like claude-code, an unexpected trailing argument degrades instead
 		// of being ignored (DIRTY-CACHE-016).
 		if len(arguments) != 1 {
-			return degradedAdapterOutput("unsupported-hook-event")
+			return unsupportedHookEvent("codex")
 		}
 		return runCodexAdapter(ctx, payload)
 	case "claude-code":
 		if len(arguments) != 2 {
-			return degradedAdapterOutput("unsupported-hook-event")
+			return unsupportedHookEvent("claude-code")
 		}
 		return runClaudeAdapter(ctx, arguments[1], payload)
 	case "claude-source-handoff":
 		return runClaudeSourceHandoff(ctx, arguments[1:], payload)
 	default:
-		return degradedAdapterOutput("unsupported-hook-event")
+		return unsupportedHookEvent("")
 	}
 }
 
@@ -293,8 +307,7 @@ func decodeAdapterValue(decoder *json.Decoder, depth int) (any, error) {
 
 func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput map[string]any) {
 	eventName, _ := payload["hook_event_name"].(string)
-	events := map[string]string{"SessionStart": "session-start", "UserPromptSubmit": "user-prompt", "Stop": "stop", "SessionEnd": "session-end"}
-	event, ok := events[eventName]
+	event, ok := codexHookEvents[eventName]
 	if !ok {
 		// An event this adapter does not handle stays non-blocking `{}` (AHI-044), but is
 		// recorded once its absolute cwd lies inside a repository (SOL-V0-010, V1-0746).
@@ -311,6 +324,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 		return map[string]any{}
 	}
 	defer func() { recordAdapterDegradation(ctx, root, "codex", event, hookOutput) }()
+	ctx = withDogfoodEventProbe(ctx)
 	normalized, reason := normalizeAdapterInput("codex", event, payload, root)
 	if reason != "" {
 		return codexDegraded(eventName, reason)
@@ -319,7 +333,7 @@ func runCodexAdapter(ctx context.Context, payload map[string]any) (hookOutput ma
 	kernel := experimentalKernelContext(ctx, event, root)
 	result, reason := invokeDogfoodEvent(ctx, root, "codex", event, normalized, adapterOutputLimit-promptBoundReserve(disclosure)-promptBoundReserve(kernel))
 	if reason != "" {
-		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withCodexSnapshotRemediation(ctx, root, reason, codexDegraded(eventName, reason))))
 	}
 	return withHookContextSuffix(withPromptBoundDisclosure(renderAdapterResult("codex", eventName, event, root, normalized, result, false), disclosure), eventName, kernel)
 }
@@ -347,6 +361,7 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		return map[string]any{}
 	}
 	defer func() { recordAdapterDegradation(ctx, root, "claude-code", event, hookOutput) }()
+	ctx = withDogfoodEventProbe(ctx)
 	normalized, reason := normalizeAdapterInput("claude-code", event, payload, root)
 	if reason != "" {
 		refuseUndeliveredPacket(root, event, payload)
@@ -362,6 +377,14 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 		abstention := ""
 		if event == "post-tool" {
 			abstention = postToolTargetAbstention(root, payload)
+		}
+		if abstention == "post-tool-path-outside-project" {
+			if owner, target, ok := postToolOwningRepository(root, payload); ok {
+				// A target inside a sibling Git repository is that repository's change (AHI-803,
+				// V1-3728): its receipt comes from the owner's root and names it, and no
+				// outside-project exclusion is recorded for this project.
+				return invokeSiblingClaudePostTool(ctx, owner, target, payload)
+			}
 		}
 		output := invokeLegacyClaudeEvent(ctx, root, event, normalized, abstention != "")
 		if abstention != "" && len(output) == 0 {
@@ -383,7 +406,8 @@ func runClaudeAdapter(ctx context.Context, event string, payload map[string]any)
 	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", event, normalized, budget)
 	if reason != "" {
 		refuse()
-		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
+		notice := withCauseRemediation(root, reason, withDeadlineRemediation(ctx, root, reason, withSnapshotRemediation(ctx, root, event, reason, claudeDegradedOutput(event, reason))))
+		return withReducedPacket(ctx, root, event, reason, normalized, disclosure+guidance, notice)
 	}
 	output := renderAdapterResult("claude-code", claudeEventName(event), event, root, normalized, result, subagent)
 	stagePacket(ctx, refuse, func() { recordDeliveredPacket(root, event, normalized, result, output) })
@@ -932,14 +956,14 @@ func withCodexSnapshotRemediation(ctx context.Context, root, reason string, outp
 // (LCP-V0-008, AHI-031).
 const claudeDeadlineReason = "corvint-event-rejected:dogfood-event-deadline"
 
-// deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). The hook
-// has no time left to measure this event's cause, so it names the cause a measured reproduction
-// found (V1-1524: machine load, while 1,266 dirty task-store projection paths under .taskman/
-// added no measurable time) and a remediation that never touches the store's own files.
-func deadlineRemediation(root string) string {
+// deadlineRemediation is the text a deadline notice carries after its frame (AHI-055). It names
+// the phase that ran out of time and the measurements the event already took, and a dominant
+// cause only when a measurement supports it (AHI-800, V1-1496), then a remediation that never
+// touches the store's own files.
+func deadlineRemediation(ctx context.Context, root string) string {
 	status, _ := json.Marshal([]string{"git", "-C", root, "status", "--short"})
 	return "\nCorvint's check for this event did not finish within the hook time limit, so this event got no Corvint context; coding continues." +
-		"\nA measured reproduction found heavy machine load to be the cause, while 1,266 changed task-store files under .taskman/ added no measurable time; this notice did not measure this event's cause." +
+		deadlineMeasuredLines(ctx) +
 		"\nTo see the pending changes, run this read-only command outside the hook:\n" + string(status) +
 		"\nIf machine load caused the timeout, waiting for it to drop may help. Do not commit, stash or discard files under .taskman/ for this: the task store writes them; only a very long list of other changes is worth committing or unstaging."
 }
@@ -948,20 +972,21 @@ func deadlineRemediation(root string) string {
 // dogfood-event-deadline notice already uses, after its unchanged frame (AHI-055). A root long
 // enough to push the encoded output past adapterOutputLimit keeps the frame-only notice, since
 // emitAdapterOutput would otherwise replace the frame with corvint-output-too-large.
-func withDeadlineRemediation(root, reason string, output map[string]any) map[string]any {
+func withDeadlineRemediation(ctx context.Context, root, reason string, output map[string]any) map[string]any {
 	if reason != claudeDeadlineReason {
 		return output
 	}
+	remediation := deadlineRemediation(ctx, root)
 	remediated := map[string]any{}
 	for key, value := range output {
 		remediated[key] = value
 	}
 	if text, ok := output["systemMessage"].(string); ok {
-		remediated["systemMessage"] = text + deadlineRemediation(root)
+		remediated["systemMessage"] = text + remediation
 	}
 	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
 		if text, ok := hook["additionalContext"].(string); ok {
-			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + deadlineRemediation(root)}
+			remediated["hookSpecificOutput"] = map[string]any{"hookEventName": hook["hookEventName"], "additionalContext": text + remediation}
 		}
 	}
 	if raw, err := json.Marshal(remediated); err != nil || len(raw)+1 > adapterOutputLimit {
@@ -992,7 +1017,61 @@ func causeRemediation(root, reason string) string {
 	if reason != claudeUnavailableReason {
 		recovery = "\nThe next prompt rebuilds Corvint context from the current tree. To check that Corvint's read works, run this read-only command outside the hook:\n"
 	}
-	return "\n" + causeLines[reason] + recovery + string(query)
+	cause := causeLines[reason]
+	if reason == claudeUnavailableReason {
+		if line, ok := alternatesCauseLine(root); ok {
+			cause = line
+		}
+	}
+	return "\n" + cause + recovery + string(query)
+}
+
+// alternatesCauseLine is the AHI-802 cause line for an unavailable read in a clone that borrows
+// objects through alternates, which Corvint's pinned reads refuse as unsupported-object-alternates.
+// It lstats only the alternates files under the Git directory and common directory: no Git
+// process, no write.
+func alternatesCauseLine(root string) (string, bool) {
+	for _, dir := range adapterGitDirs(root) {
+		for _, name := range []string{"alternates", "http-alternates"} {
+			if _, err := os.Lstat(filepath.Join(dir, "objects", "info", name)); err == nil {
+				return "Corvint's read-only context read refused this clone as unsupported-object-alternates: it borrows objects through objects/info/" + name + " (git clone --shared or --reference), so this event got no Corvint context; coding continues. Fix: clone again with git clone --no-local, or run git repack -a -d, remove objects/info/alternates, objects/info/http-alternates and objects/info/commit-graphs under the Git common directory, then run git commit-graph write --reachable.", true
+			}
+		}
+	}
+	return "", false
+}
+
+// adapterGitDirs is the Git directory and common directory of root, read from the .git entry and
+// the commondir file without running Git. A missing or unreadable entry yields no directory.
+func adapterGitDirs(root string) []string {
+	gitDir := filepath.Join(root, ".git")
+	info, err := os.Lstat(gitDir)
+	if err != nil {
+		return nil
+	}
+	if !info.IsDir() {
+		raw, err := os.ReadFile(gitDir)
+		if err != nil || len(raw) > 4096 {
+			return nil
+		}
+		target, ok := strings.CutPrefix(strings.TrimSpace(string(raw)), "gitdir: ")
+		if !ok {
+			return nil
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(root, target)
+		}
+		gitDir = target
+	}
+	dirs := []string{gitDir}
+	if raw, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil && len(raw) <= 4096 {
+		common := strings.TrimSpace(string(raw))
+		if !filepath.IsAbs(common) {
+			common = filepath.Join(gitDir, common)
+		}
+		dirs = append(dirs, filepath.Clean(common))
+	}
+	return dirs
 }
 
 // withCauseRemediation appends causeRemediation to every channel a covered notice already uses,
@@ -1055,6 +1134,99 @@ func postToolTargetAbstention(root string, payload map[string]any) string {
 		return "post-tool-path-outside-project"
 	}
 	return "post-tool-path-not-project-relative"
+}
+
+// postToolOwningRepository is the nearest enclosing Git work tree of a post-tool target that
+// resolves outside root (AHI-803): the closest ancestor of the resolved target with a .git entry.
+// It reads only directory entries and also returns the resolved target. A target with no
+// enclosing repository, or one whose nearest repository encloses root itself, has no owner and
+// keeps the AHI-019 exclusion.
+func postToolOwningRepository(root string, payload map[string]any) (string, string, bool) {
+	input, _ := payload["tool_input"].(map[string]any)
+	name, _ := payload["tool_name"].(string)
+	fields := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}
+	path, _ := input[fields[name]].(string)
+	if path == "" {
+		return "", "", false
+	}
+	if !filepath.IsAbs(path) {
+		path = root + string(filepath.Separator) + path
+	}
+	resolved, ok := resolvePostToolTarget(path)
+	if !ok {
+		return "", "", false
+	}
+	resolvedRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return "", "", false
+	}
+	for current := filepath.Dir(resolved); ; current = filepath.Dir(current) {
+		if _, err := os.Lstat(filepath.Join(current, ".git")); err == nil {
+			if withinFoldingCase(current, resolvedRoot) {
+				return "", "", false
+			}
+			return current, resolved, true
+		}
+		if filepath.Dir(current) == current {
+			return "", "", false
+		}
+	}
+}
+
+// invokeSiblingClaudePostTool runs the shared post-tool harness event against the repository that
+// owns the target (AHI-803), with the target spelled as its resolved absolute path, and returns
+// its AHI-019 receipt followed by the framed sibling root (siblingAttribution). A failing call keeps its own
+// degradation.
+func invokeSiblingClaudePostTool(ctx context.Context, owner, target string, payload map[string]any) map[string]any {
+	routed := map[string]any{}
+	for key, value := range payload {
+		routed[key] = value
+	}
+	name, _ := payload["tool_name"].(string)
+	field := map[string]string{"Edit": "file_path", "Write": "file_path", "NotebookEdit": "notebook_path"}[name]
+	input := map[string]any{}
+	for key, value := range payload["tool_input"].(map[string]any) {
+		input[key] = value
+	}
+	input[field] = target
+	routed["tool_input"] = input
+	normalized, reason := normalizeAdapterInput("claude-code", "post-tool", routed, owner)
+	if reason != "" {
+		return claudeDegradedOutput("post-tool", reason)
+	}
+	output := invokeLegacyClaudeEvent(ctx, owner, "post-tool", normalized, false)
+	hook, ok := output["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		return output
+	}
+	text, _ := hook["additionalContext"].(string)
+	attribution, ok := siblingAttribution(owner)
+	if !ok {
+		return output
+	}
+	attributed := claudeContextOutput("PostToolUse", text+"\n"+attribution)
+	if !withinAdapterOutputLimit(attributed) {
+		return output
+	}
+	return attributed
+}
+
+// siblingAttributionLine is the trusted text that precedes a sibling repository's framed root.
+const siblingAttributionLine = "Corvint attributed this edit to a sibling repository; its root is repository data:"
+
+// siblingAttribution renders the AHI-803 attribution with the owner's root inside the repository
+// data envelope, since a directory name can carry newlines or instructions. False when the
+// envelope refuses the root; the caller then keeps the receipt without the attribution.
+func siblingAttribution(owner string) (string, bool) {
+	raw, err := json.Marshal(map[string]string{"siblingRepository": owner})
+	if err != nil {
+		return "", false
+	}
+	framed, err := repoenvelope.Frame(string(raw))
+	if err != nil {
+		return "", false
+	}
+	return siblingAttributionLine + "\n" + framed, true
 }
 
 // outsideProject reports whether path is established to lie outside the
@@ -1199,6 +1371,33 @@ func claudeEventName(event string) string {
 	}
 	return "UserPromptSubmit"
 }
+
+// claudeCodeAdapterEvents are the EVENT values `corvint adapter claude-code` accepts, and
+// codexHookEvents the hook_event_name values `corvint adapter codex` (which takes no EVENT
+// argument) maps to its lifecycle events (V1-3543).
+var (
+	claudeCodeAdapterEvents = []string{"session-start", "user-prompt", "subagent-start", "pre-tool", "file-change", "post-tool", "stop", "stop-done-list", "session-end", "pre-compact", "post-compact"}
+	codexHookEvents         = map[string]string{"SessionStart": "session-start", "UserPromptSubmit": "user-prompt", "Stop": "stop", "SessionEnd": "session-end"}
+)
+
+// unsupportedHookEvent is the unsupported-hook-event degradation with one trailing line that
+// names what the host accepts, or the hosts when host is "" (V1-3543). The frame line, and so
+// the SOL-V0-010 reason, is unchanged.
+func unsupportedHookEvent(host string) map[string]any {
+	var accepted string
+	switch host {
+	case "claude-code":
+		accepted = "corvint adapter claude-code EVENT accepts: " + strings.Join(claudeCodeAdapterEvents, ", ")
+	case "codex":
+		accepted = "corvint adapter codex takes no EVENT; it reads hook_event_name: " + strings.Join(slices.Sorted(maps.Keys(codexHookEvents)), ", ")
+	default:
+		accepted = "corvint adapter accepts: codex, claude-code EVENT, claude-source-handoff, source-view, done-list, pi EVENT, pi-tool; see corvint adapter --help"
+	}
+	output := degradedAdapterOutput("unsupported-hook-event")
+	output["systemMessage"] = output["systemMessage"].(string) + "\n" + accepted
+	return output
+}
+
 func degradedAdapterOutput(reason string) map[string]any {
 	return map[string]any{"systemMessage": "Corvint FALLBACK degraded: " + reason + "; coding continues"}
 }

@@ -19,6 +19,14 @@
     "tests",
     "code-review"
   ],
+  "userConfig": {
+    "stop_done_list": {
+      "type": "boolean",
+      "title": "Stop done-list",
+      "description": "Show what a turn's change still owes (selected tests, unwitnessed commits) when Claude stops. The CORVINT_STOP_DONE_LIST environment variable, when set, takes precedence.",
+      "default": false
+    }
+  },
   "metadata": {
     "support": "FALLBACK",
     "adapterVersion": "0.1.0",

@@ -51,6 +51,25 @@ fix. It extends the existing `adopt` verb instead of adding a parallel `doctor` 
   root as regular files of at most 1 MiB, after an `Lstat` that rejects a FIFO, device or link
   without opening it, and Git runs as one `check-ignore --no-index` with
   `GIT_OPTIONAL_LOCKS=0` and a 10 s timeout.
+- `ADS-V0-800`: (experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends
+  `ADS-V0-005`) the `hooks` fix MUST name only resources an adopter repository can resolve: the
+  `claude plugin install corvint@corvint --scope project` command, the Codex plugin, and the
+  published guides at `https://github.com/beamfall/corvint/tree/main/integrations/claude-code`
+  and `.../integrations/codex`, never a path that exists only in the Corvint repository.
+- `ADS-V0-801`: (experimental under the standing lane auto-accept (2026-11-01); V1-3725; amends
+  `ADS-V0-006`) the `ignored-paths` check MUST locate the index snapshot store with the same
+  resolution the index uses (`contextindex.SnapshotDirectory`). A store under the Git common
+  directory (`corvint/index`) needs no ignore rule and is named in the evidence; only the
+  worktree fallback store `.corvint/index/` is checked against the ignore rules.
+- `ADS-V0-802`: (experimental under the standing lane auto-accept (2026-11-01); V1-3725) a fifth
+  check, `test-commands`, MUST read the project-owned declaration
+  `.github/cishards/test-commands.json` (`corvint-test-commands/0`, `STR-V0-003`) through the
+  `ADS-V0-007` read rules and report `gap` when it is absent or unreadable, with the reason as
+  evidence. A readable declaration is `ok`, with one evidence line for the Go entry and one per
+  declared language (its argv, or `none` with the project's reason), and one line naming each
+  declared language that has no `corvint impact` rule (every language but Go, Ruby, JavaScript and
+  TypeScript), whose files impact abstains on. It runs no process. Non-goals: discovering
+  undeclared languages from the tree, running or validating the commands, CI checks.
 
 ## Non-goals
 
@@ -73,6 +92,7 @@ instruction-file quality beyond naming Corvint, and no CI or release-channel che
 | ADS-V0-001,003,006 | `TestAdoptSetupUnobservedChecksCarryAFix` (snapshot probe error, git not on PATH), `TestAdoptSetupUnreadableIgnoreFileIsUnobserved` |
 | ADS-V0-007 | `TestAdoptSetupRejectsFIFOWithoutOpening` |
 | ADS-V0-002 | `TestAdoptSetupRefusesOtherOptions` |
+| ADS-V0-800..802 | `TestADS800SetupFixesResolveInAdopterRepositories`, `TestAdoptSetupReportsEachGapClass` (the `test-commands` gap class and the fully set-up fixture) |
 
 Measured output is in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-2052-adopt-setup-report.md`. Rollback: remove
 the `--setup` flag, `cmd/corvint/adopt_setup.go`, its test, the help paragraph and this spec; no

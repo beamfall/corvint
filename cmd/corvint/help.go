@@ -434,9 +434,18 @@ Usage:
   corvint adapter pi-tool context|expand|record
 
 Reads one bounded JSON object from stdin and writes one bounded adapter response;
-done-list reads no stdin. The installed host hooks invoke these commands. EVENT is
-a host hook event such as session-start, pre-compact or post-compact. Adapter
+done-list reads no stdin. The installed host hooks invoke these commands. Adapter
 responses are local-only and carry no repository authority.
+
+Events:
+  claude-code EVENT  session-start, user-prompt, subagent-start, pre-tool,
+                     file-change, post-tool, stop, stop-done-list, session-end,
+                     pre-compact, post-compact
+  codex              no EVENT argument; reads hook_event_name: SessionStart,
+                     UserPromptSubmit, Stop, SessionEnd (others answer {})
+  pi EVENT           file-change, post-tool, session-end, session-start, stop,
+                     user-prompt
+An unaccepted EVENT degrades with unsupported-hook-event and names the accepted ones.
 `
 
 const dogfoodOCMHelp = `Verify the private ordered set of dogfood OCM maps.
@@ -725,7 +734,8 @@ Both activations are read-only and local-only.
 
 Experimental (ADS-V0): adopt --setup takes no other option and reports the
 repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
-ignored paths), each with its evidence and a suggested fix. It writes nothing.
+ignored paths, declared test commands), each with its evidence and a suggested
+fix. It writes nothing.
 `
 
 const recordHelp = `Record one explicit local task outcome.
