@@ -215,7 +215,10 @@ to the five hypotheses above and no `corvint` command.
   `cb_file_precision_answered`. For every other arm on a sample where both it and the `bm25:ident`
   baseline answered without error and it predicted `L > 0` files, the report MUST add
   `cb_file_baseline_precision_length_matched`: the baseline's file precision over its ranking cut at
-  `L`, so a list-length difference is not read as a ranking difference. Each is averaged per arm in
+  `L`, so a list-length difference is not read as a ranking difference. `--summarize` MUST rederive
+  every file metric of a ContextBench sample, the length-matched one included, from the merged
+  final rankings and the stored gold after it merges arms, so a replaced arm never leaves a stale
+  cross-arm metric and an older report gains the metrics. Each is averaged per arm in
   every summary group, including each `fold:` split, over the samples that carry it. A
   preregistered ContextBench precision criterion written after 2026-10-31 MUST cite
   `cb_file_precision_answered` with the abstention rate, or the length-matched comparison, never
@@ -329,7 +332,7 @@ to the five hypotheses above and no `corvint` command.
 |---|---|---|
 | CEP-V0-001 | `decodeSample`, `contextBenchSample`, `contextBenchPath` in `tools/retrieval-bench/contextbench.go`; `readSamples`, `queryText` | `TestContextBenchRowsMapToSamplesAndBadRowsAreRefused` |
 | CEP-V0-002 | `contextBenchMetrics`, `mergeLines`, `fileLineCount`; `judge` | `TestContextBenchFixtureScoresFileAndLineCoverage` |
-| CEP-V0-960 | `contextBenchMetrics`, `contextBenchLengthMatched` | `TestContextBenchAbstentionAndLengthMatchedPrecision`, `TestContextBenchFixtureScoresFileAndLineCoverage` |
+| CEP-V0-960 | `contextBenchMetrics`, `contextBenchFileMetrics`, `contextBenchLengthMatched`, `rederiveContextBench` | `TestContextBenchAbstentionAndLengthMatchedPrecision`, `TestSummarizeRederivesContextBenchFileMetrics`, `TestContextBenchFixtureScoresFileAndLineCoverage` |
 | CEP-V0-961 | `resolveDataRoot`, `usageText`, `dataRootEnv` | `TestDataRootResolvesAndRefuses` |
 | CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run retained as an aggregate receipt (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v0415-contextbench-swebench-pro.md`, V1-0415) |
 | CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
