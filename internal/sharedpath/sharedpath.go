@@ -220,21 +220,7 @@ type git struct {
 func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, error) {
 	ctx, cancel := context.WithTimeout(g.ctx, gitTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, gitstatus.Executable(), append([]string{"--no-replace-objects", "-c", "core.hooksPath=" + os.DevNull, "-c", "advice.graftFileDeprecated=false", "-C", g.root}, args...)...)
-	for _, v := range os.Environ() {
-		if !strings.HasPrefix(v, "GIT_") {
-			cmd.Env = append(cmd.Env, v)
-		}
-	}
-	// GIT_OPTIONAL_LOCKS=0 keeps reads such as `status` from refreshing the
-	// index (SPC-V0-004). GIT_GRAFT_FILE=/dev/null makes every merge-base and
-	// rev-list read answer from the commits' real parents, as the private dry
-	// merge repository already does, since Git honours info/grafts even with
-	// replace objects disabled; refuseShallowMergeBase covers the shallow
-	// boundary (EEP-V0-771). advice.graftFileDeprecated=false keeps Git's
-	// deprecation advice for that setting off stderr (V1-3588).
-	cmd.Env = append(cmd.Env, "GIT_GRAFT_FILE="+os.DevNull, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
-	cmd.Env = append(cmd.Env, extra...)
+	cmd := g.command(ctx, extra, args...)
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -254,6 +240,27 @@ func (g git) run(stdin []byte, extra []string, args ...string) ([]byte, int, err
 		return nil, -1, errors.New(CodeGitUnavailable)
 	}
 	return out.Bytes(), 0, nil
+}
+
+// command builds run's Git argv and environment, with no I/O attached, so a
+// test can read the stderr run discards (V1-3588).
+func (g git) command(ctx context.Context, extra []string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, gitstatus.Executable(), append([]string{"--no-replace-objects", "-c", "core.hooksPath=" + os.DevNull, "-c", "advice.graftFileDeprecated=false", "-C", g.root}, args...)...)
+	for _, v := range os.Environ() {
+		if !strings.HasPrefix(v, "GIT_") {
+			cmd.Env = append(cmd.Env, v)
+		}
+	}
+	// GIT_OPTIONAL_LOCKS=0 keeps reads such as `status` from refreshing the
+	// index (SPC-V0-004). GIT_GRAFT_FILE=/dev/null makes every merge-base and
+	// rev-list read answer from the commits' real parents, as the private dry
+	// merge repository already does, since Git honours info/grafts even with
+	// replace objects disabled; refuseShallowMergeBase covers the shallow
+	// boundary (EEP-V0-771). advice.graftFileDeprecated=false keeps Git's
+	// deprecation advice for that setting off stderr (V1-3588).
+	cmd.Env = append(cmd.Env, "GIT_GRAFT_FILE="+os.DevNull, "GIT_NO_LAZY_FETCH=1", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_PAGER=cat", "GIT_EDITOR=false")
+	cmd.Env = append(cmd.Env, extra...)
+	return cmd
 }
 
 // ok runs a command that must succeed.

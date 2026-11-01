@@ -367,13 +367,19 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 }
 
 func gitObservation(ctx context.Context, dir string, args ...string) ([]byte, string) {
-	// GIT_GRAFT_FILE names the null device; keep Git's graft advice off stderr (V1-3588).
-	argv := resolveArgv(append([]string{"git", "-c", "advice.graftFileDeprecated=false", "-C", dir}, args...))
-	obs := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gitObservationEnvironment(), Timeout: 5 * time.Second, OutputLimit: applicationAttestationLimit})
+	obs := runGitObservation(ctx, dir, args...)
 	if !obs.Started || !obs.WaitCompleted || !obs.ExitObserved || obs.ExitStatus != 0 || obs.OutputOverflow || !obs.OwnedProcessGroupCleanup {
 		return nil, "git-unavailable"
 	}
 	return obs.Stdout, ""
+}
+
+// runGitObservation runs one observation Git command and returns the whole
+// observation, stderr included, which gitObservation does not surface.
+func runGitObservation(ctx context.Context, dir string, args ...string) procgroup.Observation {
+	// GIT_GRAFT_FILE names the null device; keep Git's graft advice off stderr (V1-3588).
+	argv := resolveArgv(append([]string{"git", "-c", "advice.graftFileDeprecated=false", "-C", dir}, args...))
+	return procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: dir, Env: gitObservationEnvironment(), Timeout: 5 * time.Second, OutputLimit: applicationAttestationLimit})
 }
 
 func gitObservationEnvironment() []string {
