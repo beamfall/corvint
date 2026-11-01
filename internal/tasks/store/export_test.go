@@ -26,6 +26,14 @@ func SetPublishFaultForTest(f func(transaction.Artifact) error) func() {
 	return func() { publishFault = prev }
 }
 
+// SetStorePublishFaultForTest installs f before every artifact publication of
+// the store at stateDir until the returned function removes it; unlike
+// SetPublishFaultForTest, tests over different stores may run in parallel.
+func SetStorePublishFaultForTest(stateDir string, f func(transaction.Artifact) error) func() {
+	publishFaults.Store(stateDir, f)
+	return func() { publishFaults.Delete(stateDir) }
+}
+
 // SetLeaseStagesTogetherForTest sets LGL-V0-013's switch until the returned
 // function restores it. A test that calls it must not run in parallel.
 func SetLeaseStagesTogetherForTest(on bool) func() {

@@ -59,6 +59,99 @@ func newSyncRecorder(t *testing.T, stateDir string, failAt int) *syncRecorder {
 	return r
 }
 
+// syncRouter shares the process-wide directory sync hook among the
+// recorders of parallel subtests (V1-0961): each sync goes to the recorder
+// whose store's worktree holds the synced directory, and a sync no recorder
+// owns runs unrecorded. With strict set, such a sync is counted in unowned,
+// so a caller can prove every sync of a write it ran alone was routed.
+type syncRouter struct {
+	mu      sync.Mutex
+	recs    map[*syncRecorder]string // recorder -> its store's primary worktree
+	strict  bool
+	unowned int
+}
+
+// newSyncRouter installs the router as the directory sync hook until t ends.
+func newSyncRouter(t *testing.T) *syncRouter {
+	t.Helper()
+	r := &syncRouter{recs: map[*syncRecorder]string{}}
+	t.Cleanup(authority.SetDirectorySyncTestHook(r.sync))
+	return r
+}
+
+// recorder is newSyncRecorder over the router: it records only the syncs of
+// the store at repo and the publications of that store.
+func (r *syncRouter) recorder(t *testing.T, s *leaseStore, failAt int) *syncRecorder {
+	t.Helper()
+	rec := &syncRecorder{t: t, stateDir: s.repo.StateDir, failAt: failAt, inject: errors.New("injected directory sync failure")}
+	r.mu.Lock()
+	r.recs[rec] = s.repo.PrimaryWorktree
+	r.mu.Unlock()
+	t.Cleanup(func() {
+		r.mu.Lock()
+		delete(r.recs, rec)
+		r.mu.Unlock()
+	})
+	t.Cleanup(store.SetStorePublishFaultForTest(s.repo.StateDir, func(a transaction.Artifact) error {
+		rec.mu.Lock()
+		defer rec.mu.Unlock()
+		rec.events = append(rec.events, syncEvent{kind: "publish", role: a.Role, dir: filepath.Dir(filepath.FromSlash(a.Target))})
+		return nil
+	}))
+	return rec
+}
+
+// setStrict sets strict, clearing unowned when it turns strict on, and
+// returns the unowned count.
+func (r *syncRouter) setStrict(on bool) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if on {
+		r.unowned = 0
+	}
+	r.strict = on
+	return r.unowned
+}
+
+func (r *syncRouter) sync(info os.FileInfo, next func() error) error {
+	r.mu.Lock()
+	roots := make(map[*syncRecorder]string, len(r.recs))
+	for rec, root := range r.recs {
+		roots[rec] = root
+	}
+	r.mu.Unlock()
+	for rec, root := range roots {
+		if holdsDirectory(root, info) {
+			return rec.sync(info, next)
+		}
+	}
+	r.mu.Lock()
+	if r.strict {
+		r.unowned++
+	}
+	r.mu.Unlock()
+	return next()
+}
+
+// holdsDirectory reports whether info is root or a directory under it.
+func holdsDirectory(root string, info os.FileInfo) bool {
+	found := false
+	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || found {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() {
+			return nil
+		}
+		if st, err := os.Stat(p); err == nil && os.SameFile(st, info) {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
+}
+
 func (r *syncRecorder) reset() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -235,6 +328,10 @@ func TestLGLV0016_OverlappedPublishSyncsKeepEveryOrderingEdge(t *testing.T) {
 // audit.
 func TestLGLV0016_FaultAtEachPublishSyncStopsTheNextStep(t *testing.T) {
 	defer store.SetLeasePublishSyncsOverlapForTest(true)()
+	// The fault matrix runs its subtests in parallel (V1-0961): each has its
+	// own store, publication fault and routed directory syncs. This parent
+	// stays sequential, so only its own subtests share the router.
+	router := newSyncRouter(t)
 	for _, verb := range []string{"claim", "heartbeat"} {
 		// setup returns the lease request under test on a fresh store.
 		setup := func(t *testing.T) (*leaseStore, transaction.LeaseRequest) {
@@ -246,42 +343,53 @@ func TestLGLV0016_FaultAtEachPublishSyncStopsTheNextStep(t *testing.T) {
 			return s, heartbeatOf(s.claim(t, "claim-1", id, 0, "src/"))
 		}
 		s, l := setup(t)
-		count := newSyncRecorder(t, s.repo.StateDir, -1)
+		// Run alone, every sync of the write must route to its store, so
+		// counting routed syncs counts every sync the write makes.
+		router.setStrict(true)
+		count := router.recorder(t, s, -1)
 		s.lease(t, verb+"-1", l, 1, nil)
+		if unowned := router.setStrict(false); unowned != 0 {
+			t.Fatalf("%s made %d directory syncs outside its store's worktree", verb, unowned)
+		}
 		total := count.calls
 		if total < 4 {
 			t.Fatalf("%s made %d directory syncs", verb, total)
 		}
-		for k := 0; k < total; k++ {
-			t.Run(fmt.Sprintf("%s-sync-%d", verb, k), func(t *testing.T) {
-				s, l := setup(t)
-				rec := newSyncRecorder(t, s.repo.StateDir, k)
-				choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: verb + "-1", Root: s.root, Lease: l}
-				r, err := store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, 1))
-				events := rec.resolved()
-				// Every sync failure, including sync 0 that the session's
-				// open makes and reports as UNSUPPORTED_FILESYSTEM, wraps
-				// the injected cause (V1-2878).
-				if err == nil || !errors.Is(err, rec.inject) {
-					t.Fatalf("failing sync %d did not fail the %s: %+v %v", k, verb, r, err)
-				}
-				failed := false
-				for _, e := range events {
-					if e.kind == "fail" {
-						failed = true
-					} else if failed && e.kind == "publish" {
-						t.Fatalf("%s %s was published after sync %d failed", e.role, e.dir, k)
+		t.Run(verb, func(t *testing.T) {
+			for k := 0; k < total; k++ {
+				t.Run(fmt.Sprintf("%s-sync-%d", verb, k), func(t *testing.T) {
+					t.Parallel()
+					s, l := setup(t)
+					rec := router.recorder(t, s, k)
+					choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: verb + "-1", Root: s.root, Lease: l}
+					r, err := store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, 1))
+					events := rec.resolved()
+					// Every sync failure, including sync 0 that the session's
+					// open makes and reports as UNSUPPORTED_FILESYSTEM, wraps
+					// the injected cause (V1-2878).
+					if err == nil || !errors.Is(err, rec.inject) {
+						t.Fatalf("failing sync %d did not fail the %s: %+v %v", k, verb, r, err)
 					}
-				}
-				if names := dirNames(t, filepath.Join(s.repo.StateDir, "staging")); len(names) != 0 {
-					t.Fatalf("staging entries after the failed sync: %v", names)
-				}
-				rec.failAt = -1
-				if r := s.lease(t, verb+"-1", l, 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
-					t.Fatalf("the retried %s: %+v", verb, r)
-				}
-				auditOK(t, s.repo)
-			})
-		}
+					failed := false
+					for _, e := range events {
+						if e.kind == "fail" {
+							failed = true
+						} else if failed && e.kind == "publish" {
+							t.Fatalf("%s %s was published after sync %d failed", e.role, e.dir, k)
+						}
+					}
+					if names := dirNames(t, filepath.Join(s.repo.StateDir, "staging")); len(names) != 0 {
+						t.Fatalf("staging entries after the failed sync: %v", names)
+					}
+					rec.mu.Lock()
+					rec.failAt = -1
+					rec.mu.Unlock()
+					if r := s.lease(t, verb+"-1", l, 1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+						t.Fatalf("the retried %s: %+v", verb, r)
+					}
+					auditOK(t, s.repo)
+				})
+			}
+		})
 	}
 }
