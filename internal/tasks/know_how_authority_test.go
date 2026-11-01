@@ -24,6 +24,7 @@ var knowHowReaders = []string{
 	"internal/tasks/cli/know_how.go",
 	"internal/tasks/cli/lease.go",
 	"internal/tasks/intent/adopter_policy.go", // knowHow.screen policy only (KHN-V0-028)
+	"internal/tasks/intent/handoff_policy.go", // names the key only to exclude it from the handoff fence (V1-1007)
 	"internal/tasks/intent/policy.go",
 	"internal/tasks/mutation/adopt.go",
 	"internal/tasks/mutation/apply.go",
