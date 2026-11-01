@@ -118,6 +118,19 @@ other unretained base. BLOCKED:
   host (`git ls-remote` needs credentials).
 - The 4 rebased-lane bases need a pushed archive ref, and this lane may not push.
 
+## Codex review (one round on `5f3fcafbe`, "Blocks merge: yes"), both findings fixed
+
+- **P1:** `script/check-cem-base-retained.sh` used `declare -A`, which macOS `/bin/bash` 3.2
+  rejects. The register and the tracked targets are now newline lists looked up with `grep`, the
+  array counts are explicit counters (Bash before 4.4 treats an empty array as unset under `set -u`),
+  and the fixture test refuses any Bash 4 construct in the script.
+  - Not run under a real Bash 3.2: building GNU bash 3.2.57 from source on this host was refused by
+    the session's permission policy. The guard is the static construct check plus `bash -n`.
+- **P2:** `identifierShaped` trimmed outer underscores before its underscore check, so `_refresh`
+  and `__init__` lost their structural vote. It now checks the original token. RDS-V0-962 says
+  "anywhere, a leading or trailing one included". `TestIdentifierTokensDropProse` covers leading,
+  trailing and surrounding underscores and seeds two Python declarers; it fails with the old trim.
+
 ## Tests run (branch head)
 
 - `internal/disagree`: whole package, pass.
@@ -162,3 +175,10 @@ other unretained base. BLOCKED:
     PATH.
 12. The Corvint MCP server failed to connect in this session (`CONNECTION_CLOSED`).
 13. Decision number 0588 may collide with another wave-8 lane; the orchestrator renumbers at merge.
+14. There is no Bash 3.2 on this Linux host to check the macOS `/bin/bash` contract, and building one
+    from source was refused by the permission policy. Bash-3.2 compatibility of `script/*.sh` can only
+    be checked statically here (Codex P1).
+15. The brief and the charter disagreed on dogfood (closeout versus stop before the seal). The
+    orchestrator settled it with an explicit self-seal instruction after review.
+16. The Unraid root disk filled to 99% during the lane: `/tmp/corvint-go-build-cache` held 27G.
+    Every build now needs `TMPDIR`, `GOTMPDIR` and `CORVINT_GOCACHE` under `~/.cache`.
