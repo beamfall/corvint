@@ -215,9 +215,9 @@ build_step=inputs-check
 if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
   trap - INT TERM
   cd "$repo" || exit 2
-  exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin"
+  exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
 fi
-(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin") || exit $?
+(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
 base_status=0
 build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
@@ -231,5 +231,5 @@ elif ((base_status != 0)); then
 fi
 trap - INT TERM
 cd "$repo" || exit 2
-exec "$tree_bin" dogfood finish-lane --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin" \
+exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
   --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"}

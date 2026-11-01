@@ -87,6 +87,8 @@
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",
+        "script/check-bash32.sh",
+        "script/check-bash32_test.sh",
         "script/codex-review_test.sh",
         "script/go-cache-trim.sh",
         "script/heavy-groups.sh",
