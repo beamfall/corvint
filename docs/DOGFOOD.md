@@ -556,11 +556,13 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
 
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
-first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). Its
-sealed-head `batch-precheck` runs with `BATCH_PRECHECK_SINCE_RECEIPT=1`: it selects against the
-head the first run's passing receipt names, so a step the bind and seal commits cannot reach does
-not run twice, and a receipt that already names the clean HEAD runs nothing (`DCW-V0-944`,
-`ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
+first), and stops at the first step that fails (`DCW-V0-349`). It ends after the seal and names the
+next command, `make dogfood-closeout-precheck`, which runs the sealed-head `batch-precheck` on its
+own, so the closeout fits one lane command budget and a slow drift run after a passed seal no longer
+makes the closeout look failed (`DCW-V0-923`). That run uses `BATCH_PRECHECK_SINCE_RECEIPT=1`: it
+selects against the head the last passing receipt names, so a step the bind and seal commits cannot
+reach does not run twice, a rerun after a timeout reuses the gate ledger's per-step results, and a
+receipt that already names the clean HEAD runs nothing (`DCW-V0-944`, `ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
 (`ASD-V0-944`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
 use-case conformance command. The precheck also retains its other drift checks. Its drift tests

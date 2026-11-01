@@ -1164,8 +1164,8 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A4 '^dogfood-closeout:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
-  fail "dogfood-closeout's second batch-precheck does not select since the receipt"
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
+  fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
 git -C "$rrepo" checkout -q --detach "$sbase" && mkdir -p "$rrepo/interop/cem01-go"

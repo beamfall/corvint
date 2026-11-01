@@ -1026,9 +1026,11 @@ doc-gates:
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
-# before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
-# receipt of the sealed head, selecting against the head the first run's receipt names, so a step the
-# bind and seal commits cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
+# before any bind or seal; and dogfood-finish with the same variables. The batch-precheck for the
+# receipt of the sealed head is its own command, dogfood-closeout-precheck, so the closeout fits one
+# lane command budget and a post-seal timeout no longer reads as a failed seal (DCW-V0-923, V1-3850);
+# it selects against the head the last passing receipt names, so a step the bind and seal commits
+# cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
 # batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
 # precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
 # on the sealed head (ASD-V0-837, V1-3550).
@@ -1042,6 +1044,14 @@ dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
+	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
+
+# DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
+# A rerun after a timeout reuses the gate ledger's per-step results (ASD-V0-042), and a receipt that
+# already names the clean HEAD runs nothing (ASD-V0-943).
+.PHONY: dogfood-closeout-precheck
+dogfood-closeout-precheck: export LANE = 1
+dogfood-closeout-precheck:
 	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
 
 .PHONY: dogfood-batch-check

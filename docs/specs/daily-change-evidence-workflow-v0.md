@@ -3089,7 +3089,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   prune; the cache grows as before.
 - `DCW-V0-944`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines
   `DCW-V0-349` and `DCW-V0-900`) The second `batch-precheck` of `make dogfood-closeout`, the one for
-  the sealed head, MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
+  the sealed head (its own `make dogfood-closeout-precheck` since `DCW-V0-923`), MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
   against the head the first run's passing receipt names instead of BASE and does not rerun a step
   the bind and seal commits cannot reach. Non-goals: dropping either run. Evidence:
   `script/batch-precheck_test.sh` (the closeout recipe; the second run's selection) and the
@@ -3292,6 +3292,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, the other-base case of
   `TestDCWV0881ChangeVerifiesPrechangeBinding`. Rollback: remove `noteOtherBaseRecovery` and its two
   calls.
+- `DCW-V0-923`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
+  `DCW-V0-944` and refines `DCW-V0-349` and `DCW-V0-900`) `make dogfood-closeout` MUST end after
+  `dogfood-finish` and print `make dogfood-closeout-precheck` as the next command, and the
+  sealed-head `batch-precheck` MUST run as that separate target with
+  `BATCH_PRECHECK_SINCE_RECEIPT=1` and `LANE=1`, so the closeout fits one lane command budget and a
+  post-seal drift run that times out cannot make a passed seal look failed; a rerun reuses the gate
+  ledger (`ASD-V0-042`) and a receipt naming the clean HEAD runs nothing (`ASD-V0-943`). Non-goals:
+  dropping the sealed-head run, the incremental closeout of V1-1629, a closeout duration claim.
+  Failure mode: a caller that stops after `dogfood-closeout` skips the sealed-head precheck; the
+  printed next command names it. Evidence: `script/dogfood-cache_test.sh` (both recipes) and
+  `script/batch-precheck_test.sh` (case 15). Rollback: restore the fourth closeout step and drop the
+  target.
 
 ## Code vocabulary
 
@@ -3580,6 +3592,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
 | `DCW-V0-922` (V1-3928) | `internal/dogfoodflow/verify_run_match.go` `emptyRunLineOf`, `goTestRun`, `runSelectsTest`, `topRunElement`; `requireVerifyRunSelectsTest` in `internal/dogfoodflow/finishlane.go` | `TestDCWV0922VerifyRunMatchingNoTestIsRefused` |
 | `DCW-V0-925` (V1-3779) | `internal/dogfoodflow/prechange.go` `noteOtherBaseRecovery`, `fullCommitID`; `noteBoundReceipt`; the not-base-tree case in `internal/dogfoodflow/change.go`; `docs/DOGFOOD.md` §1 Mid-lane base change | `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, `TestDCWV0881ChangeVerifiesPrechangeBinding` |
+| `DCW-V0-923` (V1-3850) | `Makefile` `dogfood-closeout`, `dogfood-closeout-precheck` | `script/dogfood-cache_test.sh`; `script/batch-precheck_test.sh` (case 15) |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
