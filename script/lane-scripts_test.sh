@@ -850,7 +850,7 @@ axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
 axbase=$(axgit rev-parse HEAD)
 printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
 axgit commit -qam 'input edit'
-: > "$ax/plan.tsv"
+printf '1\tunknown\tinsufficient-evidence\tx\n' > "$ax/plan.tsv"
 axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
 out=$(axfinish 1)
 [[ $? == 2 && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
