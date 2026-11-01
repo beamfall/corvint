@@ -901,6 +901,18 @@ separate exact extension tuple remains governed by AHI-024.
   plugin passes; missing, empty and escaping references are refused; a publish carries `.mcp.json`
   and the qualified hooks and omits `scripts/`; a refused publish leaves no output). Rollback:
   delete the script and its two Makefile lines.
+- `AHI-952`: (experimental under the standing lane auto-accept (2026-10-31); V1-2977; amends
+  `AHI-022`) The Gemini CLI hook MUST apply `AHI-248`: a well-formed `BeforeAgent` receipt that
+  holds an exact copy of the task MUST be withheld as `prompt-echo-withheld`, which joins the
+  `AHI-022` closed expected set, so the unchanged degraded text goes to `BeforeAgent`
+  additionalContext and no `systemMessage` reaches the terminal. A one-word task such as `Add` can
+  equal a symbol name Core rightly returns, so the echo is not a fault. The guard is unchanged: the
+  receipt's context is never used. Non-goals: relaxing the exact-string check or the order of
+  envelope validation, which still runs first. Failure mode: a malformed receipt that also echoes
+  the task keeps its fault `systemMessage`. Evidence: the `echo` case of `gemini response tampering
+  and budgets fail visibly` in `integrations/host-adapters.test.mjs`, run by
+  `TestHostAdapterJavaScriptHosts`; at base it reports `corvint-prompt-echo` as a `systemMessage`.
+  Rollback: restore the `corvint-prompt-echo` code and remove it from the expected set.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2556,6 +2568,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
 | `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
 | `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
+| `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
