@@ -533,6 +533,17 @@ executable path, such as `script/heavy.sh`, to run every `make` and `go run` ste
 host semaphore or offload hook too, so concurrent lane prechecks do not overload the host
 (`ASD-V0-941`). Unset, those steps run directly.
 
+The closeout re-verifies only what its own commits invalidate
+([incremental closeout](specs/incremental-closeout-v0.md)). `dogfood-finish`'s pre-flight reuses
+the closeout pre-flight's prepare when its inputs are unchanged, so `cem prepare` runs once
+(`ICL-V0-010`). The first precheck runs the `@prebind` drift tests, which read Go source and
+fixtures only, so an import-direction or enumeration failure stops the closeout before the bind
+(`ICL-V0-020`). The precheck of the sealed head prints `carried` for each of those passes it
+keeps, and only when the commits since are change evidence alone and `corvint affected --path`
+over them selects none of the test's packages; otherwise it prints `no pre-bind carry` and why,
+and reruns them (`ICL-V0-021`). `make dogfood-inputs-check` and `make dogfood-finish` name every
+missing input before `heavy.sh` admission, so a refusal never waits on host load (`ICL-V0-030`).
+
 Before pushing, the optional pre-push hook `script/pre-push-dogfood-seal.sh` runs
 `script/dogfood-batch-check.sh` against each pushed branch's merge base with `origin/main` and
 refuses `dogfood-seal-missing` while any commit, including one made after the seal, is not bound by
