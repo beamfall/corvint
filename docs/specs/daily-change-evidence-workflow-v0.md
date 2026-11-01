@@ -3404,6 +3404,21 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass` (four refused rows of three codes and one
   clean row, nothing bound). Rollback: drop the test; the precheck is unchanged.
 
+- `DCW-V0-691`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3604; refines
+  `DCW-V0-406`) After a run quarantines stranded traces it MUST print one
+  `NOTE retired N stranded trace(s) of commits HEAD no longer reaches` line saying each was
+  recorded at a commit later amended, rebased or reset away and that a later run retires only
+  traces stranded after this one. Retirement MUST stay durable: a second consecutive run retires
+  nothing, and a run after one amend retires exactly that amended commit's trace and none retired
+  before. Design: V1-3604 reported the same three traces retired on every run; the repro worktree
+  was gone, the quarantine moves and unlinks each trace, and a run records a trace only at its
+  HEAD, so a repeat is a new stranding by a history rewrite between runs (a bind/rebind trace
+  reset away before push, `DCW-V0-844`), which the bare per-revision lines did not say. Non-goals:
+  suppressing the stranding, which needs no history rewrite between runs. Failure modes: an
+  operator reads a fresh stranding as a failed retirement and retries by hand. Evidence:
+  `TestDCWV0406ChangeRetiresStrandedTracesOnce` (three retired then none; after an amend only
+  the amended commit's trace, then none). Rollback: drop the NOTE line.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -3803,6 +3818,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2171) | `internal/dogfoodflow/flow.go` `resolveAnchor`, `mergedForward`, `noteMergedForward`; `TestMergedForwardDCWV0171NamesTheMergedMainline` in `internal/dogfoodflow/merged_forward_test.go` (a lane that merged main past BASE names the merge and merged commit, a newer merged seal commit is skipped, a BASE at the merged commit is silent; fails without the seal check); `TestChangeDCWV0171NotesOrRefusesBeforeAnyStep` (the note precedes the first step; with `corvint.dogfood.anchor` the run refuses `base-not-anchored` with the anchored base and runs no step; fails without the change); `script/dogfood-change_test.sh` anchored `dogfood-check` refusal | implemented |
 | `DCW-V0-024` | `internal/dogfoodflow/change.go` `declareNoIntent`, `internal/dogfoodflow/check.go` `verifyBinding`; `TestDogfoodDailyPathCompletesWithDeclaredNoIntent` (built binary, foreign repository: unset and empty intents refuse, a link plan refuses, the declared pass completes with the three rows and `NOT_ASSESSED` status, a swapped snapshot fails `dogfood-report-drift`, check prints the note, seal passes); the DCW-V0-024 case of `script/dogfood-change_test.sh` (through the wrapper: no OCM command runs, check prints the note); live run in a scratch repository with no spec recorded in the V1-0259 build-log entry | implemented; a real Beamfall change NOT_OBSERVED |
 | `DCW-V0-690` (experimental under the standing lane auto-accept; V1-1724) | `internal/dogfoodflow/change.go` `precheckCitationPlan`; `TestDCWV0690InputsCheckNamesEveryRefusedRowInOnePass` (four refused rows of three codes named in one inputs-check pass; the clean row is not named; nothing bound) | implemented; focused unit test |
+| `DCW-V0-691` (experimental under the standing lane auto-accept; V1-3604) | `internal/dogfoodflow/reused_worktree.go` `retireStaleState`; `TestDCWV0406ChangeRetiresStrandedTracesOnce` (retired once, then none; after an amend only the amended commit's trace) | implemented; focused unit test |
 
 | Requirement | Focused evidence | Status |
 |---|---|---|
