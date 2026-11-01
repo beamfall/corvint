@@ -33,6 +33,7 @@ var contracts = map[string]contract{
 	"corvint-cem-experiments":    {"./cmd/corvint-cem-experiments", 1, "stderr", text("experiment refused: unknown command")},
 	"corvint-corpus-republish":   {"./cmd/corvint-corpus-republish", 1, "stderr", text("republish command unavailable")},
 	"corvint-dashboard-snapshot": {"./cmd/corvint-dashboard-snapshot", 2, "stderr", jsonFields(map[string]any{"code": "DASHBOARD_INVALID_ARGUMENT", "profile": "corvint-dashboard-error/0"}, "")},
+	"corvint-gateway":            {"./cmd/corvint-gateway", 2, "stderr", text(`unknown command "` + unknownVerb + `"`)},
 	"corvint-go-test-provider":   {"./cmd/corvint-go-test-provider", 2, "stdout", jsonFields(map[string]any{"code": "IDENTITY_MISMATCH", "profile": "go-live-error/0"}, "")},
 	"corvint-intake":             {"./cmd/corvint-intake", 2, "stderr", text("INTAKE_ARGUMENTS")},
 	"corvint-js-test-provider":   {"./cmd/corvint-js-test-provider", 2, "stderr", text(`unknown subcommand "` + unknownVerb + `"`)},
