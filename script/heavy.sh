@@ -1249,7 +1249,7 @@ manifest_admits() {
   ((${#pkgs[@]})) || { not_admitted "no package argument"; return 1; }
   ((${#skips[@]} < 2)) || { not_admitted "more than one -skip"; return 1; }
   manifest=$(selection_manifest "$HEAVY_SELECTION")
-  perl -e "$manifest_perl" "$manifest" admit "$head" "${skips[0]-}" "${pkgs[@]}"
+  perl -e "$manifest_perl" "$manifest" admit "$head" "${skips[0]-}" ${pkgs[@]+"${pkgs[@]}"}
 }
 
 # print_plan MANIFEST: ASD-V0-891 --plan; prints the per-package heavy.sh commands, runs nothing.
