@@ -337,6 +337,8 @@
     "internal/docviews": [],
     "internal/dogfoodflow": [
       "docs/DOGFOOD.md",
+      "docs/build-log/2026-10-31-scripts-w5.md",
+      "docs/specs/README.md",
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/extevidence": [
