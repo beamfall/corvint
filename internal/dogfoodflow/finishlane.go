@@ -27,6 +27,12 @@ type FinishLaneOptions struct {
 	// `dogfood inputs-check` pre-flight: it binds, commits and seals nothing
 	// (DCW-V0-380).
 	Preflight bool
+	// SealedSkip keeps a pre-flight on a seal head a SKIP that exits 0: the
+	// finish and closeout wrappers set it (`--sealed skip`) so a rerun there
+	// still reaches seal SKIP. Without it the pre-flight reports
+	// NOT_CHECKED and exits 3, since a sealed head binds no new input
+	// (ASD-V0-842, V1-3960).
+	SealedSkip bool
 }
 
 // finishLaneSidecar is the one path the bind loop writes and commits.
@@ -146,6 +152,7 @@ func (l *finishLane) run() int {
 	// A plan drafted before HEAD moved is refreshed before its inputs are
 	// snapshotted, so the run checks and binds the refreshed file (DCW-V0-947).
 	l.refreshMovedPlan()
+	l.requireReviewedCitations()
 	l.requireVerifyInput()
 	l.requireIntentsInput()
 	l.snapshotInputs()
@@ -167,6 +174,12 @@ func (l *finishLane) run() int {
 		l.exit(2)
 	}
 	l.requireCleanWorktree(resume || sealed, sealed)
+	if sealed && l.options.Preflight && !l.options.SealedSkip {
+		l.line("inputs-check NOT_CHECKED already-sealed sealed=.corvint/changes/%s.cem.json", bind)
+		l.say("%s: NOT_CHECKED already-sealed head=%s\n", l.prefix, l.target)
+		l.say("  fix: HEAD is a seal commit, so its inputs were bound and checked when it was sealed; check new inputs on a commit after the seal, or run make dogfood-finish to confirm the seal\n")
+		return 3
+	}
 	if sealed {
 		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
 		return 0
@@ -363,12 +376,19 @@ func (l *finishLane) requireIntentsInput() {
 	if reason == "" {
 		return
 	}
+	// ASD-V0-840 (V1-3922): an ordering fault is a sort-order refusal of its
+	// own, not a missing intent, so the lane sorts the file instead of hunting
+	// for a spec it already named.
+	unsorted := strings.Contains(issue, "does not sort after")
+	if unsorted {
+		reason = "intent-manifest-unsorted"
+	}
 	l.say("%s: REFUSE %s\n", l.prefix, reason)
 	l.say("  input: --intents %s\n", source)
 	if issue != "" {
 		l.say("  %s\n", issue)
 	}
-	if strings.Contains(issue, "does not sort after") {
+	if unsorted {
 		l.say("  fix: LC_ALL=C sort -u -o %s %s, then rerun corvint dogfood finish-lane --base %s\n", shellWord(source), shellWord(source), l.options.Change.Base)
 		l.exit(2)
 	}

@@ -352,7 +352,7 @@ for interrupt in tree-source:INT:build-tree:130 base-source:TERM:build-base:143;
   # DCW-V0-380: the input pre-flight runs between the two builds, so an interrupted base build
   # follows exactly that one inputs-check and never reaches finish-lane.
   flow=
-  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --corvint-bin *[^/]/repo/.git/corvint/corvint"
+  [[ $step != build-base ]] || flow="dogfood inputs-check --base $base --citations $root/cites.tsv --sealed skip --corvint-bin *[^/]/repo/.git/corvint/corvint"
   # The git dir is the resolved path, which may differ from $root through a symlink.
   # shellcheck disable=SC2053
   [[ $status == "$code" && $(cat "$TEST_FLOW_LOG") == $flow ]] || { printf '%s: status=%s flow=%s\n' "$step" "$status" "$(cat "$TEST_FLOW_LOG")" >&2; exit 1; }

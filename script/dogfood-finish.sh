@@ -185,6 +185,9 @@ for pair in "--citations=$citations" "--intents=$intents" "--verify=$verify" "--
   [[ $name == --outcome || $value == /* ]] || value="$PWD/$value"
   inputs+=("$name" "$value")
 done
+# ASD-V0-842 (V1-3960): the finish and closeout entries keep a seal head a SKIP that exits 0;
+# a direct make dogfood-inputs-check on a seal head reports NOT_CHECKED and exits 3.
+[[ $entry == dogfood-inputs-check ]] || inputs+=(--sealed skip)
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"

@@ -41,11 +41,12 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// finish-lane runs change, check and seal in turn, so it takes both
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
-		"--corvint-bin": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
+		"--corvint-bin": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true, "--sealed": true},
 	// inputs-check is finish-lane's input checks and prepare pass alone: it
 	// binds, commits and seals nothing, so it takes no verifier (DCW-V0-380).
+	// --sealed skip keeps a seal head a SKIP for the wrappers (ASD-V0-842).
 	"inputs-check": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
-		"--corvint-bin": true},
+		"--corvint-bin": true, "--sealed": true},
 }
 
 // dogfoodFlagError is a dogfood option refusal whose detail names the option
@@ -110,6 +111,9 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		flags[name] = value
 	}
 	if action == "finish-lane" || action == "inputs-check" {
+		if value, ok := flags["--sealed"]; ok && value != "skip" {
+			return nil, "", dogfoodFlagError{"invalid-dogfood-sealed-value", "dogfood " + action + " takes --sealed skip and no other value"}
+		}
 		if len(positional) != 0 || flags["--base"] == "" {
 			return nil, "", dogfoodFlagError{"dogfood-base-required", "dogfood " + action + " takes the base as --base BASE, never as a positional argument"}
 		}
@@ -248,7 +252,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Prechange(ctx, dogfoodflow.PrechangeOptions{Root: root, Base: base, Task: task, Paths: paths, Steps: runner("--corvint-bin")}, stdout, stderr)
 	}
 	if action == "inputs-check" {
-		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true}, stdout, stderr)
+		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true, SealedSkip: flags["--sealed"] == "skip"}, stdout, stderr)
 	}
 	if action == "batch-check" {
 		return dogfoodflow.BatchCheck(ctx, dogfoodflow.BatchCheckOptions{Root: root, Base: base, Verifier: runner("--verifier")}, stdout, stderr)

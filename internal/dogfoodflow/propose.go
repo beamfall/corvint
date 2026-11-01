@@ -451,6 +451,12 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			uniform = false
 			continue
 		}
+		// A seal no change is stacked on is replaced by the next bind, not
+		// carried, so its CEM gets no drafted row (ASD-V0-843).
+		if p.resealsSameContent(hunk.path) {
+			notes = append(notes, fmt.Sprintf("hunk %s of %s drafted no row: no change is stacked on that seal, so a bind here reseals the same content and replaces its CEM rather than citing it (ASD-V0-843)", hunk.id, hunk.path))
+			continue
+		}
 		if p.carried != nil {
 			// Drafted afresh: no row was carried, or a carried all-unknown row
 			// on a sealed CEM is redrafted (DCW-V0-966). A carried-forward
@@ -652,6 +658,23 @@ func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[
 		return row, cite, hunk.path + " is a prior seal's CEM a later commit carries into BASE..HEAD; no line of " + sealContract + " is stable, so it is cited to the DCW-V0-385 definition (DCW-V0-966)"
 	}
 	return "", "", ""
+}
+
+// resealsSameContent reports a sealed CEM path BASE..HEAD adds whose bind
+// commit already holds HEAD's content outside .corvint/: nothing is stacked on
+// that seal, so a bind of HEAD reseals the same content and replaces the CEM,
+// which then is no part of the change to cite. A seal a later commit changes
+// content on is a stacked rebind and keeps its DCW-V0-385 row (ASD-V0-843,
+// V1-3961).
+func (p *proposal) resealsSameContent(path string) bool {
+	match := sealedCEMPath.FindStringSubmatch(path)
+	if match == nil || p.target == "" {
+		return false
+	}
+	if _, atBase := p.blob(p.base, path); atBase {
+		return false
+	}
+	return p.gitSucceeds("diff", "--quiet", "--no-renames", "--end-of-options", match[1], p.target, "--", ".", ":(exclude).corvint/")
 }
 
 // anchoredProposal returns the first row, on a span no other row cites, whose stable

@@ -584,13 +584,18 @@ sub status_ids {
     my @refused;
     for my $file (sort @specs) {
         my $row = $frozen{$file} // { chars => 0, ids => {} };
+        # ASD-V0-844 (V1-3875): a spec with no frozen row (a new one) is held to the same rule,
+        # but its refusal says so instead of naming frozen header text it never had.
+        my $why = exists $frozen{$file}
+            ? 'which its frozen header text does not; this line is frozen (docs/specs/INTENT-STATUS-FROZEN.tsv)'
+            : 'and it has no docs/specs/INTENT-STATUS-FROZEN.tsv row, so, as for every new spec, this line holds the current status only and names no requirement ID';
         # SRG-V0-950 (V1-3575): each refusal names the frozen line as path:line.
         for my $field (['Intent status', $header{$file}{intent}, $header{$file}{intent_line}],
                 ['Agent digest Status', $header{$file}{status}, $header{$file}{status_line}]) {
             my ($name, $value, $at) = @$field;
             next unless defined $value;
             my %seen;
-            push @refused, "$file:$at: its $name names $_, which its frozen header text does not; this line is frozen (docs/specs/INTENT-STATUS-FROZEN.tsv), so $_ belongs on " . where_requirements($file)
+            push @refused, "$file:$at: its $name names $_, $why, so $_ belongs on " . where_requirements($file)
                 for grep { !$row->{ids}{$_} && !$seen{$_}++ } status_ids($value);
         }
         next unless defined(my $intent = $header{$file}{intent});

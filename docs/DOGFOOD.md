@@ -133,7 +133,9 @@ pins this agreement (group V1-3258).
    names a hunk ID HEAD no longer has: a refresh that only carries and re-keys continues on
    `<git-dir>/corvint/dogfood-finish.refreshed-plan.tsv` with a `NOTE citations-refreshed` line,
    and one that would draft a hunk afresh stops with `REFUSE citations-refresh-incomplete`, naming
-   that file to review (`DCW-V0-947`). `propose-citations`, `finish-lane` and `inputs-check` refuse
+   that file to review (`DCW-V0-947`). A plan, refreshed or supplied, that still has a NOTE starting
+   `[stale: re-keyed from ID, review]` is refused as `citation-row-stale-review` before any step:
+   review the NOTE for its current hunk and delete the mark (`ASD-V0-841`). `propose-citations`, `finish-lane` and `inputs-check` refuse
    a BASE that HEAD does not contain as `base-not-ancestor`, naming the merge-base to pass instead,
    since such a BASE..HEAD diff reverts the BASE commits HEAD lacks (`DCW-V0-946`).
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
@@ -527,7 +529,8 @@ hashes each supplied `--citations`, `--intents` and `--verify` file before prepa
 differs after a pass, refuses `REFUSE input-changed-during-run step=<step>` with one
 `changed: <flag> <path>` line per file, instead of reporting the drift (`intent-scope-drift`,
 `citation-plan-map-mismatch`) the rewritten file would cause (`DCW-V0-378`). A rerun from the bind commit continues at the rebind, and one from the seal commit
-prints `seal SKIP already-sealed`. The prepare and bind passes run only the steps their decision
+prints `seal SKIP already-sealed`; `make dogfood-inputs-check` alone on a seal commit checks nothing
+and prints `inputs-check NOT_CHECKED already-sealed`, exit 3 (`ASD-V0-842`). The prepare and bind passes run only the steps their decision
 reads; the rebind is the full pass the check reads (`DCW-V0-115`). The prepare pass also cites
 every plan row against the map it prepared into a removed probe output, so a row `cem cite` would
 refuse, such as a span whose text recurs in the changed file, stops the run at `prepare` with every

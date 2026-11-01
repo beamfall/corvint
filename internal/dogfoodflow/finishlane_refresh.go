@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 
@@ -108,4 +109,41 @@ func (l *finishLane) refreshMovedPlan() {
 	l.say("%s: NOTE citations-refreshed plan=%s carried=%d rekeyed=%d\n", l.prefix, name, carried, rekeyed)
 	l.say("  HEAD moved since %s was drafted, so its %d stale hunk-ID rows were re-keyed to the current hunks; this run binds the refreshed plan; pass CITATIONS=%s next time (DCW-V0-947)\n", plan, run.staleIDs, name)
 	l.options.Change.Citations = name
+}
+
+// requireReviewedCitations refuses, before any step, a citation plan that
+// still carries a row --refresh marked stale: the mark demands a review of a
+// NOTE written for another hunk, so a plan that keeps it is not reviewed and
+// must not reach the bind or the seal (ASD-V0-841, V1-3924). It runs on the
+// plan this run binds, after refreshMovedPlan, so a stale mark the run's own
+// refresh adds is refused too.
+func (l *finishLane) requireReviewedCitations() {
+	plan := l.options.Change.Citations
+	if !isRegular(plan) || isSymlink(plan) {
+		return
+	}
+	data, err := readPrefix(plan, maxPlanBytes)
+	if err != nil {
+		return
+	}
+	stale := []string{}
+	for number, line := range textLines(data) {
+		if strings.Contains(line, staleNotePrefix) {
+			id, _, _ := strings.Cut(line, "\t")
+			stale = append(stale, fmt.Sprintf("line %d %s", number+1, id))
+		}
+	}
+	if len(stale) == 0 {
+		return
+	}
+	l.say("%s: REFUSE citation-row-stale-review rows=%d plan=%s\n", l.prefix, len(stale), plan)
+	for index, row := range stale {
+		if index == maxRefreshListed {
+			l.say("  (+%d more)\n", len(stale)-maxRefreshListed)
+			break
+		}
+		l.say("  stale: %s\n", row)
+	}
+	l.say("  fix: each NOTE was written for the hunk its row was re-keyed from; review it for the current hunk, delete its leading [stale: re-keyed from ID, review] mark, then rerun\n")
+	l.exit(2)
 }
