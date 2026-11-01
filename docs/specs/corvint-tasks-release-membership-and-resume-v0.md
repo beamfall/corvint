@@ -97,6 +97,17 @@ barrier the widen was refused too (V1-3190).
   count an attestation of a `COMMAND` gate whose `argv` is absent or differs from the gate's
   current policy `argv`. Readiness then lists `gate-argv:<gateId>` in `missing`, beside the
   unsatisfied `gate:<gateId>`, and promotion binds only attestations that pass this check.
+- `TRM-V0-532`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4164) One policy gate or release attestation `argv`
+  element MUST be admitted up to the path-text bound (4096 bytes, `wire.MaxGateArgBytes`), so an
+  absolute path argument fits; a longer element is still refused `MALFORMED`, writing nothing.
+  The 16-element `argv` count bound is unchanged. Rollback: revert; elements over the old bound
+  are refused again.
+- `TRM-V0-533`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-3560) A lease claim (and every other lease verb) MUST be
+  admitted only for the `OWNER` or `OPERATOR` role; `WORKER`, `REVIEWER`, `IMPORTER` and `SYSTEM`
+  are refused `UNAUTHORIZED`, writing nothing. A lane's CLI claim runs under the CLI's `OPERATOR`
+  binding, so the `--admit-under-barrier` refusal for `WORKER` (TRM-V0-801) is never reached by a
+  lease the lease writer would admit. Non-goals: a new role or a role-specific barrier rule.
+  Rollback: revert the test; the rule itself is the existing role gate.
 
 ## Non-goals
 
@@ -164,6 +175,12 @@ change landed.
   time, an argv on a MANUAL gate refused, a stored argv-less or mismatched attestation reported
   `gate-argv:<gateId>` and not counted, an attestation without `argv` keeping its digest, and
   `argv` surviving a decode round trip.
+- `TestTRMV0532_PolicyGateArgvAdmitsLongPathElement` (`internal/tasks/intent`) and
+  `TestTRMV0532_AttestationArgvAdmitsLongPathElement` (`internal/tasks/release`) (TRM-V0-532)
+  admit an element at the bound and refuse one byte over it.
+- `TestTRMV0533_LeaseClaimNeedsOwnerOrOperator` (TRM-V0-533) in
+  `internal/tasks/store/lease_role_test.go` refuses a claim as each non-admitted role and then
+  admits the same claim as `OPERATOR` at generation 1.
 
 ## Rollback
 

@@ -2402,6 +2402,7 @@ ATR-V0-351	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-352	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
 ATR-V0-353	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
 ATR-V0-354	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2694) The	standing	2026-10-11; V1-2694
+ATR-V0-532	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-1493) The	standing	2026-10-11; V1-1493
 TBS-V1-451	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-452	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-453	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
@@ -2412,6 +2413,7 @@ TBS-V1-457	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under th
 TBS-V1-458	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-459	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
 TBS-V1-460	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)	standing	2026-10-11; V1-3181
+TBS-V1-532	docs/specs/corvint-tasks-basic-stability-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3462)	standing	2026-10-11; V1-3462
 TCL-V0-001	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237)	standing	2026-10-11; V1-3237
 TCL-V0-002	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) Each	standing	2026-10-11; V1-3237
 TCL-V0-003	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237) The	standing	2026-10-11; V1-3237
@@ -2628,6 +2630,7 @@ JRT-V0-013	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the 
 JRT-V0-014	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1618; GitHub #	standing	2026-10-11; V1-1618; #1055
 JRT-V0-015	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The comp	standing	2026-10-11; V1-1701
 JRT-V0-016	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1701) The walk	standing	2026-10-11; V1-1701
+JRT-V0-532	docs/specs/corvint-tasks-journal-retention-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2186) The	standing	2026-10-11; V1-2186
 JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R1) A HEARTBEAT or RENEW write MUST NOT list, read, sta	owner	decision 0549
 JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
 JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
@@ -2988,6 +2991,8 @@ TRM-V0-801	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(propose
 TRM-V0-802	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy	unrecorded	-
 TRM-V0-803	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) A release attestation (`taskman-release-attestation/0`) MAY	unrecorded	-
 TRM-V0-804	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) Readiness (`release show`) and `release promote` MUST NOT	unrecorded	-
+TRM-V0-532	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-4164) One	standing	2026-10-11; V1-4164
+TRM-V0-533	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-3560) A l	standing	2026-10-11; V1-3560
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -3023,6 +3028,7 @@ CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
 CTS-V0-025	docs/specs/corvint-tasks-store-init-v0.md	(proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux	unrecorded	-
 CTS-V0-026	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-24 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-24; 2026-10-11
+CTS-V0-532	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-3558)	standing	2026-10-11; V1-3558
 CTS-V0-800	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-31 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-31; 2026-10-11
 CTS-V0-870	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3278)	standing	2026-10-11; V1-3278
 CTS-V0-871	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3263)	standing	2026-10-11; V1-3263

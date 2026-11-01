@@ -128,6 +128,10 @@ companion with its own qualification (`PRS-V1-002`, release classification table
   `internal/tasks/` needs a new run before the profile is claimed for it. The catalog maturity of
   `corvint-tasks` changes only for this exact profile, after the owner accepts it with its retained
   evidence. That acceptance gives no Core promise and no release approval.
+- `TBS-V1-532`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3462)
+  `ticket show` of an existing ticket read while other writers commit MUST return either the
+  ticket or a refusal; it MUST NOT return `OK` with an empty result. Non-goals: making the read
+  wait for writers. Rollback: revert the test.
 
 ## Non-goals
 
@@ -156,3 +160,4 @@ Delete the two scripts and this spec. No product code or persisted state depends
 | TBS-V1-456, TBS-V1-457 | `script/qualify-tasks-basic.sh` | Retained `QUALIFIED cases=30` runs on darwin/arm64 and linux/amd64 (build-log entry) |
 | TBS-V1-458, TBS-V1-459 | `script/qualify-tasks-basic.sh`, `QUALIFY_TASKS_BASIC_TAMPER` | `script/qualify-tasks-basic_test.sh` |
 | TBS-V1-460 | Catalog row unchanged (experimental) | `docs/CAPABILITIES.md` Tasks section |
+| TBS-V1-532 | `internal/tasks/store` (ticket read) | TestTBSV1532_TicketShowUnderConcurrentWritesNeverOKEmpty |

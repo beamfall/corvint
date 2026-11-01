@@ -107,6 +107,21 @@ a median of 21.2 s before and 5.8 s after (five runs each); see
 Rollback: revert the commit. Setting `walkPrefetch` to false in a test restores the sequential walk
 with decode reuse.
 
+### V1-2186 walk cost reports CPU and I/O apart from wall time
+
+- `JRT-V0-532`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2186) The opt-in
+  `TestV11701_WalkCost` harness MUST report, beside each run's wall time, the process CPU it used
+  (`cpuMs`, `medianCpuMs`, every thread), its blocking input operations (`inBlocks`) and, on Linux
+  with `kernel.task_delayacct=1`, its block I/O delay (`ioDelayMs`); a host without that accounting
+  records `NOT_OBSERVED`, never 0. A before/after claim compares two compiled test binaries run
+  alternately (A, B, A, B) over one fixture store, as `docs/BENCHMARK-HOST.md` describes, and states
+  the A/A spread at the measured host load. Non-goals: a pass/fail threshold, enabling delay
+  accounting. Rollback: revert; the report carries wall times only.
+
+Acceptance (JRT-V0-532): a 3,000-receipt run on linux/amd64 (WSL) reported `medianMs` 426,
+`medianCpuMs` 1745, `inBlocks` 0 and `ioDelayMs` `NOT_OBSERVED`; an A/A interleave of one binary
+spread about 12% at host load 20 to 24 (`docs/build-log/2026-11-01-tst-w26.md`).
+
 ## Non-goals
 
 - No automatic, scheduled or threshold-triggered retire; JOURNAL_GROWTH is advisory.
@@ -164,3 +179,4 @@ sealed store, then remove the two verbs and the doctor `journal` key.
 | JRT-V0-014 | `TestJRTV0012_RetireCLIAndDoctorJournal` |
 | JRT-V0-015 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_MixedInlineAndBlobPostsValidateOnce`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-1701-walk-decode-prefetch.md` |
 | JRT-V0-016 | `TestV11701_PrefetchedWalkMatchesSequentialWalk`, `TestV11701_PrefetchedWalkRefusesLikeSequentialWalk`, `TestV11701_ReadAheadCloseFailureSettlesInSequence`, `TestV11701_ReadAheadHoldsAtMostTheBudget`, `TestTMV0002_AS10_ReceiptBytesAreStreamed` (`internal/tasks/journal`); `TestV11701_WalkCost` (`internal/tasks/store`, opt-in) |
+| JRT-V0-532 | `TestV11701_WalkCost` (`internal/tasks/store`, opt-in; `walkInBlocks`, `walkIODelay`); `docs/build-log/2026-11-01-tst-w26.md` |

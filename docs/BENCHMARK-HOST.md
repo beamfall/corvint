@@ -98,6 +98,17 @@ Each opt-in harness is a test binary built at the named sha. Run it from its pac
 | V1-2300 | `corvint --root <corpus> index` | Ten rounds, each running base `ef2a01db5`, seal `9080ab596` and main, in turn. Before each run the corpus's shared snapshot store `<git-common-dir>/corvint/index` is removed. The corpus is a clone at `ef2a01db5`. Timing is `/usr/bin/time` `%e %U %S`. |
 | V1-2347 | `internal/opencodequalification` `sampleBaseline` | Five 60 s windows of the production AHI-172 probe sampler, driven by a scratch in-package test that is not committed |
 | V1-2399 | `internal/procgroup` `TestPGOV0022*` and `cmd/corvint` `TestSourceViewCancellationTerminatesGitProcessGroup` | `-test.count=5` and `-test.count=10`; the source-view test also runs at the pre-fix main (`c7505ee38^1`) |
+| V1-2186 | `internal/tasks/store` `TestV11701_WalkCost` | `CORVINT_TASKS_WALK_COST=<report>`, `_STORE=<fixture dir>`, `_RECEIPTS=<n>`, `_RUNS=5`; A/B interleave below |
 
 The page cache stays warm. Dropping it needs root, which the runner does not use. Record medians and
 spread across repetitions, and keep each step's idle-check JSON with its result.
+
+### Walk-cost A/B interleave (JRT-V0-532)
+
+To compare two commits, build one test binary at each (`go test -c -o walk-A.test ./internal/tasks/store`
+at the base, `walk-B.test` at the change), then run them alternately, A, B, A, B, over one fixture
+store (`CORVINT_TASKS_WALK_COST_STORE`, built by the first run and reused), so drift in host load
+falls on both. Run A against A once first and report that A/A spread with the result: at host load 20
+to 24 on WSL a 3,000-receipt A/A pair differed by about 12% in median wall time. Each report carries
+`medianMs`, `medianCpuMs`, `inBlocks` and `ioDelayMs`; `ioDelayMs` is `NOT_OBSERVED` unless
+`kernel.task_delayacct=1`, which this runner does not set.
