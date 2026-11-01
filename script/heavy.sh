@@ -1107,15 +1107,19 @@ selection_manifest() {
 # compile_only COMMAND...: succeeds when the go test arguments (up to -args) include -c, which
 # builds the test binary and runs no test (ASD-V0-721).
 compile_only() {
-  local seen=0 prev_go=0 arg
+  local seen=0 prev_go=0 c=0 skip=0 arg
   for arg in "$@"; do
     if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
-    case $arg in
-      -args | --args) return 1 ;;
-      -c | -c=true | --c | --c=true) return 0 ;;
+    if ((skip)); then skip=0; continue; fi
+    case ${arg#-} in
+      -args | args) break ;;
+      c | -c | c=1 | c=t | c=T | c=true | c=TRUE | c=True | -c=1 | -c=t | -c=T | -c=true | -c=TRUE | -c=True) c=1 ;;
+      c=* | -c=*) c=0 ;;
+      # A flag that takes a value consumes the next argument when written without "=".
+      run | skip | bench | benchtime | timeout | count | p | parallel | cpu | tags | shuffle | vet | exec | ldflags | gcflags | asmflags | mod | modfile | o | coverpkg | covermode | coverprofile | cpuprofile | memprofile | memprofilerate | blockprofile | blockprofilerate | mutexprofile | mutexprofilefraction | trace | outputdir | list | fuzz | fuzztime | fuzzminimizetime | C | overlay | pgo | toolexec | installsuffix | pkgdir) skip=1 ;;
     esac
   done
-  return 1
+  ((c))
 }
 
 # manifest_admits COMMAND...: ASD-V0-891. Succeeds, printing the manifest's planDigest prefix, when

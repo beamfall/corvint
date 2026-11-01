@@ -1032,6 +1032,13 @@ sv go test ./x -args -c > /dev/null 2> "$sel/err"
 sv bash -c 'go test ./x' > /dev/null 2> "$sel/err"
 [[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$sel/err" ||
   fail "heavy.sh treated bash -c 'go test' as compile-only: $(cat "$sel/err")"
+# The last -c=BOOL wins, and a -c that is another flag's value is not the compile flag.
+sv go test -c -c=false ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -c -c=false as compile-only"
+sv go test -skip -c ./x > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] || fail "heavy.sh treated go test -skip -c as compile-only"
+sv go test -c=false -c ./x > /dev/null 2> "$sel/err" ||
+  fail "heavy.sh refused go test -c=false -c: $(cat "$sel/err")"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
 [[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
