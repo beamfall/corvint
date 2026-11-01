@@ -328,7 +328,10 @@ could never record a baseline). They amend `PRB-V0-029`, `PRB-V0-043` and `PRB-V
   another run wrote with `--out`, typically on an uncontended host, with the refusals and the whole
   or per-scenario (`PRB-V0-970`) recording `--record-baseline` applies to a run of its own; it
   runs no scenario and builds nothing. The report is decoded strictly (one JSON value, unknown
-  members refused) and MUST bind the budgets file's scale. It refuses a report whose scale differs
+  members refused) and MUST bind the budgets file's scale. Before anything is written it MUST
+  carry a clean 40-hex revision, an RFC 3339 start time, a fixture with its builder SHA-256, a
+  judged uncontended host, a PASS or FAIL verdict, and exactly the `ScenarioIDs` (or a filtered
+  run's distinct selected IDs, in report order), each with samples and both wall percentiles. It refuses a report whose scale differs
   and every `PRB-V0-043` case, exiting 2 with the budgets file untouched. This is the documented
   path when the local host is contended: run `make perf-budget PERF_BUDGET_ARGS='--out report.json'`
   (optionally with `--scenario`) on a quiet host at a clean commit, copy `report.json` back, then
