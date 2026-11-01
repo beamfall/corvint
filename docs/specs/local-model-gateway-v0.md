@@ -7,12 +7,12 @@ Intent status: experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the 
 Delivery status: experimental
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 7, `local-admin-console-v0.md` (the
 loopback-only, operator-started precedent, decision 0081), native tickets V1-4021, V1-4031 to
-V1-4033, V1-4035 and V1-4037.
+V1-4033, V1-4035, V1-4037 and V1-4055.
 
 ## Agent digest
 - Claim: A loopback-only, operator-started proxy for the Messages API can record per-request token usage and fold oversized Bash output deterministically.
 - Status: experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the invariant-7 carve-out is pending owner decision (V1-4037) / experimental
-- Exists: `cmd/corvint-gateway` (`serve`, `report`) and `internal/modelgateway` (`Proxy`, `Folder`, usage ledger, `CacheBreaks`); tests named for each requirement.
+- Exists: `cmd/corvint-gateway` (`serve`, `report`) and `internal/modelgateway` (`Proxy`, `Folder`, usage ledger, `CacheBreaks`, `FilterSession`); tests named for each requirement.
 - Blocked on: savings are unmeasured until the paired trial (V1-4032); acceptance of the carve-out (V1-4037).
 - Read next: Requirements; Trust boundary and failure modes; Rollback.
 
@@ -107,6 +107,20 @@ sessions with unchanged task success.
   same system prompt and tools) when the new prefix is at least 1024 tokens shorter; otherwise
   "earlier prefix content changed". Lines without a session key or cache counts, failed lines and
   lines with no cache activity are skipped. Each cause names the likely cause, not a proven one.
+- **LMG-V0-013:** (experimental, owner-directed, 2026-11-01; V1-4055) When a request's
+  `metadata.user_id` is a JSON object string with a non-empty `session_id`, as Claude Code sends,
+  the ledger line SHALL carry `claudeSessionKey`: the hex SHA-256 of
+  `corvint-local-completion-session/claude-code/0`, a NUL byte and that `session_id`. This is the
+  key Corvint's Claude Code adapter gives the session's dogfood enrollment
+  (`corvint dogfood status --session-key`), so a dogfood run joins its ledger lines exactly. Any
+  other `user_id` leaves the field absent. The ledger SHALL NOT store the session, device or account
+  identifier itself.
+- **LMG-V0-014:** (experimental, owner-directed, 2026-11-01; V1-4055) `report --session KEY` SHALL
+  restrict every figure it prints, including the tool share and cache breaks, to the lines whose
+  `claudeSessionKey` equals KEY, and SHALL name the session. KEY SHALL be 64 lowercase hex
+  characters, or `report` exits 2. A session with no lines SHALL print that its billed tokens are
+  `NOT_OBSERVED` rather than zero. The join reads only the ledger: Corvint's own commands never read
+  it (invariant 4), so ledger counts cannot reach ranking, evidence or authority.
 
 ## Non-goals
 
@@ -117,7 +131,8 @@ sessions with unchanged task success.
   LMG-V0-011 and LMG-V0-012 are those measurements, not the rewrites.
 - No savings claim before the paired trial (V1-4032) reports one.
 - No repository-aware folding in V0: using Corvint's index and change context to choose what a fold
-  keeps is the V1-4055 spike, measured against this blind baseline.
+  keeps is the V1-4055 spike, measured against this blind baseline. LMG-V0-013 and LMG-V0-014 are
+  its first candidate, the observed-token join to a dogfood run, not a fold.
 - Not part of the companion release bundle while experimental.
 
 ## Trust boundary and failure modes
@@ -129,6 +144,7 @@ sessions with unchanged task success.
 | A fold hides the line the agent needed | marker names the archive path; the agent `Read`s it; error results never fold (LMG-V0-006) |
 | Fold changes between turns and breaks the cache | LMG-V0-005 purity, tested by re-folding |
 | Unknown request shape | forwarded unchanged (LMG-V0-009) |
+| Claude Code changes its `user_id` shape, or the adapter's session hash changes | no line carries the key; `report --session` prints `NOT_OBSERVED`, never zero (LMG-V0-014) |
 | Archive disk full or unwritable | that result forwards unfolded (LMG-V0-008) |
 | Gateway stops mid-session | the client errors on connection refused; the operator unsets `ANTHROPIC_BASE_URL` |
 
@@ -147,6 +163,8 @@ operator can add the archive directory to the session's allowed directories.
 | LMG-V0-010 | `TestLMGV0010Report` |
 | LMG-V0-011 | `TestLMGV0011LedgerPrefixKeys` |
 | LMG-V0-012 | `TestLMGV0012CacheBreaks` |
+| LMG-V0-013 | `TestLMGV0013ClaudeSessionKey` |
+| LMG-V0-014 | `TestLMGV0014FilterSession`, `TestLMGV0014ReportSession` |
 
 Live qualification (V1-4021): a Claude Code print-mode run with `ANTHROPIC_BASE_URL` pointing at
 the gateway succeeds and writes ledger lines; recorded in the delivering build-log entry.
