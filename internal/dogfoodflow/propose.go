@@ -31,6 +31,9 @@ type ProposeOptions struct {
 	// current hunks by hunk ID, else by path and content or BASE range
 	// (DCW-V0-442).
 	Refresh string
+	// FromCEM names a sealed CEM whose hunks seed the refresh rows in place
+	// of a --refresh plan (DCW-V0-843).
+	FromCEM string
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -45,8 +48,10 @@ type proposal struct {
 	// carried to each file (DCW-V0-842).
 	priorBase    string
 	carriedFiles map[string]string
-	blobs        map[string][]byte
-	lines        map[string][][]byte
+	// cemBase is the --from-cem CEM's baseRevision (DCW-V0-843).
+	cemBase string
+	blobs   map[string][]byte
+	lines   map[string][][]byte
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
@@ -152,6 +157,12 @@ func (p *proposal) run() int {
 	}
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
+	if p.cemBase != "" {
+		// The sealed CEM's base is the BASE its rows were cited at (DCW-V0-843).
+		if prior, status := p.git(true, "rev-parse", "--verify", "-q", p.cemBase+"^{commit}"); status == 0 {
+			p.priorBase = chomp(prior)
+		}
+	}
 	mapPath := filepath.Join(p.root, ".corvint", "change.cem.json")
 	if _, err := os.Lstat(mapPath); errors.Is(err, fs.ErrNotExist) {
 		return p.template("NOT_PREPARED")
@@ -174,7 +185,7 @@ func (p *proposal) run() int {
 		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
 		return p.template("OTHER_BASE")
 	}
-	if p.options.Refresh != "" {
+	if p.refreshing() {
 		// A refreshed plan is keyed by hunk ID, so it survives later reordering.
 		p.keyByID = true
 	}

@@ -3,10 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -48,26 +45,25 @@ const staleHunkIDMarker = "re-hunked it (DCW-V0-441)"
 // readRefreshPlan reads the --refresh plan before any git read, refusing an
 // unreadable one with its recovery (DCW-V0-442).
 func (p *proposal) readRefreshPlan() {
-	if p.options.Refresh == "" {
+	if p.options.FromCEM != "" && p.options.Refresh != "" {
+		p.say("%s: REFUSE refresh-source-conflict\n  --from-cem and --refresh each name the rows to carry, so only one may be given\n  fix: rerun with --from-cem %s or --refresh %s, not both (DCW-V0-843)\n",
+			p.prefix, strconv.Quote(p.options.FromCEM), strconv.Quote(p.options.Refresh))
+		p.exit(2)
+	}
+	if !p.refreshing() {
 		return
 	}
-	name := p.options.Refresh
-	if !filepath.IsAbs(name) {
-		if wd, err := os.Getwd(); err == nil {
-			name = filepath.Join(wd, name)
-		}
-	}
-	// A non-regular file such as a FIFO is refused before it is opened, which
-	// could otherwise block with no writer.
 	var data []byte
-	err := errors.New("not a regular file")
-	if isRegular(name) {
-		data, err = readPrefix(name, maxPlanBytes+1)
-	}
-	if err != nil || len(data) > maxPlanBytes {
-		p.say("%s: REFUSE refresh-plan-unavailable\n  --refresh %s is not a readable regular citation plan of at most %d bytes\n  fix: corvint dogfood propose-citations %s --refresh \"$DOGFOOD_CITATIONS\" > plan.new, naming the plan the bind loop read\n",
-			p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
-		p.exit(2)
+	if p.options.FromCEM != "" {
+		data = p.sealedCEMPlan()
+	} else {
+		var err error
+		data, err = readRegularInput(p.options.Refresh)
+		if err != nil {
+			p.say("%s: REFUSE refresh-plan-unavailable\n  --refresh %s is not a readable regular citation plan of at most %d bytes\n  fix: corvint dogfood propose-citations %s --refresh \"$DOGFOOD_CITATIONS\" > plan.new, naming the plan the bind loop read\n",
+				p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
+			p.exit(2)
+		}
 	}
 	p.refreshPlan = data
 	deferredLines := []string{}
@@ -101,7 +97,7 @@ func (p *proposal) readRefreshPlan() {
 
 // refreshLabel is the PROPOSED header's account of a refresh.
 func (p *proposal) refreshLabel() string {
-	if p.options.Refresh == "" {
+	if !p.refreshing() {
 		return ""
 	}
 	carried, rekeyed, dropped := 0, 0, 0
@@ -116,7 +112,11 @@ func (p *proposal) refreshLabel() string {
 	for _, rows := range p.carried {
 		carried += len(rows)
 	}
-	return fmt.Sprintf(" refreshed=%s carried=%d rekeyed=%d dropped=%d deferred=%d", strconv.Quote(p.options.Refresh), carried, rekeyed, dropped, len(p.refreshDeferred))
+	source := " refreshed=" + strconv.Quote(p.options.Refresh)
+	if p.options.FromCEM != "" {
+		source = " from-cem=" + strconv.Quote(p.options.FromCEM)
+	}
+	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d", source, carried, rekeyed, dropped, len(p.refreshDeferred))
 }
 
 // carry maps each --refresh row onto a current owed hunk (DCW-V0-442): a row

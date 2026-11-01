@@ -26,8 +26,9 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// batch-check is read-only and verifies sealed constituents (DCW-V0-039).
 	"batch-check": {"--verifier": true},
 	// propose-citations is read-only and prints a draft plan (DCW-V0-150);
-	// --refresh carries an earlier plan's rows forward (DCW-V0-442).
-	"propose-citations": {"--refresh": true},
+	// --refresh carries an earlier plan's rows forward (DCW-V0-442), and
+	// --from-cem a sealed CEM's (DCW-V0-843).
+	"propose-citations": {"--refresh": true, "--from-cem": true},
 	// prechange records the agent pre-change receipts at BASE and binds them
 	// (DCW-V0-880); every positional after BASE is an impact path.
 	"prechange": {"--task": true},
@@ -210,7 +211,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Change(ctx, change, stderr)
 	}
 	if action == "propose-citations" {
-		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"]}, stdout, stderr)
+		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"], FromCEM: flags["--from-cem"]}, stdout, stderr)
 	}
 	if action == "prechange" {
 		var paths []string
