@@ -72,6 +72,7 @@ GATE_STEPS = \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-closeout-repin-test \
   eol-policy-check \
   eol-policy-test \
   error-code-ownership-check \
@@ -99,6 +100,7 @@ GATE_STEPS = \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   qualify-tasks-basic-test \
+  register-shell-test-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-check \
@@ -994,8 +996,10 @@ dogfood-finish:
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
+# Its first line prints a hint for a script/*_test.sh added since BASE that is not registered (ASD-V0-569).
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check:
+	@if [ -x script/register-shell-test.sh ]; then script/register-shell-test.sh --hint $(call dogfood_finish_quote,$(DOGFOOD_BASE)); fi
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1006,6 +1010,13 @@ dogfood-inputs-check:
 .PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
 	$(DOC_GATE_GO_TEST) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
+
+# shell-test-register registers TEST=script/NAME_test.sh in its rule, GATE_STEPS and shell-test in one
+# command (ASD-V0-569, V1-3319; docs/SHELL-TEST-REGISTRATION.md).
+.PHONY: shell-test-register
+shell-test-register:
+	@test -n "$(TEST)" || { echo "TEST is required: make shell-test-register TEST=script/NAME_test.sh" >&2; exit 2; }
+	@script/register-shell-test.sh "$(TEST)"
 
 # shell-test-registration-check runs the STR-V0-004 shell-test list check and the ASD-V0-921
 # executable-bit check alone, so a GATE_STEPS shell step missing from shell-test, or a script test
@@ -1037,13 +1048,26 @@ doc-gates:
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
 # ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
+# ASD-V0-567 (V1-4114, V1-3477): each step prints its number, name, result and wall time on one
+# line, a failed step prints `dogfood-closeout: FAILED step N/5 NAME rc=RC after Ss` and the exact
+# command that resumes at that step, and CLOSEOUT_FROM=N skips the steps before N, so a closeout cut
+# by a tool timeout resumes where it stopped. ASD-V0-568 (V1-4101): the repin step commits a
+# mechanical repin and refreshes the plan before batch-precheck reads them.
+CLOSEOUT_FROM ?= 1
+closeout_resume = make dogfood-closeout CLOSEOUT_FROM=$(1) BASE=$(call dogfood_finish_quote,$(DOGFOOD_BASE)) CITATIONS=$(call dogfood_finish_quote,$(CITATIONS)) INTENTS=$(call dogfood_finish_quote,$(INTENTS)) VERIFY=$(call dogfood_finish_quote,$(VERIFY)) OUTCOME=$(call dogfood_finish_quote,$(OUTCOME))
+closeout_step = if [ $(1) -lt $(CLOSEOUT_FROM) ]; then echo "dogfood-closeout: step $(1)/5 $(2) skipped (CLOSEOUT_FROM=$(CLOSEOUT_FROM))" >&2; else \
+	t0=$$(date +%s); rc=0; $(3) || rc=$$?; secs=$$(( $$(date +%s) - t0 )); \
+	if [ $$rc -ne 0 ]; then echo "dogfood-closeout: FAILED step $(1)/5 $(2) rc=$$rc after $${secs}s" >&2; \
+	echo "resume: $(call closeout_resume,$(1))" >&2; exit $$rc; fi; \
+	echo "dogfood-closeout: step $(1)/5 $(2) ok after $${secs}s" >&2; fi
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
-	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
-	@$(MAKE) --no-print-directory dogfood-finish
-	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
+	@$(call closeout_step,1,dogfood-inputs-check,$(MAKE) --no-print-directory dogfood-inputs-check)
+	@$(call closeout_step,2,repin,script/dogfood-closeout-repin.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) $(call dogfood_finish_quote,$(CITATIONS)))
+	@$(call closeout_step,3,batch-precheck,BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck)
+	@$(call closeout_step,4,dogfood-finish,$(MAKE) --no-print-directory dogfood-finish)
+	@$(call closeout_step,5,batch-precheck,BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck)
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:
@@ -1068,6 +1092,10 @@ dogfood-cache-test:
 .PHONY: dogfood-bin-reuse-test
 dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
+
+.PHONY: dogfood-closeout-repin-test
+dogfood-closeout-repin-test:
+	@script/dogfood-closeout-repin_test.sh
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
 # for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
@@ -1189,6 +1217,7 @@ shell-test: \
   dogfood-bin-reuse-test \
   dogfood-cache-test \
   dogfood-change-test \
+  dogfood-closeout-repin-test \
   eol-policy-test \
   error-code-ownership-test \
   gate-receipt-test \
@@ -1205,6 +1234,7 @@ shell-test: \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
   qualify-tasks-basic-test \
+  register-shell-test-test \
   release-checklist-test \
   repin-test \
   requirement-definitions-test \
@@ -1266,3 +1296,7 @@ CCE_LIVE_PARALLEL ?= 3
 .PHONY: cce-live
 cce-live:
 	CORVINT_CCE_LIVE=required GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local sh internal/changee2e/cce-live.sh $(CCE_LIVE_PARALLEL) $(GO_TEST_TIMEOUT)
+
+.PHONY: register-shell-test-test
+register-shell-test-test:
+	@script/register-shell-test_test.sh

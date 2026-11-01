@@ -23,7 +23,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
 source "$source_root/script/dogfood-fixture-scripts.sh"
-dogfood_fixture_copy "$source_root" "$root/repo/script" dogfood-{change,check,seal,batch-check,finish}.sh
+dogfood_fixture_copy "$source_root" "$root/repo/script" dogfood-{change,check,seal,batch-check,finish,closeout-repin}.sh
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -282,8 +282,20 @@ done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head, that run selecting since the first run's
 # receipt (DCW-V0-944, V1-3550).
-recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
-[[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# ASD-V0-567, ASD-V0-568 (V1-4114, V1-3477, V1-4101): each step runs through closeout_step, and the
+# mechanical repin runs between the pre-flight and the first batch-precheck.
+recipe=$(awk '/^dogfood-closeout:$/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(call closeout_step,[0-9],[a-z-]*,/, ""); sub(/\$\(MAKE\) --no-print-directory /, ""); sub(/ \$\(call dogfood_finish_quote.*/, ""); sub(/\)$/, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' '|')
+[[ $recipe == 'dogfood-inputs-check|script/dogfood-closeout-repin.sh|BATCH_PRECHECK_SKIP_DRIFT=1 batch-precheck|dogfood-finish|BATCH_PRECHECK_SINCE_RECEIPT=1 batch-precheck|' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# ASD-V0-567 (V1-4114, V1-3477): a failed step names itself on one line with the resume command, and
+# CLOSEOUT_FROM skips the earlier steps.
+status=0
+make -s dogfood-closeout LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
+[[ $status == 2 ]] || { cat "$root/output" >&2; exit 1; }
+rg -q '^dogfood-closeout: FAILED step 1/5 dogfood-inputs-check rc=2 after [0-9]+s$' "$root/output" || { cat "$root/output" >&2; exit 1; }
+rg -qF "resume: make dogfood-closeout CLOSEOUT_FROM=1 BASE='feedfacefeedfacefeedfacefeedfacefeedface' CITATIONS='' " "$root/output" || { cat "$root/output" >&2; exit 1; }
+status=0
+make -s dogfood-closeout CLOSEOUT_FROM=6 LANE=1 BASE=feedfacefeedfacefeedfacefeedfacefeedface > "$root/output" 2>&1 || status=$?
+[[ $status == 0 && $(rg -c '^dogfood-closeout: step [1-5]/5 [a-z-]+ skipped \(CLOSEOUT_FROM=6\)$' "$root/output") == 5 && $(wc -l < "$root/output") -eq 5 ]] || { cat "$root/output" >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.
