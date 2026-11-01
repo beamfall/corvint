@@ -976,6 +976,31 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
 
+Live store reads (V1-3931, V1-3262). Since 2026-11-01 both SSH lane hosts read the Mac's store
+itself, not a copy: `ssh mac corvint-tasks <verb>` from WSL (`lane@PC`) and Unraid
+(`lane@corvint-agent`) runs through the forced-command gate `~/.local/bin/corvint-tasks-ssh-gate` on
+the Mac (an allow-list of read verbs plus ticket create and note, claim, submit and complete; `execv`
+with no shell; no pty or forwarding). A lane uses only its charter's read verbs (`ticket show`,
+`ticket search`, `queue status`) there and never runs `corvint-tasks` against the host's own
+`.taskman/` copy: that copy is an old checkout's projection (808 tickets against 3713 on
+2026-11-01), and `ticket show` on it refuses `journal-absent`. The staged ticket bodies above stay
+the fallback when the gate is down. Check, before dispatch to a host and whenever a lane reports a
+ticket the orchestrator cannot match:
+
+```sh
+ssh HOST 'ssh -o BatchMode=yes mac corvint-tasks queue status </dev/null' | jq -r '.snapshot | "\(.headSeq) \(.headReceiptSha256)"'
+corvint-tasks queue status | jq -r '.snapshot | "\(.headSeq) \(.headReceiptSha256)"'   # on the Mac
+```
+
+The two lines must be identical (a write between the two reads advances both; rerun once). A
+mismatch, a refusal or an ssh failure means the host is not reading the live store: stage ticket
+bodies for its lanes and fix the gate before dispatching there. Recorded check 2026-11-01 17:37Z
+(lane tsk-w23): `ssh mac corvint-tasks ticket show V1-3931` from WSL and `queue status` from
+Unraid both returned `headSeq` 17128 with head receipt `f11e165e...b83e8a1`, the Mac's own values,
+while `ticket show` on WSL's local copy refused `journal-absent`. Rollback: turn off Remote Login
+on the Mac, or delete the two lane lines from `~/.ssh/authorized_keys`; lanes then fall back to
+staged ticket bodies.
+
 Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
 format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
 from the lane brief. Observed 2026-11-01 from the Unraid lane spectool-r: the send returned
