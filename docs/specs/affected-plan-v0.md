@@ -5189,6 +5189,29 @@ two single `--path --no-cache` calls 4.67 s and 3.78 s with 27 KB of overlapping
 `--by-path` call 2.08 s (cached) and 6.45 s (`--no-cache`), 13 KB, 44 shared units listed once and
 5 additions per path. Rollback: remove `--by-path` and `cmd/corvint/affected_by_path.go`.
 
+### Historical replay of the shadow tiers (AFP-V0-991; V1-3664)
+
+Intent (lane friction, 2026-10-31): measuring the AFP-V0-480 tier plan's accuracy needs each
+historical merge replayed with the `go list` of that merge, and no tool did it.
+
+- **AFP-V0-991:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3664)
+  `go run ./tools/tiers-replay [-n N] [-ref REF] [-out FILE]` SHALL, for each of the last N
+  first-parent merges of REF, export that merge's tree (`git archive`) to a private temporary
+  directory, run this checkout's `.github/forward-rows/tiers.sh MERGE^1 MERGE` there with
+  `GIT_DIR` naming the repository, so `go list` reads the merge's own packages while `tiers.jq` is
+  the one under test, and write one JSON line per merge (merge, base, subject, changed-file count,
+  decision `FULL` with its reasons, `NARROWED` with the changed, hop1 and hop2 package counts, or
+  `INCOMPLETE` with `tierIncomplete`, the universe and millis) then a summary line counting each
+  decision. It checks out, commits and writes no repository state, and removes each export.
+
+Non-goals: no CI wiring and no comparison with the failing tests of each merge (the
+selection-baseline tool does that for the planner). Acceptance evidence:
+`TestAFPV0991DecideReadsTheTierDocument`, `TestAFPV0991ReplayUsesEachMergesOwnGoList`; the retained
+run `benchmarks/results/tiers-replay-2026-10-31.jsonl` over the 20 first-parent merges ending at
+`8daec98ce` (60 s on the WSL host: 16 FULL, 4 NARROWED; the FULL reasons are non-Go files such as
+`Makefile` and `.corvint/test-read-scopes.json`, a Go file of the separate `interop/` module, and
+an embedded capability catalog). Rollback: remove `tools/tiers-replay` and the retained run.
+
 ### Merge-queue and pull-request narrowing repairs (AFP-V0-933 to AFP-V0-935; V1-3109, V1-3159, V1-3160)
 
 Intent (orchestrator lane request, 2026-10-30; friction lane K=2): pull-request narrowing's
@@ -5640,6 +5663,7 @@ traceability table.
 | AFP-V0-511 | `FrontierReach` in `internal/liveverify/affected/unit.go`; `declareFrontierReach` in `internal/liveverify/affected/graph.go`; `frontierUnknowns`, `participants`, `readsResolutionInput`, `hostedFixtureDirectories`, `bearsOnUnowned`, `listsBelowAny` in `internal/liveverify/affected/select.go`; `frontier_reach.go` in `internal/liveverify/affected/{typescript,python,ruby,dotnet,swift}` | `TestUnownedPathRaisesOnlyPathOpenFrontiers_AFPV0511` (unowned path, owned path, `PathReader`, Go-hosted and unhosted fixtures, site inside a fixture, listing plugin, rule off, resolution input), `TestFrontierReachLeavesTheDigestUnchanged_AFPV0511`, `TestFrontierReachDeclarationsAreValidatedAtBuild_AFPV0511`, `TestFrontierReachHoldsForUnownedPaths_AFPV0511` in each of the five declaring plugin packages; the measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-unowned-path-frontier-reach.md` |
 | AFP-V0-510 | `affectedSummary`, `summarizeAffectedPlan` in `cmd/corvint/affected_summary.go`; `Summary` in `affectedCompactReceipt` | `TestAFPV0510AffectedSummaryRestatesThePlan` (an unowned path beside a source edit: scope, dirty, selected, excluded and unknown counts equal the plan members, `unknownByReason` and `line` name `UNOWNED_DIRTY_PATH`; a clean bounded plan has an empty `unknownByReason`; `--full` carries no summary); `TestCoreVerbsEmitTheFrozenProfiles` goldens |
 | AFP-V0-990 | `--by-path` in `parseAffectedOptions` and `runAffected` (`cmd/corvint/affected.go`); `runAffectedByPath`, `affectedByPath`, `renderAffectedByPathText` (`cmd/corvint/affected_by_path.go`) | `TestAFPV0990ByPathSeparatesSharedUnboundedReaders`, `TestAFPV0990ByPathArguments` |
+| AFP-V0-991 | `tools/tiers-replay/main.go` (`replay`, `replayMerge`, `decide`) | `TestAFPV0991DecideReadsTheTierDocument`, `TestAFPV0991ReplayUsesEachMergesOwnGoList`; retained `benchmarks/results/tiers-replay-2026-10-31.jsonl` (20 merges) |
 | AFP-V0-509 | the value loop after `addAffectedPath` in `parseAffectedOptions` (`cmd/corvint/affected.go`) | `TestAFPV0509PathTakesSeveralValues` (`--path core/core.go mid/mid.go` plans the same bytes as the one-value-per-flag form, with both paths in `path_list`; `--path core/core.go --full` plans `--full`; `--path core/core.go -x` and `--path core/core.go --full mid/mid.go` refuse) |
 | AFP-V0-508 | `.corvint/documentation-paths.json` (`docs/decisions/` and the top-level `docs/*.md` entries) | `TestRepositoryDeclaresBuildLogDocumentation_AFPV0160` (the three directories, every entry exists, every top-level `docs/*.md` declared); measured in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-selection-precision-tags-writes-docs.md` |
 | AFP-V0-480 | `.github/forward-rows/tiers.sh` and `tiers.jq`; the `tiers.sh` call and `--slurpfile tiers` in the shadow step of `.github/workflows/ci.yml`; the `$ARGS.named.tiers` block of `.github/forward-rows/selection.jq` | `TestAFPV0480Tiers` in `tools/ci-forward-row/shadowcost_test.go` (B, C and D over a fixture module, every FULL rule, no packages, and `tiers.sh` end to end over a module: a Go change, a go.mod change, a deleted file of a package that embeds `*.go`, an unknown base, a plausible `millis`); `TestAFPV0480SelectionTiers` (the fields are additive, an empty document is named); `TestAFPV0047WorkflowBindings`; measured 0.76 to 0.9 s locally, hosted `NOT_OBSERVED` |
