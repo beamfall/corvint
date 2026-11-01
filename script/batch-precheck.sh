@@ -372,9 +372,19 @@ select_plan() {
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | join(", ")' <<< "$plan") ||
+  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
-  [[ -z $reasons ]] || { sel_why="the plan has unknowns: $reasons"; return 0; }
+  # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
+  # whole list on one line.
+  if [[ -n $reasons ]]; then
+    local unknowns n_unknown
+    unknowns=$(git rev-parse --path-format=absolute --git-path batch-precheck-unknowns.txt 2> /dev/null) &&
+      printf '%s\n' "$reasons" 2> /dev/null > "$unknowns" ||
+      { unknowns=$dir/unknowns.txt; printf '%s\n' "$reasons" > "$unknowns"; unknowns+=' (removed when the run ends)'; }
+    n_unknown=$(grep -c . <<< "$reasons")
+    sel_why="the plan has $n_unknown unknowns, first: $(head -n 1 <<< "$reasons" | cut -c 1-160); all in $unknowns"
+    return 0
+  fi
   # The plan must be bound to this base, and every selected entry must name a unit; a Go unit that
   # does not map into this module could be a package the batch breaks, so it runs everything.
   jq -e --arg b "$sel_sha" '.range.base == $b' <<< "$plan" > /dev/null 2>&1 ||
@@ -844,7 +854,9 @@ run_one() {
   line=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/steps")
   name=${line%%$'\t'*}
   cmd=${line#*$'\t'}
-  if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} ]]; then
+  # ASD-V0-892 (V1-3572): a print-only row (a skipped step's reason) never goes through the ledger,
+  # whose per-step whole-tree key costs about 0.6 s on Linux and 3 s on a loaded Mac for a printf.
+  if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} && $cmd != 'printf "%s\n" '* ]]; then
     case $name in
       'make '*) lname=${name#make } ;;
       'gofmt '*) lname=go-format-check ;;
