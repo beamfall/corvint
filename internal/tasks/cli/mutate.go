@@ -136,6 +136,24 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	return submitMutation(env, cmd, operation, actor, flags, payload)
 }
 
+// valuelessTemplateFlag reports whether arg is --template or --skeleton,
+// bare or spelled with an =VALUE, and returns the flag name (TCT-V0-990).
+func valuelessTemplateFlag(arg string) (string, bool) {
+	for _, name := range []string{"--template", "--skeleton"} {
+		if arg == name || strings.HasPrefix(arg, name+"=") {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+// templateValueRefusal is the usage text for a valued --template or
+// --skeleton: both are switches, and the ticket kind lives in the payload
+// (TCT-V0-990).
+func templateValueRefusal(name string) string {
+	return name + " takes no value; use ticket create --template for the canonical CREATE payload, or ticket create --template --skeleton for the bare payload, and set the ticket kind in the payload's kind field"
+}
+
 func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	f := mutateFlags{role: "OWNER"}
 	set := map[string]*string{
@@ -157,12 +175,15 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			f.verbose = true
 			continue
 		}
-		if args[i] == "--template" {
-			f.template = true
-			continue
-		}
-		if args[i] == "--skeleton" {
-			f.skeleton = true
+		if name, ok := valuelessTemplateFlag(args[i]); ok {
+			if strings.Contains(args[i], "=") || (i+1 < len(args) && !strings.HasPrefix(args[i+1], "--")) {
+				return f, usage(cmd, templateValueRefusal(name))
+			}
+			if name == "--template" {
+				f.template = true
+			} else {
+				f.skeleton = true
+			}
 			continue
 		}
 		if args[i] == "--batch" {
