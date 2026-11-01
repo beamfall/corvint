@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 // The index snapshot (index-snapshot-v0) is the compiled Index of one
@@ -225,7 +226,18 @@ type snapshotStore struct {
 	shared          bool
 }
 
+// indexStoreSuffix names CORVINT_INDEX_STORE, an operator's explicit
+// snapshot store (IDX-SNAP-V0-808): a scratch directory where a measurement or
+// test binary writes and reads its snapshots instead of the shared store under
+// the Git common directory. Unset or empty, the store is unchanged.
+const indexStoreSuffix = "INDEX_STORE"
+
 func locateSnapshotStore(root string) snapshotStore {
+	if override := runtimeenv.Value(indexStoreSuffix); override != "" {
+		if absolute, err := filepath.Abs(override); err == nil {
+			return snapshotStore{base: filepath.Dir(absolute), directory: absolute}
+		}
+	}
 	common, err := gitstatus.CommonDirectory(root)
 	if err != nil {
 		return snapshotStore{base: root, directory: filepath.Join(root, filepath.FromSlash(snapshotSubpath))}

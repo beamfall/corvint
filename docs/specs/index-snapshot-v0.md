@@ -1283,6 +1283,17 @@ only.
   any of them changes the executable, and so the engine key, and so it rebuilds with the snapshot.
 
   Rollback: stop writing the table (`SymbolTermsLength` 0); every load then takes the full pass.
+- `IDX-SNAP-V0-808`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4200)
+  `CORVINT_INDEX_STORE=DIR`, an operator env var that is off by default, MUST make DIR (made
+  absolute against the working directory) the snapshot store that every write and read uses
+  instead of the shared store, with the per-worktree bound (`snapshotKeep`) and
+  `store_shared:false`. The no-follow and real-directory checks of the shared store apply to DIR
+  and its parent, so a symlinked DIR is refused. Unset or empty, the store MUST stay
+  `corvint/index` under the Git common directory. The worktree's legacy `.corvint/index` sweep is
+  unchanged. Design: a measurement or scratch binary otherwise writes a 177 MB snapshot into the
+  shared store under its own engine key (lane rdp-w33 friction 11). `corvint index --help` names
+  the variable. Evidence: `TestIndexStoreOverride_IDXSNAPV0808`. Rollback: drop the override
+  branch in `locateSnapshotStore`.
 - `IDX-SNAP-V0-805`: (experimental under the standing lane auto-accept, 2026-11-01) The
   hook-triggered refresh worker (`spawnSnapshotRefresh`, IDX-SNAP-V0-912) MUST NOT inherit the
   `CORVINT_CPUPROFILE` or `CORVINT_MEMPROFILE` knobs, as it already drops `GOMAXPROCS` and the
@@ -1530,6 +1541,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `decodeSnapshotValue`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
 | IDX-SNAP-V0-806 | `encodeSnapshotBody`, `decodeSnapshotBody`, `decodeSnapshotWire` (`snapshot_chunks.go`), `gobSnapshotFormat` | `TestSnapshotChunkedBodyEqualsSingleMessage_IDXSNAPV0806`, `TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`, `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestSnapshotBytesAreDeterministic` |
 | IDX-SNAP-V0-807 | `buildSymbolTermTable`, `evalPreparePrecomputed`, `symbolTermTable` binary codec (`symbol_terms.go`), `evalPrepareRanking` | `TestSymbolTermTableRankingEqualsFullPass_IDXSNAPV0807`, `TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807`, `TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807` |
+| IDX-SNAP-V0-808 | `locateSnapshotStore` (`indexStoreSuffix`) | `TestIndexStoreOverride_IDXSNAPV0808` |
 | IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
 | IDX-SNAP-V0-005 | `runTaskContext` (no writer), `WriteSnapshot` (`.gitignore`), `snapshotDirectoryPresent` (readers) | `TestIndexWritesTheSnapshotThatContextReadsWithoutChangingAByte`, `TestWriteSnapshotDoesNotRewriteMatchingGitIgnore`, `TestWriteSnapshotRefusesCommittedSymlinkedSnapshotDirectory`, `TestSnapshotReadersMissThroughCommittedSymlinkedSnapshotDirectory` |
