@@ -862,6 +862,28 @@ separate exact extension tuple remains governed by AHI-024.
   GitHub #1982 shapes (lifecycle 257 and 296 ms at slowdown 7.7 and 10 qualify; 400 ms stays
   retry-later; 3000 ms is a regression). Rollback: revert the AHI-372 branches in `contention.go`,
   `native.go` and `record.go` so a contended miss is `RETRY_LATER` again.
+- `AHI-950`: (experimental under the standing lane auto-accept (2026-10-31); V1-2347, V1-2518)
+  Amendment to `AHI-172` and `AHI-171`. Each window's `AHI-172` quiet reference MUST be calibrated
+  per window as the window's fastest completed probe spawn, never below the declared floor of 2 ms,
+  and the slowdown is the probe p95 over that calibrated reference, at least 1.
+  `metrics.latencyAttempts[].baseline` and `metrics.latencyBaseline` MUST record the calibrated
+  reference as `quietReferenceP95Ms` (`NOT_OBSERVED` when the baseline was not observed) and the
+  floor as `referenceFloorMs`. A host whose quiet spawn is slower than the floor then shows no
+  standing slowdown, so a slow-spawn host cannot excuse a candidate regression; the floor keeps a
+  fast host from excusing more than the declared reference allowed. An observed OpenCode child
+  command that reaches its process timeout with a clean owned process group MUST be classified from
+  the host load read before the command started and again at the timeout: when the peak 1-minute
+  load per logical CPU exceeds the `AHI-171` threshold the qualifier MUST exit 75 (`RETRY_LATER`)
+  and name the timeout, the measured peak load, the threshold and `host-starvation-suspected`;
+  otherwise it MUST fail (exit 1) naming the timeout and the measured load as an adapter failure,
+  and with the load unobserved it MUST fail and say `NOT_OBSERVED`. Non-goals: a per-host stored
+  calibration, a separate quiet calibration run, CPU steal time, and retrying a timed-out command
+  in the same run. Failure modes: a window uniformly contended from its first spawn calibrates a
+  high reference and understates the slowdown, which fails closed towards `LATENCY_REGRESSION`; a
+  genuine adapter hang on a contended host retries later until it is reproduced on a quiet one.
+  Evidence: `TestAHI172SameWindowBaseline` (`AHI-950` subtest) and `TestProcessTimeoutUnderContention`
+  in `internal/opencodequalification`. Rollback: revert `baselineSample.reference` and
+  `timeoutError` so the fixed reference and an unclassified timeout return.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2515,6 +2537,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-920` | `cmd/corvint/local_completion_event.go` (`dogfoodMissBuild`) | `TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin` |
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
+| `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
 | AHI-053 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshDisabledAndFailures` |
 | `AHI-070` (accepted under the owner's standing auto-accept (2026-10-11); V1-2062) | `internal/gokernel/harness.go` `validateInput` | `TestAHI070OverBoundTaskRefusalNamesLimitAndLength` (counts and bounds named, text never echoed; a task at the bound once trimmed but over it raw is refused with its raw counts) |
 | `AHI-171` (accepted under the owner's standing auto-accept (2026-10-11); V1-2192) | `internal/opencodequalification/contention.go`, `native.go` (window readings, `latencyOutcome`, `RETRY_LATER`), `tools/qualify-opencode` exit 75 | `TestAHI171LatencyHostContention` (a latency-only miss at load 11.5 on 12 CPUs is `LATENCY_HOST_CONTENDED` and retry-later with a hint; the same miss on a quiet host, with unobserved contention, with another failed check or with a short sample is not; absent readings are `NOT_OBSERVED`; a live host reading) |
