@@ -1753,6 +1753,7 @@ CCE-V0-176	docs/specs/change-compiled-e2e-v0.md	The verb ships with `--help` (us
 CCE-V0-236	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) A changed file is never a silent drop. `excluded` lists,	unrecorded	-
 CCE-V0-237	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `exclusion` records the effective directory rule:	unrecorded	-
 CCE-V0-238	docs/specs/change-compiled-e2e-v0.md	(V1-2920, GitHub #1926) `--map FILE` reads a `cem/1.0` map (at most 4 MiB, throu	unrecorded	-
+CCE-V0-684	docs/specs/change-compiled-e2e-v0.md	(standing lane auto-accept, 2026-11-01; V1-2882) The test side of	standing	2026-11-01; V1-2882
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-
@@ -2817,6 +2818,7 @@ DSG-V0-012	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A
 DSG-V0-013	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The handed-over dispatcher lock MUST pass as an inherited fi	unrecorded	-
 DSG-V0-014	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The new image MUST emit `upgraded` with `from`, `fromSha256`	unrecorded	-
 DSG-V0-015	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A start that finds phase `EXEC` with no inherited lock (the	unrecorded	-
+DSG-V0-684	docs/specs/corvint-tasks-dispatch-signals-v0.md	(standing lane auto-accept, 2026-11-01; V1-1556) Amending CAL-V0-311, a	standing	2026-11-01; V1-1556
 DSG-V0-940	docs/specs/corvint-tasks-dispatch-signals-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved fr	standing	2026-10-11; V1-1389
 TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
 TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
@@ -5700,6 +5702,7 @@ OUE-V0-043	docs/specs/observed-ui-evidence-v0.md	The diff MUST be labelled signa
 OUE-V0-044	docs/specs/observed-ui-evidence-v0.md	The diff MUST count, per side, the traces that carried no ARIA snapshot, so abse	unrecorded	-
 OUE-V0-075	docs/specs/observed-ui-evidence-v0.md	Scrubbing MUST keep a role only from the closed WAI-ARIA 1.2 role vocabulary (pl	unrecorded	-
 OUE-V0-076	docs/specs/observed-ui-evidence-v0.md	Each `structure-changed` screen in the diff MUST name, sorted, the tests that sa	unrecorded	-
+OUE-V0-685	docs/specs/observed-ui-evidence-v0.md	(standing lane auto-accept, 2026-11-01; V1-2723) `observe --records` MUST read t	standing	2026-11-01; V1-2723
 OUE-V0-070	docs/specs/observed-ui-evidence-v0.md	`flows appmap impact --records FILE` MUST refuse with `appmap-invalid-query` rec	unrecorded	-
 OUE-V0-071	docs/specs/observed-ui-evidence-v0.md	A changed path with an observed binding in the `--root` repository MUST touch ea	unrecorded	-
 OUE-V0-072	docs/specs/observed-ui-evidence-v0.md	Bindings MUST only add: they MUST NOT remove an unknown or turn `full-suite-requ	unrecorded	-
@@ -7922,6 +7925,7 @@ WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the stand
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
 WQO-V0-910	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3299) The	standing	2026-10-31; V1-3299
 WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
+WQO-V0-684	docs/specs/work-queue-observation-v0.md	(standing lane auto-accept, 2026-11-01; V1-2586) An `ADAPTER_FAILED` command	standing	2026-11-01; V1-2586
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

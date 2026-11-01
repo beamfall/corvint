@@ -117,6 +117,40 @@ func keeperActions(t *testing.T, d *Dispatcher) []string {
 	return out
 }
 
+// TestDSGV0684_KeepLeaseMustOutlastTwoTicks (V1-1556): a dispatcher tick
+// longer than the keeper interval spaces the keeper's writes one tick apart,
+// so a lease that two ticks outlast is refused, naming the tick.
+func TestDSGV0684_KeepLeaseMustOutlastTwoTicks(t *testing.T) {
+	decode := func(tickSeconds int, keep string) error {
+		c := testConfig(t, "exit 0")
+		c.TickSeconds = tickSeconds
+		raw, _ := json.Marshal(c)
+		s := strings.Replace(string(raw), `"idleSeconds":30`, `"idleSeconds":30,"keepLease":`+keep, 1)
+		_, err := DecodeConfig([]byte(s))
+		return err
+	}
+	keep := `{"intervalSeconds":60,"leaseMinutes":5,"maxIdleSeconds":900}`
+	for _, tick := range []int{1, 60, 149} {
+		if err := decode(tick, keep); err != nil {
+			t.Fatalf("tick %d: valid keepLease refused: %v", tick, err)
+		}
+	}
+	for _, tick := range []int{150, 600, 3600} {
+		err := decode(tick, keep)
+		if err == nil || !strings.Contains(err.Error(), "keepLease leaseMinutes must exceed two keeper writes") || !strings.Contains(err.Error(), "tickSeconds") {
+			t.Fatalf("tick %d: a lease two ticks outlast was not refused: %v", tick, err)
+		}
+	}
+	// A tick that divides the interval leaves the CAL-V0-311 bound in force.
+	if err := decode(30, `{"intervalSeconds":120,"leaseMinutes":5,"maxIdleSeconds":900}`); err != nil {
+		t.Fatalf("tick 30 interval 120: %v", err)
+	}
+	// An interval that is not a tick multiple rounds up: 140 s at 100 s ticks writes every 200 s.
+	if err := decode(100, `{"intervalSeconds":140,"leaseMinutes":5,"maxIdleSeconds":900}`); err == nil {
+		t.Fatal("a 5-minute lease with writes 200 s apart was accepted")
+	}
+}
+
 func TestCALV0311_KeepLeaseConfigIsClosedAndBounded(t *testing.T) {
 	decode := func(keep string) error {
 		c := testConfig(t, "exit 0")

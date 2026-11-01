@@ -800,6 +800,22 @@ Explicit unknowns for an adopted repository:
   `docs/build-log/2026-10-31-cmd-w1-bugs.md`. Rollback: restore the single 250 ms wall timer in
   `run`.
 
+- `WQO-V0-684`: (standing lane auto-accept, 2026-11-01; V1-2586) An `ADAPTER_FAILED` command
+  error MUST name its cause: before the JSON error result, the command writes exactly one stderr
+  line `corvint work: ADAPTER_FAILED: <operation>: <cause>`, where `<operation>` is the failing
+  invocation's receipt operation (`adapter` when no invocation was recorded) and `<cause>` is one
+  fixed text naming the bound or condition: the adapter's exit status, a signal, `process
+  residue`, `process reap incomplete` (with the 1 s post-kill reap bound), `incomplete pipe
+  capture` (with the WQO-V0-920 awake and wall drain bounds), a missing private adapter
+  environment, a start failure, or a generic pre-capture failure. The cause never echoes adapter
+  output, paths or other repository bytes, and the JSON result and exit code are unchanged.
+  Decision (V1-2586): the WQO-V0-920 drain bound already absorbed the loaded-host
+  misreports; the 1 s reap bound stays because its timer starts only after the group SIGKILL, so a
+  loaded host delays the kill rather than shortening the reap, and a timeout is now named rather
+  than silent. Failure mode: a script parsing stderr as empty on `ADAPTER_FAILED` sees one line.
+  Acceptance: `TestWQOV0684AdapterFailedNamesItsCause`, the `nonzero` case of
+  `TestWorkFinalCheckCommandFailures`. Rollback: drop the stderr line in `commandError`.
+
 - `WQO-V0-033`: Corvint core makes no network request, model call, database, daemon, embedding, or
   hosted-service call. Adapter network is `DENIED` only under enforced denial; otherwise
   `HOST_UNOBSERVED` with `NETWORK_UNOBSERVED`. V0 never claims hermeticity. ACL mismatch invalidates
@@ -892,6 +908,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050`; the `group-writable-0775` and `world-writable-0777` cases of `TestWorkInitRejectsUnqualifiedExecutableWQOV0049` refuse group/world-writable executable bytes, and every fixture sets its executable and parent modes explicitly (`workMkdirAll`, `workFixtureRoot`, `workBuildExecutable`), so the tests pass under `umask 0002` (V1-3220) |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051`, `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr` |
 | Adapter capture drain detector | WQO-V0-920 | `cmd/corvint/work_runner.go` `workDrainCapture`, `run`; `cmd/corvint/work_runner_drain_test.go` `TestWorkDrainCaptureIgnoresHostStalls`, `TestWorkDrainCaptureExpiresWhileAwake`, `TestWorkDrainCaptureHangDetector`, `TestWorkDrainCaptureStopsOnCancellation`, `TestWorkDrainCaptureCopyError`; `TestWorkRunnerEscapedPipeHolder` |
+| Adapter failure cause line | WQO-V0-684 | `cmd/corvint/work_runner.go` `commandError`, `workAdapterFailure`; `TestWQOV0684AdapterFailedNamesItsCause`, `TestWorkFinalCheckCommandFailures` |
 | Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
 | Fork-safe executable materialization | WQO-V0-093 | `internal/execfile/execfile.go` `Guard`, `WriteFile`; `cmd/corvint/work_materialization.go` `writeEntries`, `workWriteEntry`; `TestWriteFileExcludesForkInheritance`, `TestWriteFileMatchesOSWriteFile` |
 | Work child user cache root | WQO-V0-096 | `cmd/corvint/work_materialization.go` `workChildEnvironment`, `workUserCacheDir`; `TestWorkChildEnvironmentUserCache`, `TestWorkMaterializationExactEnvironment`, `TestWorkSelfAdapterSourceParity` (the producer compiles into the shared user cache, never `<run>/home/.cache` or `corvint-work-queue-owner/build/cache`; it fails on that path without the fix); timings in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3060-macos-cmd-corvint-wall-time.md` |

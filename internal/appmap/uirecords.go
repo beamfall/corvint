@@ -600,9 +600,11 @@ func readUITrace(zr *zip.Reader) (*uiTraceData, error) {
 				Params   map[string]json.RawMessage `json:"params"`
 				Stack    []uiFrame                  `json:"stack"`
 				Aria     *string                    `json:"ariaSnapshot"`
+				Result   json.RawMessage            `json:"result"`
 				Snapshot *struct {
 					CallID       string   `json:"callId"`
 					SnapshotName string   `json:"snapshotName"`
+					Phase        string   `json:"phase"`
 					FrameURL     string   `json:"frameUrl"`
 					PageID       string   `json:"pageId"`
 					IsMainFrame  bool     `json:"isMainFrame"`
@@ -634,19 +636,43 @@ func readUITrace(zr *zip.Reader) (*uiTraceData, error) {
 				}
 				byCall[call] = a
 				d.actions = append(d.actions, a)
+				// OUE-V0-685: Playwright takes no frame snapshot for a read-only
+				// Frame.ariaSnapshot call and writes no pageId on before records,
+				// so the call is placed on the last observed main-frame URL of its
+				// page, or of the context stream's only page; with several pages
+				// it stays unplaced. A snapshot of this call still wins.
+				if r.Method == "ariaSnapshot" {
+					navs := d.navs[a.page]
+					if r.PageID == "" && len(d.navs) == 1 {
+						for _, only := range d.navs {
+							navs = only
+						}
+					}
+					if len(navs) > 0 {
+						d.afterURL[call] = navs[len(navs)-1].url
+					}
+				}
 			case r.Type == "after" && r.CallID != "" && r.Aria != nil:
 				if a := byCall[call]; a != nil {
 					a.aria = r.Aria
+				}
+			case r.Type == "after" && r.CallID != "" && len(r.Result) > 0:
+				// OUE-V0-685: Playwright writes the YAML only as the result of a
+				// Frame.ariaSnapshot call (locator.ariaSnapshot()).
+				if a := byCall[call]; a != nil && a.kind == "ariaSnapshot" && a.aria == nil {
+					var res struct {
+						Snapshot *string `json:"snapshot"`
+					}
+					if json.Unmarshal(r.Result, &res) == nil && res.Snapshot != nil {
+						a.aria = res.Snapshot
+					}
 				}
 			case r.Type == "frame-snapshot" && r.Snapshot != nil && r.Snapshot.IsMainFrame:
 				s := r.Snapshot
 				if s.FrameURL == "" || len(s.FrameURL) > 4096 {
 					return bad("trace zip snapshot URL must be 1 to 4096 bytes")
 				}
-				phase, sc, _ := strings.Cut(s.SnapshotName, "@")
-				if sc == "" {
-					sc = s.CallID
-				}
+				phase, sc := snapshotPhase(s.SnapshotName, s.Phase, s.CallID)
 				switch phase {
 				case "before":
 					d.beforeURL[prefix+sc] = s.FrameURL
