@@ -70,6 +70,11 @@ func testCorvintHostArchivePartialProof(t *testing.T) {
 	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
 		t.Skip("host proof requires Darwin arm64; five-target qualification NOT_RUN")
 	}
+	// It archives the enclosing checkout's clean HEAD, so it runs only on an
+	// explicit operator opt-in (V1-0643, PUB-V0-671).
+	if os.Getenv("CORVINT_HOST_ARCHIVE_PROOF") != "1" {
+		t.Skip("host proof reads the enclosing checkout; set CORVINT_HOST_ARCHIVE_PROOF=1 to run it")
+	}
 	ctx := context.Background()
 	root, err := filepath.Abs("../..")
 	if err != nil {

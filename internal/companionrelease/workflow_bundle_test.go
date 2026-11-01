@@ -96,7 +96,7 @@ func TestVSIXToolIdentityRefusesPathAndSymlinkSwap(t *testing.T) {
 func TestBuildOnlyNPMNoticeIsExplicitlyUnshipped(t *testing.T) {
 	t.Run("PUB-V0-013 build-only-npm-license-inventory", func(t *testing.T) {
 		lock := `{"packages":{"":{"version":"0.1.0","license":"SEE LICENSE IN LICENSE"},"node_modules/a":{"version":"1.2.3","license":"MIT","integrity":"sha512-x"}}}`
-		entry, err := buildOnlyNPMNotice(Export{Files: []SourceFile{{Path: "extensions/vscode/package-lock.json", Data: []byte(lock)}}})
+		entry, err := buildOnlyNPMNotice(Export{Files: []SourceFile{{Path: "extensions/vscode/package-lock.json", Data: []byte(lock)}}}) //corvint:fixture-path
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -153,11 +153,11 @@ func TestRetainedSmokeReportBindsArchiveOutsideArchive(t *testing.T) {
 func TestExportedPackageTreeAndManifestReferencesAreBound(t *testing.T) {
 	t.Run("PUB-V0-014 host-package-tree-manifest-binding", func(t *testing.T) {
 		export := Export{HeadCommit: "commit", HeadTree: "tree", Files: []SourceFile{
-			{Path: "integrations/codex/README.md", Mode: "100644", Data: []byte("FALLBACK\n")},
-			{Path: "integrations/codex/plugins/corvint/run", Mode: "100755", Data: []byte("run\n")},
+			{Path: "integrations/codex/README.md", Mode: "100644", Data: []byte("FALLBACK\n")},      //corvint:fixture-path
+			{Path: "integrations/codex/plugins/corvint/run", Mode: "100755", Data: []byte("run\n")}, //corvint:fixture-path
 		}}
 		source := []byte("source")
-		files, artifact, err := exportedPackageTree(export, "integrations/codex/", "source/corvint-src.tar.gz", sha256Hex(source))
+		files, artifact, err := exportedPackageTree(export, "integrations/codex/", "source/corvint-src.tar.gz", sha256Hex(source)) //corvint:fixture-path
 		if err != nil {
 			t.Fatal(err)
 		}

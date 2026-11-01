@@ -171,7 +171,7 @@ else
     "./internal/tasks/store TestCALV0070_"
     "./internal/tasks/journal TestCALV0070_"
     "./internal/tasks/safeopen TestCALV0070_"
-    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
+    "./internal/companionrelease/currentproof TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi

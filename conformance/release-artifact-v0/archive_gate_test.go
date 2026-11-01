@@ -100,10 +100,8 @@ func testRawCommitExportBuildCarriesExactVCSIdentity(t *testing.T) {
 
 func TestArchiveDestinationRequiresTrustedAbsentExternalChild(t *testing.T) {
 	t.Parallel()
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
+	// A disposable fixture repository, not the enclosing checkout (V1-0643, PUB-V0-671).
+	root := initArchiveTestRepository(t)
 	parent := t.TempDir()
 	if err := os.Chmod(parent, 0o700); err != nil {
 		t.Fatal(err)
@@ -311,7 +309,10 @@ func TestRetainArchiveOutputPublishesCompleteDirectory(t *testing.T) {
 }
 
 func TestBuildArchivesCancellationRemovesScratchStageAndOutput(t *testing.T) {
-	root, err := filepath.Abs(filepath.Join("..", ".."))
+	// A disposable fixture repository with this package's manifest, not the
+	// enclosing checkout (V1-0643, PUB-V0-671).
+	root := initArchiveTestRepository(t)
+	manifestPath, err := filepath.Abs("manifest.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +322,7 @@ func TestBuildArchivesCancellationRemovesScratchStageAndOutput(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err = buildArchives(ctx, ArchiveOptions{Root: root, ManifestPath: "conformance/release-artifact-v0/manifest.json", Output: filepath.Join(parent, "retained"), Revision: "HEAD"})
+	_, err = buildArchives(ctx, ArchiveOptions{Root: root, ManifestPath: manifestPath, Output: filepath.Join(parent, "retained"), Revision: "HEAD"})
 	if err == nil {
 		t.Fatal("canceled archive build succeeded")
 	}
