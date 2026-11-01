@@ -56,6 +56,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
 			report.Ticket = w.replay.ticket
+			report.OriginalReceipt = originalReceipt(w.replay.entry)
 		}
 		writerStage(ctx, "replay", at)
 		return true, report, nil

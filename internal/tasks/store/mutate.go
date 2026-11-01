@@ -144,11 +144,7 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
 		if result.Kind == "Replay" {
 			report.Ticket = audit.TicketID
-			if seq := audit.Entry.Outcome.ReceiptSeq; seq != nil {
-				if name, err := snapshot.ReceiptName(seq.Uint64()); err == nil {
-					report.OriginalReceipt = name
-				}
-			}
+			report.OriginalReceipt = originalReceipt(audit.Entry)
 		}
 		return report, nil
 	}
@@ -417,6 +413,17 @@ func mutationSelection(inv *transaction.Inventory) []string {
 		}
 	}
 	return paths
+}
+
+// originalReceipt names the receipt that committed a replayed request, on
+// the complete and the writer-checkpoint routes alike (TCL-V0-991).
+func originalReceipt(entry mutation.IndexEntry) string {
+	if seq := entry.Outcome.ReceiptSeq; seq != nil {
+		if name, err := snapshot.ReceiptName(seq.Uint64()); err == nil {
+			return name
+		}
+	}
+	return ""
 }
 
 func replayResult(request transaction.Request, entry mutation.IndexEntry) transaction.Result {
