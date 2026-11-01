@@ -51,9 +51,14 @@ func TestTMRV0950TasksGroupRunsTheInstalledReadVerb(t *testing.T) {
 	if result["isError"] != false || item["cwd"] != physical || item["readOnly"] != "1" || item["args"] != "roadmap --limit 2" {
 		t.Fatalf("roadmap %+v", result)
 	}
-	// An existing directory outside Git is unusable without being missing, so the
-	// MCPV0-115 launch-worktree fallback does not replace it.
-	_, responses, _ = legacySession(t, []string{"--root", t.TempDir(), "--tool-profile", "tasks"},
+	// An existing directory outside Git, launched outside any worktree, has no launch
+	// worktree to stand in for it (MCPV0-861), so it is served unavailable.
+	outside := filepath.Clean(t.TempDir())
+	if _, inside := launchWorktreeCandidate(outside); inside {
+		t.Skip("the temporary directory is inside a Git worktree")
+	}
+	t.Chdir(outside)
+	_, responses, _ = legacySession(t, []string{"--root", outside, "--tool-profile", "tasks"},
 		map[string]any{"method": "tools/call", "params": map[string]any{"name": "corvint.tasks.queue_status", "arguments": map[string]any{}}})
 	result, _ = responses[1]["result"].(map[string]any)
 	if structured := result["structuredContent"].(map[string]any); result["isError"] != true || structured["code"] != invalidRoot || structured["profile"] != "corvint-tasks-mcp-tool-error/0" {
