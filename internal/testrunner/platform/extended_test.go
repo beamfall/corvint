@@ -3,6 +3,7 @@ package platform
 import (
 	"bytes"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -54,6 +55,9 @@ func verifiedAndroid(t *testing.T, name string) []byte {
 // identity line, including a raw capture from before the check, is never a
 // complete observation.
 func TestAndroidRequiresBoundAPKs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	sum := strings.Repeat("a", 64)
 	r := tr.Request{Runner: "android-junit", Root: "/source", Executable: "/sdk/platform-tools/adb", ExecutableSha256: sum, Target: "emulator-5554", Project: "local.proof.test/androidx.test.runner.AndroidJUnitRunner", ReportDir: "/fresh"}
 	for name, files := range map[string]map[string]string{
@@ -127,6 +131,9 @@ func TestNativeAndroidOutcomesAndNeutralTransportExit(t *testing.T) {
 }
 
 func TestExtendedFixedBuilds(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Root: "/source", Executable: "/tools/runner", ExecutableSha256: strings.Repeat("a", 64), ReportDir: "/fresh", Project: "app", Config: "/source/app/build.gradle", ConfigSha256: strings.Repeat("b", 64), Target: ":test", Runner: "gradle-junit", Tools: map[string]tr.Tool{"java": {Executable: "/jdk/bin/java", Sha256: strings.Repeat("c", 64)}}}
 	i, e := Build(r)
 	if e != nil || string(i.Files["corvint.init.gradle"]) != gradleReportScript || len(i.ReportPatterns) != 1 {
@@ -161,6 +168,9 @@ func TestAndroidNativeZeroTestsAbstains(t *testing.T) {
 }
 
 func TestGradleRejectsSimpleClassShortcut(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Root: "/source", Executable: "/tools/gradle", ExecutableSha256: strings.Repeat("a", 64), ReportDir: "/fresh", Project: "app", Config: "/source/app/build.gradle", ConfigSha256: strings.Repeat("b", 64), Target: ":test", Runner: "gradle-junit", Tools: map[string]tr.Tool{"java": {Executable: "/jdk/bin/java", Sha256: strings.Repeat("c", 64)}}}
 	for _, selector := range []string{"Case#pass", "Outer.Case#pass", "a..Case#pass", "a.Case#*"} {
 		r.Selectors = []string{selector}

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -118,6 +119,9 @@ func ginkgoHas(o tr.Observation, code string) bool {
 }
 
 func TestGinkgoNativeProjectionStates(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute fixture paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	_, in := ginkgoMixed()
 	o, e := Parse(in)
 	if e != nil || !o.Complete || len(o.Tests) != 4 {
@@ -376,6 +380,9 @@ func ginkgoTestRequest(t *testing.T, q *tr.Request) {
 }
 
 func TestGinkgoClosedBuild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute fixture paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	valid := func() tr.Request {
 		q := tr.Request{Runner: ginkgoRunner, Executable: "/calc.test", ReportDir: "/fresh"}
 		ginkgoTestRequest(t, &q)
@@ -478,6 +485,9 @@ func TestGinkgoFocusBound(t *testing.T) {
 // runtime: it was entered once, the suite succeeds with exit 0, and the row is
 // a native SKIPPED observation rather than a pass.
 func TestGinkgoSelectedRuntimeSkip(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute fixture paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	rep, in := ginkgoSelected()
 	s := ginkgoSpecs(rep)[1]
 	s["State"] = "skipped"

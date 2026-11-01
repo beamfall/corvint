@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -112,6 +113,9 @@ func TestPlatformRejectsIncompleteAndAmbiguousNativeReports(t *testing.T) {
 }
 
 func TestPlatformFixedBuildsAndUnavailableObligations(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Runner: "junit-platform", Root: "/source", Executable: "/tools/java", ExecutableSha256: strings.Repeat("a", 64), Project: "classes", Reporter: "/tools/console.jar", ReporterSha256: strings.Repeat("b", 64), ReportDir: "/reports", Selectors: []string{"Example#criterion"}}
 	i, e := Build(r)
 	if e != nil || strings.Join(i.Argv, " ") == "" || len(i.ReportPaths) != 1 {
@@ -223,6 +227,9 @@ func TestXcodeRejectsContainerContradictions(t *testing.T) {
 }
 
 func TestXcodeBindsSelectedSharedScheme(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Runner: "xcode-xctest", Root: "/source", Executable: "/tools/xcodebuild", ExecutableSha256: strings.Repeat("a", 64), Project: "Proof.xcodeproj", Config: "/unrelated/Proof.xcscheme", ConfigSha256: strings.Repeat("b", 64), ReportDir: "/reports", Tools: map[string]tr.Tool{"xcresulttool": {Executable: "/tools/xcresulttool", Sha256: strings.Repeat("c", 64)}}}
 	if _, err := Build(r); err == nil {
 		t.Fatal("unrelated scheme pin admitted")
@@ -299,6 +306,9 @@ func TestNativeReportFixtureInventory(t *testing.T) {
 // whose function form ends in "/File.swift:line:column", so the exact
 // selector ends at that "/" or at the end of a suite ID and nowhere else.
 func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Runner: "swift-testing", Root: t.TempDir(), Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", Selectors: []string{"ProofTests.passCriterion()", "ProofTests.Suite"}}
 	v, e := Build(r)
 	if e != nil {
@@ -338,6 +348,9 @@ func TestSwiftTestingSelectorMatchesSourceSuffixedID(t *testing.T) {
 // identity collides with the toolchain swift-testing package is refused
 // before execution; an unresolvable package directory is refused too.
 func TestSwiftTestingRefusesReservedPackageIdentity(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	src := t.TempDir()
 	for _, d := range []string{"swift-testing", "Fixtures/Swift-Testing", "Testing", "okpkg", "swift-testing-fixture"} {
 		if err := os.MkdirAll(filepath.Join(src, d), 0o755); err != nil {

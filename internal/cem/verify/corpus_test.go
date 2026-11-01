@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -262,6 +263,9 @@ func TestInheritedRejectsBaseRevisionThatIsNotACommitOID(t *testing.T) {
 // resolving to a regular 100755 (executable) blob is accepted per
 // ALGORITHMS.md, not refused as though only 100644 were a regular file.
 func TestCheckEvidenceAcceptsExecutableBlob(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs a POSIX executable bit (100755) (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	t.Parallel()
 	root := t.TempDir()
 	const author, email, date = "A", "a@example.test", "2024-01-01T00:00:00Z"

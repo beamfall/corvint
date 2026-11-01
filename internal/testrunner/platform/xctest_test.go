@@ -3,6 +3,7 @@ package platform
 import (
 	"bytes"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -46,6 +47,9 @@ func TestSwiftPMNativeXCTestPassAndZero(t *testing.T) {
 	}
 }
 func TestSwiftPMXCTestBuildPinsPackageAndExactSelector(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Runner: "swift-xctest", Root: "/source", Project: "pkg", Config: "/source/pkg/Package.swift", ConfigSha256: strings.Repeat("a", 64), Executable: "/tools/swift", ExecutableSha256: strings.Repeat("b", 64), ReportDir: "/fresh", Selectors: []string{"ProofTests.Proof/testPass"}}
 	v, e := Build(r)
 	if e != nil || !strings.Contains(strings.Join(v.Argv, " "), "--disable-swift-testing --no-parallel --disable-automatic-resolution --skip-update") {
@@ -75,6 +79,9 @@ func TestSwiftPMSetupAndBuildFailures(t *testing.T) {
 // SwiftPM 6.4 parallel xUnit file reports XCTSkip as an ordinary passing case,
 // so only the serial native transport may carry the three outcomes.
 func TestSwiftPMXUnitSkipLossCannotSatisfyExecution(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	native := fixture(t, "swift-xctest-three.txt")
 	o, e := Parse(tr.Input{Runner: "swift-xctest", Stdout: native, ExitCode: 1})
 	if e != nil || !o.Complete || len(o.Tests) != 3 {
