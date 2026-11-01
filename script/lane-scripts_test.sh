@@ -8,7 +8,7 @@
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py
 # (ASD-V0-834, ASD-V0-836), dogfood-change-runs.sh (ASD-V0-955),
-# lane-dispatch-check.sh (ASD-V0-645). No Go build runs.
+# lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1978,6 +1978,28 @@ out=$(ldcrun --base nope a="$ldc/a.json")
 [[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
 out=$(ldcrun)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+ok
+
+# ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the
+# line, and a directory digest is stable and independent of file write order.
+rdd=$tmp/rdd
+mkdir -p "$rdd/a/sub" "$rdd/b/sub"
+out=$("$script/retained-data-digest.sh" --check "$script/../benchmarks/retained-data.tsv" 2>&1)
+[[ $? == 0 && $out == *'PASS '*'retained-data rows' ]] || fail "retained-data manifest: $out"
+grep -q $'^v2716f\tV1-2761\t' "$script/../benchmarks/retained-data.tsv" || fail "retained-data manifest has no V1-2761 row"
+head -n 1 "$script/../benchmarks/retained-data.tsv" > "$rdd/bad.tsv"
+printf 'x\tV1-1\th\tp\tabc\t1\t2\tNOT_OBSERVED\t2026-11-01\t\nx\tV1-1\th\tp\tNOT_OBSERVED\t1\t2\t%040d\t2026-11-01\twhy\nshort\n' 0 >> "$rdd/bad.tsv"
+out=$("$script/retained-data-digest.sh" --check "$rdd/bad.tsv" 2>&1)
+[[ $? == 1 && $out == *'bad.tsv:2 sha256 abc is not 64 hex digits'* && $out == *'bad.tsv:2 a NOT_OBSERVED value needs its reason'* &&
+  $out == *'bad.tsv:3 id x repeats line 2'* && $out == *'bad.tsv:4 has 1 columns, want 10'* ]] || fail "retained-data bad manifest: $out"
+printf 'one\n' > "$rdd/a/1.txt" && printf 'two\n' > "$rdd/a/sub/2.txt"
+printf 'two\n' > "$rdd/b/sub/2.txt" && printf 'one\n' > "$rdd/b/1.txt"
+da=$("$script/retained-data-digest.sh" "$rdd/a") db=$(cd "$rdd" && "$script/retained-data-digest.sh" b)
+[[ $da == "$db" && $da =~ ^sha256=[0-9a-f]{64}\ files=2\ bytes=8$ ]] || fail "retained-data digest order or mount dependent: $da / $db"
+printf 'three\n' > "$rdd/b/sub/2.txt"
+[[ $("$script/retained-data-digest.sh" "$rdd/b") != "$da" ]] || fail "retained-data digest ignored a content change"
+out=$("$script/retained-data-digest.sh" "$rdd/missing" 2>&1)
+[[ $? == 2 && $out == *'is not a readable directory'* ]] || fail "retained-data missing directory: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
