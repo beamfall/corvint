@@ -101,10 +101,11 @@ func sortedUnique(paths []string) bool {
 	return slices.IsSorted(paths) && len(slices.Compact(slices.Clone(paths))) == len(paths)
 }
 
-// callerCandidate reports a file whose text could run a script: source text
+// CallerCandidate reports a file whose text could run a script: source text
 // of the shell or another planned language, a Make file, or a YAML file such
-// as a workflow.
-func callerCandidate(name string) bool {
+// as a workflow. The repository test of the declaration applies the same rule
+// (V1-4178).
+func CallerCandidate(name string) bool {
 	base := path.Base(name)
 	return hasAnySuffix(name, Suffixes) || hasAnySuffix(name, ForeignSourceSuffixes) ||
 		base == "Makefile" || base == "makefile" || base == "GNUmakefile" ||
@@ -160,9 +161,18 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 // every script that name may be (TSP-V0-960), so it must be listed too. An
 // unreadable candidate fails it.
 func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
-	candidates, err := root.Files(affected.ByName(callerCandidate))
+	candidates, err := root.Files(affected.ByName(CallerCandidate))
 	if err != nil {
 		return false
+	}
+	// A workflow under a HiddenRoots directory runs scripts too, so it must be
+	// listed like any other caller; it owns no unit and adds no edge (V1-4178).
+	for _, directory := range HiddenRoots {
+		hidden, err := root.FilesUnder(directory, CallerCandidate)
+		if err != nil {
+			return false
+		}
+		candidates = append(candidates, hidden...)
 	}
 	found := make(map[string][]string, len(declared))
 	for _, candidate := range candidates {
