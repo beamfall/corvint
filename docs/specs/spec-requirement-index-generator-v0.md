@@ -542,6 +542,21 @@ No requirement below diverges from the implementation.
   naming each rewritten file, so a prose-only amendment shows that the run happened. The SRG-V0-980
   frozen-status refusal already states its rule (the header holds the current status only; record
   the acceptance in the requirement's own leading note) and is unchanged.
+- `SRG-V0-680`: (experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines
+  SRG-V0-965) Before it writes, `make spec-requirements` MUST run
+  `script/spec-obligation-headroom.sh`, which counts the obligations in each staged spec's single
+  `## Requirements` section by the rule `ocm prepare` applies (`scanRequirements` in
+  `internal/lrfrepo/ocm.go`: definition lines inside the section, fenced or not, ending at the next
+  unfenced `##` heading; a spec without exactly one such section is not counted). From 240 to 256
+  it prints one warning line per spec naming the count and the remedy, a companion spec with its
+  own requirement prefix; above 256 it prints the count and refuses before any file is written,
+  exiting 1. Design: SRG-V0-965's bound test runs after the write and names the limit only once a
+  spec has crossed it, so on 2026-11-01 a lane learned of the limit only from a failed build.
+  Non-goals: enforcing the bound in `--check` or the generator itself (SRG-V0-965 stays the gate);
+  counting specs that `ocm prepare` already refuses for another reason. Failure modes: a drift
+  between the shell count and `scanRequirements` would misreport; the script mirrors that function
+  line for line and its test pins the boundary counts. Evidence:
+  `script/spec-obligation-headroom_test.sh`. Rollback: drop the recipe line and the two scripts.
 - `SRG-V0-968`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   SRG-V0-012) Every spec's `## Agent digest` MUST carry a `- Claim:` line unless it is a
   superseded digest (a `- Successor:` line, which `internal/specindex` limits to Successor and Why
@@ -670,6 +685,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-965 | the `spec-requirements` recipe in `Makefile` runs `TestSpecsStayWithinTheOCMObligationBound` after writing; `script/gen-spec-requirements_test.sh` case 15 checks the recipe names it |
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
+| SRG-V0-680 | `script/spec-obligation-headroom_test.sh`: 239 obligations are silent, 240 and 256 warn naming the companion-spec remedy, a staged 257 is refused with exit 1 and an untracked one is ignored, a spec with two Requirements sections is not counted, a fenced `##` line does not end the section, and the recipe runs the check before the write |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
@@ -698,6 +714,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-003 | the period, colon, and table-cell rank patterns and the rank 2 discard | `spec-requirements-check` |
 | SRG-V0-004 | the composite sort key and its comparison in `script/gen-spec-requirements.sh` | `spec-requirements-check` |
 | SRG-V0-005 | the title substitutions and the UTF-8-decoded `substr` truncation | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-680 | `script/spec-obligation-headroom.sh` and its line in the `spec-requirements` recipe of `Makefile` | `spec-requirements-test` |
 | SRG-V0-006 | the header and the sorted emission loop | `spec-requirements-check` |
 | SRG-V0-007 | the `root=$(...)`/`cd` prelude and the stdout-only body | code inspection |
 | SRG-V0-008 | the `Makefile` `spec-requirements-check` target and its listing in the `gate` target | `make gate` membership |
@@ -775,6 +792,9 @@ SRG-V0-968 rolls back by removing the claimless-digest refusal and case 16.
 
 SRG-V0-965..967 roll back as one revert of their commit: the recipe loses its bound check and its
 summary line, and a rollback-section line ranks as before.
+
+SRG-V0-680 rolls back by removing `script/spec-obligation-headroom.sh`, its test and their two
+`Makefile` lines; the SRG-V0-965 bound test still refuses a spec over the limit after the write.
 
 SRG-V0-980..983 roll back as one revert of their commits: the frozen file and refusal go, the
 `.PHONY:` lines may be rejoined, and no generated file moves, since the freeze changed no header.

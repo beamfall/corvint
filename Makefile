@@ -318,6 +318,7 @@ spec-requirements:
 	@u=$$(git diff --name-only --diff-filter=U -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md; \
 	  git grep -l --cached -e '^<<<<<<< ' -e '^>>>>>>> ' -- docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md 2>/dev/null); \
 	  test -z "$$u" || { echo "spec-requirements: generated file(s) unmerged or holding conflict markers: $$(printf '%s\n' $$u | sort -u | tr '\n' ' ')- run make spec-requirements-resolve" >&2; exit 2; }
+	@script/spec-obligation-headroom.sh
 	@script/gen-spec-requirements.sh --write
 	@test -d internal/lrfrepo || exit 0; out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
 	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: the SRG-V0-900 obligation-bound check failed (output above): when it names a spec, its ## Requirements section exceeds the 256-obligation OCM bound; define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
@@ -357,6 +358,7 @@ spec-requirements-test:
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
 	@script/requirement-id-collisions_test.sh
+	@script/spec-obligation-headroom_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
