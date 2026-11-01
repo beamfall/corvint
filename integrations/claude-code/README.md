@@ -55,7 +55,13 @@ MCP (`AHI-198`, `AHI-373`): `.mcp.json` starts `corvint mcp --root ${CLAUDE_PROJ
 --protocol-version 2025-11-25` (the initialize-handshake protocol Claude Code speaks), served by the
 same `corvint` binary the hooks use, so no second executable is needed. A `corvint` older than the
 `mcp` verb makes `/mcp` and `claude mcp list` show the server as failed; the hooks and skills are
-unaffected. Disable the server alone from `/mcp`.
+unaffected. Disable the server alone from `/mcp`. When `${CLAUDE_PROJECT_DIR}` names a directory
+that no longer exists (a Claude desktop spare-claimed session can pass its deleted
+`~/.claude/spares/spare-*` directory), the server serves the Git worktree enclosing the directory
+it was started in instead, prints `corvint-mcp: --root does not exist; serving the Git worktree
+enclosing the launch directory instead` to its log, and adds a `missing-root-launch-worktree`
+notice block to every tool result (`MCPV0-115`); outside any worktree it still fails to start.
+Restart the session from the intended repository if that worktree is the wrong one.
 
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
 check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet

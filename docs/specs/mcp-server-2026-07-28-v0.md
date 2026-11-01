@@ -117,7 +117,8 @@ root. The supplied root is at most 4,096 UTF-8 bytes. Its `.git` marker MUST be 
  scope of 2026-09-28 (#334) admits linked roots through the existing CEM worktree validator.
  The root, marker, per-worktree directory and common directory identities remain pinned;
  pointer retargeting or directory replacement before or during a call MUST abstain.
-Requests cannot replace the root. The canonical root MUST resolve to the Git worktree observed by
+Requests cannot replace the root; only `MCPV0-115` replaces, at startup, a plain root that does not
+exist. The canonical root MUST resolve to the Git worktree observed by
 Corvint before a tool can return repository evidence. A path escape, repository identity drift, or an
 unavailable Git snapshot MUST fail closed for the Corvint operation. Clean and mixed worktrees are
 both reportable states; neither may be silently converted to the other. This single-root form is
@@ -347,7 +348,9 @@ truncated receipt. List cursors are opaque bounded tokens tied to method, server
 ordered registry; wrong-method, malformed, stale, or unknown cursors return `-32602`. Since the V0
 tool registry fits one page, no cursor is currently issued. Tool results themselves are not paged.
 
-- `MCPV0-015`: Repository authority comes only from `--root`. The server does not request
+- `MCPV0-015`: Repository authority comes only from `--root` (amended by `MCPV0-115`: when that
+plain `--root` does not exist, from the Git worktree enclosing the launch directory, observed once
+at startup as local process state, never from request data or client roots). The server does not request
 `roots/list`, does not infer authority from client-advertised roots, and does not advertise a server
 roots capability (none exists). A client `roots` capability is ignored. Supporting client-provided
 roots later requires an accepted multi-root authority profile; V0 never switches repositories in
@@ -882,6 +885,44 @@ Each row cites the first emitting site and states only the condition checked the
   profile's `tools/list` bytes are unchanged (the four profile goldens). Falsifier: a ref-bound
   tool advertised `readOnlyHint` true under `--follow-ref`, or any change to the plain list.
   Rollback: drop `followRefTools` from the `tools/list` handler.
+- `MCPV0-115`: (experimental under the standing lane auto-accept; V1-3497; amends `MCPV0-001` and
+  `MCPV0-015`) When the root arguments are exactly one plain `--root` whose absolute, well-formed
+  path does not exist (`lstat` reports it missing), and neither `--follow-ref` nor
+  `--corpus-artifact` is given, the server MUST bind instead the Git worktree enclosing its launch
+  directory: the nearest ancestor of the resolved working directory, itself included, holding a
+  `.git` entry of any kind, or whose `.git` lookup fails other than not-exist, observed once at
+  startup; the walk never passes such an entry to reach an outer repository. That candidate then
+  passes every `MCPV0-001` check exactly as if it had been given as `--root`; one that fails (a
+  symlink `.git` marker, an unreadable entry) refuses `corvint-mcp: repository unavailable`, exit
+  2, with no substitution line, as a direct `--root` of it would. The substitution MUST be
+  visible: once the candidate opens, one stderr line, `corvint-mcp: --root does not exist; serving the Git worktree enclosing the
+  launch directory instead`, and on every routed tool result and tool error a second text content
+  block in the `MMR-V0-009` notice schema (`corvint-mcp-worktree-notice/0`) with code
+  `missing-root-launch-worktree`. The first block and `structuredContent` are those of a direct
+  `--root` of that worktree, and neither the line nor the notice names a path; the `MMR-V0-009`
+  launch-worktree notice cannot also apply, because the bound root is the launch worktree. With
+  no enclosing worktree, or a launch directory that cannot be observed, startup MUST refuse with
+  `corvint-mcp: repository unavailable: --root does not exist and the launch directory is not in
+  a Git worktree`, exit 2. Why: Claude desktop starts a spare-claimed session's plugin server with
+  the `${CLAUDE_PROJECT_DIR}` of a deleted `~/.claude/spares/spare-*` directory while the process
+  runs in the claimed worktree, so the plain refusal left the server failed for the whole session,
+  reconnects included (V1-3497). The hook adapter behaves differently and is not changed here: it
+  falls back to the working directory only when `CLAUDE_PROJECT_DIR` is empty, so a nonempty
+  deleted path is kept and its hooks return no context.
+  Both `corvint-mcp` and `corvint mcp` (`AHI-373`) get it from the shared `internal/mcp/cli` run.
+  Non-goals: requesting `roots/list` or using client roots (still ignored, `MCPV0-015`,
+  `MMR-V0-005`); request data selecting a root; re-reading the launch directory after startup. A
+  root that exists but is not a repository, a path through a non-directory, an aliased or
+  `--workspace` root, a relative root (`MCPV0-113`), `--follow-ref` (it moves a dedicated
+  worktree) and `--corpus-artifact` (its path names a file in the declared root) all keep their
+  existing refusals. Failure mode: the launch worktree can be a repository other than the one the
+  host meant; the notice says so on every result and tells the caller to restart with an existing
+  `--root`. Falsifier: a substituted session without the stderr line or the notice, a notice or
+  line naming a path, a substitution for any non-goal argv, or a changed refusal for any argv other
+  than a missing plain root, or a substituted root outside the nearest `.git` entry of the launch
+  directory. Rollback: delete `missingRootFallback` and its two uses in `run`; a
+  missing root then refuses as `corvint-mcp: repository unavailable` again, and no state depends on
+  it.
 - `MCPV0-112`: (proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impact
   result whose builder dropped rows at the per-result `maxEvidence` ceiling (10) MUST carry
   `evidence_truncated` with the count dropped: same-package reference lines, reference lines of a
@@ -1024,6 +1065,7 @@ cleanup remain outside that receipt.
 | `MCPV0-111` | `internal/contextsummary` (`Summarize`, `SafePath`), `internal/mcp/bridge` (`contextInput.SummaryBytes`, `summarizedContext`), `cmd/corvint` (`summarizeContextPacket`) | `TestMCPV0111ContextSummaryBytesIsCLISummary` (summary equals `Summarize` over the canonical receipt plus LF, digest and MCP continuation, binding kept, five invalid values refused, `SUMMARY_SHAPE` reason); CLI bytes unchanged under the existing `cmd/corvint` context-summary tests |
 | `MCPV0-113` | `internal/mcp/cli` (`run`, `usage`) | `usage_test.go`'s `TestMCPV0113HelpAndRelativeRoot`; `roots_test.go` relative aliased root |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
+| `MCPV0-115` | `internal/mcp/cli` (`missingRootFallback`, `run`) | `missing_root_test.go`'s `TestMCPV0115MissingRootServesLaunchWorktree` (subdirectory and linked-worktree launches: served revision, first block and `structuredContent` equal to a direct `--root`, notice code, no path), `TestMCPV0115MissingRootOutsideWorktreeRefuses` (exact refusal; unobservable launch directory) and `TestMCPV0115FallbackIsNarrow` (five unchanged refusals); both built entry points observed end to end in `docs/build-log/2026-10-31-mcp-missing-root-fallback.md`; a real Claude desktop spare-claimed session `NOT_OBSERVED` |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
 
