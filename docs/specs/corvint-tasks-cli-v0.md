@@ -216,6 +216,17 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `UNCERTAIN_EFFECT`, `REQUEST_ID_CONFLICT` → `REQUEST_ID_CONFLICT`, `STORAGE_FAILED` →
   `UNSUPPORTED_FILESYSTEM`. The item's `outcome` field still names the store outcome. The
   derivation happens only in the CLI envelope: receipts and recorded outcome codes are unchanged.
+- `TCL-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-3559)
+  `receipt audit --through SEQ` MUST walk receipts 1..SEQ only, with the same per-receipt checks
+  as the complete walk (the CAL-V0-265 prefix walk, bounded at SEQ), and its item MUST add
+  `throughSeq` naming that bound; `headSeq` and `lastReceiptSha256` then name receipt SEQ.
+  Receipts after SEQ are not validated, so a store whose later receipts are inconsistent still
+  reports `structuralConsistency: CONSISTENT` for the bound, and `projectionAgreement` stays
+  `NOT_OBSERVED` because the current projection is not compared with the state at SEQ. A SEQ of
+  0, above the head, or not a decimal sequence MUST be refused `MALFORMED` before any walk;
+  `--through` with `--witness-receipts` MUST be refused `MALFORMED`; a store with a retired
+  prefix or staged names is refused as the prefix walk refuses it. Without `--through` the
+  command is the unchanged complete audit.
 
 ## Non-goals
 
@@ -242,6 +253,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - A stale snapshot is read as current: every result names its `producedAt` and journal sequence.
 - A tampered snapshot: file and tree digests are verified before decoding.
 - A write on a snapshot host: refused before any read, naming the owning store.
+- A bounded audit is read as a whole-store verdict: the item names `throughSeq`, and its
+  `headSeq` is SEQ, not the store head (TCL-V0-820).
 
 ## Acceptance evidence
 
@@ -270,6 +283,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
   `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
   (TCL-V0-870).
+- `internal/tasks/cli/receipt_audit_through_test.go`:
+  `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt` (TCL-V0-820).
 
 ## Rollback
 
