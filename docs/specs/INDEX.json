@@ -4272,5 +4272,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/cem-2.0-intent.md",
+    "title": "CEM 2.0 intent",
+    "reqPrefix": "CEM2-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "CEM 2.0 is the V1-2609 counterfactual-receipt plan; cheaper closeout and a kill-gated value replay come first, a compact 1.0 codec is optional.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

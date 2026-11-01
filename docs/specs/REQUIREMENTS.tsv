@@ -1091,6 +1091,31 @@ CEM-SM-015	docs/specs/cem-0.3-structural-mechanical.md	The packet MUST distingui
 CEM-SM-016	docs/specs/cem-0.3-structural-mechanical.md	For every case, the standalone `verify-03` process MUST reproduce the pinned	unrecorded	-
 CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	On any runtime outside the admitted structural tuples (`go1.27.1`, the packet's	unrecorded	-
 CEM-SM-018	docs/specs/cem-0.3-structural-mechanical.md	The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).	unrecorded	-
+CEM2-V0-001	docs/specs/cem-2.0-intent.md	KEEP. Until the owner accepts this intent, no producer, verifier, CLI, hook,	unrecorded	-
+CEM2-V0-002	docs/specs/cem-2.0-intent.md	CHANGE. Work is prioritized by measured workflow cost: V1-3980 first, then the	unrecorded	-
+CEM2-V0-003	docs/specs/cem-2.0-intent.md	CHANGE. Attestation stays the published cem/v2 predicate over the projected	unrecorded	-
+CEM2-V0-004	docs/specs/cem-2.0-intent.md	CHANGE. The codec is either a restricted citation transport that declares what i	unrecorded	-
+CEM2-V0-005	docs/specs/cem-2.0-intent.md	CHANGE. Projection is a compatibility oracle: from the same independently suppli	unrecorded	-
+CEM2-V0-006	docs/specs/cem-2.0-intent.md	KEEP. The body's hunk count MUST equal the canonical patch's hunk count, and hun	unrecorded	-
+CEM2-V0-007	docs/specs/cem-2.0-intent.md	CHANGE. Projection MUST refuse, before any 1.0 bytes are produced, a `bodySha256	unrecorded	-
+CEM2-V0-008	docs/specs/cem-2.0-intent.md	KEEP. The reason and relation code tables are closed and frozen per spec label;	unrecorded	-
+CEM2-V0-009	docs/specs/cem-2.0-intent.md	CHANGE. A codec map is verifiable only while the complete object closure it need	unrecorded	-
+CEM2-V0-010	docs/specs/cem-2.0-intent.md	CHANGE. A consumer MUST bound compact input, expanded output, bases per hunk (32	unrecorded	-
+CEM2-V0-011	docs/specs/cem-2.0-intent.md	KEEP. Neither header nor body carries a numeric confidence, score or probability	unrecorded	-
+CEM2-V0-012	docs/specs/cem-2.0-intent.md	KEEP. The invariant-4 ledgers (`.corvint/self-observations.jsonl`,	unrecorded	-
+CEM2-V0-013	docs/specs/cem-2.0-intent.md	CHANGE. Any trust label attached to 2.0 evidence or claims uses only the five	unrecorded	-
+CEM2-V0-014	docs/specs/cem-2.0-intent.md	KEEP. The append-only record of verdicts and receipts is called the evidence led	unrecorded	-
+CEM2-V0-015	docs/specs/cem-2.0-intent.md	CHANGE. The agent and trust additions (A1 to A5, T1 to T4) are admission	unrecorded	-
+CEM2-V0-016	docs/specs/cem-2.0-intent.md	KEEP. The wire is codified last. No `cem/2.0` label, schema, conformance vector	unrecorded	-
+CEM2-V0-017	docs/specs/cem-2.0-intent.md	CHANGE. A 2.0 wire defines its own extension registry, the binding of each	unrecorded	-
+CEM2-V0-018	docs/specs/cem-2.0-intent.md	CHANGE. Delta maps are unsupported: the prototype refuses a non-empty `parents`,	unrecorded	-
+CEM2-V0-019	docs/specs/cem-2.0-intent.md	CHANGE. Neither mode carries hunk ids, hunk ranges or evidence ids, and derived	unrecorded	-
+CEM2-V0-020	docs/specs/cem-2.0-intent.md	KEEP. The prototype encoder abstains with UNSUPPORTED on any map it cannot encod	unrecorded	-
+CEM2-V0-021	docs/specs/cem-2.0-intent.md	CHANGE. Before any codec promotion, its tests cover every legal cem/1.0 feature	unrecorded	-
+CEM2-V0-022	docs/specs/cem-2.0-intent.md	CHANGE. Size figures are unsigned representation bytes and are labelled so. A	unrecorded	-
+CEM2-V0-023	docs/specs/cem-2.0-intent.md	An evidence span MUST satisfy `0 <= start < end`, with both ends wire integers;	unrecorded	-
+CEM2-V0-024	docs/specs/cem-2.0-intent.md	A hunk row MUST carry at most 32 bases, and a body MUST carry at most	unrecorded	-
+CEM2-V0-025	docs/specs/cem-2.0-intent.md	Projection never panics on any header or body: every hostile or fuzzed input yie	unrecorded	-
 CAX-V0-001	docs/specs/cem-additive-profiles-v0.md	`corvint prove --cem MAP --attest-cem-v3` signs the predicate type	unrecorded	-
 CAX-V0-010	docs/specs/cem-additive-profiles-v0.md	`corvint cem cover ... --states-output PATH` also writes one	unrecorded	-
 CAX-V0-011	docs/specs/cem-additive-profiles-v0.md	`wire.ValidateCoverageStates(document, mapBytes)` accepts a document only when i	unrecorded	-
