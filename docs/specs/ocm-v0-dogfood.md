@@ -514,7 +514,7 @@ what the row asserts.
 | `bootstrap-intent-not-unknown` | `internal/lrfrepo/ocm.go:716` | "bootstrap intent hunk must remain unknown" |
 | `cem-map-digest-mismatch` | `internal/lrfrepo/ocm.go:424` | "CEM map digest does not match" |
 | `cem-patch-digest-mismatch` | `internal/lrfrepo/ocm.go:411` | "CEM patch digest does not match" |
-| `claim-conflict` | `internal/lrfrepo/ocm_write.go:983` | "claim ID has conflicting fields" |
+| `claim-conflict` | `internal/lrfrepo/ocm_write.go:1061@1c03b150` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:866` | "claim selectors must be unique" |
 | `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:798@c947a99d` | "hunk selectors must be unique" |
