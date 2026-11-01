@@ -81,13 +81,13 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket effects-proposals", "ticket export", "ticket similar", "ticket digest",
 	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close", "ticket recur",
+	"ticket revoke-approval", "ticket attach-evidence", "ticket progress", "ticket batch-close", "ticket recur",
 	"release create", "release update", "release membership", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
@@ -221,6 +221,8 @@ func Run(env Env) int {
 			return emitDeliveryScreen(env, args[2:])
 		case "batch-delivered":
 			return emit(env.Stdout, batchDeliveredCommand(env, args[2:]))
+		case "effects-proposals":
+			return emit(env.Stdout, effectsProposalsCommand(env, args[2:]))
 		case "batch-close":
 			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
@@ -549,7 +551,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 		"corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 		"corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]   (optional payload localToken, e.g. BT-002, picks the queue-local ID; no --target)",
-		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
+		"corvint-tasks ticket <refine|prioritize|set-dependencies|set-gates|set-effects|hold|release-hold|reopen|archive|restore|complete-manual|grant-approval|revoke-approval|attach-evidence|progress> --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N [--issued-at TS] [--role ROLE]",
 		"corvint-tasks ticket <mutation> --help   (its payload keys)",
 		"corvint-tasks <command> --help   (usage and flags; add --verbose for notes, reason codes and preconditions)",
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
@@ -843,7 +845,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1166,6 +1168,7 @@ type searchFilter struct {
 	milestone *string
 	label     *string
 	text      *string // lower-cased substring of title or body
+	phase     *string // effective progress phase or NONE (TLF-V0-882)
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1228,8 +1231,11 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		low := strings.ToLower(t)
 		f.text = &low
 	}
-	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text); `ticket list` is the unfiltered read")
+	if f.phase, err = enumFlag(fl, "phase", searchPhases); err != nil {
+		return f, err
+	}
+	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil && f.phase == nil {
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase); `ticket list` is the unfiltered read")
 	}
 	return f, nil
 }
@@ -1268,6 +1274,22 @@ func (f searchFilter) matchesSummary(rec *ticket.Summary) bool {
 	return true
 }
 
+// searchPhases are the --phase values: every effective phase plus NONE.
+var searchPhases = append(append([]string{}, wire.ProgressPhases[:len(wire.ProgressPhases)-1]...), "NONE")
+
+// matchesPhase applies --phase (TLF-V0-882). A closed ticket has no
+// effective progress, so it is decided from its summary without a decode.
+func (f searchFilter) matchesPhase(inv *ticket.Inventory, id string, s *ticket.Summary) bool {
+	if f.phase == nil {
+		return true
+	}
+	if ticket.Closed(s.Status) {
+		return *f.phase == "NONE"
+	}
+	rec, _ := inv.Get(id)
+	return rec.EffectivePhase() == *f.phase
+}
+
 // matchesText applies --text, which needs the whole record.
 func (f searchFilter) matchesText(rec *ticket.Record) bool {
 	if f.text != nil {
@@ -1296,7 +1318,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1316,7 +1338,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 		var ids []string
 		inv := rc.store.Inventory
 		for _, id := range inv.Sorted() {
-			if s, _ := inv.Summary(id); !f.matchesSummary(s) {
+			if s, _ := inv.Summary(id); !f.matchesSummary(s) || !f.matchesPhase(inv, id, s) {
 				continue
 			}
 			if f.text != nil {
@@ -1482,11 +1504,13 @@ func roadmap(env Env, args []string) *wire.Result {
 func roadmapRow(inv *ticket.Inventory, id string, ctx ticket.Context) wire.Value {
 	s, _ := inv.Summary(id)
 	gateResults, eligibility, next := ticket.NotObserved, "", ""
+	var progress *ticket.Progress
 	if ticket.Closed(s.Status) {
 		eligibility, next = ticket.ClosedView(s)
 	} else {
 		v, _ := inv.View(id, ctx)
 		gateResults, eligibility, next = v.GateResults, v.Eligibility, v.NextAction
+		progress = v.Record.EffectiveProgress()
 	}
 	o := wire.NewObject()
 	o.Set("milestone", wire.StringOrNull(s.Milestone))
@@ -1501,6 +1525,10 @@ func roadmapRow(inv *ticket.Inventory, id string, ctx ticket.Context) wire.Value
 	o.Set("gateResults", wire.String(string(gateResults)))
 	o.Set("eligibility", wire.String(eligibility))
 	o.Set("nextAction", wire.String(next))
+	// TLF-V0-882: advisory; never an input to the roadmap order.
+	if progress != nil {
+		o.Set("progress", ticket.ProgressEntryValue(*progress))
+	}
 	return wire.ObjectValue(o)
 }
 

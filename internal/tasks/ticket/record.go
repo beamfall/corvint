@@ -166,6 +166,11 @@ type Record struct {
 	// omitted when empty. It is not acceptance-relevant and is changed only
 	// by ATTACH_EVIDENCE.
 	AttachedEvidence []AttachedEvidence
+	// Progress is the optional append-only progress phase list
+	// (TLF-V0-880), omitted when empty. It is not acceptance-relevant, is
+	// changed only by PROGRESS_SET, and never feeds admission, ranking or
+	// authority (TLF-V0-881).
+	Progress []Progress
 	// KnowHow is the optional append-only know-how note ledger (KHN-V0-002),
 	// omitted when empty. It is not acceptance-relevant, is changed only by
 	// KNOWHOW_ADD, KNOWHOW_RETRACT and KNOWHOW_RECONFIRM, and never feeds
@@ -228,6 +233,9 @@ func FromValue(v wire.Value) (*Record, error) {
 	}
 	if wire.Has(v, "attachedEvidence") {
 		rec.AttachedEvidence = ReadAttachedEvidence(r.Field("attachedEvidence"))
+	}
+	if wire.Has(v, "progress") {
+		rec.Progress = ReadProgress(r.Field("progress"))
 	}
 	if wire.Has(v, "knowHow") {
 		rec.KnowHow = ReadKnowHow(r.Field("knowHow"))
@@ -558,6 +566,9 @@ func (rec *Record) Value() wire.Value {
 	}
 	if len(rec.AttachedEvidence) > 0 {
 		o.Set("attachedEvidence", AttachedEvidenceValue(rec.AttachedEvidence))
+	}
+	if len(rec.Progress) > 0 {
+		o.Set("progress", ProgressValue(rec.Progress))
 	}
 	if len(rec.KnowHow) > 0 {
 		o.Set("knowHow", KnowHowValue(rec.KnowHow))

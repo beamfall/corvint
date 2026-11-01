@@ -316,6 +316,16 @@ recurrence on the existing ticket. `queue snapshot` exports a verified intent sn
 `CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every
 other verb (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).
 
+Lane flow (experimental; [TLF-V0](specs/corvint-tasks-lane-flow-v0.md)): `ticket progress` records
+an advisory lane phase (IN_PROGRESS to MERGED_AWAITING_CLOSEOUT, BLOCKED, CLEARED) on a live ticket,
+admitted under an OPERATOR/ADMISSION barrier; `ticket search --phase PHASE|NONE` and `roadmap` rows
+read it, and `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned commit.
+`ticket effects-proposals` proposes touch paths, labelled "proposal: not authority", for OPEN tickets
+with UNKNOWN effects coverage. `ticket delivery-screen --lane-refs` also scans unmerged local branch
+and worktree heads (DELIVERED_ON_LANE, IN_FLIGHT by progress). The repository check
+`go run ./tools/requirement-id-collisions [--base REF]` reports requirement IDs that two lane heads,
+or a lane head and the base, define differently (exit 1), without writing.
+
 The basic external-agent lifecycle (create, plan preview, claim, renew, release, submit, gate run,
 complete, readback and receipt audit on one store) has a named profile,
 [TBS-V1](specs/corvint-tasks-basic-stability-v1.md). It fixes the profile's commands, refusal codes

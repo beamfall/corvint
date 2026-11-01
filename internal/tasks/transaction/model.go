@@ -1454,6 +1454,9 @@ func importChain(post, pre *ticket.Record, inv *Inventory) error {
 	if e := importAttachedEvidence(post, pre, where); e != nil {
 		return e
 	}
+	if e := importProgress(post, pre, where); e != nil {
+		return e
+	}
 	if e := importObligations(post, pre, where); e != nil {
 		return e
 	}
@@ -1721,6 +1724,19 @@ func importAttachedEvidence(post, pre *ticket.Record, where string) error {
 	}
 	if !wire.Equal(ticket.AttachedEvidenceValue(want), ticket.AttachedEvidenceValue(post.AttachedEvidence)) {
 		return wire.Errorf(wire.CodeMalformed, where+"/attachedEvidence", "an imported record cannot add, rewrite or drop attached evidence")
+	}
+	return nil
+}
+
+// importProgress keeps an IMPORT batch from adding, rewriting or dropping
+// progress entries (TLF-V0-880): only PROGRESS_SET writes them.
+func importProgress(post, pre *ticket.Record, where string) error {
+	var want []ticket.Progress
+	if pre != nil {
+		want = pre.Progress
+	}
+	if !wire.Equal(ticket.ProgressValue(want), ticket.ProgressValue(post.Progress)) {
+		return wire.Errorf(wire.CodeMalformed, where+"/progress", "an imported record cannot add, rewrite or drop progress entries")
 	}
 	return nil
 }

@@ -68,6 +68,7 @@ node_modules/
 /paired-trial
 /pi-tui-fixture
 /qualify-opencode
+/requirement-id-collisions
 /retrieval-bench
 /selection-baseline
 /str-parity

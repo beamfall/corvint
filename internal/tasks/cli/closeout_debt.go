@@ -30,6 +30,9 @@ const (
 	citeDirect   = "direct-id"
 	citeIssue    = "issue-link"
 	citeUmbrella = "umbrella"
+	// citeProgressHead marks a row whose OPEN ticket's effective progress
+	// names a scanned commit as its head (TLF-V0-883).
+	citeProgressHead = "progress-head"
 
 	stepNoAttempt       = "NO_ATTEMPT"
 	stepAttemptEnded    = "ATTEMPT_ENDED"
@@ -167,7 +170,10 @@ func closeoutRowLess(a, b closeoutRow) bool {
 	if a.ticketID != b.ticketID {
 		return a.ticketID < b.ticketID
 	}
-	return a.commit < b.commit
+	if a.commit != b.commit {
+		return a.commit < b.commit
+	}
+	return a.kind < b.kind
 }
 
 // closeoutRowHeap is a max-heap in row order: its root is the last row kept.
@@ -324,17 +330,21 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	var (
 		index    *closeoutIndex
 		locals   map[string]string            // OPEN tickets only
+		heads    map[string][]string          // progress head -> OPEN ticket IDs
 		attempts map[string]*snapshot.Attempt // nil = NOT_OBSERVED
 		branch   string
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, origin: store.OriginSlug(rc.repo.PrimaryWorktree)}
-		locals, attempts, branch = map[string]string{}, nil, rc.store.Queue.IntentBranch
+		locals, heads, attempts, branch = map[string]string{}, map[string][]string{}, nil, rc.store.Queue.IntentBranch
 		for _, id := range rc.store.Inventory.Sorted() {
 			rec, _ := rc.store.Inventory.Get(id)
 			index.add(rec)
 			if rec.Status == ticket.StatusOpen {
 				locals[id] = rec.TicketID.Local
+				if p := rec.EffectiveProgress(); p != nil && p.Head != nil {
+					heads[*p.Head] = append(heads[*p.Head], id)
+				}
 			}
 		}
 		if rc.journalAbsent {
@@ -383,6 +393,9 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 				collected.add(closeoutRow{ticketID: cite.ticketID, local: local, commit: c.Commit, subject: subject, kind: cite.kind, issue: cite.issue,
 					delivers: refs[cite.ticketID] == refDelivered})
 			}
+		}
+		for _, id := range heads[c.Commit] {
+			collected.add(closeoutRow{ticketID: id, local: locals[id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
 	}
 	type stepOf struct{ step, gate string }

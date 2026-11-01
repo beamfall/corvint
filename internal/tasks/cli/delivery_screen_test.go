@@ -282,3 +282,116 @@ func mapsEqual(a, b map[string]string) bool {
 	}
 	return true
 }
+
+// TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead: with --lane-refs a ticket
+// delivered only by a commit on an unmerged local branch is DELIVERED_ON_LANE
+// with that ref and commit, a ticket whose progress is past IN_PROGRESS is
+// IN_FLIGHT, a merged branch is not scanned, and without the flag the screen
+// is unchanged (TLF-V0-887).
+func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	t.Setenv("ATM_ACTOR", "tester")
+	root, _ := ergStore(t)
+	_, onLane := tcdTicket(t, root, "onlane", "")
+	reviewID, review := tcdTicket(t, root, "review", "")
+	_, quiet := tcdTicket(t, root, "quiet", "")
+	x := atm(t, root, nil, "ticket", "progress", "--target", reviewID, "--expected-revision", "1",
+		"--request-id", "p1", "--issued-at", "2026-10-31T12:00:00Z", "--payload", progressPayload("IN_REVIEW", "", "", "7", ""))
+	if x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("progress: %s", x.stdout)
+	}
+	out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := strings.TrimSpace(string(out))
+	git(t, root, "branch", "merged-lane")
+	git(t, root, "checkout", "-q", "-b", "claude/lane-x")
+	tcdCommit(t, root, "tasks: lane work\n\nRefs "+onLane)
+	out, err = exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	laneHead := strings.TrimSpace(string(out))
+	// An unrelated lineage (the pre-snapshot private history) is no lane.
+	git(t, root, "checkout", "-q", "--orphan", "old-lineage")
+	tcdCommit(t, root, "old lineage\n\nRefs "+onLane)
+	git(t, root, "checkout", "-q", "-f", main)
+
+	plain := tdsRun(t, root, "ticket", "delivery-screen", onLane, review, quiet)
+	if got := tdsVerdicts(t, plain); got[onLane] != "NOT_OBSERVED" || got[review] != "NOT_OBSERVED" {
+		t.Fatalf("without --lane-refs: %v", got)
+	}
+	if _, ok := plain.res.Items[0].Obj.Get("laneHeads"); ok {
+		t.Fatalf("laneHeads without --lane-refs: %s", plain.stdout)
+	}
+	lanes := tdsRun(t, root, "ticket", "delivery-screen", onLane, review, quiet, "--lane-refs")
+	got := tdsVerdicts(t, lanes)
+	if lanes.code != 1 || got[onLane] != "DELIVERED_ON_LANE" || got[review] != "IN_FLIGHT" || got[quiet] != "NOT_OBSERVED" {
+		t.Fatalf("--lane-refs exit %d: %v\n%s", lanes.code, got, lanes.stdout)
+	}
+	heads := field(lanes.res.Items[0], "laneHeads").Arr
+	if len(heads) != 1 || field(heads[0], "ref").Str != "refs/heads/claude/lane-x" || field(heads[0], "commit").Str != laneHead {
+		t.Fatalf("laneHeads: %s", wire.Encode(field(lanes.res.Items[0], "laneHeads")))
+	}
+	for _, row := range field(lanes.res.Items[0], "tickets").Arr {
+		lc := field(row, "laneCommits").Arr
+		if field(row, "local").Str == onLane {
+			if len(lc) != 1 || field(lc[0], "commit").Str != laneHead || field(lc[0], "ref").Str != "refs/heads/claude/lane-x" {
+				t.Fatalf("laneCommits: %s", wire.Encode(row))
+			}
+		} else if len(lc) != 0 {
+			t.Fatalf("unexpected laneCommits: %s", wire.Encode(row))
+		}
+	}
+	help := tdsRun(t, root, "ticket", "delivery-screen", "--help", "--verbose")
+	if !strings.Contains(string(help.stdout), "DELIVERED_ON_LANE") || !strings.Contains(string(help.stdout), "--lane-refs") {
+		t.Fatalf("help: %s", help.stdout)
+	}
+}
+
+// TestTLFV0887_TruncatedLaneScanIsNotClear: a lane whose penultimate commit
+// delivers a ticket and whose tip does not, read with --lane-refs --limit 1,
+// leaves that ticket TRUNCATED (never CLEAR, exit 1) and reports the cut on
+// the lane head and the item (TLF-V0-887).
+func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := ergStore(t)
+	_, hidden := tcdTicket(t, root, "hidden", "")
+	out, err := exec.Command("git", "-C", root, "rev-parse", "--abbrev-ref", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	main := strings.TrimSpace(string(out))
+	git(t, root, "checkout", "-q", "-b", "claude/lane-y")
+	tcdCommit(t, root, "tasks: lane work\n\nRefs "+hidden)
+	tcdCommit(t, root, "docs: unrelated tip")
+	git(t, root, "checkout", "-q", "-f", main)
+	prs := tdsExport(t, "prs.json", "[]")
+
+	x := tdsRun(t, root, "ticket", "delivery-screen", hidden, "--prs", prs, "--lane-refs", "--limit", "1")
+	if got := tdsVerdicts(t, x); x.code != 1 || got[hidden] != "TRUNCATED" {
+		t.Fatalf("truncated lane: exit %d verdicts %v\n%s", x.code, got, x.stdout)
+	}
+	heads := field(x.res.Items[0], "laneHeads").Arr
+	if len(heads) != 1 || !field(heads[0], "scanTruncated").Bool || !field(x.res.Items[0], "laneScanTruncated").Bool {
+		t.Fatalf("lane truncation not reported: %s", x.stdout)
+	}
+	x = tdsRun(t, root, "ticket", "delivery-screen", hidden, "--prs", prs, "--lane-refs")
+	if got := tdsVerdicts(t, x); got[hidden] != "DELIVERED_ON_LANE" || field(x.res.Items[0], "laneScanTruncated").Bool {
+		t.Fatalf("full lane scan: verdicts %v\n%s", got, x.stdout)
+	}
+}
+
+// TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs: --lane-refs belongs to
+// delivery-screen; closeout-debt refuses it, so its help must not offer it.
+func TestTLFV0887_CloseoutDebtHelpOmitsLaneRefs(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := ergStore(t)
+	if x := tdsRun(t, root, "ticket", "closeout-debt", "--lane-refs"); !hasCode(x.res, wire.CodeMalformed) {
+		t.Fatalf("closeout-debt --lane-refs: %s", x.stdout)
+	}
+	if help := tdsRun(t, root, "ticket", "closeout-debt", "--help", "--verbose"); strings.Contains(string(help.stdout), "--lane-refs") {
+		t.Fatalf("closeout-debt help offers --lane-refs: %s", help.stdout)
+	}
+}
