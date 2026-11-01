@@ -74,7 +74,7 @@ func runContext(ctx context.Context, args []string, stdout, stderr io.Writer) in
 	case "report":
 		return report(args[1:], stdout, stderr)
 	}
-	fmt.Fprintf(stderr, "corvint-gateway: unknown command %q\n", args[0])
+	fmt.Fprintf(stderr, "corvint-gateway: UNKNOWN_COMMAND: unknown command %q\n", args[0])
 	return 2
 }
 

@@ -110,6 +110,14 @@ driving Corvint from scripts.
   with an unknown verb, and check its exit code, output stream and envelope against a declared
   row for that binary. A binary without a row, or a row without a binary, SHALL fail the test.
   Making the binaries' envelopes identical is out of scope; each row records the current contract.
+- **ACX-V0-664:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-3736 AC2) Every catalog binary's unknown-verb refusal SHALL carry a stable code and name the
+  typed word, on the stream and with the exit code its row already records. Binaries whose refusal
+  had no code (`corvint-cem-candidate`, `corvint-cem-experiments`, `corvint-corpus-republish`,
+  `corvint-gateway`, `corvint-js-test-provider`, `corvint-ruby-test-provider`,
+  `corvint-postmerge-workflow`, `corvint-test`) SHALL print `UNKNOWN_COMMAND`;
+  `corvint-postmerge-connect` SHALL refuse an unknown operation as `unknown-operation` before it
+  reads any input. The conformance test SHALL fail when a row is silent or unchecked.
 
 ## Non-goals
 
@@ -138,6 +146,7 @@ still runs it.
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853`; `TestCoreVerbsEmitTheFrozenProfiles` |
 | ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
 | ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
+| ACX-V0-664 | the unknown-verb refusals in `main.go` of the eight named binaries and `run` in `cmd/corvint-postmerge-connect/main.go`; the coded-row check in `conformance/cli-errors-v0/contract_test.go` | `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 
 ## Rollback
