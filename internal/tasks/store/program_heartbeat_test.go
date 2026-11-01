@@ -25,13 +25,16 @@ func TestCALV0532_StageWatcherToleratesRetryableHeartbeatFailure(t *testing.T) {
 		name      string
 		code      string
 		failFirst int // failing renewals before one succeeds; -1 fails every one
+		tolerance time.Duration
 		built     bool
 		minHits   int
 		maxHits   int
 	}{
-		{"retryable-then-renewed", wire.CodeLockTimeout, 1, true, 2, 1 << 30},
-		{"retryable-past-tolerance", wire.CodeLockTimeout, -1, false, 2, 1 << 30},
-		{"non-retryable", wire.CodeMalformed, -1, false, 1, 1},
+		// A stage expected to survive gets a tolerance no starved tick
+		// reaches; one expected to stop gets a short one it must outlast.
+		{"retryable-then-renewed", wire.CodeLockTimeout, 1, time.Hour, true, 2, 1 << 30},
+		{"retryable-past-tolerance", wire.CodeLockTimeout, -1, 2 * time.Second, false, 2, 1 << 30},
+		{"non-retryable", wire.CodeMalformed, -1, time.Hour, false, 1, 1},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
@@ -40,7 +43,7 @@ func TestCALV0532_StageWatcherToleratesRetryableHeartbeatFailure(t *testing.T) {
 			if err := os.WriteFile(filepath.Join(f.scripts, "await-beat"), nil, 0o644); err != nil {
 				t.Fatal(err)
 			}
-			defer store.SetWatchTimingForTest(f.s.repo.StateDir, 0, 2*time.Second)()
+			defer store.SetWatchTimingForTest(f.s.repo.StateDir, 0, c.tolerance)()
 			var mu sync.Mutex
 			hits := 0
 			defer store.SetRunFaultForTest(f.s.repo.StateDir, func(point string) error {
