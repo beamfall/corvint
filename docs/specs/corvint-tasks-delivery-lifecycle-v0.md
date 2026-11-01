@@ -48,13 +48,16 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
   `AWAITING_CLOSEOUT`. A `DELIVERED_ON_BRANCH` head that is not integrated but is reachable from its
   branch ref is `AWAITING_INTEGRATION`. The branch is resolved as `refs/heads/<branch>`, then
   `refs/remotes/origin/<branch>`, then the only other remote-tracking ref with that name; a branch
-  that starts with `refs/` is used as given.
+  that starts with `refs/` is used as given, as an exact ref name in any namespace (for example
+  `refs/lanes/delivery`). An integrated head is not checked against its branch ref: `headOnRef`
+  is null.
 - `TLC-V0-004`: A delivered phase that Git does not confirm MUST fall back with a named reason: to
   `OPEN` with `COMMIT_MISSING` (no such commit object), `REF_DELETED` (no branch ref),
   `HEAD_NOT_ON_REF` (the branch was rebased or reset past the head) or `NOT_ON_INTEGRATION_REF` (a
   `MERGED_AWAITING_CLOSEOUT` head that is not integrated); and to `UNKNOWN` with `GIT_NOT_OBSERVED`
   (no repository or a failed Git read), `INTEGRATION_REF_MISSING` or `REACHABILITY_NOT_OBSERVED`
-  (an observation budget was spent). Phase `IN_REVIEW` or `IN_MERGE_QUEUE` reads `IN_REVIEW`,
+  (an observation budget was spent, or the repository is shallow, so a head that a walk does not
+  reach may lie past the shallow boundary; a shallow history never yields a negative reachability). Phase `IN_REVIEW` or `IN_MERGE_QUEUE` reads `IN_REVIEW`,
   `IN_PROGRESS` reads `IN_PROGRESS` and `BLOCKED` reads `OPEN` with reason `REPORTED_BLOCKED`; none
   of these is checked against Git.
 - `TLC-V0-005`: The `lifecycle` value MUST be the closed object `{state, reason, derivedFrom,
@@ -64,10 +67,12 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
   `git` is null or `{integrationRef, integrationCommit, ref, refCommit, headExists, integrated,
   headOnRef}` with each observation true, false or null for not observed.
 - `TLC-V0-006`: One read MUST observe Git for all of its tickets at once with a fixed number of Git
-  processes that does not grow with the number of tickets: one ref listing, one object check, one
-  integration walk and one walk over the distinct branch refs, plus at most 16 bounded ancestry
-  checks for heads the walks leave ambiguous. Each walk is capped; a spent cap yields
-  `REACHABILITY_NOT_OBSERVED` for the heads it leaves undecided.
+  processes that does not grow with the number of tickets: one ref listing, one shallow check, one
+  object check, one integration walk and one walk over the distinct branch-ref commits, plus at most
+  16 bounded ancestry checks for heads the walks leave ambiguous. Each walk starts from the commits
+  the ref listing captured, never from a ref name read again, and takes its starting points in
+  sorted order, so the same refs and queries give the same observation and process count. Each
+  walk is capped; a spent cap yields `REACHABILITY_NOT_OBSERVED` for the heads it leaves undecided.
 - `TLC-V0-007`: A lifecycle read MUST NOT change the repository, the store or the journal.
 - `TLC-V0-008`: `ticket show` MUST report member `lifecycle`.
 - `TLC-V0-009`: `ticket search` MUST report `lifecycle` on each row, MUST accept
@@ -92,7 +97,9 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
   names the observation, not the cause.
 - A force-push that keeps the head reachable reads as delivered; a rebase that drops it reads
   `HEAD_NOT_ON_REF`. Neither is an error.
-- An over-budget walk or a failed Git process degrades to `UNKNOWN`, never to a guess. A stale
+- An over-budget walk, a shallow history or a failed Git process degrades to `UNKNOWN`, never to a
+  guess. A ref that moves after the listing does not change the answer: the walks start from the
+  listed commits, and the evidence names them. A stale
   remote-tracking ref gives a stale answer: no read fetches.
 - Attempt receipts and Git are read at different instants; a concurrent writer can make one row
   older than another. Each value carries the evidence it used.
@@ -111,8 +118,8 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
 | TLC-V0-001, TLC-V0-002, TLC-V0-005 | V1-3945 criteria 1 and 4 | `internal/tasks/lifecycle` | `TestTLCV0001_Vocabulary`; `TestTLCV0002_Precedence`; `TestTLCV0005_EvidenceValue` | none |
-| TLC-V0-003, TLC-V0-004 | V1-3945 criteria 2 and 4 | `internal/tasks/lifecycle`; `internal/tasks/store/delivery_refs.go` | `TestTLCV0004_FallbackReasons`; `TestTLCV0003_ObserveDeliveries`; `TestTLCV0008_ShowLifecycleTransitions` | none |
-| TLC-V0-006 | V1-3945 (batched observation) | `internal/tasks/store/delivery_refs.go` | `TestTLCV0006_ObservationIsBatched`; build-log measurement on the 1,200-ticket store | durable qualification |
+| TLC-V0-003, TLC-V0-004 | V1-3945 criteria 2 and 4 | `internal/tasks/lifecycle`; `internal/tasks/store/delivery_refs.go` | `TestTLCV0004_FallbackReasons`; `TestTLCV0003_ObserveDeliveries`; `TestTLCV0003_ExactRefInAnyNamespace`; `TestTLCV0003_IntegratedHeadIsNotCheckedOnRef`; `TestTLCV0003_RemoteBranchIndex`; `TestTLCV0004_ShallowHistoryIsNotObserved`; `TestTLCV0008_ShowLifecycleTransitions` | none |
+| TLC-V0-006 | V1-3945 (batched observation) | `internal/tasks/store/delivery_refs.go` | `TestTLCV0006_ObservationIsBatched`; `TestTLCV0006_WalkStartsFromCapturedCommits`; `TestTLCV0006_ObservationIsDeterministic`; build-log measurement on the 1,200-ticket store | durable qualification |
 | TLC-V0-007 | product invariant 4 | `internal/tasks/cli/lifecycle.go` | `TestTLCV0007_LifecycleReadsAreReadOnly` | none |
 | TLC-V0-008 | V1-3945 criterion 1 | `internal/tasks/cli` (show) | `TestTLCV0008_ShowLifecycleTransitions` | none |
 | TLC-V0-009 | V1-3945 criteria 1 and 3 | `internal/tasks/cli` (search, facets, help); `internal/tasks/wire/facets.go` | `TestTLCV0009_SearchLifecycleFilterAndFacet`; `TestCALV0206_FacetsMemberIsTheClosedSummary` | none |
