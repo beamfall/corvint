@@ -214,6 +214,7 @@ func (c *change) noteBoundReceipt(name, path string) {
 	switch {
 	case binding.Base != c.base:
 		c.say("dogfood-change: NOTE %s STALE agent-receipt-binding-other-base base=%s\n", name, binding.Base)
+		c.noteOtherBaseRecovery(binding.Base)
 	case binding.GitDir != c.gitDir:
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-wrong-worktree\n", name)
 	case !ok || digestErr != nil || slot.SHA256 != digest:
@@ -221,4 +222,36 @@ func (c *change) noteBoundReceipt(name, path string) {
 	default:
 		c.say("dogfood-change: NOTE %s OBSERVED bound sha256=%s command=%s\n", name, digest, slot.Command)
 	}
+}
+
+// noteOtherBaseRecovery names, once per run, the recovery for receipts bound
+// to another BASE (DCW-V0-925). When their base is an ancestor of this BASE
+// the lane merged its mainline mid-lane: the receipts still describe the
+// pre-edit context at that base and no rebind exists, because a pre-change
+// read needs HEAD's tree to equal BASE's, so the STALE note stands and
+// changes no row. Otherwise the BASE is likely mistyped.
+func (c *change) noteOtherBaseRecovery(old string) {
+	if c.otherBaseNoted {
+		return
+	}
+	c.otherBaseNoted = true
+	if fullCommitID(old) && c.gitSucceeds("merge-base", "--is-ancestor", old, c.base) {
+		c.say("  fix: BASE %s descends from the receipts' base %s, so the lane merged its mainline after its pre-change reads; keep BASE=%s: the receipts still describe the pre-edit context at %s, no rebind exists, and this note changes no row or exit status (docs/DOGFOOD.md, Mid-lane base change)\n", c.base, old, c.base, old)
+		return
+	}
+	c.say("  fix: BASE %s does not descend from the receipts' base %s; rerun with the BASE this lane started from, or after a mid-lane merge see docs/DOGFOOD.md, Mid-lane base change\n", c.base, old)
+}
+
+// fullCommitID reports a 40- or 64-digit lowercase hexadecimal object name,
+// so a binding's base never reaches git as an option or a revision expression.
+func fullCommitID(value string) bool {
+	if len(value) != 40 && len(value) != 64 {
+		return false
+	}
+	for _, r := range value {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') {
+			return false
+		}
+	}
+	return true
 }

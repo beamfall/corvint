@@ -2078,6 +2078,8 @@ ASD-V0-922	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-923	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3341) `script/	standing	2026-10-31; V1-3341
 ASD-V0-924	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3442; refines	standing	2026-10-31; V1-3442
 ASD-V0-926	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; review fix for `A	standing	2026-10-31
+ASD-V0-927	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3619; refines	standing	2026-11-01; V1-3619
+ASD-V0-928	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3747; refines	standing	2026-11-01; V1-3747
 ASD-V0-925	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3469; refines	standing	2026-10-31; V1-3469
 ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
 ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
@@ -3564,6 +3566,10 @@ DCW-V0-965	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-966	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3284; amends	standing	2026-10-31; V1-3284
 DCW-V0-967	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3428; refines	standing	2026-10-31; V1-3428
 DCW-V0-921	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane	standing	2026-11-01
+DCW-V0-922	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3928; refines	standing	2026-11-01; V1-3928
+DCW-V0-925	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3779; refines	standing	2026-11-01; V1-3779
+DCW-V0-923	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends	standing	2026-11-01; V1-3850
+DCW-V0-924	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3792; refines	standing	2026-11-01; V1-3792
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -5158,6 +5164,7 @@ LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The su
 LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
+LCP-V0-920	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-11-01;	standing	2026-11-01
 LCP-V0-955	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt	standing	2026-11-01; V1-3542
 LCP-V0-800	docs/specs/local-completion-policy-v0.md	(proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no	unrecorded	-
 LMG-V0-001	docs/specs/local-model-gateway-v0.md	(experimental, owner-directed, 2026-11-01; V1-4021) The gateway SHALL ship as	unrecorded	-

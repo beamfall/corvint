@@ -227,7 +227,7 @@ pins this agreement (group V1-3258).
    `path=... hunk=... tier=...` line per hunk (`DCW-V0-344`); without a writable evidence
    directory the per-hunk lines print instead (at most 50, then `more=N`). A hunk no stable BASE line could anchor (none defines a requirement ID it
    adds, none names its path or its basename of 6 bytes or more) is not warned but counted in one
-   `dogfood-check: NOTE tier-below-anchored-unanchorable hunks=N` line (`DCW-V0-165`). A hunk whose basis cites a span of its own file is likewise not warned but counted in one
+   `dogfood-check: NOTE tier-below-anchored-unanchorable hunks=N` line (`DCW-V0-165`). A new file that implements a requirement anchors by naming that ID in the file and citing the BASE line that defines it, as the NOTE's `fix=` says (`DCW-V0-924`). A hunk whose basis cites a span of its own file is likewise not warned but counted in one
    `dogfood-check: NOTE tier-below-anchored-same-path hunks=N` line; an anchoring gate still refuses it (`DCW-V0-388`). `unknownShare` is the map's unknown hunks over its material
    (non-mechanical) hunks, and `reasonedUnknown` the unknown hunks kept with a recorded reason
    (`DCW-V0-046`); section 6 explains its `requirements`, `linked` and `unlinked` members.
@@ -346,6 +346,15 @@ for a bound receipt, or the reason it is not: `agent-receipt-unsupported tool=..
 context receipt saved as the query receipt), `agent-receipt-binding-mismatch`,
 `agent-receipt-binding-other-base` or `agent-receipt-wrong-worktree` (`DCW-V0-881`). The notes stay
 non-blocking.
+
+Mid-lane base change: when a lane merges its mainline after its pre-change reads, its dogfood BASE
+moves to the merged mainline commit, so every later pass notes the receipts `STALE`
+(`agent-receipt-not-base-tree`, or `agent-receipt-binding-other-base`). Keep the new BASE. The
+receipts still describe the pre-edit context at the old base, and they are not rebound: a pre-change
+read needs HEAD's tree to equal BASE's, which no lane has after its first edit. The note changes no
+row or exit status, and `dogfood change` names this rule once in a `fix:` line when the receipts'
+base is an ancestor of BASE. When it is not an ancestor, BASE is likely mistyped: pass the BASE the
+lane started from (`DCW-V0-925`).
 
 `context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
 frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
@@ -550,11 +559,13 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
 
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
-first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). Its
-sealed-head `batch-precheck` runs with `BATCH_PRECHECK_SINCE_RECEIPT=1`: it selects against the
-head the first run's passing receipt names, so a step the bind and seal commits cannot reach does
-not run twice, and a receipt that already names the clean HEAD runs nothing (`DCW-V0-944`,
-`ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
+first), and stops at the first step that fails (`DCW-V0-349`). It ends after the seal and names the
+next command, `make dogfood-closeout-precheck`, which runs the sealed-head `batch-precheck` on its
+own, so the closeout fits one lane command budget and a slow drift run after a passed seal no longer
+makes the closeout look failed (`DCW-V0-923`). That run uses `BATCH_PRECHECK_SINCE_RECEIPT=1`: it
+selects against the head the last passing receipt names, so a step the bind and seal commits cannot
+reach does not run twice, a rerun after a timeout reuses the gate ledger's per-step results, and a
+receipt that already names the clean HEAD runs nothing (`DCW-V0-944`, `ASD-V0-943`). Under a base, `selection-baseline-check` is skipped when none of its inputs changed
 (`ASD-V0-944`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
 use-case conformance command. The precheck also retains its other drift checks. Its drift tests
@@ -1386,7 +1397,9 @@ word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0
 `-run '^(TestA|TestB)'`, `DCW-V0-814`) or the whole package (`-run '.'`, `-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
 `HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
 (`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
-with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+with the absolute home directory (`DCW-V0-905`). A `go test` line whose `-run` pattern selects no
+`Test`, `Example` or `Fuzz` function in the `./` packages it names is refused as
+`verify-run-matches-no-test`, since it would pass having run nothing (`DCW-V0-922`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by
@@ -1408,14 +1421,14 @@ After merges land, run `corvint-tasks ticket closeout-debt` and finish each list
 The separate [local completion policy](specs/local-completion-policy-v0.md) coordinates the loop
 above for an explicitly enrolled change. Freeze a private JSON plan with the immutable `base`,
 sorted owning `intents`, and nonempty `checks` (`id`, `argv` of 1-64 elements, `timeoutSeconds` of
-1-3600, optional `allowCemSidecarOnlyReuse`, default false; split a longer run into several checks). Use the repository's selected required gates; selection
+1-3600, optional `allowCemSidecarOnlyReuse`, default false, and optional `allowSealArchiveReuse`, default false, for a check that does not read where the CEM is archived, which then qualifies at the exact seal without a rerun (`LCP-V0-920`); split a longer run into several checks). Use the repository's selected required gates; selection
 is a review responsibility. Run `corvint dogfood begin --plan FILE` before work and preserve the
 original context receipts. One active session owns a worktree because legacy coordination outputs
 are shared. A different session must use its own worktree or wait for explicit completion/cancellation.
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:168@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:170@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

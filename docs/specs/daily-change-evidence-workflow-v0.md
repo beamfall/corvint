@@ -3219,7 +3219,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   prune; the cache grows as before.
 - `DCW-V0-944`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines
   `DCW-V0-349` and `DCW-V0-900`) The second `batch-precheck` of `make dogfood-closeout`, the one for
-  the sealed head, MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
+  the sealed head (its own `make dogfood-closeout-precheck` since `DCW-V0-923`), MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
   against the head the first run's passing receipt names instead of BASE and does not rerun a step
   the bind and seal commits cannot reach. Non-goals: dropping either run. Evidence:
   `script/batch-precheck_test.sh` (the closeout recipe; the second run's selection) and the
@@ -3389,6 +3389,62 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
   `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
   commands; a present one is not). Rollback: drop the lines.
+- `DCW-V0-922`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3928; refines
+  `DCW-V0-170`) Before any step runs, `dogfood finish-lane` and its preflight (`make
+  dogfood-inputs-check`) MUST refuse a verify input line, file or inline, that is a `go test`
+  command whose single `-run` pattern selects no top-level `Test`, `Example` or `Fuzz` function in
+  the `_test.go` files of the `./` package directories it names (`./dir`, or `./dir/...` for the
+  tree below it, skipping `testdata`, `vendor`, `.` and `_` directories), since `go test` then exits
+  0 with `no tests to run` and the CEM would record verification that ran nothing. The pattern's
+  element before its first slash outside brackets and parentheses is matched, unanchored, as Go
+  does. The refusal is `REFUSE verify-run-matches-no-test` with `input: --verify FILE line N: TEXT`
+  (or `inline verify line N`), a `refused:` line naming the pattern and packages, a `fix:` line, and
+  exit 2. A line is checked only when every fact is known: a line without `go test`, `go -C` or
+  another flag before `test`, an import-path package argument, an unknown flag between packages,
+  more than one `-run`, a pattern that does not compile, a directory that is missing, unreadable or
+  outside the worktree, or more than 4096 test files is left to the run. Non-goals: subtest
+  selection, build tags, `-skip`, and functions defined outside `func Name(` at line start. Failure
+  modes: a test generated at build time is invisible to the scan, so its line is refused; name it
+  through a script line instead. Evidence: `TestDCWV0922VerifyRunMatchingNoTestIsRefused`. Rollback:
+  remove `requireVerifyRunSelectsTest` and `internal/dogfoodflow/verify_run_match.go`.
+- `DCW-V0-925`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3779; refines
+  `DCW-V0-881`) When a `dogfood change` pass notes a pre-change receipt `STALE` as
+  `agent-receipt-binding-other-base` or as `agent-receipt-not-base-tree` while the recorder's
+  binding names another BASE, it MUST print, once per run, a `fix:` line naming the recovery. When
+  the binding's base is a full commit ID and an ancestor of BASE (a mid-lane merge), the line says
+  to keep the new BASE, that the receipts still describe the pre-edit context at the old base, that
+  no rebind exists, and that the note changes no row or exit status, and it names `docs/DOGFOOD.md`
+  Mid-lane base change. Otherwise it says BASE does not descend from the receipts' base and to rerun
+  with the BASE the lane started from. `docs/DOGFOOD.md` §1 MUST document the mid-lane base change
+  rule. Non-goals: rebinding receipts to a new BASE, which would assert a pre-edit read that never
+  happened; making any note blocking. Failure modes: a binding base that is not a full lowercase
+  commit ID is never passed to git and gets the not-a-descendant line. Evidence:
+  `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, the other-base case of
+  `TestDCWV0881ChangeVerifiesPrechangeBinding`. Rollback: remove `noteOtherBaseRecovery` and its two
+  calls.
+- `DCW-V0-923`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
+  `DCW-V0-944` and refines `DCW-V0-349` and `DCW-V0-900`) `make dogfood-closeout` MUST end after
+  `dogfood-finish` and print `make dogfood-closeout-precheck` as the next command, and the
+  sealed-head `batch-precheck` MUST run as that separate target with
+  `BATCH_PRECHECK_SINCE_RECEIPT=1` and `LANE=1`, so the closeout fits one lane command budget and a
+  post-seal drift run that times out cannot make a passed seal look failed; a rerun reuses the gate
+  ledger (`ASD-V0-042`) and a receipt naming the clean HEAD runs nothing (`ASD-V0-943`). Non-goals:
+  dropping the sealed-head run, the incremental closeout of V1-1629, a closeout duration claim.
+  Failure mode: a caller that stops after `dogfood-closeout` skips the sealed-head precheck; the
+  printed next command names it. Evidence: `script/dogfood-cache_test.sh` (both recipes) and
+  `script/batch-precheck_test.sh` (case 15). Rollback: restore the fourth closeout step and drop the
+  target.
+- `DCW-V0-924`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3792; refines
+  `DCW-V0-165`; CEM-V1-081 unchanged) The documented route by which a new file that implements a
+  requirement reaches the anchored tier is the ID anchor: the file names the requirement ID it
+  implements and its citation is the BASE line that defines that ID (- `ID`:), since no BASE line
+  can name a path that does not exist yet. The `dogfood-check: NOTE
+  tier-below-anchored-unanchorable` line MUST name that route in a `fix=` field, and such a new file
+  MUST be warned as anchorable rather than counted unanchorable. Non-goals: anchoring a new file
+  through a traceability row that names only its directory, which would let any file under a cited
+  directory anchor; changing CEM-V1-081. Failure mode: a new file that names no ID stays below
+  anchored and in the NOTE count. Evidence:
+  `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames`. Rollback: drop the fix field.
 
 ## Code vocabulary
 
@@ -3681,6 +3737,10 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
 | `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
+| `DCW-V0-922` (V1-3928) | `internal/dogfoodflow/verify_run_match.go` `emptyRunLineOf`, `goTestRun`, `runSelectsTest`, `topRunElement`; `requireVerifyRunSelectsTest` in `internal/dogfoodflow/finishlane.go` | `TestDCWV0922VerifyRunMatchingNoTestIsRefused` |
+| `DCW-V0-925` (V1-3779) | `internal/dogfoodflow/prechange.go` `noteOtherBaseRecovery`, `fullCommitID`; `noteBoundReceipt`; the not-base-tree case in `internal/dogfoodflow/change.go`; `docs/DOGFOOD.md` §1 Mid-lane base change | `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, `TestDCWV0881ChangeVerifiesPrechangeBinding` |
+| `DCW-V0-923` (V1-3850) | `Makefile` `dogfood-closeout`, `dogfood-closeout-precheck` | `script/dogfood-cache_test.sh`; `script/batch-precheck_test.sh` (case 15) |
+| `DCW-V0-924` (V1-3792) | `internal/dogfoodflow/check_tiers.go` `tierBelowAnchoredUnavailable` | `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |

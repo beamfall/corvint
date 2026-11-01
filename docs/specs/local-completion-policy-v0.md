@@ -668,6 +668,25 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   single-stream envelope. Failure modes: a signal that lands before or after the final check is
   outside this requirement. Rollback: return the zero evaluation again; stderr carries the same
   refusal and no stored state depends on the stdout envelope.
+- `LCP-V0-920`: (experimental under the standing lane auto-accept, 2026-11-01;
+  ci-keyed-finish-seal-compat; amends the `LCP-V0-040` non-goal on automatic reuse and the keyed
+  `verify` step of the `LCP-V0-041` order, for declared checks only) A check whose frozen plan
+  declares `allowSealArchiveReuse` (omitted when false, so existing plan digests hold) MUST qualify
+  at the actual seal from its latest observation at the evidence target, with no rerun, only when
+  the recorded sealed continuation, re-resolved at that commit as the exact one-parent
+  unchanged-blob and mode move of the map (`LCP-V0-040`), equals the recorded binding, names the
+  observed commit as its evidence target, and that commit still has the observed tree; the usual
+  clean, passed, retained-log rules apply to that latest observation, so a later failed attempt or a
+  missing log still reruns it. The observation keeps its tested commit, distinct from the seal; the
+  new report set, its review and the real final strict check at the seal are unchanged. The
+  declaration is the plan author's statement that the check does not read the archive layout; a
+  check that does must not declare it. Every other case (no declaration, no recorded continuation,
+  another evidence target, a source, map, mode or lineage difference) reruns the check at the seal.
+  Non-goals: reinterpreting historical success, reusing an undeclared check, claiming the check ran
+  at the seal, a runtime measurement. Evidence: `TestLCPV0920SealArchiveReuseNeedsTheExactSeal`,
+  `TestLCPV0920UndeclaredCheckReruns`; one avoided check run per declared check, measured as the
+  unchanged observation count. Rollback: drop the field; a plan that declares it then fails to begin
+  under strict decoding, and enrollments rerun their checks at the seal.
 - `LCP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3542) A prompt or
   session context packet that does not cite its governing instruction file MUST say why in the
   `governance` entry of `coverage.unavailable_selectors`: `reason` `downgraded-authority` with
@@ -902,6 +921,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-042 | `TestLocalCompletionSealedCloseoutRepin` (each control asserts `SealedDriftError` artifact, reason and pinned/current digests; the CLI `dogfood finish` envelope carries the code and detail); `TestLocalCompletionRealEvidenceWorkflow` existing drift controls keep `sealed-evidence-drift` |
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
+| LCP-V0-920 | `TestLCPV0920SealArchiveReuseNeedsTheExactSeal` (`internal/localcompletion/sealed_archive_reuse_test.go`: a declared check qualifies at its exact seal from its one bind observation, the observation count and tested commit unchanged; positive-first controls refuse an undeclared check, a missing continuation, another evidence target, a later failed observation, a missing log (restored, it qualifies again) and a source commit after the seal; a false declaration is absent from the encoded plan); `TestLCPV0920UndeclaredCheckReruns` |
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
 | LCP-V0-800 | none (proposed; implementation waits for acceptance and the `context --task` promotion) | NOT_PRODUCED: a test that a natural-language prompt and a ticket ID each get task evidence follows acceptance |
 
