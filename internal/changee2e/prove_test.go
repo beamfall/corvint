@@ -16,11 +16,13 @@ import (
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 // TestMain lets the test binary act as the BBF control hook in the live proof tests: BBF runs
 // the hook with no arguments and CORVINT_BEHAVIOR_COMMAND_ROLE set, as the companion does.
 func TestMain(m *testing.M) {
+	testsupport.IsolateGit() // V1-2635: no git the tests spawn reads the account's configuration.
 	if len(os.Args) == 2 && os.Args[1] == testServeArg {
 		testServe()
 		return
