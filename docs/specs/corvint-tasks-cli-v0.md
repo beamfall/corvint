@@ -227,6 +227,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `--through` with `--witness-receipts` MUST be refused `MALFORMED`; a store with a retired
   prefix or staged names is refused as the prefix walk refuses it. Without `--through` the
   command is the unchanged complete audit.
+- `TCL-V0-821`: (experimental under the standing lane auto-accept (2026-11-01); V1-0896; refines
+  CAL-V0-124) `policy update --dry-run --expected-policy-version N --file PATH` MUST decode the
+  file as `policy.json` and check that its `policyVersion` is N+1, then return one item with
+  `dryRun: true`, `newPolicySha256` and the CAL-V0-124 `handoffFences` preview, and write
+  nothing: the journal, receipts, head, checkpoints and the intent `policy.json` stay
+  byte-identical. `--request-id` and `--role` are accepted and unused. A file that does not decode
+  or carries another version is refused with the decoder's code or `MALFORMED`. Over a pending
+  receipt `handoffFences` is `null` with a `NOT_OBSERVED` warning, as for a committed update. The
+  preview is advisory: the later write still takes its own version check under the writer lock.
 
 ## Non-goals
 
@@ -255,6 +264,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - A write on a snapshot host: refused before any read, naming the owning store.
 - A bounded audit is read as a whole-store verdict: the item names `throughSeq`, and its
   `headSeq` is SEQ, not the store head (TCL-V0-820).
+- A dry run is read as a committed update: its item says `dryRun: true` and carries no outcome, and
+  the store bytes are unchanged (TCL-V0-821).
 
 ## Acceptance evidence
 
@@ -285,6 +296,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   (TCL-V0-870).
 - `internal/tasks/cli/receipt_audit_through_test.go`:
   `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt` (TCL-V0-820).
+- `internal/tasks/cli/policy_dry_run_test.go`:
+  `TestTCLV0821_PolicyDryRunPreviewsFencesAndWritesNothing` (TCL-V0-821).
 
 ## Rollback
 
