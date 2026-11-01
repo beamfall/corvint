@@ -145,6 +145,9 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		if row.id != "" {
 			if _, ok := current[row.id]; !ok {
 				unresolved[row.id] = true
+				if strings.HasPrefix(row.selector, wire.HunkPrefix) {
+					p.staleIDs++
+				}
 			}
 		}
 	}

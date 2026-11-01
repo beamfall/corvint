@@ -134,11 +134,15 @@ func (l *finishLane) run() int {
 	l.acquireOperation()
 	l.base = l.gitValue("rev-parse", l.options.Change.Base+"^{commit}")
 	l.target = l.gitValue("rev-parse", "HEAD^{commit}")
+	l.requireBaseAncestor(l.base, l.target)
 	if l.options.Change.Citations == "" {
 		l.say("%s: REFUSE citation-plan-not-provided\n", l.prefix)
 		l.say("  fix: pass --citations FILE, a TSV plan with one row per hunk of %s (docs/DOGFOOD.md §4)\n", finishLaneSidecar)
 		l.exit(2)
 	}
+	// A plan drafted before HEAD moved is refreshed before its inputs are
+	// snapshotted, so the run checks and binds the refreshed file (DCW-V0-947).
+	l.refreshMovedPlan()
 	l.requireVerifyInput()
 	l.snapshotInputs()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another

@@ -120,6 +120,13 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `corvint dogfood propose-citations $BASE --refresh plan.tsv > plan.new`, which carries every
    current row verbatim, re-keys a re-hunked row by path and content or BASE range with a
    `re-keyed OLD -> NEW` note to review, and drafts any other hunk afresh (`DCW-V0-442`).
+   `make dogfood-finish` and `make dogfood-inputs-check` run that refresh themselves when a row
+   names a hunk ID HEAD no longer has: a refresh that only carries and re-keys continues on
+   `<git-dir>/corvint/dogfood-finish.refreshed-plan.tsv` with a `NOTE citations-refreshed` line,
+   and one that would draft a hunk afresh stops with `REFUSE citations-refresh-incomplete`, naming
+   that file to review (`DCW-V0-947`). `propose-citations`, `finish-lane` and `inputs-check` refuse
+   a BASE that HEAD does not contain as `base-not-ancestor`, naming the merge-base to pass instead,
+   since such a BASE..HEAD diff reverts the BASE commits HEAD lacks (`DCW-V0-946`).
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
    needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
    after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
@@ -468,8 +475,10 @@ refused row and its recovery span before any bind (`DCW-V0-334`, `DCW-V0-335`). 
 refuses every other input the bind would refuse before its first cite, naming the file and row: an
 invalid intents manifest, a plan the bind's shape step refuses (`citation-plan-uniform`, an ordinal
 past the prepared map or a hunk ID it no longer has as `citation-plan-map-mismatch`, the latter
-with a `--refresh` fix, `DCW-V0-441`), and an over-bound intent set
-(`DCW-V0-379`); a verify refusal names the offending line (`input: --verify FILE line N`). Stderr carries one
+with a `--refresh` fix, `DCW-V0-441`), an over-bound intent set
+(`DCW-V0-379`), and an intent `ocm-prepare` cannot derive at HEAD (`REFUSE intent-invalid`, with
+the code the bind would print: not a blob, not UTF-8, no single Requirements section;
+`DCW-V0-945`); a verify refusal names the offending line (`input: --verify FILE line N`). Stderr carries one
 `TIMING <step> seconds=S commands=N` line per step and a `TIMING total` line naming
 `<git-dir>/corvint/dogfood-finish-lane.timings.tsv`, the per-command times. An interrupted run
 prints a `fix:` line with the exact restore and rerun that resume it (`DCW-V0-116`). Every check

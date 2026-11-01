@@ -65,6 +65,11 @@ type proposal struct {
 	refreshRows []refreshRow
 	carried     map[string][]string
 	carryNotes  []string
+	// staleIDs counts the --refresh rows keyed by a hunk ID the current patch
+	// lacks, and redrafted the owed hunks no row was carried to, which a
+	// finish-lane auto-refresh reads (DCW-V0-947).
+	staleIDs  int
+	redrafted []proposedHunk
 	// oversized holds each PATH:LINE:LINE candidate whose BASE line is longer
 	// than cem cite's evidence span bound, with its byte length; the draft
 	// never cites one and names each it skipped (DCW-V0-920).
@@ -132,6 +137,7 @@ func (p *proposal) run() int {
 	}
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
+	p.requireBaseAncestor(p.base, p.target)
 	mapPath := filepath.Join(p.root, ".corvint", "change.cem.json")
 	if _, err := os.Lstat(mapPath); errors.Is(err, fs.ErrNotExist) {
 		return p.template("NOT_PREPARED")
@@ -374,10 +380,14 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	uniform := true
 	for _, hunk := range owed {
 		// A prior seal's CEM carried as unknown is redrafted (DCW-V0-966).
-		if carried, ok := p.carried[hunk.id]; ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried)) {
+		carried, ok := p.carried[hunk.id]
+		if ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried)) {
 			rows = append(rows, carried...)
 			uniform = false
 			continue
+		}
+		if !ok && p.carried != nil {
+			p.redrafted = append(p.redrafted, hunk)
 		}
 		row, cite, fellBack := p.propose(hunk, edited, used)
 		if fellBack != "" {

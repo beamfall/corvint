@@ -456,6 +456,29 @@ func firstLine(data []byte) []byte {
 	return append(line[:len(line):len(line)], '\n')
 }
 
+// requireBaseAncestor refuses a BASE that head does not contain before any
+// patch is read (DCW-V0-946): BASE..head would then carry the reverse of every
+// BASE commit head lacks, so a reseal would bind a revert of main. The refusal
+// names their merge-base, the BASE head actually branched from.
+func (f *flow) requireBaseAncestor(base, head string) {
+	if f.gitSucceeds("merge-base", "--is-ancestor", base, head) {
+		return
+	}
+	merge, status := f.git(true, "merge-base", base, head)
+	merge = chomp(merge)
+	if status != 0 || merge == "" {
+		merge = "none"
+	}
+	f.say("%s: REFUSE base-not-ancestor base=%s merge-base=%s\n", f.prefix, base, merge)
+	f.say("  HEAD %s does not contain BASE, so BASE..HEAD would carry the reverse of every BASE commit HEAD lacks and a reseal would bind a revert of them; nothing was read or written (DCW-V0-946)\n", head)
+	if merge == "none" {
+		f.say("  fix: BASE and HEAD share no history; pass a BASE that HEAD contains, then rerun\n")
+	} else {
+		f.say("  fix: rerun with BASE=%s, the commit HEAD branched from, or rebase this branch onto %s first (git rebase %s), then rerun with BASE=%s\n", merge, base, base, base)
+	}
+	f.exit(2)
+}
+
 func chomp(value string) string {
 	return strings.TrimRight(value, "\n")
 }

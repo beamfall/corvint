@@ -220,8 +220,9 @@ func TestDogfoodInputsCheckDCWV0380RefusesThenPassesWithoutCommitting(t *testing
 	}
 }
 
-// DCW-V0-061: an intent without one requirements section stops at bind with
-// the existing OCM reason and fix line.
+// DCW-V0-061, DCW-V0-945: an intent without one requirements section, which
+// ocm-prepare would refuse after the bind commit, is refused with the same
+// code before any step runs.
 func TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -229,8 +230,8 @@ func TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection(t *testing.T
 	head := cemGit(t, root, "rev-parse", "HEAD")
 	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "AGENTS.md\n")
 	code, stdout, stderr := run.exec(t, root, env[:3], append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 1 || !strings.Contains(stderr, "\n  ocm-prepare-001: invalid-requirements-section\n    fix: the intent on line N of DOGFOOD_INTENTS_FILE, ocm-prepare-001 being ocm-prepare-N, must be a spec Markdown file with exactly one \"## Requirements\" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change "+base+"\n") ||
-		!strings.Contains(stdout, "dogfood-finish-lane: bind FAIL exit=1\n") {
+	if code != 2 || !strings.Contains(stderr, "dogfood-change: REFUSE intent-invalid\n  intent=AGENTS.md code=invalid-requirements-section: ") ||
+		!strings.Contains(stdout, "dogfood-finish-lane: prepare FAIL exit=2\n") {
 		t.Fatalf("invalid intent exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	if now := cemGit(t, root, "rev-parse", "HEAD"); now != head {

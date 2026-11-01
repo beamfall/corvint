@@ -3,10 +3,13 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 )
 
 // TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile pins V1-3240:
@@ -52,21 +55,31 @@ func TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile(t *testing.T)
 			} else {
 				testGit(t, root, "commit", "-q", "-m", "edit the entry")
 			}
-			code, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: planPath})
-			if code == 0 || !strings.Contains(out+errText, "citation-plan-map-mismatch") {
-				t.Fatalf("stale plan was not refused: code=%d\nstdout=%s\nstderr=%s", code, out, errText)
+			// finish-lane and its pre-flight refresh a plan HEAD moved past
+			// before any step (DCW-V0-947); dogfood change still refuses it.
+			if _, out, errText, _ := preflightRun(t, root, ChangeOptions{Base: base, Citations: planPath}); !strings.Contains(out+errText, "dogfood-inputs-check: NOTE citations-refreshed plan=") || !strings.Contains(out+errText, " carried=3 rekeyed=1\n") {
+				t.Fatalf("the pre-flight did not refresh the moved plan:\nstdout=%s\nstderr=%s", out, errText)
 			}
-			row := 0
-			for index, line := range plan {
-				if strings.HasPrefix(line, oldLogID+"\t") {
-					row = index + 1
+			var changeErr bytes.Buffer
+			code, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Citations: planPath, IntentsFile: writeInput(t, "#no-intent-declared\n"), Steps: Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
+				if len(args) > 0 && args[0] == "cem" {
+					return cemcli.Run(ctx, root, args[1:], stdout, stderr)
 				}
+				return 1
+			}}}, &changeErr)
+			out, errText := "", changeErr.String()
+			if report, readErr := os.ReadFile(filepath.Join(root, ".corvint/dogfood-report.json")); readErr == nil {
+				out = string(report)
 			}
-			detail := "row " + string(rune('0'+row)) + " hunk ID " + oldLogID + " is not in the prepared map: a later edit or amend re-hunked it (DCW-V0-441)"
-			for _, want := range []string{detail, "; current hunk ID: hunk ", `path="` + logPath + `"`, "propose-citations " + base + " --refresh " + planPath} {
-				if !strings.Contains(out+errText, want) {
-					t.Errorf("refusal lacks %q:\nstdout=%s\nstderr=%s", want, out, errText)
-				}
+			if err != nil || code == 0 || !strings.Contains(out+errText, "citation-plan-map-mismatch") {
+				t.Fatalf("stale plan was not refused: code=%d err=%v\nreport=%s\nstderr=%s", code, err, out, errText)
+			}
+			// The refused change leaves its private outputs; the later pre-flight needs a clean tree.
+			testGit(t, root, "clean", "-fdqx", "--", ".corvint")
+			// The row detail is the pre-flight's (precheckInputs), which now
+			// refreshes first; the change still names the --refresh recovery.
+			if want := "propose-citations " + base + " --refresh " + planPath; !strings.Contains(out+errText, want) {
+				t.Errorf("refusal lacks %q:\nreport=%s\nstderr=%s", want, out, errText)
 			}
 
 			stdout.Reset()
