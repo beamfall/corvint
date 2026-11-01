@@ -71,7 +71,7 @@ func queueSnapshot(env Env, args []string) int {
 			dir = filepath.Join(env.Cwd, dir)
 		}
 		read = func(_ Env, body func(*readCtx) error) (*readCtx, error) {
-			return withWorktreeStore(filepath.Clean(dir), body)
+			return withWorktreeStore(env, filepath.Clean(dir), body)
 		}
 	}
 	rc, err := read(env, func(rc *readCtx) error {
@@ -127,21 +127,37 @@ func queueSnapshot(env Env, args []string) int {
 // withWorktreeStore loads the intent tree at dir/.taskman with no
 // repository resolution and no journal, for a linked or pruned worktree
 // whose store the primary checkout would otherwise shadow (TCL-V0-869).
-func withWorktreeStore(dir string, body func(*readCtx) error) (*readCtx, error) {
+func withWorktreeStore(env Env, dir string, body func(*readCtx) error) (*readCtx, error) {
 	if fi, err := os.Stat(filepath.Join(dir, intent.Dir)); err != nil || !fi.IsDir() {
 		return nil, wire.Errorf(wire.CodeUninitialized, filepath.Join(dir, intent.Dir), "--worktree names no intent store directory")
 	}
 	rc := &readCtx{repo: &intent.Repository{PrimaryWorktree: dir}, journalAbsent: true}
-	tree, err := intent.TreeDigest(dir)
-	if err != nil {
-		return rc, err
+	// TCL-V0-869: the tree is digested again after the body, as an
+	// inventory read is, so a tree that changed under the read is read
+	// afresh and one that keeps changing is refused.
+	for attempt := 0; attempt < 4; attempt++ {
+		tree, err := intent.TreeDigest(dir)
+		if err != nil {
+			return rc, err
+		}
+		st, err := intent.LoadTree(dir, tree, "")
+		if err != nil {
+			return rc, err
+		}
+		rc.store = st
+		bodyErr := body(rc)
+		if env.afterRead != nil {
+			env.afterRead()
+		}
+		again, err := intent.TreeDigest(dir)
+		if err != nil {
+			return rc, err
+		}
+		if again.Sha256 == st.Tree.Sha256 {
+			return rc, bodyErr
+		}
 	}
-	st, err := intent.LoadTree(dir, tree, "")
-	if err != nil {
-		return rc, err
-	}
-	rc.store = st
-	return rc, body(rc)
+	return rc, wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(dir, intent.Dir), "intent tree changed during four read attempts")
 }
 
 func snapshotSeqValue(j *snapshotBundleJournal) wire.Value {
