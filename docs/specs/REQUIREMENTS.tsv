@@ -1233,6 +1233,9 @@ CEM-V1-933	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-934	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) Amends `CEM-V1-986`	standing	V1-3443
 CEM-V1-935	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The portable consum	standing	V1-3443
 CEM-V1-936	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3443)) The stable packet i	standing	V1-3443
+CEM-V1-750	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`	standing	V1-3771
+CEM-V1-751	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) A span edit whose	standing	V1-3771
+CEM-V1-752	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) The stable packet i	standing	V1-3771
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20

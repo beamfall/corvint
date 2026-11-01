@@ -855,6 +855,34 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   modification and deletion beside one textual hunk) MUST yield one ACCEPT with one patch digest
   from the native reader and from both portable stable routes, and a REJECT once the digest is
   altered. The `old mode`/`new mode` divergence of `CEM-V1-932` is unchanged.
+- `CEM-V1-750`: (experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`.
+  A map's `hunks` array MUST list the canonical patch's hunks in patch order: position `i` holds
+  the hunk whose `@@` header is the `i`-th in the canonical patch. Both the native verifier
+  (`internal/cem/verify`, on every route that checks hunk coverage) and the portable consumer's
+  stable routes (`verify-stable`, `verify-stable-canonical`) MUST refuse a map that names the
+  right set of hunks in another order, at the verification stage with the existing closed issue
+  code `invalid-field`, the code a hunk that disagrees with its derived identity already gets. No
+  new closed code is added. The matrix case `hunk-reorder` (class `HunkReorder`) is that REJECT.
+  The citation block is unchanged, because it sorts hunks by `id`.
+- `CEM-V1-751`: (experimental under the standing lane auto-accept (V1-3771)) A span edit whose
+  `spanSha256` and evidence ID are recomputed (matrix case `span-hash-recomputed`, class
+  `SpanRangeEdit`) and an evidence-ID swap between hunks (`evidence-ids-swapped`, `CEM-V1-229`) are
+  admissible re-productions, not tampers, and MUST ACCEPT. Each result is a different
+  self-consistent map whose every record is still a real, digest-bound span of the base. The
+  verifier binds bytes and identities, not which span a producer chose to cite. That choice cannot
+  be checked without an authority outside the map. The support tier reports it instead
+  (`CEM-V1-080`). No signature, citations plan or producer identity is read to tell the two maps
+  apart. A map edited without recomputing (`span-end-edited`, `span-hash-mismatch`) keeps its
+  REJECT.
+- `CEM-V1-752`: (experimental under the standing lane auto-accept (V1-3771)) The stable packet is
+  revised in place to revision r3 under its own rule. The r2 `ALGORITHMS.md` and `manifest.json`
+  bytes are kept unchanged under `protocol/cem-1.0/stable/revisions/r2/`. `ALGORITHMS.md` item 5
+  states the patch-order rule. The matrix `EXPECTED.json` pins `hunk-reorder` as exit 1, `REJECT`,
+  stage `verification`, issue code `invalid-field` and a null citation. The matrix README states
+  `CEM-V1-751`. `manifest.json` re-hashes every changed or added file. Every committed map under
+  `.corvint/changes/` MUST already list its hunks in patch order, which a scan over the committed
+  corpus shows before the rule lands. The producer (`internal/cem/workflow`) emits hunks in parse
+  order, which is patch order.
 
 ## Non-goals and failure modes
 
@@ -3082,6 +3110,9 @@ codes.
 | CEM-V1-227 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Each runs every case listed in `EXPECTED.json` as a named subtest (the case count is that file's, not restated here) |
 | CEM-V1-228 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Exit, outcome, stage, code, issue codes and the full citation block are compared per case |
 | CEM-V1-229 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtest `evidence-ids-swapped` pins ACCEPT with anchored 0, cited 2 and specificity -2 |
+| CEM-V1-750 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable`, `TestCEMV1750HunkOrder` | Subtest `hunk-reorder` pins REJECT `invalid-field` on both consumers; the native unit test refuses a swapped pair and accepts patch order |
+| CEM-V1-751 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `span-hash-recomputed` and `evidence-ids-swapped` pin ACCEPT; `span-end-edited` and `span-hash-mismatch` pin REJECT |
+| CEM-V1-752 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file and the preserved `revisions/r2/` files against the stable manifest; build log 2026-11-01-cemint-u10 retains the committed-corpus order scan |
 
 ## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
 
