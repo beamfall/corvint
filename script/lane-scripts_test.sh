@@ -910,7 +910,8 @@ out=$(BATCH_REVIEW_LINES=0 packet "$rbase")
 ok
 
 # ASD-V0-015: every missing input is named at once, before any build.
-finish() { (cd "$tmp" && env -u CORVINT_BIN DOGFOOD_FINISH_LANE="$1" "$script/dogfood-finish.sh" "${@:2}" 2>&1); }
+# Unset DOGFOOD_FINISH_ENTRY: `make dogfood-closeout` exports it, and batch-precheck runs this suite under it.
+finish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE="$1" "$script/dogfood-finish.sh" "${@:2}" 2>&1); }
 out=$(finish '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
 out=$(finish 1 '' '' '' '' '')
@@ -918,6 +919,9 @@ out=$(finish 1 '' '' '' '' '')
 # DCW-V0-848 (V1-3836): the pre-flight binds nothing, so LANE=1 inputs-check needs no OUTCOME.
 out=$(DOGFOOD_FINISH_PREFLIGHT=1 finish 1 '' '' '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY'$'\n'* ]] || fail "inputs-check required OUTCOME: $out"
+# The dogfood-closeout entry's pre-flight still requires OUTCOME, since its bind follows.
+out=$(cd "$tmp" && env -u CORVINT_BIN DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_ENTRY=dogfood-closeout DOGFOOD_FINISH_LANE=1 "$script/dogfood-finish.sh" '' '' '' '' '' 2>&1)
+[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "closeout pre-flight dropped OUTCOME: $out"
 # ASD-V0-903: a plan needs a row to count as supplied.
 printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
 out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
