@@ -24,6 +24,19 @@
       "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
       "mentions": null
     },
+    "script/check-install-lifecycle.sh": {
+      "callers": [
+        ".github/workflows/release-gates.yml",
+        "script/check-install-lifecycle_test.sh"
+      ],
+      "reason": "Every tracked file naming check-install-lifecycle.sh: the release-gates workflow runs it through run-gate and its shell test runs it (TSP-V0-005; V1-3571)."
+    },
+    "script/dogfood-bind-coverage.sh": {
+      "callers": [
+        "script/dogfood-bind-range_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571)."
+    },
     "script/heavy.sh": {
       "callers": [
         "Makefile",
