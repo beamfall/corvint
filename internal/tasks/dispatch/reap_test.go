@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,6 +44,10 @@ func init() {
 // deadManEnv selects the dead-man reaper mode of this test binary.
 const deadManEnv = "CORVINT_DISPATCH_TEST_DEAD_MAN"
 
+// deadManName is the reaper's process name (ATR-V0-700); it is not the test
+// binary's name, and fits the 15-byte Linux comm.
+const deadManName = "dispatch-reaper"
+
 // deadMan is the write end of the reaper's stdin pipe. Only this test
 // binary holds it (os.Pipe sets close-on-exec, so no worker inherits it), so
 // the kernel closes it when the binary dies, even by SIGKILL, when neither
@@ -55,9 +60,23 @@ var deadMan struct {
 
 // startDeadMan re-executes this test binary as a reaper in its own session,
 // reading launched groups from a pipe until end of file.
+//
+// ATR-V0-700 (V1-2815): the reaper runs this binary through a symlink named
+// deadManName, so its process name and argv[0] differ from the test
+// binary's and a kill by that name (pkill dispatch.test) does not take the
+// reaper with it. The symlink is removed once the reaper has started.
 func startDeadMan() error {
 	exe, err := os.Executable()
 	if err != nil {
+		return err
+	}
+	link, err := os.MkdirTemp("", "dispatch-dead-man-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(link)
+	alias := filepath.Join(link, deadManName)
+	if err := os.Symlink(exe, alias); err != nil {
 		return err
 	}
 	r, w, err := os.Pipe()
@@ -65,7 +84,7 @@ func startDeadMan() error {
 		return err
 	}
 	defer r.Close()
-	cmd := exec.Command(exe, "-test.run=^$")
+	cmd := exec.Command(alias, "-test.run=^$")
 	cmd.Env = append(os.Environ(), deadManEnv+"=1")
 	cmd.Stdin = r
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}

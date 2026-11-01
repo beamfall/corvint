@@ -91,8 +91,32 @@ func TestATRV0213_FixtureWorkersDieWithTheirTestBinary(t *testing.T) {
 	if !groupOwned(worker) {
 		t.Fatalf("worker group %d is not running under its recorded leader before the kill", worker.pid)
 	}
-	if err := child.Process.Signal(syscall.SIGKILL); err != nil {
+	// ATR-V0-700 (V1-2815): the binary dies by a kill by name, as pkill does,
+	// which SIGKILLs every process of the child's tree that carries the test
+	// binary's name. The reaper must not carry it, or it dies too and the
+	// worker group is orphaned.
+	procs, err := observeProcs()
+	if err != nil {
 		t.Fatal(err)
+	}
+	name := procs[child.Process.Pid].comm
+	var named []int
+	for pid, p := range procs {
+		if pid == child.Process.Pid || p.ppid == child.Process.Pid {
+			if p.comm == name {
+				named = append(named, pid)
+			} else if p.comm != deadManName && pid != worker.pid {
+				t.Logf("child process %d is %q", pid, p.comm)
+			}
+		}
+	}
+	if name == "" || len(named) != 1 {
+		t.Fatalf("processes named %q under the child: %v, want only the child", name, named)
+	}
+	for _, pid := range named {
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			t.Fatal(err)
+		}
 	}
 	<-exited
 	// The bound is generous for a loaded host; the reaper acts at once on
