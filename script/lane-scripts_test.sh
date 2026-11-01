@@ -779,6 +779,32 @@ out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv
 [[ $out != *spec-requirements-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused regenerated indexes: $out"
 ok
 
+# IDX-SNAP-V0-891 (V1-2976): an analyzer input change whose golden output drifted from its pins is
+# refused before any build, naming the bump; with the output matching, finish goes on (and stops at
+# the fixture's missing build helper).
+ax=$tmp/analyzerfix
+mkdir -p "$ax/script" "$ax/internal/contextindex"
+cp "$script/dogfood-finish.sh" "$script/analyzer-schema.sh" "$ax/script/"
+printf '#!/bin/sh\n' > "$ax/script/repin-use-case-receipts.sh" && chmod +x "$ax/script/repin-use-case-receipts.sh"
+printf 'module example.test/a\n' > "$ax/go.mod"
+printf 'package contextindex\n\nconst analyzerSchemaID = "corvint-analyzer/3"\n' > "$ax/internal/contextindex/analyzer_schema.go"
+printf 'package contextindex\n\nfunc One() {}\n' > "$ax/internal/contextindex/receipt.go"
+printf 'package contextindex\n\nfunc TestAnalyzerSchemaInputs() {\n\tfor _, directory := range []string{"contextindex"} {\n\t}\n}\n\nfunc TestAnalyzerSchemaOutput() {\n\tconst auditedSchema = "corvint-analyzer/3"\n\tconst auditedOutputSHA256 = "%064d"\n\tconst auditedShardSHA256 = "%064d"\n}\n' 0 0 > "$ax/internal/contextindex/analyzer_schema_test.go"
+git -C "$ax" init -q -b main
+axgit() { git -C "$ax" -c user.name=t -c user.email=t@example.invalid "$@"; }
+axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
+axbase=$(axgit rev-parse HEAD)
+printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
+axgit commit -qam 'input edit'
+: > "$ax/plan.tsv"
+axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
+out=$(axfinish 1)
+[[ $? == 2 && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
+  fail "finish did not refuse a drifted analyzer output before the bind: $out"
+out=$(axfinish 0)
+[[ $out != *analyzer-schema-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused a matching analyzer output: $out"
+ok
+
 # ASD-V0-017: last activity from transcript timestamps or mtime; replay flags gaps.
 now=$(perl -MTime::Local -e 'print timegm(0, 0, 12, 18, 9, 2026)')
 mkdir -p "$tmp/lanes/busy" "$tmp/lanes/parked"

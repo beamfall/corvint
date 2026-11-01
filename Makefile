@@ -326,9 +326,10 @@ decision-numbers-check: analyzer-schema-check
 decision-numbers-test:
 	@script/check-decision-numbers_test.sh
 
-# analyzer-schema-check refuses a stale analyzer audit digest and a branch that changed the
-# analyzer pins while keeping a schema number origin/main already uses; `script/analyzer-schema.sh
-# bump` is the one-command recovery for both (V1-2130, V1-1732, IDX-SNAP-V0-060/061).
+# analyzer-schema-check refuses a branch that changed the analyzer pins while keeping a schema
+# number origin/main already uses, and notes a changed analyzer input; `script/analyzer-schema.sh
+# check --output` also runs the golden output test, and `bump` is the one-command recovery
+# (V1-2130, V1-1732, IDX-SNAP-V0-060/061, IDX-SNAP-V0-890/891).
 .PHONY: analyzer-schema-check
 analyzer-schema-check:
 	@script/analyzer-schema.sh check

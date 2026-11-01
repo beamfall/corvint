@@ -61,4 +61,9 @@ if [[ $PWD != "$repo" ]]; then
   done
   cd "$repo" || exit 2
 fi
+# IDX-SNAP-V0-891 (V1-3574): name an analyzer input change and its check at change start, before
+# any focused test selection can leave TestAnalyzerSchemaOutput out.
+if [[ -f internal/contextindex/analyzer_schema_test.go && -x script/analyzer-schema.sh ]]; then
+  script/analyzer-schema.sh check --base "$base_arg" 2>&1 | sed -n 's/^analyzer schema: NOTE /dogfood-change: NOTE analyzer-schema: /p'
+fi
 exec "$corvint_bin" dogfood change --corvint-bin "$corvint_bin" "$base_arg"
