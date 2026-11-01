@@ -38,22 +38,22 @@ while (($#)); do
       prefix=$2 lo=$3 hi=$4 block=1
       shift 4
       ;;
-    *) refuse "bad-argument $1" ;;
+    *) refuse "bad-argument $1: use --base REF or --block PREFIX LO HI" ;;
   esac
 done
 if [[ -n $block ]]; then
-  [[ $prefix =~ ^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$ ]] || refuse "bad-prefix $prefix"
-  [[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi"
+  [[ $prefix =~ ^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$ ]] || refuse "bad-prefix $prefix: want upper-case letters and digits joined by -, such as DCW-V0"
+  [[ $lo =~ ^[0-9]{1,3}$ && $hi =~ ^[0-9]{1,3}$ ]] && ((10#$lo <= 10#$hi)) || refuse "bad-range $lo..$hi: want LO and HI of 1 to 3 digits with LO <= HI"
   lo=$((10#$lo)) hi=$((10#$hi))
 fi
-top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || refuse "not-a-checkout $PWD"
+top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || refuse "not-a-checkout $PWD: run it inside a Git checkout"
 base_sha=$(git rev-parse --verify -q --end-of-options "$base^{commit}") ||
-  refuse "ref-not-a-commit $base: fetch it (git fetch origin) or name a commit"
+  refuse "ref-not-a-commit $base: fetch it (git fetch origin) or use a commit"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/$me.XXXXXX") || exit 2
 trap '/bin/rm -rf "$work"' EXIT
 git show "$base_sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null | cut -f1 > "$work/base.ids" ||
-  refuse "requirements-index-unavailable at $base"
+  refuse "requirements-index-unavailable at $base: use a REF whose tree holds docs/specs/REQUIREMENTS.tsv"
 
 # new_rows prints `ID<TAB>FILE<TAB>TITLE` for each row of a REQUIREMENTS.tsv on stdin whose ID the
 # base index lacks.
