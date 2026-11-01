@@ -75,13 +75,19 @@ func (w *Workflow) persist(phase string) error { return w.persistFenced(phase, f
 var programWriteHook = func() {}
 
 // persistFenced is persist that, when fenced, refuses while a control is
-// pending and then reloads the recorded program (CAL-V0-089).
-// The recorded control is kept under the writer lock (ATR-V0-240).
+// pending (CAL-V0-089). The recorded control is kept under the writer lock
+// (ATR-V0-240). After any write that did not complete, fenced or not, the
+// workflow reloads the recorded program, so a failed or ambiguous write never
+// leaves the in-memory phase ahead of the store; when the record cannot be
+// read the program the write started from is kept (ATR-V0-920).
 func (w *Workflow) persistFenced(phase string, fenced bool) error {
+	before := w.program
+	before.Worktrees = slices.Clone(before.Worktrees)
 	w.program.Phase = phase
 	programWriteHook()
 	r, e := programTransition(context.Background(), w.repo, w.actor, w.queue.QueueID.Raw, w.requestID(), w.program, fenced, true)
-	if e = transitionOK(r, e); e != nil && fenced {
+	if e = transitionOK(r, e); e != nil {
+		w.program = before
 		entries, _ := ProgramRecords(context.Background(), w.repo)
 		for _, p := range entries {
 			if p.ID == w.program.ID {

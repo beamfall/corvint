@@ -203,3 +203,6 @@ func SetStageWallForTest(stateDir string, wall func(context.Context) (context.Co
 	stageWalls.Store(stateDir, wall)
 	return func() { stageWalls.Delete(stateDir) }
 }
+
+// ProgramPhaseForTest is the workflow's in-memory program phase.
+func (w *Workflow) ProgramPhaseForTest() string { return w.program.Phase }
