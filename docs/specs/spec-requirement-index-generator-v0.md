@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:288@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:362@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -577,7 +577,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 | SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
-| SRG-V0-950 | `script/gen-spec-requirements_test.sh` case 13: the Intent status and digest refusals name `docs/specs/frozen.md:3` and `:8` and the definition-line repair |
+| SRG-V0-950 | `script/gen-spec-requirements_test.sh` case 13: the Intent status and digest refusals name the fixture spec's header line 3 and digest line 8 as `path:line` and the definition-line repair |
 | SRG-V0-951 | `script/gen-spec-requirements_test.sh` case 14: two malformed bullets, a duplicate and an over-long claim are all reported by one run of each mode, and `--all` writes nothing |
 | SRG-V0-952 | `script/gen-spec-requirements_test.sh` case 15: an indented note paragraph opening with the item's ID is not a definition, while an unindented and a bulleted second definition are refused; the committed index regenerates unchanged |
 | SRG-V0-953 | `script/gen-spec-requirements_test.sh` case 15: a note on the continuation line is refused naming `path:line`, the ID and the repair; the committed corpus regenerates unchanged |

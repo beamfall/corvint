@@ -71,8 +71,10 @@ if test "$mode" = write && test -z "${GIT_INDEX_FILE:-}"; then
     exit 1
   fi
 fi
+perl_mode=$mode
 case $mode in
   write | check)
+    perl_mode=all
     out_dir=$(mktemp -d "${TMPDIR:-/tmp}/gen-spec-requirements.XXXXXX") || exit 1
     trap 'rm -rf "$out_dir"' EXIT
     trap 'exit 129' HUP
@@ -81,7 +83,7 @@ case $mode in
     ;;
 esac
 
-perl - "$(case $mode in write | check) echo all ;; *) echo "$mode" ;; esac)" "$out_dir" <<'PERL' || exit $?
+perl - "$perl_mode" "$out_dir" <<'PERL' || exit $?
 use strict;
 use warnings;
 use IPC::Open2 qw(open2);
