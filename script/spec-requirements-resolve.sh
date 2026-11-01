@@ -14,21 +14,38 @@ set -eu
 # derived too: a conflicted one restarts from `--ours` and, after the spec regeneration,
 # script/repin-use-case-receipts.sh repins every receipt whose subject changed, and they are staged.
 
+# SRG-V0-921 (review fix): `--ours` drops the other side's whole file, and the reconciliation below
+# carries only digests, so a receipt or ledger restarts from `--ours` only when the other side's
+# change to it is digest-only: its stage 3 equals the merge base (stage 1, else stage 2) once every
+# "sha256" and "repositoryRevision" value is blanked. Any other change is left for a hand merge.
+
 generated='docs/specs/REQUIREMENTS.tsv docs/specs/INDEX.json docs/specs/README.md'
 receipts=conformance/use-cases-v0
+blank_digests() { sed -E 's/("(sha256|repositoryRevision)"[[:space:]]*:[[:space:]]*")[0-9a-f]*"/\1"/g'; }
+digest_only() {
+  git cat-file -e ":2:$1" 2> /dev/null && git cat-file -e ":3:$1" 2> /dev/null || return 1
+  base=":1:$1"
+  git cat-file -e "$base" 2> /dev/null || base=":2:$1"
+  test "$(git show "$base" | blank_digests)" = "$(git show ":3:$1" | blank_digests)"
+}
 unmerged=$(git diff --name-only --diff-filter=U)
-other= repin=
+other= repin= manual=
 for path in $unmerged; do
   case " $generated " in
     *" $path "*) continue ;;
   esac
   case $path in
-    "$receipts/ledger.json" | "$receipts/receipts/"*) repin=1 ;;
+    "$receipts/ledger.json" | "$receipts/receipts/"*)
+      if digest_only "$path"; then repin=1; else manual="$manual $path"; fi ;;
     *) other="$other $path" ;;
   esac
 done
 if test -n "$other"; then
   echo "spec-requirements-resolve: resolve and stage these first:$other" >&2
+  exit 1
+fi
+if test -n "$manual"; then
+  echo "spec-requirements-resolve: the other side changed more than digests in:$manual; merge them by hand and stage them, then rerun" >&2
   exit 1
 fi
 for path in $unmerged; do

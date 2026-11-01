@@ -474,4 +474,23 @@ grep -q '^ALP-V0-001	' "$repo/docs/specs/REQUIREMENTS.tsv" && grep -q '^BET-V0-0
 check=$( (cd "$repo" && script/repin-use-case-receipts.sh --check) 2>&1) || fail "receipts stale after the resolve: $check"
 case $check in *'all 2 receipts current'*) ;; *) fail "receipt check after the resolve: $check" ;; esac
 
+# SRG-V0-921 (review fix): a ledger conflict whose other side changed more than digests (here a
+# claim beside UC-B's pin) is refused for a hand merge, writing nothing, instead of `--ours`
+# silently dropping that change.
+receipt_lane lane-r3 Gamma GAM A
+git checkout -q -b lane-r4 "$rbase"
+perl -0pi -e 's/("id": "UC-B")/"claim": "PROVEN", $1/' "$repo/$uc/ledger.json"
+grep -q '"claim": "PROVEN"' "$repo/$uc/ledger.json" || fail "the fixture claim edit did not apply"
+git add -A && git commit -q -m lane-r4
+git checkout -q -b merge-claim lane-r3
+if git merge -q --no-edit lane-r4 > /dev/null 2>&1; then fail "a digest repin and a claim edit merged without a ledger conflict"; fi
+before=$(git diff | git hash-object --stdin)
+rc=0
+out=$(make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements-resolve 2>&1) || rc=$?
+[ "$rc" != 0 ] && case $out in *'changed more than digests in: '"$uc/ledger.json"*) true ;; *) false ;; esac ||
+  fail "spec-requirements-resolve took --ours over a non-digest ledger change (exit $rc): $out"
+test "$(git diff --name-only --diff-filter=U)" = "$uc/ledger.json" && test "$(git diff | git hash-object --stdin)" = "$before" ||
+  fail "the refused resolve changed the merge state"
+git merge --abort
+
 printf 'ok\n'
