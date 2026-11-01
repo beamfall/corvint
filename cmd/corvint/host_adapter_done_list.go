@@ -49,10 +49,13 @@ func init() {
 	adapterDeclaredHostKill["claude-code stop-done-list"] = 10 * time.Second
 }
 
-// runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set: only
-// stop-done-list, which owes no lifecycle record and so skips normalization and degradation
-// recording.
+// runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set:
+// subagent-start, which reuses the user-prompt path (AHI-804), and stop-done-list, which owes no
+// lifecycle record and so skips normalization and degradation recording.
 func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[string]any) map[string]any {
+	if event == "subagent-start" {
+		return runClaudeSubagentStart(ctx, payload)
+	}
 	if event != "stop-done-list" {
 		return degradedAdapterOutput("unsupported-hook-event")
 	}
