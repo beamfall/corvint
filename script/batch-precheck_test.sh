@@ -76,6 +76,11 @@ for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
   grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
 done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
+# DCW-V0-747 (V1-3334): the pre-bind run of dogfood-closeout still runs the sync-check, so a lane
+# whose CI and precheck lists disagree learns it before the bind rather than after the seal.
+(cd "$script/.." && BATCH_PRECHECK_SKIP_DRIFT=1 "$pre" --list) > "$tmp/skip" 2>&1 || fail "skip-drift --list: $(cat "$tmp/skip")"
+grep -qx 'sync-check' "$tmp/skip" && grep -qx 'batch-drift (skipped before the bind)' "$tmp/skip" ||
+  fail "skip-drift --list has no sync-check or drift-skip row: $(cat "$tmp/skip")"
 grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
   grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
@@ -667,7 +672,8 @@ crun --base "$basesha" || fail "base-present only failed the run: $(cat "$tmp/ou
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "second warn: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARNING 2 base-present' "$tmp/out" || fail "two warnings: $(cat "$tmp/out")"
 # On this clean checkout a base-present WARN still writes no receipt: not every step passed.
-grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
+# DCW-V0-745 (V1-3837): the line says the run continues, since it exits 0.
+grep -q '^batch-precheck: no receipt: 2 step(s) failed, though only base-present; exit 0, continuing$' "$tmp/out" || fail "warn receipt: $(cat "$tmp/out")"
 [[ -f $crepo/.git/batch-precheck-receipt ]] && fail "a run with base-present failures wrote a receipt"
 # A new finding that differs from a base one only by digits is introduced, not a timing.
 printf 'cmd/v2schema.go\n' >> "$crepo/fail-test-read-scopes-check"
@@ -1249,7 +1255,8 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A4 '^dogfood-closeout:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
+# The sealed-head run is followed by the DCW-V0-746 unwind on a refusal.
+grep -A10 '^dogfood-closeout:$' "$script/../Makefile" | grep -q "^$(printf '\t')@BATCH_PRECHECK_SINCE_RECEIPT=1 \$(MAKE) --no-print-directory batch-precheck || { script/dogfood-closeout-unwind.sh " ||
   fail "dogfood-closeout's second batch-precheck does not select since the receipt"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"

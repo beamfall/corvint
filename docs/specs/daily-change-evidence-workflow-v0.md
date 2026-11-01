@@ -3389,6 +3389,37 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
   `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
   commands; a present one is not). Rollback: drop the lines.
+- `DCW-V0-745`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3837; refines
+  `DCW-V0-900`) `make dogfood-closeout` MUST print one line after each phase that passed, naming the
+  phase and the next one (`dogfood-closeout: phase inputs-check PASS; continuing to the precheck`,
+  `phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and
+  seal`, `phase bind, check and seal PASS; continuing to the sealed-head precheck`), and end with
+  `dogfood-closeout: DONE sealed head SHA has a precheck receipt`. The `batch-precheck` line for a
+  run whose only failures are present at BASE MUST say `exit 0, continuing`, so a lane reading the
+  pre-bind run's `no receipt` line does not take it for the closeout's verdict. Non-goals: changing
+  any phase, its order or exit status. Evidence: `script/dogfood-cache_test.sh` (fake-make closeout:
+  the four lines in order, the base-present line directly before the precheck phase line) and
+  `script/batch-precheck_test.sh`. Rollback: drop the `printf` lines and restore the old wording.
+- `DCW-V0-746`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4072; refines
+  `DCW-V0-745`) Before the bind, `make dogfood-closeout` MUST record HEAD at
+  `$(git rev-parse --git-path dogfood-closeout-start)`; when the sealed-head precheck then refuses,
+  `script/dogfood-closeout-unwind.sh` MUST drop the bind and seal commits with `git reset --keep
+  START` when every commit in `START..HEAD` changes only `.corvint/change.cem.json` or
+  `.corvint/changes/*.cem.json` and no tracked file is modified, printing the dropped commits and
+  that the sealed head stays reachable, and the closeout still exits 1. Otherwise it MUST change
+  nothing and print `unwind: NOT_RUN REASON` with the hand command. A lane repairing the refusal
+  then starts from its own head, so its refreshed citation plan holds no sealed-CEM hunk. A check or
+  seal failure inside `finish-lane` keeps its own recovery (`DCW-V0-806`). Non-goals: unwinding any
+  commit that touches another path; deleting refs. Failure modes: no recorded start, a start that is
+  not an ancestor, or a dirty tree leave HEAD as it is. Evidence: `script/dogfood-cache_test.sh`
+  (`TEST_SEALED_RC=1` unwinds to the start with a clean tree; `TEST_EXTRA_COMMIT=1` prints
+  `NOT_RUN` naming the foreign path). Rollback: drop the start record and the `||` unwind.
+- `DCW-V0-747`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3334; refines
+  `DCW-V0-900`) The pre-bind `BATCH_PRECHECK_SKIP_DRIFT=1` run MUST keep the `sync-check` step
+  and list `batch-drift (skipped before the bind)` in its place of the drift tests, so a CI and
+  precheck list mismatch is reported before the bind. Non-goals: running the drift tests twice.
+  Evidence: `script/batch-precheck_test.sh` (the checkout's `BATCH_PRECHECK_SKIP_DRIFT=1 --list`
+  holds both rows). Rollback: drop the assertion.
 
 ## Code vocabulary
 
@@ -3743,6 +3774,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-965` (experimental under the standing lane auto-accept; V1-3047) | `TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses` | regression pin; focused test PASS |
 | `DCW-V0-966` (experimental under the standing lane auto-accept; V1-3284) | `internal/dogfoodflow/propose.go` `prepareAnchors`, `sealedProposal`, `draft`; `propose_samechange.go` `sealedFallback`; `TestProposeCitationsDCWV0966BoundsTheUnknownRate`, `TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute` | implemented; focused tests PASS |
 | `DCW-V0-967` (experimental under the standing lane auto-accept; V1-3428) | `internal/dogfoodflow/propose_samechange.go`; `propose.go` `propose`; `TestProposeCitationsDCWV0967NamesAnEditedRequirementDefinition` | implemented; focused tests PASS |
+| `DCW-V0-745` (experimental under the standing lane auto-accept; V1-3837) | `Makefile` `dogfood-closeout` phase lines; `script/batch-precheck.sh` base-present line; `script/dogfood-cache_test.sh`, `script/batch-precheck_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
+| `DCW-V0-746` (experimental under the standing lane auto-accept; V1-4072) | `script/dogfood-closeout-unwind.sh`; `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` | implemented; shell tests PASS; live closeout NOT_RUN (lanes never seal) |
+| `DCW-V0-747` (experimental under the standing lane auto-accept; V1-3334) | `script/batch-precheck_test.sh` skip-drift `--list` assertion | implemented; shell test PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

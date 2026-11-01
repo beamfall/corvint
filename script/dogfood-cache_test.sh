@@ -282,8 +282,64 @@ done
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head, that run selecting since the first run's
 # receipt (DCW-V0-944, V1-3550).
-recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@([A-Z_]+=[^ ]+ )?\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
+# The phase lines and the start-head record (DCW-V0-745, DCW-V0-746) are not steps.
+recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t@(printf|git) / { next } on && /^\t/ { sub(/ \|\| \{.*$/, ""); sub(/^\t@BATCH_PRECHECK_SINCE_RECEIPT=1 \$\(MAKE\) --no-print-directory /, "since-receipt:"); sub(/^\t@([A-Z_]+=[^ ]+ )?\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')
 [[ $recipe == 'dogfood-inputs-check batch-precheck dogfood-finish since-receipt:batch-precheck ' ]] || { echo "dogfood-closeout recipe: $recipe" >&2; exit 1; }
+# DCW-V0-745 (V1-3837), DCW-V0-746 (V1-4072): with a fake make, the closeout prints a phase line
+# after each stage naming that it continues, also after a base-present-only precheck; when the
+# sealed-head precheck refuses, the bind and seal commits are unwound to the recorded start head; a
+# commit outside the bind and seal paths is never unwound.
+(
+  cr="$root/closeout"
+  mkdir -p "$cr/script"
+  /bin/cp -f "$source_root/Makefile" "$cr/"
+  /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$cr/script/"
+  cat > "$root/bin/fake-make" <<'EOF'
+#!/usr/bin/env bash
+set -eu
+target=${!#}
+printf '%s since=%s skip=%s\n' "$target" "${BATCH_PRECHECK_SINCE_RECEIPT-}" "${BATCH_PRECHECK_SKIP_DRIFT-}" >> "$TEST_MAKE_LOG"
+case $target in
+  batch-precheck)
+    if [[ ${BATCH_PRECHECK_SINCE_RECEIPT-} == 1 ]]; then exit "${TEST_SEALED_RC:-0}"; fi
+    printf 'batch-precheck: no receipt: 1 step(s) failed, though only base-present; exit 0, continuing\n' ;;
+  dogfood-finish)
+    [[ -z ${TEST_EXTRA_COMMIT-} ]] || { printf 'x\n' > other.txt; git add other.txt; git -c user.name=t -c user.email=t@e.invalid commit -qm other; }
+    mkdir -p .corvint/changes
+    printf '{}\n' > .corvint/change.cem.json
+    git add .corvint/change.cem.json
+    git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: bind change evidence'
+    git mv .corvint/change.cem.json ".corvint/changes/$(git rev-parse HEAD).cem.json"
+    git -c user.name=t -c user.email=t@e.invalid commit -qm 'chore: seal change evidence' ;;
+esac
+EOF
+  chmod +x "$root/bin/fake-make" "$cr/script/dogfood-closeout-unwind.sh"
+  cd "$cr"
+  git init -q && git add . && git -c user.name=t -c user.email=t@e.invalid commit -qm start
+  start=$(git rev-parse HEAD)
+  export TEST_MAKE_LOG="$root/make.log"
+  : > "$TEST_MAKE_LOG"
+  make -s dogfood-closeout MAKE="$root/bin/fake-make" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+  for line in 'phase inputs-check PASS; continuing to the precheck' 'phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal' \
+    'phase bind, check and seal PASS; continuing to the sealed-head precheck' "DONE sealed head $(git rev-parse HEAD) has a precheck receipt"; do
+    rg -qF "dogfood-closeout: $line" "$root/output" || { cat "$root/output" >&2; exit 1; }
+  done
+  # The base-present-only line precedes the phase line that says the closeout continues.
+  awk '/only base-present; exit 0, continuing$/ { w = NR } /phase precheck PASS/ { p = NR } END { exit !(w && p == w + 1) }' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $(git rev-list --count "$start..HEAD") == 2 ]] || exit 1
+  sealed=$(git rev-parse HEAD)
+  git reset -q --keep "$start"
+  status=0
+  TEST_SEALED_RC=1 make -s dogfood-closeout MAKE="$root/bin/fake-make" > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-parse HEAD) == "$start" && -z $(git status --porcelain) ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q "^dogfood-closeout: unwind: dropped 2 bind and seal commit\(s\) [0-9a-f]{40} [0-9a-f]{40}; HEAD is $start again " "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qF 'DONE' "$root/output" && exit 1
+  status=0
+  TEST_SEALED_RC=1 TEST_EXTRA_COMMIT=1 make -s dogfood-closeout MAKE="$root/bin/fake-make" > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(git rev-list --count "$start..HEAD") == 3 ]] || { cat "$root/output" >&2; exit 1; }
+  rg -q "^dogfood-closeout: unwind: NOT_RUN commit [0-9a-f]{40} changes other.txt, which is not a bind or seal path; HEAD stays [0-9a-f]{40} \(to unwind by hand: git reset --keep $start\)$" "$root/output" || { cat "$root/output" >&2; exit 1; }
+  [[ $sealed != "$start" ]] || exit 1
+) || { printf 'DCW-V0-745/746 closeout phase lines and unwind: FAIL\n' >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.

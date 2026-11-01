@@ -1061,13 +1061,22 @@ doc-gates: ## Run the documentation gates
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
 # ASD-V0-902 (V1-3481): a refusal of the closeout's pre-flight names make dogfood-closeout in its fix line.
+# DCW-V0-745 (V1-3837): a phase line after each stage says the closeout continues, so a precheck
+# ending on a base-present "no receipt" line, then minutes of bind, check and seal, does not read as
+# a stop. DCW-V0-746 (V1-4072): the head before the bind is recorded, and when the sealed-head
+# precheck refuses, script/dogfood-closeout-unwind.sh drops the bind and seal commits again.
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
+	@printf 'dogfood-closeout: phase inputs-check PASS; continuing to the precheck\n'
 	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
+	@printf 'dogfood-closeout: phase precheck PASS (no receipt before the bind is expected); continuing to bind, check and seal\n'
+	@git rev-parse HEAD > "$$(git rev-parse --git-path dogfood-closeout-start)"
 	@$(MAKE) --no-print-directory dogfood-finish
-	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
+	@printf 'dogfood-closeout: phase bind, check and seal PASS; continuing to the sealed-head precheck\n'
+	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck || { script/dogfood-closeout-unwind.sh "$$(cat "$$(git rev-parse --git-path dogfood-closeout-start)")"; exit 1; }
+	@printf 'dogfood-closeout: DONE sealed head %s has a precheck receipt\n' "$$(git rev-parse HEAD)"
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:

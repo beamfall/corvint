@@ -1166,7 +1166,8 @@ if ((fail)); then
   exit 1
 fi
 if ((warn)); then
-  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+  # DCW-V0-745 (V1-3837): the run still exits 0, so the line says a caller continues.
+  printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present; exit 0, continuing\n' "$warn"
 elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
   printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps\n'
 elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]]; then
