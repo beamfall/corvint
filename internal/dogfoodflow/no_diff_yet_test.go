@@ -81,6 +81,15 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 		if strings.Contains(stderr, "FAIL") {
 			t.Fatalf("%s: no-diff-yet run reported a failure:\n%s", label, stderr)
 		}
+		// DCW-V0-921: each absent agent receipt is named with the command that writes it.
+		for _, want := range []string{
+			`agent receipt prechange-query absent: write it before the first edit: corvint query --task "THE CHANGE" --limit 1 > `,
+			"agent receipt prechange-impact absent: write it before the first edit: corvint impact PATH... --limit 10 > ",
+		} {
+			if !strings.Contains(stderr, want) {
+				t.Fatalf("%s: stderr lacks %q:\n%s", label, want, stderr)
+			}
+		}
 		if !strings.Contains(report, `"complete": false`) || !strings.Contains(report, `{"name": "coordination-time-query", "status": "PRODUCED", "reason": "none"}`) {
 			t.Fatalf("%s: report:\n%s", label, report)
 		}
@@ -89,6 +98,17 @@ func TestChangeDCWV0383ReportsNoDiffYetAtChangeStart(t *testing.T) {
 				t.Fatalf("%s: report lacks %s no-diff-yet:\n%s", label, name, report)
 			}
 		}
+	}
+	// DCW-V0-921: a receipt the agent wrote is not named.
+	if err := os.MkdirAll(filepath.Join(root, ".git", "corvint"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "prechange-query.json"), []byte("{}\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if _, stderr, _ := run(ChangeOptions{}); strings.Contains(stderr, "agent receipt prechange-query absent") ||
+		!strings.Contains(stderr, "agent receipt prechange-impact absent") {
+		t.Fatalf("a written prechange-query receipt was still named absent, or the impact one was not:\n%s", stderr)
 	}
 	queryStatus = 1
 	if code, stderr, _ := run(ChangeOptions{}); code == 0 || !strings.Contains(stderr, "FAIL not-complete") {

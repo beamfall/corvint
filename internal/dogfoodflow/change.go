@@ -295,7 +295,23 @@ func (c *change) reportNoDiffYet() int {
 	c.say("dogfood-change: PRECHANGE no-diff-yet base=%s target=%s report=%s\n", c.base, c.target, c.path(".corvint/dogfood-report.json"))
 	c.say("  pre-change context recorded; %s NOT_PRODUCED %s until a commit differs from BASE\n", strings.Join(noDiffYetSteps, ", "), noDiffYetReason)
 	c.say("  inputs still to supply after the last commit: CITATIONS (corvint dogfood propose-citations %s > plan.tsv), INTENTS, VERIFY, OUTCOME; check them with make dogfood-inputs-check BASE=%s\n", c.base, c.base)
+	c.absentReceiptHints()
 	return 0
+}
+
+// absentReceiptHints names, on the pre-change run, the command that writes
+// each absent agent receipt, since only a run before the first edit can still
+// write it against BASE (DCW-V0-921).
+func (c *change) absentReceiptHints() {
+	for _, receipt := range []struct{ name, command string }{
+		{"prechange-query", `corvint query --task "THE CHANGE" --limit 1`},
+		{"prechange-impact", "corvint impact PATH... --limit 10"},
+	} {
+		path := c.evidence + "/" + receipt.name + ".json"
+		if !isRegular(path) {
+			c.say("  agent receipt %s absent: write it before the first edit: %s > %s\n", receipt.name, receipt.command, shellWord(path))
+		}
+	}
 }
 
 // admitSealedCEMs admits the sealed CEMs BASE..HEAD adds only as unmodified,
