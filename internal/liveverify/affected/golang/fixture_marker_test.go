@@ -20,22 +20,22 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	writeFiles(t, root, map[string]string{
 		"go.mod":               "module example.test/m\n", //corvint:fixture-path
 		"marked/m.go":          "package marked\n",
-		"marked/m_test.go":     "package marked\n\nvar fixture = map[string]string{\n\t\"Makefile\": \"all:\\n\", " + marker + "\n}\n",
+		"marked/m_test.go":     "package marked\n\nvar fixture = map[string]string{\n\t\"Makefile\": \"all:\\n\", " + marker + "\n}\n", //corvint:fixture-path
 		"raw/r.go":             "package raw\n",
-		"raw/r_test.go":        "package raw\n\nvar fixture = `x\nMakefile` " + marker + "\n",
+		"raw/r_test.go":        "package raw\n\nvar fixture = `x\nMakefile` " + marker + "\n", //corvint:fixture-path
 		"shared/s.go":          "package shared\n",
-		"shared/s_test.go":     "package shared\n\nvar fixture = \"Makefile\" " + marker + "\n\nvar real = \"Makefile\"\n",
+		"shared/s_test.go":     "package shared\n\nvar fixture = \"Makefile\" " + marker + "\n\nvar real = \"Makefile\"\n", //corvint:fixture-path
 		"elsewhere/e.go":       "package elsewhere\n",
-		"elsewhere/e_test.go":  "package elsewhere\n\n" + marker + "\nvar fixture = \"Makefile\"\n",
-		"source/s.go":          "package source\n\nvar fixture = \"Makefile\" " + marker + "\n",
+		"elsewhere/e_test.go":  "package elsewhere\n\n" + marker + "\nvar fixture = \"Makefile\"\n", //corvint:fixture-path
+		"source/s.go":          "package source\n\nvar fixture = \"Makefile\" " + marker + "\n",     //corvint:fixture-path
 		"source/s_test.go":     "package source\n",
 		"climb/c.go":           "package climb\n",
 		"climb/c_test.go":      "package climb\n\nvar fixture = \"../..\" " + marker + "\n",
 		"unmarked/u.go":        "package unmarked\n",
-		"unmarked/u_test.go":   "package unmarked\n\nvar fixture = \"Makefile\"\n",
+		"unmarked/u_test.go":   "package unmarked\n\nvar fixture = \"Makefile\"\n", //corvint:fixture-path
 		"neighbour/n.go":       "package neighbour\n",
-		"neighbour/n_test.go":  "package neighbour\n\nvar fixture = \"go.mod\" " + marker + "\n",
-		"neighbour/go_test.go": "package neighbour\n\nvar real = \"go.mod\"\n",
+		"neighbour/n_test.go":  "package neighbour\n\nvar fixture = \"go.mod\" " + marker + "\n", //corvint:fixture-path
+		"neighbour/go_test.go": "package neighbour\n\nvar real = \"go.mod\"\n",                   //corvint:fixture-path
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
@@ -52,7 +52,7 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	const m = "go:example.test/m/"
 	want := "[" + m + "climb<-UNBOUNDED_READER " + m + "elsewhere<-PATH_LITERAL_READER " + m + "shared<-PATH_LITERAL_READER " + m + "source<-PATH_LITERAL_READER " + m + "unmarked<-PATH_LITERAL_READER]"
 	if got := selected("Makefile"); got != want { //corvint:fixture-path
-		t.Fatalf("Makefile selects %s, want %s", got, want)
+		t.Fatalf("Makefile selects %s, want %s", got, want) //corvint:fixture-path
 	}
 	// A marker exempts per file: another test file's unmarked literal of the
 	// same package still reads the path.
@@ -62,8 +62,8 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 	// The AFP-V0-021 lexicon itself is unchanged: FilePathTokens, which
 	// tools/test-read-scopes-check applies the marker to, still returns the
 	// marked literal's token.
-	tokens, err := golang.FilePathTokens("m_test.go", []byte("package marked\n\nvar fixture = \"Makefile\" "+marker+"\n"), "")
-	if err != nil || fmt.Sprint(tokens) != "[Makefile]" {
+	tokens, err := golang.FilePathTokens("m_test.go", []byte("package marked\n\nvar fixture = \"Makefile\" "+marker+"\n"), "") //corvint:fixture-path
+	if err != nil || fmt.Sprint(tokens) != "[Makefile]" {                                                                      //corvint:fixture-path
 		t.Fatalf("FilePathTokens = %v, %v", tokens, err)
 	}
 }
