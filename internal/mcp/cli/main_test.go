@@ -320,7 +320,7 @@ func TestMCPV0026ToolProfileSelectorIsClosed(t *testing.T) {
 		}
 	}
 	handler := &toolHandler{}
-	var err *bridge.Error
+	var err error
 	if handler.registry, err = bridge.New(root); err != nil {
 		t.Fatal(err)
 	}
@@ -515,9 +515,9 @@ func TestAFUV1034FlowsToolProfile(t *testing.T) {
 	if !reflect.DeepEqual(names, want) {
 		t.Fatalf("flows tools=%v want %v", names, want)
 	}
-	for _, newRegistry := range []func(string) (*bridge.Registry, *bridge.Error){bridge.New, bridge.NewTaskReview} {
+	for _, newRegistry := range []func(string) (*bridge.Registry, error){bridge.New, bridge.NewTaskReview} {
 		handler := &toolHandler{}
-		var err *bridge.Error
+		var err error
 		if handler.registry, err = newRegistry(root); err != nil {
 			t.Fatal(err)
 		}

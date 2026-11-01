@@ -264,7 +264,7 @@ func belowToplevel(declared, toplevel string) string {
 
 // profileRegistries binds each --tool-profile value; the empty value is the
 // default V0 registry.
-var profileRegistries = map[string]func(string) (*bridge.Registry, *bridge.Error){
+var profileRegistries = map[string]func(string) (*bridge.Registry, error){
 	"": bridge.New, toolProfileTaskReview: bridge.NewTaskReview, toolProfileTaskReviewLSP: bridge.NewTaskReviewLSP, toolProfileFlows: bridge.NewFlows, toolProfileImportGraph: bridge.NewImportGraph,
 }
 

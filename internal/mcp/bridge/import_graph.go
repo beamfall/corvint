@@ -17,7 +17,7 @@ const importGraphKindsPattern = "^(import|type-import|angular-template|angular-s
 
 // NewImportGraph selects the additive import-graph profile. Existing profiles
 // retain their exact tool lists and continue to refuse this tool.
-func NewImportGraph(root string) (*Registry, *Error) {
+func NewImportGraph(root string) (*Registry, error) {
 	registry, err := New(root)
 	if err != nil {
 		return nil, err

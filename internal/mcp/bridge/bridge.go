@@ -310,7 +310,7 @@ type Registry struct {
 }
 
 // New binds the default V0 registry: exactly query, impact, and status.
-func New(root string) (*Registry, *Error) {
+func New(root string) (*Registry, error) {
 	if !validRoot(root) {
 		return nil, failure("invalid-root")
 	}
@@ -332,7 +332,7 @@ func New(root string) (*Registry, *Error) {
 
 // NewTaskReview binds the opt-in task-review descendant profile, which adds
 // the context and CEM report tools to the V0 three (MCPV0-026).
-func NewTaskReview(root string) (*Registry, *Error) {
+func NewTaskReview(root string) (*Registry, error) {
 	registry, err := New(root)
 	if err != nil {
 		return nil, err
@@ -343,7 +343,7 @@ func NewTaskReview(root string) (*Registry, *Error) {
 
 // NewTaskReviewLSP authorizes the optional executable at startup. Individual
 // calls must still request lsp:gopls; legacy environment knobs have no effect.
-func NewTaskReviewLSP(root string) (*Registry, *Error) {
+func NewTaskReviewLSP(root string) (*Registry, error) {
 	registry, err := NewTaskReview(root)
 	if err != nil {
 		return nil, err

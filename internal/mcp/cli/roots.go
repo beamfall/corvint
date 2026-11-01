@@ -31,7 +31,7 @@ type rootDeclaration struct{ alias, root, below string }
 // single-root MCPV0-001 rules (MMR-V0-003). A root that fails is "repository
 // unavailable"; a directory declared twice, under any spelling, is refused as an
 // invalid argument. The returned aliases are sorted.
-func openRepositories(roots []rootDeclaration, open func(string) (*bridge.Registry, *bridge.Error)) (map[string]*bridge.Registry, []string, string) {
+func openRepositories(roots []rootDeclaration, open func(string) (*bridge.Registry, error)) (map[string]*bridge.Registry, []string, string) {
 	repositories := make(map[string]*bridge.Registry, len(roots))
 	for _, declared := range roots {
 		registry, err := open(declared.root)

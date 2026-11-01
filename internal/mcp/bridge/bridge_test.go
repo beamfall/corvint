@@ -539,7 +539,7 @@ func TestSub384KiBWorstCaseHTMLEscapingStillAbstains(t *testing.T) {
 }
 
 func TestNewRequiresCanonicalRepositoryRoot(t *testing.T) {
-	if _, err := New(t.TempDir()); err == nil || err.Code != "invalid-root" {
+	if _, err := New(t.TempDir()); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("non-repository root error = %#v", err)
 	}
 	root := t.TempDir()
@@ -547,7 +547,7 @@ func TestNewRequiresCanonicalRepositoryRoot(t *testing.T) {
 	if err := os.Symlink(target, filepath.Join(root, ".git")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("symlink Git marker error = %#v", err)
 	}
 }
@@ -558,13 +558,13 @@ func TestNewRejectsRewritableGitControlFile(t *testing.T) {
 	if err := os.WriteFile(marker, []byte("gitdir: /first/target\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("regular Git control file construction error = %#v", err)
 	}
 	if err := os.WriteFile(marker, []byte("gitdir: /replacement/target\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := New(root); err == nil || err.Code != "invalid-root" {
+	if _, err := New(root); bridgeCode(err) != "invalid-root" {
 		t.Fatalf("in-place retargeted Git control file error = %#v", err)
 	}
 }

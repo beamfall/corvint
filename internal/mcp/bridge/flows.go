@@ -52,7 +52,7 @@ var flowsSchemas = map[string][]string{
 
 // NewFlows binds the opt-in flows descendant profile, which adds the five read-only flows tools
 // (coverage, map, gaps, impact, navigate) to the V0 three (AFU-V1-034, amending MCPV0-026).
-func NewFlows(root string) (*Registry, *Error) {
+func NewFlows(root string) (*Registry, error) {
 	registry, err := New(root)
 	if err != nil {
 		return nil, err
