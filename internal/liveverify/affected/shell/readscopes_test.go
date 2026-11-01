@@ -20,6 +20,10 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 		"t/build_test.sh":     "go build ./tool\n",
 		"t/dynamic_test.sh":   "go build ./tool\n. \"$ENVFILE\"\n",
 		"t/plain_test.sh":     "echo plain\n",
+		"t/helped_test.sh":    "go build ./tool\n. lib/dynamic.sh\n",
+		"t/twohop_test.sh":    "go build ./tool\n. lib/outer.sh\n",
+		"lib/outer.sh":        ". lib/dynamic.sh\n",
+		"lib/dynamic.sh":      ". \"$DYNAMIC\"\n",
 		"t/notes.txt":         "beside the test\n",
 		"script/helper.sh":    "echo helper\n",
 		"tool/main.txt":       "what the toolchain reads\n",
@@ -37,6 +41,8 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 		{name: "undeclared"},
 		{name: "declared", declaration: declare("t/build_test.sh", `["go.mod","tool/"]`, "go build reads the tool package"), declared: true},
 		{name: "dynamic source too", declaration: declare("t/dynamic_test.sh", `["tool/"]`, "r"), invalid: true},
+		{name: "sourced helper sources a dynamic path", declaration: declare("t/helped_test.sh", `["tool/"]`, "r"), invalid: true},
+		{name: "dynamic path two sources away", declaration: declare("t/twohop_test.sh", `["tool/"]`, "r"), invalid: true},
 		{name: "no toolchain", declaration: declare("t/plain_test.sh", `["tool/"]`, "r"), invalid: true},
 		{name: "source script", declaration: declare("script/helper.sh", `["tool/"]`, "r"), invalid: true},
 		{name: "absent test", declaration: declare("t/gone_test.sh", `["tool/"]`, "r"), invalid: true},
@@ -68,6 +74,11 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 			}
 			if test.ReadScoped != tc.declared {
 				t.Errorf("read-scoped %v, want %v (%+v)", test.ReadScoped, tc.declared, test)
+			}
+			for _, file := range []string{"t/helped_test.sh", "t/twohop_test.sh"} {
+				if helped := unitOf(t, result, file); helped.ReadScoped || len(helped.Imports) == 0 {
+					t.Errorf("%s sources a helper that reads a dynamic path, yet is read-scoped or has no edge: %+v", file, helped)
+				}
 			}
 			if dynamic := unitOf(t, result, "t/dynamic_test.sh"); dynamic.UnboundedReads != UnboundedRunsToolchain || dynamic.ReadScoped {
 				t.Errorf("a toolchain test that sources a dynamic path changed: %+v", dynamic)

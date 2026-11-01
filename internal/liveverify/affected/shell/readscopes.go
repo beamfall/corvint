@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -98,10 +99,14 @@ func applyShellReadScopes(root *affected.Source, units []affected.Unit, toolchai
 	if declared == nil {
 		return
 	}
+	byID := make(map[string]affected.Unit, len(units))
+	for _, unit := range units {
+		byID[unit.ID] = unit
+	}
 	indexes := make(map[string]int, len(declared))
 	for index, unit := range units {
 		if len(unit.Tests) == 1 && len(unit.Sources) == 0 {
-			if _, named := declared[unit.Tests[0]]; named && toolchainOnly[unit.Tests[0]] && unit.UnboundedReads == UnboundedRunsToolchain {
+			if _, named := declared[unit.Tests[0]]; named && toolchainOnly[unit.Tests[0]] && unit.UnboundedReads == UnboundedRunsToolchain && !importsUnbounded(unit, byID) {
 				indexes[unit.Tests[0]] = index
 			}
 		}
@@ -114,4 +119,30 @@ func applyShellReadScopes(root *affected.Source, units []affected.Unit, toolchai
 		units[index].UnboundedReads = ""
 		units[index].ReadScoped, units[index].ReadScope = true, append([]string{}, declared[test].Reads...)
 	}
+}
+
+// importsUnbounded reports whether a unit reaches, through the files it
+// sources, runs or executes (Imports, TestImports, Execs), any unit whose own reads are unbounded or that locates the
+// repository root. A read-scoped unit does not inherit such reads, so a
+// declaration over it would hide them (TSP-V0-950).
+func importsUnbounded(unit affected.Unit, byID map[string]affected.Unit) bool {
+	seen := map[string]bool{unit.ID: true}
+	pending := slices.Concat(unit.Imports, unit.TestImports, unit.Execs)
+	for len(pending) > 0 {
+		id := pending[len(pending)-1]
+		pending = pending[:len(pending)-1]
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		reached, known := byID[id]
+		if !known {
+			continue
+		}
+		if reached.UnboundedReads != "" || reached.LocatesRoot {
+			return true
+		}
+		pending = append(pending, slices.Concat(reached.Imports, reached.TestImports, reached.Execs)...)
+	}
+	return false
 }

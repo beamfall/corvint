@@ -65,7 +65,7 @@ func TestRepositoryShellReadScopes_TSP_V0_951(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go list: %v", err)
 	}
-	for _, directory := range strings.Fields(string(output)) {
+	for _, directory := range listedDirectories(string(output)) {
 		relative, err := filepath.Rel(root, directory)
 		if err != nil || strings.HasPrefix(relative, "..") {
 			t.Errorf("the receipt tool compiles %s, outside the repository", directory)
@@ -75,5 +75,26 @@ func TestRepositoryShellReadScopes_TSP_V0_951(t *testing.T) {
 		if !slices.ContainsFunc(reads, func(entry string) bool { return strings.HasSuffix(entry, "/") && strings.HasPrefix(relative, entry) }) {
 			t.Errorf("the receipt tool compiles %s, which %s does not declare for %s", relative, affected.ShellReadScopesPath, ratchet)
 		}
+	}
+}
+
+// listedDirectories splits `go list` output into one directory a line: a
+// directory may hold spaces, so only the line ending (LF or CRLF) splits.
+func listedDirectories(output string) []string {
+	var directories []string
+	for _, line := range strings.Split(output, "\n") {
+		if line = strings.TrimSuffix(line, "\r"); line != "" {
+			directories = append(directories, line)
+		}
+	}
+	return directories
+}
+
+// TestListedDirectoriesKeepSpaces_TSP_V0_951 pins that a package directory
+// holding a space stays one path, under LF and CRLF line endings.
+func TestListedDirectoriesKeepSpaces_TSP_V0_951(t *testing.T) {
+	got := listedDirectories("/repo/my dir/pkg\r\n/repo/internal/x\n\n")
+	if want := []string{"/repo/my dir/pkg", "/repo/internal/x"}; !slices.Equal(got, want) {
+		t.Fatalf("listed %q, want %q", got, want)
 	}
 }
