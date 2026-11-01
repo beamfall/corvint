@@ -60,6 +60,7 @@ GATE_STEPS = \
   binary-blobs-check \
   cem-base-retention-check \
   cem-base-retention-test \
+  changed-checks-test \
   ci-least-privilege-check \
   ci-least-privilege-test \
   codex-review-test \
@@ -721,6 +722,15 @@ release-artifact-reproducibility-test:
 # ASD-V0-573 (V1-3461): a tracked text file with a line over 4096 bytes must sit under a glob in
 # .corvint/agent-grep-exclude, which script/agent-grep.sh keeps out of agent searches, or be listed
 # in .corvint/long-line-allow.
+# ASD-V0-576 (V1-3390): changed-checks runs line-citations-check, unbounded-readers-check and
+# test-read-scopes-check only when the diff from BASE reaches their inputs, so a lane sees them
+# while it iterates instead of at closeout. AGENTS.md's Verify section declares it, so
+# `corvint affected` lists it.
+.PHONY: changed-checks
+changed-checks:
+	@test -n "$(DOGFOOD_BASE)" || { echo "changed-checks: $(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
+	@script/changed-checks.sh "$(DOGFOOD_BASE)"
+
 .PHONY: long-lines-check
 long-lines-check:
 	@script/long-lines-check.sh
@@ -1240,6 +1250,7 @@ shell-test: \
   bash32-test \
   batch-precheck-test \
   cem-base-retention-test \
+  changed-checks-test \
   ci-least-privilege-test \
   codex-review-test \
   companion-release-gate-test \
@@ -1341,3 +1352,7 @@ merge-drivers-test:
 .PHONY: long-lines-check-test
 long-lines-check-test:
 	@script/long-lines-check_test.sh
+
+.PHONY: changed-checks-test
+changed-checks-test:
+	@script/changed-checks_test.sh
