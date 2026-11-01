@@ -16,9 +16,9 @@ V1-3331 (the delivery screen misses tickets delivered on unmerged lane heads) an
 
 ## Agent digest
 - Claim: Lanes record a typed progress phase on live tickets without a claim; read-only checks screen lane heads, requirement IDs and effects proposals.
-- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576); delivery experimental: the progress phase, collision check, lane-ref screen and effects proposals exist with focused tests; `ticket split` is proposed only.
-- Exists: operation `PROGRESS_SET` and the optional record member `progress`, the `ticket progress` verb, the `--phase` search filter, phase in show and roadmap rows, closeout-debt `progress-head` rows, `tools/requirement-id-collisions`, delivery-screen `--lane-refs`, and `ticket effects-proposals`.
-- Blocked on: the operator-applied batch set-effects of V1-3576 (lanes may not write the store); an atomic two-ticket split receipt (TLF-V0-884); durable qualification.
+- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3569, V1-3463, V1-3577, V1-2909, V1-3331, V1-3576); delivery experimental: the progress phase, collision check, lane-ref screen, effects proposals and `ticket split` exist with focused tests.
+- Exists: operation `PROGRESS_SET` and the optional record member `progress`, the `ticket progress` verb, the `--phase` search filter, phase in show and roadmap rows, closeout-debt `progress-head` rows, `tools/requirement-id-collisions`, delivery-screen `--lane-refs`, `ticket effects-proposals`, and `ticket split`.
+- Blocked on: the operator-applied batch set-effects of V1-3576 (lanes may not write the store); durable qualification.
 - Read next: Requirements; Failure modes and trust; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -64,13 +64,20 @@ done and number requirements that a peer branch already used.
   head reachable in the scanned ref as a candidate row with citation `progress-head` and the head as
   its commit, alongside the message-cited rows, so a marker whose branch head merged is reported even
   when no commit message names the ticket.
-- `TLF-V0-884`: (proposed, not implemented) `corvint-tasks ticket split ID --criteria N,M` MUST
-  create one linked NATIVE ticket carrying the named acceptance criteria, the parent's attached
-  evidence and a `supersedes` link to the parent, and remove those criteria from the parent, in one
-  atomic receipt.
-- `TLF-V0-885`: (proposed, not implemented) `ticket split --dry-run` MUST print the two resulting
-  records and write nothing; after a split the parent MUST complete on its remaining criteria and
-  receipt audit MUST stay CONSISTENT.
+- `TLF-V0-884`: `corvint-tasks ticket split ID --criteria N,M --expected-revision R --request-id Q`
+  MUST create one NATIVE child ticket carrying the named acceptance criteria (1-based, in parent
+  order), a copy of each of the parent's attached-evidence entries and a `supersedes` link to the
+  parent, and then remove those criteria from the parent. It runs as an ordered sequence of ordinary
+  single-ticket mutations under derived request IDs (`Q/create`, `Q/evidence/I`, `Q/refine`) sharing
+  one `issuedAt`, so each step writes its own receipt. The parent is changed last: an interrupted
+  split leaves the criteria on both tickets, never on neither, and rerunning the same command with
+  the same `--request-id` and `--issued-at` replays the finished steps and completes the rest. A split
+  whose `Q/refine` is already recorded writes nothing. It MUST refuse, writing nothing, a parent that
+  is not OPEN or DRAFT or not at revision R, an empty, repeated or out-of-range criterion list, and a
+  list naming every criterion.
+- `TLF-V0-885`: `ticket split --dry-run` MUST print the child CREATE payload and the parent's
+  resulting criteria and write nothing; after a split the parent MUST complete on its remaining
+  criteria and receipt audit MUST stay CONSISTENT.
 - `TLF-V0-886`: `tools/requirement-id-collisions` MUST read every local branch and detached worktree
   head that shares history with the base ref (default `origin/main`; it contains one of the base's
   root commits) and is not contained in it, and report, as `REQUIREMENT_ID_COLLISION`, each
@@ -108,6 +115,10 @@ done and number requirements that a peer branch already used.
 - The collision tool and lane-ref screen read local refs only; a peer lane on another host whose
   branch was never fetched stays invisible and is reported as such in the result's `scanned` list.
 - Effects proposals are heuristics over prose and are labelled as such.
+- A split is not atomic across its steps. Another writer can change the parent between the child
+  CREATE and the parent REFINE; the REFINE then refuses on the expectedRevision CAS, the child stays,
+  and the operator refines the parent by hand. A rerun after any interruption sees each recorded step
+  as a replay.
 
 ## Non-goals and simpler baseline
 
@@ -124,7 +135,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-881 | V1-3569 criteria 3-4 | `internal/tasks/ticket` (EffectiveProgress) | `TestTLFV0881_BarrierAdmitsProgressAndStillRefusesClaims`; `TestTLFV0881_EffectiveProgress` | none |
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
-| TLF-V0-884, TLF-V0-885 | V1-3577 | none yet | none | all |
+| TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria` | concurrent writer between steps; durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions` | none |
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
@@ -142,11 +153,15 @@ done and number requirements that a peer branch already used.
    needs a second write.
 5. Phase vocabulary: V1-3463's "committed", "PR open" and "merged" map to `DELIVERED_ON_BRANCH`,
    `IN_REVIEW` and `MERGED_AWAITING_CLOSEOUT`; V1-3569's "awaiting merge" is `IN_MERGE_QUEUE`.
+6. Split transaction model (TLF-V0-884): an ordered, resumable sequence of existing single-post
+   mutations, not a new multi-post receipt. Every receipt validator, recovery path and audit assumes
+   one ticket post per mutation; a multi-post receipt would change persisted journal state for one
+   verb. Changing the parent last makes the only intermediate state a duplicated criterion, which a
+   rerun resolves.
 
 ## Unresolved decisions
 
 - Whether `batch-delivered` should emit ready `PROGRESS_SET` payloads for each delivered ticket.
-- The atomic receipt shape for `ticket split` (TLF-V0-884).
 
 ## Rollout and rollback
 

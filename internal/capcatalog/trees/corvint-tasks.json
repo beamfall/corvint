@@ -2955,7 +2955,8 @@
         "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
-        "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]"
+        "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]",
+        "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]"
       ],
       "flags": [
         "--anchor",
@@ -2968,6 +2969,7 @@
         "--contains",
         "--context",
         "--count",
+        "--criteria",
         "--cursor",
         "--declared",
         "--digest",
@@ -4458,6 +4460,32 @@
       "required": [],
       "example": "corvint-tasks ticket similar --text TEXT",
       "help": "corvint-tasks ticket similar --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "split"
+      ],
+      "command": "corvint-tasks ticket split",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--criteria",
+        "--dry-run",
+        "--expected-revision",
+        "--issued-at",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--criteria",
+        "--expected-revision R"
+      ],
+      "example": "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R --request-id Q",
+      "help": "corvint-tasks ticket split --help"
     },
     {
       "path": [

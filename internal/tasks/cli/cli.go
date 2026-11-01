@@ -86,7 +86,7 @@ var ReadVerbs = []string{
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval", "ticket attach-evidence", "ticket progress", "ticket batch-close", "ticket recur",
+	"ticket revoke-approval", "ticket attach-evidence", "ticket progress", "ticket batch-close", "ticket recur", "ticket split",
 	"release create", "release update", "release membership", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
@@ -230,6 +230,8 @@ func Run(env Env) int {
 			return ticketDigest(env, args[2:])
 		case "recur":
 			return emit(env.Stdout, ticketRecur(env, args[2:]))
+		case "split":
+			return emit(env.Stdout, ticketSplit(env, args[2:]))
 		}
 		if args[1] == "note" {
 			return emit(env.Stdout, noteCommand(env, args[2:]))
