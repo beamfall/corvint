@@ -657,7 +657,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 							// is retried on the next tick until it has
 							// failed for the tolerance, well inside the
 							// 60-minute lease it extends; any other refusal
-							// stops the stage at once (CAL-V0-532, V1-1493).
+							// stops the stage at once (ATR-V0-532, V1-1493).
 							if renewFailedSince.IsZero() {
 								renewFailedSince = time.Now()
 							}

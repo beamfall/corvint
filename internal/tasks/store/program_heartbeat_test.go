@@ -12,14 +12,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0532_StageWatcherToleratesRetryableHeartbeatFailure (V1-1493): the
+// TestATRV0532_StageWatcherToleratesRetryableHeartbeatFailure (V1-1493): the
 // stage watcher's heartbeat renews a 60-minute lease, so a renewal that wrote
 // nothing and may succeed on retry (LOCK_TIMEOUT on a loaded host) is retried
 // on the next tick, not taken as a reason to cancel the stage; a renewal that
 // keeps failing for the tolerance, or any non-retryable refusal, still stops
 // it. The fake host waits until the watcher has renewed (or for the stop), so
 // no case depends on how long a stage takes.
-func TestCALV0532_StageWatcherToleratesRetryableHeartbeatFailure(t *testing.T) {
+func TestATRV0532_StageWatcherToleratesRetryableHeartbeatFailure(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
 		name      string
