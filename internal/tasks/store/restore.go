@@ -231,7 +231,7 @@ func sameIntentFile(p string, fe archive.FileEntry) (bool, error) {
 		return false, err
 	}
 	size := fe.Bytes.Uint64()
-	if !st.Mode().IsRegular() || st.Size() < 0 || uint64(st.Size()) != size {
+	if !st.Mode().IsRegular() || st.Size() < 0 || size > wire.MaxArchiveBytes || uint64(st.Size()) != size {
 		return false, nil
 	}
 	h := sha256.New()
@@ -271,7 +271,7 @@ func restoreStage(f io.Reader, stage string, want map[string]archive.FileEntry, 
 			continue
 		}
 		fe, ok := want[hdr.Name]
-		if !ok || seen[hdr.Name] || hdr.Typeflag != tar.TypeReg || hdr.Size < 0 || hdr.Size > wire.MaxArchiveBytes || uint64(hdr.Size) != fe.Bytes.Uint64() {
+		if !ok || !restorePath(hdr.Name) || seen[hdr.Name] || hdr.Typeflag != tar.TypeReg || hdr.Size < 0 || hdr.Size > wire.MaxArchiveBytes || uint64(hdr.Size) != fe.Bytes.Uint64() {
 			return nil, wire.Errorf(wire.CodeMalformed, hdr.Name, "archive changed after verification")
 		}
 		raw := make([]byte, hdr.Size)
