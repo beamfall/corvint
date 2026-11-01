@@ -48,6 +48,10 @@ type gateLoadSample struct {
 	LockWaitMS, JournalWriteMS   float64
 	FsyncMS                      float64
 	Rounds, Transactions         int
+	// Resumed and ResumeDeclines count the call's resumed writes and
+	// declined resumes, so a widen or reap shows whether it resumed from the
+	// sealed base or paid the complete audit (JSG-V0-780, V1-2592).
+	Resumed, ResumeDeclines int `json:",omitempty"`
 	// Stages sums the writer-route and complete-route stage durations the
 	// call reported (writerStage); Declines lists its writer-route
 	// declines in order (V1-2531).
@@ -169,6 +173,13 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	}
 	warm.lease("release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: attempt, Generation: generation})
 	setupMS := ms(time.Since(setup))
+	// The warm-up claim took the complete route on the freshly sealed store;
+	// the checkpoint it retained must keep the sealed base for widen and reap
+	// to resume (JSG-V0-780). The report records both sequences.
+	warmCheckpoint := map[string]uint64{"sealedThrough": segmentThrough(t, repo)}
+	if wc := readWriterCheckpoint(repo); wc != nil {
+		warmCheckpoint["fullSeq"] = wc.FullSeq
+	}
 
 	loadBefore := hostLoad()
 	start := time.Now()
@@ -221,6 +232,7 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 	}
 	type summary struct {
 		Calls, Gated, LockTimeouts int
+		Resumed, ResumeDeclines    int
 		Codes                      map[string]int
 		WallP50, WallP99, WallMax  float64
 		GateWaitP50, GateWaitP99   float64
@@ -248,6 +260,8 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 				verbs[key] = v
 			}
 			v.Calls++
+			v.Resumed += s.Resumed
+			v.ResumeDeclines += s.ResumeDeclines
 			if s.Code != "" {
 				v.Codes[s.Code]++
 			}
@@ -285,7 +299,7 @@ func TestCALV0263_LeaseGateLoad(t *testing.T) {
 		"workers":      fmt.Sprintf("%d processes re-executing this test binary: worker 0 reaps, each other worker claims a disjoint scope, workers 1-2 then widen it and the rest alternate heartbeat and renew; %d ms think time; each releases at the deadline; in-process lease audit cache cleared before every call", writers, think),
 		"statistic":    "per-verb nearest-rank percentiles over all calls; gate percentiles only over calls that entered the preparation gate; Code is wire.CodeOf of a failed call; WallMS is the whole Lease call",
 		"publishSyncs": gateLoadSyncMode(), "receipts": receipts, "tickets": tickets, "writers": writers, "seconds": seconds, "elapsedMS": ms(elapsed), "setupMS": setupMS,
-		"finalLastSeq": head.LastSeq.Uint64(), "workerFailures": failed,
+		"finalLastSeq": head.LastSeq.Uint64(), "workerFailures": failed, "warmupCheckpoint": warmCheckpoint,
 		"lockTimeoutsPerHour": float64(all.LockTimeouts) / elapsed.Hours(),
 		"cpuCount":            runtime.NumCPU(), "goVersion": runtime.Version(), "goos": runtime.GOOS,
 		"hostLoad": map[string]string{"before": loadBefore, "after": loadAfter},
@@ -483,6 +497,7 @@ func (r *gateLoadRun) call(verb string, req transaction.LeaseRequest) *Report {
 	s.AdmissionWaitMS, s.SnapshotReadMS, s.ValidationMS = ms(timing.AdmissionWait), ms(timing.SnapshotRead), ms(timing.Validation)
 	s.LockWaitMS, s.JournalWriteMS, s.FsyncMS = ms(timing.LockWait), ms(timing.JournalWrite), ms(timing.Fsync)
 	s.Rounds, s.Transactions = timing.Rounds, timing.Transactions
+	s.Resumed, s.ResumeDeclines = timing.Resumed, timing.ResumeDeclines
 	switch {
 	case err != nil:
 		s.Code = string(wire.CodeOf(err))
