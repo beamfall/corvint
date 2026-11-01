@@ -289,8 +289,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `create` MUST return one read-only item with `operation`, `queueId`, a decodable example
   `payload` (also as the exact canonical string `payloadCanonical`), `fill` naming the members
   the caller decides, and `fields` documenting each of the verb's payload keys and dotted
-  members as CTW-V0-012 does. Prose placeholders read `REPLACE: why` and decode as is. The
-  verb's derived help example (TCL-V0-861), with `JSON` replaced by `payloadCanonical`, MUST run.
+  members as CTW-V0-012 does. Prose placeholders read `REPLACE: why` and decode as is; a
+  `grant-approval` template names the invoking actor (CORVINT_TASKS_ACTOR, ATM_ACTOR or the OS
+  user), the only actor the write accepts. The verb's derived help example (TCL-V0-861), with
+  `JSON` replaced by `payloadCanonical`, MUST run; `ticket hold` usage therefore marks one
+  `--target` required (its further targets and `--expected-revision` stay optional).
   `--template` composes with no other flag, `--skeleton` stays CREATE-only, and nothing is read
   from the journal, locked or written.
 - `TCL-V0-612`: (experimental under the standing lane auto-accept (2026-11-01); V1-3714 AC3)

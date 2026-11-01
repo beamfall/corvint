@@ -331,7 +331,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. --template --skeleton prints only the complete payload as items[0] (every key, nulls, empty arrays, the native source; title empty so an unedited submit refuses). A MALFORMED CREATE payload is refused with every missing, unknown and invalid key and its expected shape in one error. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpHold {
-		target = " [--target TICKET|LOCAL ...] [--expected-revision N|current]"
+		target = " --target TICKET|LOCAL [--target TICKET|LOCAL ...] [--expected-revision N|current]" // TCL-V0-611: one target is required, so the derived example names it
 		o.Set("multiTarget", wire.String(multiTargetHoldHelp))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"condition"}))
 		o.Set("condition", wire.String("Optional machine-checkable condition (SCC-V0-010): {\"kind\":\"COMMIT_CONTAINED\",\"ref\":REF,\"commit\":OID}, {\"kind\":\"PATH_EXISTS\",\"ref\":REF,\"path\":PATH} or {\"kind\":\"SYMBOL_DEFINED\",\"ref\":REF,\"path\":FILE,\"symbol\":IDENTIFIER}; REF is a full refname under refs/. queue status re-evaluates it at every read (holdConditions: UNBLOCKED, BLOCKED or UNKNOWN with the reason) and doctor names met and unknown conditions; a met condition never releases the hold by itself. A commit is contained by ancestry or by a patch-equivalent commit (source contains)."))

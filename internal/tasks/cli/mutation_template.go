@@ -150,7 +150,13 @@ func mutationTemplatePayload(op string) wire.Value {
 		o.Set("evidence", empty())
 		o.Set("reason", str(mutationTemplateFill))
 	case mutation.OpGrantApproval:
-		o.Set("actor", str("OWNER"))
+		// The grant names the invoking actor (mutation apply refuses any
+		// other), read from the environment as the write would read it.
+		actor := "OWNER"
+		if b, err := initActor(""); err == nil {
+			actor = b.ID
+		}
+		o.Set("actor", str(actor))
 		o.Set("grantId", str("grant-1"))
 		o.Set("operation", str("COMPLETE"))
 		o.Set("scope", empty())
