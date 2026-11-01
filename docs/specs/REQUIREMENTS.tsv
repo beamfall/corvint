@@ -1518,6 +1518,7 @@ CCE-V0-113	docs/specs/change-compiled-e2e-v0.md	Each vocabulary addition MUST ha
 CCE-V0-114	docs/specs/change-compiled-e2e-v0.md	`api_contracts` at base (each a `contract:` ID, one or more relative path globs	unrecorded	-
 CCE-V0-115	docs/specs/change-compiled-e2e-v0.md	A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming	unrecorded	-
 CCE-V0-116	docs/specs/change-compiled-e2e-v0.md	The prove report MUST keep, for each run that ends without a qualified receipt,	unrecorded	-
+CCE-V0-940	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2620) When the CCE-V0-018	standing	2026-10-11; V1-2620
 CCE-V0-117	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2377) On darwin/arm64, when	standing	2026-10-11; V1-2377
 CCE-V0-118	docs/specs/change-compiled-e2e-v0.md	`corvint flows appmap build --help` and `-h`, and `corvint-test e2e SUBCOMMAND	unrecorded	-
 CCE-V0-119	docs/specs/change-compiled-e2e-v0.md	When the manifest is missing or does not build at the catalog revision or the	unrecorded	-
