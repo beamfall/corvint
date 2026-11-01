@@ -21,6 +21,8 @@ note is the one place that lists them; the checks point here when one is missing
    `script/<name>_test.sh`) to `units`, in strictly ascending order, with an entry in `reasons`
    that names the unbounded read and why it cannot be declared (`AFP-V0-025`, `AFP-V0-033`).
    `make unbounded-readers-check` fails naming the file when neither is done.
+   What an entry allows, and how to check a declared scope locally before confined CI does, is in
+   [TEST-READ-SCOPES.md](TEST-READ-SCOPES.md).
 
 Run `make -s --keep-going unbounded-readers-check shell-test-registration-check` after editing, or
 `make doc-gates`, which keeps going past a failing gate and so names every missing registration in
