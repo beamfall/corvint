@@ -21,6 +21,10 @@ var contractCompanions = []string{
 	"corvint-mcp", "corvint-test-validity-mcp", "corvint-update", "corvint-web-flows",
 }
 
+// treeCompanions answer the help forms from their command tree (CAP-V0-972) and
+// take only the --version forms from the companion contract.
+var treeCompanions = map[string]bool{"corvint-dashboard-snapshot": true}
+
 func buildContractCompanions(t *testing.T) string {
 	t.Helper()
 	bin := t.TempDir()
@@ -67,6 +71,14 @@ func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
 	outside := t.TempDir()
 	for _, name := range contractCompanions {
 		binary := filepath.Join(bin, name)
+		if treeCompanions[name] {
+			code, stdout, stderr := runContractCompanion(t, binary, outside, "help", "--json")
+			if code != 0 || stderr != "" || !strings.Contains(stdout, `"schema": "corvint-command-tree/0"`) {
+				t.Fatalf("%s help --json is not its command tree: exit %d stdout %.200q stderr %q", name, code, stdout, stderr)
+			}
+			checkContractVersion(t, binary, outside, name)
+			continue
+		}
 		var usage string
 		for _, form := range [][]string{{"--help"}, {"-h"}, {"help"}} {
 			code, stdout, stderr := runContractCompanion(t, binary, outside, form...)
@@ -87,15 +99,20 @@ func TestCAPV0700CompanionsAnswerTheSharedContract(t *testing.T) {
 			help.Version != companioncli.ExperimentalVersion || strings.Join(help.Usage, "\n")+"\n" != usage {
 			t.Fatalf("%s help --json: exit %d %q", name, code, stdout)
 		}
-		if code, stdout, _ := runContractCompanion(t, binary, outside, "--version"); code != 0 || stdout != name+" "+companioncli.ExperimentalVersion+"\n" {
-			t.Fatalf("%s --version: exit %d %q", name, code, stdout)
-		}
-		code, stdout, _ = runContractCompanion(t, binary, outside, "--version", "--json")
-		var version struct{ Profile, Binary, Version, Commit, CommitState string }
-		if code != 0 || json.Unmarshal([]byte(stdout), &version) != nil || version.Profile != companioncli.VersionProfile || version.Binary != name ||
-			version.Version != companioncli.ExperimentalVersion || version.Commit == "" || version.CommitState == "" {
-			t.Fatalf("%s --version --json: exit %d %q", name, code, stdout)
-		}
+		checkContractVersion(t, binary, outside, name)
+	}
+}
+
+func checkContractVersion(t *testing.T, binary, outside, name string) {
+	t.Helper()
+	if code, stdout, _ := runContractCompanion(t, binary, outside, "--version"); code != 0 || stdout != name+" "+companioncli.ExperimentalVersion+"\n" {
+		t.Fatalf("%s --version: exit %d %q", name, code, stdout)
+	}
+	code, stdout, _ := runContractCompanion(t, binary, outside, "--version", "--json")
+	var version struct{ Profile, Binary, Version, Commit, CommitState string }
+	if code != 0 || json.Unmarshal([]byte(stdout), &version) != nil || version.Profile != companioncli.VersionProfile || version.Binary != name ||
+		version.Version != companioncli.ExperimentalVersion || version.Commit == "" || version.CommitState == "" {
+		t.Fatalf("%s --version --json: exit %d %q", name, code, stdout)
 	}
 }
 
