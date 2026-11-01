@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"testing"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/groupreap"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 const fifoHelperEnv = "CORVINT_TEST_RUNNER_FIFO_HELPER"
@@ -34,9 +36,24 @@ func TestFIFOHelperProcess(t *testing.T) {
 			break
 		}
 	}
+	// A FIFO open can block; the helper exits if its parent dies first (V1-1498).
+	testsupport.ExitWhenParentGone()
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	os.Exit(command(ctx, args, os.Stdout, os.Stderr))
+}
+
+// V1-1498: the helper is bound to its parent's lifetime, so one whose named
+// parent is not its parent exits 3 before it runs the companion.
+func TestFIFOHelperExitsWhenParentGone(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-test.run=^TestFIFOHelperProcess$", "--", "plan", "--request", fifo(t, t.TempDir(), "request.json"))
+	cmd.Env = append(os.Environ(), fifoHelperEnv+"=1", testsupport.ParentPIDEnv+"="+strconv.Itoa(os.Getppid()))
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 3 || !strings.Contains(stderr.String(), "parent gone") {
+		t.Fatalf("helper with a gone parent: %v, stderr %q; want exit 3 naming the parent", err, stderr.String())
+	}
 }
 
 // runCompanion runs the companion as a real child process with a hard deadline,
@@ -46,7 +63,7 @@ func runCompanion(t *testing.T, args ...string) (int, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], append([]string{"-test.run=^TestFIFOHelperProcess$", "--"}, args...)...)
-	cmd.Env = append(os.Environ(), fifoHelperEnv+"=1")
+	cmd.Env = append(os.Environ(), fifoHelperEnv+"=1", testsupport.ParentPIDEntry())
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	start := time.Now()
