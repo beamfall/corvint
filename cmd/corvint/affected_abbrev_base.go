@@ -52,9 +52,10 @@ func validAffectedBaseRevision(value string) bool {
 	return !hex
 }
 
-// affectedBaseHint is the one recovery every unresolved --base refusal carries (ACX-V0-854).
+// affectedBaseHint is the one recovery every unresolved --base refusal carries; the value is
+// POSIX-quoted so a quote in it cannot break the pasted command (ACX-V0-854).
 func affectedBaseHint(value string) string {
-	return "; pass the full commit id (git rev-parse --verify '" + value + "^{commit}')"
+	return "; pass the full commit id (git rev-parse --verify " + shellQuoteJoin([]string{value + "^{commit}"}) + ")"
 }
 
 // affectedAmbiguousBaseCode names a --base prefix that matches more than one commit (AFP-V0-232).

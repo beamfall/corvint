@@ -131,4 +131,7 @@ func TestACXV0854RevisionBase(t *testing.T) {
 			t.Fatalf("--base %q: err=%v, want the uniform rev-parse hint", value, err)
 		}
 	}
+	if _, _, err := parseAffectedInvocation([]string{"--root", root, "affected", "--base", "it's"}); err == nil || !strings.Contains(err.Error(), `git rev-parse --verify 'it'\''s^{commit}'`) {
+		t.Fatalf("--base with a quote: err=%v, want the POSIX-quoted hint", err)
+	}
 }
