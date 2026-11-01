@@ -338,6 +338,8 @@ sub check_malformed {
 sub check {
     my ($doc, $line_number, $token, $path, $pin, $first, $last, @extra) = @_;
     return if $path =~ m{^src/syscall/};
+    # DCG-V0-921: selected before the target is resolved, so a deleted cited file still selects.
+    push @selected, "$doc:$line_number  $token" if defined $pin && $selects_changed{$path};
     if (defined $last && $last < $first) {
         push @failures, "$doc:$line_number  $token  range end $last is before its start $first";
         return;
@@ -361,7 +363,6 @@ sub check {
         return;
     }
     my $waived = $drift_waiver{drift_waiver_key($doc, $path, $first, $last)};
-    push @selected, "$doc:$line_number  $token" if defined $pin && $selects_changed{$path};
     # DCG-V0-022: a pin whose text moved unchanged is reported as a move before any range or
     # blank-line finding, since those describe the old position, not the cited text.
     if (defined $pin && !$waived) {
@@ -585,12 +586,17 @@ sub diff_suggestion {
     return undef if grep { $_ < 1 || $_ > @$base } @numbers;
     return undef unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
     my $hunks = base_hunks($path) or return undef;
+    # DCG-V0-920: a cited line in a hunk with no new lines was deleted; it maps to nothing, so the
+    # citation stays a failure instead of re-anchoring to the next surviving line.
+    my $deleted;
     my $start = sub {
         my ($moved, $new, $count) = map_line($hunks, $_[0]);
+        $deleted = 1 if !defined $moved && !$count;
         return defined $moved ? $moved : $count ? $new : $new + 1;
     };
     my $end = sub {
         my ($moved, $new, $count) = map_line($hunks, $_[0]);
+        $deleted = 1 if !defined $moved && !$count;
         return defined $moved ? $moved : $count ? $new + $count - 1 : $new;
     };
     my ($span, @now);
@@ -602,6 +608,7 @@ sub diff_suggestion {
         @now = map { $start->($_) } $first, @extra;
         $span = join ',', @now;
     }
+    return undef if $deleted;
     return undef if grep { $_ < 1 || $_ > @$lines } @now;
     (my $suggested = $token) =~ s{:\d[\d,-]*\@[0-9a-f]+`\z}{":$span\@" . substr(anchor_of($lines, @now), 0, 8) . '`'}e;
     return $suggested;

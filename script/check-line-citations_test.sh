@@ -733,6 +733,35 @@ output=$(cd "$test_root" && script/check-line-citations.sh --repin --base no-suc
 case $output in *'--base no-such-rev does not name a commit'*) ;; *) fail "the bad --base was not named: $output" ;; esac
 git -C "$test_root" rm -q --cached internal/demo/shift.go
 rm -f "$test_root/internal/demo/shift.go"
+# DCG-V0-921 (review fix): a deleted cited file still selects line-citations-check; its citations
+# are collected before the target is resolved.
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 3 pinned citation(s) cite a file changed since HEAD'*internal/demo/shift.go*) ;;
+*) fail "--selects missed the citations into a deleted file: $out" ;;
+esac
+cite "$single"
+
+# 32b. DCG-V0-920 (review fix): a single-line citation whose cited line was deleted (a zero-length
+#      new hunk) is never re-anchored to the following surviving line; it stays a failure.
+printf '%s\n' 'package demo' '' 'func Keep() {}' 'func Gone() {}' 'func Next() {}' > "$test_root/internal/demo/del.go"
+stage internal/demo/del.go
+gone=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/del.go:4)
+cite "$gone"
+run >/dev/null || fail "the deletion fixture did not pass before the deletion: $(run)"
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m deletion
+printf '%s\n' 'package demo' '' 'func Keep() {}' 'func Next() {}' > "$test_root/internal/demo/del.go"
+stage internal/demo/del.go
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>&1) || true
+case $out in *'re-anchored'* | *'the diff maps it to'*) fail "--repin --changed mapped a deleted line to another line: $out" ;; esac
+grep -qF "$gone" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed rewrote a deleted line's citation: $(cat "$test_root/docs/agent-memory/fixture.md")"
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] && case $output in *"$gone"*'cited content changed'*) true ;; *) false ;; esac ||
+  fail "a citation of a deleted line did not stay a failure (exit $rc): $output"
+git -C "$test_root" rm -q --cached internal/demo/del.go
+rm -f "$test_root/internal/demo/del.go"
 cite "$single"
 
 # 33. DCG-V0-047 (V1-3124), DCG-V0-048 (V1-3228): a transitive chain repins in one --repin call
