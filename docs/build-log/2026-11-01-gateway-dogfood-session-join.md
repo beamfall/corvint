@@ -40,7 +40,7 @@ never read the ledger (invariant 4).
   qualified with exit 0. `dogfood status` reports the enrollment active. `report --session` on that key
   printed 13 requests: 1,852 uncached input, 466,687 cache-read, 32,964 cache-creation and 3,556
   output tokens, a 93.1% cache-read share, and no cache breaks. The enrollment was then cancelled
-  rather than sealed, because its one commit is carried in this change and sealed here.
+  rather than sealed, because its one commit is carried in this change.
 - That worktree's first session got no session key: its hook degraded with
   `dogfood-event-index-snapshot-stale`, and the next session received the key. Filed as V1-4182.
 - Independent review (Codex, one round) returned one finding: an explicit empty `--session=` skipped
