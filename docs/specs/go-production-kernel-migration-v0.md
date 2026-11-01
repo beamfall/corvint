@@ -865,6 +865,38 @@ which is the whole of what the row asserts.
   `TestGPKV0295BlankCommentsAndStringsNestedTemplates`, which leaked `leak` and `Component`
   against the flat reading. Rollback: delete the web template case in
   `evalBlankCommentsAndStrings`.
+- `GPK-V0-975`: (experimental 2026-10-31, standing lane auto-accept; V1-0179) `EvalQuery`'s
+  document ranking (`evalRankDocuments`) MUST credit a non-instructions document 40 for each indexed
+  path the task names that the document's own `references` field cites, and 40 more when it cites
+  every named path and the task names two or more. The task names a path as `TCP-V0-003`'s
+  `mentioned` rule reads one, over the lowercased task: a token, split at whitespace, backticks,
+  quotes, parentheses, commas and colons and trimmed of a leading `./` and trailing `.` or `;`, that
+  equals an indexed path ignoring case, or that carries a dot after its first byte and is the
+  basename of exactly one indexed path. A document never cites itself, so the named document earns
+  nothing from its own name. A document with a cited named path passes the two-word floor, and the
+  credit adds no support term. This applies to standalone `query`, `eval`, and
+  `harness event --event user-prompt`. Non-goals: no change to symbol, record, test or learned-path
+  ranking, to the result order across kinds, or to the wire. Failure modes: a long document that
+  cites one named path among many still earns 40, and a task that names a path only by an
+  ambiguous basename credits nothing. The oracle ranked documents on shared words alone, so a task
+  naming two files ranked a lexically broad spec, a fixture or a decision above the spec that
+  governs both (V1-0179, the V1-0148 orientation miss); that is `DR-0047`. Acceptance evidence:
+  `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`, which ranked the long spec first
+  against the oracle ranking, and the V1-0148 task over this repository ranking
+  `docs/specs/documentation-citation-gate-v0.md` first. Rollback: delete `evalNamedPaths`,
+  `evalCitedNamedPaths` and the credit in `evalRankDocuments`.
+- `GPK-V0-976`: (experimental 2026-10-31, standing lane auto-accept; V1-0179) Path `impact` MUST
+  order, among rows of equal score, a document that explicitly references a changed path (score
+  825) after every other row of that score unless the document's kind is `spec`: the changed
+  document itself and a referencing spec keep their place, and a referencing decision or other
+  document follows them, by path. Scores, evidence, the row set and the wire are unchanged; only
+  the order, and so which rows a packet budget keeps, moves. Failure mode closed: the default
+  harness budget kept decision 0540 and dropped `docs/specs/documentation-citation-gate-v0.md`,
+  the spec that scans `docs/SPEC-TOOLCHAIN-INTEGRATION.md`, because `docs/decisions/` sorts before
+  `docs/specs/` (V1-0179); the oracle's path tie-break is `DR-0047`. Acceptance evidence:
+  `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`, which ordered the decision
+  first against the oracle order, and `corvint impact docs/SPEC-TOOLCHAIN-INTEGRATION.md` listing the
+  gate spec. Rollback: restore order 1 for every referencing document in `impact`.
 - `GPK-V0-336`: (experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated status
   read (`gitstatus.Status`) behind `corvint impact` and the standalone `corvint context` probe MUST
   work in a read-only filesystem sandbox whose ambient temporary directory is not writable. When
@@ -2011,5 +2043,7 @@ negative result.
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
 | `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
+| `GPK-V0-975` (experimental 2026-10-31, V1-0179) | `evalNamedPaths`, `evalCitedNamedPaths`, `evalRankDocuments` in `internal/contextindex/eval_query.go` | `TestEvalQueryRanksTheSpecCitingEveryNamedPathFirst_GPKV0975`; `DR-0047` |
+| `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |
