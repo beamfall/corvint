@@ -133,6 +133,17 @@ and may say UNKNOWN even when admission is possible. `claim --next` makes select
 reservation atomic. Explicit `claim TICKET --scope src/` can bound a requested scope; its
 safety remains the holder's responsibility, and submitted changes outside it refuse.
 
+A `SELECTED` entry's reason `DEVELOPMENT_MODE` is the selection's disposition, not a build or
+qualification check: the closed reason vocabulary has no separate "selected" code, so `state` is
+the discriminator and a `SELECTED` entry is exactly a ticket `claim --next` admits
+(`corvint-tasks-agent-leases-v0.md`, plan preview; `native-taskman-planning-v0.md`). Neither
+`plan preview` nor `claim --next` reads the build's `version` or `verification` fields, so an
+unstamped or `0.0.0-tcp01-unverified` build can preview and claim. That label only means its
+output is not qualification evidence; to proceed, claim as usual and keep the version in your
+evidence. The qualification rule that does gate claims is the queue's: until `cutover
+--execution` is recorded, a non-fixture queue shows every entry `BLOCKED CUTOVER_MISSING` in
+`plan preview`, and `claim --next` refuses with the same code.
+
 `corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...` is a read-only proposal
 of integration batches: submitted or ready candidates with pairwise-disjoint changed paths (apart
 from shared paths), each join confirmed by a dry `git merge-tree` that adds no object or ref.
