@@ -652,3 +652,40 @@ func TestClaimsRecordRefusals(t *testing.T) {
 		})
 	}
 }
+
+// TestClaimsAllCarriedSkipsAnchorSearch: a refresh, from claims or from a
+// plan, that carries every owed hunk skips the anchor search and the
+// governing-spec read, and its output is byte-identical to the searching
+// path; a refresh that drafts a hunk still searches (CKC-V0-014).
+func TestClaimsAllCarriedSkipsAnchorSearch(t *testing.T) {
+	root, base := claimsRepo(t)
+	claims, hunks := claimsStep1(t, root, base)
+	plan := writeInput(t, keyed(hunks, claimsReviewed))
+	original := allCarried
+	t.Cleanup(func() { allCarried = original })
+	skipped := 0
+	counting := func(p *proposal, owed []proposedHunk) bool {
+		all := original(p, owed)
+		if all {
+			skipped++
+		}
+		return all
+	}
+	for _, refresh := range []string{claims, plan} {
+		skipped, allCarried = 0, counting
+		code, skipOut, skipErr := claimsRefresh(t, root, base, refresh)
+		if code != 0 || skipped != 1 || strings.Contains(skipErr, "; drafted") {
+			t.Fatalf("refresh %s = %d, skipped %d searches\n%s", refresh, code, skipped, skipErr)
+		}
+		allCarried = func(*proposal, []proposedHunk) bool { return false }
+		code, fullOut, fullErr := claimsRefresh(t, root, base, refresh)
+		if code != 0 || skipOut != fullOut || skipErr != fullErr {
+			t.Errorf("refresh %s: skipping the search changed the output\n%s\n%s\n---\n%s\n%s", refresh, skipOut, skipErr, fullOut, fullErr)
+		}
+	}
+	claimsCommit(t, root, "fix", map[string]string{"a.go": claimsLines("a", 40, map[int]string{5: "// a line 5 changed\n", 15: "// a line 15\n// a line 15 inserted\n", 25: "// a line 25 changed\n"})})
+	skipped, allCarried = 0, counting
+	if code, _, stderr := claimsRefresh(t, root, base, claims); code != 0 || skipped != 0 || !strings.Contains(stderr, "; drafted") {
+		t.Fatalf("refresh with a drafted hunk = %d, skipped %d searches\n%s", code, skipped, stderr)
+	}
+}

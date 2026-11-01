@@ -384,14 +384,22 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			p.changed[name] = true
 		}
 	}
-	p.prepareAnchors(owed)
+	complete, patched := p.parseAnchors()
+	used := map[string]bool{}
+	p.carry(owed, used)
+	// The anchor search and the governing specs serve only drafted hunks, so
+	// a refresh that carries every owed hunk skips both (CKC-V0-014).
+	skip := allCarried(p, owed)
+	if !skip {
+		p.searchAnchors(owed, complete, patched)
+	}
 	if status != 0 || !bounded {
 		p.matches = map[string][]spanLine{}
 		p.changed[sealContract] = true
 	}
-	p.governing = p.governingSpecs(owed)
-	used := map[string]bool{}
-	p.carry(owed, used)
+	if !skip {
+		p.governing = p.governingSpecs(owed)
+	}
 	rows, notes := []string{}, append([]string{}, p.carryNotes...)
 	cited := 0
 	lastCite := ""
@@ -723,6 +731,26 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // leaves no candidates, and the drafts fall back to nearby lines; it reports
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
+	complete, patched := p.parseAnchors()
+	return p.searchAnchors(owed, complete, patched)
+}
+
+// allCarried reports whether a refresh carries rows for every owed hunk, so
+// draft proposes none and needs no anchor search (CKC-V0-014). A test
+// replaces it to compare the output against the searching path.
+var allCarried = func(p *proposal, owed []proposedHunk) bool {
+	for _, hunk := range owed {
+		if _, ok := p.carriedRows(hunk); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// parseAnchors reads the canonical BASE..HEAD patch, recording its hunks,
+// the requirement IDs it adds and the paths it patches; it reports whether
+// the read completed.
+func (p *proposal) parseAnchors() (bool, map[string]bool) {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
 	p.modifiedOwners = map[string][]string{}
 	complete := false
@@ -754,6 +782,12 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			}
 		}
 	}
+	return complete, patched
+}
+
+// searchAnchors runs the one `git grep` of BASE for the owed hunks' anchors;
+// it reports whether the patch read (complete) and the search completed.
+func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map[string]bool) bool {
 	patterns := map[string]bool{}
 	if !p.basenames {
 		// Only drafts pair moves; the check's anchor search is unchanged.

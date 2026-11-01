@@ -434,15 +434,34 @@ func replaySequence(t *testing.T, source string, fields []string) (replayTotals,
 		if !ok {
 			return result, "step " + commit[:12] + " " + why
 		}
-		current, why, currentTime, ok := repo.propose(stepBase, writeInput(t, plan))
-		if !ok {
+		// The two timed flows run in alternating order, current first on
+		// even steps and claims first on odd ones (ABBA), so each step times
+		// both under the same load and neither always runs on a warm cache.
+		load := replayLoad()
+		order := "current,claims"
+		var current, compiled, header string
+		var currentTime, claimsTime time.Duration
+		currentOK, claimsOK := false, false
+		runCurrent := func() { current, why, currentTime, currentOK = repo.propose(stepBase, writeInput(t, plan)) }
+		runClaims := func() { compiled, header, claimsTime, claimsOK = repo.propose(stepBase, claims) }
+		if replaySteps%2 == 0 {
+			runCurrent()
+			runClaims()
+		} else {
+			order = "claims,current"
+			runClaims()
+			runCurrent()
+		}
+		replaySteps++
+		if !currentOK {
 			return result, "step " + commit[:12] + " current " + why
 		}
-		carriedByClaims := repo.carriedHunks(claims, stepBase, hunks)
-		compiled, header, claimsTime, ok := repo.propose(stepBase, claims)
-		if !ok {
+		if !claimsOK {
 			return result, "step " + commit[:12] + " claims " + header
 		}
+		carriedByClaims := repo.carriedHunks(claims, stepBase, hunks)
+		fmt.Printf("REPLAY step seq=%s step=%s order=%s load1=%s current-ms=%d claims-ms=%d record-ms=%d current-drafted=%t claims-drafted=%t\n",
+			fields[0], commit[:12], order, load, currentTime.Milliseconds(), claimsTime.Milliseconds(), recordTime.Milliseconds(), strings.Contains(why, "; drafted"), strings.Contains(header, "; drafted"))
 		if match := claimsHeader.FindStringSubmatch(header); match != nil {
 			values := [4]int{}
 			for index := range values {
@@ -516,6 +535,20 @@ func replaySequence(t *testing.T, source string, fields []string) (replayTotals,
 		previousHunks, previousBase, previousTarget = hunks, stepBase, replayRows(plan)
 	}
 	return result, ""
+}
+
+// replaySteps counts timed steps across the run; its parity picks the order
+// of the two timed flows.
+var replaySteps int
+
+// replayLoad is the host's one-minute load average, or NA where the host has
+// no /proc/loadavg.
+func replayLoad() string {
+	data, err := os.ReadFile("/proc/loadavg")
+	if fields := strings.Fields(string(data)); err == nil && len(fields) > 0 {
+		return fields[0]
+	}
+	return "NA"
 }
 
 // carriedHunks compiles the claims file as the claims refresh does and

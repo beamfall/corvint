@@ -100,6 +100,11 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - A name with a pathspec or revision metacharacter, a blob past the flow's Git output bound and every name of a failed batch fall back to the per-file read.
   - Recorded claims are byte-identical with and without the batch.
 - `CKC-V0-013`: In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with `; carried` when the hunk's rows were carried from the earlier plan or claims, and `; drafted` otherwise. A plain draft adds no mark.
+- `CKC-V0-014`: Carried-only refresh skips the anchor search.
+  - When a refresh (from claims or from a plan) carries rows for every owed hunk, the draft runs neither the BASE `git grep` for anchors nor the governing-spec read, since only drafted hunks use them.
+  - The canonical patch is still read, because carrying needs its hunks.
+  - The compiled plan and the stderr are byte-identical to the searching path.
+  - A refresh that drafts any hunk searches as before.
 
 ## Failure modes
 
@@ -114,6 +119,7 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
 | Author deleted a drafted cite | Never redrafted; unknown fallback with note |
 | Claims file invalid, oversized or for unreadable BASE blobs | Named refusal, nothing drafted or written |
 | Plan row unresolved or stale at record | Named refusal by row, nothing written |
+| Every owed hunk carried | No anchor search, output byte-identical to the searching path |
 | Batched blob read fails, is over the bound, or a name is not batchable | Per-file read for those names, same bytes and absent cases |
 
 ## Acceptance evidence
@@ -127,6 +133,7 @@ These focused tests live in `internal/dogfoodflow/claims_test.go`:
 - `TestClaimsRecordRefusals` covers the record refusals.
 - `TestClaimsPrefetchBlobsMatchesBlob` covers CKC-V0-012: the batched cache equals the per-file read for regular, empty, executable, missing, directory and symlink names, unbatchable names stay uncached, and the bound skips an oversized blob.
 - `TestClaimsTombstones` also covers CKC-V0-013's carried and drafted marks.
+- `TestClaimsAllCarriedSkipsAnchorSearch` covers CKC-V0-014 for a claims refresh and a plan refresh, and checks that a refresh with a drafted hunk still searches.
 
 `TestClaimsReplay` runs only when `CKC_REPLAY_REPO` and `CKC_REPLAY_SEQUENCES` are set. It replays real history and prints the raw counts and timings recorded in `docs/build-log/2026-11-01-ckc-w15.md`. CLI wiring is covered in `cmd/corvint`.
 
