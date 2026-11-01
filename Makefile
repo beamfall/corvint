@@ -1046,6 +1046,12 @@ requirement-ids-free:
 requirement-id-collisions:
 	@script/requirement-id-collisions.sh $(if $(REF),--base "$(REF)")
 
+# ASD-V0-955 (V1-1629): per-lane dogfood-change run counts from the repository-wide ledger, for the
+# batch measurement; run on each lane host before lane-clean.sh, for example SINCE=2026-11-01.
+.PHONY: dogfood-change-runs
+dogfood-change-runs:
+	@script/dogfood-change-runs.sh $(if $(SINCE),"$(SINCE)")
+
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 .PHONY: lane-scripts-test
 lane-scripts-test:
