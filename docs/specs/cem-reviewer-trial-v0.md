@@ -319,12 +319,27 @@ name is exactly what the change's author also wrote and the harness removed.
   `run` refuses any other earlier registration, an earlier registration committed after that
   report's first lane, and an earlier report with a completed lane that recorded no start. Lane
   reuse is otherwise unchanged (CRT-V0-010): a byte-identical prompt, no error, an observed wall time.
-  The report carries the earlier registration and that report's manifest digest as `re_registered`.
-  A lane reused from it is checked against the earlier registration's commit time, and every other
-  lane is checked against this run's (CRT-V0-014). Lanes resumed from a checkpoint of the same
-  manifest count as this run's own. On rescore the report is invalid when the carried registration
-  differs beyond the scorer digest, when it is newer than a lane reused from it, or when a lane was
-  reused from any other report. The run's build-log entry must name the scorer change, the reused
+  The earlier registration is the same registration only when it has the same commit and an
+  identical document; two registration files committed together are still compared (V1-2624). A
+  never-started pending lane (no start, no observed wall time) of the earlier report does not count
+  as a completed lane without a start. When `--reuse` and a `--resume` checkpoint both hold a lane,
+  the first eligible one is reused, so an ineligible `--reuse` lane never shadows an eligible
+  checkpoint lane. The report carries the earlier registration and that report's manifest digest as
+  `re_registered`; `--resume` restores a checkpoint's `re_registered` record and refuses a
+  checkpoint carrying a different one. Each reused lane records `reused_from` (the manifest digest)
+  and `reused_registration` (the digest of the registration it first ran under), so a lane reused
+  across a scorer-only re-registration of an unchanged manifest is told apart from a resumed one. A
+  lane reused from the earlier registration is checked against that registration's commit time,
+  and every other lane is checked against this run's (CRT-V0-014). Lanes resumed from a checkpoint
+  of the same manifest and registration count as this run's own. On rescore the report is invalid
+  when the carried registration differs beyond the scorer digest, when it is newer than a lane
+  reused from it, when a lane was reused from any other report, or when a report carries
+  `re_registered` with no registration of its own, partition aside. `select` presents each patch
+  byte for byte as `internal/cem/gitauth` `CanonicalDiff` derives it for those paths: the same
+  pinned diff configuration (`diff.noprefix=false` and the other pins), `--attr-source` set to the
+  empty tree, `--full-index`, `a/` and `b/` prefixes and `--end-of-options`. These V1-2624 fixes
+  change the scorer digest; the 2026-10-24 held-out report stays rescored at the registered tree
+  `bc580295f`, where it was registered and run. The run's build-log entry must name the scorer change, the reused
   lane count, and that the reused pairs were already observed in the earlier run. Limit: the scorer
   change itself is not checked to leave the reused lanes' prompts and scoring unchanged. Prompt
   identity covers the prompts. Scoring is recomputed from raw fields on every `finalize`.
@@ -419,7 +434,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-013 | `scoreCitedNotGold`, `citedNotGold`, `mergeIntervals`, `overlap`, `citedNotGoldArms`, `changeMeta.GoldSpans`, `goldSpansOf` (`tools/cem-trial/score.go`, `main.go`) | `TestCiteEverySuggestionAgentLosesOnCitedNotGold` (the cite-every-suggestion agent wins on miss, Δ 0.5, and loses on both rates); `TestCitedNotGoldCountsDistinctPathsAndLines`; `TestRunChecksItsRegistration` (a run carries `gold_spans` and scores the rate) |
 | CRT-V0-014, CRT-V0-010 (2026-10-11 amendment) | `registration`, `parseRegistration`, `loadRegistration`, `registrationRecord`, `registrationProblems`, `registrationMismatches`, `registrationInvalid`, `firstLaneStart`, `unstampedLanes`, `registeredPrior`, `registrationRecord.UnmarshalJSON`, `checkRegistration`, `scorerDigest`, `scorerFiles`, `lane.StartedAt`, `finalize` (`tools/cem-trial/register.go`, `score.go`, `main.go`) | `TestScorerDigestCoversEveryScorerSource`; `TestRegistrationRefusesAnIncompletePlan`; `TestRegistrationMustBeCommitted`; `TestReportRefusesARegistrationNewerThanItsFirstLane`; `TestRunChecksItsRegistration`; no registered run yet: the run is post-rc.3 and owner-commissioned (`NOT_RUN`) |
 | CRT-V0-015 | `registrationMismatches` (no arm refusal since the 2026-10-24 owner decision), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest: a registered cem/1.0 map arm is valid); the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
-| CRT-V0-016 | `reRegistration`, `reRegister`, `reRegistrationProblems`, `reRegistrationInvalid`, `firstFreshLaneStart`, `reuseSource.identities`, `report.ReRegistered` (`tools/cem-trial/register.go`, `main.go`, `score.go`) | `TestReuseAcrossAReRegistration`; the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
+| CRT-V0-016 | `reRegistration`, `reRegister`, `adoptReRegistration`, `resumeReRegistration`, `reRegistrationProblems`, `reRegistrationInvalid`, `firstFreshLaneStart`, `ownLane`, `reuseSource`, `reuseCandidate`, `lane.ReusedRegistration`, `report.ReRegistered`, `canonicalPatch` (`tools/cem-trial/register.go`, `main.go`, `score.go`, `select.go`) | `TestReuseAcrossAReRegistration`, `TestReuseCodexRoundFindings`, `TestSelectPatchMatchesCanonicalDiffUnderHostileConfig`; the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
 | CRT-V0-017 | `stemBaselineBlock`, `stemMiss`, `stemPrologue`, `stemWorklist`, `buildPrompt`, `prologueIdentity`, `parseRunOptions`, `invokeLane` (no replay for `stem`), `summarize` (`stem_contrasts`) (`tools/cem-trial/score.go`, `main.go`) | `TestCRTV0017StemWorklistArmCarriesOnlyTheStemGuesses`; `TestCRTV0017ReportSaysPlainlyWhenTheStemBaselineIsNotBeaten`; compact CEM worklist arm and any run `NOT_RUN` |
 | CRT-V0-018 | `separateOutcomes` (`tools/cem-trial/score.go`) | `TestCRTV0018DiscoveryAndDefectDetectionAreSeparateOutcomes`; adjudicated defect detection `NOT_OBSERVED` |
 | CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; 2026-10-24 three-arm development run (`benchmarks/results/cem-reviewer-trial-development-2026-10-24.json`, 60 lanes); the held-out run is owner-commissioned (decision 0427) and `NOT_RUN` |
