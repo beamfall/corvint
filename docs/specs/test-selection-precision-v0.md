@@ -234,6 +234,20 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   appears. It SHALL be one of `DOC_GATE_TARGETS`, so `make doc-gates` (the CI `doc-gates` job, which
   checks out full history) and `make batch-precheck` run it (owner ci-control-plane approval
   delegated to the orchestrator, 2026-10-31).
+- **TSP-V0-710:** (experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3501) A change of `changes.json` MAY carry `recorded: {ciScope, verdict}`, the CI
+  scope and selector verdict of the replay the floor was last measured on. `tools/selection-baseline`
+  SHALL print, before the floor verdict, one line
+  `selection-baseline: MOVED <id> ci <old> -> <new> (verdict <old> -> <new>[: <reason>])` for every
+  change whose replayed CI scope or verdict differs from its record, the reason being the replayed
+  selector's fallback or `NOTHING` reason, and SHALL print
+  `selection-baseline: UNRECORDED <n> change(s) carry no recorded verdict` when any change lacks one.
+  The floor and miss checks are unchanged. Refreshing the record (copying each result's `ciScope`
+  and `verdict` from a `--out` file into `changes.json`) is part of moving the floor. Non-goals:
+  failing on a move alone; recording per-package selections. Failure mode: a record left stale after
+  a deliberate floor change makes every later replay print the same MOVED lines until it is
+  refreshed. Rollback: drop `Moved` and its lines in `verdictLines`; the `recorded` members are then
+  ignored, so remove them with it.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
