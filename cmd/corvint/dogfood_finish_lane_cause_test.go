@@ -69,12 +69,17 @@ func TestFinishLaneDCWV0806NamesTheOriginatingRefusal(t *testing.T) {
 	}
 }
 
-// TestFinishLaneDCWV0806CauseNamesABindTimeRefusal (V1-3495): an intent spec
-// with two `## Requirements` headings passes the DCW-V0-961 obligation
-// pre-flight, which leaves an intent prepare would refuse to the steps, and
-// fails only once a pass prepares its OCM map. finish-lane then names that
-// originating row as the CAUSE before its FAIL line, so the line has an
-// end-to-end test again; without the CAUSE line this fails.
+// TestFinishLaneDCWV0806CauseNamesABindTimeRefusal (V1-3495): a bind-time
+// step refusal that no pre-flight catches, followed through the installed
+// binary. The fixture first used an intent with two `## Requirements`
+// headings, refused by ocm-prepare-001 only in the bind; since DCW-V0-945 the
+// prepare pass derives every intent as ocm-prepare does and refuses that one
+// before any step, so the intent here is valid. Instead the DOGFOOD_OCM_LINKS
+// plan, which only the bind pass reads, links obligation 2 of a one-requirement
+// map: the row is well formed, so ocm-links is PRODUCED, and only `ocm link`
+// against the prepared map refuses obligation-selector-out-of-range.
+// finish-lane then names that originating row as the CAUSE before its FAIL
+// line; without the CAUSE line this fails.
 func TestFinishLaneDCWV0806CauseNamesABindTimeRefusal(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -88,7 +93,7 @@ func TestFinishLaneDCWV0806CauseNamesABindTimeRefusal(t *testing.T) {
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "base")
 	base := cemGit(t, root, "rev-parse", "HEAD")
-	cemWrite(t, root, "docs/specs/twice-v0.md", "# Twice v0\n\n## Requirements\n\n- `TWO-V0-001`: one holds.\n\n## Requirements\n\n- `TWO-V0-002`: two holds.\n")
+	cemWrite(t, root, "docs/specs/once-v0.md", "# Once v0\n\n## Requirements\n\n- `ONE-V0-001`: one holds.\n")
 	cemWrite(t, root, "a.txt", "changed\n")
 	cemGit(t, root, "add", ".")
 	cemGit(t, root, "commit", "-qm", "change")
@@ -100,19 +105,20 @@ func TestFinishLaneDCWV0806CauseNamesABindTimeRefusal(t *testing.T) {
 		}
 		return path
 	}
+	links := write("links", "docs/specs/once-v0.md\t2\t1\ta_test.go\ttest:TestOne\n")
 	args := []string{"dogfood", "finish-lane", "--base", base,
 		"--citations", write("cites", "1\tunknown\tinsufficient-evidence\tfixture\n2\tunknown\tinsufficient-evidence\tfixture\n"),
-		"--intents", write("intents", "docs/specs/twice-v0.md\n"),
+		"--intents", write("intents", "docs/specs/once-v0.md\n"),
 		"--verify", write("verify", "go test ./...\n"), "--outcome", "passed"}
-	code, stdout, stderr := run.exec(t, root, finishLaneIdentity, args...)
-	if code == 0 || strings.Contains(stdout+stderr, "REFUSE too-many-obligations") {
-		t.Fatalf("exit=%d, want a refusal after the pre-flight\nstdout=%s\nstderr=%s", code, stdout, stderr)
+	code, stdout, stderr := run.exec(t, root, append(finishLaneIdentity[:len(finishLaneIdentity):len(finishLaneIdentity)], "DOGFOOD_OCM_LINKS="+links), args...)
+	if code == 0 || !strings.Contains(stdout, "dogfood-finish-lane: prepare PASS ") || strings.Contains(stdout+stderr, "REFUSE ") {
+		t.Fatalf("exit=%d, want the prepare pass to admit the inputs and the bind to refuse\nstdout=%s\nstderr=%s", code, stdout, stderr)
 	}
-	// The aggregate's intent-scope-drift only follows from the refused
-	// prepare; the CAUSE line names the prepare, ahead of the bind FAIL line.
-	cause := strings.Index(stdout, "dogfood-finish-lane: CAUSE bind ocm-prepare-001 invalid-requirements-section\n")
+	// The link row is the bind pass's first failing row; the CAUSE line names
+	// it, ahead of the bind FAIL line.
+	cause := strings.Index(stdout, "dogfood-finish-lane: CAUSE bind ocm-link-001 obligation-selector-out-of-range\n")
 	fail := strings.Index(stdout, "dogfood-finish-lane: bind FAIL exit=")
-	if cause < 0 || fail < cause || !strings.Contains(stdout, "  bind ocm-aggregate NOT_PRODUCED intent-scope-drift\n") {
-		t.Fatalf("no CAUSE line naming the ocm-prepare refusal before the bind FAIL line\nstdout=%s\nstderr=%s", stdout, stderr)
+	if cause < 0 || fail < cause || !strings.Contains(stdout, "  bind ocm-link-001 NOT_PRODUCED obligation-selector-out-of-range\n") {
+		t.Fatalf("no CAUSE line naming the ocm-link refusal before the bind FAIL line\nstdout=%s\nstderr=%s", stdout, stderr)
 	}
 }
