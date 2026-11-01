@@ -1208,3 +1208,40 @@ func TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery(t *testing.T) {
 		t.Fatalf("codex notice=%+v", codex)
 	}
 }
+
+// TestAHI802SharedCloneFallbackNamesObjectAlternates runs the real hook read in a git clone
+// --shared, which Corvint's pinned reads refuse, and requires the unavailable fallback to name
+// unsupported-object-alternates and its fix while the frame and ledger reason stay unchanged.
+func TestAHI802SharedCloneFallbackNamesObjectAlternates(t *testing.T) {
+	t.Parallel()
+	source := queryCLIRepository(t)
+	clone := filepath.Join(t.TempDir(), "shared")
+	if out, err := exec.Command("git", "clone", "-q", "--shared", source, clone).CombinedOutput(); err != nil {
+		t.Fatalf("git clone --shared: %v\n%s", err, out)
+	}
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": clone})
+	ctx = context.WithValue(ctx, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})
+	text, _ := output["systemMessage"].(string)
+	lines := strings.Split(text, "\n")
+	if len(lines) < 2 || lines[0] != "Corvint FALLBACK degraded: "+claudeUnavailableReason+"; coding continues" ||
+		!strings.Contains(lines[1], "unsupported-object-alternates") || !strings.Contains(lines[1], "objects/info/alternates") ||
+		!strings.Contains(lines[1], "git clone --no-local") || !strings.Contains(lines[1], "git commit-graph write --reachable") {
+		t.Fatalf("shared-clone notice=%q", text)
+	}
+	if adapterDegradationReason(output) != claudeUnavailableReason {
+		t.Fatalf("notice lost its ledger reason: %+v", output)
+	}
+	// A worktree's .git file resolves through commondir to the same alternates file.
+	worktree := filepath.Join(t.TempDir(), "linked")
+	if out, err := exec.Command("git", "-C", clone, "worktree", "add", "-q", "--detach", worktree).CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add: %v\n%s", err, out)
+	}
+	if _, ok := alternatesCauseLine(worktree); !ok {
+		t.Fatalf("linked worktree of a shared clone did not resolve its alternates")
+	}
+	// The source repository has no alternates, so its unavailable read keeps the AHI-970 line.
+	if line, ok := alternatesCauseLine(source); ok {
+		t.Fatalf("source repository named alternates: %q", line)
+	}
+}

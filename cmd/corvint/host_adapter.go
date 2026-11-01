@@ -996,7 +996,61 @@ func causeRemediation(root, reason string) string {
 	if reason != claudeUnavailableReason {
 		recovery = "\nThe next prompt rebuilds Corvint context from the current tree. To check that Corvint's read works, run this read-only command outside the hook:\n"
 	}
-	return "\n" + causeLines[reason] + recovery + string(query)
+	cause := causeLines[reason]
+	if reason == claudeUnavailableReason {
+		if line, ok := alternatesCauseLine(root); ok {
+			cause = line
+		}
+	}
+	return "\n" + cause + recovery + string(query)
+}
+
+// alternatesCauseLine is the AHI-802 cause line for an unavailable read in a clone that borrows
+// objects through alternates, which Corvint's pinned reads refuse as unsupported-object-alternates.
+// It lstats only the alternates files under the Git directory and common directory: no Git
+// process, no write.
+func alternatesCauseLine(root string) (string, bool) {
+	for _, dir := range adapterGitDirs(root) {
+		for _, name := range []string{"alternates", "http-alternates"} {
+			if _, err := os.Lstat(filepath.Join(dir, "objects", "info", name)); err == nil {
+				return "Corvint's read-only context read refused this clone as unsupported-object-alternates: it borrows objects through objects/info/" + name + " (git clone --shared or --reference), so this event got no Corvint context; coding continues. Fix: clone again with git clone --no-local, or run git repack -a -d, remove objects/info/alternates, objects/info/http-alternates and objects/info/commit-graphs under the Git common directory, then run git commit-graph write --reachable.", true
+			}
+		}
+	}
+	return "", false
+}
+
+// adapterGitDirs is the Git directory and common directory of root, read from the .git entry and
+// the commondir file without running Git. A missing or unreadable entry yields no directory.
+func adapterGitDirs(root string) []string {
+	gitDir := filepath.Join(root, ".git")
+	info, err := os.Lstat(gitDir)
+	if err != nil {
+		return nil
+	}
+	if !info.IsDir() {
+		raw, err := os.ReadFile(gitDir)
+		if err != nil || len(raw) > 4096 {
+			return nil
+		}
+		target, ok := strings.CutPrefix(strings.TrimSpace(string(raw)), "gitdir: ")
+		if !ok {
+			return nil
+		}
+		if !filepath.IsAbs(target) {
+			target = filepath.Join(root, target)
+		}
+		gitDir = target
+	}
+	dirs := []string{gitDir}
+	if raw, err := os.ReadFile(filepath.Join(gitDir, "commondir")); err == nil && len(raw) <= 4096 {
+		common := strings.TrimSpace(string(raw))
+		if !filepath.IsAbs(common) {
+			common = filepath.Join(gitDir, common)
+		}
+		dirs = append(dirs, filepath.Clean(common))
+	}
+	return dirs
 }
 
 // withCauseRemediation appends causeRemediation to every channel a covered notice already uses,
