@@ -41,7 +41,7 @@ func TestPTFV0DependencySpecialFiles(t *testing.T) {
 	}
 	for _, kind := range []string{"root-fifo", "explicit-fifo", "root-socket", "explicit-directory", "open-fifo"} {
 		t.Run(kind, func(t *testing.T) {
-			root, err := os.MkdirTemp("/tmp", "ptf-special-")
+			root, err := os.MkdirTemp("/tmp", "ptf-special-") // fixed-tmp: socket kinds need a short sun_path
 			if err != nil {
 				t.Fatal(err)
 			}

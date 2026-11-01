@@ -660,6 +660,7 @@ func TestWorkSelfAdapterStandaloneParity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	environment = append(environment, workRunParentEnvironment()...)
 	before := materializationManifest(t, caller)
 	// Parallel cold producer build: a hang detector, not a budget (decision 0082).
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
@@ -754,6 +755,7 @@ func TestWorkScriptRejectsCallerScratch(t *testing.T) {
 			command := exec.CommandContext(ctx, script, "snapshot")
 			command.Dir = caller
 			command.Env = []string{"PATH=" + fake + ":/usr/bin:/bin:/usr/local/bin", "HOME=" + t.TempDir(), "TMPDIR=" + temporary}
+			command.Env = append(command.Env, workRunParentEnvironment()...)
 			command.WaitDelay = 10 * time.Second
 			workContain(command)
 			t.Cleanup(func() { workKillGroup(command) })
@@ -776,7 +778,13 @@ func TestWorkScriptRejectsCallerScratch(t *testing.T) {
 				t.Fatal("standalone compiler did not run in safe scratch", err)
 			}
 			acquired := strings.TrimSpace(string(raw))
-			fixed, err := filepath.EvalSymlinks("/tmp")
+			// The script builds under CORVINT_WORK_RUN_PARENT when set, else the fixed /tmp; never
+			// under the caller's TMPDIR.
+			parent := "/tmp"
+			if value := os.Getenv("CORVINT_WORK_RUN_PARENT"); value != "" {
+				parent = value
+			}
+			fixed, err := filepath.EvalSymlinks(parent)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -836,6 +844,7 @@ func TestWorkScriptRejectsScratchAliases(t *testing.T) {
 			command := exec.CommandContext(ctx, script, "snapshot")
 			command.Dir = caller
 			command.Env = []string{"PATH=" + fake + ":/usr/bin:/bin:/usr/local/bin", "HOME=" + t.TempDir(), "TMPDIR=" + temporary}
+			command.Env = append(command.Env, workRunParentEnvironment()...)
 			command.WaitDelay = 10 * time.Second
 			workContain(command)
 			t.Cleanup(func() { workKillGroup(command) })
@@ -886,6 +895,7 @@ func TestWorkScriptPinsGitPreflight(t *testing.T) {
 			command := exec.CommandContext(ctx, script, "snapshot")
 			command.Dir = caller
 			command.Env = []string{"PATH=" + fake + ":/usr/bin:/bin:/usr/local/bin", "HOME=" + home, "TMPDIR=" + scratch, "GIT_CONFIG_GLOBAL=" + global, "GIT_CONFIG_SYSTEM=" + global}
+			command.Env = append(command.Env, workRunParentEnvironment()...)
 			if name != "" {
 				command.Env = append(command.Env, name+"=")
 			}
@@ -917,4 +927,14 @@ func TestWorkScriptPinsGitPreflight(t *testing.T) {
 			}
 		})
 	}
+}
+
+// workRunParentEnvironment passes TestMain's private CORVINT_WORK_RUN_PARENT to a child
+// whose environment is explicit; without it script/corvint-work-queue builds under the fixed
+// /tmp rather than the test's temporary root (V1-3847).
+func workRunParentEnvironment() []string {
+	if parent := os.Getenv("CORVINT_WORK_RUN_PARENT"); parent != "" {
+		return []string{"CORVINT_WORK_RUN_PARENT=" + parent}
+	}
+	return nil
 }

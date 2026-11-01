@@ -394,7 +394,7 @@ func writeFailOpenRepository(t *testing.T, realGit, repository, home string) {
 		// The explicit Env drops TestMain's GIT_CONFIG_PARAMETERS, so the fixture restores it:
 		// detached auto maintenance after the commit races failOpenTree's walk of .git (V1-0351).
 		// It stays out of the repository config, which would change the adapter's Git path.
-		command.Env = []string{"HOME=" + home, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_PARAMETERS='maintenance.auto'='false' 'gc.auto'='0'"}
+		command.Env = []string{"HOME=" + home, "TMPDIR=" + os.TempDir(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_PARAMETERS='maintenance.auto'='false' 'gc.auto'='0'"}
 		if output, err := command.CombinedOutput(); err != nil {
 			t.Fatalf("git %v: %v\n%s", arguments, err, output)
 		}
@@ -406,7 +406,7 @@ func writeFailOpenRepository(t *testing.T, realGit, repository, home string) {
 func writeFailOpenStaleIndex(t *testing.T, binary, repository, home string) {
 	t.Helper()
 	command := exec.Command(binary, "--root", repository, "index")
-	command.Env = []string{"PATH=" + filepath.Dir(binary) + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + home, "GIT_CONFIG_NOSYSTEM=1"}
+	command.Env = []string{"PATH=" + filepath.Dir(binary) + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + home, "TMPDIR=" + os.TempDir(), "GIT_CONFIG_NOSYSTEM=1"}
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("index: %v\n%s", err, output)
 	}

@@ -49,7 +49,7 @@ func TestBBFV0014TempRootTransport(t *testing.T) {
 	if _, err := os.Stat(filepath.Dir(paths[1])); !os.IsNotExist(err) {
 		t.Fatalf("staging remains: %v", err)
 	}
-	os.Setenv("TMPDIR", "/tmp")
+	os.Setenv("TMPDIR", "/tmp") // fixed-tmp: asserts the default environment ignores TMPDIR; nothing is written
 	if slices.Contains(commandEnvironment(root, nil, "control"), "TMPDIR=/tmp") {
 		t.Fatal("default hook environment changed")
 	}

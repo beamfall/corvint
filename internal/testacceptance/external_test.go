@@ -286,6 +286,7 @@ func TestNEAV0013DeclaredEnvironment(t *testing.T) {
 	})
 	t.Run("worker admits exactly the declared pairs", func(t *testing.T) {
 		saved := os.Environ()
+		temporary := os.TempDir()
 		t.Cleanup(func() {
 			os.Clearenv()
 			for _, entry := range saved {
@@ -294,7 +295,7 @@ func TestNEAV0013DeclaredEnvironment(t *testing.T) {
 			}
 		})
 		os.Clearenv()
-		t.Setenv("TMPDIR", "/tmp")
+		t.Setenv("TMPDIR", temporary)
 		for _, entry := range append(workerEnvironment(), externalEnvironment(f.request)...) {
 			parts := strings.SplitN(entry, "=", 2)
 			t.Setenv(parts[0], parts[1])

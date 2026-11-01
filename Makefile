@@ -527,6 +527,10 @@ legal-file-pins-check:
 mkfifo-build-tags-check:
 	@script/check-mkfifo-build-tags.sh
 
+.PHONY: fixed-tmp-paths-check
+fixed-tmp-paths-check:
+	@script/check-fixed-tmp-paths.sh
+
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
 .PHONY: host-package-version-bump
@@ -878,7 +882,7 @@ shell-test-registration-check:
 	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check fixed-tmp-paths-check selection-baseline-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
