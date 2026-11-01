@@ -978,6 +978,8 @@ if (@failures) {
     my $movable = grep { /--repin rewrites it/ } @failures;
     print STDERR "line citations: fix: $movable citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check\n"
         if $movable;
+    # DCG-V0-743 (V1-3678): name the copy that was checked, since it can differ from the worktree.
+    print STDERR "line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it\n";
 }
 print_skipped();
 print_unstaged('this gate');
@@ -1017,6 +1019,20 @@ sub print_unstaged {
     }
     # The documents --repin just rewrote are named by its own staging line above.
     delete @unstaged{@rewritten};
+    # DCG-V0-743 (V1-3678): an untracked document the scan would read is invisible until added.
+    my @untracked;
+    if (open my $others, '-|', 'git', 'ls-files', '--others', '--exclude-standard', '-z') {
+        local $/ = "\0";
+        while (my $path = <$others>) {
+            chomp $path;
+            push @untracked, $path if scanned_doc($path);
+        }
+        close $others;
+    }
+    print STDERR "line citations: note: $reader reads the Git index, so " . scalar(@untracked)
+        . " untracked document(s) it would scan were not checked (git add them to include them):\n"
+        . join('', map { "  $_\n" } sort @untracked)
+        if @untracked;
     return unless %unstaged;
     my @paths = sort keys %unstaged;
     print STDERR "line citations: note: $reader reads the Git index, so unstaged edits to "

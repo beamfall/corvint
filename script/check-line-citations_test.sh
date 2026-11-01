@@ -322,6 +322,25 @@ case $output in
 *'1 citation(s) do not resolve'*'unstaged edits to 1 file(s) it read were not checked'*'docs/agent-memory/fixture.md'*) ;;
 *) fail "an unstaged edit to a scanned document was not named beside the failure: $output" ;;
 esac
+# DCG-V0-743 (V1-3678): the failing run names the copy it checked, and an untracked document the
+# scan would read is named as unchecked; a passing run prints no source line.
+case $output in
+*'read the staged (Git index) copy of every file, not the worktree'*) ;;
+*) fail "a failing run did not name the Git index as the checked copy: $output" ;;
+esac
+# shellcheck disable=SC2016
+printf '# New\n\nCites `internal/demo/demo.go:99`.\n' > "$test_root/docs/agent-memory/untracked.md"
+output=$(run) || true
+case $output in
+*'1 untracked document(s) it would scan were not checked'*'docs/agent-memory/untracked.md'*) ;;
+*) fail "an untracked scanned document was not named: $output" ;;
+esac
+rm -f "$test_root/docs/agent-memory/untracked.md"
+cite "$anchor"
+output=$(run) || fail "the restored fixture failed: $output"
+case $output in
+*'Git index) copy'*) fail "a passing run printed the failure-only source line: $output" ;;
+esac
 
 # 22. DCG-V0-001: skipped basenames are visible without affecting pass/fail. DCG-V0-046 (V1-2821):
 #     by default they are one counted note line; --verbose lists each one.
@@ -415,6 +434,7 @@ output=$(run) || rc=$?
 expected_head="line citations: 1 citation(s) do not resolve:
   docs/agent-memory/fixture.md:3  \`$span\`  cited content moved unchanged to \`internal/demo/demo.go:5-6@$pin\` (script/check-line-citations.sh --repin rewrites it)
 line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check
+line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it
 line citations: note: skipped 1 citation(s) whose basename is not tracked at repository root (--verbose lists them)
 line citations: note: this gate reads the Git index, so unstaged edits to 1 file(s) it read were not checked (git add them to include them):
   internal/demo/demo.go"

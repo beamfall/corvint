@@ -372,6 +372,13 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   `script/check-line-citations_test.sh` (a repeated short `go build` line moved by a committed
   insertion repins; a changed short line is left; fails on BASE). Rollback: drop the
   `history_relocation` call in `check`.
+- `DCG-V0-743`: (experimental under the standing lane auto-accept (2026-11-01); V1-3678; refines
+  DCG-V0-021) A failing run MUST state, after its failures, that it read the staged (Git index)
+  copy of every file and not the worktree, and the DCG-V0-021 note MUST also name each untracked
+  file that `scanned_doc` would scan, since the gate cannot see it until it is added. A passing run
+  prints no source line; its unstaged edits keep the DCG-V0-021 note. Design: a lane edited a cited
+  file without staging it and read the failure as a worktree result. Evidence: case 21 of
+  `script/check-line-citations_test.sh`. Rollback: drop the line and the untracked listing.
 
 ## Non-goals and simpler baseline
 
@@ -465,6 +472,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
 | DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
 | DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
+| DCG-V0-743 | test case 21: a failing run says it read the Git index, not the worktree; an untracked scanned document is named in the note; the restored passing fixture prints no source line |
 
 ## Traceability
 
@@ -505,6 +513,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-801 | `script/repin.sh`, `REPIN_BASE` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34; `script/repin_test.sh` |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
+| DCG-V0-743 | the index-source line after the failures and the untracked listing in `print_unstaged` in `script/check-line-citations.sh` | case 21 |
 
 ## Rollout, rollback, and drift
 
