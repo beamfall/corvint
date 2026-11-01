@@ -2530,12 +2530,12 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
 | AMAP-V0-810 | `TestAMAPV0810ModuleCoverage` (a two-router fixture with partial coverage reads the expected per-module totals, reached counts by basis and unreached lists; the report is deterministic and reconciles); `TestFlowsAppmapCoverageCLI` |
-| AMAP-V0-811 | `TestAMAPV0810ModuleCoverage` (unknown and abstract screens are never counted as reached or unreached; an undeclared `router_globs` file is an `UNKNOWN` module with null counts) |
+| AMAP-V0-811 | `TestAMAPV0810ModuleCoverage` (unknown and abstract screens are never counted as reached or unreached; an undeclared `router_globs` file is an `UNKNOWN` module with null counts; a declared router with only a router-level unknown is an `UNKNOWN` module listing its `ref`) |
 | AMAP-V0-812 | `TestFlowsAppmapCoverageCLI` (exit 0 with the schema; a missing map, a stray argument and a bad budget exit 2 with no stdout) |
-| AMAP-V0-813 | `TestAMAPV0813BundlerAliasIsNotExternal` (object, exact, array, computed and assigned aliases leave the injected name UNKNOWN; an unrelated alias or none keeps the external exemption) |
+| AMAP-V0-813 | `TestAMAPV0813BundlerAliasIsNotExternal` (object, exact, array, computed and assigned aliases leave the injected name UNKNOWN; an escaped literal or identifier `alias` key does too; an unrelated alias or none keeps the external exemption) |
 | AMAP-V0-814 | `TestAMAPV0814CypressRefs` |
-| AMAP-V0-815 | `TestAMAPV0815TestIDAttribute` |
-| AMAP-V0-816 | `TestAMAPV0816AnchoredRegexRoutes` |
+| AMAP-V0-815 | `TestAMAPV0815TestIDAttribute`; `TestAMAPV0815AliasedRootTestIDAttribute` (a bound aliased root's own `playwright.config` attribute is checked) |
+| AMAP-V0-816 | `TestAMAPV0816AnchoredRegexRoutes` (an `i`-flag literal start matches a parameterized route without case; top-level alternation keeps the label) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
