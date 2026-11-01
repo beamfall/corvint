@@ -5314,6 +5314,33 @@ selected the package, and the failure surfaced only in the nightly release gates
   temporary directories. Failure mode: a root-relative stat through any other expression shape is
   not flagged. Rollback: delete `statReaders` and its call in `check`.
 
+### One unknown allowlist for the deciding driver and the shadow (AFP-V0-982; V1-3749)
+
+Intent (test-selection soundness audit, 2026-11-01; V1-3749): the deciding driver
+(`gateselect.Select`, CIN-V0-860) and the shadow `corvint test` (`sessiontest`, AFP-V0-028) each
+kept their own list of the `plan.unknown` entries a narrowed run may carry. The driver admitted
+every `LANGUAGE_FRONTIER` that is not module-level; the shadow admitted a `go:` frontier only for
+`go:build-constraint-variants` and `go:nested-module-frontier`. Both are built from the same pinned
+commit, so a defect in either list is shared, and nothing failed when they drifted.
+
+- **AFP-V0-982:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3749)
+  `gateselect.AllowedUnknown(reason, detail)` SHALL be the one allowlist of `plan.unknown` entries
+  a narrowed run may carry: a `LANGUAGE_FRONTIER` whose detail does not start with `go:`, or is
+  `go:build-constraint-variants` or `go:nested-module-frontier`; an `UNOWNED_DIRTY_PATH`; a
+  `NO_SELECTABLE_TEST`. CIN-V0-860's `unknownNarrowing` and `sessiontest`'s AFP-V0-028 check SHALL
+  both decide through it, so the driver now falls back on a `go:` frontier the shadow already ran
+  in full (`go:unobserved-directory`, `go:path-token-bound:<unit>`, a workspace frontier). Outside
+  the allowlist each side keeps one named rule of its own: the driver attributes a deleted Go source
+  of a package that still exists to that package (CIN-V0-860 (4)), and a non-`ci` profile of
+  `corvint test` runs an unobserved nested module's own suite (STR-V0-064). A test over every
+  unknown reason and every Go frontier detail the planner emits SHALL fail when the two sides
+  decide one entry differently. Non-goals: an independently pinned shadow (a workflow pin change
+  that needs the owner's `ci-control-plane` review); widening either list. Failure modes: an
+  allowlist defect is now shared by both sides by design; the AFP-V0-098 superset rule already
+  narrowed CI only inside the shadow's list, so no CI outcome changes, while the local
+  `script/gate-affected.sh` falls back on the narrowed `go:` frontiers. Rollback: restore the two
+  local switches and delete `AllowedUnknown` and its test.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
