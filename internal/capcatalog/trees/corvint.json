@@ -3444,7 +3444,6 @@
         "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
         "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
-        "corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json",
         "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]",
@@ -3601,8 +3600,7 @@
       "summary": "Compile the committed manifest into an application map at one revision (experimental, AMAP-V0)",
       "usage": [
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
-        "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
-        "corvint flows appmap build --manifest appmap.json --revision HEAD > /tmp/appmap-map.json"
+        "corvint flows appmap build --help prints the manifest's minimum members, what each step commits"
       ],
       "flags": [
         "--from",
@@ -4927,8 +4925,7 @@
         "corvint mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]",
         "corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]",
         "corvint mcp --root ABSOLUTE_ROOT --follow-ref REF",
-        "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]",
-        "corvint mcp --root /absolute/repo --protocol-version 2025-11-25"
+        "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]"
       ],
       "flags": [
         "--corpus-artifact",
@@ -5468,7 +5465,6 @@
       "summary": "Record a corvint invocation as a reproduction bundle, or replay one (RPB-V0, experimental)",
       "usage": [
         "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ...",
-        "corvint repro record --output impact.repro.json --expect-exit 0 -- impact --path README.md",
         "corvint [--root PATH] repro run BUNDLE"
       ],
       "flags": [
@@ -5479,7 +5475,6 @@
         "--expect-stdout-not-contains",
         "--input",
         "--output",
-        "--path",
         "--root"
       ],
       "required": [],
@@ -5494,8 +5489,7 @@
       "command": "corvint repro record",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ...",
-        "corvint repro record --output impact.repro.json --expect-exit 0 -- impact --path README.md"
+        "corvint [--root PATH] repro record --output FILE [--input PATH ...] [--expect-exit N] [--expect-stdout-contains TEXT ...] [--expect-stdout-not-contains TEXT ...] [--expect-stderr-contains TEXT ...] [--expect-same-stdout] -- ARGUMENT ..."
       ],
       "flags": [
         "--expect-exit",
@@ -5505,10 +5499,12 @@
         "--expect-stdout-not-contains",
         "--input",
         "--output",
-        "--path",
         "--root"
       ],
-      "required": [],
+      "required": [
+        "--output FILE",
+        "-- ARGUMENT"
+      ],
       "example": "corvint repro record --output FILE -- ARGUMENT",
       "help": "corvint repro record --help"
     },

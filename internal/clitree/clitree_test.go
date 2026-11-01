@@ -361,3 +361,36 @@ func dispatch(argv []string) {
 		t.Errorf("flags %v, want only --real-flag", flags)
 	}
 }
+
+// V1-3286: an indented example line before or after the Usage block, or in an
+// Example section, is not a synopsis, so the node's usage line is the one under
+// Usage and no flag or required input is derived from the example.
+func TestCAPV0970SynopsesTakeTheUsageLineNotAnExample(t *testing.T) {
+	const help = `Record a reproduction.
+
+For instance:
+  sample record --output first.json --path README.md
+
+Usage:
+  sample record --output FILE [--input PATH ...]
+
+Example:
+  sample record --output impact.json --path README.md
+Examples:
+    sample record --output other.json --expect-exit 0
+`
+	if got := Synopses("sample", help); got[0] != "sample record --output FILE [--input PATH ...]" {
+		t.Fatalf("first synopsis = %q, want the usage line", got)
+	}
+	builder := NewBuilder("sample")
+	builder.AddText(help, "")
+	tree := builder.Tree("sample help --json", "test", nil, nil, nil)
+	record := node(t, tree, "record")
+	if record.Usage[0] != "sample record --output FILE [--input PATH ...]" || slices.Contains(record.Flags, "--expect-exit") {
+		t.Fatalf("record node = %+v", record)
+	}
+	inline := Synopses("sample", "Usage: sample run --task TEXT\n    sample run --task demo\nExample: sample run --task demo\n")
+	if !slices.Equal(inline, []string{"sample run --task TEXT", "sample run --task demo"}) {
+		t.Fatalf("inline usage synopses = %q", inline)
+	}
+}

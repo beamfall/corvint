@@ -149,34 +149,57 @@ func (b *Builder) AddForm(form, summary string) {
 
 // Synopses returns each synopsis line of text that starts with the binary
 // (after an optional "usage:" or "Usage:" label), joined with its indented
-// continuation lines.
+// continuation lines. A line of an "Example:" or "Examples:" section (the
+// header line itself, or its block up to the first blank or unindented line)
+// is an example, not a synopsis, and the labelled forms (an inline "usage:"
+// line or the block under a bare "Usage:") come first, so a node's first usage
+// line is its true usage line wherever an example sits (V1-3286).
 func Synopses(binary, text string) []string {
-	var forms []string
-	open := false
+	var labelled, other []string
+	forms := &other
+	open, usageBlock, exampleBlock := false, false, false
 	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		lowered := strings.ToLower(trimmed)
+		indented := trimmed != "" && line != strings.TrimLeft(line, " \t")
+		if !indented {
+			usageBlock, exampleBlock = false, false
+		}
+		if strings.HasPrefix(lowered, "example:") || strings.HasPrefix(lowered, "examples:") {
+			open, usageBlock, exampleBlock = false, false, true
+			continue
+		}
+		if exampleBlock {
+			open = false
+			continue
+		}
+		inline := false
 		if rest, ok := strings.CutPrefix(lowered, "usage:"); ok {
 			trimmed = strings.TrimSpace(trimmed[len(trimmed)-len(rest):])
 			if trimmed == "" {
-				open = false
+				open, usageBlock = false, true
 				continue
 			}
+			inline = true
 		}
 		if label, rest, ok := strings.Cut(trimmed, ": usage: "); ok && strings.HasPrefix(label, binary) {
-			trimmed = rest
+			trimmed, inline = rest, true
 		}
 		switch {
 		case strings.HasPrefix(trimmed, binary+" "):
-			forms = append(forms, trimmed)
+			forms = &other
+			if inline || usageBlock {
+				forms = &labelled
+			}
+			*forms = append(*forms, trimmed)
 			open = true
 		case open && trimmed != "" && strings.HasPrefix(line, "    ") && !strings.Contains(trimmed, ": "):
-			forms[len(forms)-1] += " " + trimmed
+			(*forms)[len(*forms)-1] += " " + trimmed
 		default:
 			open = false
 		}
 	}
-	return forms
+	return append(labelled, other...)
 }
 
 // tokens splits a form, keeping a bracket or angle group with spaces as one
