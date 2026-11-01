@@ -126,6 +126,17 @@ for line in "script/build.sh:32:python=\${SPEC_TOOLCHAIN_PYTHON:-python3}" \
   fi
 done
 
+# V1-3842: shell tests are scan targets, and a python3 call added to one fails the scan like any
+# other scanned script.
+if ! printf '%s\n' "$targets" | grep -qx script/check-bash32_test.sh; then
+  echo "self-test: script/*_test.sh shell tests are not scan targets" >&2
+  exit 1
+fi
+if ! fires 'script/example_test.sh:12:  out=$(python3 -c "print(1)")'; then
+  echo "self-test: a python3 call in a script/*_test.sh shell test was not detected" >&2
+  exit 1
+fi
+
 # Reaching the exempt script from a gate step, a prerequisite or another recipe is detected; its
 # own non-gate target is not.
 printf 'GATE_STEPS = go-test\nspec-toolchain-conformance:\n\t@%s\n' "$external_conformance" > "$fixture"
