@@ -337,8 +337,8 @@ cannot silently go missing or outlive its command.
   list, is not answered, so the binary's existing dispatch, refusals and exit codes are unchanged.
 - `CAP-V0-932`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-31)
   Each of the two binaries' root help MUST list every node with its summary and name `help --json`,
-  and each binary's own test MUST run the binary's `command` entry point in process for every node with `--help` and `-h`
-  (exit 0, stdout equal to `Render`, empty stderr) and fail when its committed snapshot is stale.
+  and each binary's own test MUST run the binary's `command` entry point in process for every node
+  with `--help` and `-h` (exit 0, stdout equal to `Render`, empty stderr) and fail when its committed snapshot is stale.
   Non-goals: command trees for the remaining 50 ratchet binaries (each leaves the ratchet in its
   own change); changing either binary's verbs, flags, refusals or JSON output. Failure modes: the
   usage text states which flags a verb needs, but the single shared flag set of
