@@ -27,6 +27,9 @@ func flowInvocation(args []string) (string, []string, bool) {
 		}
 		root, args = args[1], args[2:]
 	}
+	if len(args) > 0 && args[0] == "how" { // `corvint how` is `flows appmap how` (SKH-V0-810)
+		return root, append([]string{"appmap", "how"}, args[1:]...), true
+	}
 	if len(args) == 0 || args[0] != "flows" {
 		return "", nil, false
 	}

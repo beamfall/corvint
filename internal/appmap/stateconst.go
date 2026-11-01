@@ -31,6 +31,9 @@ type constTable struct {
 	// marks a manifest the reader cannot read, after which any package may.
 	local    map[string]bool
 	anyLocal bool
+	// aliases holds the keys of tracked bundler `alias` objects, which may map a package name onto
+	// repository code (AMAP-V0-813).
+	aliases []string
 	// hop names the check of the last di lookup that failed (AMAP-V0-072); empty when none did.
 	hop string
 	// bind is the binding a bindingsRead refusal names (AMAP-V0-196); fail appends it to hop.
@@ -517,6 +520,11 @@ func (t *constTable) external(m string) bool {
 	if t.anyLocal {
 		return false
 	}
+	for _, k := range t.aliases {
+		if m == k || strings.HasPrefix(m, k+"/") {
+			return false
+		}
+	}
 	if scheme, _, ok := strings.Cut(m, ":"); ok && !strings.Contains(scheme, "/") {
 		return scheme == "node"
 	}
@@ -568,6 +576,7 @@ func (t *constTable) readManifests() {
 			}
 		}
 	}
+	t.readBundlerAliases()
 }
 
 // localSpec reports whether a dependency's version spec may install repository code: a local
@@ -1958,4 +1967,74 @@ func taggedTemplate(toks []token, i int) bool {
 		return true
 	}
 	return isPunct(p, ")") || isPunct(p, "]")
+}
+
+// bundlerConfig reports whether tracked path p is a JavaScript or TypeScript bundler config that
+// may declare an `alias` (AMAP-V0-813): a `*.config.*` file, or one named for a bundler.
+func bundlerConfig(p string) bool {
+	base := strings.ToLower(path.Base(p))
+	ext := path.Ext(base)
+	switch ext {
+	case ".js", ".mjs", ".cjs", ".ts", ".mts", ".cts":
+	default:
+		return false
+	}
+	name := strings.TrimSuffix(base, ext)
+	if strings.HasSuffix(name, ".config") || strings.Contains(name, ".config.") {
+		return true
+	}
+	for _, b := range []string{"webpack", "vite", "rollup", "rspack", "rsbuild"} {
+		if name == b || strings.HasPrefix(name, b+".") || strings.HasPrefix(name, b+"-") || strings.HasPrefix(name, b+"_") {
+			return true
+		}
+	}
+	return false
+}
+
+// readBundlerAliases adds the keys of every `alias` object in a tracked bundler config to aliases;
+// an alias it cannot list as a plain object with literal keys, or a config it cannot lex, sets
+// anyLocal (AMAP-V0-813).
+func (t *constTable) readBundlerAliases() {
+	for p, src := range t.ix.Sources {
+		if !bundlerConfig(p) {
+			continue
+		}
+		text, valid, loaded := src.Text()
+		if !valid || !loaded {
+			t.anyLocal = true
+			return
+		}
+		// An escape may spell the key, so only a config with neither is skipped unread.
+		if !strings.Contains(text, "alias") && !strings.Contains(text, `\`) {
+			continue
+		}
+		toks, code := lexJS(text)
+		// A backslash left in code (literal bodies blanked) is an escaped identifier, which may
+		// spell an alias key the tokens do not decode.
+		if len(toks) > 0 && toks[0].unsure || strings.Contains(code, `\`) {
+			t.anyLocal = true
+			return
+		}
+		for i, tok := range toks {
+			if tok.text != "alias" || tok.kind != tokIdent && !literal(tok) {
+				continue
+			}
+			if !next(toks, i+1, ":") {
+				t.anyLocal = true // assigned, passed or chained: not a listed object
+				return
+			}
+			v, _ := parseValue(toks, i+2)
+			if v.kind != "object" {
+				t.anyLocal = true
+				return
+			}
+			for _, pair := range v.obj {
+				if pair.key == "" {
+					t.anyLocal = true
+					return
+				}
+				t.aliases = append(t.aliases, strings.TrimSuffix(pair.key, "$"))
+			}
+		}
+	}
 }

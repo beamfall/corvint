@@ -265,6 +265,8 @@ func topicText(topic string) string {
 		return obligationsHelp
 	case "flows":
 		return flowsHelp
+	case "how":
+		return howHelp
 	case "step":
 		return stepHelp
 	case "changes":
@@ -380,6 +382,7 @@ Commands:
     overview  immutable repository guidance (RGV-V0)
     review  range advice and branch overlaps (RGV-V0)
     flows  application flows and assertions (AFU-V0)
+    how  how do I GOAL: alias of flows appmap how (SKH-V0)
     obligations  CEM external-obligations sidecar (EFO-V0)
     prove-observe  record prove verdict counts (SOL-V0)
     batch  batched query, context, impact (SBQ-V0)

@@ -3546,6 +3546,7 @@
         "corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]",
         "corvint [--root PATH] flows appmap build --manifest FILE [--revision REV] [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]... [--workspace FILE | --no-workspace] [--from MAP [--verify]]",
         "corvint flows appmap build --help prints the manifest's minimum members, what each step commits",
+        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]",
         "corvint [--root PATH] flows appmap edges --map FILE [--receipt FILE]... [--revision REV] [--declarations FILE] [--require EDGE_ID]... [--observation FILE]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]",
         "corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]",
@@ -3719,6 +3720,29 @@
       "required": [],
       "example": "corvint flows appmap build --manifest FILE",
       "help": "corvint flows appmap build --help"
+    },
+    {
+      "path": [
+        "flows",
+        "appmap",
+        "coverage"
+      ],
+      "command": "corvint flows appmap coverage",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]"
+      ],
+      "flags": [
+        "--budget",
+        "--full",
+        "--map",
+        "--root"
+      ],
+      "required": [
+        "--map FILE"
+      ],
+      "example": "corvint flows appmap coverage --map FILE",
+      "help": "corvint flows appmap coverage --help"
     },
     {
       "path": [
@@ -4746,6 +4770,33 @@
       ],
       "example": "corvint harness event --host HOST --host-version VERSION --surface SURFACE --adapter-version VERSION --event EVENT --input -",
       "help": "corvint harness event --help"
+    },
+    {
+      "path": [
+        "how"
+      ],
+      "command": "corvint how",
+      "summary": "Answer \"how do I GOAL\" from an application map (SKH-V0, experimental)",
+      "usage": [
+        "corvint [--root PATH] how --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--condition TEXT]... [--ledger FILE] [--corpus ARTIFACT] [--budget N | --full] GOAL"
+      ],
+      "flags": [
+        "--budget",
+        "--condition",
+        "--corpus",
+        "--full",
+        "--ledger",
+        "--map",
+        "--repo",
+        "--root",
+        "--source"
+      ],
+      "required": [
+        "--map FILE",
+        "--source GOAL"
+      ],
+      "example": "corvint how --map FILE --source GOAL",
+      "help": "corvint how --help"
     },
     {
       "path": [

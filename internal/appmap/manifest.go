@@ -94,6 +94,9 @@ func decodeManifest(raw []byte) (Manifest, error) {
 	if err := validateRouterGlobs(m.RouterGlobs); err != nil {
 		return m, err
 	}
+	if err := validateImpactExempt(m.ImpactExempt); err != nil {
+		return m, err
+	}
 	if err := contextindex.ValidateRegistryDeclarations(m.Registries); err != nil {
 		return m, invalidManifest("manifest %v", err)
 	}
@@ -150,6 +153,28 @@ func decodeManifest(raw []byte) (Manifest, error) {
 		scoped[p] = true
 	}
 	return m, nil
+}
+
+// validateImpactExempt checks the declared impact exemptions: 1 to 64 unique globs in the
+// router_globs syntax, each with a non-empty reason (ANL-V0-810).
+func validateImpactExempt(entries []ImpactExemptEntry) error {
+	if entries == nil {
+		return nil
+	}
+	if len(entries) == 0 || len(entries) > maxRouterFiles {
+		return invalidManifest("impact_exempt must list 1 to %d entries", maxRouterFiles)
+	}
+	globs := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if strings.TrimSpace(e.Reason) == "" {
+			return invalidManifest("impact_exempt entry %q needs a reason", e.Path)
+		}
+		globs = append(globs, e.Path)
+	}
+	if err := validateRouterGlobs(globs); err != nil {
+		return invalidManifest("impact_exempt: %v", err)
+	}
+	return nil
 }
 
 // under reports whether p is dir or inside it.

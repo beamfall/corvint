@@ -849,7 +849,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp", "how"}
 )
 
 func knownHost(value string) bool {

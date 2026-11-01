@@ -3907,6 +3907,59 @@
           "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
+    },
+    {
+      "name": "how",
+      "helpTopic": "corvint help how",
+      "purpose": "how do I GOAL: alias of flows appmap how",
+      "maturity": "experimental",
+      "owningSpec": "SKH-V0",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {
+        "how": [
+          "--map",
+          "--source"
+        ]
+      },
+      "flags": [
+        "--budget",
+        "--condition",
+        "--corpus",
+        "--full",
+        "--ledger",
+        "--map",
+        "--repo",
+        "--source"
+      ],
+      "schemaIds": [
+        "site-knowledge-how/0"
+      ],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "It writes nothing."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
     }
   ],
   "workflows": [
@@ -4512,7 +4565,8 @@
       "tests",
       "repro",
       "graph",
-      "mcp"
+      "mcp",
+      "how"
     ],
     "default": "off",
     "knobs": [
