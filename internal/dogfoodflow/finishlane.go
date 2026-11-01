@@ -7,9 +7,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -189,6 +191,7 @@ func (l *finishLane) run() int {
 		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
 		l.removePreflight()
 		l.recordPreflight(l.prepare())
+		l.noteUnknownRows()
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}
@@ -394,6 +397,35 @@ func (l *finishLane) requireOutcomeInputs() {
 	l.say("  fix: pass --verify FILE (or DOGFOOD_VERIFY_FILE, one verification command per line) and --outcome passed|failed|blocked (or DOGFOOD_OUTCOME); make dogfood-finish takes them as VERIFY=<verify.txt> OUTCOME=passed|failed|blocked; then rerun corvint dogfood finish-lane --base %s\n", l.options.Change.Base)
 	l.say("  the rebind records the local outcome from both inputs; nothing was prepared, bound or committed\n")
 	l.exit(2)
+}
+
+// noteUnknownRows names, on a passing inputs-check, the plan rows that keep a
+// hunk unknown with a recorded reason (DCW-V0-721). They are admitted by
+// design: an honest unknown is never refused (DCW-V0-046), the bound map
+// keeps each one unknown with its reason, and dogfood-check counts them in
+// unknownShare and reasonedUnknown. The NOTE changes no exit status.
+func (l *finishLane) noteUnknownRows() {
+	// The staged route's plans are slices of this plan, so it alone is read.
+	data, err := readPrefix(l.options.Change.Citations, maxPlanBytes)
+	if l.options.Change.Citations == "" || err != nil {
+		return
+	}
+	reasons := map[string]int{}
+	total := 0
+	for _, line := range textLines(data) {
+		if fields := strings.SplitN(line, "\t", 4); unknownRow(fields) {
+			reasons[fields[2]]++
+			total++
+		}
+	}
+	if total == 0 {
+		return
+	}
+	counts := []string{}
+	for _, reason := range slices.Sorted(maps.Keys(reasons)) {
+		counts = append(counts, fmt.Sprintf("%s:%d", reason, reasons[reason]))
+	}
+	l.line("inputs-check NOTE unknown-rows=%d reasons=%s: admitted by design; each hunk stays unknown with its reason in the bound map and dogfood-check counts it in unknownShare and reasonedUnknown; cite a hunk instead when BASE holds its evidence (DCW-V0-046, DCW-V0-721)", total, strings.Join(counts, ","))
 }
 
 // refusedVerifyLine returns the 1-based number and text of the first line of
