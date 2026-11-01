@@ -62,7 +62,7 @@ func platformEnvelope(code, message string) map[string]any {
 }
 
 func impactPathSuffixEnvelope(path string) map[string]any {
-	return refusalEnvelope("unsupported-impact-path-suffix", "native Go impact requires a suffix admitted by the repository index", subjectOf("value", path), evidenceOf(), fixesOf("impact.omit-unadmitted-path"), "")
+	return refusalEnvelope("unsupported-impact-path-suffix", "native Go impact requires a suffix admitted by the repository index", subjectOf("value", path), evidenceOf(), fixesOf("impact.omit-unadmitted-path", "affected.use-path"), "")
 }
 
 var validProofDocument = `{"tool":"prove","profile":"` + proveProfile + `","proof":{"counts":{"history-consistent":{"PASS":1}},"rows":[{"falsifier":"history-consistent","falsified":"PASS"}]}}`
