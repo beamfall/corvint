@@ -1611,6 +1611,25 @@ cannot, from the same graph phase and closure walk the plan uses.
   global `testIgnore` that every project overrides is still counted unaccounted for and refuses
   (conservative). Rollback: restore the refusal of `testIgnore` in the global member loop.
 
+- `TJAA-V0-771`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0970)
+  The adapter MUST name a frontier site by what it is, never as `typescript:path-alias-unresolved`
+  when no alias config claims it. Evidence: the four VanillaTwisted Playwright sites
+  (`express`, `pg`, `, ` and `corecrypto-wasm-url?url`) were all reported under that reason, and
+  narrowing stopped at it, although none is a tsconfig alias. (1) A bare specifier no
+  `package.json` at or above the importing file declares and no `node_modules` installs is the
+  frontier `typescript:bare-import-undeclared` at its own site, unless the nearest tsconfig or
+  jsconfig `paths` claims it, which keeps `typescript:path-alias-unresolved`. It still fails
+  closed, because an omitted dependency or a bundler alias such as a Vite `resolve.alias` may hide
+  an edge, and like the alias reason it is source-bound (AFP-V0-511). (2) The `from` keyword of a
+  static `import`/`export` clause follows whitespace, `}` or `*`, so a string `"from"` in a one-line
+  exported word list is no clause and its next string (`, `) is no specifier. (3) A specifier's
+  bundler query suffix (`?url`, `?raw`, `?inline`, `?worker`, any `?...`) on a specifier with no
+  URL scheme is dropped before resolution, so `./data.txt?raw` resolves like `./data.txt` and a
+  bare `name?url` is classified as `name`. The tsconfig and jsconfig alias resolution the ticket
+  asked to reuse already serves both the general adapter and the Playwright profile
+  (`TJAA-V0-037`, `TJAA-V0-057`, GitHub #1880), so no second resolver is added. Rollback: restore
+  the alias reason at the bare-import site, the `\bfrom` pattern and the unstripped specifier.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -1919,6 +1938,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
 | `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
 | `TJAA-V0-770` (V1-3524) | `TestPlaywrightGlobalTestIgnoreIsAnExclusion_TJAA_V0_770`; `TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770`; the `global testIgnore` rows of `TestPlaywrightPathModeLiteralTestIgnore_GH1737` |
+| `TJAA-V0-771` (V1-0970) | `TestVanillaTwistedFrontierSitesClassify_TJAA_V0_771`; `TestFrontierSiteIsTheParsedSpecifier_PR1596`; `TestFrontierSitesNameEveryReason_GH1593`; `TestPlaywrightSymlinkedNodeModules_GH1885` |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
 | `TJAA-V0-034` (V1-2455; GitHub #1575) | `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
 | `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
