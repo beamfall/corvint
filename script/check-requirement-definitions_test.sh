@@ -50,6 +50,11 @@ case $out in
     *ALPHA-V0-001*) ;;
     *) fail "the undefined id should be named, got: $out" ;;
 esac
+# RDG-V0-680 (V1-3699): the failure names the regeneration step after staging the spec.
+case $out in
+    *"fix: if the spec no longer defines an id, stage the spec, then run make spec-requirements"*) ;;
+    *) fail "the table-row-only failure should name make spec-requirements, got: $out" ;;
+esac
 
 # shellcheck disable=SC2016
 printf '# Alpha\n\n- `ALPHA-V0-001`: the clause.\n\n`ALPHA-V0-001..003`. A prose range.\n' \

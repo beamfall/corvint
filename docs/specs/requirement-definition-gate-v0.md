@@ -114,6 +114,16 @@ row-only id or duplicate definition exists in the corpus.
   fails under RDG-V0-005. Non-goal: a definition written as an unbulleted line directly under a
   paragraph line is no longer read; the corpus has none at this change. Rollback: delete the
   `$continues`/`$wrapped` tracking and the `next if $wrapped` line.
+- `RDG-V0-680`: (experimental under the standing lane auto-accept (2026-11-01); V1-3699) When the
+  RDG-V0-003 failure lists ids that only `docs/specs/REQUIREMENTS.tsv` carries, the gate MUST follow
+  the list with one `requirement definitions: fix:` line that names the usual repair, staging the
+  spec and then running `make spec-requirements` to regenerate and stage the index, and the
+  alternative of restoring the clause body. The exit status is unchanged. Design: on 2026-11-01 a
+  lane that removed a clause read only the id list and did not know the index is generated.
+  Non-goals: running the generator from the gate (RDG-V0-007 keeps it read-only). Failure modes: a
+  row stale for another reason still names the id; the fix line is advice, not a diagnosis.
+  Evidence: `script/check-requirement-definitions_test.sh`, the row-with-no-clause-body case.
+  Rollback: delete the fix line and its test assertion.
 
 ## Non-goals and simpler baseline
 
@@ -164,6 +174,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-021 | `script/check-requirement-definitions_test.sh`: an unlisted outside definition fails, a listed one passes, a stale row fails, a fenced `##` line does not end the section, a three-backtick line inside a four-backtick fence does not close it while a closed three-backtick fence does; `TestRDGV0021MovedDefinitionsAreEnumerated` shows OCM enumerates LTPM-V0-001..016 after the move (CAL-V0-073 and CAL-V0-106 stay baseline rows, because moving them would take the leases Requirements section past the 256-obligation OCM limit); baseline of 604 rows across 10 specs at this change |
 | RDG-V0-023 | `script/check-requirement-definitions_test.sh`: a paragraph line and an indented list-item line each starting with a cited `` `ALPHA-V0-001` `` followed by `.` or `:` pass (the base gate failed this case as a duplicate), and a bulleted duplicate directly after a paragraph line fails naming both lines; on the live corpus the scan reads 5,343 definition lines instead of 5,345, and the two dropped lines are wrapped prose (`CAL-V0-264.` in `corvint-tasks-pool-safe-reuse-v0.md` and `SHA-256.` in `operator-update-v0.md`), not definitions |
 | RDG-V0-022 | `script/check-requirement-definitions_test.sh`: `` - `ALPHA-V0-002` (V1-2168): `` fails naming `docs/specs/alpha.md:7 ALPHA-V0-002` and the accepted forms (the base gate did not name that line), and the same shape for a defined id passes; the live corpus has 0 hits at this change |
+| RDG-V0-680 | `script/check-requirement-definitions_test.sh`: the row-with-no-clause-body case asserts the `make spec-requirements` fix line |
 
 ## Traceability
 
@@ -177,6 +188,7 @@ repair it was written to make mechanically checkable.
 | RDG-V0-023 | the `$continues`/`$wrapped` tracking in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 | RDG-V0-022 | the `@misshapen` scan and its report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh`; `requirement-definitions-check` |
 | RDG-V0-021 | the `@outside` scan and the baseline comparison in `script/check-requirement-definitions.sh`; `script/requirement-definitions-outside-section.txt` | `script/check-requirement-definitions_test.sh`; `TestRDGV0021MovedDefinitionsAreEnumerated` |
+| RDG-V0-680 | the fix line after the undefined-id report in `script/check-requirement-definitions.sh` | `script/check-requirement-definitions_test.sh` |
 
 ## Rollout, rollback, and drift
 

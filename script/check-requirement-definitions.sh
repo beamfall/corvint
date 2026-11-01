@@ -193,6 +193,10 @@ if (@undefined) {
     $failed = 1;
     print STDERR "requirement definitions: no clause body defines these ids, only a table row:\n";
     print STDERR "  $_\n" for @undefined;
+    # RDG-V0-680 (V1-3699): the usual cause is a spec edit whose index was never regenerated.
+    print STDERR "requirement definitions: fix: if the spec no longer defines an id, stage the spec, then run "
+        . "make spec-requirements to regenerate docs/specs/REQUIREMENTS.tsv and stage it; if it still should, "
+        . "restore its clause body\n";
 }
 if (@duplicated) {
     $failed = 1;
