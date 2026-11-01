@@ -151,6 +151,7 @@ one.
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
 | V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
 | #1551 | CAL-V0-372 | Accepted (standing auto-accept, 2026-10-23): the lease write's unlocked pre-round guard read that ends `SNAPSHOT_MOVED` spends that one of its sixteen rounds instead of ending the write; a non-retryable guard failure still ends it at once |
+| V1-3644, V1-3645, V1-3646 | CAL-V0-965..967 | Accepted (standing auto-accept, 2026-11-01): a usage refusal carries `MALFORMED` and `wire.HasCode` tests a result's codes; `ticket search --all` is the explicit unfiltered, paged listing; a change spanning several tickets resumes by rerunning the same multi-target write, whose per-target request ids replay what already landed |
 | V1-2368 | ATR-V0-323..324 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests. ATR-V0-325..329 (PR #1631 review) hold the cleanup exclusively, record and prove the remover child, drop legacy records durably, never retry a rolled-back removal in one invocation, and keep a moved worktree's record |
 | V1-1715 | PSR-V0-220 | Accepted (standing auto-accept, 2026-10-23): `claim --next` derives scope through the CLI's scope deriver for the ticket `plan preview --pool` selects with waiters present, so the deriver is asked about, and the claim takes, the previewed ticket; the CLI test fixture takes a deriver; focused test and a mutant check |
 | V1-2137 | TQD-V0-046 | Accepted (standing auto-accept, 2026-10-23): a test-only padded-journal builder appends N synthetic heartbeat receipts, elided as liveness compaction elides them, to a store with live attempts in O(N) file writes and no audit; the complete audit finds the result CONSISTENT and AGREES, so a doctor walk at 30,000 receipts is measurable; implemented with focused tests |
@@ -8420,3 +8421,46 @@ after this restore.
 | CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
 | CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
 | CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |
+
+## V1-3643..3646 Tasks CLI friction amendment
+
+Status: accepted under the owner's standing auto-accept (2026-10-11), lane fric-b, 2026-11-01.
+Authoritative input: lane friction tickets V1-3643 to V1-3646, each a refusal or gap a lane hit
+while driving `corvint-tasks`. V1-3643 changes no requirement: it is a violation of CAL-V0-225
+(a relative file argument resolves against the command's working directory), now enforced on every
+file-argument reader by a source lint. Non-goals: no atomic cross-ticket transaction (that is a
+store-layer change; CAL-V0-967 specifies the resume protocol instead), no new result code, and no
+change to exit statuses.
+
+- `CAL-V0-965`: (accepted under the owner's standing auto-accept (2026-10-11), V1-3644) A usage
+  refusal (an unknown, missing, repeated or malformed flag or argument detected before any store
+  read) MUST carry the code `MALFORMED`, so its envelope has a non-empty `codes` array and
+  `retryable: false` like every other coded refusal; its outcome stays `ERROR` and its exit status
+  stays 1. `wire.HasCode(result, code)` MUST report whether a result carries a code, and
+  `wire.Result.Encode` stays the one byte encoder: a helper comparing envelope text converts once.
+- `CAL-V0-966`: (accepted under the owner's standing auto-accept (2026-10-11), V1-3645)
+  `ticket search --all` MUST list every ticket in the order and pages of `ticket search`, bounded by
+  `--offset` and `--limit`, and MUST be refused `MALFORMED` when combined with any filter flag. A
+  search with neither a filter nor `--all` keeps its refusal, which MUST name `--all`.
+- `CAL-V0-967`: (accepted under the owner's standing auto-accept (2026-10-11), V1-3646) A change
+  that spans several tickets is one multi-target write (TCD-V0-172..173), each target its own
+  mutation with the request id `<ID>-<local>` (a digest suffix when that exceeds 64 bytes) and one
+  shared `issuedAt`. Its resume protocol after any partial failure or interruption MUST be: rerun
+  the same command with the same `--request-id`, `--issued-at` and targets; a target already
+  applied MUST replay (`replayed: true`, its original receipt), and a target not yet applied MUST
+  apply, so the rerun converges without a second write to any ticket. This holds for a base request
+  id long enough that every derived id takes the digest form.
+
+Failure modes: a reader that bypasses `commandPath` reads a file under the process directory
+(caught by `TestCALV0225_NoDirectOpenOfArguments`); a caller that tested `codes == []` to detect a
+usage refusal now sees `MALFORMED`, which it already had to handle for every coded refusal.
+
+Rollback: revert the implementing commits. Nothing persisted changes: the usage code is envelope
+text only, `--all` is a read flag, and CAL-V0-967 adds no write path.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-225 | `TestCALV0225_FileArgumentsResolveAgainstEnvCwd`, `TestCALV0225_NoDirectOpenOfArguments` (`internal/tasks/cli`, V1-3643) |
+| CAL-V0-965 | `TestCALV0965_UsageRefusalCarriesMalformed` (`internal/tasks/cli`); `TestCALV0965_HasCode` (`internal/tasks/wire`) |
+| CAL-V0-966 | `TestCALV0966_SearchAllListsEveryTicket` (`internal/tasks/cli`) |
+| CAL-V0-967 | `TestCALV0967_InterruptedMultiTargetWriteResumes` (`internal/tasks/cli`) |
