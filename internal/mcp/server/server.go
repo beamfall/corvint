@@ -502,10 +502,6 @@ func (connection *connection) serverInfo() map[string]any {
 	return info
 }
 
-// maxInvalidParamsField bounds the request-supplied field path an
-// invalid-params error echoes; a longer one drops the data.
-const maxInvalidParamsField = 1024
-
 func sanitize(rpcErr *protocol.RPCError) *protocol.RPCError {
 	if rpcErr == nil {
 		return &protocol.RPCError{Code: protocol.CodeInternalError, Message: "Internal error"}
@@ -518,7 +514,7 @@ func sanitize(rpcErr *protocol.RPCError) *protocol.RPCError {
 	case protocol.CodeInvalidParams:
 		// Only the closed MCPV0-952 data passes; any other handler data is dropped.
 		data, _ := rpcErr.Data.(protocol.InvalidParamsData)
-		if data.Reason == "" || len(data.Field) > maxInvalidParamsField {
+		if data.Reason == "" || len(data.Field) > protocol.MaxInvalidParamsField {
 			return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params"}
 		}
 		return &protocol.RPCError{Code: rpcErr.Code, Message: "Invalid params", Data: data}

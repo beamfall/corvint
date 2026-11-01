@@ -268,3 +268,30 @@ func TestMCPV0022LegacyBlockedInitializeCancels(t *testing.T) {
 		t.Fatal("initialize write survived cancellation")
 	}
 }
+
+// MCPV0-952: an initialize whose unknown param key nearly fills the input
+// frame is still answered -32602, without echoing the key, and the session
+// keeps serving: the next initialize succeeds.
+func TestMCPV0952OversizedProtocolFieldIsNotEchoed(t *testing.T) {
+	handler := HandlerFunc(func(context.Context, protocol.Request, Notifier) (map[string]any, *protocol.RPCError) {
+		return map[string]any{}, nil
+	})
+	key := strings.Repeat("k", protocol.MaxMessageBytes-1024)
+	oversized := strings.Replace(legacyInitialize, `"id":0`, `"id":1`, 1)
+	oversized = strings.Replace(oversized, `"params":{`, `"params":{"`+key+`":1,`, 1)
+	if len(oversized) >= protocol.MaxMessageBytes {
+		t.Fatalf("frame %d bytes is over the input limit", len(oversized))
+	}
+	responses := legacyExchange(t, legacyServer(t, handler), oversized, strings.Replace(legacyInitialize, `"id":0`, `"id":2`, 1))
+	failure, _ := responses[1]["error"].(map[string]any)
+	if failure["code"] != float64(protocol.CodeInvalidParams) || failure["data"] != nil {
+		t.Fatalf("oversized key error %+v", failure)
+	}
+	if responses[2]["result"] == nil {
+		t.Fatalf("session stopped serving after the oversized key: %+v", responses[2])
+	}
+	short := protocol.InvalidParamsAt("Invalid params", "unknown-param", "x")
+	if data, _ := short.Data.(protocol.InvalidParamsData); data.Field != "x" {
+		t.Fatalf("short field dropped: %+v", short)
+	}
+}

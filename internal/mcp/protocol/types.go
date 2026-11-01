@@ -100,10 +100,17 @@ type InvalidParamsData struct {
 	Rule    string `json:"rule,omitempty"`
 }
 
+// MaxInvalidParamsField bounds the request-supplied field path an
+// invalid-params error echoes (MCPV0-952); a longer one drops the data, so an
+// oversized key can never grow the error past the output frame.
+const MaxInvalidParamsField = 1024
+
 // InvalidParamsAt is InvalidParams with its reason and offending field.
 func InvalidParamsAt(message, reason, field string) *RPCError {
 	failure := InvalidParams(message)
-	failure.Data = InvalidParamsData{Reason: reason, Field: field}
+	if len(field) <= MaxInvalidParamsField {
+		failure.Data = InvalidParamsData{Reason: reason, Field: field}
+	}
 	return failure
 }
 
