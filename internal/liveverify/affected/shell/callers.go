@@ -40,7 +40,9 @@ const (
 	maxForeignCallerBytes   = 64 << 10
 	maxForeignCallerScripts = 64
 	maxForeignCallers       = 256
-	maxForeignCallerReason  = 512
+	// maxForeignCallerReason is 1024 bytes (V1-4062, TSP-V0-820): the
+	// longest declared reason reached 512 bytes with 24 files.
+	maxForeignCallerReason = 1024
 )
 
 // ForeignCallers is one declared script: every file naming it, split into
@@ -91,10 +93,20 @@ func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error
 			}
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxForeignCallerReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
-			return nil, fmt.Errorf("%s: script %q reason", affected.ShellForeignCallersPath, script)
+			return nil, fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", affected.ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
 		}
 	}
 	return declared.Scripts, nil
+}
+
+// CheckForeignCallers returns why the project's foreign-caller declaration
+// cannot be read, naming the member and any limit it exceeds, or nil when it
+// is absent or reads (V1-4062, TSP-V0-820). The plugin itself only names
+// FrontierForeignCallersInvalid; a caller that sees that frontier reports
+// this cause. Completeness against the tree is not checked here.
+func CheckForeignCallers(root *affected.Source) error {
+	_, err := readForeignCallers(root)
+	return err
 }
 
 func sortedUnique(paths []string) bool {
