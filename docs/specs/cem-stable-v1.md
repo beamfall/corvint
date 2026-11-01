@@ -891,6 +891,17 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   with no alternates file MUST ACCEPT on `verify-stable-canonical` (`canonical-repository-bounded/1`),
   the route that admits it. A primary clone backed by `objects/info/alternates` keeps
   `unsupported-object-alternates` on `verify-stable`.
+- `CEM-V1-754`: (experimental under the standing lane auto-accept (V1-2023)) The portable consumer
+  MUST read the verdict ledger with `cem01-go read-verdict-ledger --repository ABSOLUTE_PATH
+  --commit REV`. This narrows the `CEM-V1-271..279` non-goal to the writer. Its exit 0 line MUST
+  carry the members of the native `cem provenance --verdicts` `verdicts` member (`ref`, `trust`,
+  `authority`, `state`, `records`) with the same values: the `CEM-V1-276` state, in the same
+  precedence, and the `CEM-V1-272` records only when the state is `verified`. A refusal MUST exit 2
+  with `{"ok":false,"code":CODE}`, where CODE is the native reader's. A commit that does not resolve
+  is `repository-object-unavailable`. Missing, unknown or repeated flags, or a relative repository
+  path, are `invalid-arguments`. The read MUST write no ref, note, object, index, config or worktree
+  file. Like the native ledger, it MUST carry no authority (`CEM-V1-278`): no verify route reads
+  it. Non-goals: no `--verdicts-tip` rollback read and no portable writer.
 
 ## Non-goals and failure modes
 
@@ -3122,6 +3133,7 @@ codes.
 | CEM-V1-751 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Subtests `span-hash-recomputed` and `evidence-ids-swapped` pin ACCEPT; `span-end-edited` and `span-hash-mismatch` pin REJECT |
 | CEM-V1-752 | `TestCEMV1226TamperMatrixNative`, `TestCEMV1226TamperMatrixPortable` | Both check every matrix file and the preserved `revisions/r2/` files against the stable manifest; build log 2026-11-01-cemint-u10 retains the committed-corpus order scan |
 | CEM-V1-753 | `TestCEMV1753LegacyEnvelopeNamesLinkedWorktree` (`interop/cem01-go`) | A linked worktree refuses `unsupported-repository-envelope` on `verify-stable` and ACCEPTs on `verify-stable-canonical`; a `git clone --shared` clone refuses `unsupported-object-alternates` |
+| CEM-V1-754 | `TestCEMV1754PortableVerdictLedgerMatchesNative` (`internal/gitnotes`, which builds `interop/cem01-go`); `readVerdictLedger` in `interop/cem01-go/verdict_ledger.go` | Fourteen ledger cases (absent, two verified, six `malformed`, two `chain-broken`, two `scope-mismatch`, one `conflict`) give the native listing's exact members, and the repository is unchanged; an unresolvable commit refuses `repository-object-unavailable` on both; a relative repository refuses `invalid-arguments` |
 
 ## Anchor pointer scope and notes-ref rollback (V1-1260, decision 0523 P1)
 
@@ -4154,8 +4166,8 @@ the optional `verdict` member and the provenance result the optional `verdicts` 
 map, `cem-stable-verification/1`, the anchor pointer profile and every provenance row are
 unchanged, so the change is additive.
 
-Non-goals: no portable writer and no portable reader of the ledger (the portable consumer agrees on
-`verdictSha256` by `CEM-V1-066`; only the native consumer writes); no retry of a lost race; no
+Non-goals: no portable writer of the ledger (the portable consumer agrees on `verdictSha256` by
+`CEM-V1-066`; only the native consumer writes; the portable reader is `CEM-V1-754`, V1-2023); no retry of a lost race; no
 `--notes-tip` rollback check for the ledger ref; no signing; no default-on recording; no automatic removal or migration of a conflicting record.
 
 Failure modes: a differing verdict for an anchored map blocks recording with
