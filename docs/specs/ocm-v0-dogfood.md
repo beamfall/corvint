@@ -344,7 +344,7 @@ claim, and mutation ordering deltas below.
   linkage to test anchors, not proof that the assertions cover the requirement. Failure mode: a
   second `--test-path` link erased the first file's supported claims, so multi-file evidence could
   not be represented. Non-goals: one invocation over several paths; removing a kept claim (mark the
-  obligation and relink). Evidence: `TestOCMV0951LinkKeepsOtherTestPaths`. Rollback: revert to the
+  obligation and relink). Evidence: `TestOCMV0951LinkKeepsOtherTestPaths` (kept claims and the hunk union over two paths, and a relinked path). Rollback: revert to the
   whole-obligation replacement.
 
 ## Wire profile

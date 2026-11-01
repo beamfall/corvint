@@ -442,7 +442,8 @@ No requirement below diverges from the implementation.
 - `SRG-V0-953`: (experimental under the owner's standing auto-accept (2026-11-01); V1-3553;
   extends `SRG-V0-046`) A rank 0 definition whose own line carries no leading note and whose next
   line, a continuation of it, opens with a parenthesized acceptance note (one naming `accepted`,
-  `approved`, `standing` or an auto-accept) MUST be refused in every mode, naming the spec, the
+  `approved`, `standing` or an auto-accept anywhere in the parenthetical, nested parentheses
+  included, up to its matching close or the end of the line) MUST be refused in every mode, naming the spec, the
   continuation line, the ID and the repair: move the note to the start of the text on the ID's
   line. Only the definition line is read (SRG-V0-046), so the note would otherwise be silently
   `unrecorded`. Failure mode: a wrapped requirement whose note landed on its second line failed
@@ -580,7 +581,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-950 | `script/gen-spec-requirements_test.sh` case 13: the Intent status and digest refusals name the fixture spec's header line 3 and digest line 8 as `path:line` and the definition-line repair |
 | SRG-V0-951 | `script/gen-spec-requirements_test.sh` case 14: two malformed bullets, a duplicate and an over-long claim are all reported by one run of each mode, and `--all` writes nothing |
 | SRG-V0-952 | `script/gen-spec-requirements_test.sh` case 15: an indented note paragraph opening with the item's ID is not a definition, while an unindented and a bulleted second definition are refused; the committed index regenerates unchanged |
-| SRG-V0-953 | `script/gen-spec-requirements_test.sh` case 15: a note on the continuation line is refused naming `path:line`, the ID and the repair; the committed corpus regenerates unchanged |
+| SRG-V0-953 | `script/gen-spec-requirements_test.sh` case 15: a note on the continuation line, including one whose acceptance word follows a nested parenthetical, is refused naming `path:line`, the ID and the repair, while a nested aside naming no acceptance passes; the committed corpus regenerates unchanged |
 | SRG-V0-954 | `script/gen-spec-requirements_test.sh` case 16: `--check` passes on fresh outputs and names a stale file; `--write` refuses an unstaged and an untracked spec naming both and the `git add --` command, writing nothing, and writes once they are staged |
 | SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
 | SRG-V0-982 | `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
