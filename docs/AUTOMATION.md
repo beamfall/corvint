@@ -26,7 +26,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:915-916@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:925-926@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -53,7 +53,7 @@ storage failure never alters the response (`cmd/corvint/help.go:405-406@3c9a8d56
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
-(`cmd/corvint/host_adapter.go:359@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
+(`cmd/corvint/host_adapter.go:362@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
 marker only by `corvint reads` (`cmd/corvint/reads.go:92-96@19937f8b`). None of the commands below writes
 either file.
 
@@ -61,7 +61,7 @@ either file.
 
 Each takes `--root PATH` (default: the current directory) and reads the checkout at `HEAD`. Every
 base must be a full 40-hex commit id that is present in the clone, so a shallow CI checkout must
-fetch enough history to contain it (`cmd/corvint/help.go:877@a892984d`). On an argument or input refusal each
+fetch enough history to contain it (`cmd/corvint/help.go:887@a892984d`). On an argument or input refusal each
 prints one JSON object with `"ok": false` to stderr and exits 2.
 
 Scope: the table lists the steps that answer a question about one change against a fixed base,
@@ -84,14 +84,14 @@ Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:36@af9fb447`; exits `cmd/corvint/affected.go:746-800@47d84c87`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1114-1119@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:915@f024c3ab`).
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:925@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
   (`cmd/corvint/main.go:1243@760ae507`, `cmd/corvint/main.go:1715-1730@7a65d7e8`).
 - `witness`: profile `internal/witness/witness.go:28@9d3c5f4c`; exits `cmd/corvint/witness.go:276-324@bc64bcb6`;
   recorder `cmd/corvint/main.go:1205@acb85656`; help "does not mutate repository or trace state"
-  (`cmd/corvint/help.go:453-454@b8d79ae9`). It builds the index in memory when no snapshot exists
+  (`cmd/corvint/help.go:462-463@b8d79ae9`). It builds the index in memory when no snapshot exists
   (`cmd/corvint/index_snapshot.go:103-108@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
   `cmd/corvint/main.go:1247-1252@53443dcf` and `cmd/corvint/main.go:1283-1371@17c42df8`; envelope
@@ -243,7 +243,7 @@ CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harne
 (`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
 is complete. The code is also admitted by the observations ledger and host adapter vocabularies
 (`internal/observations/observations.go:50-57@493847da`,
-`cmd/corvint/host_adapter.go:785-794@c1243f78`). Repeated appearances are not evidence of repeated
+`cmd/corvint/host_adapter.go:797-806@c1243f78`). Repeated appearances are not evidence of repeated
 failures, and adding artifacts does not remove this message.
 
 ### What the artifacts enable, and what remains unavailable
@@ -300,7 +300,7 @@ review queue, the minimum inputs and steps are:
 | Repeated visible notices | Host output policy or installed adapter version can affect presentation. | Compare the installed adapter with [decision 0161](decisions/0161-claude-adapter-quiet-notices-2026-09-12.md). Current Claude routine post-tool receipts use model-visible additionalContext; genuine faults retain a notice. This is not a user suppression setting. |
 
 The Claude routine receipt path preserves the degradation codes in additionalContext
-(`cmd/corvint/host_adapter.go:770-782@78ff0af5`). Presentation differs by host and event; quieting a
+(`cmd/corvint/host_adapter.go:782-794@78ff0af5`). Presentation differs by host and event; quieting a
 notice is not removing the degradation or acquiring authority.
 
 ### Not delivered by this guidance
