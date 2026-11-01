@@ -122,3 +122,6 @@ Environment failures at base too: `TestHostAdapterJavaScript*` and
   `landlock abi 0`), so read-scope findings that no literal shows surface only in CI there.
 - `git grep TCP-V0-270` is empty on origin/main although V1-3546 (filed from lane V1-1272)
   presents the admission as existing; the ticket gives no dependency on V1-1272.
+- `make shell-foreign-callers-check` scans the ignored `./corvint` binary that `go build ./cmd/corvint`
+  leaves in the worktree root, and fails naming `corvint` as an undeclared caller of
+  `script/heavy.sh` and `script/batch-regen.sh`. Repro: `go build ./cmd/corvint && make shell-foreign-callers-check`.
