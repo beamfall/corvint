@@ -4320,5 +4320,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/cem2-discovery-replay-v0.md",
+    "title": "CEM 2.0 Discovery Replay V0",
+    "reqPrefix": "VRP-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A pre-registered replay of 40 later-fixed agent changes decides if typed per-unit labels beat coverage-diff at flagging the unit the fix touched.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

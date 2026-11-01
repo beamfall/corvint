@@ -1590,6 +1590,43 @@ CEM-V1-364	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-365	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) Configur	standing	2026-10-11; V1-0595
 CEM-V1-366	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595) A config	standing	2026-10-11; V1-0595
 CEM-V1-367	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0595; closed a	standing	2026-10-11; V1-0595
+VRP-V0-001	docs/specs/cem2-discovery-replay-v0.md	The protocol, selection manifest, its sha256 and the threshold file live under `	unrecorded	-
+VRP-V0-002	docs/specs/cem2-discovery-replay-v0.md	Thresholds X and Y are recorded in `thresholds.json` and the protocol table; unt	unrecorded	-
+VRP-V0-003	docs/specs/cem2-discovery-replay-v0.md	`harness.py run` and `score` refuse (exit 4) when the protocol, threshold file,	unrecorded	-
+VRP-V0-004	docs/specs/cem2-discovery-replay-v0.md	`harness.py check` verifies the manifest sha256 (exit 2 on mismatch) and reports	unrecorded	-
+VRP-V0-005	docs/specs/cem2-discovery-replay-v0.md	`run` keeps the first observation: an existing per-change output directory is sk	unrecorded	-
+VRP-V0-010	docs/specs/cem2-discovery-replay-v0.md	The change set is produced by `select.py` from Git history alone (log, diff, bla	unrecorded	-
+VRP-V0-011	docs/specs/cem2-discovery-replay-v0.md	A change qualifies only when a later `fix(...)` commit sharing a ticket or requi	unrecorded	-
+VRP-V0-012	docs/specs/cem2-discovery-replay-v0.md	The set holds 30..50 changes (40 when more than 50 qualify, by deterministic ind	unrecorded	-
+VRP-V0-013	docs/specs/cem2-discovery-replay-v0.md	Each row records an escape stratum (`post-merge` or `same-merge`) from first-par	unrecorded	-
+VRP-V0-014	docs/specs/cem2-discovery-replay-v0.md	At least one external repository is selected by the same rule into its own diges	unrecorded	-
+VRP-V0-020	docs/specs/cem2-discovery-replay-v0.md	The unit is one non-test Go source hunk of the change's canonical CEM patch (`ce	unrecorded	-
+VRP-V0-021	docs/specs/cem2-discovery-replay-v0.md	The oracle test set is every `_test.go` file at the change in a changed source f	unrecorded	-
+VRP-V0-022	docs/specs/cem2-discovery-replay-v0.md	Units cite base-existing oracle files as whole-file `test-claim`s; units without	unrecorded	-
+VRP-V0-023	docs/specs/cem2-discovery-replay-v0.md	One Corvint build runs every change; its version and the Go version are recorded	unrecorded	-
+VRP-V0-024	docs/specs/cem2-discovery-replay-v0.md	Hunk-revert runs at its shipped limits (300 s per run, 1200 s total).	unrecorded	-
+VRP-V0-025	docs/specs/cem2-discovery-replay-v0.md	Discrimination runs with every unit eligible (`--max-hunks` = source hunks + 64)	unrecorded	-
+VRP-V0-026	docs/specs/cem2-discovery-replay-v0.md	CEM maps stay repository-relative inside a disposable worktree (CEM-V1-647) and	unrecorded	-
+VRP-V0-030	docs/specs/cem2-discovery-replay-v0.md	The baseline flags a unit when at least one executable added line was not execut	unrecorded	-
+VRP-V0-031	docs/specs/cem2-discovery-replay-v0.md	The typed label is folded first-match from hunk-revert, discrimination and cover	unrecorded	-
+VRP-V0-032	docs/specs/cem2-discovery-replay-v0.md	`likely-equivalent` is `NOT_PRODUCED` while no equivalence screen exists; its ab	unrecorded	-
+VRP-V0-033	docs/specs/cem2-discovery-replay-v0.md	A unit whose witnesses are missing, timed out or not run is `NOT_OBSERVED(reason	unrecorded	-
+VRP-V0-034	docs/specs/cem2-discovery-replay-v0.md	The runbook commands in protocol section 7 are complete: `check`, `plan`, `run`,	unrecorded	-
+VRP-V0-040	docs/specs/cem2-discovery-replay-v0.md	`score` emits one row per change: per-unit flags and labels, capture per arm (`t	unrecorded	-
+VRP-V0-041	docs/specs/cem2-discovery-replay-v0.md	A false alarm is a flagged unit touched by neither the fix nor a later fix.	unrecorded	-
+VRP-V0-042	docs/specs/cem2-discovery-replay-v0.md	The CEM 1.0 dogfood cost comparator is `NOT_OBSERVED` unless measured on the sam	unrecorded	-
+VRP-V0-050	docs/specs/cem2-discovery-replay-v0.md	Over paired changes, `delta = (b - c) / paired`, where b counts typed-only captu	unrecorded	-
+VRP-V0-051	docs/specs/cem2-discovery-replay-v0.md	The verdict is CONTINUE iff `delta >= X`, `FA_typed <= Y` and `b > c`; otherwise	unrecorded	-
+VRP-V0-052	docs/specs/cem2-discovery-replay-v0.md	A run with fewer than 80% of selected changes paired is `INVALID_RUN`; one rerun	unrecorded	-
+VRP-V0-053	docs/specs/cem2-discovery-replay-v0.md	Secondary measures never change the verdict.	unrecorded	-
+VRP-V0-054	docs/specs/cem2-discovery-replay-v0.md	The verdict and every per-change row are recorded in a build-log entry; a KILL i	unrecorded	-
+VRP-V0-055	docs/specs/cem2-discovery-replay-v0.md	`registration.sha256` lists the sha256 of `PROTOCOL.md`, `thresholds.json`, the	unrecorded	-
+VRP-V0-056	docs/specs/cem2-discovery-replay-v0.md	`select.py` reads no system or global Git configuration and no `GIT_*` environme	unrecorded	-
+VRP-V0-057	docs/specs/cem2-discovery-replay-v0.md	`run` refuses (exit 4) a work or output directory that, after symbolic links are	unrecorded	-
+VRP-V0-058	docs/specs/cem2-discovery-replay-v0.md	Every step runs in its own process group; on exit, timeout or interrupt the harn	unrecorded	-
+VRP-V0-059	docs/specs/cem2-discovery-replay-v0.md	`score` exits 6 unless each capture's `run.json` names the change, its commit, i	unrecorded	-
+VRP-V0-060	docs/specs/cem2-discovery-replay-v0.md	A fix hunk counts as ID renumbering only when its removed and added lines are eq	unrecorded	-
+VRP-V0-061	docs/specs/cem2-discovery-replay-v0.md	The module path is read from `go.mod` at the change before any step runs; an exi	unrecorded	-
 CCE-V0-001	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e catalog [--root PATH] --rev REV` MUST emit one deterministic	unrecorded	-
 CCE-V0-002	docs/specs/change-compiled-e2e-v0.md	`page-object`, `path` and `outcome` blocks MUST come only from the existing AMAP	unrecorded	-
 CCE-V0-003	docs/specs/change-compiled-e2e-v0.md	`input` and `fixture` blocks MUST come only from a repository-declared, tracked	unrecorded	-
