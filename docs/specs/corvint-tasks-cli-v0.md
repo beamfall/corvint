@@ -286,6 +286,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   the original ticket) and warns with the recovered issuedAt. Every mutate verb shares this path.
   A retry whose other bytes differ still refuses `REQUEST_ID_CONFLICT` with the CAL-V0-250
   explanation, and nothing is written.
+- `TCL-V0-736`: (experimental under the standing lane auto-accept (2026-11-01); V1-4148)
+  `release readiness` MUST take its readiness inputs, member counts, milestone drift and member
+  lifecycles from one store read, so a write that lands during the read retries the whole
+  assessment instead of mixing an earlier intent load with a later lifecycle read. Only when that
+  read fails does it fall back to a plain intent load, counting every member lifecycle `UNKNOWN`
+  with a `lifecycle NOT_OBSERVED` warning as before.
 
 ## Non-goals
 
@@ -365,6 +371,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/create_retry_issued_at_test.go`:
   `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`,
   `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-735).
+- `internal/tasks/cli/release_one_read_internal_test.go`:
+  `TestTCLV0736_ReadinessReadsTheStoreOnce`; the wsl-lanes byte and syscall measurement in
+  `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-736).
 
 ## Rollback
 
