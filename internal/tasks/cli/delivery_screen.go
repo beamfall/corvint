@@ -302,7 +302,7 @@ func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
 			}
 		}
 	}
-	for id, ref := range x.commitReferences(p.Title) {
+	for id, ref := range x.messageReferences(p.Title, true) {
 		if ref == refDelivered && bodyVetoed[id] {
 			ref = refMentioned
 		}
@@ -321,9 +321,16 @@ func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
 // or its final parenthetical names it. Every other naming line only
 // mentions. Delivered wins.
 func (x *closeoutIndex) commitReferences(message string) map[string]string {
+	return x.messageReferences(message, false)
+}
+
+// messageReferences is commitReferences with the delivery-word placement of
+// idReferences: anywhere in the clause for a PR title (TCD-V0-730), leading
+// the line for a commit message.
+func (x *closeoutIndex) messageReferences(message string, anywhere bool) map[string]string {
 	out := map[string]string{}
 	for n, line := range strings.Split(strings.TrimLeft(message, "\n"), "\n") {
-		refs, vetoed := x.idReferences(line, false)
+		refs, vetoed := x.idReferences(line, anywhere)
 		if n == 0 {
 			for _, id := range x.subjectTickets(line) {
 				if !vetoed[id] {
@@ -871,11 +878,7 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 		root = repo.PrimaryWorktree
 	}
 	in.deriveLanes(root)
-	if root != "" {
-		if scan, e := store.ScanLaneCommits(root, in.batch.mergeOid(), defaultCloseoutScanLimit); e == nil {
-			in.laneScan = &scan
-		}
-	}
+	in.scanLanes(root)
 	for _, r := range in.runs {
 		if r.Conclusion == "success" && (r.HeadSha == in.batch.mergeOid() || r.HeadSha == in.batch.HeadRefOid) && !slices.Contains(in.green, r.DatabaseID) {
 			in.green = append(in.green, r.DatabaseID)
@@ -883,6 +886,17 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	}
 	slices.Sort(in.green)
 	return in, nil
+}
+
+// scanLanes reads the merge's lane commits (TCD-V0-731); laneScan stays nil
+// when root is empty or the merge does not resolve with two parents.
+func (in *batchInput) scanLanes(root string) {
+	if root == "" {
+		return
+	}
+	if scan, e := store.ScanLaneCommits(root, in.batch.mergeOid(), defaultCloseoutScanLimit); e == nil {
+		in.laneScan = &scan
+	}
 }
 
 // deriveLanes sets the lane PRs: the other exported PRs the batch title or

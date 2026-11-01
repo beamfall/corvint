@@ -111,4 +111,101 @@ func TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows(t *testing.T) {
 	if strings.Join(s, " ") != want {
 		t.Fatalf("rows %v, want %s", s, want)
 	}
+
+	// A lane merge and the batch merge that encloses it are a ticket's only
+	// citers: only the innermost (oldest) merge lists it.
+	dup, dupLocal := tcdTicket(t, root, "dup", "")
+	merge := func(msg, branch string) {
+		git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", msg, branch)
+	}
+	git(t, root, "checkout", "-q", "-b", "lane2")
+	tcdCommit(t, root, "lane two work")
+	git(t, root, "checkout", "-q", "main")
+	git(t, root, "checkout", "-q", "-b", "batch")
+	merge("Merge #8 (x/lane2) into batch\n\nfix: lane two ("+dupLocal+")", "lane2")
+	git(t, root, "checkout", "-q", "main")
+	merge("Merge pull request #9 from x/batch\n\nbatch: lane two ("+dupLocal+")", "batch")
+	_, res = tcdRun(t, root)
+	_, got = tcdRows(t, res)
+	var dups []string
+	for _, r := range got {
+		if r.ticket == dup {
+			dups = append(dups, r.subject)
+		}
+	}
+	if strings.Join(dups, "|") != "Merge #8 (x/lane2) into batch" {
+		t.Fatalf("merge-only citer rows %v, want the lane merge only", dups)
+	}
+}
+
+// TestTCDV0730_PRTitleMidLineDelivers covers the TCD-V0-730 rule for PR
+// titles: a delivery word anywhere in the ID's clause of a title delivers
+// it, and a veto in another clause of the title governs only its own ID,
+// both in delivery-screen and in batch-delivered.
+func TestTCDV0730_PRTitleMidLineDelivers(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, a := tcdTicket(t, root, "alpha", "")
+	_, b := tcdTicket(t, root, "bravo", "")
+	_, c := tcdTicket(t, root, "charlie", "")
+	m := tdsCommit(t, root, "Merge pull request #60 from x/lane", revParse(t, root, "HEAD"), tdsCommit(t, root, "lane work", revParse(t, root, "HEAD")))
+	prs := tdsExport(t, "prs.json", `[{"number":60,"state":"MERGED","title":"`+tdsJSON("Lane summary: Delivers "+a+", "+b+"; BLOCKED "+c)+`","body":"","mergeCommit":{"oid":"`+m+`"},"labels":[]}]`)
+	x := tdsRun(t, root, "ticket", "delivery-screen", "--prs", prs, a, b, c)
+	want := map[string]string{a: "DELIVERED", b: "DELIVERED", c: "MENTIONED"}
+	if got := tdsVerdicts(t, x); !mapsEqual(got, want) {
+		t.Fatalf("exit %d verdicts %v, want %v", x.code, got, want)
+	}
+	y := atm(t, root, nil, "ticket", "batch-delivered", "--pr", "60", "--prs", prs)
+	var delivered []string
+	for _, r := range field(y.res.Items[0], "delivered").Arr {
+		delivered = append(delivered, field(r, "local").Str)
+	}
+	if y.code != 0 || strings.Join(delivered, " ") != strings.Join(sortedLocals(a, b), " ") {
+		t.Fatalf("batch-delivered title: %s", y.stdout)
+	}
+}
+
+// TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit: a batch PR whose
+// branch merges two lane merges, each with its own ticket commits, delivers
+// every lane commit's ticket in batch-delivered (laneCommits counts the
+// non-merge commits only), and closeout-debt --prs proposes BATCH_CLOSE for
+// those tickets (TCD-V0-731, TCD-V0-871).
+func TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, t1 := tcdTicket(t, root, "one", "")
+	_, t2 := tcdTicket(t, root, "two", "")
+	_, t3 := tcdTicket(t, root, "three", "")
+	base := revParse(t, root, "HEAD")
+	a1 := tdsCommit(t, root, "fix: lane a first ("+t1+")", base)
+	a2 := tdsCommit(t, root, "lane a docs\n\nRefs "+t2, a1)
+	b1 := tdsCommit(t, root, "feat: lane b ("+t3+")", base)
+	ma := tdsCommit(t, root, "Merge #1 (x/lane-a) into batch", base, a2)
+	mb := tdsCommit(t, root, "Merge #2 (x/lane-b) into batch", ma, b1)
+	m := tdsCommit(t, root, "Merge pull request #40 from x/batch", base, mb)
+	git(t, root, "update-ref", "refs/heads/main", m)
+	prs := tdsExport(t, "prs.json", `[{"number":40,"state":"MERGED","title":"batch: two lanes","body":"Lanes merged locally.","headRefOid":"`+mb+`","mergeCommit":{"oid":"`+m+`"},"labels":[]}]`)
+
+	x := atm(t, root, nil, "ticket", "batch-delivered", "--pr", "40", "--prs", prs)
+	item := x.res.Items[0]
+	got := map[string]string{}
+	for _, r := range field(item, "delivered").Arr {
+		got[field(r, "local").Str] = field(r, "commit").Str
+	}
+	want := map[string]string{t1: a1, t2: a2, t3: b1}
+	if x.code != 0 || !mapsEqual(got, want) || field(item, "laneCommits").Str != "3" || field(item, "laneCommitsTruncated").Bool {
+		t.Fatalf("batch of lane merges: delivered %v, want %v: %s", got, want, x.stdout)
+	}
+
+	_, res := tcdRun(t, root, "--prs", prs)
+	cands, _ := res.Items[0].Obj.Get("candidates")
+	proposal := map[string]string{}
+	for _, c := range cands.Arr {
+		proposal[field(c, "local").Str] = field(c, "proposal").Str + "#" + field(c, "pr").Str
+	}
+	for _, id := range []string{t1, t2, t3} {
+		if proposal[id] != "BATCH_CLOSE#40" {
+			t.Fatalf("closeout-debt proposals %v, want BATCH_CLOSE#40 for %s", proposal, id)
+		}
+	}
 }

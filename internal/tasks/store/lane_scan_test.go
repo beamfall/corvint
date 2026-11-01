@@ -9,12 +9,13 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestTCDV0731_ScanLaneCommitsReadsTheMergedFirstParentChain: a scan reports each commit's parent
-// count, and the lane scan of a merge reads the first-parent chain of its
-// second parent that its first parent does not reach; a single-parent
-// commit has no lane range (TCD-V0-731).
-func TestTCDV0731_ScanLaneCommitsReadsTheMergedFirstParentChain(t *testing.T) {
-	if args := LaneLogArgs("FIRST", "SECOND", 3); !slices.Contains(args, "--first-parent") || args[len(args)-2] != "SECOND" || args[len(args)-1] != "^FIRST" {
+// TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit: a scan reports each commit's parent
+// count, and the lane scan of a merge reads every non-merge commit its
+// second parent reaches and its first parent does not, a nested lane
+// merge's commits included; a single-parent commit has no lane range
+// (TCD-V0-731).
+func TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit(t *testing.T) {
+	if args := LaneLogArgs("FIRST", "SECOND", 3); !slices.Contains(args, "--no-merges") || slices.Contains(args, "--first-parent") || args[len(args)-2] != "SECOND" || args[len(args)-1] != "^FIRST" {
 		t.Fatalf("lane argv %v", args)
 	}
 	root := t.TempDir()
@@ -54,7 +55,8 @@ func TestTCDV0731_ScanLaneCommitsReadsTheMergedFirstParentChain(t *testing.T) {
 	for _, c := range lane.Commits {
 		subjects = append(subjects, c.Subject)
 	}
-	if err != nil || strings.Join(subjects, ",") != "Merge sub,lane one" {
+	slices.Sort(subjects)
+	if err != nil || strings.Join(subjects, ",") != "lane one,sub lane" {
 		t.Fatalf("lane commits %v %v", subjects, err)
 	}
 	first, err := CloseoutRevision(root, "main^1")

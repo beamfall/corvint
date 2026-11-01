@@ -93,12 +93,13 @@ func ScanCommits(root, ref, since string, limit int) (CommitScan, error) {
 }
 
 // LaneLogArgs is the `git log` argv for the lane commits of a merge whose
-// parents are first and second: the first-parent chain from second that is
-// not reachable from first (TCD-V0-731).
+// parents are first and second: every non-merge commit reachable from second
+// and not from first, so a batch of lane merges yields every lane's commits
+// (TCD-V0-731).
 func LaneLogArgs(first, second string, limit int) []string {
 	args := CloseoutLogArgs(second, first, limit)
 	i := slices.Index(args, "--end-of-options")
-	return slices.Insert(args, i, "--first-parent")
+	return slices.Insert(args, i, "--no-merges")
 }
 
 // ScanLaneCommits reads at most limit lane commits of merge, newest first
