@@ -134,8 +134,9 @@ func gzipLen(t *testing.T, data []byte) int {
 	return buf.Len()
 }
 
-// CEM2-V0-022: V1-3760 sizes on every committed map, without Git. 2.0 sizes
-// count header plus body; gzip is Go's default level.
+// CEM2-V0-022: V1-3760 sizes on every committed map, without Git. The 2.0
+// raw and gzip columns count header plus body; the header line also reports
+// the bodies alone. gzip is Go's default level.
 func TestCEM2V0022CorpusMeasurements(t *testing.T) {
 	corpus := readCorpus(t)
 	type form struct {
@@ -143,7 +144,7 @@ func TestCEM2V0022CorpusMeasurements(t *testing.T) {
 		all     bytes.Buffer
 	}
 	var v1, derived, pinned form
-	var headers, encoded, abstained int
+	var headers, derivedBodies, pinnedBodies, encoded, abstained int
 	var sizes []int
 	for _, c := range corpus {
 		stable, err := wire.ParseStable(c.raw)
@@ -165,6 +166,8 @@ func TestCEM2V0022CorpusMeasurements(t *testing.T) {
 		}
 		encoded++
 		headers += len(dh)
+		derivedBodies += len(db)
+		pinnedBodies += len(pb)
 		sizes = append(sizes, len(c.raw))
 		for _, entry := range []struct {
 			f    *form
@@ -184,7 +187,7 @@ func TestCEM2V0022CorpusMeasurements(t *testing.T) {
 	t.Logf("1.0 raw=%d gzip-per-file=%d (%.1f%%) gzip-whole=%d (%.1f%%)", v1.raw, v1.gz, pct(v1.gz), gzipLen(t, v1.all.Bytes()), pct(gzipLen(t, v1.all.Bytes())))
 	t.Logf("2.0 derived raw=%d (%.1f%%) gzip-per-file=%d (%.1f%%) gzip-whole=%d (%.1f%%)", derived.raw, pct(derived.raw), derived.gz, pct(derived.gz), gzipLen(t, derived.all.Bytes()), pct(gzipLen(t, derived.all.Bytes())))
 	t.Logf("2.0 pinned raw=%d (%.1f%%) gzip-per-file=%d (%.1f%%) gzip-whole=%d (%.1f%%)", pinned.raw, pct(pinned.raw), pinned.gz, pct(pinned.gz), gzipLen(t, pinned.all.Bytes()), pct(gzipLen(t, pinned.all.Bytes())))
-	t.Logf("header mean=%.1f B", float64(headers)/float64(encoded))
+	t.Logf("header mean=%.1f B total=%d; bodies alone: derived=%d (%.1f%%) pinned=%d (%.1f%%)", float64(headers)/float64(encoded), headers, derivedBodies, pct(derivedBodies), pinnedBodies, pct(pinnedBodies))
 	if derived.raw >= v1.raw || pinned.raw >= v1.raw {
 		t.Fatal("the 2.0 forms must be smaller than cem/1.0 on the committed corpus")
 	}
