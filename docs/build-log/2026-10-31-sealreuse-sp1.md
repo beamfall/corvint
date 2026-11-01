@@ -218,6 +218,17 @@ The `ocm_write.go` refactor shifted five unanchored legacy citations in
 `docs/specs/ocm-v0-dogfood.md` by 11 lines. Each target line was matched byte-for-byte at the new
 position, pinned with `--hash`, and its unpinned-inventory row deleted.
 
+### Independent review (addendum)
+
+A read-only review subagent confirmed claims 1 and 2 and found two defects in the refresh, both
+fixed in a follow-up commit. (1) Staleness was judged against the owed hunks. On a rerun after a
+failed bind, the leftover map no longer owes hunks the plan already cited or reasoned, so a current
+plan would refuse `citations-refresh-incomplete`. Staleness is now judged against every hunk ID of
+the canonical BASE..HEAD patch, and an unreadable patch judges nothing stale. The new leftover-map
+case in `TestDCWV0947FinishRefreshesAMovedPlan` fails without the fix. (2) A carried all-unknown
+row on a sealed CEM that `DCW-V0-966` redrafts was not counted as drafted, so the refresh would
+continue on an unreviewed draft. It now counts.
+
 ### Evidence (addendum)
 
 `internal/dogfoodflow` whole package PASS; `internal/lrfrepo -run 'OCM|Ocm|Prepare|Intent|Obligation'`
