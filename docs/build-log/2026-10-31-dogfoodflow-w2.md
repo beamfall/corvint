@@ -126,7 +126,7 @@ Recorded after the seal; see the lane report.
 - P1 staged uniformity guard compared lines with bytes: FIXED e911e5849. Plan rows give inclusive
   one-based BASE lines, and CEM evidence records zero-based byte spans of the pinned blob
   (`workflow.Cite` `evidenceSpan`). `carriedUniform` now converts the rows' lines through the BASE
-  blob (`lineByteSpan`) before comparing. `TestDCWV0883StagedUniformPlan` cites through the real
+  blob (`lineByteSpan`) before comparing. `TestChangeDCWV0883RefusesUniformStagedPlan` cites through the real
   `cem` producer; without the fix it fails ("after 2 cites; want citation-plan-uniform").
 - P2 sealed ordinal refresh compared lines with bytes: FIXED e8205f4e1. `sealedHolds` reads the
   evidence's own `blobOid` and matches the row's lines as that blob's byte span.
