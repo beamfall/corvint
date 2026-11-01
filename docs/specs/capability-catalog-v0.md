@@ -320,6 +320,12 @@ cannot silently go missing or outlive its command.
   words. The scan of the three committed command trees finds the same words and flags as before,
   with `cmd/corvint`'s `wholeGoTest` parameter named `argv` again. Rollback: remove
   `childargv.go` and the `childArgv` predicate, and rename that parameter back to `command`.
+- `CAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines
+  `CAP-V0-040`) `clitree.Synopses` MUST NOT read an indented line under an example header (an
+  unindented line ending in `:` that contains `example`, such as `Example:`, `Examples:` or
+  `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
+  unindented line. So an example command never becomes a node's usage, flag or derived example.
+  Rollback: drop the example-block skip and regenerate the command trees.
 
 ## Boundaries and failure modes
 
@@ -472,3 +478,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
+| CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
