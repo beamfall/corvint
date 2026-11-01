@@ -872,8 +872,8 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 		report.Redone = true
 		return nil
 	}
-	if transaction.LivenessLease(request) {
-		session.SkipStagingSync() // LGL-V0-005 proposed
+	if skipsStagingSync(request) {
+		session.SkipStagingSync() // LGL-V0-005, LGL-V0-780 proposed
 	}
 	if err := p.guard.CheckEvents(); err != nil {
 		return err
