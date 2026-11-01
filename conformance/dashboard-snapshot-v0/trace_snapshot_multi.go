@@ -177,7 +177,12 @@ func compileOneTraceSource(configured traceConfiguredSource, source traceCorpusS
 	if len(source.terminal) != 0 {
 		completeness = "PARTIAL"
 		if len(source.members) == 0 {
-			validity, epistemic, currency = "INVALID", "NOT_OBSERVED", "UNKNOWN"
+			// No member was admitted, so no bytes were: the aggregate carries neither a byte
+			// count nor a content digest. The rejection itself was observed at the scan
+			// boundary, so the source stays OBSERVED and VALIDATED_AT, as the producer and the
+			// frozen four-invalid-legacy-members fixture have it (LOD-V0-970, V1-3427).
+			validity = "INVALID"
+			contentDigest, byteCount = nil, nil
 		}
 	}
 	if source.overrideCode != "" {
