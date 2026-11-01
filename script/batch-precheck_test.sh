@@ -1123,6 +1123,26 @@ grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-coauthor-trailers \([0-9a-f
   fail "ai-coauthor-trailers not an introduced FAIL: $(cat "$tmp/out")"
 grep -q 'WARN ai-coauthor-trailers' "$tmp/out" && fail "ai-coauthor-trailers was downgraded to base-present: $(cat "$tmp/out")"
 
+# 10c. ASD-V0-784 (V1-3504): the merge-conflict-comments step refuses a commit since the batch base
+# whose message keeps git's "# Conflicts:" block, naming the commit and the strip recovery; a clean
+# range passes, a base that does not resolve exits 2, and no base without origin/main is a skip.
+[[ $(grep -c '^merge-conflict-comments (' <(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list 2> /dev/null)) == 1 ]] ||
+  fail "not one merge-conflict-comments step in the listing"
+crepo=$tmp/crepo
+git init -q "$crepo" && git -C "$crepo" commit -q --allow-empty -m base && cbase=$(git -C "$crepo" rev-parse HEAD) &&
+  git -C "$crepo" commit -q --allow-empty -m 'feat: clean' || fail "conflict-comments fixture"
+(cd "$crepo" && "$pre" --conflict-comments "$cbase") > "$tmp/out" 2>&1 || fail "a clean range failed conflict-comments: $(cat "$tmp/out")"
+(cd "$crepo" && "$pre" --conflict-comments) > "$tmp/out" 2>&1 || fail "no base without origin/main did not skip: $(cat "$tmp/out")"
+grep -q '^merge-conflict-comments: skipped: no batch base' "$tmp/out" || fail "no skip line: $(cat "$tmp/out")"
+(cd "$crepo" && "$pre" --conflict-comments no-such-base) > /dev/null 2>&1
+[[ $? == 2 ]] || fail "an unresolved base did not exit 2"
+git -C "$crepo" commit -q --allow-empty --cleanup=verbatim -m "Merge branch 'lane' into batch" -m "# Conflicts:
+#	script/x.sh" && csha=$(git -C "$crepo" rev-parse HEAD) || fail "conflict-comments dirty commit"
+(cd "$crepo" && "$pre" --conflict-comments "$cbase") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a kept # Conflicts: block did not fail: $(cat "$tmp/out")"
+grep -q "^merge-conflict-comments: $csha keeps a \"# Conflicts:\" block" "$tmp/out" || fail "the dirty commit is not named: $(cat "$tmp/out")"
+grep -q 'cleanup=strip' "$tmp/out" || fail "no strip recovery named: $(cat "$tmp/out")"
+
 # 11. ASD-V0-073 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
 # stale, naming the file and the manifest, and a missing one; matching pins pass.
 lrepo=$tmp/lrepo

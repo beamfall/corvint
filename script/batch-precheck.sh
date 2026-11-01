@@ -617,6 +617,7 @@ steps() {
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
+  printf 'merge-conflict-comments (%s)\t%q --conflict-comments %q\n' "$(git rev-parse --short HEAD)" "$0" "$base" # ASD-V0-784, V1-3504
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
   # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
@@ -677,13 +678,35 @@ ignored_inputs() {
 # generator may read.
 tree_clean() { local out; out=$(git status --porcelain 2> /dev/null) && [[ -z $out && -z $(ignored_inputs) ]]; }
 
+# conflict_comments [BASE] (ASD-V0-784, V1-3504): a commit in BASE..HEAD whose message keeps the
+# `# Conflicts:` block Git appends to a conflicted merge (a `git commit --no-edit` or `git merge
+# --no-edit` without strip cleanup) is refused, naming it and the reword. An empty BASE means
+# origin/main, and a checkout where that does not resolve skips, saying so.
+conflict_comments() {
+  local base=${1:-} bad
+  if [[ -z $base ]]; then
+    if ! git rev-parse --verify --quiet 'origin/main^{commit}' > /dev/null; then
+      printf 'merge-conflict-comments: skipped: no batch base was given and origin/main does not resolve here\n'
+      return 0
+    fi
+    base=origin/main
+  fi
+  git rev-parse --verify --quiet "$base^{commit}" > /dev/null || { printf 'merge-conflict-comments: base %s does not resolve\n' "$base" >&2; return 2; }
+  bad=$(git log --format='%x1e%H%n%B' "$base..HEAD" | awk 'BEGIN { RS = "\036" } /(^|\n)# Conflicts:/ { split($0, l, "\n"); print l[1] }') || return 2
+  [[ -z $bad ]] && return 0
+  printf 'merge-conflict-comments: %s keeps a "# Conflicts:" block in its message\n' $bad
+  printf 'merge-conflict-comments: recover: reword each without those lines (git commit --amend --cleanup=strip for HEAD, else git rebase -r with reword); conclude a conflicted merge with git commit --no-edit --cleanup=strip\n'
+  return 1
+}
+
 case ${1:-} in
   --sync-check) sync_check; exit $? ;;
+  --conflict-comments) conflict_comments "${2:-}"; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--verify-receipt [REV]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
