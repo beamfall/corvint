@@ -117,6 +117,14 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
    | select([$out[] | select(.outcomes[$p] == "fail" or .outcomes[$p] == "missing")]
             | all(.rerun.state == "RAN" and .rerun.outcomes[$p] == "pass"))
    | $p] as $flaky
+# AFP-V0-984 (V1-3751): a pull-request run whose every shard record was sampled ran the full suite
+# in place of the driver's selection; a failed package outside that selection, FLAKY ones aside,
+# is a miss of the selection. Any other run carries no sample.
+| [$nar[] | select((.sample | type) == "object" and (.sample.k | type) == "number" and (.sample.selected | type) == "array")] as $sampledRecs
+| (if $kind == "pr" and ($nar | length) == $n and ($sampledRecs | length) == $n then
+     ([$sampledRecs[].sample.selected[] | select(type == "string")] | unique) as $T
+     | {k: $sampledRecs[0].sample.k, selected: ($T | length), failingOutside: (($F - $flaky) - $T)}
+   else null end) as $sample
 | (if $kind == "pr" and $narrowedRun then "NARROWED"
    elif ($incomplete | length) > 0 then
      (if $explained and ($unexplained | length) == 0 and ($missed - $flaky | length) == 0 then "INFRA" else "INCOMPLETE" end)
@@ -212,7 +220,9 @@ def covers($docs; $n; $gone): ($docs | map(.shard) | sort) == ([range(0; $n)] - 
      incomplete: ($incomplete | map(shortr))[0:$k],
      infrastructure: $infrastructure,
      truncated: ([$F, $missed, $flaky, $both, $incomplete] | any(length > $k)),
-     shadowCost: $shadowCost};
+     shadowCost: $shadowCost}
+    # AFP-V0-984: only a sampled run's row carries the optional sample member.
+    + (if $sample == null then {} else {sample: ($sample | .failingOutside |= .[0:$k] | .missed = ($sample.failingOutside | length > 0))} end);
 # The row is bounded without its advisory shadowCost first, so the cost never truncates or drops the
 # row; the cost then takes the room left, shortened, replaced by a note, or null.
   first((1000000, 200, 50, 10, 0) as $k | select(row($k; null) | fits) | $k) as $k0

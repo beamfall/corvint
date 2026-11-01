@@ -17,7 +17,7 @@
 #   --arg github (0|1|other) --arg mergeQueue (1|0|other) --arg baseRef --arg base
 #   --arg eventBase (original PR base; optional for historical callers)
 #   --arg head --arg target --arg pr --arg runId --arg runAttempt --arg shard
-#   --arg shards --arg toolSource --arg verdictRun -f narrow.jq
+#   --arg shards --arg toolSource --arg verdictRun [--arg sampleK K --arg sampleSeed SEED] -f narrow.jq
 # SHARD_PACKAGES is this shard's whole packages and SHARD_SLICES its
 # "FLAG PATTERN PACKAGE" slice lines, from the same ci-shards call as the full
 # branch. SELECTED is the driver's selection within the universe, one package per
@@ -35,7 +35,12 @@
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def hex40: type == "string" and test("^[0-9a-f]{40}$");
 def limit_only: test("^[a-z][a-z0-9_+-]*: no qualified adapter and ") and (startswith("go: ") | not);
-($driver[0] // null) as $d
+# AFP-V0-984 (V1-3751): the seeded 1-in-k sample of runs that would narrow. The first eight hex
+# digits of the head, read as a number, plus the seed decide, so every shard of a run agrees.
+def hexval: explode | map(if . >= 97 then . - 87 else . - 48 end) | reduce .[] as $d (0; . * 16 + $d);
+(($ARGS.named.sampleK // "") | num) as $sampleK
+| (($ARGS.named.sampleSeed // "") | num) as $sampleSeed
+| ($driver[0] // null) as $d
 | ($shadow[0] // null) as $s
 | ([$packages | split("\n")[] | select(length > 0)] | unique) as $whole
 | ([$slices | split("\n")[] | select(length > 0) | split(" ") | select(length == 3) | .[2]] | unique) as $sliced
@@ -89,6 +94,9 @@ def limit_only: test("^[a-z][a-z0-9_+-]*: no qualified adapter and ") and (start
     (if $balanced != "1" then "the balanced placement of the selection failed"
      elif ($placed - $sel | length) > 0 then "the balanced placement names an unselected package" else empty end)
   ] as $reasons
+| (($reasons | length) == 0 and $sampleK != null and $sampleK >= 2 and $sampleSeed != null and ($head | hex40)
+   and ((($head[0:8] | hexval) + $sampleSeed) % $sampleK == 0)) as $sampled
+| (if $sampled then $reasons + ["sampled for the AFP-V0-984 miss-rate estimate (1 in \($sampleK))"] else $reasons end) as $reasons
 | (if ($reasons | length) == 0 then "NARROWED" else "FULL" end) as $mode
 | (if $mode == "NARROWED" then $placed else $shardSet end) as $executed
 | {profile: "corvint-pr-narrowing/0",
@@ -108,3 +116,4 @@ def limit_only: test("^[a-z][a-z0-9_+-]*: no qualified adapter and ") and (start
    skipped: (if $mode == "NARROWED" then $shardSet - $D - $R else [] end),
    reused: (if $mode == "NARROWED" then $R else [] end),
    reuse: (if ($d | type) == "object" and ($d.Reuse | type) == "object" then $d.Reuse else null end)}
+| if $sampled then .sample = {k: $sampleK, seed: $sampleSeed, selected: $sel} else . end
