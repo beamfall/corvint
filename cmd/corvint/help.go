@@ -1840,6 +1840,14 @@ Language capabilities (syntax evidence, never complete runtime impact):
                                           advisory autoload constant references, two hops.
   JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
   TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
+  Swift       .swift                      path; SwiftPM target-module imports and
+                                          same-target references (one hop).
+  Kotlin      .kt                         path; package imports of declared names and
+                                          same-package references; .kts NOT_SUPPORTED.
+  C#          .cs                         path; using/static/alias directives and
+                                          enclosing-namespace references; .csproj NOT_SUPPORTED.
+  Swift, Kotlin and C# rows carry their precision limits as coverage uncertainty;
+  range impact and the historical packet budget do not use them.
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
@@ -1910,7 +1918,8 @@ Options:
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
   --capabilities             Print the corvint-impact-capabilities/0 listing and
                              exit: suffixes with a reverse-import rule, suffixes
-                             admitted without one, and the per-call limits, derived
+                             admitted without one, those of them with a Swift/Kotlin/C#
+                             module reference rule, and the per-call limits, derived
                              from the admission tables. Takes no other argument.
   --producer                 Add one "producer" member (version, build, commit,
                              commitState) to the receipt; an unknown member reads

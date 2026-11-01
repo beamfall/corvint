@@ -480,6 +480,9 @@ func reverseImportProfileGap(index *Index, receipt map[string]any) int {
 		if _, mapped := index.rubyMapped[changedPath]; mapped {
 			continue
 		}
+		if _, mapped := index.moduleMapped[changedPath]; mapped {
+			continue
+		}
 		if _, indexed := index.Sources[changedPath]; !indexed {
 			continue
 		}

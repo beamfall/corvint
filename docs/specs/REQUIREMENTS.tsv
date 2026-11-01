@@ -5285,6 +5285,14 @@ NGI-V0-306	docs/specs/non-go-impact-v0.md	A JS/TS source's `@Component({...})` d
 NGI-V0-307	docs/specs/non-go-impact-v0.md	Each Ruby constant reference the `NGI-V0-016` scanner reads in a readable	unrecorded	-
 NGI-V0-308	docs/specs/non-go-impact-v0.md	`--kinds` and MCP `kinds` MUST be a unique comma-separated subset of the	unrecorded	-
 NGI-V0-761	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1851)	standing	2026-10-11; V1-1851
+NGI-V0-980	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-981	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-982	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-983	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-984	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-985	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-986	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
+NGI-V0-987	docs/specs/non-go-impact-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724)	standing	2026-10-11; V1-3724
 OCA-V0-001	docs/specs/observation-corpus-authority-v0.md	each harness observation MUST bind one event/turn identity, immutable revision w	unrecorded	-
 OCA-V0-002	docs/specs/observation-corpus-authority-v0.md	observations MUST be local, bounded, source-body-free, and fail open: capture	unrecorded	-
 OCA-V0-003	docs/specs/observation-corpus-authority-v0.md	a corpus run MUST seal its subject identities, source revisions, labels, evaluat	unrecorded	-
