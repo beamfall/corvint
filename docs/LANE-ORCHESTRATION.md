@@ -135,6 +135,11 @@ over a second ssh connection and named in `heavy.sh: copied back PATH` lines (DC
 local edit made during the run touches one of them, nothing is copied and the wrapper exits 96
 asking for a local run. `script/heavy.sh --print-lock-dir` prints the slot lock directory a run
 would use (DCW-V0-357).
+When `corvint test --base SHA --dry-run --manifest M` selects packages whole (a dependency change
+such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prints one
+`HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
+each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
+`HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
 When the host is unreachable the offload is retried once after `HEAVY_REMOTE_RETRY` seconds
 (default 15), then the command runs locally and says so. Each local run of an offloadable command
 appends `UTC pwd=... reason=offload-unavailable|HEAVY_REMOTE=0|writes-files cmd=...` to

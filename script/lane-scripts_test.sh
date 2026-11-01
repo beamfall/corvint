@@ -906,6 +906,44 @@ HEAVY_WHOLE_REASON= pv go test -run TestAll ./x 2> /dev/null || fail "heavy.sh r
 grep -v ' local wait=' "$pol/sel.log" | tail -n 6 > "$pol/sel.all"
 [[ $(grep -c ' refused pwd=' "$pol/sel.all") == 5 && $(tail -n 1 "$pol/sel.all") == *" selected pwd=$pol cmd=go test -run TestAll ./x script="* ]] ||
   fail "heavy.sh match-all selection log: $(cat "$pol/sel.all")"
+# ASD-V0-890 (V1-3506): with both reasons missing, one refusal names both; one missing names one.
+HEAVY_WHOLE_REASON= HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing+local-reason-missing (exit 2)' ]] &&
+  grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" &&
+  grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
+  grep -qx 'heavy.sh: refused: set both HEAVY_WHOLE_REASON and HEAVY_LOCAL_REASON' "$pol/err" ||
+  fail "heavy.sh did not refuse once for both reasons: $(cat "$pol/out" "$pol/err")"
+HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED local-reason-missing (exit 2)' ]] && ! grep -q 'set both' "$pol/err" ||
+  fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-891 (V1-3397): a corvint test manifest of HEAD admits the packages it selects whole, and
+# --plan prints one heavy.sh command per unit.
+sel=$tmp/selection
+mkdir -p "$sel/x" "$sel/y" && printf 'module example.com/m\n\ngo 1.27\n' > "$sel/go.mod" &&
+  git -C "$sel" init -q && git -C "$sel" -c user.name=t -c user.email=t@t commit -q --allow-empty -m s || fail "selection fixture setup failed"
+selhead=$(git -C "$sel" rev-parse HEAD)
+manifest() { # manifest HEAD > FILE
+  printf '{"profile":"corvint-test-manifest/0","planDigest":"sha256:0123456789abcdef","source":{"head":"%s"},"units":[%s]}\n' "$1" \
+    '{"unit":"go:example.com/m/x","slice":"whole"},{"unit":"go:example.com/m/y","slice":"selected","flag":"-run","pattern":"^(TestA)$"},{"unit":"go:other.org/z","slice":"whole"}'
+}
+manifest "$selhead" > "$sel/m.json" && manifest 0000000000000000000000000000000000000000 > "$sel/old.json"
+sv() { (cd "$sel" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$sel/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 HEAVY_WHOLE_REASON= "$heavy" "$@"); }
+HEAVY_SELECTION="$sel/m.json" sv go test -count=1 ./x 2> "$sel/err" &&
+  grep -Eq "^$d whole reason=corvint-selection:0123456789ab pwd=.* cmd=go test -count=1 \./x$h" "$sel/sel.log" ||
+  fail "heavy.sh did not admit a package the manifest selects whole: $(cat "$sel/err" "$sel/sel.log")"
+for c in "m.json ./y" "m.json ./x ./y" "old.json ./x"; do
+  HEAVY_SELECTION="$sel/${c%% *}" sv go test ${c#* } > /dev/null 2> "$sel/err"
+  [[ $? == 2 ]] && grep -q 'HEAVY_SELECTION=M' "$sel/err" || fail "heavy.sh admitted $c: $(cat "$sel/err")"
+done
+sv --plan "$sel/m.json" > "$sel/plan" 2> "$sel/err" || fail "heavy.sh --plan failed: $(cat "$sel/err")"
+printf -v want "HEAVY_SELECTION='%s' script/heavy.sh go test -count=1 ./x\nHEAVY_SELECTION='%s' script/heavy.sh go test -count=1 -run '^(TestA)\$' ./y\n# skipped go:other.org/z: outside example.com/m" "$sel/m.json" "$sel/m.json"
+[[ $(cat "$sel/plan") == "$want" ]] && grep -qx "heavy.sh: plan 2 units from $sel/m.json (planDigest 0123456789ab)" "$sel/err" ||
+  fail "heavy.sh --plan output: $(cat "$sel/plan" "$sel/err")"
+printf '{}' > "$sel/bad.json"
+sv --plan "$sel/bad.json" > /dev/null 2> "$sel/err"
+[[ $? == 2 ]] && grep -q 'REFUSE manifest-invalid' "$sel/err" || fail "heavy.sh --plan accepted an invalid manifest: $(cat "$sel/err")"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
 [[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
