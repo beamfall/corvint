@@ -159,7 +159,10 @@ func Run(env Env) int {
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}
-	if !readOnlyVerbs[verbPath(args)] {
+	// A --dry-run commits nothing, so it never refreshes the derived
+	// closed-ticket index even when another writer advances the head
+	// meanwhile; that writer's own run refreshes it (TCL-V0-821).
+	if !readOnlyVerbs[verbPath(args)] && !hasArg(args, "--dry-run") {
 		defer closedIndexRefresher(env)()
 	}
 	switch args[0] {
@@ -176,7 +179,7 @@ func Run(env Env) int {
 		if len(args) > 1 && args[1] == "cleanup" {
 			return emit(env.Stdout, programCleanup(env, args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"program"}, "expected show or cleanup"))
+		return emit(env.Stdout, groupMiss([]string{"program"}, args[1:], "expected show or cleanup"))
 	case "run":
 		if attemptMode(args[1:]) {
 			return attemptRun(env, args[1:])
@@ -319,7 +322,7 @@ func Run(env Env) int {
 		if len(args) > 1 && (args[1] == "acquire" || args[1] == "release") {
 			return emit(env.Stdout, leaseCommand(env, "slots "+args[1], args[2:]))
 		}
-		return emit(env.Stdout, usage([]string{"slots"}, "unknown slots verb; slots acquire|release --help"))
+		return emit(env.Stdout, groupMiss([]string{"slots"}, args[1:], "unknown slots verb; slots acquire|release --help"))
 	case "attempt":
 		if len(args) > 1 && args[1] == "show" {
 			return emit(env.Stdout, compactRead([]string{"attempt", "show"}, args[2:], compactSpec{summary: attemptSummary}, func(a []string) *wire.Result { return attemptCommand(env, append([]string{"show"}, a...)) }))
@@ -347,7 +350,7 @@ func Run(env Env) int {
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status or snapshot"))
+		return emit(env.Stdout, groupMiss([]string{"queue"}, args[1:], "queue needs the verb status or snapshot"))
 	case "roadmap":
 		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: listValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":

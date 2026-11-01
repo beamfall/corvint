@@ -1,12 +1,14 @@
 package cli
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -82,5 +84,32 @@ func TestCTSV0821_JournalAbsentMissNamesOriginSyncStep(t *testing.T) {
 	text = strings.Join(miss.Warnings, " ")
 	if miss.Outcome != wire.OutcomeRefused || !strings.Contains(text, "does not hold .taskman/tickets/ZZ-999.json either") || !strings.Contains(text, "`git fetch origin`") {
 		t.Fatalf("absent on origin too: %+v", miss)
+	}
+}
+
+// TestCTSV0821_UnreadableTreeLeavesWarningUncertain: an origin commit whose
+// tree object is missing proves nothing about the ticket file, so the hint
+// stays empty instead of claiming the ref "does not hold" it (CTS-V0-821).
+func TestCTSV0821_UnreadableTreeLeavesWarningUncertain(t *testing.T) {
+	fixture.SkipUnsupportedPlatform(t)
+	dir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	realGit(t, dir, "init", "-q", "-b", "main")
+	fixture.Write(t, filepath.Join(dir, ".taskman", "queue.json"), fixture.QueueBytes())
+	realGit(t, dir, "add", ".taskman")
+	realGit(t, dir, "commit", "-qm", "queue")
+	realGit(t, dir, "update-ref", "refs/remotes/origin/main", "HEAD")
+	repo := &intent.Repository{CommonDir: filepath.Join(dir, ".git")}
+	if got := remoteProjectionHint(repo, "queue:acme:main:ZZ-1"); !strings.Contains(got, "does not hold .taskman/tickets/ZZ-1.json either") {
+		t.Fatalf("readable tree: %q", got)
+	}
+	tree := realGit(t, dir, "rev-parse", "HEAD^{tree}")
+	if err := os.Remove(filepath.Join(dir, ".git", "objects", tree[:2], tree[2:])); err != nil {
+		t.Fatal(err)
+	}
+	if got := remoteProjectionHint(repo, "queue:acme:main:ZZ-1"); got != "" {
+		t.Fatalf("unreadable tree produced a hint: %q", got)
 	}
 }

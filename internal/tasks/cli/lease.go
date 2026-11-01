@@ -605,6 +605,9 @@ func attemptCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && args[0] == "heartbeat" {
 		return leaseCommand(env, "attempt heartbeat", args[1:])
 	}
+	if len(args) > 0 && args[0] != "show" {
+		return groupMiss([]string{"attempt"}, args, "attempt needs the verb show <attemptId>")
+	}
 	return readAttempt(env, args, true)
 }
 

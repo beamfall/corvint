@@ -53,7 +53,7 @@ func serviceQueueID(workRoot string) (string, error) {
 // serviceCommand routes `service install|status|uninstall|stop|resume|run|run-helper`.
 func serviceCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 || serviceVerbs[args[0]] == nil {
-		return usage([]string{"service"}, "service needs a verb: install, status, uninstall, stop, resume, run or run-helper")
+		return groupMiss([]string{"service"}, args, "service needs a verb: install, status, uninstall, stop, resume, run or run-helper")
 	}
 	verb := args[0]
 	cmd := []string{"service", verb}

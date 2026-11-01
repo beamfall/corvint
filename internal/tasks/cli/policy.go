@@ -21,7 +21,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	}
 	cmd := []string{"policy", "update"}
 	if len(args) == 0 || args[0] != "update" {
-		return usage([]string{"policy"}, "policy needs the verb show or update")
+		return groupMiss([]string{"policy"}, args, "policy needs the verb show or update")
 	}
 	args = args[1:]
 	role, request, expected, file := "OWNER", "", "", ""
@@ -127,6 +127,7 @@ func policyDryRun(env Env, cmd []string, raw []byte, expected wire.Size, pending
 	if !pending {
 		fences, fenceErr = handoffFencePreview(env, raw)
 	}
+	policyDryRunHook()
 	if fenceErr != nil {
 		o.Set("handoffFences", wire.Null())
 		res.Warnings = append(res.Warnings, "handoff fence preview NOT_OBSERVED ("+wire.CodeOf(fenceErr)+"); dry run, nothing was written")
@@ -139,6 +140,10 @@ func policyDryRun(env Env, cmd []string, raw []byte, expected wire.Size, pending
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	return res
 }
+
+// policyDryRunHook runs after the dry run reads its preview; tests use it to
+// advance the head the way a concurrent writer does (TCL-V0-821).
+var policyDryRunHook = func() {}
 
 // handoffFencePreview is the CAL-V0-124 advisory read taken before the
 // writer runs: one pinned snapshot of the current policy and live attempts.

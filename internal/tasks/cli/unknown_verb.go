@@ -40,6 +40,16 @@ func unknownVerb(group []string, word string) *wire.Result {
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeMalformed}, Warnings: []string{prose(msg)}}
 }
 
+// groupMiss is a verb group's refusal of its first word: a missing word or
+// a flag keeps the group's usage message, and any other word is an
+// unknown verb of that group (CAP-V0-820).
+func groupMiss(group, rest []string, msg string) *wire.Result {
+	if len(rest) == 0 || rest[0] == "" || strings.HasPrefix(rest[0], "-") {
+		return usage(group, msg)
+	}
+	return unknownVerb(group, rest[0])
+}
+
 // lastWordRoutes names the implemented verbs whose last word is the unknown
 // first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`
 // (CAP-V0-060).
@@ -78,7 +88,7 @@ func nearestVerbs(group []string, word string) []string {
 		switch {
 		case d < best:
 			best, out = d, []string{next}
-		case d == best:
+		case d == best && d <= limit:
 			out = append(out, next)
 		}
 	}

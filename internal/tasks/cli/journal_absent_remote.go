@@ -37,7 +37,14 @@ func remoteProjectionHint(repo *intent.Repository, id string) string {
 		ref, sha = "origin/main", commit
 	}
 	rel := intent.Dir + "/" + intent.TicketsDir + "/" + local + ".json"
-	if _, ok := remoteGit(repo.CommonDir, "cat-file", "-e", sha+":"+rel); ok {
+	// ls-tree reads the commit's tree: success with no output is proven
+	// absence, and any failure (a timeout, an unreadable tree) proves
+	// nothing, so the warning stays as it is.
+	entry, ok := remoteGit(repo.CommonDir, "ls-tree", "--full-tree", sha, "--", rel)
+	if !ok {
+		return ""
+	}
+	if entry != "" {
 		return " The remote-tracking ref " + ref + " (commit " + sha + ") holds " + rel + ": read it read-only with `git show " + sha + ":" + rel +
 			"`, or sync this checkout's projection with `git merge --ff-only " + ref + "` on a checkout of that branch, then retry (CTS-V0-821)."
 	}
