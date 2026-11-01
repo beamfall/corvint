@@ -60,6 +60,10 @@ func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 		{name: "unlisted make caller", declaration: declare(listed), extra: map[string]string{"sub/rules.mk": "x:\n\tsh run/run.sh\n"}, invalid: true},
 		{name: "unlisted python caller", declaration: declare(listed), extra: map[string]string{"lane.py": "import subprocess\nsubprocess.run(['run/run.sh'])\n"}, invalid: true},
 		{name: "unlisted workflow caller", declaration: declare(listed), extra: map[string]string{"ci/flow.yml": "run: run/run.sh\n"}, invalid: true},
+		// A workflow under .github is a caller too (V1-4178); it owns no unit.
+		{name: "hidden workflow caller", declaration: declare(`"callers":[".github/workflows/ci.yml","Makefile","caller/caller.go","direct/direct_test.go"]`), extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"}, declared: true}, //corvint:fixture-path
+		{name: "unlisted hidden workflow caller", declaration: declare(listed), extra: map[string]string{".github/workflows/ci.yml": "run: sh run/run.sh\n"}, invalid: true},                                                                                 //corvint:fixture-path
+		{name: "stale hidden workflow caller", declaration: declare(`"callers":[".github/workflows/ci.yml","Makefile","caller/caller.go","direct/direct_test.go"]`), extra: map[string]string{".github/workflows/ci.yml": "run: true\n"}, invalid: true},     //corvint:fixture-path
 		{name: "stale caller", declaration: declare(`"callers":["Makefile","caller/caller.go","direct/direct_test.go","other/other.go"]`), invalid: true},
 		{name: "unsorted callers", declaration: declare(`"callers":["caller/caller.go","Makefile","direct/direct_test.go"]`), invalid: true},
 		{name: "no script unit", declaration: `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{` + listed + `,"reason":"r"},"gone.sh":{"callers":["Makefile"],"reason":"r"}}}`, invalid: true},

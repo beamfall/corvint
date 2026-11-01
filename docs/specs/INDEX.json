@@ -4123,7 +4123,7 @@
     "reqPrefix": "ADN-V0",
     "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3123, V1-3129, V1-3138); ADN-V0-009 amends AFP-V0-094",
     "delivery": "experimental",
-    "claim": "Additive Go changes select only importers that reference a new declaration; documentation and sealed-CEM paths take their readers from the plan.",
+    "claim": "A Go change selects only importers naming what it adds or what reaches its edits; documentation and sealed-CEM paths take readers from the plan.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

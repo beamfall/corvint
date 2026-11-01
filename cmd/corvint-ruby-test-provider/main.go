@@ -77,7 +77,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "rspec":
 	default:
-		fmt.Fprintf(stderr, "unknown subcommand %q\n", args[0])
+		fmt.Fprintf(stderr, "UNKNOWN_COMMAND: unknown subcommand %q\n", args[0])
 		return 2
 	}
 	err := runRSpec(ctx, args[1:], stdout, stderr)
