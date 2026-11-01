@@ -229,6 +229,14 @@
 # it completely before main reads the offload payload that follows it on the same stdin.
 set -uo pipefail
 
+# git: ASD-V0-708 (V1-3684). heavy.sh's own Git calls ignore the caller's GIT_CONFIG_GLOBAL, which
+# a lane may point at a private, missing or placeholder file (even a directory, which makes every
+# Git command fail); a failing rev-parse here read as "no checkout". The wrapped command still
+# inherits the variable unchanged.
+git() {
+  if [[ -n ${GIT_CONFIG_GLOBAL+set} ]]; then env -u GIT_CONFIG_GLOBAL git "$@"; else command git "$@"; fi
+}
+
 refuse() {
   printf 'heavy.sh: REFUSE %s\n' "$*" >&2
   printf 'heavy.sh: REFUSED %s (exit 2)\n' "${1%% *}" # stdout marker survives `| tail` (V1-3213)
@@ -447,13 +455,13 @@ upstream() {
 # plus staged, unstaged and untracked non-ignored changes) into heavy_tree, and the number of paths
 # where it differs from HEAD into heavy_dirty. INDEX is a scratch index file (a copy of the real
 # one, so unchanged files are not rehashed); the real index is never written. Writes only blob and
-# tree objects to the object store.
+# tree objects to the object store. Returns 2 when the index cannot be copied to INDEX (ASD-V0-707).
 tree_identity() {
   local top=$1 index=$2 real
   heavy_tree= heavy_dirty=
   real=$(git -C "$top" rev-parse --path-format=absolute --git-path index 2> /dev/null) || return 1
   /bin/rm -f "$index"
-  if [[ -f $real ]]; then /bin/cp -f "$real" "$index" || return 1; fi
+  if [[ -f $real ]]; then /bin/cp -f "$real" "$index" || return 2; fi
   GIT_INDEX_FILE=$index git -C "$top" add -A > /dev/null 2>&1 || return 1
   heavy_tree=$(GIT_INDEX_FILE=$index git -C "$top" write-tree 2> /dev/null) || return 1
   heavy_dirty=$(git -C "$top" diff-tree -r --name-only -z HEAD "$heavy_tree" 2> /dev/null | tr -cd '\0' | wc -c | tr -d ' ')
@@ -848,15 +856,27 @@ store_back() {
 
 # local_identity COMMAND...: for an offloadable command run here inside a Git checkout, one stderr
 # line naming the tested tree (tree_identity), or tree=unknown when it cannot be computed. It is
-# taken before slot admission, so an edit made while waiting is not reflected.
+# taken before slot admission, so an edit made while waiting is not reflected. ASD-V0-707 (V1-3523):
+# when the index cannot be copied into ${TMPDIR:-/tmp} (a full or read-only volume), it refuses
+# before the command runs, naming that volume, instead of running with a partial index.
 local_identity() {
-  local top head idx
+  local top head idx tmpd=${TMPDIR:-/tmp} rc=0
   offloadable "$@" || return 0
   top=$(git rev-parse --show-toplevel 2> /dev/null) || return 0
   head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || head=unknown
-  idx=$(mktemp "${TMPDIR:-/tmp}/heavy-index.XXXXXX") && tree_identity "$top" "$idx" || heavy_tree=unknown heavy_dirty=unknown
-  [[ -n ${idx-} ]] && /bin/rm -f "$idx"
+  idx=$(mktemp "$tmpd/heavy-index.XXXXXX" 2> /dev/null) || temp_refuse "$tmpd" "mktemp failed"
+  tree_identity "$top" "$idx" || rc=$?
+  /bin/rm -f "$idx"
+  ((rc == 2)) && temp_refuse "$tmpd" "copying the Git index into $idx failed"
+  ((rc == 0)) || heavy_tree=unknown heavy_dirty=unknown
   printf 'heavy.sh: running locally at %s tree=%s dirty=%s\n' "$head" "$heavy_tree" "$heavy_dirty" >&2
+}
+
+# temp_refuse DIR WHAT: ASD-V0-707. Refuse naming DIR's volume (mount point and free KiB from df).
+temp_refuse() {
+  local vol
+  vol=$(df -Pk "$1" 2> /dev/null | awk 'NR == 2 { print $6 ", " $4 " KiB free" }')
+  refuse "temp-unwritable $2: TMPDIR volume $1 (${vol:-df unavailable}) is full or read-only; free space there or set TMPDIR to a writable on-disk directory"
 }
 
 # offloadable ARG...: true for a command kind the remote runs (go test, go vet, make windows-vet).
@@ -1294,11 +1314,28 @@ selection_policy() {
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON (in heavy.sh's environment or as a leading NAME=VALUE / env word). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
   selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON") pwd=$PWD cmd=$*"
+}
+
+# env_reasons COMMAND...: ASD-V0-709 (V1-3739). In `env NAME=VALUE... CMD` (also what leading
+# NAME=VALUE words and an unwrapped `sh -c` become), a HEAVY_WHOLE_REASON or HEAVY_LOCAL_REASON word
+# is heavy.sh's own reason too, so the policy sees it; the words stay in the command.
+env_reasons() {
+  local w
+  [[ ${1##*/} == env ]] || return 0
+  shift
+  for w; do
+    case $w in
+      HEAVY_WHOLE_REASON=* | HEAVY_LOCAL_REASON=*) export "$w" ;;
+      -*) ;;
+      [A-Za-z_]*=*) ;;
+      *) return 0 ;;
+    esac
+  done
 }
 
 # local_policy COMMAND...: refuse an offloadable command under HEAVY_REMOTE=0 without
@@ -1599,6 +1636,7 @@ main() {
   else
     unwrap_shell "$@"
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
+    env_reasons "$@"
     # ASD-V0-890 (V1-3506): evaluate both reason rules, then refuse once naming every missing reason.
     local missing=()
     selection_policy "$@" || missing+=(whole-reason-missing)

@@ -662,6 +662,34 @@ grep -qx 'heavy.sh: host=local why=HEAVY_REMOTE=0' "$off/err" || fail "heavy.sh 
 out=$(HEAVY_CONFIG=$off/heavy.env HEAVY_REMOTE_HOST=down hv go test ./... 2> /dev/null)
 [[ $out == where=local* ]] || fail "heavy.sh HEAVY_CONFIG overrode the environment: $out"
 ok
+# ASD-V0-708 (V1-3684): a caller's GIT_CONFIG_GLOBAL (here a directory, which fails every Git
+# command) does not break heavy.sh's own Git calls, and the wrapped command still inherits it.
+mkdir -p "$off/gcg"
+GIT_CONFIG_GLOBAL=$off/gcg hv go test -exit=0 ./... > "$off/v.out" 2> "$off/err"
+[[ $? == 0 ]] && grep -q '^where=local' "$off/v.out" &&
+  grep -qE '^heavy.sh: running locally at [0-9a-f]{40} tree=[0-9a-f]{40} dirty=[0-9]+$' "$off/err" ||
+  fail "heavy.sh under a broken GIT_CONFIG_GLOBAL: $(cat "$off/v.out" "$off/err")"
+out=$(GIT_CONFIG_GLOBAL=$off/gcg hv sh -c 'printf %s "$GIT_CONFIG_GLOBAL"' 2> /dev/null)
+[[ $out == "$off/gcg" ]] || fail "heavy.sh hid GIT_CONFIG_GLOBAL from the wrapped command: $out"
+ok
+# ASD-V0-707 (V1-3523): when the Git index cannot be copied into TMPDIR, heavy.sh refuses with exit
+# 2 naming that volume before the command runs: a read-only TMPDIR (mktemp fails) and an
+# unreadable index (the copy fails).
+ro=$off/ro-tmp
+mkdir -p "$ro" && chmod 555 "$ro" || fail "read-only TMPDIR fixture"
+tv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$1" HEAVY_SLOTS=1 HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" go test -exit=0 ./...); }
+tv "$ro" > "$off/v.out" 2> "$off/err"
+[[ $? == 2 && $(cat "$off/v.out") == 'heavy.sh: REFUSED temp-unwritable (exit 2)' ]] &&
+  grep -q "mktemp failed: TMPDIR volume $ro (" "$off/err" ||
+  fail "heavy.sh ran with a read-only TMPDIR: $(cat "$off/v.out" "$off/err")"
+chmod 755 "$ro" && chmod 000 "$off/lc/.git/index" || fail "unreadable index fixture"
+tv "$ro" > "$off/v.out" 2> "$off/err"
+rc=$?
+chmod 644 "$off/lc/.git/index"
+[[ $rc == 2 && $(cat "$off/v.out") == 'heavy.sh: REFUSED temp-unwritable (exit 2)' ]] &&
+  grep -q "copying the Git index into $ro/heavy-index\..* failed: TMPDIR volume $ro (" "$off/err" && [[ -z $(ls -A "$ro") ]] ||
+  fail "heavy.sh ran after a failed index copy: $(cat "$off/v.out" "$off/err")"
+ok
 # ASD-V0-028: the remote semaphore admits HEAVY_REMOTE_SLOTS=1 commands one at a time.
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_SLOTS=1 hv go test -probe ./... > "$off/a.out" 2> "$off/a.err" &
 a=$!
@@ -1122,6 +1150,18 @@ HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
   fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-709 (V1-3739): a reason given as an env word or a leading NAME=VALUE word is heavy.sh's own
+# reason too; an empty one is still missing, and the refusal says where the reason must be.
+# Its own logs, so the run-line counts below stay as they are.
+pe() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel-env.log" HEAVY_FALLBACK_LOG="$pol/fb-env.log"   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD=1.00 HEAVY_SLOTS=1 HEAVY_WHOLE_REASON= "$heavy" "$@"); }
+pe env HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null || fail "heavy.sh ignored HEAVY_WHOLE_REASON given through env"
+pe HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null || fail "heavy.sh ignored a leading HEAVY_WHOLE_REASON= word"
+HEAVY_REMOTE=0 pe env GOFLAGS=-count=1 HEAVY_LOCAL_REASON=r HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null ||
+  fail "heavy.sh ignored HEAVY_LOCAL_REASON and HEAVY_WHOLE_REASON given through env"
+pe env HEAVY_WHOLE_REASON= go test ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
+  grep -q "without HEAVY_WHOLE_REASON (in heavy.sh's environment or as a leading NAME=VALUE / env word)" "$pol/err" ||
+  fail "heavy.sh empty env reason or refusal text: $(cat "$pol/out" "$pol/err")"
 # ASD-V0-891 (V1-3397): a corvint test manifest of HEAD admits the packages it selects whole, and
 # --plan prints one heavy.sh command per unit.
 sel=$tmp/selection
