@@ -21,6 +21,16 @@ func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[strin
 	if !ok {
 		return map[string]any{}
 	}
+	// AHI-632 (V1-0878): a plan's named project files get their affected checks, planned
+	// concurrently with the plan's context so both fit the opt-in host kill.
+	planAffected := func() string { return "" }
+	if payload["tool_name"] == "ExitPlanMode" {
+		if root, err := claudeAdapterRoot(ctx); err == nil {
+			if paths := planAffectedPaths(root, text); len(paths) != 0 {
+				planAffected = startPlanAffected(ctx, root, paths)
+			}
+		}
+	}
 	prompt := maps.Clone(payload)
 	prompt["prompt"] = text
 	prompt["hook_event_name"] = "UserPromptSubmit"
@@ -29,10 +39,14 @@ func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[strin
 		delete(output, member)
 	}
 	hook, isHook := output["hookSpecificOutput"].(map[string]any)
+	contextText, _ := hook["additionalContext"].(string)
+	if checks := planAffected(); checks != "" {
+		contextText = strings.TrimSpace(contextText + "\n\n" + checks)
+		isHook = true
+	}
 	if !isHook {
 		return output
 	}
-	contextText, _ := hook["additionalContext"].(string)
 	if contextText == "" {
 		delete(output, "hookSpecificOutput")
 		return output
