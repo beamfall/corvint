@@ -461,6 +461,7 @@ func prose(s string) string {
 // emit encodes the envelope and returns the exit code. An envelope that
 // fails its own validation is replaced by a minimal ERROR envelope.
 func emit(w io.Writer, res *wire.Result) int {
+	binaryVersionWarning(res)
 	data, err := res.Encode()
 	if err != nil {
 		fallback := errorResult(res.Command, err)
@@ -476,6 +477,18 @@ func emit(w io.Writer, res *wire.Result) int {
 		return 0
 	}
 	return 1
+}
+
+// binaryVersionWarning names this binary's version on an envelope that
+// reports UNSUPPORTED_VERSION, so version skew between hosts is visible
+// (CTS-V0-991).
+func binaryVersionWarning(res *wire.Result) {
+	for _, c := range res.Codes {
+		if c == wire.CodeUnsupportedVersion {
+			res.Warnings = append(res.Warnings, "this binary is corvint-tasks "+Version+"+build."+Build+"; compare it with the build that wrote the store")
+			return
+		}
+	}
 }
 
 func usage(cmd []string, msg string) *wire.Result {
