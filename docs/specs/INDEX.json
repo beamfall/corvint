@@ -4296,5 +4296,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/cem-content-keyed-claims-v0.md",
+    "title": "CEM Content-Keyed Claims V0",
+    "reqPrefix": "CKC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Reviewed plan rows persist as content-keyed claims that compile to current hunk IDs across fixes and rebases, refusing every ambiguous match.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

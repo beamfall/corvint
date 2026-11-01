@@ -1145,6 +1145,24 @@ CCP-V0-007	docs/specs/cem-completeness-profile-v0.md	(standing lane auto-accept,
 CCP-V0-008	docs/specs/cem-completeness-profile-v0.md	(standing lane auto-accept, 2026-10-28; V1-2947) The result, profile	standing	2026-10-28; V1-2947
 CCP-V0-009	docs/specs/cem-completeness-profile-v0.md	(standing lane auto-accept, 2026-10-28; V1-2947) `protocol/cem-completeness-1/`	standing	2026-10-28; V1-2947
 CCP-V0-010	docs/specs/cem-completeness-profile-v0.md	(standing lane auto-accept, 2026-10-28; V1-2962, GitHub #1948) `cem status` and	standing	2026-10-28; V1-2962; #1948
+CKC-V0-001	docs/specs/cem-content-keyed-claims-v0.md	Claims file format.	unrecorded	-
+CKC-V0-002	docs/specs/cem-content-keyed-claims-v0.md	Recording a plan.	unrecorded	-
+CKC-V0-003	docs/specs/cem-content-keyed-claims-v0.md	Tombstones.	unrecorded	-
+CKC-V0-004	docs/specs/cem-content-keyed-claims-v0.md	Exact match.	unrecorded	-
+CKC-V0-005	docs/specs/cem-content-keyed-claims-v0.md	Ambiguous matches are refused, and a refused claim carries no row. These classes	unrecorded	-
+CKC-V0-006	docs/specs/cem-content-keyed-claims-v0.md	Cite relocation.	unrecorded	-
+CKC-V0-007	docs/specs/cem-content-keyed-claims-v0.md	Tombstone filter. A drafted cite row equal to a tombstone of a claim that matche	unrecorded	-
+CKC-V0-008	docs/specs/cem-content-keyed-claims-v0.md	Compiled output.	unrecorded	-
+CKC-V0-009	docs/specs/cem-content-keyed-claims-v0.md	Read and write scope.	unrecorded	-
+CKC-V0-010	docs/specs/cem-content-keyed-claims-v0.md	The PROPOSED header of a claims refresh reports `claims=FILE carried=N reassess=	unrecorded	-
+CKC-V0-011	docs/specs/cem-content-keyed-claims-v0.md	Evidence.	unrecorded	-
+CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	Batched blob reads.	unrecorded	-
+CKC-V0-013	docs/specs/cem-content-keyed-claims-v0.md	In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with	unrecorded	-
+CKC-V0-014	docs/specs/cem-content-keyed-claims-v0.md	Carried-only refresh skips the anchor search.	unrecorded	-
+CKC-V0-015	docs/specs/cem-content-keyed-claims-v0.md	Batch blob reader.	unrecorded	-
+CKC-V0-016	docs/specs/cem-content-keyed-claims-v0.md	Draft anchor search skips data files.	unrecorded	-
+CKC-V0-017	docs/specs/cem-content-keyed-claims-v0.md	Tombstone-only claims.	unrecorded	-
+CKC-V0-018	docs/specs/cem-content-keyed-claims-v0.md	Strict claims grammar.	unrecorded	-
 CEX-V0-001	docs/specs/cem-criterion-experiments-v0.md	The companion MUST remain explicitly experimental and opt-in, with separate	unrecorded	-
 CEX-V0-002	docs/specs/cem-criterion-experiments-v0.md	Planning MUST bind independently supplied full base/candidate identities, exact	unrecorded	-
 CEX-V0-003	docs/specs/cem-criterion-experiments-v0.md	Each supported scenario MUST reconstruct a committed Go module in one literal	unrecorded	-

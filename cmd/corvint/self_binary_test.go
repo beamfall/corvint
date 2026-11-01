@@ -152,10 +152,12 @@ func TestDogfoodFlowRefusesStaleBinary(t *testing.T) {
 			t.Fatalf("%s: exit %d, stderr %q", args[0], code, stderr.String())
 		}
 	}
-	var stdout, stderr bytes.Buffer
-	runDogfoodFlow(ctx, root, []string{"propose-citations", built}, &stdout, &stderr)
-	if strings.Contains(stderr.String(), "self-binary") {
-		t.Fatalf("propose-citations judged the binary: %s", stderr.String())
+	for _, action := range []string{"propose-citations", "record-claims"} {
+		var stdout, stderr bytes.Buffer
+		runDogfoodFlow(ctx, root, []string{action, built}, &stdout, &stderr)
+		if strings.Contains(stderr.String(), "self-binary") {
+			t.Fatalf("%s judged the binary: %s", action, stderr.String())
+		}
 	}
 
 	stubSelfBuildInfo(t, selfBinaryInfo("example.test/self", head))
