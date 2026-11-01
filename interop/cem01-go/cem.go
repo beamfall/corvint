@@ -2385,6 +2385,12 @@ func repository03(repo string) *cemError {
 	if os.Getenv("GIT_ALTERNATE_OBJECT_DIRECTORIES") != "" {
 		return operational("unsupported-object-alternates")
 	}
+	// A linked worktree has a .git file, so the alternates probe below would fail
+	// with ENOTDIR. It is outside this primary-only envelope, not an alternates
+	// store (V1-3800); verify-stable-canonical admits it.
+	if i, e := os.Lstat(filepath.Join(repo, ".git")); e != nil || !i.IsDir() {
+		return operational("unsupported-repository-envelope")
+	}
 	for _, name := range []string{"alternates", "http-alternates"} {
 		if _, e := os.Lstat(filepath.Join(repo, ".git", "objects", "info", name)); !errors.Is(e, os.ErrNotExist) {
 			return operational("unsupported-object-alternates")
