@@ -1936,6 +1936,14 @@ of lane requirements (2026-10-11) accepts this amendment.
   line MUST bind its names with that line's number. A statement found after a `;` MUST only add a
   local the line-start reading left unbound, never rebind one. The oracle's first-only reading is
   `python-defect` / known-divergent `DR-0044`.
+- `GPK-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The query
+  receipt's top-level `revision` and `freshness.revision` hold the Git tree id of the captured
+  content, not a commit id; `learning.history_tip` holds the commit Git history was read from. The
+  wire is unchanged (the core-freeze receipts stay byte-identical); `corvint query --help` MUST
+  label both members under "Receipt fields", stating that `revision` never equals
+  `history_tip` and that their difference is not staleness, and name the binding route
+  (`git rev-parse COMMIT^{tree}`). Evidence: `TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles`
+  pins the label. Rollback: drop the "Receipt fields" paragraph.
 
 Failure modes: a `;` inside a string, template literal or comment is not code, so a fake import
 there neither rebinds a real binding nor swallows the real statement that follows it (an
