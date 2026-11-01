@@ -2830,10 +2830,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   segments of one clock, so the rows sum to the run's wall time; the file is the only record, and
   the check's stdout and stderr stay byte-identical to what they were.
   `script/dogfood-check.sh` MUST time its own `setup`, `build-tree` and `build-base` phases, each
-  with the detail `reuse` or `build` (`DCW-V0-943`), into `{evidence}/dogfood-check.build.tsv`
-  bound to its process ID, which the `exec`ed check keeps; the check prepends those rows, and
-  starts its clock where they end, only when the file names its own process ID, so a stale file
-  from another run is never counted. Both files are excluded from the `DCW-V0-347` inputs digest.
+  with the detail `reuse` or `build` (`DCW-V0-943`), into `{evidence}/dogfood-check.build.PID.tsv`,
+  PID being its process ID, which the `exec`ed check keeps; the check prepends those rows, and
+  starts its clock where they end, only from the file named and headed with its own process ID, so
+  a stale file or a concurrent wrapper's file is never counted. The timings file is written only by
+  a run that holds the local-completion operation lock, so a check refused for a busy lock leaves
+  the previous run's file in place. Every timing file is excluded from the `DCW-V0-347` inputs
+  digest.
   Non-goals: changing any verdict, exit or output line; timing `dogfood change`. Failure modes: an
   unwritable evidence directory leaves no file and the check still passes or fails as before; a
   wrapper without `EPOCHREALTIME` (bash before 5) writes no build file, so only the check's rows
