@@ -94,8 +94,10 @@ func TestProposeCitationsDCWV0842RefreshAcrossAMainlineMerge(t *testing.T) {
 	testGit(t, root, "checkout", "-q", "lane")
 	testGit(t, root, "merge", "-q", "--no-edit", mainline)
 
-	// The map the last bind prepared still names B1.
+	// The map the last bind prepared still names B1, and that bind recorded
+	// the plan against it.
 	writeTree(t, root, map[string]string{".corvint/change.cem.json": `{"baseRevision":"` + b1 + `","hunks":[]}` + "\n"})
+	bindPlan(t, root, strings.Join(plan, "\n")+"\n")
 	stdout.Reset()
 	stderr.Reset()
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: b2, Refresh: planPath}, &stdout, &stderr); code != 0 || err != nil {

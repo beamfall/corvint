@@ -88,11 +88,14 @@ func hunkRemovals(hunk *patch.Hunk) []removedLines {
 // it admits them; group is the patch group of name, nil when the patch has
 // none, and removed the runs of BASE lines its hunks remove.
 func (p *proposal) citeRefusal(name, lines string, group *patch.Group, removed []removedLines) string {
-	startText, endText, _ := strings.Cut(lines, ":")
+	// A bytes:START:END row names the byte span the binder cites directly
+	// (DCW-V0-990); its BASE lines are derived for the removed-lines check.
+	byteRow := strings.HasPrefix(lines, bytesSpanPrefix)
+	startText, endText, found := strings.Cut(strings.TrimPrefix(lines, bytesSpanPrefix), ":")
 	start, startErr := strconv.Atoi(startText)
 	end, endErr := strconv.Atoi(endText)
-	if startErr != nil || endErr != nil || start < 1 || end < start {
-		return "its span " + lines + " is not START:END"
+	if !found || startErr != nil || endErr != nil || start < 0 || !byteRow && start < 1 || end < start {
+		return "its span " + lines + " is not START:END or bytes:START:END"
 	}
 	blob, ok := p.blob(p.base, name)
 	if !ok {
@@ -100,11 +103,18 @@ func (p *proposal) citeRefusal(name, lines string, group *patch.Group, removed [
 	}
 	byteSpan, ok := lineByteSpan(blob, lines)
 	if !ok {
+		if byteRow {
+			return "bytes " + lines + " are outside " + name + " at BASE"
+		}
 		return "lines " + lines + " are outside " + name + " at BASE"
 	}
 	from, to, _ := strings.Cut(byteSpan, ":")
 	spanStart, _ := strconv.ParseInt(from, 10, 64)
 	spanEnd, _ := strconv.ParseInt(to, 10, 64)
+	if byteRow {
+		start = bytes.Count(blob[:spanStart], []byte("\n")) + 1
+		end = start + bytes.Count(bytes.TrimSuffix(blob[spanStart:spanEnd], []byte("\n")), []byte("\n"))
+	}
 	if spanEnd-spanStart > wire.MaxCitationSpanBytes {
 		return fmt.Sprintf("its span is %d bytes, over the %d-byte bound", spanEnd-spanStart, wire.MaxCitationSpanBytes)
 	}

@@ -1051,6 +1051,25 @@ case $out in
 *) fail "--repin did not print the deleted citation's reason: $out" ;;
 esac
 grep -qF "$removed" "$test_root/docs/agent-memory/fixture.md" || fail "--repin rewrote a deleted citation"
+# 39. DCG-V0-842: the deleted citation's reason still prints when --repin exits early, here because
+#     another document whose citation moved unchanged differs from the index and is refused.
+printf '%s\n' 'package demo' '' 'func Moved() int {' '	return 39' '}' > "$test_root/internal/demo/moved.go"
+stage internal/demo/moved.go
+moved=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/moved.go:3-5)
+# shellcheck disable=SC2016
+printf '# Moved\n\nThe claim rests on `%s`.\n' "$moved" > "$test_root/docs/specs/moved39.md"
+stage docs/specs/moved39.md
+printf '%s\n' 'package demo' '' '// inserted' '' 'func Moved() int {' '	return 39' '}' > "$test_root/internal/demo/moved.go"
+stage internal/demo/moved.go
+printf 'dirty\n' >> "$test_root/docs/specs/moved39.md"
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin beside a refused document exited $rc, not 1: $out"
+case $out in
+*'--repin refused docs/specs/moved39.md'*'--repin left 1 citation(s) that do not resolve:'*"$removed"*) ;;
+*) fail "--repin exited on the refused document without the deleted citation's reason: $out" ;;
+esac
+git -C "$test_root" rm -q -f docs/specs/moved39.md internal/demo/moved.go
 git -C "$test_root" rm -q --cached internal/demo/gone.go
 rm -f "$test_root/internal/demo/gone.go"
 

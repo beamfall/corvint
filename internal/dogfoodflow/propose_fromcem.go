@@ -64,11 +64,17 @@ func (p *proposal) sealedCEMPlan() []byte {
 	for _, hunk := range cem.Hunks {
 		if len(hunk.Basis) == 0 {
 			if hunk.Disposition == "unknown" {
-				reason := hunk.Reason
-				if reason == "" || strings.ContainsAny(reason, "\t\n") {
+				// A plan row's reason is insufficient-evidence or
+				// conflicting-evidence; any other CEM reason, such as an
+				// allowed bootstrap hunk's no-evidence, is kept in the NOTE.
+				reason, note := hunk.Reason, ""
+				if reason != "insufficient-evidence" && reason != "conflicting-evidence" {
+					if reason != "" && !strings.ContainsAny(reason, "\t\n") {
+						note = " with reason " + reason
+					}
 					reason = "insufficient-evidence"
 				}
-				rows = append(rows, hunk.ID+"\tunknown\t"+reason+"\tcarried from the sealed CEM "+filepath.Base(p.options.FromCEM)+" (DCW-V0-843)")
+				rows = append(rows, hunk.ID+"\tunknown\t"+reason+"\tcarried from the sealed CEM "+filepath.Base(p.options.FromCEM)+note+" (DCW-V0-843)")
 			}
 			continue
 		}

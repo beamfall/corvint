@@ -226,7 +226,17 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			}
 		}
 		if fields[0] != "unknown" {
-			if lines, note := p.repinLines(fields[0], fields[1]); note != "" {
+			lines, note, gone := p.repinLines(fields[0], fields[1])
+			if gone != "" {
+				// The same coordinates would now cite other text, which the
+				// vet cannot tell from the cited contract, so the row is
+				// carried unknown for review instead (DCW-V0-842).
+				row.rest = "unknown\tinsufficient-evidence\t" + staleCitePrefix + fields[0] + " " + fields[1] + ", review] " + gone + "; cite the current contract"
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d made unknown: %s, so it is not re-pinned (DCW-V0-842)", row.line, gone))
+				p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
+				continue
+			}
+			if note != "" {
 				fields[1] = lines
 				row.rest = strings.Join(fields, "\t")
 				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d: %s", row.line, note))
@@ -244,6 +254,10 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 // matches an earlier such mark, so a second refresh replaces it.
 const staleNotePrefix = "[stale: re-keyed from "
 
+// staleCitePrefix opens the NOTE of a cite row --refresh carried unknown
+// because its cited bytes vanished from BASE (DCW-V0-842).
+const staleCitePrefix = "[stale: cited "
+
 var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 
 // refreshOrdinalIDs are the hunk IDs, in ordinal order, that the --refresh
@@ -254,18 +268,45 @@ var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 // binding an ordinal is ambiguous and its row is dropped rather than carried
 // onto whichever hunk now holds that ordinal (DCW-V0-442).
 func (p *proposal) refreshOrdinalIDs() ([]string, bool) {
-	gitDir, status := p.git(true, "rev-parse", "--absolute-git-dir")
-	if status == 0 {
-		recorded := readLines(readFile(strings.TrimSpace(gitDir) + "/corvint" + citationBinding))
-		digests := map[string]bool{sha256Hex(p.refreshPlan): true}
-		if stripped, _, valid := splitDeferredRows(p.refreshPlan); valid {
-			digests[sha256Hex(stripped)] = true
-		}
-		if len(recorded) > 0 && digests[recorded[0]] {
-			return recorded[1:], true
-		}
+	if recorded, ok := p.boundIDs(); ok {
+		return recorded, true
 	}
 	return p.sealedOrdinalIDs()
+}
+
+// boundIDs is the hunk IDs, in map order, that the citation-plan binding
+// records the --refresh plan was cited against, or false when the binding
+// records another plan or none.
+func (p *proposal) boundIDs() ([]string, bool) {
+	gitDir, status := p.git(true, "rev-parse", "--absolute-git-dir")
+	if status != 0 {
+		return nil, false
+	}
+	recorded := readLines(readFile(strings.TrimSpace(gitDir) + "/corvint" + citationBinding))
+	digests := map[string]bool{sha256Hex(p.refreshPlan): true}
+	if stripped, _, valid := splitDeferredRows(p.refreshPlan); valid {
+		digests[sha256Hex(stripped)] = true
+	}
+	if len(recorded) == 0 || !digests[recorded[0]] {
+		return nil, false
+	}
+	return recorded[1:], true
+}
+
+// boundToMap reports whether the binding records the --refresh plan against
+// exactly the hunks of the prepared map, so the map's BASE is the plan's
+// (DCW-V0-842).
+func (p *proposal) boundToMap(hunks []proposedHunk) bool {
+	recorded, ok := p.boundIDs()
+	if !ok || len(recorded) != len(hunks) {
+		return false
+	}
+	for index, hunk := range hunks {
+		if recorded[index] != hunk.id {
+			return false
+		}
+	}
+	return true
 }
 
 // maxSealedCandidates bounds the sealed CEMs sealedOrdinalIDs reads.

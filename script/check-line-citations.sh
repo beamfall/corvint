@@ -981,14 +981,27 @@ if ($repin) {
     }
     print_unstaged('--repin', @rewritten);
     print_skipped();
-    exit 1 if @refused;
-    # DCG-V0-048: an unstaged rewrite leaves the index-reading check failing, so it fails here too.
-    exit 1 if @rewritten && !$staged;
+    # DCG-V0-842 (V1-3672): every citation --repin did not resolve is printed with its reason, and
+    # the run fails, so a deletion found under the base is never reported as a clean repin. They
+    # print before every exit below, so a refused or unconverged document elsewhere cannot hide
+    # them; the rerun pass recomputes them from the staged rewrite.
+    my @unresolved = grep { !/--repin rewrites it/ } @failures;
+    my $print_unresolved = sub {
+        return unless @unresolved;
+        print STDERR "line citations: --repin left " . scalar(@unresolved) . " citation(s) that do not resolve:\n";
+        print STDERR "  $_\n" for @unresolved;
+    };
+    if (@refused || @rewritten && !$staged) {
+        # DCG-V0-048: an unstaged rewrite leaves the index-reading check failing, so it fails too.
+        $print_unresolved->();
+        exit 1;
+    }
     # A rewrite can unpin a citation into the rewritten document; the next pass reads the staged
     # rewrite and resolves that link of the chain. A fifth pass that still rewrote did not converge.
     if (@rewritten) {
         if ($pass >= 5 || !defined $ENV{CHECK_LINE_CITATIONS_SELF}) {
             print STDERR "line citations: --repin still rewrote citations in pass $pass of at most 5; the chain did not converge, so read the rewritten documents and rerun --repin\n";
+            $print_unresolved->();
             exit 1;
         }
         print STDERR "line citations: --repin pass " . ($pass + 1) . " rereads the staged rewrite\n";
@@ -996,15 +1009,8 @@ if ($repin) {
         $ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} = $total;
         exec 'bash', $ENV{CHECK_LINE_CITATIONS_SELF}, @original_argv or die "rerun --repin: $!\n";
     }
-    # DCG-V0-842 (V1-3672): every citation --repin did not resolve is printed with its reason, and
-    # the run fails, so a deletion found under the base is never reported as a clean repin.
-    my @unresolved = grep { !/--repin rewrites it/ } @failures;
-    if (@unresolved) {
-        print STDERR "line citations: --repin left " . scalar(@unresolved) . " citation(s) that do not resolve:\n";
-        print STDERR "  $_\n" for @unresolved;
-        exit 1;
-    }
-    exit 0;
+    $print_unresolved->();
+    exit(@unresolved ? 1 : 0);
 }
 
 close_index();

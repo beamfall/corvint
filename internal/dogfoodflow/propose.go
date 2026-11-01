@@ -178,8 +178,14 @@ func (p *proposal) run() int {
 		return p.template("UNREADABLE")
 	}
 	if baseRevision != p.base {
-		if p.options.Refresh != "" {
-			if prior, status := p.git(true, "rev-parse", "--verify", "-q", baseRevision+"^{commit}"); status == 0 {
+		if p.options.Refresh != "" && p.options.FromCEM == "" {
+			// The map's BASE is the plan's BASE only when the last bind
+			// recorded this plan against this map; a plan refreshed since
+			// already cites another BASE, and re-pinning it from the map's
+			// would move valid spans onto other text (DCW-V0-842).
+			if !p.boundToMap(hunks) {
+				p.say("%s: NOTE refresh-base-unproven\n  no citation-plan binding records this --refresh plan against the map, so its BASE is not proven to be the map's baseRevision=%s; cite rows are carried as written, not re-pinned, and the vet judges them at BASE %s (DCW-V0-842)\n", p.prefix, baseRevision, p.base)
+			} else if prior, status := p.git(true, "rev-parse", "--verify", "-q", baseRevision+"^{commit}"); status == 0 {
 				p.priorBase = chomp(prior)
 			}
 		}

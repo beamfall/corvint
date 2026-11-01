@@ -7,52 +7,63 @@ import (
 	"strings"
 )
 
-// repinLines re-pins a carried cite row's BASE lines of name from the prior
-// BASE its plan was drafted at to the current BASE (DCW-V0-842): the lines
-// stay when both BASEs hold the same text there, move to the single
-// occurrence of that text at BASE otherwise, and are kept as written, for the
-// DCW-V0-840 vet to judge, when the text is gone or occurs more than once. It
-// returns the lines and a note naming any move.
-func (p *proposal) repinLines(name, lines string) (string, string) {
+// repinLines re-pins a carried cite row's BASE span of name from the prior
+// BASE its plan was drafted at to the current BASE (DCW-V0-842): the span
+// stays when both BASEs hold the same bytes there and moves to the single
+// occurrence of those bytes at BASE otherwise, a line span to whole lines and
+// a bytes:START:END span anywhere. It returns the span and a note naming any
+// move, or, when the cited bytes no longer occur exactly once at BASE (or do
+// not resolve at the prior BASE), a non-empty gone reason: such a row is never
+// re-pinned or kept, since the same coordinates would now cite other text.
+func (p *proposal) repinLines(name, lines string) (string, string, string) {
 	if p.priorBase == "" || p.priorBase == p.base {
-		return lines, ""
+		return lines, "", ""
 	}
 	prior, ok := p.blob(p.priorBase, name)
 	if !ok {
-		return lines, ""
+		return lines, "", fmt.Sprintf("%s is absent at the prior BASE %s", name, p.priorBase)
 	}
 	span, ok := lineByteSpan(prior, lines)
 	if !ok {
-		return lines, ""
+		return lines, "", fmt.Sprintf("%s %s does not resolve at the prior BASE %s", name, lines, p.priorBase)
 	}
 	text := spanBytes(prior, span)
 	current, _ := p.blob(p.base, name)
 	if now, ok := lineByteSpan(current, lines); ok && bytes.Equal(spanBytes(current, now), text) {
-		return lines, ""
+		return lines, "", ""
 	}
+	_, byteRow := strings.CutPrefix(lines, bytesSpanPrefix)
 	found := -1
-	for offset := 0; offset <= len(current); {
+	for offset := 0; offset <= len(current) && len(text) > 0; {
 		index := bytes.Index(current[offset:], text)
-		if index < 0 || len(text) == 0 {
+		if index < 0 {
 			break
 		}
 		start := offset + index
 		end := start + len(text)
-		if (start == 0 || current[start-1] == '\n') && (end == len(current) || text[len(text)-1] == '\n') {
+		if byteRow || (start == 0 || current[start-1] == '\n') && (end == len(current) || text[len(text)-1] == '\n') {
 			if found >= 0 {
-				return lines, ""
+				found = -2
+				break
 			}
 			found = start
 		}
 		offset = start + 1
 	}
 	if found < 0 {
-		return lines, ""
+		occurs := "no longer occur"
+		if found == -2 {
+			occurs = "occur more than once"
+		}
+		return lines, "", fmt.Sprintf("the bytes %s %s cited at the prior BASE %s %s at BASE %s", name, lines, p.priorBase, occurs, p.base)
 	}
-	first := bytes.Count(current[:found], []byte("\n")) + 1
-	last := first + bytes.Count(bytes.TrimSuffix(text, []byte("\n")), []byte("\n"))
-	moved := fmt.Sprintf("%d:%d", first, last)
-	return moved, fmt.Sprintf("%s %s re-pinned to %s: the plan was drafted at BASE %s and BASE %s moved that text (DCW-V0-842)", name, lines, moved, p.priorBase, p.base)
+	moved := fmt.Sprintf("%s%d:%d", bytesSpanPrefix, found, found+len(text))
+	if !byteRow {
+		first := bytes.Count(current[:found], []byte("\n")) + 1
+		last := first + bytes.Count(bytes.TrimSuffix(text, []byte("\n")), []byte("\n"))
+		moved = fmt.Sprintf("%d:%d", first, last)
+	}
+	return moved, fmt.Sprintf("%s %s re-pinned to %s: the plan was drafted at BASE %s and BASE %s moved that text (DCW-V0-842)", name, lines, moved, p.priorBase, p.base), ""
 }
 
 // spanBytes returns blob's bytes of a lineByteSpan START:END result.

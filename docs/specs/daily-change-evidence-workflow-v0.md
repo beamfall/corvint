@@ -2815,9 +2815,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `DCW-V0-171`) `propose-citations --refresh` MUST keep a re-keyed row current, without the stale
   marker, when its hunk's content is unchanged, and MUST re-pin a carried cite row whose plan was
   drafted at another BASE: the row keeps its lines when the prior BASE and BASE hold the same text
-  there, moves to the single occurrence of that text at BASE otherwise, and is left to `DCW-V0-840`
-  when the text is gone. The prior BASE is the plan's map revision, or the sealed CEM's base under
-  `--from-cem`; hunk facts are also read from the prior BASE's patches. An owed hunk with no carried
+  there, and moves to the single occurrence of that text at BASE otherwise (a `bytes:START:END` row
+  by bytes, anywhere); when the text no longer occurs exactly once the row MUST be carried as an
+  `insufficient-evidence` unknown whose NOTE opens `[stale: cited PATH SPAN, review]`, never with its
+  old coordinates. The prior BASE is the sealed CEM's base under `--from-cem`, else the map revision
+  only when the citation-plan binding records the `--refresh` plan against that map; otherwise a NOTE
+  `refresh-base-unproven` is printed and cite rows are carried as written for `DCW-V0-840`, which
+  admits both span forms. Hunk facts are also read from the prior BASE's patches. An owed hunk with no carried
   row in a file whose other hunks carry a cite row MUST be proposed that file's first carried
   citation, labelled `carried forward`; a hunk of a file with no carried citation keeps the ordinary
   draft. Evidence: `internal/dogfoodflow` tests merge an unrelated mainline commit that shifts the
@@ -2826,7 +2830,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-843`: (experimental under the standing lane auto-accept; V1-3502) `propose-citations
   --from-cem PATH` MUST seed the draft from a sealed CEM: each of its hunks becomes a refresh row
   keyed by its hunk ID, a cite row per basis evidence (its byte span converted to the BASE lines of
-  the evidence blob) and an unknown row carrying the CEM's reason, and `DCW-V0-842` carries them to
+  the evidence blob) and an unknown row carrying the CEM's reason (a reason a plan row cannot carry,
+  such as a bootstrap hunk's `no-evidence`, becomes `insufficient-evidence` and is named in the
+  NOTE), and `DCW-V0-842` carries them to
   the current hunks, marking changed hunks for review. `--from-cem` with `--refresh` is refused
   `refresh-source-conflict`; an unreadable CEM is refused `from-cem-unreadable`. Without the flag the
   command is unchanged. Evidence: an `internal/dogfoodflow` test reseals after a mainline merge and
