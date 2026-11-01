@@ -3451,12 +3451,14 @@
         "corvint [--root PATH] eval [--goldens FILE] [--trace-fixture FILE] [--exclude-producer NAME]...",
         "corvint [--root PATH] eval --learn-slot-weights [--goldens FILE] [--admit]",
         "corvint [--root PATH] eval --reset-slot-weights",
+        "corvint [--root PATH] eval --friction FILE",
         "corvint eval --reset-slot-weights restores the default order.",
         "corvint eval --learn-slot-weights step may read it as labels (decision 0368)."
       ],
       "flags": [
         "--admit",
         "--exclude-producer",
+        "--friction",
         "--goldens",
         "--learn-slot-weights",
         "--reset-slot-weights",

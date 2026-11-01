@@ -321,12 +321,15 @@
       "flags": [
         "--admit",
         "--exclude-producer",
+        "--friction",
         "--goldens",
         "--learn-slot-weights",
         "--reset-slot-weights",
         "--trace-fixture"
       ],
-      "schemaIds": [],
+      "schemaIds": [
+        "corvint-friction-sessions/0"
+      ],
       "inputs": null,
       "outputs": null,
       "exitCodesMentioned": [],
@@ -336,7 +339,8 @@
         "The command reads without mutating repository or trace state.",
         "The report counts the traces it read by producer (cli, dogfood, pi-tool, or UNKNOWN for rows written before producer provenance); --exclude-producer NAME leaves that producer's traces out of the read, repeatable, without changing the store or the fixture.",
         "Only with --admit and an improved delta does it write .context-corvint/slot-weights.json; --reset-slot-weights removes that file and restores the default slot order.",
-        "These experimental steps (decision 0368) are eval's only writes."
+        "These experimental steps (decision 0368) are eval's only writes.",
+        "It reads only FILE and writes nothing; the metrics are never a ranking or authority input."
       ],
       "unknowns": [
         {
