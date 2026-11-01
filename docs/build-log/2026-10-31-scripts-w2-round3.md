@@ -118,3 +118,30 @@ a code change.
 - V1-3549: met, with fixture tests for both cases. Delivers `ASD-V0-836`.
 - V1-3550: met as one drift run per closeout. The pre-bind precheck went from drift-bound (about
   185 s) to 48 s. Delivers `ASD-V0-837`.
+
+## Review fixes
+
+One independent review round over the lane (`script/pr-landing-watch.sh`, `script/heavy.sh`). The
+spec amendment to `ASD-V0-833` and `ASD-V0-835` is its own commit, before the fixes. Each new
+`make lane-scripts-test` case failed before the fix and passes after it.
+
+- P2 concurrent supervisor passes exceed retry caps: FIXED. Each pass now holds a per-PR lock file,
+  `pr-PR.lock`. The file is hard-linked into place with its PID already written. A dead holder's lock
+  is taken over by renaming it away. A held lock, or a count that cannot be recorded, exits 2 without
+  acting. In the test, 6 racing `--act` passes on one PR give distinct attempts, with reruns equal to
+  the attempts. Before the fix, two passes both printed `attempt=1/3`.
+- P2 invalid flake patterns classify real failures as flakes: FIXED. The flake list is compiled with
+  `grep -E` before any `gh` call. Exit 2 refuses it. The match itself also checks grep's status. A
+  `[` pattern now exits 2 and makes no call; before the fix it reached `gh`.
+- P2 mixed failures rerun as flakes: FIXED. A log with `[build failed]`, `[setup failed]` or
+  `panic: test timed out` escalates `real-failure`. So does a failed `JOB<TAB>STEP` that names no
+  `--- FAIL:` test. Both tests printed `RERUN` before the fix.
+- P2 exported caller GOMAXPROCS lost during offload: FIXED. `offload` carries `GOMAXPROCS` as
+  `CALLER_GMP` in `meta.env`, and `serve` applies it over the env file, `HEAVY_REMOTE_GOMAXPROCS`
+  and the default. The ssh stub now drops `GOMAXPROCS` as real ssh does. Before the fix the remote saw
+  4 (default) and 3 (override) instead of the caller's 1.
+- Found while fixing: without `--repo`, under bash 3.2 (macOS `/usr/bin/env bash`), the empty
+  `repo_args` array aborted on `set -u` (`repo_args[@]: unbound variable`). FIXED with the `${a[@]+...}`
+  form, and a pass without `--repo` is now tested.
+
+Batch-1101c note: the in-place amendment of `ASD-V0-833` and `ASD-V0-835` was not carried. Their accepted text stays, and the added rules are the new refining requirements `ASD-V0-838` (V1-1735) and `ASD-V0-839` (V1-1628).

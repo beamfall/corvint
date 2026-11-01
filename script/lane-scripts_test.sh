@@ -354,7 +354,7 @@ printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
 printf 'untracked\n' > "$off/lc/sub/untracked.txt"
 printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
 # shellcheck disable=SC2088 # the remote expands ~
-hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="${PICK_SSH:-$off/bin/ssh}" \
+hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS ${HV_GOMAXPROCS:+GOMAXPROCS=$HV_GOMAXPROCS} PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="${PICK_SSH:-$off/bin/ssh}" \
   HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
   HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
 out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
@@ -389,6 +389,13 @@ HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=0 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $(cat "$off/gmp.last") == unset ]] && grep -q 'GOMAXPROCS=unset$' "$off/err" ||
   fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=0 still set one: $(cat "$off/gmp.last")"
+# A GOMAXPROCS the caller exported travels with the command (the ssh stub, like ssh, drops the
+# local environment) and wins over the default and HEAVY_REMOTE_GOMAXPROCS.
+HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 1 ]] && grep -q 'GOMAXPROCS=1$' "$off/err" ||
+  fail "heavy.sh lost the caller's exported GOMAXPROCS=1: $(cat "$off/gmp.last")"
+HV_GOMAXPROCS=1 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 1 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS beat the caller's GOMAXPROCS: $(cat "$off/gmp.last")"
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=x hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $? == 2 ]] && grep -q 'invalid-remote-gomaxprocs' "$off/err" ||
   fail "heavy.sh did not refuse HEAVY_REMOTE_GOMAXPROCS=x: $(cat "$off/err")"
@@ -1898,6 +1905,47 @@ out=$(lwr --act 10); rc=$?
 [[ ! -e $lw/s/calls ]] || fail "a human dequeue was re-armed"
 grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "human dequeue not alerted"
 lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
+# A listed flake beside a build failure, or beside a failed step that names no test, is real.
+/bin/rm -f "$lw/s/calls" "$lw/s/event"
+printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
+echo 99 > "$lw/s/runs"
+printf -- '--- FAIL: TestFlakyThing (0.1s)\nFAIL\texample.com/p [build failed]\n' > "$lw/s/log"
+out=$(lwr --act 11); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 build, setup or timeout failure' ]] || fail "flake beside a build failure: rc=$rc $out"
+printf 'test\tgo test\t--- FAIL: TestFlakyThing (0.1s)\nvet\tgo vet\tvet: x.go:1: bad\n' > "$lw/s/log"
+out=$(lwr --act 11); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 step=vet/go vet names no failing Go test' ]] || fail "flake beside a failed step: rc=$rc $out"
+[[ ! -e $lw/s/calls ]] || fail "a mixed failure was rerun: $(cat "$lw/s/calls")"
+printf 'test\tgo test\t--- FAIL: TestFlakyThing (0.1s)\n' > "$lw/s/log"
+[[ $(lwr 11) == 'RERUN run=99 attempt=1/3' ]] || fail "a step-prefixed listed flake was not rerun"
+# An invalid pattern is refused before any gh call instead of matching every test.
+printf '[\n' > "$lw/badflakes"
+out=$(GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/badflakes" --act 12 2> "$lw/err"); rc=$?
+[[ $rc == 2 && -z $out ]] && grep -q 'not a valid extended regular expression' "$lw/err" && [[ ! -e $lw/s/calls ]] ||
+  fail "invalid flake pattern: rc=$rc out=$out $(cat "$lw/err")"
+# A pass whose PR lock a running pass holds exits 2 without acting; a dead holder's lock is taken over.
+echo $$ > "$lw/state/pr-12.lock"
+out=$(lwr --act 12); rc=$?
+[[ $rc == 2 && -z $out && ! -e $lw/s/calls ]] && grep -q 'another pass holds' "$lw/err" || fail "held lock: rc=$rc $out $(cat "$lw/err")"
+(exit 0) & dead=$!; wait "$dead"
+echo "$dead" > "$lw/state/pr-12.lock"
+[[ $(lwr --act 12) == 'RERUN run=99 attempt=1/3' && ! -e $lw/state/pr-12.lock ]] || fail "stale lock not taken over: $(cat "$lw/err")"
+# Concurrent passes on one PR never spend a count twice: of 6 racing passes, every RERUN has a
+# distinct attempt and the reruns issued equal the attempts recorded.
+/bin/rm -f "$lw/s/calls"
+for k in 1 2 3 4 5 6; do lwr --act 14 > "$lw/race.$k" 2> /dev/null & done
+wait
+attempts=$(cat "$lw"/race.* | sed -n 's/^RERUN run=99 attempt=\([0-9]\)\/3$/\1/p' | sort)
+[[ -n $attempts && $(sort -u <<< "$attempts") == "$attempts" ]] || fail "racing passes reused an attempt: $(cat "$lw"/race.*)"
+[[ $(grep -c 'run rerun 99' "$lw/s/calls") == $(wc -l <<< "$attempts" | tr -d ' ') ]] || fail "reruns differ from attempts: $(cat "$lw/s/calls")"
+# Without --repo (bash 3.2 rejected the empty repo_args under set -u) the PR's repository is used.
+[[ $(GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" 15 2> "$lw/err") == 'RERUN run=99 attempt=1/3' ]] ||
+  fail "a pass without --repo: $(cat "$lw/err")"
+# A count that cannot be recorded exits 2 before the rerun.
+/bin/rm -f "$lw/s/calls"
+mkdir -p "$lw/state/pr-13.tmp"
+out=$(lwr --act 13); rc=$?
+[[ $rc == 2 && -z $out && ! -e $lw/s/calls ]] || fail "unrecorded count still acted: rc=$rc $out $(cat "$lw/err")"
 ok
 
 # ASD-V0-990 (V1-3258): docs/DOGFOOD.md and the Makefile agree on the dogfood-inputs-check variable names. The

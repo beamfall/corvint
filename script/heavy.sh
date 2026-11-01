@@ -119,8 +119,9 @@
 #   HEAVY_REMOTE_SLOTS    remote concurrent commands; default max(1, remote CPUs/4).
 #   HEAVY_REMOTE_GOMAXPROCS  GOMAXPROCS the remote command runs with, so each slot's test binaries
 #                         stay within their share of the remote CPUs (V1-1628); default the remote
-#                         -p, max(1, remote CPUs/slots); 0 sets none. A GOMAXPROCS the remote
-#                         environment file sets, or a leading GOMAXPROCS=N word, still wins.
+#                         -p, max(1, remote CPUs/slots); 0 sets none. A GOMAXPROCS the caller exported
+#                         travels with the command and wins over it and over the remote environment
+#                         file (ASD-V0-835); a leading GOMAXPROCS=N word wins over all of them.
 #   HEAVY_REMOTE_ENV      remote file sourced first (for example one putting the pinned go on PATH).
 #   HEAVY_REMOTE_TIMEOUT  bound on the remote command's run once it holds a remote slot, enforced with
 #                         timeout(1), which the remote must have; the slot wait is not bounded; default 40m.
@@ -520,7 +521,7 @@ offload() {
     printf 'TREE=%q\nDIRTY=%q\nBACK=%q\n' "$heavy_tree" "$heavy_dirty" "$back"
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
-    printf 'BUSY=%q\nGMP=%q\nMINFREE=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}" "$heavy_min_free"
+    printf 'BUSY=%q\nGMP=%q\nMINFREE=%q\nCALLER_GMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}" "$heavy_min_free" "${GOMAXPROCS-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -761,7 +762,13 @@ serve() {
   bound_parallelism "$par"
   # V1-1628: -p bounds how many packages build or test at once, not the threads inside one test
   # binary, so a whole-package run on every slot would still contend for all the CPUs.
-  if [[ -z ${GOMAXPROCS-} ]] && ((${GMP:-$par} > 0)); then export GOMAXPROCS=${GMP:-$par}; fi
+  # ASD-V0-835: only the argv and this metadata cross ssh, so the caller's exported GOMAXPROCS is
+  # carried as CALLER_GMP and applied over the environment file's and the default.
+  if [[ -n ${CALLER_GMP-} ]]; then
+    export GOMAXPROCS=$CALLER_GMP
+  elif [[ -z ${GOMAXPROCS-} ]] && ((${GMP:-$par} > 0)); then
+    export GOMAXPROCS=${GMP:-$par}
+  fi
   printf 'heavy.sh: remote bound -p=%s GOMAXPROCS=%s\n' "$par" "${GOMAXPROCS:-unset}" >&2
   printf 'heavy.sh: running on %s %s/%s %s at %s%s tree=%s dirty=%s\n' "$(hostname)" "$(go env GOOS 2> /dev/null)" \
     "$(go env GOARCH 2> /dev/null)" "$(go env GOVERSION 2> /dev/null)" "$HEAD" "${WIP:+ +wip}" "$TREE" "$DIRTY" >&2
