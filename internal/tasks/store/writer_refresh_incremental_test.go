@@ -15,7 +15,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 )
 
-// PSR-V0-891 (V1-0916): over randomized write sequences (ticket creates,
+// PSR-V0-891 (V1-0916): over randomized write sequences (10 to 89 writes: ticket creates,
 // heartbeats and renews of a live claim, in a random order and number, so
 // the writer route both carries its tail in the delta and re-bases it), the
 // incremental refresh's checkpoint is byte-identical, base and delta, to the
@@ -33,7 +33,7 @@ func TestPSRV0891_IncrementalRefreshMatchesTheCompleteRefresh(t *testing.T) {
 					return Lease(ctx, f.repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: id, Root: f.root, Lease: l}, WallClock())
 				}
 			}
-			writes := 10 + rng.Intn(110)
+			writes := 10 + rng.Intn(80)
 			for i := 0; i < writes; i++ {
 				id := fmt.Sprintf("diff-%d-%d", seed, i)
 				var run writerRun

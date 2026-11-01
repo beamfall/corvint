@@ -37,6 +37,8 @@ func TestLGLV0891_CompleteRouteWriteKeepsTheSealedBase(t *testing.T) {
 	if !complete.completed() || complete.fast() {
 		t.Fatalf("complete-route mutate: %+v %v %v", complete.rep, complete.err, complete.stages)
 	}
+	// The complete-route write recorded its receipt at the wall clock.
+	f.now = WallClock()
 	wc, _ := boundWriterCheckpoint(f.repo)
 	if wc == nil || wc.FullSeq != through {
 		t.Fatalf("the complete-route write retained %+v, want FullSeq %d", wc, through)
