@@ -78,6 +78,15 @@ func TestTCLV0611_EveryMutationTemplateRuns(t *testing.T) {
 		if payload != string(wire.Encode(field(item, "payload"))) {
 			t.Errorf("ticket %s --template payloadCanonical is not the canonical payload", m.verb)
 		}
+		if m.op == mutation.OpGrantApproval {
+			// targetRevision is ticket state the template cannot know.
+			show := atm(t, r.Root, nil, "ticket", "show", local)
+			rev := field(field(show.res.Items[0], "record"), "acceptanceRevision").Str
+			if rev == "" {
+				t.Fatalf("ticket show %s: no record.acceptanceRevision: %s", local, show.stdout)
+			}
+			payload = strings.Replace(payload, `"targetRevision":"0"`, `"targetRevision":"`+rev+`"`, 1)
+		}
 		fields := field(item, "fields")
 		for _, k := range mutation.PayloadKeys[m.op] {
 			if _, ok := fields.Obj.Get(k); !ok {

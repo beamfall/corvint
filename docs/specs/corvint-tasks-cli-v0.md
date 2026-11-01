@@ -283,6 +283,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   each of the operation's closed payload keys (and its optional keys) to a type string: the
   CTW-V0-012 field type, `enum A|B|...` with the closed values the decoder enforces, and an
   `or null` suffix for a nullable key. Help reads no store, so gate and pool values are open.
+  `payloadKeyTypes` is call-forming, so it extends the CAL-V0-170 terse key set as `reasonCodes`
+  does for `release` (TCD-V0-178): terse and verbose help both carry it.
 - `TCL-V0-611`: (experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1,
   V1-3714 AC2; supersedes the "no other verb takes it" clause of CTW-V0-012, formerly
   CAL-V0-073) `corvint-tasks ticket VERB --template` for every mutation verb other than
@@ -292,7 +294,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   members as CTW-V0-012 does. Prose placeholders read `REPLACE: why` and decode as is; a
   `grant-approval` template names the invoking actor (CORVINT_TASKS_ACTOR, ATM_ACTOR or the OS
   user), the only actor the write accepts. The verb's derived help example (TCL-V0-861), with
-  `JSON` replaced by `payloadCanonical`, MUST run; `ticket hold` usage therefore marks one
+  `JSON` replaced by `payloadCanonical` and any `fill` member that names ticket state
+  (`grant-approval` `targetRevision`, the `acceptanceRevision` that `ticket show` reports) set,
+  MUST run; `ticket hold` usage therefore marks one
   `--target` required (its further targets and `--expected-revision` stay optional).
   `--template` composes with no other flag, `--skeleton` stays CREATE-only, and nothing is read
   from the journal, locked or written.
