@@ -44,6 +44,13 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
   `ticket create --template --skeleton`. It MUST NOT accept, default or rewrite any key: the
   refusal and the absence of a write are exactly the codec's. A refusal that is not MALFORMED, or
   a payload that is not an object, MUST be returned unchanged.
+- `TCT-V0-990`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3564) `--template`
+  and `--skeleton` MUST stay value-less flags: the accepted spellings are `ticket create
+  --template` and `ticket create --template --skeleton`, in either order. `--template=VALUE`,
+  `--skeleton=VALUE`, and a bare word right after `--template` or `--skeleton` (for example
+  `--template bug`) MUST be refused with a usage error that names the flag, says it takes no
+  value, gives both accepted spellings and says the ticket kind is set in the payload's `kind`
+  field, instead of the generic `unknown flag`. Help MUST advertise only the accepted spellings.
 
 ## Non-goals
 
@@ -72,6 +79,8 @@ lists every problem, without relaxing the closed contract by defaulting omitted 
 - `TestTCTV0002_MalformedCreateNamesEveryKey`: the reporter's payload (missing `source`, a bad
   priority, a non-decimal order and an unknown key) gets one MALFORMED naming each of its eight
   problems with its shape and flagging no valid key; a non-object payload keeps the codec's error.
+- `TestTCTV0990_TemplateFlagsTakeNoValue` (`internal/tasks/cli/create_skeleton_test.go`): both
+  accepted spellings print the template, and each valued spelling is refused naming the flag.
 
 ## Rollback
 

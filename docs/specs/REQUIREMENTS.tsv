@@ -2360,6 +2360,7 @@ TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the clai
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
+TCT-V0-990	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3564) `--templ	standing	2026-10-11; V1-3564
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
 TDR-V0-002	docs/specs/corvint-tasks-defect-register-v0.md	Each entry has `id` (`PREFIX-N`), `title`, `location`, `evidence`, `severity`	unrecorded	-
 TDR-V0-003	docs/specs/corvint-tasks-defect-register-v0.md	`status` is `SUSPECTED` (default), `CONFIRMED`, `NOT_A_BUG` or `DUPLICATE`;	unrecorded	-
