@@ -1597,6 +1597,23 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Rollback: restore the `tsconfig.json`-only test in `readTypeScriptAliases` and the declaring
     loop, drop the allowJs condition in `resolveTypeScriptAliases` and `javaScriptConfigName` from
     `observedName`; no persisted format or receipt changes.
+- `TJAA-V0-600`: (experimental under the standing lane auto-accept (2026-11-01); V1-3933; amending
+  `TJAA-V0-054`) An ECMAScript shorthand property `name` in a `use` layer MUST be read as
+  `name: name`. For a non-identity option (`baseURL`, `trace`, ...) it never decides the browser
+  identity, and its identifier value is checked for side effects as any other non-identity value. A
+  shorthand for a `PlaywrightUseIdentityKeys` option (`browserName`, `channel`, ...) MUST leave the
+  identity unresolved with the detail `identity key <name> is a shorthand property`; a spread of
+  anything other than one literal `devices[...]` descriptor keeps refusing.
+  - Non-goals: resolving the bound value of an identity shorthand; shorthand properties outside a
+    `use` layer (the config and project objects) keep refusing.
+  - Failure modes: a shorthand whose name is not an identifier still refuses as a non-`key: value`
+    property.
+  - Falsifier: `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go`
+    (a shared `use: { baseURL, trace }` keeps literal and device-spread identities; `browserName`
+    and `channel` shorthands stay unresolved with the detail naming them), failing on base
+    `e9a5d6c80`.
+  - Rollback: drop the shorthand branch in `playwrightUseLayerItems`; no persisted format or
+    receipt changes.
 
 - `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
   Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
@@ -2036,6 +2053,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
