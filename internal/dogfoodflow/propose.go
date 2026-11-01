@@ -38,8 +38,10 @@ type proposal struct {
 	flow
 	options ProposeOptions
 	stdout  io.Writer
-	blobs   map[string][]byte
-	lines   map[string][][]byte
+	// siblingDirs caches each parent's BASE directories (DCW-V0-841).
+	siblingDirs map[string][]string
+	blobs       map[string][]byte
+	lines       map[string][][]byte
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
@@ -445,6 +447,12 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
 			return row, cite, ""
 		}
+		// A new file following a BASE sibling's pattern is proposed that
+		// sibling's contract (DCW-V0-841, amending DCW-V0-440).
+		if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+			p.reasons[ordinal] = "the hunk names requirement " + id + ", which this change itself adds in " + where + " (DCW-V0-440); " + p.reasons[ordinal]
+			return row, cite, ""
+		}
 		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
 	}
@@ -478,6 +486,12 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// a hunk with no anchor elsewhere gets its own file's nearest stable line
 	// as a marked proposal, or stays unknown (DCW-V0-962).
 	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds"
+	if dataPath(hunk.path) {
+		missing += "; a data record is never cited, so cite the BASE contract of the code that writes or reads it (DCW-V0-841)"
+	}
+	if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, ""
+	}
 	if _, ok := p.blob(p.base, hunk.path); !ok {
 		// An added file has no BASE line of its own; it reaches the verdict
 		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
@@ -569,7 +583,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	definitions := len(candidates)
-	families := p.hunkFamilies(derived)
+	families, changeWide := p.hunkFamiliesScope(derived)
 	if p.basenames {
 		candidates = append(candidates, p.matches[anchorPath(derived)]...)
 	} else {
@@ -605,7 +619,11 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		// line of its dominant family, never by another spec's row, a bare
 		// list naming its path, or the definition of an ID it only mentions
 		// in passing (DCW-V0-404).
-		if !p.basenames && !relevantRequirementLine(families, text) {
+		// Families named only by the change's other files do not stop a line
+		// of an untouched file naming the hunk's whole path from anchoring it
+		// (DCW-V0-841).
+		pathLine := index >= definitions && changeWide && !p.changed[candidate.path] && namesWholePath(text, anchorPath(derived))
+		if !p.basenames && !pathLine && !relevantRequirementLine(families, text) {
 			continue
 		}
 		relation := proposalRelation(candidate.path)
@@ -657,15 +675,22 @@ func dominantFamilies(text []byte) map[string]bool {
 // added and removed lines name, else its context lines, else the edits to the
 // same file, else the whole change's edits. It is empty when nothing names one.
 func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
+	families, _ := p.hunkFamiliesScope(hunk)
+	return families
+}
+
+// hunkFamiliesScope is hunkFamilies, also reporting whether the families came
+// only from the whole change's edits (DCW-V0-841).
+func (p *proposal) hunkFamiliesScope(hunk *patch.Hunk) (map[string]bool, bool) {
 	if hunk == nil {
-		return nil
+		return nil, false
 	}
 	edits, around := hunkText(hunk)
 	if changed := dominantFamilies(edits); len(changed) > 0 {
-		return changed
+		return changed, false
 	}
 	if context := dominantFamilies(around); len(context) > 0 {
-		return context
+		return context, false
 	}
 	// The fallbacks count every ID of the other edits together, so the
 	// family they name most often wins (DCW-V0-404).
@@ -681,9 +706,10 @@ func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
 		}
 	}
 	if families := dominantFamilies(file); len(families) > 0 {
-		return families
+		return families, false
 	}
-	return dominantFamilies(all)
+	families := dominantFamilies(all)
+	return families, len(families) > 0
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path
