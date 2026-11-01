@@ -76,8 +76,9 @@ lane-scripts_test: 1 groups passed, 2 failed:
 # shellcheck disable=SC2046 # one word per variable name
 unset $(compgen -v HEAVY_) CODEX_REVIEW_HEAVY
 export HEAVY_LOCK_DIR=$tmp/slots HEAVY_CONFIG=$tmp/no-heavy-config
-# ASD-V0-937/938 are exercised in their own groups: elsewhere no disk floor and no added -timeout.
-export HEAVY_MIN_FREE_GB=0 HEAVY_GO_TEST_TIMEOUT=off
+# ASD-V0-937/938/104 are exercised in their own groups: elsewhere no disk floor, no added -timeout
+# and no automatic Go cache trim.
+export HEAVY_MIN_FREE_GB=0 HEAVY_GO_TEST_TIMEOUT=off HEAVY_CACHE_TRIM_HOURS=0
 # ASD-V0-030 policy is exercised in its own group; elsewhere fixtures run whole packages and the
 # host's real load never delays them.
 export HEAVY_WHOLE_REASON='lane-scripts-test fixture' HEAVY_MAX_LOAD=999999 HEAVY_SELECTION_LOG=$tmp/selection.log
@@ -1325,6 +1326,26 @@ tv sh -c 'echo go; exit 3' > /dev/null
 [[ $? == 3 ]] || fail "heavy.sh changed a wrapper without go test"
 HEAVY_MIN_FREE_GB=3 tv true > /dev/null && grep -qE "^heavy.sh: low disk here: .* free=1G floor=3G$" "$to/err" &&
   grep -qE '^[0-9TZ:-]+ lowdisk-local path=.* free=1G floor=3G pwd=' "$tmp/selection.log" || fail "heavy.sh local low-disk warning: $(cat "$to/err")"
+# ASD-V0-104 (V1-3787): a local run trims its GOCACHE with go-cache-trim.sh --apply at most once per
+# HEAVY_CACHE_TRIM_HOURS (a stamp in the lock dir); 0 disables it and a malformed value refuses. The
+# df stub reports a 1 MiB file system, so the 40% bound is below the one old 1 MiB entry.
+ct=$tmp/cache-trim
+ctold=$(date -v-2d +%Y%m%d%H%M 2> /dev/null || date -d '2 days ago' +%Y%m%d%H%M)
+ctentry() { dd if=/dev/zero of="$ct/cache/0a/old-d" bs=1048576 count=1 2> /dev/null && touch -t "$ctold" "$ct/cache/0a/old-d"; }
+mkdir -p "$ct/bin" "$ct/cache/0a" "$ct/scratch" "$ct/slots" &&
+  printf '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfake 1024 0 1024 0%%%% /\\n"\n' > "$ct/bin/df" && chmod +x "$ct/bin/df" &&
+  echo 'This directory holds cached build artifacts from the Go build system.' > "$ct/cache/README" && ctentry || fail "cache-trim fixture"
+ctrun() { (cd "$ct" && env PATH="$ct/bin:$PATH" HEAVY_LOCK_DIR="$ct/slots" HEAVY_SLOTS=1 GOCACHE="$ct/cache" TMPDIR="$ct/scratch" HEAVY_CACHE_TRIM_HOURS="${CT-6}" "$heavy" true 2> "$ct/err"); }
+CT=0 ctrun && [[ -f $ct/cache/0a/old-d && ! -e $ct/slots/cache-trim.stamp ]] && ! grep -q 'cache trim' "$ct/err" ||
+  fail "HEAVY_CACHE_TRIM_HOURS=0 still trimmed: $(cat "$ct/err")"
+ctrun && [[ ! -e $ct/cache/0a/old-d && -f $ct/slots/cache-trim.stamp ]] &&
+  grep -q '^heavy.sh: cache trim: TRIMMED cache .* entries=1 ' "$ct/err" && grep -q '^heavy.sh: cache trim: SUMMARY caches=1 .* applied=yes ' "$ct/err" ||
+  fail "heavy.sh did not trim the Go cache on its first run: $(cat "$ct/err")"
+ctentry && ctrun && [[ -f $ct/cache/0a/old-d ]] && ! grep -q 'cache trim' "$ct/err" || fail "heavy.sh trimmed again inside the interval: $(cat "$ct/err")"
+touch -t "$ctold" "$ct/slots/cache-trim.stamp" && ctrun && [[ ! -e $ct/cache/0a/old-d ]] && grep -q '^heavy.sh: cache trim: TRIMMED ' "$ct/err" ||
+  fail "heavy.sh did not trim after the interval: $(cat "$ct/err")"
+CT=6h ctrun
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-cache-trim HEAVY_CACHE_TRIM_HOURS=6h' "$ct/err" || fail "heavy.sh accepted HEAVY_CACHE_TRIM_HOURS=6h: $(cat "$ct/err")"
 out=$(tv --admit-only sh -c 'echo "go test ./x | tail"; exit 4')
 [[ $? == 4 && $out == 'go test ./x | tail' ]] && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "heavy.sh --admit-only read its command: $out $(cat "$to/err")"
 out=$(PATH=$to/bin:$PATH CODEX_BIN=$to/bin/codex CODEX_REVIEW_HEAVY=$heavy HEAVY_LOCK_DIR=$to/slots "$script/codex-review.sh" 'review the diff; run go test ./internal/x' 2> "$to/err")

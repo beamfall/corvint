@@ -56,6 +56,11 @@
 #                        off (ASD-V0-937): a remote below it is unavailable (exit 97, so the next host
 #                        or the fallback runs it) and is ordered last by the probe; a local run below
 #                        it warns and logs `lowdisk-local` but still runs.
+#   HEAVY_CACHE_TRIM_HOURS  hours between automatic Go cache trims, default 6, 0 off (ASD-V0-104,
+#                        V1-3787): a local run whose HEAVY_LOCK_DIR/cache-trim.stamp is missing or
+#                        older runs `go-cache-trim.sh --apply` on its GOCACHE and TMPDIR first, with
+#                        that script's bounds (entries over 12 h old, down to 20 GiB or 40% of the
+#                        file system); a failed trim warns and the run still goes ahead.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -1325,6 +1330,26 @@ local_disk() {
   done
 }
 
+# cache_trim: at most once per HEAVY_CACHE_TRIM_HOURS per lock dir, bound the local run's Go cache
+# with go-cache-trim.sh before the run (ASD-V0-104, V1-3787). Nothing trimmed the shared caches
+# automatically, so they grew to tens of GiB per host between manual trims. The stamp is touched
+# before the trim, so concurrent runs do not all scan; a missing tool or failed trim only warns.
+cache_trim() {
+  local hours=${HEAVY_CACHE_TRIM_HOURS:-6} stamp=$lock_dir/cache-trim.stamp tool=${BASH_SOURCE[0]%/*}/go-cache-trim.sh out rc line
+  [[ $hours =~ ^[0-9]{1,4}$ ]] || refuse "invalid-cache-trim HEAVY_CACHE_TRIM_HOURS=$hours (want whole hours, 0 disables)"
+  hours=$((10#$hours))
+  ((hours > 0)) || return 0
+  [[ -e $stamp && -z $(find "$stamp" -mmin +$((hours * 60)) 2> /dev/null) ]] && return 0
+  touch "$stamp" 2> /dev/null || return 0
+  [[ -x $tool ]] || { printf 'heavy.sh: cache trim skipped: %s missing\n' "$tool" >&2; return 0; }
+  out=$("$tool" --apply --cache "$GOCACHE" --temp-root "${TMPDIR:-/tmp}" 2>&1)
+  rc=$?
+  while IFS= read -r line; do
+    case $line in TRIMMED\ * | SUMMARY\ * | WARN\ *) printf 'heavy.sh: cache trim: %s\n' "$line" >&2 ;; esac
+  done <<< "$out"
+  ((rc == 0)) || printf 'heavy.sh: cache trim failed (exit %s); the run goes ahead\n' "$rc" >&2
+}
+
 # unwrap_perl STRING: the words of a simple shell command, NUL-terminated; exit 3 for anything a
 # shell would expand or treat as an operator (ASD-V0-939).
 IFS= read -r -d '' unwrap_perl << 'PERL' || :
@@ -1614,6 +1639,7 @@ main() {
   # plain go test and a make target do not fill two caches.
   : "${GOCACHE:=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}}"
   export GOCACHE
+  cache_trim
   local_disk
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
