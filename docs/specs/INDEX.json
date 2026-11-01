@@ -4236,5 +4236,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/cem-2.0-intent.md",
+    "title": "CEM 2.0 intent",
+    "reqPrefix": "CEM2-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Proposed CEM 2.0 splits a map into a signed header and a Git-derived index body that consumers project back to byte-identical canonical cem/1.0.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

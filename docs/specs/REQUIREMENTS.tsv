@@ -1043,6 +1043,28 @@ CEM-SM-015	docs/specs/cem-0.3-structural-mechanical.md	The packet MUST distingui
 CEM-SM-016	docs/specs/cem-0.3-structural-mechanical.md	For every case, the standalone `verify-03` process MUST reproduce the pinned	unrecorded	-
 CEM-SM-017	docs/specs/cem-0.3-structural-mechanical.md	On any runtime outside the admitted structural tuples (`go1.27.1`, the packet's	unrecorded	-
 CEM-SM-018	docs/specs/cem-0.3-structural-mechanical.md	The native reader MUST offer a single-profile mode (`ReadOptions.SingleSpec`).	unrecorded	-
+CEM2-V0-001	docs/specs/cem-2.0-intent.md	Until the owner accepts this intent, no producer, verifier, CLI, hook, release	unrecorded	-
+CEM2-V0-002	docs/specs/cem-2.0-intent.md	Work beyond the prototype is gated on, in order: the consumer bound fix (F1), th	unrecorded	-
+CEM2-V0-003	docs/specs/cem-2.0-intent.md	A 2.0 map has a header that is a closed canonical JSON object with exactly the	unrecorded	-
+CEM2-V0-004	docs/specs/cem-2.0-intent.md	The body is closed canonical JSON in index form: a `paths` table, `evidence` row	unrecorded	-
+CEM2-V0-005	docs/specs/cem-2.0-intent.md	A consumer holding the base and target objects MUST project a 2.0 map to the	unrecorded	-
+CEM2-V0-006	docs/specs/cem-2.0-intent.md	The body's hunk count MUST equal the canonical patch's hunk count, and hunk clai	unrecorded	-
+CEM2-V0-007	docs/specs/cem-2.0-intent.md	Projection MUST refuse, before any 1.0 bytes are produced, a `bodySha256` that	unrecorded	-
+CEM2-V0-008	docs/specs/cem-2.0-intent.md	The reason and relation code tables are closed and frozen per spec label; the	unrecorded	-
+CEM2-V0-009	docs/specs/cem-2.0-intent.md	A 2.0 map is verifiable only while its base and target objects are retained. A	unrecorded	-
+CEM2-V0-010	docs/specs/cem-2.0-intent.md	A consumer MUST enforce declared bounds no lower than cem/1.0's (hunks, evidence	unrecorded	-
+CEM2-V0-011	docs/specs/cem-2.0-intent.md	Neither header nor body carries a numeric confidence, score or probability.	unrecorded	-
+CEM2-V0-012	docs/specs/cem-2.0-intent.md	The invariant-4 ledgers (`.corvint/self-observations.jsonl`,	unrecorded	-
+CEM2-V0-013	docs/specs/cem-2.0-intent.md	Any trust label attached to 2.0 evidence or claims reuses the five TCP-V0-023	unrecorded	-
+CEM2-V0-014	docs/specs/cem-2.0-intent.md	The append-only record of verdicts and receipts is called the evidence ledger in	unrecorded	-
+CEM2-V0-015	docs/specs/cem-2.0-intent.md	The agent and trust additions (A1-A5, T1-T4) are admission candidates. Each need	unrecorded	-
+CEM2-V0-016	docs/specs/cem-2.0-intent.md	The wire is codified last. No `cem/2.0` label, schema, conformance vector set or	unrecorded	-
+CEM2-V0-017	docs/specs/cem-2.0-intent.md	Extensions follow the cem/1.1 rule of V1-3759: a consumer that does not implemen	unrecorded	-
+CEM2-V0-018	docs/specs/cem-2.0-intent.md	`parents` names parent header digests for a delta map. The prototype refuses a	unrecorded	-
+CEM2-V0-019	docs/specs/cem-2.0-intent.md	Derived mode makes the forged-evidence-id, span-hash-mismatch, moved-hunk-range	unrecorded	-
+CEM2-V0-020	docs/specs/cem-2.0-intent.md	The prototype encoder abstains with UNSUPPORTED on any map it cannot encode	unrecorded	-
+CEM2-V0-021	docs/specs/cem-2.0-intent.md	The prototype's tests cover fixture round-trips, a committed-corpus round-trip	unrecorded	-
+CEM2-V0-022	docs/specs/cem-2.0-intent.md	The V1-3760 measurements (raw and compressed sizes, header size, round-trip	unrecorded	-
 CAX-V0-001	docs/specs/cem-additive-profiles-v0.md	`corvint prove --cem MAP --attest-cem-v3` signs the predicate type	unrecorded	-
 CAX-V0-010	docs/specs/cem-additive-profiles-v0.md	`corvint cem cover ... --states-output PATH` also writes one	unrecorded	-
 CAX-V0-011	docs/specs/cem-additive-profiles-v0.md	`wire.ValidateCoverageStates(document, mapBytes)` accepts a document only when i	unrecorded	-
