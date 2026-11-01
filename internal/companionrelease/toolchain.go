@@ -3,6 +3,7 @@ package companionrelease
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -77,6 +78,9 @@ func closedGoEnv(home, targetGOOSArch string) []string {
 		"GOPATH=" + home + "/gopath",
 		"GOCACHE=" + home + "/gocache",
 		"GOMODCACHE=" + home + "/gomodcache",
+		// PUB-V0-965: the build's $WORK beside its cold caches, never the
+		// host's default temp directory; ensureGoTmp creates it.
+		"GOTMPDIR=" + home + "/gotmp",
 		"GOTOOLCHAIN=local",
 		"GOWORK=off",
 		"GOFLAGS=",
@@ -92,6 +96,21 @@ func closedGoEnv(home, targetGOOSArch string) []string {
 		env = append(env, "GOOS="+goos, "GOARCH="+arch)
 	}
 	return dedupeEnv(env)
+}
+
+// ensureGoTmp creates the GOTMPDIR an environment names, if any, since Go
+// refuses a GOTMPDIR that does not exist (PUB-V0-965). An environment
+// without one is left alone.
+func ensureGoTmp(env []string) error {
+	for i := len(env) - 1; i >= 0; i-- {
+		if dir, ok := strings.CutPrefix(env[i], "GOTMPDIR="); ok {
+			if dir == "" {
+				return nil
+			}
+			return os.MkdirAll(dir, 0o700)
+		}
+	}
+	return nil
 }
 
 func dedupeEnv(env []string) []string {
