@@ -5290,20 +5290,23 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   a Node script) and the commands whose built binary it runs; `packages` and `consumers` together
   hold at most 4096 keys, each under the `packages` entry grammar, and every entry must be an
   observed command, else the whole declaration is invalid (`go:test-binary-execs-invalid`). The Go
-  plugin SHALL record each consumer file as a TSP-V0-005 `callers` entry of each named command
-  unit, so the file's owning unit, if any, becomes a dependent (or a test user when the file is
-  one of its tests). When a plan reaches a command's build (a `DIRECT_SOURCE_CHANGE`,
+  plugin SHALL record each consumer file in the named command units' `execConsumers` member (sorted
+  paths, part of the AFP-V0-005 projection when non-empty, and of the graph cache entry), which adds
+  no edge: a consumer that runs only a built binary is no importer of the command's code, and an
+  edge would make it inherit the command's root-locating closure and be selected on every change.
+  When a plan reaches a command's build (a `DIRECT_SOURCE_CHANGE`,
   `DEPENDENCY_PATH` or `ENCLOSING_PACKAGE` witness) and no selection carries a declared consumer
   file as a test, the plan SHALL name that file once as the unknown
   `{reason: "UNSELECTED_BINARY_CONSUMER", detail: FILE, hint}`, the hint naming the nearest such command, which
   widens it to `UNKNOWN` instead of leaving the run out silently. A command reached only for its
   own test files, or only as a reader, names no consumer. This repository declares `tools/web-flows/test/e2e.mjs` and
   `tools/web-flows/test/navigation-e2e.mjs` as consumers of `cmd/corvint-web-flows`, which
-  `script/web-flows-gate` builds and hands them; they also run `cmd/corvint`, but nearly every
+  `script/web-flows-gate` builds and hands them, so a change to that command's build names both; they also run `cmd/corvint`, but nearly every
   change reaches that build, so that edge is left undeclared rather than naming them on almost
   every plan (a `cmd/corvint` change is left to its own tests and the web-flows gate). Non-goals: no
   driver run of the consumer, no inference of a consumer from environment variables. Rollback:
-  remove the member, `matchBinaryConsumers`, `unselectedConsumers` and the repository entries.
+  remove the member, `Unit.ExecConsumers`, `matchBinaryConsumers`, `unselectedConsumers` and the
+  repository entries.
 
 ### Agent instruction files (AFP-V0-763; V1-2077)
 
@@ -5317,7 +5320,8 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   `UNOWNED_DIRTY_PATH`, and its entry SHALL carry an AFP-V0-494 `hint` naming that declaration
   route (a symlink hint wins), changing neither selection nor scope. This repository SHALL declare
   its root `AGENTS.md` and `CLAUDE.md` in `.corvint/documentation-paths.json`, so a change to them
-  alone is `DECLARED_DOCUMENTATION` here. Rollback: remove `instructionHints` and the two entries.
+  alone is `DECLARED_DOCUMENTATION` here; the ASD-V0-105 generator
+  (`script/gen-documentation-paths.sh`) adds each of them the Git index tracks. Rollback: remove `instructionHints` and the two entries.
 
 ### Typed --path profile refusals (AFP-V0-764; V1-2082)
 
@@ -5768,8 +5772,8 @@ traceability table.
 | AFP-V0-484 | the `$costNames`, `costs` and `$shadowCost` block and the `Shadow cost` lines of `.github/forward-rows/bar.jq`; `shadowCost` in `.github/forward-rows/verdict.sh` | `TestAFPV0484BarShadowCost` (cost names leave the status, counts and tripped kill switch identical; the nearest name listed before its row prices it, while a name listed after it, other epochs, INCOMPLETE rows and malformed names do not; a CLEAN re-run without its own cost is unpriced, not priced by an older MISS or CLEAN run; median, mean and miss rows per selector) |
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
 | AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
-| AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
-| AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
+| AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `Unit.ExecConsumers` (`unit.go`, `graph.go`, `graphcache.go`); `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
+| AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `INSTRUCTIONS` in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
 | AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
 | AFP-V0-766 | `options.confine`, `identity.Confine`, `identity.ConfinedEnv`, `goTestArgs`, `runEnv` and the wrapper checks of `toolIdentity` and `execute` in `tools/corvint-pr-tests/main.go` | `TestConfinedDriverRunsFailUndeclaredReads` (identity, argv and environment of a confined run; drift and a missing wrapper refused); `TestSelectedFailureAndFallback` (unconfined identity unchanged) |
 | AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 |
