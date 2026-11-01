@@ -69,6 +69,13 @@ driving Corvint from scripts.
   the Python plugin SHALL keep both files in the one unit `python:pkg`, with the imports of both,
   so an edit to either has that owner and selects its importers. Neither file SHALL be dropped
   from the graph and become an unowned dirty path.
+- **ACX-V0-856:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-2907) The `e2e-safe-selection/1` result SHALL carry `frontier_excluded`, one entry per
+  `plan.frontierExcluded` plugin with `language`, `units` and the excluded `frontier` entries
+  that the profile would read as unbounding the closure had they stayed in `plan.unknown`
+  (AFP-V0-560). Entries the profile answers itself are left out, and the member is omitted when
+  none is left. It is additive, so the schema string stays `e2e-safe-selection/1`; the decision
+  rules are unchanged.
 
 ## Non-goals
 
@@ -93,6 +100,7 @@ still runs it.
 | ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
 | ACX-V0-854 | `setAffectedBase` in `cmd/corvint/affected.go`, `resolveAffectedAbbrevBase` and `affectedBaseHint` in `cmd/corvint/affected_abbrev_base.go` | `TestACXV0854RevisionBase`; `TestAFPV0230AbbreviatedBaseAndTrailingRoot` |
 | ACX-V0-855 | `UnitsSource` in `internal/liveverify/affected/python/python.go` | `TestModuleAndPackageInitShareOneOwner_ACX_V0_855` |
+| ACX-V0-856 | `e2eFrontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
 
 ## Rollback
