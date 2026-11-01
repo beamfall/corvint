@@ -163,8 +163,79 @@ hold.
   `script/dogfood-cache_test.sh`, `script/dogfood-change_test.sh`,
   `script/dogfood-bind-range_test.sh`: PASS.
 
+## Addendum (orchestrator, 2026-11-01): V1-3633 and V1-3638
+
+Requirements `DCW-V0-945`, `DCW-V0-946` and `DCW-V0-947`, in a spec commit before the code. The
+tickets were filed on the orchestrator's host after the last committed `.taskman` snapshot, so
+`corvint-tasks ticket show` reads them as NOT_OBSERVED here; the scope comes from the
+orchestrator's message.
+
+### V1-3633: inputs-check passes an INTENTS file bind refuses
+
+Observed case (`~/lanes/win-w2-closeout.log`): inputs-check passed, then bind refused
+`ocm-prepare-001: too-many-obligations` and `ocm-aggregate: intent-scope-drift`. The over-bound
+map case was since closed by `DCW-V0-961`, but the precheck still ignored every other derivation
+refusal `IntentObligationCounts` returned ("left to the steps"). So an intent that is not a blob at
+HEAD, is not UTF-8, or lacks exactly one Requirements section passed inputs-check and failed only
+after the bind commit.
+
+Decision: one derivation, not a copied check. `lrfrepo.deriveIntentAt` (blob lookup, read, and
+`deriveIntent` in the requested form) is now what `beginOCM` and `IntentObligationCounts` both
+call, and `DeriveIntentAt` exports it. The precheck derives each intent alone and refuses
+`intent-invalid`, naming each intent with the code `ocm-prepare` would print. Agreement is
+structural, and `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` proves it on real `PrepareOCM`
+calls (valid, Latin-1, over-bound, absent, and a directory). A kept intent that the plan also
+defers is skipped by the new precheck, so it keeps its more specific `deferred-intent-kept`
+refusal (`DCW-V0-370`). Four existing tests encoded the old order, in which steps ran first and the
+`ocm-prepare` failure was recorded at bind. Each was changed to the new up-front refusal with the
+same code: `TestChangeDCWV0058RecordBindsUniformPlanAndRecordIntent` (three path-intent cases),
+`TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection`, and two fixtures that named
+fake intents (`TestFinishLaneDCWV0378...` now uses `#no-intent-declared`; `script/dogfood-change_test.sh`
+now commits the bootstrap intents its citation cases name).
+
+Extra acceptance criterion (orchestrator, from the vt-w3 friction): refresh and finish must refuse a
+BASE that is not an ancestor of HEAD and name the merge-base, or a reseal binds a revert of main.
+`flow.requireBaseAncestor` (`DCW-V0-946`) runs in `propose-citations` (draft and `--refresh`),
+`finish-lane` and `inputs-check`, and prints `REFUSE base-not-ancestor base=B merge-base=M` with a
+`BASE=M` or rebase fix. `finish-lane` already refused such a BASE as `head-not-ahead-of-base`,
+without the merge-base; `propose-citations` drafted the revert silently.
+
+### V1-3638: dogfood-finish auto-refreshes a moved plan
+
+Decision: refresh only on evidence that HEAD moved, meaning a row that names a hunk ID the current
+patch lacks (`proposal.staleIDs`). Ordinal plans keep the existing remap and stale-binding path, and
+a bind or seal HEAD is never refreshed. The refresh is the `propose-citations --refresh` code run
+in-process. It continues only when every hunk was carried or re-keyed (`redrafted` empty, no
+dropped row), because a drafted citation is a proposal, not evidence. Otherwise it stops with
+`citations-refresh-incomplete`, naming the drafted hunks and the refreshed file. The refreshed plan
+goes to `<git-dir>/corvint/dogfood-finish.refreshed-plan.tsv`, never over the caller's file, and is
+swapped in before the input snapshot, so `DCW-V0-378` guards the file actually bound. The row
+detail of the `DCW-V0-441` pre-flight refusal is now reached only when the refresh is skipped.
+`TestProposeCitationsDCWV0441V0442...` asserts the pre-flight refresh and still checks the
+mismatch through `dogfood change`.
+
+The `ocm_write.go` refactor shifted five unanchored legacy citations in
+`docs/specs/ocm-v0-dogfood.md` by 11 lines. Each target line was matched byte-for-byte at the new
+position, pinned with `--hash`, and its unpinned-inventory row deleted.
+
+### Evidence (addendum)
+
+`internal/dogfoodflow` whole package PASS; `internal/lrfrepo -run 'OCM|Ocm|Prepare|Intent|Obligation'`
+PASS; `cmd/corvint` filtered to every `dogfood*_test.go`, `local_completion_test.go` and
+`ocm*_test.go` test PASS; `script/dogfood-change_test.sh`, `script/dogfood-cache_test.sh`,
+`script/dogfood-bind-range_test.sh` PASS. New: `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945`,
+`TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDCWV0946ProposeRefusesNonAncestorBase`,
+`TestDCWV0946FinishLaneRefusesNonAncestorBase`, `TestDCWV0947FinishRefreshesAMovedPlan`.
+
 ## Friction
 
+- `make windows-vet` runs with `GOCACHE=/tmp/corvint-go-build-cache`, an 11 GB cache on this
+  host's tmpfs `/tmp`, which is what filled `/tmp` during the lane. Repro:
+  `make windows-vet; du -sh /tmp/corvint-go-build-cache; df -h /tmp`.
+- Tickets filed after the last committed `.taskman` snapshot cannot be read from a lane worktree or
+  the primary checkout here (`ticket show` says NOT_OBSERVED, no journal at `.git/taskman`), so a
+  lane works from the orchestrator's paraphrase. Repro: `corvint-tasks ticket show
+  ticket:corvint:main:V1-3633` in `~/projects/corvint`.
 - `FRONTIER_OK` in `script/batch-precheck.sh` lists three `LANGUAGE_FRONTIER` details, but
   `corvint affected` against origin/main now reports TypeScript, C-family and .NET frontier details
   on ordinary diffs, a one-line doc commit included. `ASD-V0-050`/`ASD-V0-051` selection therefore

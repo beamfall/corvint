@@ -386,7 +386,9 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			uniform = false
 			continue
 		}
-		if !ok && p.carried != nil {
+		if p.carried != nil {
+			// Drafted afresh: no row was carried, or a carried all-unknown row
+			// on a sealed CEM is redrafted (DCW-V0-966).
 			p.redrafted = append(p.redrafted, hunk)
 		}
 		row, cite, fellBack := p.propose(hunk, edited, used)

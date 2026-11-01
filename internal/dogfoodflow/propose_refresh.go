@@ -132,6 +132,16 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 	}
 	mapIDs, bound := p.refreshOrdinalIDs()
 	unresolved := map[string]bool{}
+	// A row is stale only when the canonical BASE..HEAD patch lacks its hunk
+	// ID, not merely when the hunk is no longer owed (already cited or
+	// reasoned in a leftover map); an unreadable patch judges nothing stale
+	// (DCW-V0-947).
+	patched := map[string]bool{}
+	if parsed, ok := p.canonicalPatch(); ok {
+		for _, hunk := range parsed.Hunks {
+			patched[hunk.ID] = true
+		}
+	}
 	for index := range p.refreshRows {
 		row := &p.refreshRows[index]
 		switch {
@@ -145,7 +155,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		if row.id != "" {
 			if _, ok := current[row.id]; !ok {
 				unresolved[row.id] = true
-				if strings.HasPrefix(row.selector, wire.HunkPrefix) {
+				if strings.HasPrefix(row.selector, wire.HunkPrefix) && len(patched) > 0 && !patched[row.id] {
 					p.staleIDs++
 				}
 			}

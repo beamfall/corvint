@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	cemcli "github.com/Beamfall/corvint/internal/cem/cli"
 )
 
 // TestDCWV0947FinishRefreshesAMovedPlan (V1-3638): a plan drafted before
@@ -64,6 +66,24 @@ func TestDCWV0947FinishRefreshesAMovedPlan(t *testing.T) {
 	// A current plan is used unchanged.
 	if _, stderr, _ := run(); strings.Contains(stderr, "citations-refresh") || isRegular(refreshed) {
 		t.Fatalf("a current plan was refreshed:\n%s", stderr)
+	}
+	// So is a current plan rerun over a leftover map that already records its
+	// row's hunk (reasoned unknown, so no longer owed), as after a failed bind:
+	// staleness is judged against the canonical patch, not the owed hunks.
+	var changeErr bytes.Buffer
+	if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Citations: plan, IntentsFile: intents, Steps: Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
+		if len(args) > 0 && args[0] == "cem" {
+			return cemcli.Run(ctx, root, args[1:], stdout, stderr)
+		}
+		return 1
+	}}}, &changeErr); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readFile(filepath.Join(root, ".corvint/change.cem.json"))), oldID) {
+		t.Fatalf("no leftover map naming %s:\n%s", oldID, &changeErr)
+	}
+	if _, stderr, _ := run(); strings.Contains(stderr, "citations-refresh") || isRegular(refreshed) {
+		t.Fatalf("a current plan over a leftover map was refreshed:\n%s", stderr)
 	}
 	// HEAD moves: the same BASE range gets new content, so its hunk ID changes
 	// and the row is re-keyed; the run continues on the refreshed plan.
