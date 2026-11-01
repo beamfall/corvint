@@ -304,8 +304,10 @@ func dialogue(root string, request Request, seeds []string, reader io.Reader, wr
 	if negotiated.refused != "" {
 		return negotiated, errRefused
 	}
+	// From here a fatal error keeps the negotiated encoding and methods, so
+	// the failure still reports them (EEP-V0-821).
 	if err := s.notify("initialized", map[string]any{}); err != nil {
-		return expansion{}, err
+		return negotiated, err
 	}
 	walk := walker{session: s, root: root, request: request, started: time.Now(), known: map[string]bool{}, found: negotiated}
 	for _, seed := range seeds {
@@ -313,23 +315,25 @@ func dialogue(root string, request Request, seeds []string, reader io.Reader, wr
 	}
 	for _, seed := range seeds {
 		if err := walk.expand(seed, 1, seed, ""); err != nil {
-			return expansion{}, err
+			return walk.found, err
 		}
 	}
 	for _, origin := range walk.hopTwoOrigins() {
 		if err := walk.expand(origin.path, 2, origin.seed, origin.path); err != nil {
-			return expansion{}, err
+			return walk.found, err
 		}
 	}
-	walk.found.version = serverVersion(initialized)
 	if _, err := s.call("shutdown", nil); err != nil {
-		return expansion{}, err
+		return walk.found, err
 	}
 	if err := s.notify("exit", nil); err != nil {
-		return expansion{}, err
+		return walk.found, err
 	}
 	_ = writer.Close()
 	_, _ = io.Copy(io.Discard, counted)
+	// The version is set only on a complete dialogue: run reads an empty
+	// version as a failed session.
+	walk.found.version = serverVersion(initialized)
 	return walk.found, nil
 }
 
@@ -604,13 +608,24 @@ func advertised(raw json.RawMessage) bool {
 
 // executableDigest is the SHA-256 of the executable bytes read before launch
 // (EEP-V0-821). It is observed, not authenticated: a binary replaced between
-// this read and the launch is not detected.
+// this read and the launch is not detected. Only a regular file is read: a
+// FIFO or device named gopls would block the read before the session's
+// cancellation and timeout supervise anything. A path swapped to a FIFO
+// between the Stat and the Open can still block the Open.
 func executableDigest(path string) (string, error) {
+	if info, err := os.Stat(path); err != nil {
+		return "", err
+	} else if !info.Mode().IsRegular() {
+		return "", errors.New("executable is not a regular file")
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
+	if info, err := file.Stat(); err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("executable is not a regular file")
+	}
 	hash := sha256.New()
 	copied, err := io.Copy(hash, io.LimitReader(file, maxExecutable+1))
 	if err != nil {

@@ -231,6 +231,9 @@ func fakeServer(name string) {
 		switch {
 		case request.Method == "initialize":
 			reply["result"] = map[string]any{"capabilities": capabilities, "serverInfo": map[string]any{"name": name, "version": "v0.0.0-fake"}}
+		case strings.HasPrefix(request.Method, "textDocument/") && os.Getenv("LSPPROVIDER_FAKE_CRASH") != "":
+			// The server dies mid-session, after a successful initialize.
+			os.Exit(0)
 		case strings.HasPrefix(request.Method, "textDocument/"):
 			// Real gopls names the document by its absolute file URI.
 			var params struct {
@@ -458,6 +461,24 @@ func TestExpandNegotiatesBeforeQuerying_EEPV0821(t *testing.T) {
 		if c.failure == "" && len(queried) == 0 {
 			t.Errorf("%s: no admitted query was sent", c.name)
 		}
+	}
+	// A server that dies on its first query after negotiating fails the
+	// session but still reports what it negotiated.
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	crashing := filepath.Join(t.TempDir(), "gopls")
+	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=gopls LSPPROVIDER_FAKE_CAPABILITIES='{\"definitionProvider\":true}' LSPPROVIDER_FAKE_CRASH=1 exec %q \"$@\"\n", binary)
+	if err := os.WriteFile(crashing, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	crashed := Expand(context.Background(), m.request(t, crashing, "a/a.go"))
+	if crashed.Failure != "gopls session failed" || crashed.Record != nil {
+		t.Fatalf("mid-session crash: failure %q, record %s", crashed.Failure, crashed.Record)
+	}
+	if crashed.Query["position_encoding"] != "utf-16" || !slices.Equal(crashed.Query["methods"].([]string), []string{queryDefinition}) || !slices.Equal(crashed.Query["unavailable_methods"].([]string), []string{queryReferences}) {
+		t.Fatalf("mid-session crash dropped the negotiated summary: %v", crashed.Query)
 	}
 	unreadable := Expand(context.Background(), m.request(t, t.TempDir(), "a/a.go"))
 	if unreadable.Failure != "gopls executable unreadable" || unreadable.Record != nil {
