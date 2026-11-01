@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // renderAffectedText is the `--format text` form of an affected-plan/1
@@ -46,6 +48,9 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, "unknown %s %s", textWord(unknown.Reason), textWord(unknown.Detail))
 		if unknown.Hint != "" {
 			fmt.Fprintf(&out, " hint %s", textWord(unknown.Hint))
+		}
+		if source := receipt.Plan.FrontierSources[unknown.Detail]; source != "" && unknown.Reason == affected.UnknownLanguageFrontier {
+			fmt.Fprintf(&out, " source %s", textWord(source))
 		}
 		out.WriteString("\n")
 	}

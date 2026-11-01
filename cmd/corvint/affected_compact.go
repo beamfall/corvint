@@ -57,6 +57,8 @@ type affectedCompactPlan struct {
 	// FrontierExcluded is the plan's frontier left out of unknown, with its
 	// reason (AFP-V0-560).
 	FrontierExcluded []affected.FrontierExclusion `json:"frontierExcluded,omitempty"`
+	// FrontierSources is what raised each frontier entry of unknown (TSP-V0-724).
+	FrontierSources map[string]string `json:"frontierSources,omitempty"`
 	// GoAdditive is the plan's additive-change records (ADN-V0-001).
 	GoAdditive []affected.GoAdditive `json:"goAdditive,omitempty"`
 	// GoAdditiveExcluded is the plan's units left out by a narrowed
@@ -163,6 +165,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			NonSource:          full.Plan.NonSource,
 			FrontierSites:      full.Plan.FrontierSites,
 			FrontierExcluded:   full.Plan.FrontierExcluded,
+			FrontierSources:    full.Plan.FrontierSources,
 			GoAdditive:         full.Plan.GoAdditive,
 			GoAdditiveExcluded: full.Plan.GoAdditiveExcluded,
 			ViaLinks:           links,

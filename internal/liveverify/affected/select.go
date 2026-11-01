@@ -133,6 +133,9 @@ type Unknown struct {
 	Hint string `json:"hint,omitempty"`
 }
 
+// frontierSourceLimit bounds the names in one FrontierSources value (TSP-V0-724).
+const frontierSourceLimit = 8
+
 // Plan is the selection result: what to verify, what was deliberately left out
 // and why, and what could not be justified at all.
 type Plan struct {
@@ -159,6 +162,15 @@ type Plan struct {
 	// it, with the reasons left out and those units (AFP-V0-560). It is
 	// omitted when no frontier is left out.
 	FrontierExcluded []FrontierExclusion `json:"frontierExcluded,omitempty"`
+	// FrontierSources maps the detail of each LANGUAGE_FRONTIER entry of
+	// Unknown that the frontier aggregation names to what raised it
+	// (TSP-V0-724): the ID of each unit whose own frontier bears, which for a
+	// shell unit is "shell:" and its script path and for a Go unit "go:" and
+	// its package, or "language:NAME" for that plugin's plugin-wide frontier,
+	// sorted and joined by ", ", at most frontierSourceLimit names and then
+	// "(+N more)". It sits beside Unknown so an entry's identity is unchanged,
+	// never changes selection or scope, and is omitted when empty.
+	FrontierSources map[string]string `json:"frontierSources,omitempty"`
 	// GoAdditive holds the additive-change record of each Go package the
 	// golang plugin examined, NARROWED or FALLBACK with its reason
 	// (ADN-V0-001). It is omitted when the graph carries no record.
@@ -247,9 +259,10 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
 	declaration, unknown := graph.declarationPath(unknown)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, sources := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
+	plan.FrontierSources = sources
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
@@ -519,20 +532,28 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // source names (AFP-V0-560); a plan with a dirty path no plugin owns leaves no
 // plugin out that way, and a unit the plan follows the dependents of
 // (AFP-V0-581) is no terminal selection.
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion) {
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, map[string]string) {
 	reasons := make(map[string]bool)
+	sources := make(map[string]map[string]bool)
+	raise := func(reason, source string) {
+		reasons[reason] = true
+		if sources[reason] == nil {
+			sources[reason] = make(map[string]bool)
+		}
+		sources[reason][source] = true
+	}
 	involved, unowned, terminal := graph.participants(reached, carried, followed, dirty, nonSource)
 	participating := make(map[string]bool, len(involved))
 	for _, name := range involved {
 		participating[name] = true
 		for _, reason := range graph.frontierBy[name] {
-			reasons[reason] = true
+			raise(reason, "language:"+name)
 		}
 	}
 	for id, witness := range reached {
 		if graph.frontierBears(id, witness, followed, reads) && graph.ownFilesBear(id, dirty) {
 			for _, reason := range graph.units[id].Frontier {
-				reasons[reason] = true
+				raise(reason, id)
 			}
 		}
 	}
@@ -545,7 +566,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			continue
 		}
 		for _, reason := range graph.units[id].Frontier {
-			reasons[reason] = true
+			raise(reason, id)
 		}
 	}
 	// An entry of a plugin that owns no dirty path and reaches no changed
@@ -566,7 +587,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			steered := graph.readsResolutionInput(name, unowned)
 			for _, entry := range graph.frontierBy[name] {
 				if (steered || graph.bearsOnUnowned(name, entry, closed)) && !reasons[entry] {
-					reasons[entry] = true
+					raise(entry, "language:"+name)
 					hints[entry] = hint
 				}
 			}
@@ -578,7 +599,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	// entry's site (AFP-V0-818, AFP-V0-819).
 	for name := range terminal {
 		for _, entry := range graph.crossLanguageEntries(name) {
-			reasons[entry] = true
+			raise(entry, "language:"+name)
 		}
 	}
 	for _, name := range graph.languages {
@@ -593,8 +614,13 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		}
 	}
 	unknown := make([]Unknown, 0, len(reasons))
+	var named map[string]string
 	for _, reason := range sortedKeys(reasons) {
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
+		if named == nil {
+			named = make(map[string]string, len(reasons))
+		}
+		named[reason] = boundedSource(sources[reason])
 	}
 	var excluded []FrontierExclusion
 	names := make([]string, 0, len(terminal))
@@ -617,7 +643,18 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(units)
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
 	}
-	return unknown, excluded
+	return unknown, excluded, named
+}
+
+// boundedSource is the FrontierSources value of one LANGUAGE_FRONTIER entry: its sorted
+// names joined by ", ", at most frontierSourceLimit of them and then
+// "(+N more)" (TSP-V0-724).
+func boundedSource(set map[string]bool) string {
+	names := sortedKeys(set)
+	if len(names) <= frontierSourceLimit {
+		return strings.Join(names, ", ")
+	}
+	return strings.Join(names[:frontierSourceLimit], ", ") + " (+" + strconv.Itoa(len(names)-frontierSourceLimit) + " more)"
 }
 
 // unownedFrontierHint is the Hint of a frontier entry that bears only
