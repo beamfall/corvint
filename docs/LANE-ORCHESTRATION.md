@@ -280,6 +280,12 @@ a checkout whose script reads `heavy.env`; the old wrapper is kept as
 the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
 --print-lock-dir` prints the directory a run would use.
 
+A lane host that offloads (the Mac lane host, for example) sets `HEAVY_REMOTE_HOST` in this file, not
+in a lane charter or a session's environment: a worktree session started from the standard charter
+then offloads with no export (V1-3518). Every run prints `heavy.sh: host=H why=W` first
+(`ASD-V0-920`), so a lane whose runs stay local reads, for example, `host=local why=HEAVY_REMOTE_HOST
+unset in the environment and in config /Users/x/.config/corvint/heavy.env (absent)`.
+
 ### Small packages run whole without a reason (ASD-V0-074, V1-3120)
 
 `corvint test --dry-run` plans a whole Go package for a small tool package, which `ASD-V0-030`
