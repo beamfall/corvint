@@ -270,8 +270,8 @@ func verifyRecorded(ctx context.Context, root string, a *Artifact) error {
 }
 
 // verifyPinnedRevisions resolves every pinned revision in the checkout that
-// owns it, one batch per checkout and the checkouts in parallel; the primary
-// revision must resolve to the recorded tree.
+// owns it, one cat-file batch per checkout (DCR-V1-975) and the checkouts in
+// parallel; the primary revision must resolve to the recorded tree.
 func verifyPinnedRevisions(ctx context.Context, root string, a *Artifact) (err error) {
 	defer func() { err = gitCapacity(err, "while verifying pinned revisions") }()
 	m := a.Manifest
@@ -319,17 +319,16 @@ func verifyPinnedRevisions(ctx context.Context, root string, a *Artifact) (err e
 				revisions = append(revisions, revision)
 			}
 			sort.Strings(revisions)
-			for _, revision := range revisions {
-				tree, err := auth.CommitTree(ctx, revision)
-				if err != nil {
-					errs[i] = err
-					return
-				}
-				if revision == m.Repository.Revision && tree != a.Tree {
+			// The trees before a refused revision are checked first, as
+			// one CommitTree per revision would have checked them.
+			trees, err := auth.CommitTrees(ctx, revisions)
+			for j, tree := range trees {
+				if revisions[j] == m.Repository.Revision && tree != a.Tree {
 					errs[i] = errNotRederivable("recorded tree differs from the pinned revision")
 					return
 				}
 			}
+			errs[i] = err
 		})
 	}
 	wg.Wait()
