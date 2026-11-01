@@ -76,6 +76,8 @@ func TestCALV0044_IncompatibleHistoryStillChecksLaterCodec(t *testing.T) {
 	v.Obj.Set("policyVersion", str("3"))
 	v.Obj.Set("unknown", wire.Bool(true))
 	appendReceipt(t, repo, snapshot.StagePolicyUpdate, map[string][]byte{"intent/policy.json": wire.EncodeFile(v)}, "", true, true, false)
+	// A later policy with a key this build does not know is version skew
+	// (CTS-V0-991), so the later codec check refuses UNSUPPORTED_VERSION.
 	_, err := r.AuditForHandoff(handoffSelector(original))
-	requireCode(t, err, wire.CodeMalformed)
+	requireCode(t, err, wire.CodeUnsupportedVersion)
 }
