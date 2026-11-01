@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
@@ -32,6 +33,9 @@ type Options struct {
 	Progress func(string)
 	// LoadAverage observes the host load around the run; nil reads the host's own.
 	LoadAverage LoadFunc
+	// Selected, when non-empty, names the only ScenarioIDs the run measures and judges
+	// (PRB-V0-970).
+	Selected []string
 }
 
 // Report is one harness run.
@@ -42,7 +46,10 @@ type Report struct {
 	Fixture   *Fixture           `json:"fixture"`
 	Host      Host               `json:"host"`
 	Scenarios []ScenarioMeasured `json:"scenarios"`
-	Checks    []Check            `json:"checks"`
+	// Selected lists the scenarios a filtered run measured; it is absent for a whole run
+	// (PRB-V0-970).
+	Selected []string `json:"selected,omitempty"`
+	Checks   []Check  `json:"checks"`
 	// Pending lists every pending target, so a reader sees the goals not yet enforced.
 	Pending []Check `json:"pending"`
 	// Advisory lists every advisory target, measured and never enforced (PRB-V0-056).
@@ -161,7 +168,12 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 		samples[s.ID] = s.Samples
 	}
 	search := []string{o.Corvint, "--root", fixture.Primary, "docs", "corpus", "search", "--artifact", fixture.Current, "--query", fixture.SearchQuery}
+	selected := func(id string) bool { return len(o.Selected) == 0 || slices.Contains(o.Selected, id) }
+	r.Selected = slices.Clone(o.Selected)
 	for _, id := range ScenarioIDs {
+		if !selected(id) && (id != "mcp-first-call" || !selected("mcp-warm-call")) {
+			continue
+		}
 		progress("scenario: " + id)
 		var m ScenarioMeasured
 		var err error
@@ -175,7 +187,11 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 			if err != nil {
 				return nil, err
 			}
-			r.Scenarios = append(r.Scenarios, first, warm)
+			for _, m := range []ScenarioMeasured{first, warm} {
+				if selected(m.ID) {
+					r.Scenarios = append(r.Scenarios, m)
+				}
+			}
 			continue
 		case "mcp-warm-call":
 			continue
@@ -207,7 +223,18 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 		r.Scenarios = append(r.Scenarios, m)
 	}
 	r.Host.finish(ctx, load)
-	r.Checks, r.Verdict, r.NotJudgedReason = Judge(o.Budgets, r.Host, r.Scenarios)
+	judged := o.Budgets
+	if len(o.Selected) != 0 {
+		filtered := *o.Budgets
+		filtered.Scenarios = nil
+		for _, b := range o.Budgets.Scenarios {
+			if selected(b.ID) {
+				filtered.Scenarios = append(filtered.Scenarios, b)
+			}
+		}
+		judged = &filtered
+	}
+	r.Checks, r.Verdict, r.NotJudgedReason = Judge(judged, r.Host, r.Scenarios)
 	r.OK = r.Verdict == RunPass
 	r.Pending, r.Advisory = unenforced(r.Checks)
 	return r, nil

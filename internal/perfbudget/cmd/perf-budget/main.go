@@ -2,7 +2,15 @@
 // (PRB-V0-020..036) over a generated realistic-size fixture: `make perf-budget`.
 //
 //	perf-budget [--budgets FILE] [--scale full|smoke] [--fixture DIR] [--corvint BIN]
-//	            [--corpus-mcp BIN] [--out FILE] [--record-baseline] [--require-judgement]
+//	            [--corpus-mcp BIN] [--out FILE] [--scenario ID]... [--record-baseline]
+//	            [--require-judgement]
+//	perf-budget [--budgets FILE] --record-baseline-from REPORT
+//
+// --scenario measures and judges only the named scenarios; with --record-baseline it replaces
+// only their baseline measurements, each with its run's provenance (PRB-V0-970).
+// --record-baseline-from records the baseline from a report another run wrote with --out, the
+// path when the local host is contended: run with --out on a quiet host, copy the report back,
+// and record it here (PRB-V0-971).
 //
 // It prints the report JSON to stdout and exits 0 when every enforced limit holds (pending
 // targets are reported, never failing), 1 when an enforced limit is exceeded or unobserved or a
@@ -15,6 +23,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -22,9 +31,11 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/perfbudget"
 )
 
@@ -45,6 +56,18 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	out := flags.String("out", "", "also write the report to FILE")
 	record := flags.Bool("record-baseline", false, "write this run's measurements and host record as the budgets file's baseline")
 	requireJudgement := flags.Bool("require-judgement", false, "exit 3 instead of 0 when the run is NOT_JUDGED")
+	var selected []string
+	flags.Func("scenario", "measure and judge only scenario ID (repeatable; PRB-V0-970)", func(id string) error {
+		if !slices.Contains(perfbudget.ScenarioIDs, id) {
+			return fmt.Errorf("unknown scenario %q, want one of %v", id, perfbudget.ScenarioIDs)
+		}
+		if slices.Contains(selected, id) {
+			return fmt.Errorf("scenario %q named twice", id)
+		}
+		selected = append(selected, id)
+		return nil
+	})
+	recordFrom := flags.String("record-baseline-from", "", "record the baseline from REPORT, a report another run wrote with --out (PRB-V0-971)")
 	if flags.Parse(args) != nil || flags.NArg() != 0 {
 		return 2
 	}
@@ -55,6 +78,23 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	budgets, err := perfbudget.LoadBudgets(*budgetsPath)
 	if err != nil {
 		return fail(err)
+	}
+	if *recordFrom != "" {
+		if *record || len(selected) != 0 {
+			return fail(errors.New("--record-baseline-from records a finished report; it takes no --record-baseline or --scenario"))
+		}
+		report, err := readReport(*recordFrom)
+		if err != nil {
+			return fail(err)
+		}
+		if report.Fixture == nil || report.Fixture.Scale.Name != budgets.Scale {
+			return fail(fmt.Errorf("baseline not recorded: report %s is not a run at the budgets scale %q", *recordFrom, budgets.Scale))
+		}
+		if err := recordBaseline(*budgetsPath, budgets, report); err != nil {
+			return fail(err)
+		}
+		fmt.Fprintln(stderr, "perf-budget: baseline recorded in "+*budgetsPath+" from "+*recordFrom)
+		return 0
 	}
 	if *scaleName == "" {
 		*scaleName = budgets.Scale
@@ -113,7 +153,7 @@ func run(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 			revision += "+dirty"
 		}
 	}
-	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, CorpusMCP: *corpusMCP, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress})
+	report, err := perfbudget.Run(ctx, perfbudget.Options{Budgets: budgets, Corvint: *corvint, CorpusMCP: *corpusMCP, FixtureDir: *fixtureDir, Scale: scale, Revision: revision, Progress: progress, Selected: selected})
 	if err != nil {
 		return fail(err)
 	}
@@ -188,7 +228,19 @@ func recordBaseline(path string, budgets *perfbudget.Budgets, report *perfbudget
 		return fmt.Errorf("baseline not recorded: run %s on an unjudged host: %s", report.Verdict, report.NotJudgedReason)
 	}
 	recorded := *budgets
-	recorded.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
+	if len(report.Selected) == 0 {
+		recorded.Baseline = &perfbudget.Baseline{RecordedAt: report.StartedAt, Revision: report.Revision, Host: report.Host, Fixture: report.Fixture, Scenarios: report.Scenarios}
+	} else {
+		merged, err := mergeBaseline(budgets.Baseline, report)
+		if err != nil {
+			return err
+		}
+		recorded.Baseline = merged
+		// The provenance fields are checked where the budgets file is loaded (PRB-V0-053).
+		if err := recorded.Validate(); err != nil {
+			return fmt.Errorf("baseline not recorded: %w", err)
+		}
+	}
 	encoded, err := json.MarshalIndent(&recorded, "", "  ")
 	if err != nil {
 		return err
@@ -203,4 +255,46 @@ func ownedOutput(ctx context.Context, name string, args ...string) ([]byte, erro
 	cmd.Stdout = &stdout
 	err := perfbudget.RunOwned(cmd)
 	return stdout.Bytes(), err
+}
+
+// mergeBaseline replaces the selected scenarios' measurements of a filtered run in a copy of
+// baseline, each attributed to its run by PRB-V0-053 provenance; the other measurements, and the
+// baseline's own revision, host and fixture, are kept (PRB-V0-970).
+func mergeBaseline(baseline *perfbudget.Baseline, report *perfbudget.Report) (*perfbudget.Baseline, error) {
+	if baseline == nil {
+		return nil, errors.New("baseline not recorded: a --scenario run replaces measurements of an existing baseline, and the budgets file has none; record a whole run first")
+	}
+	if report.Fixture == nil {
+		return nil, errors.New("baseline not recorded: the run names no fixture, so its executable is unknown")
+	}
+	merged := *baseline
+	merged.Scenarios = slices.Clone(baseline.Scenarios)
+	for _, m := range report.Scenarios {
+		m.Provenance = &perfbudget.Provenance{RecordedAt: report.StartedAt, ExecutableRevision: report.Revision, ExecutableSHA256: report.Fixture.BuilderSHA256, Host: report.Host}
+		index := slices.IndexFunc(merged.Scenarios, func(b perfbudget.ScenarioMeasured) bool { return b.ID == m.ID })
+		if index < 0 {
+			return nil, fmt.Errorf("baseline not recorded: the baseline has no scenario %s to replace", m.ID)
+		}
+		merged.Scenarios[index] = m
+	}
+	return &merged, nil
+}
+
+// readReport decodes one report a run wrote with --out, refusing unknown members and any content
+// after the one JSON value (PRB-V0-971).
+func readReport(path string) (*perfbudget.Report, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var report perfbudget.Report
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&report); err != nil || !jsonend.Done(decoder) {
+		return nil, fmt.Errorf("report %s is not one perf-budget report", path)
+	}
+	if report.Schema != perfbudget.ReportSchema {
+		return nil, fmt.Errorf("report %s has schema %q, want %q", path, report.Schema, perfbudget.ReportSchema)
+	}
+	return &report, nil
 }

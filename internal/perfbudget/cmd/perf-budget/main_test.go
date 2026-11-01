@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -155,5 +157,155 @@ func TestPRBV0056CheckLineNamesUnenforcedTargets(t *testing.T) {
 		if got := checkLine(perfbudget.Check{Scenario: "cli-warm-read", Kind: kind, Limit: tc.limit, Verdict: verdict}); got != tc.want {
 			t.Errorf("line %q, want %q", got, tc.want)
 		}
+	}
+}
+
+// PRB-V0-970: an unknown or repeated --scenario, or --record-baseline-from with a run flag,
+// exits 2 before anything runs.
+func TestPRBV0970ScenarioFilterArguments(t *testing.T) {
+	report := filepath.Join(t.TempDir(), "report.json")
+	for name, args := range map[string][]string{
+		"unknown":       {"--scenario", "cli-hot-read"},
+		"repeated":      {"--scenario", "cli-warm-read", "--scenario", "cli-warm-read"},
+		"from + run":    {"--record-baseline-from", report, "--scenario", "cli-warm-read"},
+		"from + record": {"--record-baseline-from", report, "--record-baseline"},
+	} {
+		var stdout, stderr bytes.Buffer
+		args = append([]string{"--budgets", filepath.Join("..", "..", "budgets.json")}, args...)
+		if code := run(context.Background(), args, &stdout, &stderr); code != 2 || stdout.Len() != 0 {
+			t.Errorf("%s: exit %d stdout %q stderr %q", name, code, &stdout, &stderr)
+		}
+	}
+}
+
+// judgedReport is a PASS report on an uncontended host at a clean revision.
+func judgedReport(t *testing.T, budgets *perfbudget.Budgets, selected []string) *perfbudget.Report {
+	t.Helper()
+	contended := false
+	fixture := *budgets.Baseline.Fixture
+	fixture.BuilderSHA256 = strings.Repeat("b", 64)
+	r := &perfbudget.Report{Schema: perfbudget.ReportSchema, Verdict: perfbudget.RunPass, OK: true, StartedAt: "2026-10-31T00:00:00Z",
+		Revision: strings.Repeat("a", 40), Host: perfbudget.Host{Cores: 32, Contended: &contended, LoadBefore: []float64{1, 1, 1}, LoadAfter: []float64{1, 1, 1}},
+		Fixture: &fixture, Selected: selected, Checks: []perfbudget.Check{}, Pending: []perfbudget.Check{}, Advisory: []perfbudget.Check{}}
+	ids := selected
+	if len(ids) == 0 {
+		ids = perfbudget.ScenarioIDs
+	}
+	for _, id := range ids {
+		wall := 7.0
+		r.Scenarios = append(r.Scenarios, perfbudget.ScenarioMeasured{ID: id, Command: []string{"corvint"}, Samples: []perfbudget.Sample{{WallMS: 7}}, P50WallMS: &wall, P95WallMS: &wall})
+	}
+	return r
+}
+
+// PRB-V0-970: a filtered --record-baseline replaces only the selected measurements, each with
+// its run's provenance, and refuses a dirty revision or a budgets file without a baseline.
+func TestPRBV0970FilteredBaselineReplacesOnlySelected(t *testing.T) {
+	committed, err := os.ReadFile(filepath.Join("..", "..", "budgets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	budgets, err := perfbudget.LoadBudgets(filepath.Join("..", "..", "budgets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "budgets.json")
+	dirty := judgedReport(t, budgets, []string{"mcp-warm-call"})
+	dirty.Revision += "+dirty"
+	empty := *budgets
+	empty.Baseline = nil
+	for name, attempt := range map[string]func() error{
+		"dirty revision": func() error { return recordBaseline(path, budgets, dirty) },
+		"no baseline":    func() error { return recordBaseline(path, &empty, judgedReport(t, budgets, []string{"mcp-warm-call"})) },
+	} {
+		if err := os.WriteFile(path, committed, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := attempt(); err == nil || !strings.HasPrefix(err.Error(), "baseline not recorded") {
+			t.Errorf("%s: recorded (%v)", name, err)
+		}
+		if after, _ := os.ReadFile(path); !bytes.Equal(after, committed) {
+			t.Errorf("%s: budgets file changed", name)
+		}
+	}
+	if err := recordBaseline(path, budgets, judgedReport(t, budgets, []string{"mcp-warm-call"})); err != nil {
+		t.Fatal(err)
+	}
+	recorded, err := perfbudget.LoadBudgets(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded.Baseline.Revision != budgets.Baseline.Revision {
+		t.Fatalf("a filtered run replaced the baseline's own revision: %s", recorded.Baseline.Revision)
+	}
+	for index, m := range recorded.Baseline.Scenarios {
+		was := budgets.Baseline.Scenarios[index]
+		if m.ID != "mcp-warm-call" {
+			if !reflect.DeepEqual(m, was) {
+				t.Fatalf("unselected scenario %s changed", m.ID)
+			}
+			continue
+		}
+		if m.Provenance == nil || m.Provenance.ExecutableRevision != strings.Repeat("a", 40) || m.Provenance.ExecutableSHA256 != strings.Repeat("b", 64) || *m.P50WallMS != 7 {
+			t.Fatalf("selected scenario not replaced with provenance: %+v", m)
+		}
+	}
+}
+
+// PRB-V0-971: --record-baseline-from records a judged report written elsewhere and refuses a
+// contended one, trailing content, or another scale, leaving the budgets file untouched.
+func TestPRBV0971RecordBaselineFromReport(t *testing.T) {
+	committed, err := os.ReadFile(filepath.Join("..", "..", "budgets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	budgets, err := perfbudget.LoadBudgets(filepath.Join("..", "..", "budgets.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	path := filepath.Join(dir, "budgets.json")
+	write := func(name string, r *perfbudget.Report, trailer string) string {
+		data, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		file := filepath.Join(dir, name)
+		if err := os.WriteFile(file, append(data, trailer...), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return file
+	}
+	contended := judgedReport(t, budgets, nil)
+	contended.Verdict, contended.NotJudgedReason, contended.OK = perfbudget.RunNotJudged, "host contended", false
+	smoke := judgedReport(t, budgets, nil)
+	smoke.Fixture.Scale = perfbudget.Smoke
+	for name, report := range map[string]string{
+		"contended": write("contended.json", contended, "\n"),
+		"trailing":  write("trailing.json", judgedReport(t, budgets, nil), "}"),
+		"scale":     write("smoke.json", smoke, ""),
+		"absent":    filepath.Join(dir, "absent.json"),
+	} {
+		if err := os.WriteFile(path, committed, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr bytes.Buffer
+		if code := run(context.Background(), []string{"--budgets", path, "--record-baseline-from", report}, &stdout, &stderr); code != 2 {
+			t.Errorf("%s: exit %d stderr %q", name, code, &stderr)
+		}
+		if after, _ := os.ReadFile(path); !bytes.Equal(after, committed) {
+			t.Errorf("%s: budgets file changed", name)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(context.Background(), []string{"--budgets", path, "--record-baseline-from", write("quiet.json", judgedReport(t, budgets, nil), "\n")}, &stdout, &stderr); code != 0 {
+		t.Fatalf("judged report: exit %d stderr %q", code, &stderr)
+	}
+	recorded, err := perfbudget.LoadBudgets(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded.Baseline.Revision != strings.Repeat("a", 40) || recorded.Baseline.Host.Cores != 32 || len(recorded.Baseline.Scenarios) != len(perfbudget.ScenarioIDs) {
+		t.Fatalf("report not recorded as the baseline: %+v", recorded.Baseline)
 	}
 }

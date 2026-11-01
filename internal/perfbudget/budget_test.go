@@ -582,3 +582,49 @@ func TestPRBV0056UnenforcedTargetNeverReadsAsPassing(t *testing.T) {
 		t.Fatal("pending list serialises as null")
 	}
 }
+
+// PRB-V0-970: a filtered run measures and judges only the selected scenarios; naming only the
+// warm MCP call still measures the MCP pair together but reports only the warm call.
+func TestPRBV0970RunMeasuresOnlySelected(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds corvint and corvint-corpus-mcp")
+	}
+	dir := t.TempDir()
+	bin := map[string]string{}
+	for _, pkg := range []string{"corvint", "corvint-corpus-mcp"} {
+		bin[pkg] = filepath.Join(dir, testplatform.Executable(pkg))
+		build := exec.Command("go", "build", "-o", bin[pkg], "../../cmd/"+pkg)
+		if out, err := build.CombinedOutput(); err != nil {
+			t.Fatalf("go build %s: %v %s", pkg, err, out)
+		}
+	}
+	b, err := LoadBudgets("budgets.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Scale = Smoke.Name
+	for i := range b.Scenarios {
+		b.Scenarios[i].Samples = 1
+	}
+	quiet := func(context.Context) ([]float64, string) { return []float64{0.5, 0.5, 0.5}, "" }
+	selected := []string{"mcp-warm-call", "cli-warm-read"}
+	r, err := Run(context.Background(), Options{Budgets: b, Corvint: bin["corvint"], CorpusMCP: bin["corvint-corpus-mcp"], FixtureDir: filepath.Join(dir, "fixture"), Scale: Smoke, Revision: "test", LoadAverage: quiet, Selected: selected})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{}
+	for _, m := range r.Scenarios {
+		ids = append(ids, m.ID)
+	}
+	if !slices.Equal(ids, []string{"cli-warm-read", "mcp-warm-call"}) || !slices.Equal(r.Selected, selected) {
+		t.Fatalf("filtered run measured %v, selected %v", ids, r.Selected)
+	}
+	for _, c := range append(append(slices.Clone(r.Checks), r.Pending...), r.Advisory...) {
+		if !slices.Contains(selected, c.Scenario) {
+			t.Fatalf("filtered run judged unselected scenario %s", c.Scenario)
+		}
+		if c.Reason == "scenario not measured" {
+			t.Fatalf("selected scenario %s not measured", c.Scenario)
+		}
+	}
+}
