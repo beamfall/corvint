@@ -216,3 +216,24 @@ func hasResultKind(results [][]string, kind string) bool {
 	}
 	return false
 }
+
+// CEM-V1-955 (V1-3531): an lrf --cem map outside the repository root is refused
+// with the rule, the resolved path, the root and the stable reader that accepts it.
+func TestLRFOutsideRootRefusalNamesRulePathAndRoot(t *testing.T) {
+	t.Parallel()
+	fixture := newLRFFixture(t)
+	outside := filepath.Join(t.TempDir(), "map.cem.json")
+	if err := os.WriteFile(outside, fixture.cemRaw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	root, err := filepath.EvalSymlinks(fixture.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, stdout, stderr := runCLI(t, "--root", fixture.root, "lrf", "--cem", outside)
+	if code != 2 || stdout != "" || !strings.Contains(stderr, `"code": "invalid-arguments"`) ||
+		!strings.Contains(stderr, "must remain inside repository root") || !strings.Contains(stderr, outside) ||
+		!strings.Contains(stderr, root) || !strings.Contains(stderr, "corvint cem verify --map") {
+		t.Fatalf("exit=%d stdout=%q stderr=%q", code, stdout, stderr)
+	}
+}

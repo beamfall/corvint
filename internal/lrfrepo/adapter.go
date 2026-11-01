@@ -98,9 +98,11 @@ type verifiedCEM struct {
 func readRootInput(root *publish.Root, requested string, bound int, code string) ([]byte, error) {
 	path := requested
 	if filepath.IsAbs(path) {
-		relative, err := filepath.Rel(root.Path(), filepath.Clean(path))
+		resolved := filepath.Clean(path)
+		relative, err := filepath.Rel(root.Path(), resolved)
 		if err != nil || relative == "." || relative == ".." || filepath.IsAbs(relative) || len(relative) >= 3 && relative[:3] == ".."+string(filepath.Separator) {
-			return nil, fail(cemcode.InvalidArguments, "input path must remain inside repository root")
+			// CEM-V1-955: name the rule, the resolved path and the root.
+			return nil, fail(cemcode.InvalidArguments, "input path must remain inside repository root: %s is outside the root %s; copy the file into the repository, or read a map outside it with `corvint cem verify --map ABSOLUTE_PATH`", resolved, root.Path())
 		}
 		path = filepath.ToSlash(relative)
 	}
