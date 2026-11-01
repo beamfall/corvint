@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
@@ -136,7 +137,7 @@ func TestPSMLiveCancellationReapsDescendants(t *testing.T) {
 func TestPSMLiveCommandDriftRefusesExecution(t *testing.T) {
 	root := t.TempDir()
 	command := commandFixture(t, root, "reset", "#!/bin/sh\nexit 0\n")
-	if err := os.WriteFile(command.Argv[0], []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+	if err := execfile.WriteFile(command.Argv[0], []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if runCommand(context.Background(), command, root, Trial{}).Started {
@@ -147,7 +148,7 @@ func TestPSMLiveCommandDriftRefusesExecution(t *testing.T) {
 func commandFixture(t *testing.T, root, name, source string) Command {
 	t.Helper()
 	path := filepath.Join(root, name)
-	if err := os.WriteFile(path, []byte(source), 0700); err != nil {
+	if err := execfile.WriteFile(path, []byte(source), 0700); err != nil {
 		t.Fatal(err)
 	}
 	return Command{Argv: []string{path}, ExecutableSHA256: digestBytes([]byte(source))}

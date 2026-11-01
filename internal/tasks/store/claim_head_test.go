@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -154,7 +155,7 @@ func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
 	fake := func(t *testing.T, body string) string {
 		t.Helper()
 		path := filepath.Join(t.TempDir(), "git")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return path

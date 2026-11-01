@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // PMR-V0-940..942: the harness authors private commits from adapter content and
@@ -101,7 +103,7 @@ func TestAuthorCommitsPreservesExecutableMode(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "scripts", "check_test.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(root, "scripts", "check_test.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	git(t, root, "add", ".")

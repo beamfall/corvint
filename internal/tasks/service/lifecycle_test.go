@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -117,7 +118,7 @@ func newServiceHome(t *testing.T) *serviceHome {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(s.exe, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(s.exe, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	s.cfg = dispatch.Config{Profile: dispatch.ConfigProfile, StateDir: filepath.Join(home, "dispatch-state"), WorkRoot: s.work, TickSeconds: 1, GlobalCap: 1, KillGraceSeconds: 1, Hosts: map[string]dispatch.Host{"sh": {Argv: []string{s.exe, "{prompt}"}}}, Roles: []dispatch.Role{{Name: "impl", Host: "sh", Cap: 1, Match: &dispatch.Match{}, Prompt: "work on {ticketLocal} as {holder}", IdleSeconds: 30, WallSeconds: 60}}, Backoff: dispatch.Backoff{ParkAfter: 2}}

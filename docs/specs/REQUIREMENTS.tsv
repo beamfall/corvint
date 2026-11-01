@@ -7496,6 +7496,7 @@ WQO-V0-031	docs/specs/work-queue-observation-v0.md	`PARTIAL`, `CONFLICTED`, `STA
 WQO-V0-032	docs/specs/work-queue-observation-v0.md	Timeout, cancellation, non-zero exit, malformed bytes, digest mismatch, overflow	unrecorded	-
 WQO-V0-052	docs/specs/work-queue-observation-v0.md	(V1-2291, decision 0552) Each Git child a scratch-owning work source starts keep	unrecorded	-
 WQO-V0-093	docs/specs/work-queue-observation-v0.md	(proposed; V1-2476, V1-2550) Materialization MUST write every `100755` entry	unrecorded	-
+WQO-V0-921	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2587, amending	standing	2026-11-01; V1-2587
 WQO-V0-096	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work	standing	2026-10-28; V1-3063
 WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept; V1-2769) The remaining fixed	standing	V1-2769
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11

@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -427,7 +428,7 @@ func writeFailOpenStaleIndex(t *testing.T, binary, repository, home string) {
 
 func writeFailOpenShim(t *testing.T, path, body string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o700); err != nil {
 		t.Fatal(err)
 	}
 }

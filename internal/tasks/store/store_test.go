@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -266,7 +267,7 @@ func TestObserveSourceIgnoresAmbientConfigurationAndReplaceRefs(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "fsmonitor-ran")
 	global := filepath.Join(t.TempDir(), "gitconfig")
 	hook := filepath.Join(t.TempDir(), "fsmonitor.sh")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch "+marker+"\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\ntouch "+marker+"\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(global, []byte("[core]\n\tfsmonitor = "+hook+"\n"), 0o644); err != nil {

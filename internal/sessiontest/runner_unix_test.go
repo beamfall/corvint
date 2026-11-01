@@ -18,6 +18,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fakeGo is a `go` on PATH whose behaviour FAKE_MODE selects: it answers the
@@ -156,7 +158,7 @@ func gateFake(t *testing.T, dir string, steps ...func() bool) {
 func runnerFixture(t *testing.T, mode string) (*Runner, Manifest, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(fakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "go"), []byte(fakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+"/bin"+string(os.PathListSeparator)+"/usr/bin")
@@ -379,7 +381,7 @@ func TestSTRV0015DiscoveryStopsAtShardDeadline_V11311(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(script, []byte("#!/bin/sh\necho declared >> \"$FAKE_DIR/probes\"\necho fake-tests 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\necho declared >> \"$FAKE_DIR/probes\"\necho fake-tests 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}
@@ -417,14 +419,14 @@ func TestSTRV0003DeclaredRelativeCommandResolvesAgainstRoot(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(script, []byte("#!/bin/sh\n[ \"$1\" = --version ] && echo fake-tests 1\npwd > \"$FAKE_DIR/cwd\"\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\n[ \"$1\" = --version ] && echo fake-tests 1\npwd > \"$FAKE_DIR/cwd\"\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}
 	m.Scope, m.Units = ScopeFull, []Unit{{Adapter: AdapterDeclared, Shard: 0, Slice: SliceWhole, Unit: "declared:python"}}
 	digest, _ := Digest(m)
 	elsewhere := t.TempDir()
-	if err := os.WriteFile(filepath.Join(elsewhere, "fake-tests"), []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(elsewhere, "fake-tests"), []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(elsewhere)
@@ -486,7 +488,7 @@ func TestSTRV0004RunnerRefusesAdapterWithoutManifest(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(script, []byte("#!/bin/sh\ntouch \"$FAKE_DIR/declared\"\necho fake-tests 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\ntouch \"$FAKE_DIR/declared\"\necho fake-tests 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	runner.Declared.Languages = []LanguageCommand{{Language: "python", Argv: []string{"./tools/fake-tests"}}}

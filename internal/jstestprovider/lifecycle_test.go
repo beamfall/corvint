@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -30,7 +31,7 @@ func serverFixture(t *testing.T) (script, pidfile string) {
 	pidfile = filepath.Join(dir, "descendant.pid")
 	script = filepath.Join(dir, "server")
 	body := fmt.Sprintf("#!/bin/sh\n/bin/sleep 60 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null; exit 0' INT TERM\necho $child > '%s'\nwait\n", pidfile)
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {

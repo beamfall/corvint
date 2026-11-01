@@ -6,6 +6,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TMR-V0-950, TMR-V0-952: `--tool-profile tasks` lists the five Tasks tools
@@ -23,7 +25,7 @@ func TestTMRV0950TasksGroupRunsTheInstalledReadVerb(t *testing.T) {
 	}
 	bin := t.TempDir()
 	script := "#!/bin/sh\nprintf '{\"codes\":[],\"command\":[\"%s\"],\"items\":[{\"cwd\":\"%s\",\"readOnly\":\"%s\",\"args\":\"%s\"}],\"outcome\":\"OK\",\"page\":null,\"profile\":\"taskman-command-result/0\"}\\n' \"$1\" \"$(pwd -P)\" \"$CORVINT_TASKS_READ_ONLY\" \"$*\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -1032,7 +1032,7 @@ unrelated test's ACQUIRE (with ordinary `t.TempDir()` paths carrying no such seg
 matches.
 `cmd/corvint-go-test-provider/main_test.go:78` calls `runQualificationAuthority`
 (`cmd/corvint-go-test-provider/qualification_test.go:24`), the drift fixture's routing hook keyed on
-`driftFixtureSegment` (`cmd/corvint-go-test-provider/qualification_test.go:19`); it is a test-only
+`driftFixtureSegment` (`cmd/corvint-go-test-provider/qualification_test.go:20@f9df02b9`); it is a test-only
 file, so this is not a second production change. Both exchanges MUST route to the real
 `runProductionAuthority` — which `runQualificationAuthority` calls directly at
 `cmd/corvint-go-test-provider/qualification_test.go:27` and `:38` — and never to the stateless

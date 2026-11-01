@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -43,7 +44,7 @@ func multiCommitted(t *testing.T, dir, file, body string) {
 func multiScript(t *testing.T, path, body string) []byte {
 	t.Helper()
 	raw := []byte(body)
-	if err := os.WriteFile(path, raw, 0o755); err != nil {
+	if err := execfile.WriteFile(path, raw, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(path, 0o755); err != nil {

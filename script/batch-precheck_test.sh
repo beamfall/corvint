@@ -1139,7 +1139,8 @@ grep -q kept "$tmp/out" && fail "an ignored tool output was refused: $(cat "$tmp
 # Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
 # or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
 # suffix pass.
-for t in license-headers-check mkfifo-build-tags-check; do
+# WQO-V0-921 (V1-2587): test-exec-writes-check is one too.
+for t in license-headers-check mkfifo-build-tags-check test-exec-writes-check; do
   grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
 done
 frepo=$tmp/frepo

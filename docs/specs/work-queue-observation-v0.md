@@ -722,6 +722,17 @@ Explicit unknowns for an adopted repository:
   control is reported, not asserted. Rollback: write entries without the guard; the V1-2433 retry
   then bounds, but does not remove, the race.
 
+- `WQO-V0-921`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2587, amending
+  WQO-V0-093) A test that writes a file it then executes SHALL write it with
+  `execfile.WriteFile`, and `script/check-test-exec-writes.sh`, a doc gate, SHALL refuse each
+  `os.WriteFile` call in an indexed `*_test.go` file whose permission is an octal literal (bare or in
+  an `os.FileMode` or `fs.FileMode` conversion) with an execute bit, naming its file and line and the
+  fix. `internal/execfile`, testdata trees and nested Go modules, which cannot import
+  `internal/execfile`, are exempt, and so is `internal/tasks/cli` until its own sweep lands; a
+  permission held in a variable is not seen. Failure mode: a new fixture writes a script with
+  `os.WriteFile` and fails `ETXTBSY` under parallel forks. Rollback: drop the check from the gate
+  lists; the swept fixtures stay correct.
+
 - `WQO-V0-096`: (experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work
   child environment is VPO-V0-022's `verification-env/posix-local/0` plus exactly one more name,
   `XDG_CACHE_HOME`, set to the invoking user's cache directory (`os.UserCacheDir`: `~/Library/Caches`
@@ -894,6 +905,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Adapter capture drain detector | WQO-V0-920 | `cmd/corvint/work_runner.go` `workDrainCapture`, `run`; `cmd/corvint/work_runner_drain_test.go` `TestWorkDrainCaptureIgnoresHostStalls`, `TestWorkDrainCaptureExpiresWhileAwake`, `TestWorkDrainCaptureHangDetector`, `TestWorkDrainCaptureStopsOnCancellation`, `TestWorkDrainCaptureCopyError`; `TestWorkRunnerEscapedPipeHolder` |
 | Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
 | Fork-safe executable materialization | WQO-V0-093 | `internal/execfile/execfile.go` `Guard`, `WriteFile`; `cmd/corvint/work_materialization.go` `writeEntries`, `workWriteEntry`; `TestWriteFileExcludesForkInheritance`, `TestWriteFileMatchesOSWriteFile` |
+| Test executables use the fork-safe writer | WQO-V0-921 | `script/check-test-exec-writes.sh`; the Makefile `test-exec-writes-check` and `test-exec-writes-test` targets in `GATE_STEPS`, `DOC_GATE_TARGETS` and the `shell-test` prerequisites; `script/check-test-exec-writes_test.sh` (a single-line `0o755` and a multi-line `fs.FileMode(0700)` call are named by line, while `0o644`, `os.FileMode(0600)`, `execfile.WriteFile`, `internal/execfile`, testdata and a nested module pass); `script/batch-precheck_test.sh` case 14 |
 | Work child user cache root | WQO-V0-096 | `cmd/corvint/work_materialization.go` `workChildEnvironment`, `workUserCacheDir`; `TestWorkChildEnvironmentUserCache`, `TestWorkMaterializationExactEnvironment`, `TestWorkSelfAdapterSourceParity` (the producer compiles into the shared user cache, never `<run>/home/.cache` or `corvint-work-queue-owner/build/cache`; it fails on that path without the fix); timings in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3060-macos-cmd-corvint-wall-time.md` |
 | Scratch parent for executable copy and script | WQO-V0-095 | `cmd/corvint/work_executable_binding.go` `workMaterializeBoundExecutable`; `script/corvint-work-queue`; `TestWorkScratchRootFollowsOverride`, `TestWorkScriptScratchParentOverride`; `conformance/work-queue-v0/replay.go` `withWorkRunParent`, `TestWithWorkRunParent` |
 | Private run parent override | WQO-V0-094 | `internal/worksource/parent.go` `ScratchParent`; `internal/worksource/git.go` `newSourceWithScratch`; `cmd/corvint/work_materialization.go` `workRunParent`; `internal/testsupport/workrunparent.go` `PrivateWorkRunParent`; `TestScratchParentOverride`, `TestScratchParentOverrideRefusals`, `TestWorkRunParentOverride` |

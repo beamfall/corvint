@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -30,7 +31,7 @@ func TestPinnedRepositoryGitAllReadPaths(t *testing.T) {
 	binary := filepath.Join(outside, "host-git")
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
 	script := fmt.Sprintf("#!/bin/sh\n[ \"${GIT_ALLOW_PROTOCOL+x}\" = x ] && [ -z \"$GIT_ALLOW_PROTOCOL\" ] || exit 91\nprintf '%%s\\n' \"$*\" >> %s\nexec %s \"$@\"\n", quote(log), quote(realGit))
-	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(binary, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	repository, err := OpenPinned(root, gitrun.NewDefaultBudget(), binary)
@@ -39,7 +40,7 @@ func TestPinnedRepositoryGitAllReadPaths(t *testing.T) {
 	}
 	decoy := filepath.Join(outside, "git")
 	marker := filepath.Join(outside, "planted-ran")
-	if err := os.WriteFile(decoy, []byte("#!/bin/sh\ntouch "+quote(marker)+"\nexit 92\n"), 0700); err != nil {
+	if err := execfile.WriteFile(decoy, []byte("#!/bin/sh\ntouch "+quote(marker)+"\nexit 92\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", outside+string(os.PathListSeparator)+os.Getenv("PATH"))
