@@ -96,6 +96,25 @@ func (s *e2eSelector) planUnbounded(u affected.Unknown) bool {
 	return unbounded(u)
 }
 
+// reliedExclusions narrows each plan frontier exclusion to the reasons planUnbounded would have
+// counted had the plan listed them unknown, leaving out an exclusion with none (AFU-V1-810).
+func (s *e2eSelector) reliedExclusions() []affected.FrontierExclusion {
+	var out []affected.FrontierExclusion
+	for _, x := range s.in.Plan.FrontierExcluded {
+		var relied []string
+		for _, reason := range x.Frontier {
+			if s.planUnbounded(affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: reason}) {
+				relied = append(relied, reason)
+			}
+		}
+		if len(relied) != 0 {
+			x.Frontier = relied
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
 // frontierReason returns the `namespace:reason` prefix of a frontier entry.
 func frontierReason(entry string) string {
 	fields := strings.SplitN(entry, ":", 3)
@@ -202,6 +221,9 @@ type E2ESelection struct {
 	// Refusal is present only on a blocked provider-unavailable result: which document was refused
 	// and its closed refusal class, never the refused text (AFU-V1-127).
 	Refusal *E2EFallback `json:"refusal,omitempty"`
+	// FrontierExcluded states each plan frontier exclusion this selection relied on: the reasons
+	// that would have widened it to every changed path had the plan listed them unknown (AFU-V1-810).
+	FrontierExcluded []affected.FrontierExclusion `json:"frontier_excluded,omitempty"`
 }
 
 type E2EDiscovery struct {
@@ -311,6 +333,7 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	}
 	s := newE2ESelector(ctx, root, in, provider, records, repos)
 	out.Base = s.base
+	out.FrontierExcluded = s.reliedExclusions()
 	discovery, discovered := s.discover()
 	out.Discovery = discovery
 	codes := s.boundCodes()
