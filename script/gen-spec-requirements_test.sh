@@ -566,4 +566,33 @@ case $frz_err in
 esac
 git -C "$test_root" rm -q --cached -- docs/specs/frozen.md
 
+# 14. SRG-V0-966 (V1-3660): an ID restated at the start of a line under a Rollback heading is no
+# definition: no duplicate refusal and no title from it; the next heading ends the section.
+# SRG-V0-965 and SRG-V0-967: the spec-requirements recipe runs the obligation-bound check and
+# prints a no-changes or updated line.
+cat > "$test_root/docs/specs/rbk.md" <<'SPEC'
+## Requirements
+
+- `RBK-V0-001`: the definition.
+
+## Rollback
+
+RBK-V0-001: revert the commit that added it.
+
+## Notes
+
+- `RBK-V0-002`: defined after the rollback section ends.
+SPEC
+stage docs/specs/rbk.md
+rbk=$(run) || fail "a rollback-section line was refused as a second definition"
+printf '%s\n' "$rbk" | grep -q '^RBK-V0-001	docs/specs/rbk.md	the definition\.' ||
+  fail "a rollback line displaced the definition: $(printf '%s\n' "$rbk" | grep '^RBK-V0-001')"
+printf '%s\n' "$rbk" | grep -q '^RBK-V0-002	docs/specs/rbk.md	defined after' ||
+  fail "the rollback section did not end at the next heading: $(printf '%s\n' "$rbk" | grep '^RBK-V0-002')"
+git -C "$test_root" rm -q --cached -- docs/specs/rbk.md
+recipe=$(sed -n '/^spec-requirements:/,/^$/p' "$(dirname "$0")/../Makefile")
+for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSpecsStayWithinTheOCMObligationBound' 'SRG-V0-965'; do
+  case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
+done
+
 printf 'ok\n'

@@ -264,6 +264,7 @@ for my $file (sort @specs) {
     };
     my $line_number = 0;
     my $previous_blank = 1;
+    my $rollback = 0;
     my ($fence, $continues) = ('', 0);
     for my $line (split /^/, $blob) {
         ++$line_number;
@@ -284,6 +285,9 @@ for my $file (sort @specs) {
             $fence = $run;
         }
         $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
+        # SRG-V0-966 (V1-3660): a rollback section restates IDs (`ID: revert ...`) without
+        # defining them, so its lines never rank 0; the next heading ends the section.
+        $rollback = $1 =~ /^Rollback\b/i ? 1 : 0 if $fence eq '' && $line =~ /^ {0,3}#{2,6}\s+(.*)/;
 
         while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
             my $id = $1;
@@ -293,6 +297,7 @@ for my $file (sort @specs) {
                      : $definition_boundary && $line =~ /^\s*(?:[-*]\s+)?(?:\*\*)?`?$quoted`?(?:\*\*)?\s*:/ ? 0
                      : $line =~ /^\s*\|\s*`?$quoted`?(?:\s|\||\.)/ ? 1
                      : 2;
+            $rank = 2 if $rank == 0 && $rollback;
             next if $rank > 1;
             push @{$definitions{$id}}, "$file:$line_number"
                 if $rank == 0 && !$wrapped && !grep { $_ eq "$file:$line_number" } @{$definitions{$id} // []};

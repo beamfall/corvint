@@ -241,8 +241,12 @@ SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
 
 .PHONY: spec-requirements
 spec-requirements:
-	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
-	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
+	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; updated=''; \
+	for file in $(SPEC_GENERATED); do cmp -s "$$tmp/$$file" "docs/specs/$$file" && continue; \
+	cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; updated="$$updated $$file"; done; \
+	if test -n "$$updated"; then echo "spec-requirements: updated$$updated"; else echo "spec-requirements: no changes"; fi
+	@out=$$($(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo 2>&1) || \
+	{ printf '%s\n' "$$out" >&2; echo "spec-requirements: a spec's ## Requirements section exceeds the 256-obligation OCM bound (named above); define the new requirement in a section of its own, then rerun (SRG-V0-965)" >&2; exit 1; }
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
