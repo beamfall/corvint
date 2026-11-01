@@ -75,6 +75,12 @@ func checkNoSymlink(path string) error {
 			return wire.Errorf(wire.CodeUnsupportedFilesystem, cur, "cannot stat: %v", err)
 		}
 		if fi.Mode()&os.ModeSymlink != 0 {
+			// The refusal is the path's shape, not its filesystem: on macOS
+			// /tmp is a symlink to the supported APFS /private/tmp, so name
+			// the symlink-free path to use instead (CTS-V0-532).
+			if real, err := filepath.EvalSymlinks(cur); err == nil {
+				return wire.Errorf(wire.CodeUnsupportedFilesystem, cur, "symlink in the resolved path; the store needs a symlink-free path, so use %s", filepath.Join(real, strings.TrimPrefix(clean, cur)))
+			}
 			return wire.Errorf(wire.CodeUnsupportedFilesystem, cur, "symlink in the resolved path")
 		}
 	}
