@@ -138,8 +138,8 @@ The baseline is manual archive verification and copying binaries, with external 
   remove `relate` and the four result fields; callers compare `installedVersion` and `availableTag`
   by hand, as before.
 - `UPD-V0-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3301) On basis
-  `version`, an installed label whose prerelease ends in the identifier `dev` (`1.0.0-rc.3.dev`, or
-  `1.0.0-dev` for a final release) is a development build of the version without that identifier,
+  `version`, an installed label whose last dot-separated prerelease identifier is exactly `dev`
+  (`1.0.0-rc.3.dev`, or `1.0.0-dev` for a final release; `1.0.0-rc.3-dev` ends in `3-dev` and is not one) is a development build of the version without that identifier,
   and precedes it: against the release tag of that same version the relation is
   `UPDATE_AVAILABLE` with the `relationReason` "the installed build is a development build of
   this release; the published release supersedes it", never `LOCAL_NEWER` as plain SemVer

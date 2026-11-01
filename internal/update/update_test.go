@@ -1061,6 +1061,9 @@ func TestUPDV0910DevelopmentBuildPrecedesItsRelease(t *testing.T) {
 		{"1.0.0-rc.3.dev", "v1.0.0", "UPDATE_AVAILABLE"},
 		{"1.0.0-dev", "v1.0.0", "UPDATE_AVAILABLE"},
 		{"1.0.0-rc.3", "v1.0.0-rc.3", "CURRENT"},
+		// `3-dev` is one identifier, not a trailing `dev`: ordinary precedence applies.
+		{"1.0.0-rc.3-dev", "v1.0.0-rc.3", "LOCAL_NEWER"},
+		{"1.0.0-rc.dev.1", "v1.0.0-rc", "LOCAL_NEWER"},
 	} {
 		label := filepath.Join(e.config.BinDir, "corvint")
 		if err := os.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint "+c.label+" (build 7, commit dbc1713779fc17ce0386fe95d3e0f6347f5f9aee)'\n"), 0700); err != nil {

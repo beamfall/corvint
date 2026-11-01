@@ -978,18 +978,25 @@ var semverRE = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0
 
 // compareSemver orders two semantic versions by precedence, ignoring build
 // metadata: negative when a is lower, zero when equal, positive when higher.
-// developmentBase strips a trailing `dev` prerelease identifier, returning
-// the version it is a development build of: 1.0.0-rc.3.dev is a build of
-// 1.0.0-rc.3 and 1.0.0-dev one of 1.0.0 (UPD-V0-910).
+// developmentBase strips a final `dev` prerelease identifier, returning the
+// version it is a development build of: 1.0.0-rc.3.dev is a build of
+// 1.0.0-rc.3 and 1.0.0-dev one of 1.0.0 (UPD-V0-910). Identifiers are the
+// dot-separated parts of the prerelease, so `rc.3-dev` ends in `3-dev`, not
+// `dev`, and keeps ordinary precedence.
 func developmentBase(version string) (string, bool) {
 	core, _, _ := strings.Cut(version, "+")
-	if base, found := strings.CutSuffix(core, ".dev"); found && strings.Contains(base, "-") {
-		return base, true
+	release, prerelease, found := strings.Cut(core, "-")
+	if !found {
+		return "", false
 	}
-	if base, found := strings.CutSuffix(core, "-dev"); found {
-		return base, true
+	identifiers := strings.Split(prerelease, ".")
+	if identifiers[len(identifiers)-1] != "dev" {
+		return "", false
 	}
-	return "", false
+	if len(identifiers) == 1 {
+		return release, true
+	}
+	return release + "-" + strings.Join(identifiers[:len(identifiers)-1], "."), true
 }
 
 func compareSemver(a, b string) int {
