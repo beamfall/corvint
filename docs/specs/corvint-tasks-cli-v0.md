@@ -154,7 +154,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   single mutation replayed by its recorded `--request-id` MUST report `replayed: true`, an empty
   `receipt` (it wrote none, which existing callers and tests read as the no-write marker), and an
   added `originalReceipt` member naming (`<seq as 12 digits>.json`) the receipt that committed
-  the original, so a caller that confirms a write by its receipt can find it on replay. A fresh
+  the original, so a caller that confirms a write by its receipt can find it on replay, whether
+  the store decides the replay on the complete audit or on the writer checkpoint. A fresh
   commit's envelope is unchanged and has no `originalReceipt`. The mutation help (`replay`
   member of `--help --verbose`) MUST document this envelope. `--batch` entries are out of scope.
 
@@ -197,6 +198,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0004_CreateGuard`, `TestTCLV0005_DigestAndOfflineMatch`,
   `TestTCLV0007_RecurAppendsOneLine`.
 - `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
+- `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
+  (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).
 - `internal/tasks/cli/snapshot_bundle_test.go`: `TestTCLV0010_QueueSnapshot`,
   `TestTCLV0011_SnapshotReads`, `TestTCLV0012_SnapshotRefusesWrites`.
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
