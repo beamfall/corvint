@@ -328,6 +328,56 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   `shell:runs-toolchain` unit that is neither declared nor recorded, `tools/unbounded-readers`
   SHALL still refuse with exit 1 and its line SHALL name `.corvint/shell-read-scopes.json` as the
   bounded route before the `units` entry.
+- **TSP-V0-900:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788, V1-3616) This repository SHALL declare an AFP-V0-023 read scope in
+  `.corvint/test-read-scopes.json` for each Go test package whose literals outside its directory
+  name only temporary fixtures or a bounded toolchain input, and a TSP-V0-950 read scope in
+  `.corvint/shell-read-scopes.json` for each `shell:runs-toolchain` script test whose toolchain reads
+  a bounded set, and SHALL remove each declared unit from `.corvint/unbounded-readers.json`. A Go
+  declaration SHALL hold under `tools/test-read-scopes-check` and under the `.github/testconfine`
+  wrapper with every test of the package passing; a shell declaration SHALL pass in a copy of the
+  tree holding only `script/` and its declared reads, or fail there exactly as in the full tree. A
+  one-spec edit and a `docs/specs/REQUIREMENTS.tsv` edit SHALL then select none of the declared
+  units, while a unit that reads every spec or the index stays selected. Measured from 6d4713fb8b5d
+  to e00f422d3af1, `corvint affected` units fall from 71 to 44 (spec), 75 to 44 (index), 62 to 38
+  (Makefile recipe; 69 unknowns before and after), 58 to 42 (`script/lane-guard.sh`), 59 to 43
+  (`script/check-bash32.sh`), 60 to 36 (`docs/DOGFOOD.md`) and 20 to 18 (a new CEM under
+  `.corvint/changes/`); for the spec edit `corvint test --dry-run` falls from 48 to 28 units, its
+  stdout from 15,343 to 8,802 bytes and its `--summary` stdout from 3,033 to 1,859 bytes. Non-goals:
+  row-level selection within `REQUIREMENTS.tsv` (every remaining reader parses the whole file);
+  declaring a unit that opens `/` or `.git`, runs Git over the real checkout, launches a nested
+  sandbox or walks the whole tree. Failure mode: a declared unit that gains a read outside its scope
+  is missed until the scope is widened; the static checker and TSP-V0-901 catch literal drift, and a
+  confined run catches runtime drift only when rerun. Rollback: restore the three declaration files
+  from the base; the units are unbounded readers again.
+- **TSP-V0-901:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788) A repository test SHALL select each class of narrowed unit for a dirty path its
+  declared scope names (a spec file, another package's fixture, a `.github` input, an integrations
+  input, a capability tree, a Go package source, the Makefile, an extension file, a tool source and
+  a dogfood document) and SHALL fail when the declaration drops that read. Rollback: delete the test
+  with TSP-V0-900's declarations.
+- **TSP-V0-902:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3788, V1-3616) The plans TSP-V0-900 leaves wide SHALL stay sound; they are recorded, not
+  narrowed, and each still names its unknowns. The spec-edit plan's 19 unbounded readers cannot be
+  read-scoped: units that open `/` (the dashboard walks, `internal/console`, `internal/lspstdio`,
+  `internal/postmergehost`, `internal/postmergeworkflow`), run Git on the real checkout
+  (`internal/analyzerhtmlcss`, `internal/analyzerpython`, `internal/doccorpus/selfcorpus`,
+  `internal/companionrelease`, `conformance/release-artifact-v0`), launch a nested sandbox
+  (`internal/liveverify/mutate`) or read the whole tree (`internal/tasks`, `internal/tasks/cli`,
+  `internal/liveverify/affected/golang`), and five shell tests that source `script/heavy.sh`
+  dynamically or run `make` or `git` on the real root; with the true spec readers
+  (`internal/specindex`, `internal/lrfrepo`, `cmd/corvint`) the safe floor is above 20 units. A
+  Makefile recipe edit keeps 68 `LANGUAGE_FRONTIER` entries and the `UNOWNED_DIRTY_PATH`, because
+  the Makefile is an unowned driver input that runs `node --test`, `go` and scripts: 58 are
+  TypeScript `runtime-flags-unresolved`, `e2e-runtime-dependency`, `executable-config-unresolved`,
+  `dynamic-import` and `test-runner-unknown` entries that plugin declares path-open, `cfamily` reads
+  a Makefile as a build input, and `dotnet`, `swift` and `ruby` declare no FrontierReach. A declared
+  per-driver plugin list was rejected: it would drop 6 entries, leave the plan `UNKNOWN` and go stale
+  silently when a recipe gains an invocation. `shell:script/dogfood-cache_test.sh` and
+  `shell:script/batch-precheck_test.sh` are in every probe plan as `DEPENDENCY_PATH` because a
+  non-test script that names the dirty path carries its TSP-V0-005 callers, which is sound;
+  `.corvint/test-binary-consumers.json` names only `cmd/corvint-web-flows`, so no hub command widens
+  a plan. Rollback: delete this record; no code depends on it.
 - **TSP-V0-710:** (experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,
   2026-10-11; V1-3501) A change of `changes.json` MAY carry `recorded: {ciScope, verdict}`, the CI
   scope and selector verdict of the replay the floor was last measured on. `tools/selection-baseline`
@@ -528,6 +578,9 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
 | TSP-V0-950 | `readShellReadScopes` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` and their call in `internal/liveverify/affected/shell/shell.go`; `shellReadScopesChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; the `go:` filter in `tools/test-read-scopes-check/main.go` | `TestShellReadScopeDeclaration_TSP_V0_950` in `internal/liveverify/affected/shell/readscopes_test.go` (undeclared: the toolchain test is selected on an unrelated change; declared: it is not, the plan is `BOUNDED`, and a dirty declared entry or a file in its directory selects it; a test that also sources a dynamic path, one that sources a literal helper sourcing a dynamic path directly or two sources away, a non-toolchain test, a source script, an absent file, unsorted or empty reads, a `.git` entry, an empty or multi-line reason, a bad profile, an unknown member and unparsed JSON each name the invalid frontier and keep it unbounded; a dirty declaration is `UNKNOWN`) |
 | TSP-V0-951 | `.corvint/shell-read-scopes.json`; `.corvint/unbounded-readers.json`; the `shell:runs-toolchain` line in `tools/unbounded-readers/main.go` | `TestRepositoryShellReadScopes_TSP_V0_951` and `TestListedDirectoriesKeepSpaces_TSP_V0_951` in `internal/liveverify/affected/shell_readscopes_repo_test.go`; `TestRunsToolchainRefusalNamesTheUnitsEntry` in `tools/unbounded-readers/main_test.go` (an undeclared, unrecorded toolchain test still exits 1 and the line names the declaration) |
+| TSP-V0-900 | `.corvint/test-read-scopes.json`, `.corvint/test-read-scope-literals.json`, `.corvint/shell-read-scopes.json` and `.corvint/unbounded-readers.json`, read by `ReadScoped` in `internal/liveverify/affected/readers.go` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` | `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` in `internal/liveverify/affected/readscope_narrowing_repo_test.go` (fails with the base declarations: 30 narrowed units selected); `TestRepositoryShellReadScopes_TSP_V0_951`; `make test-read-scopes-check`; `make unbounded-readers-check`; confined runs and measured plans in build log `docs/build-log/2026-11-01-rsd-w17.md` |
+| TSP-V0-901 | the same declarations | `TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901` in `internal/liveverify/affected/readscope_narrowing_repo_test.go` (fails when the `conformance/mcp-2026-07-28` spec read or the `internal/tasks/ticket` fixture read is dropped) |
+| TSP-V0-902 | `driverInput`, `bearsOnUnowned` and `readsResolutionInput` in `internal/liveverify/affected/select.go` (unchanged) | the measured plans in build log `docs/build-log/2026-11-01-rsd-w17.md` |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 | TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
 

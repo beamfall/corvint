@@ -1,6 +1,16 @@
 {
   "profile": "corvint-shell-read-scopes/0",
   "tests": {
+    "script/check-install-lifecycle_test.sh": {
+      "reads": [
+        ".github/cishards/",
+        "cmd/corvint/",
+        "go.mod",
+        "go.sum",
+        "internal/"
+      ],
+      "reason": "Outside script/, it runs go build ./cmd/corvint twice from the checkout, which compiles cmd/corvint, .github/cishards and internal/ packages under go.mod and go.sum; the lifecycle runs in a temporary directory (V1-3616)."
+    },
     "script/check-sql-native-ratchets_test.sh": {
       "reads": [
         "Makefile",
@@ -11,6 +21,75 @@
         "internal/toolchainreceipt/"
       ],
       "reason": "Outside script/, go env reads the module files, case 8 reads the Makefile go-version target and case 9 runs go build ./cmd/corvint-go-toolchain-receipt, whose only non-standard package is internal/toolchainreceipt (TSP-V0-951, V1-2167)."
+    },
+    "script/core-n1-replay-default_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it copies the Makefile into a temporary repository and runs make core-n1-replay there with a go shim; the Makefile includes nothing (V1-3788)."
+    },
+    "script/dogfood-bind-range_test.sh": {
+      "reads": [
+        ".github/cishards/",
+        "cmd/corvint/",
+        "go.mod",
+        "go.sum",
+        "internal/",
+        "tools/dogfood-guard-hunks/"
+      ],
+      "reason": "Outside script/, it runs go build ./cmd/corvint and ./tools/dogfood-guard-hunks, whose only non-standard packages are under internal/; the wrapper runs on a copy in a temporary repository (V1-3616)."
+    },
+    "script/dogfood-cache_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it copies the Makefile into a temporary repository and runs make there with stub tools; the Makefile includes nothing (V1-3788)."
+    },
+    "script/dogfood-change_test.sh": {
+      "reads": [
+        ".github/cishards/",
+        ".gitignore",
+        "cmd/corvint/",
+        "docs/DOGFOOD.md",
+        "go.mod",
+        "go.sum",
+        "internal/"
+      ],
+      "reason": "Outside script/, it reads docs/DOGFOOD.md and .gitignore and runs go build ./cmd/corvint; the dogfood wrappers run on copies in a temporary repository (V1-3616)."
+    },
+    "script/gate-affected-corvint_test.sh": {
+      "reads": [
+        ".github/cishards/",
+        "cmd/corvint/",
+        "go.mod",
+        "go.sum",
+        "internal/"
+      ],
+      "reason": "Outside script/, it and script/gate-affected-corvint.sh run go build ./cmd/corvint from the checkout; the go test runs happen in a temporary two-package module (V1-3616)."
+    },
+    "script/gate-affected_test.sh": {
+      "reads": [
+        ".github/cishards/",
+        "cmd/corvint/",
+        "go.mod",
+        "go.sum",
+        "internal/",
+        "tools/gate-affected-select/"
+      ],
+      "reason": "Outside script/, it runs go build ./cmd/corvint, copies internal/liveverify/affected/testdata/fixture, and script/gate-affected.sh runs go run ./tools/gate-affected-select, whose only non-standard packages are under internal/ (V1-3616)."
+    },
+    "script/spec-requirements-conflict_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it runs the checkout Makefile with make -f against a temporary fixture repository (-C), so recipes run there; the Makefile includes nothing (V1-3788)."
+    },
+    "script/vscode-check-install_test.sh": {
+      "reads": [
+        "conformance/test-validity-v0/",
+        "extensions/vscode/"
+      ],
+      "reason": "Outside script/, it copies the tracked files of extensions/vscode and conformance/test-validity-v0 into a temporary directory and runs npm check there (V1-3616)."
     }
   }
 }

@@ -655,6 +655,128 @@
     "tools/tiers-replay": [
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"
-    ]
+    ],
+    "cmd/corvint-analyzer-rust": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "cmd/corvint-analyzer-shader": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "cmd/corvint-corpus-mcp": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "cmd/corvint-postmerge-workflow": [
+      "internal/capcatalog/trees/"
+    ],
+    "conformance/cli-parity-v0": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "conformance/mcp-2026-07-28": [
+      "cmd/corvint-mcp/",
+      "docs/specs/mcp-server-2026-07-28-v0.md",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "conformance/mcp-test-validity-v0": [
+      "cmd/corvint-test-validity-mcp/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "examples/evidence-provider/v0/conformance": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "examples/evidence-provider/v0/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/analyzerstructured": [
+      ".github/cishards/",
+      "cmd/corvint-analyzer-structured-data/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/cemchain": [
+      ".github/cishards/",
+      "cmd/corvint-tasks/",
+      "cmd/corvint-test-runner/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/",
+      "interop/cem01-go/"
+    ],
+    "internal/compactionkernel": [],
+    "internal/dashboard/roadmap": [],
+    "internal/jstestprovider": [
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/jstestprovider/externallive": [
+      "conformance/interactive-alpha/fixture/",
+      "internal/jstestprovider/testdata/"
+    ],
+    "internal/liveverify/affected/cfamily": [],
+    "internal/liveverify/provider/interlock": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/mcp/docsbridge": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/opencodequalification": [
+      "go.mod",
+      "go.sum",
+      "integrations/fixtures/opencode-native-report.json",
+      "integrations/opencode/",
+      "internal/",
+      "tools/qualify-opencode/"
+    ],
+    "internal/perfbudget": [
+      ".github/cishards/",
+      "cmd/",
+      "experimental/analyzers/sqlnative/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/sharedpath": [],
+    "internal/tasks/ticket": [
+      "internal/taskman/testdata/issue502-optional-keys-record.json"
+    ],
+    "protocol/integrations": [],
+    "script/spec-coverage-audit": [],
+    "tools/ci-forward-row": [
+      ".github/"
+    ],
+    "tools/requirement-id-collisions": []
   }
 }
