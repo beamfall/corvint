@@ -353,7 +353,13 @@ func prepareLease(ctx context.Context, repo *intent.Repository, request transact
 				return p, err
 			}
 			supplied = proof
-			p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			// The retained checkpoint keeps a base at the sealed sequence, so
+			// a later widen, reap or pool verb resumes from it (JSG-V0-780).
+			if plainCheckpoint(repo) {
+				p.writer, _ = proof.WriterCheckpoint(observation.Files)
+			} else {
+				p.writer, _ = proof.SealedWriterCheckpoint(observation.Files)
+			}
 			p.writerProof, p.writerPhys = proof, observation.Files
 		}
 		// Partial, divergent or failed audits supply no inventory metadata.

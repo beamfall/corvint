@@ -53,6 +53,9 @@ func sealValidationStore(t *testing.T) *intent.Repository {
 		t.Fatal(err)
 	}
 	lowerWriterCheckpoint(t, repo)
+	// This fixture seals from a checkpoint inside the range, the state a
+	// complete route left before JSG-V0-780 kept the sealed base.
+	plainCheckpointStores.Store(repo.StateDir, true)
 	if run := writerMutate(t, repo, "seal-seed", nil); !run.completed() || run.fast() {
 		t.Fatalf("seed: %+v %v %v", run.rep, run.err, run.stages)
 	}

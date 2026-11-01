@@ -486,8 +486,8 @@ func TestJSGV0021_GateLoadReportCarriesHostAndQualification(t *testing.T) {
 
 // JSG-V0-020: the harness runs end to end on a small sealed store in both
 // modes: every verb is timed the requested number of times with no failure,
-// and in the moved series each call's complete preparation audit is
-// overtaken by a dispatcher write and the call still resumes from it once.
+// and each widen and reap resumes from the sealed base the fixture's
+// complete-route writes keep (JSG-V0-780) with no complete audit.
 func TestJSGV0020_HarnessRunsBothModes(t *testing.T) {
 	t.Parallel()
 	if !journal.ResumableAudits() {
@@ -512,11 +512,11 @@ func TestJSGV0020_HarnessRunsBothModes(t *testing.T) {
 			if verb != "widen" && verb != "reap" {
 				continue
 			}
-			if mode == "moved" && (st.Audits != iterations || st.Resumed != iterations) {
-				t.Errorf("moved %s: %d audits and %d resumed over %d calls, want one of each per call", verb, st.Audits, st.Resumed, iterations)
-			}
-			if mode == "quiet" && (st.Audits < iterations || st.Resumed != 0) {
-				t.Errorf("quiet %s: %d audits and %d resumed over %d calls, want at least one audit per call and no resume", verb, st.Audits, st.Resumed, iterations)
+			// The fixture's complete-route writes keep the sealed base
+			// (JSG-V0-780), so in both series every widen and reap resumes
+			// from it and runs no complete preparation audit.
+			if st.Audits != 0 || st.Resumed != iterations {
+				t.Errorf("%s %s: %d audits and %d resumed over %d calls, want no audit and one resume per call", mode, verb, st.Audits, st.Resumed, iterations)
 			}
 		}
 	}

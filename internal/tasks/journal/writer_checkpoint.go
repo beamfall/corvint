@@ -1121,6 +1121,16 @@ func (m *MutationAudit) WriterCheckpoint() (*WriterCheckpoint, error) {
 	return m.result.WriterCheckpoint(m.Physical.Files)
 }
 
+// SealedWriterCheckpoint is WriterCheckpoint with a base at the sealed
+// sequence where the audit can keep one; see Result.SealedWriterCheckpoint
+// (JSG-V0-780).
+func (m *MutationAudit) SealedWriterCheckpoint() (*WriterCheckpoint, error) {
+	if m == nil || m.result == nil {
+		return nil, errCheckpoint("writer checkpoint", "no settled mutation audit")
+	}
+	return m.result.SealedWriterCheckpoint(m.Physical.Files)
+}
+
 // AuditForWriter is the writer's audit resumed at wc (CAL-V0-116, proposed).
 // It rebinds wc to the retained receipt it names, requires the receipt names
 // on disk to be exactly 1..head, walks and validates every receipt after wc
