@@ -26,7 +26,10 @@ fi
 printf 'reviewed:%s\n' "$*"
 STUB
 chmod 0755 "$tmp/bin/codex"
-review() { STUB_LOG=$tmp/calls CODEX_BIN=$tmp/bin/codex "$script" "$@" 2>&1; }
+review() { STUB_LOG=$tmp/calls CODEX_BIN=$tmp/bin/codex CODEX_REVIEW_HEAVY=${WRAP-} "$script" "$@" 2>&1; }
+# ASD-V0-930: the review runs through CODEX_REVIEW_HEAVY (a stub that logs and execs here).
+printf '#!/usr/bin/env bash\nprintf "wrap:%%s\\n" "$*" >> "$STUB_LOG"\n[ "$1" = --admit-only ] && shift\nexec "$@"\n' > "$tmp/bin/wrap"
+chmod 0755 "$tmp/bin/wrap"
 
 : > "$tmp/calls"
 out=$(STUB_STATUS='Not logged in' STUB_RC=1 review 'review this'); rc=$?
@@ -47,6 +50,17 @@ out=$(STUB_STATUS='Logged in using ChatGPT' STUB_RC=0 review --preflight); rc=$?
 out=$(STUB_STATUS='Logged in using ChatGPT' STUB_RC=0 review 'review this'); rc=$?
 [[ $rc == 0 && $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review this' ]] || fail "review: rc=$rc out=$out"
 [[ $(wc -l < "$tmp/calls" | tr -d ' ') == 2 ]] || fail "review: want one check and one exec, got: $(cat "$tmp/calls")"
+
+: > "$tmp/calls"
+out=$(WRAP=$tmp/bin/wrap STUB_STATUS='Logged in' STUB_RC=0 review 'review this'); rc=$?
+[[ $rc == 0 && $out == 'reviewed:exec -m gpt-6.1-sol -s read-only review this' ]] || fail "wrapped review: rc=$rc out=$out"
+[[ $(sed -n 1p "$tmp/calls") == 'login status' && $(sed -n 2p "$tmp/calls") == "wrap:--admit-only $tmp/bin/codex exec -m gpt-6.1-sol -s read-only review this" ]] ||
+  fail "wrapped review: want an unwrapped login check, then the review through the wrapper, got: $(cat "$tmp/calls")"
+: > "$tmp/calls"
+WRAP=$tmp/bin/wrap STUB_STATUS='Logged in' STUB_RC=0 review --preflight > /dev/null
+grep -q '^wrap:' "$tmp/calls" && fail "the preflight ran through the wrapper: $(cat "$tmp/calls")"
+# Unset, the default is the heavy.sh beside the script.
+grep -qx 'heavy=${CODEX_REVIEW_HEAVY-$(dirname "$0")/heavy.sh}' "$script" || fail "codex-review.sh default wrapper is not heavy.sh"
 
 out=$(STUB_STATUS='Logged in' STUB_RC=0 review --preflight extra); rc=$?
 [[ $rc == 2 ]] || fail "preflight accepted an extra argument: rc=$rc out=$out"

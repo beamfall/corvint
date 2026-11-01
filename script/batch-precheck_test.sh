@@ -82,7 +82,7 @@ grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-
 
 # 1c. DCW-V0-399 (V1-3218): the lane's pre-bind `make doc-gates` reaches ./internal/specindex,
 # whose TestIndexCoversSpecsAndHeaders refuses an Agent digest Status that drifts from the header.
-(cd "$script/.." && make -n --no-print-directory doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
+(cd "$script/.." && make -n --no-print-directory HEAVY_ADMIT= doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
 grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
 grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
 grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
@@ -1004,6 +1004,11 @@ grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" &
   fail "doc-gates not expanded: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && fail "an expanded doc-gates also ran whole: $(cat "$tmp/out")"
 grep -qx 'batch-drift (1 packages)' "$tmp/out" && grep -qx 'batch-drift TestOwn' "$tmp/out" || fail "@own not split: $(cat "$tmp/out")"
+# ASD-V0-930: the recipe admitted through the host queue ($(HEAVY_ADMIT) prefixes) still expands.
+printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "admitted expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" && ! grep -qx 'make doc-gates' "$tmp/out" ||
+  fail "the admitted doc-gates recipe was not expanded: $(cat "$tmp/out")"
 printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"

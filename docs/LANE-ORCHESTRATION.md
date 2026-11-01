@@ -30,7 +30,13 @@ applies the same classification and hysteresis by hand:
 ```sh
 sysctl -n vm.loadavg hw.ncpu kern.memorystatus_vm_pressure_level   # Darwin
 cat /proc/loadavg; getconf _NPROCESSORS_ONLN; grep -E '^Swap(Total|Free):' /proc/meminfo  # Linux
+script/lane-pressure.sh --level <current level>   # both: the table below applied to one sample
 ```
+
+`script/lane-pressure.sh` (ASD-V0-936, V1-1627) reads those inputs and prints
+`level=L load_per_cpu=X memory=M swap=S admit=N`. From the current level it applies the release rules,
+so the orchestrator only checks that two heartbeats agree before changing the cap. An unreadable
+sample exits 3 and keeps the level.
 
 | Level | Entered when (any signal) | Released when (all signals) | Heavy lanes admitted |
 |---|---|---|---|
@@ -73,6 +79,27 @@ last holder exits, so a killed lane never strands a slot. Every lane on a host m
 directory and slot count. Rules: one package per command, a narrow `-run` for `./cmd/corvint`, no
 `go test ./...` and no `make gate` in a lane (AGENTS.md "Verify"), and `make dogfood-finish` /
 `make dogfood-batch-check` (which build two verifiers) also run through the wrapper.
+
+Every heavy target takes the same queue (ASD-V0-930, V1-3626). The `Makefile` prefixes the recipes
+of `build`, `tasks-build`, `doc-gates`, `batch-precheck` and `dogfood-finish` with `HEAVY_ADMIT`
+(default `script/heavy.sh --admit-only`; empty under `CI`; `HEAVY_ADMIT=` opts out). So `make
+dogfood-closeout` is admitted through its precheck and finish steps, and `script/codex-review.sh`
+runs `codex exec` through `CODEX_REVIEW_HEAVY --admit-only` (default the `heavy.sh` beside it).
+`--admit-only` takes a slot without reading the command: no policy, no rewrite and no offload, so
+a review prompt that mentions `go test` is never refused and `make build` never cross-builds. A
+make dry run (`make -n`) takes no slot. The holder exports `HEAVY_HELD`. A
+`heavy.sh` started inside an admitted command (batch-precheck's steps, the finish's tests) takes its
+holder's token `slotN.inner` or any free slot, whichever frees first. It never waits for a second
+slot of its own, so nesting cannot deadlock, and it skips the load gate (ASD-V0-931). Each local run
+ends with `heavy.sh: done queue=Ns (load=Ns slot=Ns) run=Ns rc=N`, so queue wait and run time are
+read apart (ASD-V0-935).
+
+Go defaults (ASD-V0-938, ASD-V0-939). A `go test` with no `-timeout` gets `-timeout 30m`
+(`HEAVY_GO_TEST_TIMEOUT`, `off` adds none), so a loaded host never trips Go's 600 s default. A
+`sh -c 'go test ...'` wrapper is unwrapped when its string is a plain command, and refused with
+`heavy.sh: REFUSE wrapped-compound ...` when it holds an operator or an expansion (`cd x && go
+test`, a pipe, `$PKGS`). Run the go command directly instead:
+`script/heavy.sh env K=V go test -run X ./pkg`.
 
 A package slower than the 600 s foreground limit runs as shards (ASD-V0-026):
 
@@ -135,7 +162,11 @@ unavailable and falls back), prints
 semaphore and returns the command's status. Only the argv travels, so test environment goes in
 `env K=V` inside the command; a local `GOCACHE`/`GOMODCACHE` assignment is dropped. A command with
 a file-writing flag (`-o`, `-c`, `-coverprofile`, profiles, `-trace`, `-test.*`, also inside a
-`GOFLAGS=` argument or the exported `GOFLAGS`) runs locally, because its files would stay remote; so does `HEAVY_REMOTE=0` (use it for darwin-specific tests).
+`GOFLAGS=` argument or the exported `GOFLAGS`) runs locally, because its files would stay remote; so does `HEAVY_REMOTE=0`.
+On a Darwin lane host, a `go test` or `go vet` whose packages hold darwin-only files never offloads
+(ASD-V0-934). It runs locally without `HEAVY_LOCAL_REASON`, after a
+`heavy.sh: N darwin-only file(s), first F: running on this darwin host, not offloading` line and
+`darwin-local` lines in the fallback and selection logs.
 Checkout files a remote test writes, such as goldens regenerated with `-update`, are copied back
 over a second ssh connection and named in `heavy.sh: copied back PATH` lines (DCW-V0-359); when a
 local edit made during the run touches one of them, nothing is copied and the wrapper exits 96
@@ -146,6 +177,39 @@ such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prin
 `HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
 each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
+
+#### Several offload hosts (ASD-V0-933, V1-3626, V1-3518)
+
+`HEAVY_REMOTE_HOSTS` lists several ssh destinations (whitespace or commas) and wins over
+`HEAVY_REMOTE_HOST`. Put a user and port in the destination or in `~/.ssh/config`, never in the
+script. Every other `HEAVY_REMOTE_*` setting applies to each host, and its `~` paths expand on that
+host. So give each host the same layout: a clone at `HEAVY_REMOTE_CLONE` and the env file at
+`HEAVY_REMOTE_ENV`. Both hosts must also take the same `HEAVY_REMOTE_SHELL`, so reach a WSL box
+through its own sshd rather than through Windows. For the lane Mac with the WSL box and the Unraid
+box:
+
+```sh
+HEAVY_REMOTE_HOSTS='ssh://russell@192.168.4.128:2222 ssh://agent@192.168.4.3:2222'
+HEAVY_REMOTE_SHELL='bash -s'
+HEAVY_REMOTE_CLONE=~/corvint
+HEAVY_REMOTE_ENV=~/bench/go.env
+```
+
+Before each offload, the wrapper sends each host one probe ssh (bounded by
+`HEAVY_REMOTE_PROBE_TIMEOUT`, 15 s) for its 1-minute load and CPU count. It tries the hosts once
+each in order of load per CPU, unreachable ones last, and prints
+`heavy.sh: remote hosts by load per CPU: H:L/C,...; trying H first`. An unavailable host passes the
+run to the next. The retry and the logged local fallback below apply only when every host was
+unavailable. A host short of disk is unavailable too (ASD-V0-937). The remote half refuses with
+`low-disk PATH free=NG floor=MG` when its per-run scratch or its Go cache has less than
+`HEAVY_MIN_FREE_GB` (3) GiB free, and the probe orders such a host after the others
+(`H:lowdisk:NG`). The remote's Go cache and `GOTMPDIR` default to its disk, not a tmpfs `/tmp`
+(V1-2691). A `/tmp/corvint-go-build-cache` left by older runs is not moved; trim it with
+`make go-cache-trim`. An empty `HEAVY_REMOTE_HOST` in the environment keeps one run local even
+with `HEAVY_REMOTE_HOSTS` configured. A build tries the first host only. With one host there is no probe. A host serves as a
+target once it has a clone of origin, the pinned Go (in `~/sdk/go<version>` or through the env
+file), `perl`, `git` and `timeout(1)`, and accepts the lane host's key.
+
 When the host is unreachable the offload is retried once after `HEAVY_REMOTE_RETRY` seconds
 (default 15), then the command runs locally and says so. Each local run of an offloadable command
 appends `UTC pwd=... reason=offload-unavailable|HEAVY_REMOTE=0|writes-files cmd=...` to
@@ -174,9 +238,10 @@ same file, shipped over ssh on every offload, so no copy on the box is maintaine
 run prints `heavy.sh: script sha256=<hash> <path>`, and every selection-log line ends with
 `script=<first 12 hex>`, so a log row names the runner revision that wrote it. The offload line
 carries the remote's phase seconds (`rc=N receive= wait= prepare= run= worktree=`); a local run
-appends `local wait=Ns run=Ns rc=N loadwait=Ns load=L` after it exits (slot wait, run, status,
-load wait and starting load; ASD-V0-970), and a load or slot wait prints `heavy.sh: queued for ...`
-when it starts; a fallback appends `fallback host=H`. When
+appends `local wait=Ns run=Ns rc=N loadwait=Ns load=L queue=Ns` after it exits (`wait` is the slot
+wait, `loadwait` the load-gate wait, `load` the starting 1-minute load (ASD-V0-970), `queue` both
+waits (ASD-V0-935)), and a load or slot wait prints `heavy.sh: queued for ...` when it starts; a
+fallback appends `fallback host=H`; a multi-host choice appends `pick hosts=... chose=H probe=Ns`. When
 `HEAVY_FALLBACK_ALERT` (default 3, `0` disables) fallbacks for one host follow each other with no
 offload in between that the host completed (rc other than 97 or 255), the wrapper prints
 `heavy.sh: ALERT remote-unavailable streak=N host=H` and logs an `alert` line; check the host with
@@ -191,7 +256,9 @@ Lane policy (ASD-V0-030, the lane prototype's rules): a `go test` without `-run`
 UNKNOWN/FALLBACK reason; pick units with `corvint test --base <sha> --dry-run`), and every `go test`
 is recorded in `HEAVY_SELECTION_LOG` as `selected`, `whole reason=...` or `refused`. `HEAVY_REMOTE=0`
 needs `HEAVY_LOCAL_REASON` for an offloadable command. A local run first waits up to
-`HEAVY_LOAD_WAIT` (120 s) while the 1-minute load exceeds `HEAVY_MAX_LOAD` (10). The lane
+`HEAVY_LOAD_WAIT` (120 s) while the 1-minute load exceeds the threshold: `HEAVY_MAX_LOAD` when set,
+else `floor(HEAVY_LOAD_PER_CPU x CPUs)` with `HEAVY_LOAD_PER_CPU` defaulting to 1.0, so 12 on a
+12-core host (ASD-V0-932). The wait line names the source. The lane
 cutover below keeps the existing selection and fallback log paths so the canary counts keep
 reading the same files.
 
@@ -269,7 +336,7 @@ HEAVY_CI_STATUSES="queued in_progress"
 HEAVY_CI_GUARD=auto
 HEAVY_REMOTE_BUILD_MAX_LOAD=16
 HEAVY_SLOTS=3
-HEAVY_MAX_LOAD=10
+# HEAVY_MAX_LOAD unset: the gate is 1.0 x CPUs (ASD-V0-932); the cutover's absolute 10 is retired
 HEAVY_SELECTION_LOG=/private/tmp/cem10-build/heavy-selection.log
 HEAVY_FALLBACK_LOG=/private/tmp/cem10-build/heavy-fallback.log
 ```

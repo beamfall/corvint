@@ -11,11 +11,14 @@
 #                as an argument or on stdin) and exits with its status.
 #   CODEX_BIN           the codex executable (default: codex from PATH)
 #   CODEX_REVIEW_MODEL  the review model (default gpt-6.1-sol)
+#   CODEX_REVIEW_HEAVY  the host-queue wrapper the review runs through as WRAPPER --admit-only CODEX...
+#                       (ASD-V0-930, V1-3626; default the heavy.sh beside this script, which then
+#                       never reads the prompt; empty runs codex directly). The preflight takes no slot.
 # Exit: 0 ok (or the review's own status), 2 usage, 3 NOT_AVAILABLE.
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 codex=${CODEX_BIN:-codex}
@@ -39,4 +42,5 @@ if [[ ${1-} == --preflight ]]; then
   printf 'codex-review: OK logged-in (%s)\n' "$first"
   exit 0
 fi
-exec "$resolved" exec -m "$model" -s read-only "$@"
+heavy=${CODEX_REVIEW_HEAVY-$(dirname "$0")/heavy.sh}
+exec ${heavy:+"$heavy" --admit-only} "$resolved" exec -m "$model" -s read-only "$@"
