@@ -418,6 +418,15 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 			return errorResult(cmd, err)
 		}
 	}
+	// TCL-V0-800 (V1-3958): a retry without --issued-at of a recorded request
+	// that differs only in the defaulted issuedAt reuses the recorded one, so
+	// it replays instead of refusing REQUEST_ID_CONFLICT.
+	recoveredIssuedAt := false
+	if flags.issuedAt == "" {
+		if at, _, ok := recordedIssuedAt(repo, store0, operation, actor, flags, payload, issued); ok {
+			issued, recoveredIssuedAt = at, true
+		}
+	}
 	envelope, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, issued)
 	if err != nil {
 		return errorResult(cmd, err)
@@ -436,8 +445,11 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 	if w := attemptLiveWarning(env, res, store0.Queue.QueueID.Raw, flags.target); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
-	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" {
-		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
+	if recoveredIssuedAt {
+		res.Warnings = append(res.Warnings, "request "+flags.requestID+" is recorded with the same request bytes except the defaulted issuedAt; this retry reused the recorded issuedAt "+string(issued)+" (TCL-V0-800)")
+	}
+	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" && !recoveredIssuedAt {
+		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(issued))
 	}
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {

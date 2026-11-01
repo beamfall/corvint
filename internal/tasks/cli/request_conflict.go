@@ -12,23 +12,33 @@ import (
 )
 
 // defaultedIssuedAtConflict explains a REQUEST_ID_CONFLICT whose issuedAt the
-// CLI defaulted to now (CAL-V0-250, V1-1384). The request digest covers
-// issuedAt, so a byte-identical retry in a later second conflicts. The
-// journal keeps only the original digest, so this rebuilds the envelope with
-// the recordedAt of the receipt the request-index entry names, which equals
-// a defaulted issuedAt and survives later updates (ATR-V0-275, V1-1438),
-// then the recorded ticket's createdAt and updatedAt (and up to two seconds
-// before each, since the writer clock can tick past the CLI second) and names issuedAt as the
-// difference only when one rebuilt digest equals the recorded one. It never
-// replays or writes: the retry with --issued-at does that. Otherwise it
-// names the digest inputs, so the refusal never guesses.
-func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
-	generic := "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
+// CLI defaulted to now (CAL-V0-250, V1-1384). A retry that differs from the
+// recorded request only in that defaulted issuedAt never reaches it: the
+// writer reuses the recorded issuedAt and replays (TCL-V0-800, V1-3958). So
+// the request differs in more than issuedAt, and this names the digest inputs
+// and never attributes the conflict to issuedAt alone.
+func defaultedIssuedAtConflict(issued wire.Timestamp) string {
+	return "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
 		"and issuedAt defaulted to " + string(issued) + " because --issued-at was not given: a retry replays only with the original --issued-at"
+}
+
+// recordedIssuedAt recovers the issuedAt of a recorded request whose retry
+// omitted --issued-at (TCL-V0-800, V1-3958): it rebuilds this invocation's
+// envelope with the recordedAt of the receipt the request-index entry names
+// (ATR-V0-275), then the recorded ticket's createdAt and updatedAt, each
+// also up to two seconds earlier since the writer clock can tick past the CLI
+// second, and returns the one whose
+// digest equals the recorded mutation digest, with the recorded ticket. A
+// different payload, actor, target or revision never matches, so it never
+// turns a real conflict into a replay. found is false when nothing matched.
+func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) (at wire.Timestamp, ticketID string, found bool) {
+	if flags.requestID == "" {
+		return "", "", false
+	}
 	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
-	entry, found, err := idx.Lookup(flags.requestID)
-	if err != nil || !found || idx.TicketID == "" {
-		return generic
+	entry, ok, err := idx.Lookup(flags.requestID)
+	if err != nil || !ok || idx.TicketID == "" {
+		return "", "", false
 	}
 	var bases []wire.Timestamp
 	if entry.Outcome.ReceiptSeq != nil {
@@ -53,14 +63,13 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 			seen[at] = true
 			envelope, err := buildEnvelope(operation, st.Queue.QueueID.Raw, actor, flags, payload, at)
 			if err != nil {
-				return generic
+				return "", "", false
 			}
 			d, err := transaction.Digest(transaction.Request{Operation: transaction.Mutate, QueueID: st.Queue.QueueID.Raw, RequestID: flags.requestID, Actor: actor, Envelope: envelope})
 			if err == nil && d == entry.MutationSha256 {
-				return "request " + flags.requestID + " is recorded for ticket " + idx.TicketID + "; this retry differs from the recorded request only in issuedAt: the original was " +
-					string(at) + " and this one defaulted to " + string(issued) + " because --issued-at was not given; retry with --issued-at " + string(at) + " to replay"
+				return at, idx.TicketID, true
 			}
 		}
 	}
-	return generic
+	return "", "", false
 }

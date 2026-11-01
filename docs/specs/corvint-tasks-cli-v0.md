@@ -141,6 +141,17 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `corvint-tasks` CLI requirement that would extend `CAL-V0` MUST take the next `TCL-V0` number in
   this spec; requirements already numbered elsewhere (for example `CAP-V0-060`) stay where they
   are and are cross-referenced.
+- `TCL-V0-800`: (V1-3958; supersedes the "MUST NOT synthesize" clause of `CAL-V0-250`) A
+  `submitMutation` verb run without `--issued-at` under a recorded `--request-id` MUST, before it
+  writes, rebuild its envelope with the candidate seconds `CAL-V0-250` and `ATR-V0-275` name (the
+  recordedAt of the receipt the request-index entry names, then the recorded ticket's createdAt
+  and updatedAt, each also up to two seconds earlier). When one rebuilt envelope has exactly the
+  recorded mutation digest, the write MUST use that `issuedAt`, so the retry replays (`replayed:
+  true`, the original ticket) and adds one warning naming the reused `issuedAt`. A request that
+  differs in payload, actor, role, target or revision never matches and still refuses
+  `REQUEST_ID_CONFLICT` with the `CAL-V0-250` digest-inputs warning. No wire code, result field or
+  journal format changes. `--batch`, multi-target and other verbs that take one shared `issuedAt`
+  already print it for the retry and are unchanged.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -208,6 +219,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/similar_test.go`: `TestTCLV0001_SimilarRanksWithEvidence`,
   `TestTCLV0004_CreateGuard`, `TestTCLV0005_DigestAndOfflineMatch`,
   `TestTCLV0007_RecurAppendsOneLine`.
+- `internal/tasks/cli/create_retry_issued_at_test.go`: `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`
+  (create retry replays; a changed payload still conflicts), `TestTCLV0800_RefineRetryReplays`,
+  `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-800).
 - `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
 - `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
   (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).

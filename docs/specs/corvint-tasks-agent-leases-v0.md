@@ -6726,8 +6726,9 @@ receipt-audit ancestry check are defined there. No CAL ID is added.
 - `CAL-V0-250`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI
   ticket mutation (`ticket create` and the other `submitMutation` verbs) that runs without
   `--issued-at` defaults `issuedAt` to the current second, and `issuedAt` is part of the TM-V0-006
-  request digest, so a byte-identical retry in a later second is still `REQUEST_ID_CONFLICT`; this is
-  unchanged, and the CLI MUST NOT synthesize the original `issuedAt` into a write. Its refusal MUST add
+  request digest, so a byte-identical retry in a later second would conflict. Superseded in part by
+  `TCL-V0-800` (V1-3958): such a retry now reuses the recovered original `issuedAt` and replays, so
+  only a request that differs in more than `issuedAt` reaches this refusal. Its refusal MUST add
   one warning. When the request index names the recorded ticket and an envelope rebuilt from this
   invocation with that ticket's `createdAt` or `updatedAt`, or a second up to two seconds before
   either, has exactly the recorded mutation digest, the warning MUST name the request, the ticket,
