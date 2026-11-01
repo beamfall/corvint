@@ -37,6 +37,11 @@ func TestOCMV0900TracesCompactTestSuffixesAndRowRanges(t *testing.T) {
 	if !rowRangeNames("| ASD-V0-901..ASD-V0-907 | x |", "ASD-V0-905") {
 		t.Error("a PREFIX-LO..PREFIX-HI range was not read")
 	}
+	for _, id := range []string{"TCP-V0-995", "ABC-V0-995"} {
+		if rowRangeNames("| TCP-V0-990..ABC-V0-999 | x |", id) {
+			t.Errorf("a mixed-prefix range traced %s", id)
+		}
+	}
 	if rowRangeNames("| XTCP-V0-990..993 | x |", "TCP-V0-991") {
 		t.Error("a range inside a longer token traced TCP-V0-991")
 	}

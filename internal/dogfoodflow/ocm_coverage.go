@@ -412,8 +412,9 @@ func namesCompactRequirement(line, id string) bool {
 	}
 }
 
-// requirementRange is a table row's PREFIX-LO..HI or PREFIX-LO..PREFIX-HI.
-var requirementRange = regexp.MustCompile(`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)([0-9]{3})\.\.(?:[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)?([0-9]{3})`)
+// requirementRange is a table row's PREFIX-LO..HI or PREFIX-LO..PREFIX-HI;
+// the upper prefix is captured so a mixed-prefix range can be refused.
+var requirementRange = regexp.MustCompile(`([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)([0-9]{3})\.\.([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-)?([0-9]{3})`)
 
 // rowRangeNames reports whether a table row names id through a range whose
 // prefix is id's and whose numbers include it, as TCP-V0-990..993 names
@@ -432,8 +433,11 @@ func rowRangeNames(line, id string) bool {
 			continue
 		}
 		prefix := line[match[2]:match[3]]
+		if match[6] >= 0 && line[match[6]:match[7]] != prefix {
+			continue
+		}
 		low, _ := strconv.Atoi(line[match[4]:match[5]])
-		high, _ := strconv.Atoi(line[match[6]:match[7]])
+		high, _ := strconv.Atoi(line[match[8]:match[9]])
 		if prefix == id[:cut+1] && low <= number && number <= high {
 			return true
 		}
