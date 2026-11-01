@@ -76,6 +76,11 @@ driving Corvint from scripts.
   (AFP-V0-560). Entries the profile answers itself are left out, and the member is omitted when
   none is left. It is additive, so the schema string stays `e2e-safe-selection/1`; the decision
   rules are unchanged.
+- **ACX-V0-857:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-3734) A bare `make` (no target) SHALL run the `help` target, which only prints the targets
+  that carry a `## ` description and the effective `BASE`; it SHALL run no build, test or gate.
+  The file default SHALL be `BASE ?= origin/main`. Dogfood targets SHALL still refuse a file-origin
+  `BASE` (ASD-V0-019), and `make gate` SHALL stay an explicit target.
 
 ## Non-goals
 
@@ -100,8 +105,9 @@ still runs it.
 | ACX-V0-852 | `foreignTestFile` and `namesFileName` in `internal/liveverify/affected/readers.go` | `TestTestFileEditSelectsOnlyFileNamingReaders_ACX_V0_852`; the V1-3578 repro counts in `docs/build-log/2026-11-01-aff-w12.md` |
 | ACX-V0-854 | `setAffectedBase` in `cmd/corvint/affected.go`, `resolveAffectedAbbrevBase` and `affectedBaseHint` in `cmd/corvint/affected_abbrev_base.go` | `TestACXV0854RevisionBase`; `TestAFPV0230AbbreviatedBaseAndTrailingRoot` |
 | ACX-V0-855 | `UnitsSource` in `internal/liveverify/affected/python/python.go` | `TestModuleAndPackageInitShareOneOwner_ACX_V0_855` |
-| ACX-V0-856 | `e2eFrontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
+| ACX-V0-856 | `frontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
 | ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
+| ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
 
 ## Rollback
 
