@@ -107,12 +107,15 @@ const (
 // Unknowns are facts the reader could not observe. An unknown never becomes
 // a blocker and never becomes satisfied: it keeps Eligibility at UNKNOWN.
 type View struct {
-	Record         *Record
-	Tracked        string // NATIVE | IMPORT | SHADOW
-	IntentChecks   string // PASSED | FAILED
-	Eligibility    string // BLOCKED | UNKNOWN
-	Blockers       []Blocker
-	Unknowns       []Blocker
+	Record       *Record
+	Tracked      string // NATIVE | IMPORT | SHADOW
+	IntentChecks string // PASSED | FAILED
+	Eligibility  string // BLOCKED | UNKNOWN
+	Blockers     []Blocker
+	Unknowns     []Blocker
+	// Advisories are certain facts that no claim prerequisite depends on
+	// (TCL-V0-868): they never change IntentChecks or Eligibility.
+	Advisories     []Blocker
 	CurrentAttempt Observation // NOT_OBSERVED in TCP-01
 	GateResults    Observation // NOT_OBSERVED in TCP-01
 	Publication    Observation // NOT_OBSERVED in TCP-01 (needs the journal post digest)
@@ -184,7 +187,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	default:
 		v.Tracked = "NATIVE"
 	}
-	var blockers, unknowns []Blocker
+	var blockers, unknowns, advisories []Blocker
 	add := func(code, tid, detail string) {
 		blockers = append(blockers, Blocker{Code: code, TicketID: tid, Detail: detail})
 	}
@@ -295,7 +298,9 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		add(wire.CodeExternalUnbounded, "", "effects.externalUnbounded is true")
 	}
 	if rec.Effects.Coverage != "QUALIFIED" && ctx.SerialFallback != "WHOLE_REPOSITORY" {
-		add(wire.CodeCoverageUnknown, "", "effects.coverage is "+rec.Effects.Coverage+" and policy serialFallback is not WHOLE_REPOSITORY")
+		// TCL-V0-868: claim and plan reserve WHOLE_REPOSITORY instead, so
+		// no policy makes coverage a claim prerequisite.
+		advisories = append(advisories, Blocker{Code: wire.CodeCoverageUnknown, Detail: "effects.coverage is " + rec.Effects.Coverage + " and policy serialFallback is not WHOLE_REPOSITORY; a claim without --scope reserves WHOLE_REPOSITORY"})
 	}
 	// §3.2 imported records only under a NATIVE writer.
 	if rec.Source.Kind == "IMPORT" && ctx.CanonicalWriter != "NATIVE" {
@@ -313,6 +318,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	}
 	v.Blockers = blockers
 	v.Unknowns = unknowns
+	v.Advisories = advisories
 	if len(blockers) == 0 {
 		// Every intent-level check passed. Whatever remains is NOT_OBSERVED,
 		// so the honest answer is UNKNOWN, never ELIGIBLE (invariant 5).
@@ -323,7 +329,10 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 		v.Eligibility = EligibilityBlocked
 	}
 	v.NextAction = nextAction(rec, blockers, unknowns)
-	v.AlternativeActions = alternativeActions(rec, blockers)
+	if v.NextAction == "admit" && coverageOnly(rec, blockers, advisories) {
+		v.NextAction = "set-effects"
+		v.AlternativeActions = []string{ActionClaimScopeFromDiff}
+	}
 	return v, true
 }
 
@@ -331,21 +340,21 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 // a claim whose scope is the committed diff (TCD-V0-174).
 const ActionClaimScopeFromDiff = "claim --scope-from-diff"
 
-// alternativeActions names a claim with --scope-from-diff beside set-effects
-// when COVERAGE_UNKNOWN is an OPEN ticket's only blocker, because such a
-// claim derives the PATH scope the effects lack and closes the ticket
-// natively (TCD-V0-174, TCD-V0-182). nextAction keeps its closed value, so
-// the CAL-V0-206 byNextAction facet still counts set-effects.
-func alternativeActions(rec *Record, blockers []Blocker) []string {
-	if rec.Status != StatusOpen || len(blockers) == 0 {
-		return nil
+// coverageOnly reports an OPEN ticket with no blocker whose advisories are
+// all COVERAGE_UNKNOWN (TCL-V0-868). Its next action stays set-effects, the
+// closed CAL-V0-206 value the byNextAction facet counts, and a claim with
+// --scope-from-diff is named beside it, because that claim derives the PATH
+// scope the effects lack (TCD-V0-174, TCD-V0-182).
+func coverageOnly(rec *Record, blockers, advisories []Blocker) bool {
+	if rec.Status != StatusOpen || len(blockers) != 0 || len(advisories) == 0 {
+		return false
 	}
-	for _, b := range blockers {
-		if b.Code != wire.CodeCoverageUnknown {
-			return nil
+	for _, a := range advisories {
+		if a.Code != wire.CodeCoverageUnknown {
+			return false
 		}
 	}
-	return []string{ActionClaimScopeFromDiff}
+	return true
 }
 
 func blockerValues(bs []Blocker) wire.Value {
@@ -452,6 +461,9 @@ func (v View) Value(includeRecord bool) wire.Value {
 	o.Set("eligibility", wire.String(v.Eligibility))
 	o.Set("blockers", blockerValues(v.Blockers))
 	o.Set("unknowns", blockerValues(v.Unknowns))
+	if len(v.Advisories) != 0 {
+		o.Set("advisories", blockerValues(v.Advisories))
+	}
 	holds := make([]string, len(rec.Holds))
 	for i, h := range rec.Holds {
 		holds[i] = h.HoldID
