@@ -478,8 +478,10 @@ func emit(w io.Writer, res *wire.Result) int {
 	return 1
 }
 
+// usage is a refusal before any store read. It carries MALFORMED like every
+// other coded refusal, so callers branch on codes alone (CAL-V0-965).
 func usage(cmd []string, msg string) *wire.Result {
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Warnings: []string{prose(msg)}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeMalformed}, Warnings: []string{prose(msg)}}
 }
 
 func notRun(cmd []string) *wire.Result {
