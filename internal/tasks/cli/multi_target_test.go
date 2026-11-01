@@ -104,3 +104,37 @@ func TestTCDV0173_HoldSeveralTicketsReadsRevisions(t *testing.T) {
 		t.Fatalf("several targets on release-hold: %s", x.stdout)
 	}
 }
+
+// TestCALV0967_InterruptedMultiTargetWriteResumes covers V1-3646: a
+// two-ticket change interrupted after its first target landed resumes by
+// rerunning the same write; the landed target replays its receipt, the other
+// applies once, and a further rerun writes nothing: a replay reports the same
+// resultingRevision and no new receipt. The base request id is
+// long enough that every derived id takes the 64-byte digest form
+// (CAL-V0-967).
+func TestCALV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, a := tcdTicket(t, root, "alpha", "")
+	_, b := tcdTicket(t, root, "bravo", "")
+	base := "lane-fric-b-split-v1-3646-0123456789abcdef0123456789abcdef-0123"
+	write := func(targets ...string) map[string]wire.Value {
+		args := append([]string{"ticket", "note", "set"}, targets...)
+		return mtRows(t, atm(t, root, nil, append(args, "--request-id", base, "--issued-at", "2026-11-01T06:00:00Z", "--text", "split from V1-3646")...))
+	}
+	first := write(a, "zz-none") // the second target fails: the change is half applied
+	if field(first[a], "outcome").Str != "OK" || field(first["zz-none"], "outcome").Str != "REFUSED" || len(field(first[a], "requestId").Str) != wire.MaxRequestIDBytes {
+		t.Fatalf("interrupted write: %v", first)
+	}
+	resumed := write(a, b)
+	if !field(resumed[a], "replayed").Bool || field(resumed[a], "receipt").Str != "" || field(resumed[a], "resultingRevision").Str != field(first[a], "resultingRevision").Str ||
+		field(resumed[b], "outcome").Str != "OK" || field(resumed[b], "replayed").Bool {
+		t.Fatalf("resume: a=%s b=%s first=%s", wire.EncodeFile(resumed[a]), wire.EncodeFile(resumed[b]), wire.EncodeFile(first[a]))
+	}
+	again := write(a, b)
+	for _, id := range []string{a, b} {
+		if !field(again[id], "replayed").Bool || field(again[id], "receipt").Str != "" || field(again[id], "resultingRevision").Str != "2" {
+			t.Fatalf("converged rerun wrote %s again: %v", id, again)
+		}
+	}
+}
