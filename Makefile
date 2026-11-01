@@ -297,9 +297,10 @@ requirement-definitions-check:
 requirement-definitions-test:
 	@script/check-requirement-definitions_test.sh
 
+# TRACE_RANGE=BASE..HEAD checks every commit's rows against the change head (TTG-V0-950).
 .PHONY: traceability-tests-check
 traceability-tests-check:
-	@script/check-traceability-tests.sh
+	@script/check-traceability-tests.sh $(if $(TRACE_RANGE),--range "$(TRACE_RANGE)")
 
 .PHONY: traceability-tests-test
 traceability-tests-test:
