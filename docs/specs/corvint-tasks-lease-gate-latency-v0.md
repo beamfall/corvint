@@ -234,6 +234,15 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   run the harness MUST run the complete audit and record it in the report's `audit` field, failing
   unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
   checks; it sets no latency target and no production path reads the knob.
+- `LGL-V0-810`: (proposed; V1-3941; experimental under the standing lane auto-accept) While
+  `gate run` executes a gate program (not a reused result), it MUST heartbeat the attempt it runs
+  for: an ordinary `HEARTBEAT` lease write (CAL-V0-120) by the gate run's actor at the attempt's
+  generation, under its own derived request id, every third of the policy `heartbeatTTLSeconds`
+  and at most every 240 s, so a gate that runs longer than the TTL leaves its holder
+  `FRESH_HOLDER` rather than `STALE_HOLDER`. The first beat that does not complete (fenced,
+  released, supervised, or failed) ends the beating without failing the gate run. The beating MUST
+  stop, and any beat in flight finish, before the gate result is recorded. Each beat holds the
+  writer lock only for its own write; the gate program still runs outside the lock (CAL-V0-016).
 
 ## Non-goals
 
@@ -456,6 +465,12 @@ load 7.09, labelled QUALIFIED) made 248 calls, 102 of them non-lease, with no er
 refuses `MALFORMED: policy.json: closed object violated` without writing) are in the build-log
 entry `docs/build-log/2026-10-31-tasks-core-w2.md`.
 
+For `LGL-V0-810`, `TestLGLV0810_GateRunHeartbeatsItsHolder`
+(`internal/tasks/store/gate_heartbeat_test.go`) shortens the beat gap, claims at minute 0 and runs
+a gate at minute 11 under the default 600 s TTL: a gate program that sleeps 1 s leaves the holder
+`FRESH_HOLDER`, while a gate that ends before the first beat leaves it `STALE_HOLDER`, and both
+gate results record `COMPLETED`.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -477,4 +492,6 @@ directories before the next is published; nothing it writes differs in format, a
 binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
 `TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
 decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes the mutator
-workers and the post-run audit; with the knob unset the harness runs as before.
+workers and the post-run audit; with the knob unset the harness runs as before. Reverting LGL-V0-810
+(`gateHeartbeat` in `internal/tasks/store/gate_heartbeat.go`) stops gate run heartbeating; the
+beats it wrote are ordinary heartbeat receipts that every binary reads.

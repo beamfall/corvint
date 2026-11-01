@@ -110,7 +110,10 @@ func GateRun(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		}
 		if !reused {
 			executed = true
-			if run, err = runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock); err != nil {
+			stopBeats := gateHeartbeat(ctx, repo, actor, choice, policy, clock)
+			run, err = runGate(ctx, def, argv, substituted, policy, a, worktree, repos, clock)
+			stopBeats()
+			if err != nil {
 				return &Report{}, err
 			}
 		}
