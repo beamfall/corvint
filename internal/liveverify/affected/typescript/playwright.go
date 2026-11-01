@@ -66,6 +66,9 @@ type PlaywrightProject struct {
 
 	matchers []playwrightMatcher
 	ignores  []playwrightMatcher
+	// ignoreInherited marks a TestIgnore taken from the config's global testIgnore
+	// (TJAA-V0-770).
+	ignoreInherited bool
 	// hasGrep and hasGrepInvert record that the project declares the member, even when its
 	// value is dynamic and Grep or GrepInvert is therefore empty (TJAA-V0-021).
 	hasGrep, hasGrepInvert bool
@@ -717,11 +720,15 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 			globalTestDir = joined
 		}
 	}
-	for _, member := range []string{"grep", "grepInvert", "testIgnore", "testMatch", "tsconfig"} {
+	for _, member := range []string{"grep", "grepInvert", "testMatch", "tsconfig"} {
 		if _, exists := properties[member]; exists {
 			unknown = append(unknown, selectionUnknown(PlaywrightUnknownConfigSyntax, "global "+member+" is outside the static project subset"))
 		}
 	}
+	// A literal global testIgnore is the exclusion every project without its own testIgnore
+	// inherits (TJAA-V0-770); a matcher outside the literal grammar still refuses.
+	global := playwrightGlobalIgnore{raw: strings.TrimSpace(properties["testIgnore"])}
+	global.values, global.matchers, unknown = parsePlaywrightMatchers("global", "testIgnore", properties, unknown)
 	rawProjects, exists := properties["projects"]
 	if !exists {
 		return nil, globalTestDir, append(unknown, selectionUnknown(PlaywrightUnknownProjectSet, "projects is absent"))
@@ -736,7 +743,7 @@ func parsePlaywrightConfig(configPath, source string) ([]PlaywrightProject, stri
 		if strings.TrimSpace(item) == "" {
 			continue
 		}
-		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties["use"])
+		project, itemUnknown := parsePlaywrightProject(scope, configPath, globalTestDir, item, properties["use"], global)
 		unknown = append(unknown, itemUnknown...)
 		if project.Name == "" {
 			continue
@@ -816,7 +823,15 @@ func playwrightNonIdentityUseSpans(clean string, uses []string) [][2]int {
 	return spans
 }
 
-func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string) (PlaywrightProject, []PlaywrightUnknown) {
+// playwrightGlobalIgnore is a config's literal global testIgnore (TJAA-V0-770): its source text,
+// sorted values and compiled matchers, all empty when the config has none.
+type playwrightGlobalIgnore struct {
+	raw      string
+	values   []string
+	matchers []playwrightMatcher
+}
+
+func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir, raw, globalUse string, global playwrightGlobalIgnore) (PlaywrightProject, []PlaywrightUnknown) {
 	properties, ok := playwrightObjectProperties(raw)
 	if !ok {
 		return PlaywrightProject{}, []PlaywrightUnknown{selectionUnknown(PlaywrightUnknownProjectSet, "project entry is not a static object")}
@@ -831,6 +846,11 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	if globalUse != "" {
 		fragmentSum = sha256.Sum256([]byte(strings.TrimSpace(globalUse) + "\n" + strings.TrimSpace(raw)))
 	}
+	_, ownIgnore := properties["testIgnore"]
+	if global.raw != "" && !ownIgnore {
+		// The inherited exclusion is part of the project's configuration identity.
+		fragmentSum = sha256.Sum256(append(fragmentSum[:], []byte("\ntestIgnore:"+global.raw)...))
+	}
 	project.ConfigFragment = hex.EncodeToString(fragmentSum[:])
 	unknown := []PlaywrightUnknown{}
 	if value, exists := properties["testDir"]; exists {
@@ -843,6 +863,9 @@ func parsePlaywrightProject(scope playwrightPureScope, configPath, globalTestDir
 	}
 	project.TestMatch, project.matchers, unknown = parsePlaywrightMatchers(name, "testMatch", properties, unknown)
 	project.TestIgnore, project.ignores, unknown = parsePlaywrightMatchers(name, "testIgnore", properties, unknown)
+	if !ownIgnore && len(global.matchers) != 0 {
+		project.TestIgnore, project.ignores, project.ignoreInherited = slices.Clone(global.values), slices.Clone(global.matchers), true
+	}
 	if value, exists := properties["dependencies"]; exists {
 		dependencies, literal := playwrightStringArray(value)
 		if bound, ok := scope.arrays[strings.TrimSpace(value)]; !literal && ok {

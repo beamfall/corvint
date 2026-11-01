@@ -445,7 +445,7 @@ func playwrightLiteralMatchers(body, key string, projects []PlaywrightProject, u
 			return false
 		}
 	}
-	matching := 0
+	matching, global := 0, 0
 	for _, project := range projects {
 		items := project.TestMatch
 		if key == "testIgnore" {
@@ -454,14 +454,19 @@ func playwrightLiteralMatchers(body, key string, projects []PlaywrightProject, u
 		if len(items) == 0 {
 			continue
 		}
-		matching++
+		// An inherited global testIgnore is the body's one global key (TJAA-V0-770).
+		if key == "testIgnore" && project.ignoreInherited {
+			global = 1
+		} else {
+			matching++
+		}
 		for _, raw := range items {
 			if !playwrightDecidableMatcher(raw) {
 				return false
 			}
 		}
 	}
-	return matching != 0 && matching == strings.Count(body, key)
+	return matching+global != 0 && matching+global == strings.Count(body, key)
 }
 
 // playwrightLiteralProjects parses a Playwright config and returns its projects and global
