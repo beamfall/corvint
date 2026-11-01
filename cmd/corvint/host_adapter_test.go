@@ -744,7 +744,7 @@ func TestClaudeAdapterStopDeadlineFailsOpenVisibly(t *testing.T) {
 
 // AHI-031: an event that expires in the in-memory build of a snapshot miss is a fault the user
 // must act on: the notice names the stale snapshot and the refresh argv, the model gets the same
-// text, and the ledger reason is still read from the frame line.
+// text (then AHI-801's reduced packet), and the ledger reason is still read from the frame line.
 func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
@@ -763,8 +763,12 @@ func TestClaudeAdapterStaleSnapshotNamesRemediation(t *testing.T) {
 	notice, _ := output["systemMessage"].(string)
 	hook, _ := output["hookSpecificOutput"].(map[string]any)
 	frame := "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-index-snapshot-stale; coding continues\n"
-	if !strings.HasPrefix(notice, frame) || !strings.HasSuffix(notice, "\n"+string(refresh)) || hook["additionalContext"] != notice || hook["hookEventName"] != "UserPromptSubmit" {
+	if !strings.HasPrefix(notice, frame) || !strings.HasSuffix(notice, "\n"+string(refresh)) || hook["hookEventName"] != "UserPromptSubmit" {
 		t.Fatalf("stale snapshot degradation carried no remediation: %+v", output)
+	}
+	// AHI-801: the model gets the same notice, followed by the reduced packet.
+	if model, _ := hook["additionalContext"].(string); !strings.HasPrefix(model, notice+"\nCorvint reduced packet (degraded;") {
+		t.Fatalf("stale snapshot model context lost the notice or the reduced packet: %q", model)
 	}
 	if strings.Contains(notice, "hook time limit") || strings.Contains(notice, `"status"`) {
 		t.Fatalf("stale snapshot notice carried the AHI-055 deadline text: %q", notice) // AHI-055 leaves AHI-031 unchanged
