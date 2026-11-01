@@ -24,6 +24,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/lifecycle"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/obligation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
@@ -847,7 +848,7 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1171,6 +1172,7 @@ type searchFilter struct {
 	label     *string
 	text      *string // lower-cased substring of title or body
 	phase     *string // effective progress phase or NONE (TLF-V0-882)
+	lifecycle *string // derived delivery lifecycle (TLC-V0-009)
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1236,8 +1238,11 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 	if f.phase, err = enumFlag(fl, "phase", searchPhases); err != nil {
 		return f, err
 	}
-	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil && f.phase == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase); `ticket list` is the unfiltered read")
+	if f.lifecycle, err = enumFlag(fl, "lifecycle", lifecycleStates); err != nil {
+		return f, err
+	}
+	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil && f.phase == nil && f.lifecycle == nil {
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle); `ticket list` is the unfiltered read")
 	}
 	return f, nil
 }
@@ -1320,7 +1325,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1333,7 +1338,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
-	var hoisted []string
+	var hoisted, lcWarnings []string
 	var summary *wire.Value
 	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
@@ -1350,13 +1355,24 @@ func ticketSearch(env Env, args []string) *wire.Result {
 			}
 			ids = append(ids, id)
 		}
+		// TLC-V0-009: the derived lifecycle filters, counts and labels rows.
+		var lcs map[string]lifecycle.Lifecycle
+		lcs, lcWarnings = lifecycles(rc, ids, nil)
+		if f.lifecycle != nil {
+			ids = slices.DeleteFunc(ids, func(id string) bool { return lcs[id].State != *f.lifecycle })
+		}
 		matched = len(ids)
 		if fm.facets || fm.count {
 			s := facetSummary(rc, ids)
+			s.Obj.Set("byLifecycle", lifecycleCounts(lcs, ids))
 			summary = &s
 		}
 		if !fm.count {
 			items, pg, hoisted = listViews(rc, ids, p, nil)
+			start, _ := p.window(len(ids))
+			for i := range items {
+				items[i].Obj.Set("lifecycle", lcs[ids[start+i]].Value())
+			}
 		}
 		return nil
 	})
@@ -1367,7 +1383,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	res.Items = items
 	res.Page = pg
 	res.Untrusted = len(items) > 0
-	res.Warnings = append(res.Warnings, hoisted...)
+	res.Warnings = append(append(res.Warnings, hoisted...), lcWarnings...)
 	fm.apply(res, summary, matched)
 	return res
 }
@@ -1449,6 +1465,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	var items []wire.Value
 	var pg *wire.Page
 	var unmilestoned int64
+	var lcWarnings []string
 	var summary *wire.Value
 	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
@@ -1483,6 +1500,12 @@ func roadmap(env Env, args []string) *wire.Result {
 		for _, id := range ids[start:end] {
 			items = append(items, roadmapRow(rc.store.Inventory, id, ctx))
 		}
+		// TLC-V0-010: advisory; never an input to the roadmap order.
+		var lcs map[string]lifecycle.Lifecycle
+		lcs, lcWarnings = lifecycles(rc, ids[start:end], nil)
+		for i, id := range ids[start:end] {
+			items[i].Obj.Set("lifecycle", lcs[id].Value())
+		}
 		pg = p.result(len(ids), len(items))
 		return nil
 	})
@@ -1496,6 +1519,7 @@ func roadmap(env Env, args []string) *wire.Result {
 	if unmilestoned > 0 {
 		res.Warnings = append(res.Warnings, strconv.FormatInt(unmilestoned, 10)+" OPEN ticket(s) have no milestone")
 	}
+	res.Warnings = append(res.Warnings, lcWarnings...)
 	fm.apply(res, summary, matched)
 	return res
 }
@@ -1771,6 +1795,15 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 			val.Obj.Set("liveAttempt", wire.Null())
 		default:
 			val.Obj.Set("liveAttempt", current.Value())
+		}
+		// TLC-V0-008: the derived delivery lifecycle, with its evidence.
+		if includeRecord {
+			lin := &in
+			if rc.journalAbsent {
+				lin = nil
+			}
+			lcs, _ := lifecycles(rc, []string{id}, lin)
+			val.Obj.Set("lifecycle", lcs[id].Value())
 		}
 		// CAL-V0-322: the newest failed gate of any of the ticket's attempts,
 		// with its retained output tail.

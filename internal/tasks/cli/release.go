@@ -181,6 +181,12 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 		}
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: vs}
 	}
+	var lifecycleState *string
+	if verb == "readiness" {
+		if args, lifecycleState, err = lifecycleFlag(args); err != nil {
+			return errorResult(cmd, err)
+		}
+	}
 	if len(args) != 1 {
 		return usage(cmd, "release id required")
 	}
@@ -228,7 +234,8 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	o.Set("readiness", wire.String(ready.State)).Set("missing", wire.Strings(ready.Missing)).Set("nativeGateExecution", wire.String("NOT_RUN"))
 	members, drift := releaseMembership(target, st.Tickets)
 	o.Set("memberCounts", members).Set("milestoneDrift", drift)
-	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
+	warnings := releaseLifecycles(env, target, members, lifecycleState, o)
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}, Warnings: warnings}
 }
 
 func releaseSummary(r *release.Record) wire.Value {

@@ -72,7 +72,10 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
 - `TLC-V0-008`: `ticket show` MUST report member `lifecycle`.
 - `TLC-V0-009`: `ticket search` MUST report `lifecycle` on each row, MUST accept
   `--lifecycle STATE` as a filter that alone satisfies the at-least-one-filter rule, and with
-  `--facets` or `--count` MUST report `facets.byLifecycle` with a count for every state.
+  `--facets` or `--count` MUST report `facets.byLifecycle` with a count for every state. This amends
+  the closed `CAL-V0-206` summary by one optional member: a result decoder MUST admit
+  `byLifecycle` only as an object of Counts with exactly the `TLC-V0-001` states, summing to
+  `total`, and every other read keeps its earlier facet bytes.
 - `TLC-V0-010`: `roadmap` rows MUST report `lifecycle`.
 - `TLC-V0-011`: `release readiness` MUST report `memberCounts.byLifecycle` with a count for every
   state over the release's member tickets, and `release readiness RELEASE --lifecycle STATE` MUST
@@ -112,7 +115,7 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
 | TLC-V0-006 | V1-3945 (batched observation) | `internal/tasks/store/delivery_refs.go` | `TestTLCV0006_ObservationIsBatched`; build-log measurement on the 1,200-ticket store | durable qualification |
 | TLC-V0-007 | product invariant 4 | `internal/tasks/cli/lifecycle.go` | `TestTLCV0007_LifecycleReadsAreReadOnly` | none |
 | TLC-V0-008 | V1-3945 criterion 1 | `internal/tasks/cli` (show) | `TestTLCV0008_ShowLifecycleTransitions` | none |
-| TLC-V0-009 | V1-3945 criteria 1 and 3 | `internal/tasks/cli` (search, facets, help) | `TestTLCV0009_SearchLifecycleFilterAndFacet` | none |
+| TLC-V0-009 | V1-3945 criteria 1 and 3 | `internal/tasks/cli` (search, facets, help); `internal/tasks/wire/facets.go` | `TestTLCV0009_SearchLifecycleFilterAndFacet`; `TestCALV0206_FacetsMemberIsTheClosedSummary` | none |
 | TLC-V0-010 | V1-3945 criterion 1 | `internal/tasks/cli` (roadmap) | `TestTLCV0010_RoadmapLifecycle` | none |
 | TLC-V0-011 | V1-3945 criteria 1 and 3 | `internal/tasks/cli/release.go` | `TestTLCV0011_ReleaseReadinessLifecycleCounts` | none |
 | TLC-V0-012 | V1-3945 criterion 2; V1-3856 (delivered lane heads visible) | reuse of `TLF-V0-880`, `TLF-V0-883` | `TestTLCV0012_DeliveredThenIntegratedIsCloseoutDebt` | none |
@@ -134,6 +137,6 @@ Agents and the operator then re-dispatch delivered work or miss closeout.
 
 ## Rollout and rollback
 
-Rollout is additive: new read members, one new search flag and one new release readiness flag; no
-record, receipt or journal bytes change. Rollback is reverting the change; no store state depends on
+Rollout is additive: new read members, one optional facet member, one new search flag and one new
+release readiness flag; no record, receipt or journal bytes change. Rollback is reverting the change; no store state depends on
 it.
