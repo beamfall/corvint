@@ -100,6 +100,10 @@ inspection of provider and control evidence. The permanently prose-only JS exper
   joins, stale product/test source, foreign healthy occupied-port server, old served artifact and
   cancellation controls. Retain all failed and unavailable observations. Go fixtures, dependency
   integrity, availability smoke or legacy tuple qualification cannot replace this live matrix.
+- `PTF-V0-755`: The dependency observation's ancestor walk (no symlinked or missing ancestor) ends
+  at the filesystem root as the platform defines it, the path whose parent is itself (`/` on Unix, a
+  volume such as `C:\` on Windows), and never inspects that root. A walk that tests only for `/`
+  never ended on native Windows (V1-2492).
 
 ## Source-direct observation and trust boundary
 
@@ -223,6 +227,7 @@ semantics, automatic dependency installation in the product, release publication
 | PTF-V0-005 | Closed/canonical codec, old-envelope and unsupported-consumer rejection fixtures |
 | PTF-V0-006..008 | Complete control/attempt native joins measure KILLED or rejected SURVIVED; missing/duplicate/extra/unsupported/invalid outcomes stay NOT_MEASURED; same-closure target kills join every repeat and accept; stale/unknown aggregation remains |
 | PTF-V0-009 | Foreign occupied port, failure and cancellation observations; owned server/runner/browser descendants retired with limitations retained |
+| PTF-V0-755 | `TestPTFV0DependencyManifestBound` finishes on Linux and native Windows (go1.27.3 windows/amd64, 2026-11-01) instead of reaching the package timeout |
 | PTF-V0-010 | Exact consuming tuple live matrix, focused tests/vet/doc/error ownership, independent review, final CEM/OCM and native gate receipts |
 
 Source-phase evidence is retained privately with immutable hashes: eight real provider modes

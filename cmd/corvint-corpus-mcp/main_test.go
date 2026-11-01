@@ -70,7 +70,15 @@ func corpusMCPTransport(t *testing.T, version string) {
 		done := make(chan int, 1)
 		var stderr bytes.Buffer
 		go func() {
-			done <- run(ctx, []string{"--root", root, "--artifact", "corpus.json", "--protocol-version", version}, serverInput, serverOutput, &stderr)
+			code := run(ctx, []string{"--root", root, "--artifact", "corpus.json", "--protocol-version", version}, serverInput, serverOutput, &stderr)
+			// A server that returns early (for example "repository unavailable"
+			// on native Windows) no longer reads its input: the client's next
+			// pipe write or decode then fails with the exit instead of
+			// blocking until the package timeout (V1-2492).
+			exited := fmt.Errorf("server exited %d: %q", code, stderr.String())
+			_ = serverInput.CloseWithError(exited)
+			_ = serverOutput.CloseWithError(exited)
+			done <- code
 		}()
 		t.Cleanup(func() {
 			cancel()

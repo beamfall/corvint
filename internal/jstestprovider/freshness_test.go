@@ -222,6 +222,8 @@ func TestPTFV0ResponseDeltaAndAssertion(t *testing.T) {
 
 // PTF-V0-001/003/007: an approved complete tree is reread independently; a
 // changed imported implementation, an extra input, or a symlink cannot match.
+// PTF-V0-755: the ancestor walk ends at the platform's filesystem root, so the
+// bound is reached on native Windows too instead of looping at a volume root.
 func TestPTFV0DependencyManifestBound(t *testing.T) {
 	root, e := filepath.EvalSymlinks(t.TempDir())
 	if e != nil {

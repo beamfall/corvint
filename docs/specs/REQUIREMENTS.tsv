@@ -5730,6 +5730,7 @@ PTF-V0-007	docs/specs/playwright-per-test-freshness-v0.md	The only supported mut
 PTF-V0-008	docs/specs/playwright-per-test-freshness-v0.md	Join the control's observed semantic/runtime/source closure to EVERY baseline re	unrecorded	-
 PTF-V0-009	docs/specs/playwright-per-test-freshness-v0.md	Readiness failure, attestation failure, execution failure and cancellation all c	unrecorded	-
 PTF-V0-010	docs/specs/playwright-per-test-freshness-v0.md	Qualify the named consuming path on the exact tuple with actual stable positive/	unrecorded	-
+PTF-V0-755	docs/specs/playwright-per-test-freshness-v0.md	The dependency observation's ancestor walk (no symlinked or missing ancestor) en	unrecorded	-
 PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
 PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
 PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-
