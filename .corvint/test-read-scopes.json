@@ -457,6 +457,7 @@
       "internal/appmap/testdata/"
     ],
     "internal/testplatform": [
+      ".corvint/test-read-scopes.json",
       "internal/analyzerexec/platform_other.go",
       "internal/cem/cli/stable_other.go",
       "internal/cem/publish/lock_other.go",
