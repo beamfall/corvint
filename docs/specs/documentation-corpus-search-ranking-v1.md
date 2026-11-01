@@ -688,6 +688,28 @@ requests without the new fields keep their bytes. Acceptance:
 `TestDCSV1597CorpusNavigationQueryCLIAndMCP` (`cmd/corvint`), each of which failed before the
 change.
 
+### One artifact encode per compile (V1-2668)
+
+`compileOnce` encoded the whole artifact into the digest (`hashSized`) and then encoded it again
+only to apply the output byte bound with the digest set, so a compile encoded twice, and an
+over-bound build (`DCS-V1-569`) three times before the build command's own write. Status for
+`DCS-V1-976`: experimental under the standing lane auto-accept; V1-2668.
+
+- `DCS-V1-976`: A compile performs one full artifact encode, the digest's. The artifact's `sha256`
+  member has no `omitempty`, so the digested encoding already carries it as `""` and the final
+  encoding is exactly the digested length plus the digest's 64 bytes; the output byte bound is
+  applied to that length, refusing exactly where the second encode refused. On that refusal the
+  reported size feeding the `DCS-V1-569` retry keeps its previous formula (digested length plus
+  the digest plus 16), so retries and every artifact stay byte-identical. Non-goals: no change to
+  the artifact bytes, `DerivationVersion`, the retry rule, or the write path's own encode.
+  Failure mode: a future `omitempty` on `sha256`, or another member set after the digest, breaks
+  the length identity; `TestDCSV1976OneArtifactEncodePerCompile` pins the identity and fails
+  first. Acceptance: `TestDCSV1976OneArtifactEncodePerCompile` (one artifact encode per compile,
+  two for the over-bound build, and the length identity), `TestDCSV1569DerivationStopsAtTheOutputBound`
+  and `TestDCSV1572RetryFromPinnedInputsIsByteIdentical` unchanged; measured in
+  `docs/build-log/2026-10-31-indexcli-r-w7.md`. Rollback: restore the second `Encode` in
+  `compileOnce`.
+
 ## Non-goals
 
 The parent contract's non-goals and simpler baseline apply; these blocks add none of their own.
@@ -733,3 +755,4 @@ DCPV1.
 | DCS-V1-583..584 | `internal/contextindex/webimports.go`, `internal/doccorpus/compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCSV1583WebExportedObjectKeys`, `TestDCSV1583WebExportedObjectKeysAreBounded`, `TestDCSV1583ExportedObjectKeysAreDeclarations`, `TestDCSV1571TypeScriptClassMembersAreDeclarations`, `TestDCXV1471DerivationVersionGuard`, `TestDCXV1564ReleaseNotesListEveryDerivation` |
 | DCS-V1-590 | `DerivationFilter.Native`, `native`, `validDerivationFilter`, `repositoryQualifier` in `internal/doccorpus/compile.go`, `types.go`; `docs/DOCUMENTATION-CORPUS.md` | `TestDCSV1590NativeDerivationFilterRestrictsNativeOwnedInputs`, `TestDCSV1573DerivationFilterKeepsTheSelectedDeclarations`, `TestDCSV1573DerivationFilterRefusesMalformedFilters` |
 | DCS-V1-591..597 | `ClaimKinds`, `ValidClaimKinds` in `internal/doccorpus/adoption.go`; `types.go`, `query.go`, `typed_query.go`, `path_owners.go`, `receipt_annotations.go`; `internal/mcp/corpusbridge/corpusbridge.go`; `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCSV1591ClaimsReceiptLabelsClaimKinds`, `TestDCSV1592ClaimsKindFilter`, `TestDCSV1593ClaimsQueryRanksTestRunsAfterOtherClaims`, `TestDCSV1594LocateReturnsDocumentingOwners`, `TestDCSV1595RecommendTestsFollowsOwnerTestLinks`, `TestDCSV1596NavigationQuery`, `TestDCSV1594CorpusPathOperationsReturnDocumentingOwners`, `TestDCSV1592CorpusClaimKindsCLIAndMCP`, `TestDCSV1597CorpusNavigationQueryCLIAndMCP`, `TestDCPV1313ClaimTextQueryReachesClaimRecall`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`; recorded in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-29-corpus-claim-kinds-path-owners-navigation-query.md |
+| DCS-V1-976 | `compileOnce` in `internal/doccorpus/compile.go`; `encoding.go`; `read.go` | `TestDCSV1976OneArtifactEncodePerCompile`, `TestDCSV1569DerivationStopsAtTheOutputBound`, `TestDCSV1572RetryFromPinnedInputsIsByteIdentical`; measured in `docs/build-log/2026-10-31-indexcli-r-w7.md` |

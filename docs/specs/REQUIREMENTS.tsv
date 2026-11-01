@@ -3447,6 +3447,7 @@ DCS-V1-594	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V
 DCS-V1-595	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2012; V1-3125) `recommend-tests` on a path returns the same owners and	unrecorded	-
 DCS-V1-596	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `navigation` takes a `query` instead of an `id`, never	unrecorded	-
 DCS-V1-597	docs/specs/documentation-corpus-search-ranking-v1.md	(GitHub #2013; V1-3126) `docs_navigation` advertises an optional `query` (1 to	unrecorded	-
+DCS-V1-976	docs/specs/documentation-corpus-search-ranking-v1.md	A compile performs one full artifact encode, the digest's. The artifact's `sha25	unrecorded	-
 DCP-V1-001	docs/specs/documentation-corpus-v1.md	The explicit manifest, normalized provider and artifact use closed versioned JSO	unrecorded	-
 DCP-V1-002	docs/specs/documentation-corpus-v1.md	Provenance carries builder identity/revision, shared native compiler/schema/tool	unrecorded	-
 DCP-V1-003	docs/specs/documentation-corpus-v1.md	Each literal source/provider scope has a complete immutable Git inventory checke	unrecorded	-
