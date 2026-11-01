@@ -138,7 +138,9 @@ func TestCTWV0005_NoIntentWorktreeNamesTheFix(t *testing.T) {
 
 // TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted: a registration on
 // the intent branch that does not round-trip, or whose projection names a
-// different queue, is reported in the fix and never becomes the root.
+// different queue, is reported in the fix and never becomes the root; a
+// projection-only refusal names that projection, not `worktree add`
+// (CTW-V0-780).
 func TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted(t *testing.T) {
 	cases := map[string]struct {
 		break_ func(t *testing.T, r *fixture.Repo, root, admin string)
@@ -187,9 +189,20 @@ func TestCTWV0004_StaleOrForeignIntentWorktreeIsNotAdmitted(t *testing.T) {
 			if repo.IntentRoot() != r.Root {
 				t.Fatalf("an unadmitted worktree became the root: %q", repo.IntentRoot())
 			}
-			for _, part := range []string{`linked worktree entry "wt-main" `, c.want, "git worktree prune", "git worktree repair", "worktree add", "CTW-V0-005"} {
+			// A sound registration refused only by its projection already exists:
+			// the fix names its projection, never adding it again (CTW-V0-780).
+			parts, absent := []string{"git worktree prune", "git worktree repair", "worktree add", "CTW-V0-005"}, []string{"CTW-V0-780"}
+			if strings.HasPrefix(c.want, "queue.json") || strings.Contains(c.want, "queue or intent branch") || strings.Contains(c.want, "symlink") {
+				parts, absent = []string{"give " + intent.ShellQuote(root) + " a .taskman directory", "CTW-V0-780"}, []string{"worktree add", "worktree prune", "worktree repair", "CTW-V0-005"}
+			}
+			for _, part := range append([]string{`linked worktree entry "wt-main" `, c.want}, parts...) {
 				if !strings.Contains(repo.IntentFix, part) {
 					t.Errorf("fix %q lacks %q", repo.IntentFix, part)
+				}
+			}
+			for _, part := range absent {
+				if strings.Contains(repo.IntentFix, part) {
+					t.Errorf("fix %q names %q", repo.IntentFix, part)
 				}
 			}
 		})

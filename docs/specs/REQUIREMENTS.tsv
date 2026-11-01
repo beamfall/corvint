@@ -783,6 +783,9 @@ AMAP-V0-143	docs/specs/application-map-v0.md	Each cited request MUST read exactl
 AMAP-V0-144	docs/specs/application-map-v0.md	A `BLOCKER-404-NO-ROUTE` or `route-table-incomplete` request MUST name up to 3	unrecorded	-
 AMAP-V0-145	docs/specs/application-map-v0.md	The report head MUST carry the map identity, budget, rule	unrecorded	-
 AMAP-V0-146	docs/specs/application-map-v0.md	Router and handler reads MUST stay within the AMAP-V0-107 bounds, and the same	unrecorded	-
+AMAP-V0-780	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3526) `tests.p	standing	2026-10-31; V1-3526
+AMAP-V0-781	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynami	standing	2026-10-31; V1-3527
+AMAP-V0-782	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) The opti	standing	2026-10-31; V1-3527
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
@@ -2529,6 +2532,7 @@ CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary workt
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
 CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	A linked worktree is admitted only when all of the following hold. It is among t	unrecorded	-
 CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary is not on the intent branch and no admitted linked worktree hol	unrecorded	-
+CTW-V0-780	docs/specs/corvint-tasks-intent-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3525) When an	standing	2026-10-31; V1-3525
 CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	When two or more admitted linked worktrees hold the intent branch, none is selec	unrecorded	-
 CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`	unrecorded	-
 CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-
@@ -2557,6 +2561,7 @@ JSG-V0-001	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0
 JSG-V0-002	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R2, fork F1) A HEARTBEAT or RENEW result reports `snaps	owner	decision 0549
 JSG-V0-003	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R3) The writer checkpoint carries the measured manifest	owner	decision 0549
 JSG-V0-004	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R4) The writer checkpoint is two derived files: a seale	owner	decision 0549
+JSG-V0-780	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-2592) Amending	standing	2026-10-31; V1-2592
 JSG-V0-005	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R5) A segmented store keeps receipts F..S in sealed seg	owner	decision 0549
 JSG-V0-006	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R6) The segment manifest `segments/manifest-<S>.json` (	owner	decision 0549
 JSG-V0-007	docs/specs/corvint-tasks-journal-segments-v0.md	(accepted; decision 0549 R7) Every writer audit lists `receipts/` exactly and re	owner	decision 0549
@@ -2618,6 +2623,7 @@ LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203)
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
 LGL-V0-004	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 LGL-V0-005	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew session (`transaction.LivenessLease`) M	unrecorded	-
+LGL-V0-780	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539; orchestrator decision 2026-10-31 choosing the claim staging-	standing	V1-2539; 2026-10-31; 2026-10-24; V1-2203; decision 0549
 LGL-V0-006	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A session MUST count the file and directory sync calls it ma	unrecorded	-
 LGL-V0-007	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) The only state a crash after a heartbeat or renew can leave	unrecorded	-
 LGL-V0-008	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destina	unrecorded	-
@@ -5162,6 +5168,7 @@ NGI-V0-059	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-060	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) When the	standing	2026-10-11; V1-2071
 NGI-V0-061	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) A path o	standing	2026-10-11; V1-2071
 NGI-V0-062	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1848) Path imp	standing	2026-10-11; V1-1848
+NGI-V0-780	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Impact's	standing	2026-10-31; V1-3498
 NGI-V0-301	docs/specs/non-go-impact-v0.md	`corvint graph imports --revision FULL_COMMIT [--kinds KINDS]	unrecorded	-
 NGI-V0-302	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS path MUST retain the structured syntax unknowns that	unrecorded	-
 NGI-V0-303	docs/specs/non-go-impact-v0.md	Import resolution and evidence sites MUST agree with impact on the same	unrecorded	-
@@ -7012,6 +7019,7 @@ TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	Static confi
 TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	A changed source, page object, fixture, scenario builder, or helper MUST select	unrecorded	-
 TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	Project grep/tag and metadata inputs are identity, not file-exclusion authority.	unrecorded	-
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	Per-file commands require a matching complete caller-owned discovery receipt.	unrecorded	-
+TJAA-V0-780	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Every	standing	2026-10-31; V1-3498
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	The profile MUST be read-only and bounded by the shared source-walk and source-r	unrecorded	-
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	Qualification requires a fixture with Chromium plus Angular/React project varian	unrecorded	-
 TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0483; V1-1065; GitHub #709) In a global or project	owner	decision 0483; V1-1065; #709

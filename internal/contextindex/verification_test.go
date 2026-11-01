@@ -223,7 +223,7 @@ func TestToolchainCommandRefusesAnUnloadedPackageJSON(t *testing.T) {
 	if hasTest, complete := packageJSONHasTestScript(projectFiles["package.json"]); complete || hasTest {
 		t.Fatalf("packageJSONHasTestScript = hasTest=%v complete=%v; want refusal", hasTest, complete)
 	}
-	if command, complete := toolchainCommand("lib/widget.js", projectFiles, ""); complete || command != "" {
+	if command, complete := toolchainCommand("lib/widget.js", projectFiles, "", "npm test"); complete || command != "" {
 		t.Fatalf("toolchainCommand = %q, complete=%v; want refusal", command, complete)
 	}
 }

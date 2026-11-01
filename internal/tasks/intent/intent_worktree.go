@@ -89,6 +89,14 @@ type linkedCandidate struct {
 	root, admin string
 }
 
+// rejectedEntry is one linked worktree entry on the intent branch that
+// CTW-V0-004 did not admit. root is set when the registration and worktree
+// are sound and only the projection under it was refused, so the worktree
+// exists and must not be added again (CTW-V0-780).
+type rejectedEntry struct {
+	text, root string
+}
+
 // resolveIntentWorktree applies CTW-V0-002 to CTW-V0-006 to a resolved
 // repository. It depends only on repository files, never on the caller's cwd.
 func resolveIntentWorktree(r *Repository) {
@@ -122,8 +130,37 @@ func resolveIntentWorktree(r *Repository) {
 	if truncated {
 		fix += fmt.Sprintf("; only the first %d linked worktree entries were examined", maxLinkedWorktrees)
 	}
+	texts, existing, stale := []string{}, []string{}, false
+	for _, entry := range rejected {
+		texts = append(texts, entry.text)
+		if entry.root != "" {
+			existing = append(existing, ShellQuote(entry.root))
+		} else {
+			stale = true
+		}
+	}
 	if len(rejected) > 0 {
-		fix += "; not admitted: " + strings.Join(rejected, "; ") + "; run \"git worktree prune\", or \"git worktree repair\" if that worktree moved, and"
+		fix += "; not admitted: " + strings.Join(texts, "; ")
+	}
+	if len(existing) > 0 {
+		// The intent-branch worktree exists; only its projection is missing or
+		// wrong, so adding it again would fail (CTW-V0-780).
+		if stale {
+			fix += "; run \"git worktree prune\" for the stale entries, and"
+		} else {
+			fix += ":"
+		}
+		target := existing[0]
+		if len(existing) > 1 {
+			target = "one of " + strings.Join(existing, ", ")
+		}
+		primary := filepath.Join(r.PrimaryWorktree, Dir)
+		r.IntentFix = fix + fmt.Sprintf(" give %s a %s directory whose queue.json names queue %q and intent branch %q, for example copies of %s and %s, then retry from any checkout (CTW-V0-780)",
+			target, Dir, hint.queueID, hint.branch, ShellQuote(filepath.Join(primary, "queue.json")), ShellQuote(filepath.Join(primary, "policy.json")))
+		return
+	}
+	if len(rejected) > 0 {
+		fix += "; run \"git worktree prune\", or \"git worktree repair\" if that worktree moved, and"
 	} else {
 		fix += ":"
 	}
@@ -170,7 +207,7 @@ func headBranch(path string) (string, bool) {
 // linkedCandidates scans `<common>/worktrees/*` in name order for linked
 // worktrees whose HEAD names the hinted branch (CTW-V0-004). An entry on the
 // branch that fails validation is reported, never admitted.
-func linkedCandidates(common string, hint intentHint) (found []linkedCandidate, rejected []string, truncated bool) {
+func linkedCandidates(common string, hint intentHint) (found []linkedCandidate, rejected []rejectedEntry, truncated bool) {
 	dir := filepath.Join(common, "worktrees")
 	if fi, err := os.Lstat(dir); err != nil || !fi.IsDir() {
 		return nil, nil, false
@@ -193,7 +230,7 @@ func linkedCandidates(common string, hint intentHint) (found []linkedCandidate, 
 		}
 		root, reason := validateLinked(admin, info, hint)
 		if reason != "" {
-			rejected = append(rejected, fmt.Sprintf("linked worktree entry %q %s", entry.Name(), reason))
+			rejected = append(rejected, rejectedEntry{text: fmt.Sprintf("linked worktree entry %q %s", entry.Name(), reason), root: root})
 			continue
 		}
 		found = append(found, linkedCandidate{root: root, admin: admin})
@@ -204,7 +241,9 @@ func linkedCandidates(common string, hint intentHint) (found []linkedCandidate, 
 // validateLinked admits one linked worktree on the hinted branch: its
 // registration must point at an existing worktree whose `.git` file points
 // back to the same admin directory, and its own queue manifest must name the
-// same queue and intent branch (CTW-V0-004). The reason is empty on success.
+// same queue and intent branch (CTW-V0-004). The reason is empty on success;
+// a refused projection under a sound registration returns its root with the
+// reason (CTW-V0-780).
 func validateLinked(admin string, adminInfo os.FileInfo, hint intentHint) (string, string) {
 	raw, err := readBounded(filepath.Join(admin, "gitdir"), 4*wire.KiB)
 	if err != nil {
@@ -249,18 +288,18 @@ func validateLinked(admin string, adminInfo os.FileInfo, hint intentHint) (strin
 		return "", "is stale: its worktree .git file points to a different registration"
 	}
 	if err := checkNoSymlink(filepath.Join(root, Dir)); err != nil {
-		return "", "is not admitted: its .taskman path contains a symlink or cannot be observed"
+		return root, "is not admitted: its .taskman path contains a symlink or cannot be observed"
 	}
 	raw, err = readBounded(filepath.Join(root, Dir, "queue.json"), wire.MaxQueueFileBytes)
 	if err != nil {
-		return "", "is not admitted: its .taskman/queue.json is missing or unreadable"
+		return root, "is not admitted: its .taskman/queue.json is missing or unreadable"
 	}
 	q, err := DecodeQueue(raw)
 	if err != nil {
-		return "", "is not admitted: its .taskman/queue.json is malformed"
+		return root, "is not admitted: its .taskman/queue.json is malformed"
 	}
 	if q.QueueID.Raw != hint.queueID || q.IntentBranch != hint.branch {
-		return "", "is not admitted: its .taskman/queue.json names a different queue or intent branch"
+		return root, "is not admitted: its .taskman/queue.json names a different queue or intent branch"
 	}
 	return root, ""
 }

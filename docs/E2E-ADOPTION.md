@@ -67,7 +67,20 @@ commands build the map from the manifest at each revision they read.
   - 1 to 64 `routers`, each with a dialect: `ui-router-states/0`, `rails-routes/0` or
     `react-router/0`.
   - `tests`, with `root`, `specs` and `page_objects`. Every directory must be under `tests.root`.
-    Point these at the hosted suite's own spec and page-object directories.
+    Point these at the hosted suite's own spec and page-object directories. A suite with no
+    page-object directory may leave `page_objects` empty or omit it. A flat layout, with helpers
+    such as `helpers.ts` beside the specs, lists the same directory in both: there,
+    `*.spec.ts` and `*.test.ts` files are specs and every other file is a page object
+    (AMAP-V0-780):
+
+    ```json
+    "tests": {"root": "apps/web/e2e", "specs": ["apps/web/e2e"], "page_objects": ["apps/web/e2e"], "web_root": "apps/web"}
+    ```
+
+    `web_root` (optional) names the dev-server root, such as Vite's `root`. A spec's
+    `await import("/src/x.ts")` inside `page.evaluate(...)` runs in the browser, so the map
+    resolves it against `web_root` as a browser-context reference rather than as a Node import
+    of the spec (AMAP-V0-781, AMAP-V0-782).
 - **Optional `flows`:** a directory of `application-flow-intent/1` files. The catalog admits
   outcome blocks only from flows, so a manifest without flows yields path and page-object blocks
   only. Flows are therefore the input the chain needs for a real result. Without them, no flow step

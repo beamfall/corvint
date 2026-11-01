@@ -180,7 +180,12 @@ func mutateLocked(ctx context.Context, repo *intent.Repository, session *authori
 				return rebased, nil
 			}
 		}
-		return audit.WriterCheckpoint()
+		// Otherwise the audit derives its own base at the sealed sequence
+		// (JSG-V0-780), unless a fixture keeps the plain derivation.
+		if plainCheckpoint(repo) {
+			return audit.WriterCheckpoint()
+		}
+		return audit.SealedWriterCheckpoint()
 	}, token)
 	if canonical.StagingPresent {
 		return report, wire.Errorf(wire.CodeUnsupported, "staging", "active staging recovery is not implemented")
