@@ -561,6 +561,25 @@ two requirements make its version name its content and make each receipt carry i
   `reader` lines come from the fast-tier lexicon (AFP-V0-765 difference (4)). Rollback: remove
   `wholeReader` and `testAttributionReasons`.
 
+- **STR-V0-548:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3478)
+  Every Go unit of a `corvint test` manifest that carries a prose `reason` MUST also carry
+  `reasonCode`, a stable code from a closed set that `sessiontest.ReasonCode` derives from the prose:
+  `selected-changed-tests`, `selected-reaching-change`, `selected-build-only`, `whole-attributed`,
+  `whole-also-selected`, `whole-not-separable`, `whole-test-side-effect`, `whole-unreadable`,
+  `whole-shared-declaration`, `whole-test-imports-changed`, `whole-no-test-function`,
+  `whole-pattern-bound`, `whole-not-in-graph`, `whole-no-changed-test-file`,
+  `whole-foreign-test-file`, `whole-nested-module`, `direct-source-change`,
+  `direct-source-non-function-edit`, `direct-source-reference-signature`,
+  `direct-source-every-test-reaches`, `direct-source-slice-bound`, `reached-via-KIND` (the plan
+  witness kind in kebab case, for example `reached-via-unbounded-reader`), and `other` for prose
+  no rule matches. The prose is unchanged. `tools/selection-baseline` classifies units by the code
+  and no longer greps the prose; its old `changed too` match had been dead since the prose
+  changed (V1-3348). Non-goals: codes for non-Go units. Failure modes: a new prose shape without a
+  rule reads as `other`, which the pinning test catches. Evidence:
+  `TestSTRV0548ReasonCodesPinTheProseShapes`. Rollback: remove `reasonCode` and `ReasonCode`, and
+  restore the prose grep.
+
+
 ## Non-goals
 
 - A watch daemon, IDE integration, or per-keystroke runs; that is LPCV's live loop.
@@ -791,6 +810,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, symlink-to-same-inode, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 | STR-V0-800 | `testDryRunSummary`, `summaryList` and `summaryClip` in `cmd/corvint/test_summary.go`; the `--summary` flag and its refusal in `parseTestOptions` (`cmd/corvint/test.go`) | `TestSTRV0800DryRunSummaryIsBounded`, `TestSTRV0800CLIDryRunSummary` |
 | STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
+| STR-V0-548 | `ReasonCode` and its codes in `internal/sessiontest/reasoncode.go`; `Unit.ReasonCode` in `internal/sessiontest/manifest.go` and `plan.go`; the classifier in `tools/selection-baseline/main.go` | `TestSTRV0548ReasonCodesPinTheProseShapes` in `internal/sessiontest/reasoncode_test.go`; `tools/selection-baseline` tests; the TSP-V0-006/861 and STR-V0-063 manifest tests |
 | STR-V0-920 | `Makefile` `GATE_STEPS` and `shell-test:`; `tools/test-commands-check/main_test.go` `TestGateStepsTwoLaneMergeIsClean_STR_V0_920`, `TestSTRV0004ShellTestIsTheGateShellSteps` on logical lines; `script/no-python-runtime-dependency_test.sh` continued-list fixtures | implemented; Go and shell tests PASS |
 
 ## Open decisions

@@ -65,6 +65,11 @@ AFP-V0-474	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the 
 AFP-V0-475	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
 AFP-V0-476	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
 AFP-V0-477	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-548	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3414)	standing	2026-10-11; V1-3414
+AFP-V0-549	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2728)	standing	2026-10-11; V1-2728
+AFP-V0-550	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3688)	standing	2026-10-11; V1-3688
+AFP-V0-551	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4173,	standing	2026-10-11; V1-4173
+AFP-V0-552	docs/specs/affected-plan-selection-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3322)	standing	2026-10-11; V1-3322
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -3350,6 +3355,7 @@ DCW-V0-965	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-966	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3284; amends	standing	2026-10-31; V1-3284
 DCW-V0-967	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3428; refines	standing	2026-10-31; V1-3428
 DCW-V0-921	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; scripts-w5 lane	standing	2026-11-01
+DCW-V0-548	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3545) A hunk	standing	2026-11-01; V1-3545
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -6187,6 +6193,7 @@ STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 STR-V0-920	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines	standing	2026-10-31; V1-3470
 STR-V0-770	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)	standing	2026-10-11; V1-3573
+STR-V0-548	docs/specs/session-test-runner-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3478)	standing	2026-10-11; V1-3478
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
