@@ -540,6 +540,8 @@ with the same inputs: the input checks and prepare pass alone, which bind and co
 leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a cite of a span the
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
+That target first runs `script/repin-use-case-receipts.sh --check` and refuses a stale use-case
+receipt, naming it, before the pre-flight; repin, commit and rerun (`DCW-V0-725`).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
 worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). A pass records
 the plan's digest and the `HEAD` it passed at in `$(git rev-parse --git-dir)/corvint/inputs-check-plan-head`;

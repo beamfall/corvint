@@ -1859,6 +1859,13 @@ grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=int
   fail "DOGFOOD.md lost the dogfood-inputs-check invocation with the make variable names"
 ok
 
+# DCW-V0-725 (V1-4163): dogfood-inputs-check runs the use-case receipt check before the pre-flight,
+# so a stale receipt is named there rather than first at the seal. The check's own refusal of a
+# stale receipt is pinned by script/repin-use-case-receipts_test.sh.
+[[ $mk == *'script/repin-use-case-receipts.sh --check'*'stale use-case receipt'*'script/dogfood-finish.sh'* ]] ||
+  fail "Makefile dogfood-inputs-check does not refuse a stale use-case receipt before the pre-flight"
+ok
+
 # ASD-V0-955 (V1-1629): a dogfood-change run in a linked worktree lands in the repository-wide
 # ledger, which git worktree remove keeps, and dogfood-change-runs reports it per lane. CORVINT_BIN
 # names a binary whose --version fails, so each run refuses after the appends and before any build.
