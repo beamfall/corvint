@@ -163,6 +163,16 @@ resolve under it; a data root that is not an existing directory is refused, nami
 (CEP-V0-961). The owner's held-out copy lives outside the repository on the benchmark host, and
 `retrieval-bench --help` prints this layout.
 
+`--jobs N` (1..16, default 1) judges up to N snapshot groups at once; the samples of one repository
+and base commit stay serial on their own copy, the report keeps sample order and records `jobs`,
+and `--snapshot-latency` and `--context-packets` need `--jobs 1`. Wall times under parallel jobs
+measure a shared host. Every report's `corvint` identity names the binary's version line, digest and
+`commit` (`UNKNOWN` when `--version` states none). When the context packet carries `spans`
+(`CORVINT_CONTEXT_SPANS=on`), the context arm records them and a sample with gold spans scores
+`span_line_coverage`, `span_line_precision` and `span_lines`; on `v2_edit2ripple` the gold spans lie
+outside every span row (coverage 0.0, lane ctx-u15), so that subset cannot judge span modes yet
+(CEP-V0-755..757).
+
 `--snapshot OWNER/NAME@COMMIT=PATH` names a snapshot explicitly; `--task-type` and
 `--max-samples` bound a run; `--limit` is k (default 20, at most 50). `--arms` selects the arms
 (`corvint`, `context`, `grep`, `grep-ident`, `bm25`, `impact`, `affected`; comma-separated or

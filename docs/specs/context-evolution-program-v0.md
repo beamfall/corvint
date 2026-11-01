@@ -236,6 +236,29 @@ to the five hypotheses above and no `corvint` command.
   environment variable. `retrieval-bench --help` MUST print the required inputs, the data root and
   its layout, and an example. The owner's held-out copy stays outside the repository; its host path
   is an operator setting, never committed.
+- `CEP-V0-755`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)
+  Span-mode scoring. When a context packet carries a `spans` member (`CORVINT_CONTEXT_SPANS`), the
+  context arm MUST record `span_mode` and its span rows, and a sample with gold line spans
+  (ContextBench `gold.lines`, a release's `gold.gold_spans` keyed `path` or `file`) MUST score
+  `span_line_coverage` (the share of distinct gold lines some span row covers),
+  `span_line_precision` and `span_lines`. A row that is not a line range is ignored, and an arm
+  without `spans` or a sample without gold spans adds no span metric, so file-mode reports keep
+  their bytes. A result row is read by `id`, else by `path`, the key span rows use. Gap retained:
+  on `v2_edit2ripple` lane ctx-u15 measured span coverage 0.0 in every span mode (build log
+  `2026-11-01-ctx-u15.md` on `claude/lane-ctx-u15-1101`); its gold spans lie at ripple sites
+  outside every span row, and that subset cannot judge a span mode until span rows reach them.
+  Rollback: drop the `spans` decode and `spanMetrics`.
+- `CEP-V0-756`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)
+  Bounded parallel runs. `--jobs N` (1..16, default 1) MUST judge at most N snapshot groups at once,
+  where a group is every sample of one repository and base commit judged serially in sample order
+  on its own temporary copy, and MUST write the report in sample order with `jobs` recorded. It MUST
+  refuse a value outside 1..16, and any value above 1 with `--snapshot-latency` or
+  `--context-packets`. The first error cancels the run. Wall times under N above 1 measure a shared
+  host and are not comparable to a serial run. Rollback: drop the flag; the serial loop is `--jobs 1`.
+- `CEP-V0-757`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)
+  Binary binding. Every report's `corvint` identity MUST carry the binary's `--version` line, its
+  `sha256` and `commit`, the 40- or 64-hex commit that line states, or `UNKNOWN` when it states
+  none, so a stale binary's results are named by their commit. Rollback: drop the `commit` member.
 - `CEP-V0-003`: Pinned offline runs. Every external run MUST be local and offline: rows and
   repository snapshots come only from explicit local `--samples` and `--snapshot`/`--corpus` inputs,
   and the report carries the sha256 of the samples file as `samples_sha256`. A run whose subset or
@@ -335,6 +358,9 @@ to the five hypotheses above and no `corvint` command.
 | CEP-V0-002 | `contextBenchMetrics`, `mergeLines`, `fileLineCount`; `judge` | `TestContextBenchFixtureScoresFileAndLineCoverage` |
 | CEP-V0-960 | `contextBenchMetrics`, `contextBenchFileMetrics`, `contextBenchLengthMatched`, `rederiveContextBench` | `TestContextBenchAbstentionAndLengthMatchedPrecision`, `TestSummarizeRederivesContextBenchFileMetrics`, `TestContextBenchFixtureScoresFileAndLineCoverage`; the v2716f rescore in build log `docs/build-log/2026-10-31-tools-r-w7.md` |
 | CEP-V0-961 | `resolveDataRoot`, `usageText`, `dataRootEnv` | `TestDataRootResolvesAndRefuses` |
+| CEP-V0-755 | `spanMetrics`, `goldSpanIntervals` in `tools/retrieval-bench/spans.go`; `parseContextPacket`, `judge` | `TestCEPV0755SpanModeScoresGoldSpans`; edit2ripple coverage-0 gap from lane ctx-u15 |
+| CEP-V0-756 | `validateJobs`, `judgeSamples` in `tools/retrieval-bench/jobs.go`; `benchSample`, `corpusFor` lock | `TestCEPV0756JobsBoundedAndOrdered` (also under `-race`) |
+| CEP-V0-757 | `corvintIdentity`, `versionCommitPattern` | `TestCEPV0757IdentityRecordsCommit` |
 | CEP-V0-003 | `readSamples` digest, `resolveSnapshot` | `TestContextBenchFixtureScoresFileAndLineCoverage` (pinned `samples_sha256`); full ContextBench run retained as an aggregate receipt (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v0415-contextbench-swebench-pro.md`, V1-0415) |
 | CEP-V0-004 | `validateControl`, `scoringGold` in `tools/cw-trial/control.go` | `TestAlreadyFixedControlRefusesGoldAndUnknownControls`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure` |
 | CEP-V0-005 | `controlMetrics`, `packetAbstained`, `controlSummary`; `scoreArm`, `summarizeArm` | `TestAlreadyFixedControlScoresAnyConfidentAnswerAsFailure`; `TestAlreadyFixedFixtureRecordsAConfidentAnswerAsFailure`; `TestAlreadyFixedControlStaysOutOfRealTaskAggregates` |
