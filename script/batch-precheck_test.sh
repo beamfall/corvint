@@ -560,6 +560,15 @@ again=$(git -C "$repo" rev-parse HEAD)
 rg "$steps" || fail "second regen failed: $(cat "$tmp/out")"
 grep -q '^batch-regen: nothing to regenerate' "$tmp/out" || fail "second regen not idempotent: $(cat "$tmp/out")"
 [[ $(git -C "$repo" rev-parse HEAD) == "$again" ]] || fail "second regen committed"
+# ASD-V0-928 (V1-3747): a --changed re-anchor is named for review in the output and the commit body.
+rg 'gen-e	printf "e\n" > derived.txt; echo "docs/x.md:3  a.go:1-2 changed since origin/main; --changed re-anchored it as a.go:4-5 (read those lines: the anchor now asserts this content)"'
+grep -qxF 'batch-regen: REVIEW docs/x.md:3  a.go:1-2 changed since origin/main; --changed re-anchored it as a.go:4-5 (read those lines: the anchor now asserts this content)' "$tmp/out" ||
+  fail "a --changed re-anchor was not named for review: $(cat "$tmp/out")"
+git -C "$repo" log -1 --format=%B | grep -qxF 'Re-anchored citations (read each; ASD-V0-928):' &&
+  git -C "$repo" log -1 --format=%B | grep -qF -- 'a.go:1-2 changed since origin/main; --changed re-anchored it as a.go:4-5' ||
+  fail "the regen commit body does not record the re-anchor: $(git -C "$repo" log -1 --format=%B)"
+git -C "$repo" log -1 --format=%s | grep -qxF 'chore(batch): regenerate derived files (make batch-regen, ASD-V0-033)' || fail "regen subject changed"
+again=$(git -C "$repo" rev-parse HEAD)
 printf 'x\n' >> "$repo/derived.txt"
 rg "$steps"
 [[ $? == 2 ]] || fail "regen on tracked changes did not exit 2: $(cat "$tmp/out")"
