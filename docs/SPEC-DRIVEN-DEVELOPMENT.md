@@ -62,7 +62,10 @@ failed held-out evaluation cannot be renamed development success.
 A spec header's `Intent status:` and its Agent digest `Status:` hold the current status only,
 optionally followed by the pointer `(history: REQUIREMENTS.tsv acceptance columns and
 docs/build-log)`. A change that accepts or amends requirements records that in each requirement's
-marker and in its build-log entry; it does not append to the header (`SRG-V0-011`). Older headers
+marker and in its build-log entry; it does not append to the header (`SRG-V0-011`). The Agent digest
+`Status:` line contains the header `Intent status:` value verbatim and the `Delivery status:`
+value, normally as `- Status: INTENT / DELIVERY`; a clause kept in an older header is therefore
+repeated in its digest, and neither field takes a new clause (`SRG-V0-970`). Older headers
 keep their tails, frozen: `docs/specs/INTENT-STATUS-FROZEN.tsv` records each such header's length
 and the requirement IDs it names, and every `make spec-requirements` mode refuses a header or digest
 `Status:` that names a requirement ID its frozen text did not, or an `Intent status:` longer than

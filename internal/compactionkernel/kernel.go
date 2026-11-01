@@ -23,6 +23,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/specindex"
 )
 
@@ -396,7 +397,7 @@ func decodeDocument(body string) (map[string]any, error) {
 	if err := decoder.Decode(&value); err != nil {
 		return nil, &gokernel.Error{Code: "unsupported-kernel-envelope", Message: "kernel envelope is not one canonical JSON object"}
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return nil, &gokernel.Error{Code: "unsupported-kernel-envelope", Message: "kernel envelope carries trailing content"}
 	}
 	return value, nil

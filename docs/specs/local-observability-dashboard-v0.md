@@ -1513,10 +1513,26 @@ Actual-producer v1 comparison (V1-0571, 2026-10-31, decision 0548).
   fails when either side changes. A real v1 row whose task holds non-ASCII text carries a
   `trace_id` over the production writer's ASCII JSON, and both sides MUST admit it. The producer
   stays unchanged (decision 0548).
-  - Known gap: an invalid v1 store is not covered by this comparison. Its source `byteCount`,
-    `contentSha256`, `epistemicClass` and `currency` also differ between the two sides.
+  - Known gap (closed by `LOD-V0-970`): an invalid v1 store was not covered by this comparison;
+    its source `byteCount`, `contentSha256`, `epistemicClass` and `currency` differed between the
+    two sides.
   - Acceptance: `TestProducerTraceConformanceV1Only_V10571`.
   - Rollback: delete the test. No product behavior changes.
+- `LOD-V0-970`: (experimental under the standing lane auto-accept; V1-3427; amends `LOD-V0-960`)
+  For a v1 store with at least one rejected member and no admitted member, the standalone verifier
+  MUST compile the aggregate source as the producer does and as the frozen
+  `four-invalid-legacy-members.json` fixture records: `validity` `INVALID`, `completeness`
+  `PARTIAL`, `byteCount` and `contentSha256` null (no member was admitted, so no bytes were),
+  `repositoryReadsSha256` null, and `epistemicClass` `OBSERVED` with `currency` `VALIDATED_AT`,
+  because the rejection itself is observed at the scan boundary. The `CONFIGURED_SOURCE`
+  `data.artifact.bytes` metric is then null and `NOT_OBSERVED`. Previously the verifier emitted
+  `byteCount` "0", the digest of the empty member list, `NOT_OBSERVED` and `UNKNOWN`, and so a
+  measured zero for invalid input. The producer is unchanged. The `LOD-V0-960` comparison MUST
+  then hold on such a store as well, outside the two decision-0548 qualifications. Failure mode: a
+  store-wide override (`STORE_CHANGED` and the other override codes) keeps its own
+  `INVALID`/`UNKNOWN`/`NOT_OBSERVED` form. Acceptance:
+  `TestProducerTraceConformanceV1InvalidStore_V13427`. Rollback: restore the verifier's
+  `NOT_OBSERVED`/`UNKNOWN` branch in `trace_snapshot_multi.go` and delete the test.
 
 ## Staged deterministic acceptance
 

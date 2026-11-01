@@ -9,6 +9,8 @@ import (
 	"io"
 	"regexp"
 	"sort"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // Baseline profiles (PWR-V0-041..045, GitHub #1033).
@@ -129,7 +131,7 @@ func ReadBaseline(name string) (Baseline, string, error) {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	var b Baseline
-	if dec.Decode(&b) != nil || dec.More() || b.Profile != BaselineProfile || !objectID.MatchString(b.Revision) ||
+	if dec.Decode(&b) != nil || !jsonend.Done(dec) || b.Profile != BaselineProfile || !objectID.MatchString(b.Revision) ||
 		b.Known == nil || b.Flaky == nil || len(b.Known)+len(b.Flaky)+len(b.Unobserved) > MaxBaselineEntries {
 		return Baseline{}, "", ErrBaselineShape
 	}

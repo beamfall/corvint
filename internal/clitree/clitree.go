@@ -150,44 +150,60 @@ func (b *Builder) AddForm(form, summary string) {
 
 // Synopses returns each synopsis line of text that starts with the binary
 // (after an optional "usage:" or "Usage:" label), joined with its indented
-// continuation lines. An indented line under an example header ("Example:",
-// "Examples:", "For example:") is an example, not a synopsis, wherever it
-// stands relative to the Usage block (V1-3286); the block ends at the next
-// unindented line.
+// continuation lines. A line of an example section is an example, not a
+// synopsis, wherever it stands relative to the Usage block (V1-3286): the
+// section is an unindented header that ends in ":" and names "example"
+// ("Example:", "Examples:", "For example:") or starts "Example:" or
+// "Examples:" (the header line itself is an example), and it ends at the next
+// unindented line. The labelled forms (an inline "usage:" line or the block
+// under a bare "Usage:") come first, so a node's first usage line is its true
+// usage line wherever an example sits.
 func Synopses(binary, text string) []string {
-	var forms []string
-	open, example := false, false
+	var labelled, other []string
+	forms := &other
+	open, usageBlock, exampleBlock := false, false, false
 	for _, line := range strings.Split(text, "\n") {
 		trimmed := strings.TrimSpace(line)
 		lowered := strings.ToLower(trimmed)
-		if trimmed != "" && line == trimmed {
-			example = strings.HasSuffix(lowered, ":") && strings.Contains(lowered, "example")
+		indented := trimmed != "" && line != strings.TrimLeft(line, " \t")
+		if !indented {
+			usageBlock = false
 		}
-		if example {
+		if trimmed != "" && !indented {
+			exampleBlock = strings.HasSuffix(lowered, ":") && strings.Contains(lowered, "example") ||
+				strings.HasPrefix(lowered, "example:") || strings.HasPrefix(lowered, "examples:")
+		}
+		if exampleBlock {
 			open = false
 			continue
 		}
+		inline := false
 		if rest, ok := strings.CutPrefix(lowered, "usage:"); ok {
 			trimmed = strings.TrimSpace(trimmed[len(trimmed)-len(rest):])
 			if trimmed == "" {
-				open = false
+				open, usageBlock = false, true
 				continue
 			}
+			inline = true
 		}
 		if label, rest, ok := strings.Cut(trimmed, ": usage: "); ok && strings.HasPrefix(label, binary) {
-			trimmed = rest
+			trimmed, inline = rest, true
 		}
 		switch {
 		case strings.HasPrefix(trimmed, binary+" "):
-			forms = append(forms, trimmed)
+			forms = &other
+			if inline || usageBlock {
+				forms = &labelled
+			}
+			*forms = append(*forms, trimmed)
 			open = true
 		case open && trimmed != "" && strings.HasPrefix(line, "    ") && !strings.Contains(trimmed, ": "):
-			forms[len(forms)-1] += " " + trimmed
+			(*forms)[len(*forms)-1] += " " + trimmed
 		default:
 			open = false
 		}
 	}
-	return forms
+	return append(labelled, other...)
 }
 
 // tokens splits a form, keeping a bracket or angle group with spaces as one

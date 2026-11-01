@@ -18,6 +18,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -421,7 +422,7 @@ func decodeJSONObject(raw []byte) (map[string]any, error) {
 	if err := decoder.Decode(&object); err != nil {
 		return nil, err
 	}
-	if object == nil || decoder.More() {
+	if object == nil || !jsonend.Done(decoder) {
 		return nil, errors.New("not one JSON object")
 	}
 	return object, nil

@@ -107,7 +107,7 @@ func decodeStrict(raw []byte, v any) error {
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
-	if dec.More() {
+	if _, err := dec.Token(); err != io.EOF {
 		return wire.Errorf(wire.CodeMalformed, "/", "trailing data")
 	}
 	return nil

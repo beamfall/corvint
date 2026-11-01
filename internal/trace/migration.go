@@ -31,6 +31,11 @@ type MigrationAuthority struct {
 	// Commits: whether it is a commit reachable from HEAD, and its tree.
 	AncestryLimit   int
 	ReachableCommit func(string) (Revision, bool, error)
+	// ProbeBatch, when set, receives every well-formed trace name once before
+	// planning so the probes above can answer from one batched pass instead of
+	// one Git process per name (V1-3321). It is a best-effort prefetch: a name
+	// it cannot resolve is probed on its own later, so it never changes a plan.
+	ProbeBatch func([]string)
 }
 
 // reachableCommit reports whether revision is a commit reachable from HEAD.
@@ -132,6 +137,15 @@ func planMigrationPinned(root string, directory *heldDirectory, authority Migrat
 	}
 	if quarantine != nil {
 		defer quarantine.close()
+	}
+	if authority.ProbeBatch != nil {
+		revisions := make([]string, 0, len(names))
+		for _, name := range names {
+			if revision := strings.TrimSuffix(name, ".jsonl"); exactObjectID(revision, objectIDLength(authority.ObjectFormat)) {
+				revisions = append(revisions, revision)
+			}
+		}
+		authority.ProbeBatch(revisions)
 	}
 	plan := MigrationPlan{Authority: authority, Entries: []MigrationEntry{}, Candidates: []migrationCandidate{}}
 	totalBytes, totalRows := 0, 0

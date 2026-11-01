@@ -81,7 +81,7 @@ func runClaudeCompactionEvent(ctx context.Context, root, event string, normalize
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, degradedAdapterOutput(reason)))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, degradedAdapterOutput(reason))))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionPinInstruction + compactionPinLine(block)}
 }
@@ -96,22 +96,22 @@ func runClaudePostCompact(ctx context.Context, root string, normalized, payload 
 	// A pre-compact that degraded emitted no pin, only the unavailable line; when that line is the
 	// summary's last pin-shaped line, nothing was dropped and the loss is not the summary's (AHI-057).
 	if compactionPinNotEmitted(summary) {
-		return degradedAdapterOutput("compaction-pin-not-emitted")
+		return withCauseRemediation(root, "compaction-pin-not-emitted", degradedAdapterOutput("compaction-pin-not-emitted"))
 	}
 	pin, ok := parseCompactionPin(summary)
 	if !ok {
-		return degradedAdapterOutput("compaction-pin-not-preserved")
+		return withCauseRemediation(root, "compaction-pin-not-preserved", degradedAdapterOutput("compaction-pin-not-preserved"))
 	}
 	revisionMissing, missing, reason := compactionPinMissing(ctx, root, pin)
 	if reason != "" {
-		return degradedAdapterOutput(reason)
+		return withCauseRemediation(root, reason, degradedAdapterOutput(reason))
 	}
 	if revisionMissing {
-		return degradedAdapterOutput("compaction-pin-revision-unavailable")
+		return withCauseRemediation(root, "compaction-pin-revision-unavailable", degradedAdapterOutput("compaction-pin-revision-unavailable"))
 	}
 	block, reason := compactionBlockFor(ctx, root, normalized)
 	if reason != "" {
-		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, "post-compact", reason, degradedAdapterOutput(reason)))
+		return withCauseRemediation(root, reason, withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, "post-compact", reason, degradedAdapterOutput(reason))))
 	}
 	return map[string]any{adapterPlainStdoutKey: compactionReportLine(pin, missing, block)}
 }

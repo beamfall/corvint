@@ -362,6 +362,7 @@ func writeGraphCache(entryPath, root string, excluded []string, entry cacheEntry
 		_ = directory.Remove(name)
 		return "cache write: " + err.Error()
 	}
+	evictGraphCache(directory, filepath.Base(entryPath))
 	return ""
 }
 

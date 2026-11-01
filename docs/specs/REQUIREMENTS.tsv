@@ -197,6 +197,7 @@ AFP-V0-436	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #
 AFP-V0-437	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
 AFP-V0-438	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
 AFP-V0-439	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
+AFP-V0-970	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2610; amends AFP-V0-436 and AFP-V0-439)	unrecorded	-
 AFP-V0-441	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2682); its	standing	2026-10-11; V1-2682
 AFP-V0-440	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2674, Git	standing	2026-10-11; V1-2674; #1774
 AFP-V0-444	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2702, Git	standing	2026-10-11; V1-2702; #1811
@@ -340,6 +341,7 @@ AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
 AHI-172	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #	standing	2026-10-11; V1-2201; #1406
 AHI-372	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3086; GitHub #	standing	2026-10-11; V1-3086; #1982
+AHI-970	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-3255; amends `AHI-055` and	standing	V1-3255
 AHI-820	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) Th	standing	V1-2513
 AHI-373	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendmen	standing	2026-10-11; V1-3244
 AHI-173	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One comm	standing	2026-10-11; V1-2145
@@ -949,6 +951,7 @@ CAP-V0-047	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-048	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) Every ot	standing	2026-10-11; V1-2685
 CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) A root	standing	2026-10-11; V1-2685
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
+CAP-V0-970	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept; V1-3286; amends `CAP-V0-040`)	standing	V1-3286
 CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
 CAP-V0-200	docs/specs/capability-catalog-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines	standing	2026-10-30; V1-3153
 CAP-V0-930	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685, 2026-10-	standing	2026-10-11; V1-2685; 2026-10-31
@@ -4916,6 +4919,7 @@ LOD-V0-033	docs/specs/local-observability-dashboard-v0.md	Generated-doc state is
 LOD-V0-034	docs/specs/local-observability-dashboard-v0.md	Given identical `atm` output, `REQUIREMENTS.tsv`, receipts, docs-state, and tree	unrecorded	-
 LOD-V0-035	docs/specs/local-observability-dashboard-v0.md	A scan MUST validate schema-2 trace rows using the closed codec and screening in	unrecorded	-
 LOD-V0-960	docs/specs/local-observability-dashboard-v0.md	A v1-only store MUST be compared between the actual	unrecorded	-
+LOD-V0-970	docs/specs/local-observability-dashboard-v0.md	(experimental under the standing lane auto-accept; V1-3427; amends `LOD-V0-960`)	standing	V1-3427
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit	unrecorded	-
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	The Python reader MUST accept canonical rows only when their filename and row na	unrecorded	-
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	Dry-run MUST be read-only and bind its plan digest to the stable current commit/	unrecorded	-
@@ -5407,6 +5411,8 @@ PRB-V0-057	docs/specs/performance-profiling-and-read-budget-v0.md	After the seve
 PRB-V0-058	docs/specs/performance-profiling-and-read-budget-v0.md	The fixture MUST generate the code repository deterministically (generator	unrecorded	-
 PRB-V0-059	docs/specs/performance-profiling-and-read-budget-v0.md	Each code-repository scenario MUST carry the two `PRB-V0-032` ceilings, enforced	unrecorded	-
 PRB-V0-060	docs/specs/performance-profiling-and-read-budget-v0.md	On Linux, the `PRB-V0-027` peak resident set MUST be the measured process's own,	unrecorded	-
+PRB-V0-970	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --scenario ID`, repeatable, MUST measure and judge only the named	unrecorded	-
+PRB-V0-971	docs/specs/performance-profiling-and-read-budget-v0.md	`perf-budget --record-baseline-from REPORT` MUST record the baseline from a repo	unrecorded	-
 PWV-V0-001	docs/specs/pi-workflow-v0.md	Pi MUST preserve original native Core receipt objects, output and exit status, i	unrecorded	-
 PWV-V0-002	docs/specs/pi-workflow-v0.md	Core read tools MUST use closed operation and argument sets for query, context,	unrecorded	-
 PWV-V0-003	docs/specs/pi-workflow-v0.md	Each command MUST use bounded argv-only local execution, one owned POSIX process	unrecorded	-
@@ -6323,6 +6329,7 @@ SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2859) Whe	standing	2026-10-11; V1-2859
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
+SRG-V0-970	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`)	standing	V1-2830
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379

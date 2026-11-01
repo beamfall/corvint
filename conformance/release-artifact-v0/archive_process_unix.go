@@ -21,7 +21,10 @@ func configureContainedCommand(command *exec.Cmd) error {
 		}
 		return err
 	}
-	command.WaitDelay = 250 * time.Millisecond
+	// Bounds the output copy after the leader exits or the group is signalled;
+	// 250 ms could fail a successful command on a loaded host (V1-3435). The
+	// group itself is retired by cleanupContainedCommand, not by this bound.
+	command.WaitDelay = 5 * time.Second
 	return nil
 }
 

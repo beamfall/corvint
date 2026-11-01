@@ -17,6 +17,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 const (
@@ -111,7 +113,7 @@ func ParseVerdicts(name string, data []byte) (Verdicts, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&file); err != nil || decoder.More() {
+	if err := decoder.Decode(&file); err != nil || !jsonend.Done(decoder) {
 		return Verdicts{}, refuse("agreement-verdicts-invalid", "%s is not a valid verdict file", name)
 	}
 	if file.Schema != VerdictSchema {

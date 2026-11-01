@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 )
 
@@ -96,7 +97,7 @@ func decodeOutcomes(raw []byte) (outcomeFile, error) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&data) != nil || decoder.More() {
+	if decoder.Decode(&data) != nil || !jsonend.Done(decoder) {
 		return data, errors.New("outcome log is malformed")
 	}
 	if data.Schema != outcomeSchema || fmt.Sprint(data.LatencyBounds) != fmt.Sprint(latencyBuckets) || data.Tools == nil {
@@ -289,7 +290,7 @@ func readFloor(path string) (outcomeFloor, bool) {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
-	if decoder.Decode(&floor) != nil || decoder.More() {
+	if decoder.Decode(&floor) != nil || !jsonend.Done(decoder) {
 		return floor, false
 	}
 	valid := func(v float64) bool { return !math.IsNaN(v) && v >= 0 && v <= 1 }

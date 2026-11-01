@@ -12,6 +12,8 @@ import (
 	"path"
 	"regexp"
 	"strings"
+
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // Profile names the bundle schema (RPB-V0-001).
@@ -148,7 +150,7 @@ func Decode(data []byte) (Bundle, error) {
 	if err := decoder.Decode(&bundle); err != nil {
 		return bundle, fmt.Errorf("bundle is not a %s object: %v", Profile, err)
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return bundle, fmt.Errorf("bundle has trailing data")
 	}
 	return bundle, bundle.Validate()

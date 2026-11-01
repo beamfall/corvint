@@ -329,6 +329,15 @@ No requirement below diverges from the implementation.
   check cannot find reports line 0 beside the existing missing-header finding. Rollback: revert
   `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` and delete
   `internal/specindex/status_drift_test.go`; the check reports the previous one-line message.
+- `SRG-V0-970`: (experimental under the standing lane auto-accept; V1-2830; amends `SRG-V0-047`)
+  The SRG-V0-047 finding MUST also name the expected digest line, `- Status: INTENT / DELIVERY`
+  built from the two header values, and say that an acceptance or amendment clause belongs on the
+  requirement's own definition line (`SRG-V0-011`, `SRG-V0-981`), not in either status field.
+  `docs/SPEC-DRIVEN-DEVELOPMENT.md` MUST state the one rule: the digest `Status:` contains the
+  header `Intent status:` value verbatim and the `Delivery status:` value, so a clause kept in the
+  header must be repeated in the digest, and neither field takes a new clause. Non-goal: the
+  agreement rule itself is unchanged, so every existing spec passes unchanged. Rollback: revert
+  `statusDriftMessage` to the SRG-V0-047 wording and drop the sentence.
 - `SRG-V0-547`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)
   When the staged specs hold more than one unwrapped rank 0 definition line for one requirement
   id, in one spec or across specs, the generator MUST exit non-zero in every mode, before writing
@@ -627,6 +636,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-041 | `script/spec-requirements-conflict_test.sh`: the target refuses while the one-section spec is still conflicted and resolves the TSV once it is staged; two new specs conflict only in generated files and resolve in both merge orders to the fresh generation with both specs indexed |
 | SRG-V0-045 | `TestSRGV0045SpecMetadataStaysInSelectedScope` over the committed `.corvint/test-read-scopes.json` and INDEX.json; `TestSRGV0045IndexCheckWitnesses`: the mismatched fixture reports exactly the length, digest and README findings, the aligned one none; on the repository, an INDEX-only 217-character claim is selected by `corvint affected` and fails `TestIndexCoversSpecsAndHeaders` with the same three findings, and the aligned claim in all three files is selected and passes (V1-0515 PR evidence) |
 | SRG-V0-047 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: a fixture whose digest Status says `accepted` under an `Intent status: proposed` header yields exactly one finding, pinned byte for byte, naming `fixture-v0.md:7`, `:3` and `:4` and saying to edit the fields together |
+| SRG-V0-970 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: the same finding names `- Status: proposed / experimental` and the requirement-line rule |
 | SRG-V0-044 | `script/gen-spec-requirements_test.sh` case 11: a definition line ending in `Status: (accepted, decision 0481; GitHub #715).` is refused with its line and id; the case fails on the pre-change generator |
 | SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
 | SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
@@ -681,6 +691,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-548 | the fence and continuation tracking and the wrapped flag in the `%best` key in `script/gen-spec-requirements.sh`; `DefinitionLine` in `internal/specindex/requirements.go` | `spec-requirements-test`; `spec-requirements-check`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017DefinitionLineLocatesEveryRow` |
 | SRG-V0-800 | `script/spec-requirements-worktree-check.sh` and its `spec-requirements-check` line in `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
+| SRG-V0-970 | `statusDriftMessage` in `internal/specindex/index_test.go`; `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model | `TestSRGV0047StatusDriftNamesBothFieldsWithLines` |
 | SRG-V0-900 | `TestSpecsStayWithinTheOCMObligationBound` in `internal/lrfrepo/ocm_spec_bound_test.go`, run by `spec-requirements-check` |
 | SRG-V0-980 | `docs/specs/INTENT-STATUS-FROZEN.tsv`; the frozen-header refusal block in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-950 | the frozen-header refusal block in `script/gen-spec-requirements.sh`; `docs/LANE-ORCHESTRATION.md` section 3 | `spec-requirements-test` |

@@ -862,6 +862,23 @@ separate exact extension tuple remains governed by AHI-024.
   GitHub #1982 shapes (lifecycle 257 and 296 ms at slowdown 7.7 and 10 qualify; 400 ms stays
   retry-later; 3000 ms is a regression). Rollback: revert the AHI-372 branches in `contention.go`,
   `native.go` and `record.go` so a contended miss is `RETRY_LATER` again.
+- `AHI-970`: (experimental under the standing lane auto-accept; V1-3255; amends `AHI-055` and
+  `AHI-057`) A Claude Code or Codex notice for the dogfood event rejection
+  `corvint-event-rejected:dogfood-event-unavailable`, and a Claude Code PostCompact notice for
+  `compaction-pin-not-emitted`, `compaction-pin-not-preserved`,
+  `compaction-pin-revision-unavailable` or `compaction-pin-verification-unavailable`, MUST keep its
+  frame line unchanged and append, in every channel the notice already uses, one plain-words cause
+  line for that reason and one recovery step naming an exact read-only argv to run outside the hook:
+  `corvint --root ROOT query --task "Corvint hook check"` for the dogfood event (which surfaces the
+  typed error the hook's closed code hides), and the same argv for a compaction pin (the next prompt
+  rebuilds Corvint context from the current tree; the argv shows whether that read works). The cause
+  line never claims a cause the hook did not observe. Non-goals: a new degradation code, any change
+  to the SOL-V0-010 reason, the expected-degradation set (`AHI-021`), or PreCompact output, which the
+  host passes to the compactor rather than the user. Failure mode: a root long enough to push the
+  encoded output past the adapter output limit keeps the frame-only notice, as `AHI-055` does.
+  Evidence: `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery` and
+  `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` (`cmd/corvint`). Rollback: drop
+  `withCauseRemediation` so these notices carry the frame line alone.
 - `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
   Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
   ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
@@ -2402,9 +2419,9 @@ there, which is the whole of what the row asserts.
 | `corvint-output-too-large` | `cmd/corvint/host_adapter.go:1166@1b317e61` | adapter output cannot be marshaled, or with its final LF exceeds 8000 bytes; a degraded `systemMessage` naming this reason is written instead |
 | `canonical-json-failed` | `internal/gokernel/harness.go:458` | "cannot encode receipt basis" |
 | `compaction-block-unavailable` | `cmd/corvint/host_adapter_compaction.go:134@e26bd5d6` | Claude adapter: the compact `session-start` receipt carries no `context.compaction` block, or its revision is not a Git object ID |
-| `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@8de67696` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
-| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:103@5fbc4775` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
-| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:110@81c5dd24` | Claude adapter: the object store reports the pinned tree as missing |
+| `compaction-pin-not-emitted` | `cmd/corvint/host_adapter_compaction.go:99@167fae0d` | Claude adapter: the last pin-shaped line in `compact_summary` is the `corvint-compaction-pin/0 unavailable` line a degraded `pre-compact` emitted (`AHI-057`) |
+| `compaction-pin-not-preserved` | `cmd/corvint/host_adapter_compaction.go:103@c986f602` | Claude adapter: `compact_summary` holds no pin line whose every field re-validates |
+| `compaction-pin-revision-unavailable` | `cmd/corvint/host_adapter_compaction.go:110@6950feaa` | Claude adapter: the object store reports the pinned tree as missing |
 | `compaction-pin-verification-unavailable` | `cmd/corvint/host_adapter_compaction.go:244@1c06bb2b` | Claude adapter: the pin's `cat-file --batch-check` failed, timed out, or answered a different number of queries |
 | `git-unavailable` | `cmd/corvint/host_adapter_compaction.go:231@1f1f42d0` | Claude adapter: no `git` executable is on `PATH` when `post-compact` verifies a pin |
 | `harness-input-too-large` | `internal/gokernel/harness.go:361` | "harness input exceeds its byte limit" |
@@ -2568,6 +2585,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-199` (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) | `script/heavy.sh` (`HEAVY_NICE`), `Makefile` (`HEAVY_NICE_PREFIX`); the pinned `ledger/go-test` stays unprefixed | the `AHI-199` group in `script/lane-scripts_test.sh`; the user-prompt timing runs in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-claude-code-integration-matrix.md` |
 | `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys, repeated as the README's `-c` overrides); live receipt with a conflicting trusted project config in the 2026-10-23 Codex matrix entry |
 | `AHI-207` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/.mcp.json`, `.codex-plugin/plugin.json` | `TestAHI207CodexPluginMCPServerBindsLaunchWorktree` (nested launch binds the top level with the legacy protocol; a non-worktree launch exits 2 before exec); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-970` (experimental under the standing lane auto-accept; V1-3255) | `cmd/corvint/host_adapter.go` (`withCauseRemediation`), `cmd/corvint/host_adapter_compaction.go` | `TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery`, `TestAHI970CompactionPinUnavailableNamesCauseAndRecovery` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |

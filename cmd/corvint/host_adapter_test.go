@@ -1177,3 +1177,32 @@ func TestAHI019ClaudeDogfoodEnvelopeRefusesUnrecognisedDegradation(t *testing.T)
 		t.Fatalf("unrecognised dogfood envelope code was not refused: %v", output)
 	}
 }
+
+// AHI-970: a dogfood event read that fails outside the named codes is a fault notice that keeps
+// its frame line and names the cause and an exact read-only argv that surfaces the typed error,
+// on Claude Code (systemMessage) and Codex (its one channel for the event).
+func TestAHI970DogfoodEventUnavailableNamesCauseAndRecovery(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	query, _ := json.Marshal([]string{"corvint", "--root", root, "query", "--task", "Corvint hook check"})
+	ctx := adapterEnvContext(context.Background(), map[string]string{"CLAUDE_PROJECT_DIR": root})
+	ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+		return nil, errors.New("unlisted read failure")
+	})
+	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})
+	text, _ := output["systemMessage"].(string)
+	want := "Corvint FALLBACK degraded: " + claudeUnavailableReason + "; coding continues" +
+		"\nCorvint's read-only context read for this event failed with an error outside its named codes, so this event got no Corvint context; coding continues." +
+		"\nTo see the underlying error, run this read-only command outside the hook:\n" + string(query)
+	if text != want {
+		t.Fatalf("notice=%q\nwant  %q", text, want)
+	}
+	if adapterDegradationReason(output) != claudeUnavailableReason {
+		t.Fatalf("notice lost its ledger reason: %+v", output)
+	}
+	codex := withCauseRemediation(root, claudeUnavailableReason, codexDegraded("UserPromptSubmit", claudeUnavailableReason))
+	hook, _ := codex["hookSpecificOutput"].(map[string]any)
+	if context, _ := hook["additionalContext"].(string); !strings.HasPrefix(context, "Corvint fallback: "+claudeUnavailableReason+"; unrelated coding continues.\n") || !strings.HasSuffix(context, string(query)) {
+		t.Fatalf("codex notice=%+v", codex)
+	}
+}

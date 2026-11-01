@@ -339,14 +339,15 @@ func parseAffectedCacheStatusOptions(rest []string) (affectedInvocation, error) 
 
 // affectedCacheStatus is the `affected-cache-status/0` report (AFP-V0-439).
 type affectedCacheStatus struct {
-	Bytes    int64  `json:"bytes"`
-	Entries  int    `json:"entries"`
-	Location string `json:"location"`
-	Mutates  bool   `json:"mutates"`
-	OK       bool   `json:"ok"`
-	Profile  string `json:"profile"`
-	Reason   string `json:"reason"`
-	State    string `json:"state"`
+	Bytes      int64  `json:"bytes"`
+	Entries    int    `json:"entries"`
+	EntryLimit int    `json:"entryLimit"`
+	Location   string `json:"location"`
+	Mutates    bool   `json:"mutates"`
+	OK         bool   `json:"ok"`
+	Profile    string `json:"profile"`
+	Reason     string `json:"reason"`
+	State      string `json:"state"`
 }
 
 // inspectAffectedDefaultCache reports where the default graph cache of root
@@ -357,7 +358,7 @@ type affectedCacheStatus struct {
 // listing stopped early). The directory is opened nonblocking and held to a
 // directory by its descriptor, so a FIFO in its place cannot hang the call.
 func inspectAffectedDefaultCache(root string) affectedCacheStatus {
-	status := affectedCacheStatus{OK: true, Profile: "affected-cache-status/0", State: "UNAVAILABLE"}
+	status := affectedCacheStatus{EntryLimit: affected.GraphCacheMaxEntries, OK: true, Profile: "affected-cache-status/0", State: "UNAVAILABLE"}
 	location, reason := affectedDefaultCacheLocation()
 	if location == "" {
 		status.Reason = reason
@@ -428,7 +429,7 @@ func runAffectedCacheStatus(invocation affectedInvocation, stdout, stderr io.Wri
 		if who == "" {
 			who = "affected-cache"
 		}
-		detail := fmt.Sprintf("%s: %d entries, %d bytes", status.State, status.Entries, status.Bytes)
+		detail := fmt.Sprintf("%s: %d entries (limit %d), %d bytes", status.State, status.Entries, status.EntryLimit, status.Bytes)
 		if status.Reason != "" {
 			detail += "; " + status.Reason
 		}

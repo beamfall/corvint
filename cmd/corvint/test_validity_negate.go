@@ -14,6 +14,7 @@ import (
 	"syscall"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/stepnegation"
 )
 
@@ -235,7 +236,7 @@ func decodeNegateRefusal(data []byte) error {
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&refusal); err != nil || decoder.More() || refusal.Schema != negateRefusalSchema || refusal.Code == "" {
+	if err := decoder.Decode(&refusal); err != nil || !jsonend.Done(decoder) || refusal.Schema != negateRefusalSchema || refusal.Code == "" {
 		return &gokernel.Error{Code: "negate-provider-failed", Message: "provider exited 2 without a refusal document"}
 	}
 	return &gokernel.Error{Code: refusal.Code, Message: refusal.Message}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/companionrelease"
+	"github.com/Beamfall/corvint/internal/jsonend"
 )
 
 // runRecordProfile names one platform's release-run output (CEM-V1-611). A
@@ -64,7 +65,7 @@ func readRunRecord(raw []byte) (runRecord, error) {
 	if err := decoder.Decode(&rec); err != nil {
 		return rec, err
 	}
-	if decoder.More() {
+	if !jsonend.Done(decoder) {
 		return rec, errors.New("trailing JSON value")
 	}
 	canonical, err := encodeRunRecord(rec)

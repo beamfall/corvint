@@ -141,9 +141,9 @@ the whole of what the row asserts.
 
 | Code | First emitting site | At the cited site |
 |---|---|---|
-| `authority-blob-changed` | `internal/compactionkernel/kernel.go:407@36487f20` | the `reason` of a mismatch when a pinned `authorities` path is tracked in the compared index with a blob hash other than the pinned one |
+| `authority-blob-changed` | `internal/compactionkernel/kernel.go:408@36487f20` | the `reason` of a mismatch when a pinned `authorities` path is tracked in the compared index with a blob hash other than the pinned one |
 | `invalid-kernel-input` | `cmd/corvint/kernel.go:131` | "cannot read kernel text from stdin" when `kernel verify` cannot read stdin, or "kernel input exceeds its byte limit" when stdin exceeds 131,072 bytes; exit 2 |
-| `requirement-blob-changed` | `internal/compactionkernel/kernel.go:408@03dcb538` | the `reason` of a mismatch when a pinned `requirements` path is tracked in the compared index with a blob hash other than the pinned one |
+| `requirement-blob-changed` | `internal/compactionkernel/kernel.go:409@03dcb538` | the `reason` of a mismatch when a pinned `requirements` path is tracked in the compared index with a blob hash other than the pinned one |
 | `unsupported-kernel-envelope` | `internal/compactionkernel/kernel.go:384` | "kernel envelope is not one canonical JSON object" when the envelope body does not decode as one JSON object, or "kernel envelope carries trailing content" when content follows it; `Verify` keeps only the message, as a `corrupt` verdict |
 
 ## Non-goals
