@@ -143,6 +143,9 @@ func Run(env Env) int {
 	if result := commandHelp(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := requestIDLimitRefusal(args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	if result := platformRefusal(args); result != nil {
 		return emit(env.Stdout, result)
 	}

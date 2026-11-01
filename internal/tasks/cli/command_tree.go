@@ -79,4 +79,7 @@ func treeHelp(cmd []string, o *wire.Object) {
 	}
 	o.Set("required", wire.Strings(required))
 	o.Set("example", wire.String(node.Example))
+	if hasRequestIDFlag(node.Flags) {
+		o.Set("requestId", wire.String(requestIDHelp))
+	}
 }

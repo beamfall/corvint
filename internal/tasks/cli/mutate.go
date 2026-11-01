@@ -109,10 +109,6 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if flags.requestID == "" {
 		return usage(cmd, "--request-id is required: it is the idempotency key of this mutation")
 	}
-	if n := len(flags.requestID); n > wire.MaxRequestIDBytes && !flags.batch && len(flags.targets) <= 1 {
-		return errorResult(cmd, wire.Errorf(wire.CodeLimitExceeded, "--request-id",
-			"--request-id is %d bytes; it may be at most %d bytes (TCT-V0-991)", n, wire.MaxRequestIDBytes))
-	}
 	payload, err := readPayload(env, flags)
 	if err == nil {
 		raw := payload
@@ -296,7 +292,6 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	o.Set("operation", wire.String(operation))
 	o.Set("payloadKeys", wire.Strings(slices.Sorted(slices.Values(mutation.PayloadKeys[operation]))))
 	o.Set("replay", wire.String("Repeating a mutation with its recorded --request-id and the same payload replays it: the result is OK with replayed true, receipt is empty because no receipt is written, and originalReceipt names the receipt that committed the original (TCL-V0-991)."))
-	o.Set("requestId", wire.String(fmt.Sprintf("--request-id is the idempotency key: at most %d bytes; a longer one is refused LIMIT_EXCEEDED naming the flag (TCT-V0-991)", wire.MaxRequestIDBytes)))
 	target := " [--target TICKET|LOCAL --expected-revision N]"
 	if operation == mutation.OpCreate {
 		target = ""
