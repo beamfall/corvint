@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
@@ -27,17 +28,19 @@ func TestLGLV0890_HeartbeatKeepsEveryArtifactSyncWithAReusedQualification(t *tes
 	type syncs struct{ total, common int }
 	heartbeat := func(request string, at int) syncs {
 		t.Helper()
-		var n syncs
+		// Overlapped publish syncs (LGL-V0-016) call the hook from several
+		// goroutines at once, so the counts are atomic.
+		var total, onCommon atomic.Int64
 		restore := authority.SetDirectorySyncTestHook(func(dir os.FileInfo, next func() error) error {
-			n.total++
+			total.Add(1)
 			if os.SameFile(dir, common) {
-				n.common++
+				onCommon.Add(1)
 			}
 			return next()
 		})
 		defer restore()
 		s.lease(t, request, heartbeatOf(claim), at, nil)
-		return n
+		return syncs{total: int(total.Load()), common: int(onCommon.Load())}
 	}
 	reused := heartbeat("heartbeat-reused", 1)
 	entries, err := os.ReadDir(s.repo.CommonDir)
