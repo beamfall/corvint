@@ -1135,7 +1135,7 @@ Falsifier: a tree whose admitted sources exceed 128 MiB refused for aggregate si
 `cat-file --batch` read whose limit is derived from the whole candidate set. Rollback: restore
 `validateBlobAdmission` at its call sites and the single-batch `fetchBlobs`; the receipt fields
 can be dropped independently. Traceability: `TestFetchBlobsReadsBoundedChunks_IDXSNAPV0910`,
-`TestLargeAggregateTreeIsAdmitted_IDXSNAPV0910`, `TestIndexReceiptReportsSourceBytes_IDXSNAPV0911`;
+`TestIndexBuildingCommandsDoNotRefuseAggregateSize_IDXSNAPV0910`, `TestIndexReceiptReportsSourceBytes_IDXSNAPV0911`;
 measurements in `docs/build-log/2026-10-31-indexcli-w5.md`.
 
 ## Non-goals and authority
