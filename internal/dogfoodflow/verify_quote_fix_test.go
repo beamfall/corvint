@@ -21,7 +21,7 @@ func TestDCWV0403UnquotedRunAlternationRefusesInOneLine(t *testing.T) {
 	code, _, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan, VerifyFile: verify})
 	quoted := "go test -count=1 -run 'TestA|TestB' ./pre"
 	want := "dogfood-inputs-check: REFUSE unsupported-verify-syntax\n" +
-		"  fix: --verify " + verify + " line 2: quote the -run alternation as one word: " + quoted + " (DCW-V0-403), then rerun corvint dogfood finish-lane --base " + base + "\n"
+		"  fix: --verify " + verify + " line 2: quote the -run alternation as one word: " + quoted + " (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE), then rerun corvint dogfood finish-lane --base " + base + "\n"
 	if code != 2 || len(labels) != 0 || stderr != want {
 		t.Fatalf("code=%d steps=%q stderr=\n%q\nwant\n%q", code, labels, stderr, want)
 	}
@@ -30,7 +30,7 @@ func TestDCWV0403UnquotedRunAlternationRefusesInOneLine(t *testing.T) {
 	}
 	c := &change{options: ChangeOptions{VerifyFile: verify}}
 	hint := c.fixHint(step{"local-outcome", "NOT_PRODUCED", "unsupported-verify-syntax"})
-	if hint != "DOGFOOD_VERIFY_FILE "+verify+" line 2: quote the -run alternation as one word: "+quoted+" (DCW-V0-403)" {
+	if hint != "DOGFOOD_VERIFY_FILE "+verify+" line 2: quote the -run alternation as one word: "+quoted+" (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE)" {
 		t.Fatalf("local-outcome hint = %q", hint)
 	}
 

@@ -83,7 +83,7 @@ func quotedRunFix(path string) string {
 	if validateVerify(verifyLineArguments(quoted)) != nil {
 		return ""
 	}
-	return fmt.Sprintf("%s line %d: quote the -run alternation as one word: %s (DCW-V0-403)", path, line, quoted)
+	return fmt.Sprintf("%s line %d: quote the -run alternation as one word: %s (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE)", path, line, quoted)
 }
 
 // envAssignment is one leading NAME=value word of a verify line whose value
