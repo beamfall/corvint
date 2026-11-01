@@ -131,7 +131,7 @@ func gitCapacity(err error, phase string) error {
 	var limit string
 	switch cemcode.CodeOf(err) {
 	case cemcode.GitBudgetExceeded:
-		// DCP-V1-630: name the bound in force, which gitrun carries in its refusal.
+		// DCI-V1-630: name the bound in force, which gitrun carries in its refusal.
 		limit = "Git operation budget exhausted"
 		if m := operationBound.FindStringSubmatch(err.Error()); m != nil {
 			limit = "Git operation budget of " + m[1] + " operations exhausted"

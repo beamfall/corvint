@@ -672,7 +672,7 @@ func TestSDDV0630OwnerRelationLabelsUnrelatedOwner(t *testing.T) {
 	for _, tc := range []struct {
 		name, digest, want string
 	}{
-		{"unrelated", "- Claim: drafts for internal/docviews", OwnerUnrelated},
+		{"unrelated", "- Claim: drafts for internal/docviews", OwnerUnrelated}, //corvint:fixture-path
 		{"prefix-only", "- Implementation: `compilerx/api.go`", OwnerUnrelated},
 		{"suffix-of-longer-path", "- Implementation: `internal/compiler/api.go`", OwnerUnrelated},
 		{"file-under-package", "- Implementation: `compiler/api.go`", OwnerNamesPackage},

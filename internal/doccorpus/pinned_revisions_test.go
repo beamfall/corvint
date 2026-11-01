@@ -73,11 +73,11 @@ func TestDCRV1975PinnedRevisionsOneBatchPerCheckout(t *testing.T) {
 	}
 }
 
-// TestDCPV1630BudgetRefusalNamesBoundInForce: an exhausted Git operation
+// TestDCIV1630BudgetRefusalNamesBoundInForce: an exhausted Git operation
 // budget names the bound the run carried, not the 1,024 default (V1-3762):
 // gitrun's own refusal from a 1-operation budget spent twice, and a pinned
 // revision check under a bound too small to open the checkout.
-func TestDCPV1630BudgetRefusalNamesBoundInForce(t *testing.T) {
+func TestDCIV1630BudgetRefusalNamesBoundInForce(t *testing.T) {
 	t.Parallel()
 	budget := gitrun.NewBudget(1, gitrun.DefaultTotalBudget)
 	if _, err := budget.ReserveOperation(time.Second); err != nil {
