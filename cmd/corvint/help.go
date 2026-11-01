@@ -2016,7 +2016,7 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
@@ -2115,13 +2115,22 @@ it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
 written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
 and content (else the same path and BASE range), and every re-keyed or dropped row
-is noted on stderr, a re-keyed unknown row's NOTE marked stale for review
-(DCW-V0-884); only the remaining hunks are drafted afresh. Without a
+is noted on stderr, a re-keyed unknown row's NOTE marked stale for review when
+its hunk's content changed (DCW-V0-884, DCW-V0-842); a plan drafted at another
+BASE is re-pinned to the BASE lines holding the same text, and a new hunk of a file
+whose other hunks carry a citation is proposed that citation, carried forward
+(DCW-V0-842); only the remaining hunks are drafted afresh. Without a
 citation-plan binding, ordinal rows resolve through the one sealed CEM of
 BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
 (DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+--from-cem CEM seeds the same refresh from a sealed CEM instead of a plan, such as
+.corvint/changes/COMMIT.cem.json after a mainline merge (DCW-V0-843): each of its
+hunks becomes a cite row per basis, its byte span read as BASE lines at the CEM's
+base, or an unknown row with the CEM's reason. It cannot be combined with --refresh
+(refresh-source-conflict), and an unreadable CEM is refused from-cem-unreadable.
 
 prechange records the agent pre-change receipts before the first edit, while
 HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context

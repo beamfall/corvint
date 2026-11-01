@@ -2783,6 +2783,79 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   commit, a retroactive `-s ours` binding; a later BASE drops earlier commits; reversed arguments
   exit 2; an altered-bytes seal stays `UNBOUND`; a clean merge of a bound side is `merged:`, a merge
   carrying its own resolution edit is `UNBOUND:resolution`). Rollback: delete the script.
+- `DCW-V0-840`: (experimental under the standing lane auto-accept; V1-3844, V1-3595, V1-3673;
+  refines `DCW-V0-150` and `DCW-V0-350`) Before `corvint dogfood propose-citations` prints a draft, it
+  MUST judge every cite row it would print, drafted or carried from `--refresh` or `--from-cem`, by
+  the rule `cem cite` applies to a span: the evidence path exists at BASE as a regular file, the
+  span lies inside it and within the citation byte bound, the path is not a governing instruction
+  path the change modifies, its patch group is not binary, and the BASE lines either belong to a
+  file the change leaves unchanged or occur exactly once in the file as the patch leaves it. A row
+  whose BASE lines overlap the lines a hunk of the same file edits (its removed lines, not its
+  context) is refused as well, naming the overlapped hunk. A refused row MUST be printed as an
+  `unknown insufficient-evidence` row whose note names the refusal and the row it replaces, so no
+  printed span is later refused `cite-span-not-stable`. Design: replay of the 2026-10-31 gate9 lane
+  showed fresh drafts already passing, and the refused spans came from carried or hand-kept rows,
+  one inside the change's own edited lines. Evidence: `internal/dogfoodflow` tests drive a refresh
+  plan with an overlapping row and an unstable row, and the printed draft passes a real `cem cite`
+  precheck. Rollback: remove the final vet in the draft.
+- `DCW-V0-841`: (experimental under the standing lane auto-accept; V1-3673, V1-3778; amends
+  `DCW-V0-440` and refines `DCW-V0-404`) A hunk adding a file absent at BASE that is not a data
+  file, including one that names a requirement the change itself adds when the `DCW-V0-809` refined
+  attempt fails, MUST be proposed the first stable line of a BASE sibling that follows the same
+  pattern, in this order: the file the test or script tests in the same directory (`x_test.go` to
+  `x.go`, `x_test.sh` to `x.sh`, `test_x.py` to `x.py`), then a file of the same base name in a
+  sibling directory under the same parent; the reason names the sibling and the pattern. A line
+  that names the hunk's whole path MAY anchor without a requirement ID of the hunk's family when
+  that family is only the change-wide fallback. A data hunk with no anchor MUST say that a data
+  record is never cited and that the contract of the code that writes or reads it is the evidence.
+  Evidence: `internal/dogfoodflow` tests for each sibling form, the path-naming anchor and the data
+  reason; the cmdcem-r replay count is recorded in `docs/build-log/2026-11-01-cit-w12.md`. Rollback:
+  remove the sibling attempt and the fallback admission.
+- `DCW-V0-842`: (experimental under the standing lane auto-accept; V1-3814, V1-3791; refines
+  `DCW-V0-171`) `propose-citations --refresh` MUST keep a re-keyed row current, without the stale
+  marker, when its hunk's content is unchanged, and MUST re-pin a carried cite row whose plan was
+  drafted at another BASE: the row keeps its lines when the prior BASE and BASE hold the same text
+  there, and moves to the single occurrence of that text at BASE otherwise (a `bytes:START:END` row
+  by bytes, anywhere); when the text no longer occurs exactly once the row MUST be carried as an
+  `insufficient-evidence` unknown whose NOTE opens `[stale: cited PATH SPAN, review]`, never with its
+  old coordinates. The prior BASE is the sealed CEM's base under `--from-cem`, else the map revision
+  only when the citation-plan binding records the `--refresh` plan against that map; otherwise a NOTE
+  `refresh-base-unproven` is printed and cite rows are carried as written for `DCW-V0-840`, which
+  admits both span forms. Hunk facts are also read from the prior BASE's patches. An owed hunk with no carried
+  row in a file whose other hunks carry a cite row MUST be proposed that file's first carried
+  citation, labelled `carried forward`; a hunk of a file with no carried citation keeps the ordinary
+  draft. Evidence: `internal/dogfoodflow` tests merge an unrelated mainline commit that shifts the
+  cited lines and refresh with zero stale rows and a passing precheck, and pin the carried-forward
+  proposal and the uncited file. Rollback: drop the re-pin and the carried-forward branch.
+- `DCW-V0-843`: (experimental under the standing lane auto-accept; V1-3502) `propose-citations
+  --from-cem PATH` MUST seed the draft from a sealed CEM: each of its hunks becomes a refresh row
+  keyed by its hunk ID, a cite row per basis evidence (its byte span converted to the BASE lines of
+  the evidence blob) and an unknown row carrying the CEM's reason (a reason a plan row cannot carry,
+  such as a bootstrap hunk's `no-evidence`, becomes `insufficient-evidence` and is named in the
+  NOTE), and `DCW-V0-842` carries them to
+  the current hunks, marking changed hunks for review. `--from-cem` with `--refresh` is refused
+  `refresh-source-conflict`; an unreadable CEM is refused `from-cem-unreadable`. Without the flag the
+  command is unchanged. Evidence: an `internal/dogfoodflow` test reseals after a mainline merge and
+  keeps the carried rows. Rollback: remove the flag.
+- `DCW-V0-847`: (experimental under the standing lane auto-accept; V1-3511, V1-3694, V1-3833;
+  refines `DCW-V0-404`) A cross-file span `propose-citations` drafts by anchor, other than the
+  `DCW-V0-805` decision line and the seal contract, MUST name the hunk's path or one of the hunk's
+  requirement IDs, otherwise the row stays unknown with that reason. A mention of an ID only inside
+  a test file or a data file is not an anchor for that ID. When a hunk names a requirement ID, the
+  drafted span MUST be that ID's definition line, not a neighbouring requirement line. Evidence:
+  `internal/dogfoodflow` tests for a generated-index hunk, a spec-traceability hunk, a fixture-only
+  mention and two consecutive requirement lines. Rollback: revert the filter.
+- `DCW-V0-848`: (experimental under the standing lane auto-accept; V1-3836; amends `DCW-V0-800`)
+  `corvint dogfood inputs-check` and `make dogfood-inputs-check LANE=1` bind nothing, so they MUST
+  NOT require `--outcome`/`OUTCOME`; `dogfood-closeout`, `dogfood-finish` and `finish-lane` MUST still
+  refuse a missing outcome before any build. Evidence: `script/lane-scripts_test.sh` pins both.
+  Rollback: restore the outcome check in preflight.
+- `DCW-V0-849`: (experimental under the standing lane auto-accept; V1-3680) `corvint dogfood
+  change` (outside a `finish-lane` pass) and `propose-citations`, `--refresh` included, MUST refuse
+  `base-not-ancestor` (the `DCW-V0-946` refusal, which names the merge-base), exit 2 and write
+  nothing when BASE is not an ancestor of HEAD, since BASE..HEAD would then bind a revert of the
+  mainline commits HEAD lacks; `finish-lane` keeps its `head-not-ahead-of-base` refusal. Evidence: `internal/dogfoodflow` tests. Rollback: remove the
+  check.
 - `DCW-V0-880`: (experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`)
   `corvint dogfood prechange [--task TEXT] BASE [PATH...]` is the supported recorder for the agent
   pre-change receipts. It MUST refuse, exit 2 and write nothing, `prechange-after-change` when

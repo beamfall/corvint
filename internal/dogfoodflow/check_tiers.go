@@ -286,7 +286,7 @@ func (c *check) unanchorableHunks(cemLine []byte) (unanchorable map[string]bool)
 	edited := editedRanges(hunks)
 	unanchorable = map[string]bool{}
 	for _, hunk := range owed {
-		if row, _ := search.anchoredProposal(hunk, "", edited, map[string]bool{}); row == "" {
+		if row, _, _ := search.anchoredProposal(hunk, "", edited, map[string]bool{}); row == "" {
 			unanchorable[hunk.id] = true
 		}
 	}

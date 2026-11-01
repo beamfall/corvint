@@ -3323,6 +3323,13 @@ DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
 DCW-V0-831	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3372)	standing	V1-3372
+DCW-V0-840	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3844, V1-3595, V1-3673;	standing	V1-3844; V1-3595; V1-3673
+DCW-V0-841	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3673, V1-3778; amends	standing	V1-3673; V1-3778
+DCW-V0-842	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3814, V1-3791; refines	standing	V1-3814; V1-3791
+DCW-V0-843	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3502) `propose-citations	standing	V1-3502
+DCW-V0-847	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3511, V1-3694, V1-3833;	standing	V1-3511; V1-3694; V1-3833
+DCW-V0-848	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3836; amends `DCW-V0-800`)	standing	V1-3836
+DCW-V0-849	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3680) `corvint dogfood	standing	V1-3680
 DCW-V0-880	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`	standing	V1-3183
 DCW-V0-881	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`	standing	V1-3183
 DCW-V0-882	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3290; refines `DCW-V0-387`	standing	V1-3290
@@ -3508,6 +3515,9 @@ DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
 DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
 DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
+DCG-V0-840	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3613); refines DCG-V0-048)	standing	V1-3613
+DCG-V0-841	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3671); refines DCG-V0-920)	standing	V1-3671
+DCG-V0-842	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3672); refines DCG-V0-048)	standing	V1-3672
 DCG-V0-920	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408	standing	2026-10-31; V1-3342; V1-3408
 DCG-V0-921	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3323)	standing	2026-10-31; V1-3323
 DCG-V0-922	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3412, V1-3413	standing	2026-10-31; V1-3412; V1-3413

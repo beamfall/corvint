@@ -2984,7 +2984,7 @@
         "corvint [--root PATH] dogfood import --input FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
         "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
         "corvint [--root PATH] dogfood status [--session-key HASH]",
@@ -2998,6 +2998,7 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--from-cem",
         "--input",
         "--intents",
         "--outcome",
@@ -3312,9 +3313,10 @@
       "command": "corvint dogfood propose-citations",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE"
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE"
       ],
       "flags": [
+        "--from-cem",
         "--refresh",
         "--root"
       ],

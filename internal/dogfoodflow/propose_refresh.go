@@ -3,10 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -32,6 +29,9 @@ type hunkFacts struct {
 	oldStart int64
 	oldCount int64
 	content  string
+	// base is the BASE whose patch held the hunk; a range from another BASE
+	// does not match a current range (DCW-V0-842).
+	base string
 }
 
 // refreshHistoryLimit caps the earlier commits --refresh derives patches for
@@ -45,26 +45,25 @@ const staleHunkIDMarker = "re-hunked it (DCW-V0-441)"
 // readRefreshPlan reads the --refresh plan before any git read, refusing an
 // unreadable one with its recovery (DCW-V0-442).
 func (p *proposal) readRefreshPlan() {
-	if p.options.Refresh == "" {
+	if p.options.FromCEM != "" && p.options.Refresh != "" {
+		p.say("%s: REFUSE refresh-source-conflict\n  --from-cem and --refresh each name the rows to carry, so only one may be given\n  fix: rerun with --from-cem %s or --refresh %s, not both (DCW-V0-843)\n",
+			p.prefix, strconv.Quote(p.options.FromCEM), strconv.Quote(p.options.Refresh))
+		p.exit(2)
+	}
+	if !p.refreshing() {
 		return
 	}
-	name := p.options.Refresh
-	if !filepath.IsAbs(name) {
-		if wd, err := os.Getwd(); err == nil {
-			name = filepath.Join(wd, name)
-		}
-	}
-	// A non-regular file such as a FIFO is refused before it is opened, which
-	// could otherwise block with no writer.
 	var data []byte
-	err := errors.New("not a regular file")
-	if isRegular(name) {
-		data, err = readPrefix(name, maxPlanBytes+1)
-	}
-	if err != nil || len(data) > maxPlanBytes {
-		p.say("%s: REFUSE refresh-plan-unavailable\n  --refresh %s is not a readable regular citation plan of at most %d bytes\n  fix: corvint dogfood propose-citations %s --refresh \"$DOGFOOD_CITATIONS\" > plan.new, naming the plan the bind loop read\n",
-			p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
-		p.exit(2)
+	if p.options.FromCEM != "" {
+		data = p.sealedCEMPlan()
+	} else {
+		var err error
+		data, err = readRegularInput(p.options.Refresh)
+		if err != nil {
+			p.say("%s: REFUSE refresh-plan-unavailable\n  --refresh %s is not a readable regular citation plan of at most %d bytes\n  fix: corvint dogfood propose-citations %s --refresh \"$DOGFOOD_CITATIONS\" > plan.new, naming the plan the bind loop read\n",
+				p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
+			p.exit(2)
+		}
 	}
 	p.refreshPlan = data
 	deferredLines := []string{}
@@ -98,7 +97,7 @@ func (p *proposal) readRefreshPlan() {
 
 // refreshLabel is the PROPOSED header's account of a refresh.
 func (p *proposal) refreshLabel() string {
-	if p.options.Refresh == "" {
+	if !p.refreshing() {
 		return ""
 	}
 	carried, rekeyed, dropped := 0, 0, 0
@@ -113,7 +112,11 @@ func (p *proposal) refreshLabel() string {
 	for _, rows := range p.carried {
 		carried += len(rows)
 	}
-	return fmt.Sprintf(" refreshed=%s carried=%d rekeyed=%d dropped=%d deferred=%d", strconv.Quote(p.options.Refresh), carried, rekeyed, dropped, len(p.refreshDeferred))
+	source := " refreshed=" + strconv.Quote(p.options.Refresh)
+	if p.options.FromCEM != "" {
+		source = " from-cem=" + strconv.Quote(p.options.FromCEM)
+	}
+	return fmt.Sprintf("%s carried=%d rekeyed=%d dropped=%d deferred=%d", source, carried, rekeyed, dropped, len(p.refreshDeferred))
 }
 
 // carry maps each --refresh row onto a current owed hunk (DCW-V0-442): a row
@@ -127,6 +130,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 		return
 	}
 	p.carried = map[string][]string{}
+	p.carriedFiles = map[string]string{}
 	current := map[string]proposedHunk{}
 	for _, hunk := range owed {
 		current[hunk.id] = hunk
@@ -176,7 +180,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			return hunk.path == old.path && derived != nil && derived.ContentSha256 == old.content
 		},
 		func(hunk proposedHunk, old hunkFacts) bool {
-			return hunk.path == old.path && int64(hunk.oldStart) == old.oldStart && int64(hunk.oldCount) == old.oldCount
+			return old.base == p.base && hunk.path == old.path && int64(hunk.oldStart) == old.oldStart && int64(hunk.oldCount) == old.oldCount
 		},
 	} {
 		for _, id := range sortedKeys(unresolved) {
@@ -226,23 +230,46 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			hunk := current[target]
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d re-keyed %s -> %s (%s BASE %d,%d; %s)", row.line, row.id, target, hunk.path, hunk.oldStart, hunk.oldCount, how))
 			// The NOTE of a re-keyed unknown row was written for the old
-			// hunk, so it is carried marked stale for review (DCW-V0-884).
-			if fields[0] == "unknown" {
+			// hunk, so it is carried marked stale for review (DCW-V0-884),
+			// unless the hunk's content is unchanged (DCW-V0-842).
+			if fields[0] == "unknown" && how != "content unchanged" {
 				fields[2] = staleNotePrefix + row.id + ", review] " + staleNote.ReplaceAllString(fields[2], "")
 				row.rest = strings.Join(fields, "\t")
 				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d note marked stale: it was written for %s; review it for %s", row.line, row.id, target))
 			}
 		}
-		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 		if fields[0] != "unknown" {
+			lines, note, gone := p.repinLines(fields[0], fields[1])
+			if gone != "" {
+				// The same coordinates would now cite other text, which the
+				// vet cannot tell from the cited contract, so the row is
+				// carried unknown for review instead (DCW-V0-842).
+				row.rest = "unknown\tinsufficient-evidence\t" + staleCitePrefix + fields[0] + " " + fields[1] + ", review] " + gone + "; cite the current contract"
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d made unknown: %s, so it is not re-pinned (DCW-V0-842)", row.line, gone))
+				p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
+				continue
+			}
+			if note != "" {
+				fields[1] = lines
+				row.rest = strings.Join(fields, "\t")
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d: %s", row.line, note))
+			}
 			used[fields[0]+":"+fields[1]] = true
+			if hunk := current[target]; p.carriedFiles[hunk.path] == "" {
+				p.carriedFiles[hunk.path] = row.rest
+			}
 		}
+		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
 	}
 }
 
 // staleNotePrefix opens the NOTE of an unknown row --refresh re-keyed; staleNote
 // matches an earlier such mark, so a second refresh replaces it.
 const staleNotePrefix = "[stale: re-keyed from "
+
+// staleCitePrefix opens the NOTE of a cite row --refresh carried unknown
+// because its cited bytes vanished from BASE (DCW-V0-842).
+const staleCitePrefix = "[stale: cited "
 
 var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 
@@ -254,18 +281,45 @@ var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 // binding an ordinal is ambiguous and its row is dropped rather than carried
 // onto whichever hunk now holds that ordinal (DCW-V0-442).
 func (p *proposal) refreshOrdinalIDs() ([]string, bool) {
-	gitDir, status := p.git(true, "rev-parse", "--absolute-git-dir")
-	if status == 0 {
-		recorded := readLines(readFile(strings.TrimSpace(gitDir) + "/corvint" + citationBinding))
-		digests := map[string]bool{sha256Hex(p.refreshPlan): true}
-		if stripped, _, valid := splitDeferredRows(p.refreshPlan); valid {
-			digests[sha256Hex(stripped)] = true
-		}
-		if len(recorded) > 0 && digests[recorded[0]] {
-			return recorded[1:], true
-		}
+	if recorded, ok := p.boundIDs(); ok {
+		return recorded, true
 	}
 	return p.sealedOrdinalIDs()
+}
+
+// boundIDs is the hunk IDs, in map order, that the citation-plan binding
+// records the --refresh plan was cited against, or false when the binding
+// records another plan or none.
+func (p *proposal) boundIDs() ([]string, bool) {
+	gitDir, status := p.git(true, "rev-parse", "--absolute-git-dir")
+	if status != 0 {
+		return nil, false
+	}
+	recorded := readLines(readFile(strings.TrimSpace(gitDir) + "/corvint" + citationBinding))
+	digests := map[string]bool{sha256Hex(p.refreshPlan): true}
+	if stripped, _, valid := splitDeferredRows(p.refreshPlan); valid {
+		digests[sha256Hex(stripped)] = true
+	}
+	if len(recorded) == 0 || !digests[recorded[0]] {
+		return nil, false
+	}
+	return recorded[1:], true
+}
+
+// boundToMap reports whether the binding records the --refresh plan against
+// exactly the hunks of the prepared map, so the map's BASE is the plan's
+// (DCW-V0-842).
+func (p *proposal) boundToMap(hunks []proposedHunk) bool {
+	recorded, ok := p.boundIDs()
+	if !ok || len(recorded) != len(hunks) {
+		return false
+	}
+	for index, hunk := range hunks {
+		if recorded[index] != hunk.id {
+			return false
+		}
+	}
+	return true
 }
 
 // maxSealedCandidates bounds the sealed CEMs sealedOrdinalIDs reads.
@@ -393,16 +447,28 @@ func (p *proposal) resolveHunkFacts(wanted map[string]bool) map[string]hunkFacts
 	if listed, status, bounded := p.boundedGit("log", "-g", "--format=%H", "-n", strconv.Itoa(refreshHistoryLimit), "HEAD"); status == 0 && bounded {
 		sources = append(sources, textLines([]byte(chomp(listed))))
 	}
-	seen := map[string]bool{p.target: true}
-	for _, candidates := range sources {
-		p.collectHunkFacts(candidates, wanted, seen, facts)
+	// A plan drafted at another BASE names hunk IDs of that BASE's patches,
+	// including the current HEAD's (DCW-V0-842).
+	bases := []string{p.base}
+	if p.priorBase != "" && p.priorBase != p.base {
+		bases = append(bases, p.priorBase)
+		sources = append(sources, []string{p.target})
+	}
+	for _, from := range bases {
+		seen := map[string]bool{}
+		if from == p.base {
+			seen[p.target] = true
+		}
+		for _, candidates := range sources {
+			p.collectHunkFacts(from, candidates, wanted, seen, facts)
+		}
 	}
 	return facts
 }
 
 // collectHunkFacts adds to facts each wanted hunk found in the canonical patch
-// of BASE to one of candidates, trying at most refreshHistoryLimit patches.
-func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string]bool, facts map[string]hunkFacts) {
+// of from to one of candidates, trying at most refreshHistoryLimit patches.
+func (p *proposal) collectHunkFacts(from string, candidates []string, wanted, seen map[string]bool, facts map[string]hunkFacts) {
 	tried := 0
 	for _, commit := range candidates {
 		if len(facts) == len(wanted) || tried == refreshHistoryLimit {
@@ -412,11 +478,11 @@ func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string
 			continue
 		}
 		seen[commit] = true
-		if _, status := p.git(true, "merge-base", "--is-ancestor", p.base, commit); status != 0 {
+		if _, status := p.git(true, "merge-base", "--is-ancestor", from, commit); status != 0 {
 			continue
 		}
 		tried++
-		raw, status, bounded := p.boundedGit(p.canonicalDiffArgumentsFor(p.base, commit)...)
+		raw, status, bounded := p.boundedGit(p.canonicalDiffArgumentsFor(from, commit)...)
 		if status != 0 || !bounded || raw == "" {
 			continue
 		}
@@ -426,7 +492,7 @@ func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string
 		}
 		for _, hunk := range parsed.Hunks {
 			if wanted[hunk.ID] {
-				facts[hunk.ID] = hunkFacts{hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count, hunk.ContentSha256}
+				facts[hunk.ID] = hunkFacts{hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count, hunk.ContentSha256, from}
 			}
 		}
 	}
