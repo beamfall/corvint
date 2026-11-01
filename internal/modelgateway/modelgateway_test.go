@@ -544,3 +544,96 @@ func TestLMGV0009TruncatedStreamAborts(t *testing.T) {
 		t.Fatalf("ledger %s", ledger)
 	}
 }
+
+func TestLMGV0011LedgerPrefixKeys(t *testing.T) {
+	gateway, ledger, _ := newGateway(t, nil, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"model":"m","usage":{"input_tokens":1}}`)
+	})
+	system, tools := `[{"type":"text","text":"SECRET-SYSTEM"}]`, `[{"name":"Bash","input_schema":{}}]`
+	for _, body := range []string{
+		`{"model":"m","system":` + system + `,"tools":` + tools + `,"metadata":{"user_id":"u"}}`,
+		`{"model":"m","system":` + system + `,"tools":` + tools + `}`,
+		`{"model":"m"}`,
+	} {
+		response, err := http.Post(gateway.URL+"/v1/messages", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		response.Body.Close()
+	}
+	lines := ledgerLines(t, gateway, ledger)
+	raw := ledger.String()
+	if strings.Contains(raw, "SECRET-SYSTEM") || strings.Contains(raw, "input_schema") {
+		t.Fatalf("ledger stored prefix text: %s", raw)
+	}
+	first, second, bare := lines[0], lines[1], lines[2]
+	if first.SystemBytes != len(system) || first.ToolsBytes != len(tools) || len(first.SystemKey) != 16 || len(first.ToolsKey) != 16 ||
+		first.SystemKey == first.ToolsKey || first.SessionKey == "" {
+		t.Fatalf("first %+v", first)
+	}
+	if second.SystemKey != first.SystemKey || second.ToolsKey != first.ToolsKey || second.SessionKey != "" {
+		t.Fatalf("second %+v", second)
+	}
+	if bare.SystemBytes != 0 || bare.SystemKey != "" || bare.ToolsBytes != 0 || bare.ToolsKey != "" {
+		t.Fatalf("bare %+v", bare)
+	}
+	totals, err := Summarise(strings.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if totals.ToolsBytes != int64(2*len(tools)) || totals.ToolsRequestBytes != int64(first.RequestBytes+second.RequestBytes) {
+		t.Fatalf("totals %+v", totals)
+	}
+}
+
+func TestLMGV0012CacheBreaks(t *testing.T) {
+	// line is one request that ended at 12:mm:ss and took ms milliseconds.
+	line := func(at string, ms int, session, system, tools string, read, created int, extra string) string {
+		return fmt.Sprintf(`{"profile":"corvint-gateway-usage/0","at":"2026-11-01T12:%sZ","durationMs":%d,"status":200,"model":"m","sessionKey":%q,"systemKey":%q,"toolsKey":%q,"cacheReadInputTokens":%d,"cacheCreationInputTokens":%d%s}`,
+			at, ms, session, system, tools, read, created, extra)
+	}
+	ledger := strings.Join([]string{
+		line("00:00", 1000, "s", "a", "t", 0, 50000, ""),                                // warm-up
+		line("00:05", 1000, "s", "", "", 0, 0, ""),                                      // side request, skipped
+		line("00:10", 1000, "s", "a", "t", 50000, 500, ""),                              // stable
+		line("00:20", 1000, "s", "a", "t", 50300, 200, ""),                              // 200 short: noise
+		line("00:30", 1000, "s", "a", "t", 0, 60000, `,"error":"upstream read failed"`), // failed stream, skipped
+		line("01:00", 1000, "s", "a", "t", 4000, 47000, ""),                             // 1: edited prefix
+		line("01:30", 1000, "s", "a", "t", 3000, 9000, ""),                              // 2: compaction
+		line("02:00", 1000, "s", "a", "t", 12000, 600, ""),                              // stable after compaction
+		line("02:30", 1000, "s", "b", "u", 12600, 2000, ""),                             // new key, full hit: no break
+		line("03:00", 1000, "s", "c", "v", 0, 9000, ""),                                 // 3: subagent or tool change
+		line("03:30", 1000, "s", "a", "t", 12600, 100, ""),                              // main resumes, stable
+		line("10:00", 300000, "s", "a", "t", 12700, 300, ""),                            // 5-minute stream, stable
+		line("10:30", 1000, "s", "a", "t", 0, 13500, ""),                                // 4: idle since the stream started
+		line("11:00", 20000, "p", "a", "t", 0, 40000, ""),                               // two parallel cold
+		line("11:05", 25000, "p", "a", "t", 0, 40000, ""),                               // requests: no break
+		line("11:30", 1000, "p", "a", "t", 40000, 100, ""),                              // stable
+		`{"profile":"corvint-gateway-usage/0","status":529,"sessionKey":"s","cacheReadInputTokens":0,"cacheCreationInputTokens":0}`,
+		"garbage",
+	}, "\n")
+	breaks, err := CacheBreaks(strings.NewReader(ledger))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []struct {
+		cause                   string
+		expected, read, created int64
+		gap                     time.Duration
+	}{
+		{CausePrefixChanged, 50500, 4000, 47000, 40 * time.Second},
+		{CausePrefixShrank, 51000, 3000, 9000, 30 * time.Second},
+		{CausePrefixSwitch, 14600, 0, 9000, 30 * time.Second},
+		{CauseIdle, 13000, 0, 13500, 5*time.Minute + 29*time.Second},
+	}
+	if len(breaks) != len(want) {
+		t.Fatalf("breaks %+v", breaks)
+	}
+	for i, w := range want {
+		b := breaks[i]
+		if b.Cause != w.cause || b.Expected != w.expected || b.Read != w.read || b.Created != w.created || b.Gap != w.gap {
+			t.Fatalf("break %d %+v, want %+v", i, b, w)
+		}
+	}
+}

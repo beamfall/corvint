@@ -12,7 +12,7 @@ V1-4033, V1-4035 and V1-4037.
 ## Agent digest
 - Claim: A loopback-only, operator-started proxy for the Messages API can record per-request token usage and fold oversized Bash output deterministically.
 - Status: experimental, owner-directed (2026-11-01; V1-4021, V1-4031); the invariant-7 carve-out is pending owner decision (V1-4037) / experimental
-- Exists: `cmd/corvint-gateway` (`serve`, `report`) and `internal/modelgateway` (`Proxy`, `Folder`, usage ledger); tests named for each requirement.
+- Exists: `cmd/corvint-gateway` (`serve`, `report`) and `internal/modelgateway` (`Proxy`, `Folder`, usage ledger, `CacheBreaks`); tests named for each requirement.
 - Blocked on: savings are unmeasured until the paired trial (V1-4032); acceptance of the carve-out (V1-4037).
 - Read next: Requirements; Trust boundary and failure modes; Rollback.
 
@@ -89,13 +89,32 @@ sessions with unchanged task success.
 - **LMG-V0-010:** (experimental, owner-directed, 2026-11-01; V1-4035) `report` SHALL read the
   ledger and print request count, summed token counts, the cache-read share of input, and the
   forwarded-byte reduction, and SHALL write nothing.
+- **LMG-V0-011:** (experimental, owner-directed, 2026-11-01; V1-4033, V1-4035) Each ledger line
+  SHALL also record the byte length and a short SHA-256 key of the request's `system` and `tools`
+  JSON values as received, each absent when that value is absent. It SHALL NOT record their text.
+  `report` SHALL print the tool-definition bytes as a share of the received bytes of the requests
+  that carried a tool list.
+- **LMG-V0-012:** (experimental, owner-directed, 2026-11-01; V1-4035) `report` SHALL list
+  prompt-cache breaks found in the ledger. A thread is one session key, model, system key and
+  tools key, and a request starts at its time less its duration. A request's predecessor is its
+  thread's previous request, or for a thread's first request the session's last cached request on
+  the same model. A break is a successful, error-free line with cache activity that started after
+  its predecessor ended, read at least 1024 tokens fewer than the predecessor's cache-read plus
+  cache-creation, and wrote at least 1024. Its cause SHALL be named "tool list or system prompt
+  changed, or a subagent started" for a thread's first request; otherwise "over 5 minutes idle"
+  (expiry under the default TTL, or changed content) when more than 5 minutes passed between the
+  two starts; otherwise "prefix shorter than before" (compaction, or another conversation with the
+  same system prompt and tools) when the new prefix is at least 1024 tokens shorter; otherwise
+  "earlier prefix content changed". Lines without a session key or cache counts, failed lines and
+  lines with no cache activity are skipped. Each cause names the likely cause, not a proven one.
 
 ## Non-goals
 
 - No hosted service, account, telemetry upload, or third-party endpoint. The upstream defaults to
   `https://api.anthropic.com`.
 - No tool injection, sandboxed code execution, memory recall or session resume in V0.
-- No tool-schema slimming or cache-mark rewriting until V1-4033 and V1-4035 measure them.
+- No tool-schema slimming or cache-mark rewriting until V1-4033 and V1-4035 measure them;
+  LMG-V0-011 and LMG-V0-012 are those measurements, not the rewrites.
 - No savings claim before the paired trial (V1-4032) reports one.
 - No repository-aware folding in V0: using Corvint's index and change context to choose what a fold
   keeps is the V1-4055 spike, measured against this blind baseline.
@@ -126,6 +145,8 @@ operator can add the archive directory to the session's allowed directories.
 | LMG-V0-005 to LMG-V0-008 | `TestLMGV0005FoldIsDeterministic`, `TestLMGV0005FoldSplicesOnlyFoldedText`, `TestLMGV0006OnlyBashResultsFold`, `TestLMGV0007GoTestNoiseAndWindows`, `TestLMGV0007LongLineCutOnRuneBoundary`, `TestLMGV0008ArchiveReplacesStaleEntry`, `TestLMGV0008ArchiveFailureForwardsUnfolded` |
 | LMG-V0-009 | `TestLMGV0009MalformedBodyPassesThrough`, `TestLMGV0009OversizeRefused`, `TestLMGV0009TruncatedStreamAborts` |
 | LMG-V0-010 | `TestLMGV0010Report` |
+| LMG-V0-011 | `TestLMGV0011LedgerPrefixKeys` |
+| LMG-V0-012 | `TestLMGV0012CacheBreaks` |
 
 Live qualification (V1-4021): a Claude Code print-mode run with `ANTHROPIC_BASE_URL` pointing at
 the gateway succeeds and writes ledger lines; recorded in the delivering build-log entry.
