@@ -314,6 +314,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `supersedes` resolves to a candidate as naming that candidate, so the create records the
   duplicate as the typed link; a link to any other ticket names nothing, and the refusal names the
   link as a remedy. No record, payload or wire format changes.
+- `TCL-V0-741`: (experimental under the standing lane auto-accept (2026-11-01); V1-3353, V1-3817)
+  `ticket show <ticket> --format text` (or `--format=text`) MUST print the one ticket as plain
+  text: a header line marking the content untrusted, the ticket ID and title, status, priority,
+  kind and revision, milestone when set, labels, touch paths, coverage, requirement refs when
+  set, then the body and the acceptance criteria numbered from 1, each verbatim with no JSON
+  escaping and with control characters other than newline and tab dropped. `--format json`, the
+  default, is the unchanged envelope. A refusal stays the JSON envelope, and `--format text` with
+  `--summary` or `--fields`, or a format other than `json` or `text`, refuses `MALFORMED`. A lane
+  ticket packet is this output.
 
 ## Non-goals
 
@@ -404,6 +413,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-738).
 - `internal/tasks/cli/supersedes_link_test.go`:
   `TestTCLV0739_DuplicateRecordedAsSupersedesLink`; `TestTCLV0004_CreateGuard` (TCL-V0-739).
+- `internal/tasks/cli/ticket_show_text_test.go`:
+  `TestTCLV0741_ShowFormatTextRendersBodyAndAcceptance` (TCL-V0-741).
 
 ## Rollback
 

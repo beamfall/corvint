@@ -1005,7 +1005,8 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
 (V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
-  assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
+  assigned ticket, exported on the owning host, and `<ID>.txt`, the same ticket as readable text from
+  `corvint-tasks ticket show <ID> --format text` (TCL-V0-741, V1-3817). A lane host may instead read a queue snapshot
   (`CORVINT_TASKS_SNAPSHOT`, section 12); without either, `ticket show` there refuses
   `journal-absent` (V1-3262). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
   is not a ticket body.

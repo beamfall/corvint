@@ -227,7 +227,7 @@ func Run(env Env) int {
 			wide.showItems = true
 			return emit(env.Stdout, compactRead([]string{"ticket", "search"}, args[2:], compactSpec{summary: listSummary, values: searchValueFlags, routes: recordFieldRoutes, wide: func(a []string) *wire.Result { return ticketSearch(wide, a) }}, func(a []string) *wire.Result { return ticketSearch(env, a) }))
 		case "show":
-			return emit(env.Stdout, compactRead([]string{"ticket", "show"}, args[2:], compactSpec{summary: ticketSummary}, func(a []string) *wire.Result { return ticketShow(env, a, true) }))
+			return ticketShowCommand(env, args[2:])
 		case "blockers":
 			return emit(env.Stdout, ticketShow(env, args[2:], false))
 		case "closeout-debt":

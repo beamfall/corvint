@@ -679,17 +679,19 @@
       "command": "corvint-tasks doctor",
       "summary": "",
       "usage": [
-        "corvint-tasks doctor [--refresh] [--plugins DIR] | corvint-tasks doctor --line"
+        "corvint-tasks doctor [--refresh] [--plugins DIR] | corvint-tasks doctor --line | corvint-tasks doctor --rebuild-closed-index"
       ],
       "flags": [
         "--line",
         "--plugins",
+        "--rebuild-closed-index",
         "--refresh"
       ],
       "required": [
-        "--line"
+        "--line",
+        "--rebuild-closed-index"
       ],
-      "example": "corvint-tasks doctor | corvint-tasks doctor --line",
+      "example": "corvint-tasks doctor | corvint-tasks doctor --line | corvint-tasks doctor --rebuild-closed-index",
       "help": "corvint-tasks doctor --help"
     },
     {
@@ -2926,7 +2928,7 @@
         "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",
         "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
         "corvint-tasks ticket blockers <ticketId|local>",
-        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--prs FILE|-]",
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N] [--prs FILE|-]",
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]",
@@ -2967,11 +2969,11 @@
         "corvint-tasks ticket reopen --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket restore --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket revoke-approval --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE] [--supersedes TICKET]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
         "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
-        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]",
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],... | --format json|text]",
         "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]",
         "corvint-tasks ticket split <ticketId|local> --criteria N[,M...] --expected-revision R (--request-id Q | --dry-run) [--issued-at TS] [--role OWNER|OPERATOR]"
       ],
@@ -3054,6 +3056,7 @@
         "--seal",
         "--since",
         "--skeleton",
+        "--skip",
         "--state",
         "--status",
         "--summary",
@@ -3232,13 +3235,14 @@
       "command": "corvint-tasks ticket closeout-debt",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--prs FILE|-]"
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N] [--prs FILE|-]"
       ],
       "flags": [
         "--limit",
         "--prs",
         "--ref",
-        "--since"
+        "--since",
+        "--skip"
       ],
       "required": [],
       "example": "corvint-tasks ticket closeout-debt",
@@ -4364,7 +4368,7 @@
       "command": "corvint-tasks ticket search",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
+        "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE] [--supersedes TICKET]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
       ],
       "flags": [
         "--all",
@@ -4382,6 +4386,7 @@
         "--priority",
         "--status",
         "--summary",
+        "--supersedes",
         "--text"
       ],
       "required": [],
@@ -4477,10 +4482,11 @@
       "command": "corvint-tasks ticket show",
       "summary": "",
       "usage": [
-        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]"
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],... | --format json|text]"
       ],
       "flags": [
         "--fields",
+        "--format",
         "--json",
         "--root",
         "--summary"
