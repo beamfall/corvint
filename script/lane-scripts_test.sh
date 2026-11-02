@@ -1495,17 +1495,18 @@ HEAVY_REFUSE_FREE_GB=x tv true > /dev/null
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-refuse-free HEAVY_REFUSE_FREE_GB=x' "$to/err" || fail "heavy.sh accepted HEAVY_REFUSE_FREE_GB=x: $(cat "$to/err")"
 # ASD-V0-061 (V1-3824, V1-2904): on a tmpfs /tmp a local run whose caller set none of them gets the
 # home-disk Go cache (the remote half's) and TMPDIR, named on one line; a caller's own values, and a
-# /tmp on disk, keep theirs.
+# /tmp on disk, keep theirs. The command's TMPDIR is the run's private heavy-run.* directory under
+# that one (ASD-V0-734), and CORVINT_GOCACHE stays the cache a Makefile derives from it.
 tf=$tmp/tmpfs
-mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=$TMPDIR cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
+mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=${TMPDIR%%/heavy-run.*} cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
 tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
 x=$tf/xdg
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
   grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
   fail "heavy.sh tmpfs defaults: $(tfv HEAVY_TMP_FSTYPE=tmpfs) $(cat "$tf/err")"
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE=/c) == "tmp=$tf cache=/c corvint=/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE=/g) == "tmp=$tf cache=/g corvint=" ]] &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3) == 'tmp= cache=/tmp/corvint-go-build-cache corvint=' ]] ||
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE=/g) == "tmp=$tf cache=/g corvint=$tf/corvint-go-build-cache" ]] &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3) == 'tmp=/tmp cache=/tmp/corvint-go-build-cache corvint=/tmp/corvint-go-build-cache' ]] ||
   fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
 # ASD-V0-104 (V1-3787): a local run trims its GOCACHE with go-cache-trim.sh --apply at most once per
 # HEAVY_CACHE_TRIM_HOURS (a stamp in the lock dir); 0 disables it and a malformed value refuses. The
@@ -1616,6 +1617,28 @@ rc=$?
 stubborn=$(cat "$to/stubborn.pid" 2> /dev/null)
 ((rc == 124 && SECONDS - s0 < 12)) && [[ -n $stubborn ]] && ! kill -0 "$stubborn" 2> /dev/null ||
   fail "the light cap left a TERM-ignoring descendant running (rc=$rc, pid=$stubborn, $((SECONDS - s0))s): $(cat "$to/err")"
+# ASD-V0-734 (V1-4319): the command's TMPDIR is a private directory under the caller's, removed
+# after a normal run and after a timeout or cap kill, so a killed job leaves nothing behind.
+mkdir -p "$to/tmproot"
+TMPDIR=$to/tmproot tv --admit-only sh -c 'echo "$TMPDIR" > "$1/run.tmp"; mktemp -d > /dev/null' _ "$to" ||
+  fail "heavy.sh private TMPDIR run failed: $(cat "$to/err")"
+rtmp=$(cat "$to/run.tmp")
+[[ ${rtmp%/*} == "$to/tmproot" && ${rtmp##*/} == heavy-run.* && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "heavy.sh did not run the command in a private TMPDIR it removed (TMPDIR=$rtmp, left: $(/bin/ls -A "$to/tmproot"))"
+leaker='d=$(mktemp -d); echo "$d" > "$1/leak.path"; : > "$d/f"; mkdir "$d/ro"; chmod 555 "$d/ro"; exec sleep 30'
+TMPDIR=$to/tmproot HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c "$leaker" _ "$to"
+rc=$?
+leak=$(cat "$to/leak.path" 2> /dev/null)
+((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "a job stopped by the light cap left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+if command -v timeout > /dev/null; then
+  : > "$to/leak.path"
+  TMPDIR=$to/tmproot tv --admit-only timeout 1 sh -c "$leaker" _ "$to"
+  rc=$?
+  leak=$(cat "$to/leak.path" 2> /dev/null)
+  ((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+    fail "a job killed on timeout left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+fi
 tv sh -c 'HEAVY_CLASS=light "$heavy" true 2> "$1/light-nested.err"' _ "$to"
 grep -qx 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot' "$to/light-nested.err" && grep -q '^heavy.sh: slot 1.inner/1 ' "$to/light-nested.err" ||
   fail "a light run inside a heavy holder did not nest on it: $(cat "$to/light-nested.err")"

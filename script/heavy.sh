@@ -97,6 +97,11 @@
 #                        and one `heavy.sh: rerun as heavy:` line. heavy (the default) is unchanged.
 #                        Only the environment sets it, never the config file; a nested admission takes
 #                        its holder's class; an offload is unchanged (ASD-V0-731, NEW-B6).
+#   TMPDIR               the command runs with a private TMPDIR, heavy-run.XXXXXX under this one
+#                        (else /tmp), removed with all its contents when the run ends, including
+#                        after a forwarded signal or a timeout or cap kill; only a KILL of the
+#                        wrapper itself leaves it. A local run's CORVINT_GOCACHE stays the cache
+#                        derived from the caller's TMPDIR (ASD-V0-734, V1-4319).
 #
 # Run telemetry (ASD-V0-037, V1-2905). This file is the one runner: its remote half is the same file,
 # shipped over ssh on every offload, so no copy lives on a remote host. Every run prints
@@ -345,6 +350,8 @@ IFS= read -r -d '' slot_perl << 'PERL' || :
 use strict;
 use warnings;
 use Fcntl qw(:flock F_SETFD);
+use File::Path ();
+use File::Temp ();
 use POSIX qw(setpgid strftime);
 use Time::HiRes qw(time);
 use Cwd ();
@@ -413,10 +420,20 @@ if ($held) {
 # The command inherits the locked descriptor, so the slot stays held until every process that
 # kept it has exited, even when the wrapper itself is killed.
 fcntl($lock, F_SETFD, 0) or die "heavy.sh: fcntl failed: $!\n";
+# ASD-V0-734 (V1-4319): the command gets a private TMPDIR under the caller's, removed once the run
+# is over, after a forwarded INT/TERM/HUP or a timeout or cap kill too, so files a killed test's
+# own cleanup never removed do not pile up in a shared (often RAM-backed) /tmp.
+my $tparent = length($ENV{TMPDIR} // "") && -d $ENV{TMPDIR} ? $ENV{TMPDIR} : "/tmp";
+my $rtmp = eval { File::Temp::tempdir("heavy-run.XXXXXX", DIR => $tparent) };
+printf STDERR "heavy.sh: no private TMPDIR under %s; the run uses it directly\n", $tparent unless $rtmp;
 my $pid = fork;
-die "heavy.sh: fork failed: $!\n" unless defined $pid;
+unless (defined $pid) {
+    File::Path::remove_tree($rtmp) if $rtmp;
+    die "heavy.sh: fork failed: $!\n";
+}
 if ($pid == 0) {
     setpgid(0, 0);
+    $ENV{TMPDIR} = $rtmp if $rtmp;
     setpriority(0, 0, $nice) if $nice > getpriority(0, 0);
     @ENV{qw(HEAVY_SLOT HEAVY_SLOT_FD)} = ($slot, fileno($lock));
     no warnings "exec";
@@ -455,6 +472,10 @@ if ($capped) {
         }
         select(undef, undef, undef, 0.1);
     }
+}
+if ($rtmp) {
+    File::Path::remove_tree($rtmp, { error => \my $err });
+    printf STDERR "heavy.sh: could not remove the run's TMPDIR %s\n", $rtmp if -e $rtmp;
 }
 my $rc = $capped ? 124 : $status & 127 ? 128 + ($status & 127) : $status >> 8;
 my $t2 = time;
@@ -1936,7 +1957,10 @@ main() {
   tmpfs_defaults
   local cache_tmp=${TMPDIR:-/tmp}
   : "${GOCACHE:=${CORVINT_GOCACHE:-${cache_tmp%/}/corvint-go-build-cache}}"
-  export GOCACHE
+  # ASD-V0-734: the command's TMPDIR is private to the run, so a Makefile recipe would derive its
+  # CORVINT_GOCACHE inside it; the shared cache it derived from the caller's TMPDIR stays set.
+  : "${CORVINT_GOCACHE:=${cache_tmp%/}/corvint-go-build-cache}"
+  export GOCACHE CORVINT_GOCACHE
   cache_trim
   if ! local_disk; then
     printf 'heavy.sh: REFUSED low-disk (exit 2)\n' # stdout marker (V1-3213)
