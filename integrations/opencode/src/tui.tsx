@@ -23,7 +23,9 @@ export default Plugin.define({
     const rpc = ctx.client.rpc(INSPECTOR_RPC)
     const lifetime = new AbortController()
     const location = () => ctx.location ?? ctx.data.location.default()
-    const syntax = SyntaxStyle.fromStyles({ default: { fg: ctx.theme.text.base }, ...Object.fromEntries(Object.entries(ctx.theme.syntax).map(([key, fg]) => [key, { fg }])) })
+    // AHI-1960 (V1-2929): OpenTUI 0.7 (OpenCode 2.1+) refuses a SyntaxStyle without a resource owner and
+    // the setup throw drops every Corvint slot; older OpenTUI ignores the second argument.
+    const syntax = SyntaxStyle.fromStyles({ default: { fg: ctx.theme.text.base }, ...Object.fromEntries(Object.entries(ctx.theme.syntax).map(([key, fg]) => [key, { fg }])) }, ctx.renderer?.nativeScene)
     const accent = () => ctx.theme.text.action.primary.base
     const tone = snapshot => ctx.theme.text.feedback[evidenceStatus(snapshot).tone].base
 

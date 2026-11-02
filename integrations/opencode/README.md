@@ -295,7 +295,9 @@ unless the tool declares `options.codemode: false`. Only `corvint_context` does 
 `corvint_status` stay in the Code Mode catalog. Since adapter 0.7.26 (`AHI-212`) those three and the
 bundled skill are added only after the first `corvint_context` call; OpenCode appends them to the
 conversation as catalog and skill-change notices, so an idle session carries only `corvint_context`
-(measured +97 first-step prompt tokens on 2.1.3). A code-mode `execute` call is not reported, its inner
+(measured +97 first-step prompt tokens on 2.1.3). Since adapter 0.7.37 (`AHI-1962`) its idle description
+says when to call it, first for a code change and before `grep` or `read`, because the skill that
+says so arrives only after that call (+119 tokens on 2.2.5). A code-mode `execute` call is not reported, its inner
 tool calls are. Code Mode JavaScript has a global `fetch`, so since adapter 0.7.28 (`AHI-214`) the
 plugin refuses every `execute` call (`code-mode-network-denied`) unless the session's effective
 permission rules allow both `webfetch` and `websearch` for every resource; a host whose rules it
