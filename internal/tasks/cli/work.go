@@ -122,12 +122,14 @@ func workLane(env Env, cmd []string, state string, args []string) *wire.Result {
 			}
 		}
 	}
-	gitArgs := make([]wire.Value, 0, 2*len(t.Tickets)+6)
-	for _, a := range t.GitArgs() {
+	ga := t.GitArgs()
+	gitArgs := make([]wire.Value, 0, len(ga))
+	for _, a := range ga {
 		gitArgs = append(gitArgs, wire.String(a))
 	}
-	lines := make([]wire.Value, 0, len(t.Tickets)+3)
-	for _, l := range t.Lines() {
+	tl := t.Lines()
+	lines := make([]wire.Value, 0, len(tl))
+	for _, l := range tl {
 		lines = append(lines, wire.String(l))
 	}
 	tickets := make([]wire.Value, 0, len(t.Tickets))
