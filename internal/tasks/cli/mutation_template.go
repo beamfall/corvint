@@ -116,7 +116,7 @@ func payloadKeyTypes(op string) wire.Value {
 
 // mutationTemplatePayload is a decodable example payload for op: valid
 // shapes with neutral values, placeholders where the caller must decide.
-func mutationTemplatePayload(op string) wire.Value {
+func mutationTemplatePayload(env Env, op string) wire.Value {
 	o := wire.NewObject()
 	str := wire.String
 	empty := func() wire.Value { return wire.Strings([]string{}) }
@@ -153,7 +153,7 @@ func mutationTemplatePayload(op string) wire.Value {
 		// The grant names the invoking actor (mutation apply refuses any
 		// other), read from the environment as the write would read it.
 		actor := "OWNER"
-		if b, err := initActor(""); err == nil {
+		if b, err := initActor(env, ""); err == nil {
 			actor = b.ID
 		}
 		o.Set("actor", str(actor))
@@ -209,7 +209,7 @@ func mutationTemplate(env Env, cmd []string, op string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	payload := mutationTemplatePayload(op)
+	payload := mutationTemplatePayload(env, op)
 	o := wire.NewObject()
 	o.Set("operation", wire.String(op))
 	o.Set("queueId", wire.String(st.Queue.QueueID.Raw))

@@ -67,8 +67,8 @@ func batchGroupIDs(t *testing.T, x run) [][]string {
 // no lock and writes nothing: the state and intent directories, the object
 // count and the refs are unchanged.
 func TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	for _, p := range []string{"a/x", "b/y", "c/z"} {
 		fixture.Write(t, filepath.Join(root, p), []byte(p+"\n"))

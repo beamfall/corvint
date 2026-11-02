@@ -15,7 +15,8 @@ import (
 // refusal names RUN and COMPLETE together (ATR-V0-272), and a claim that a
 // RUN grant admits warns that COMPLETE is still missing (ATR-V0-274, V1-1874).
 func TestATRV0272_ApprovalGrantsNamedUpFront(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute).Truncate(time.Second))
 	create := func(name, class string) string {
 		t.Helper()

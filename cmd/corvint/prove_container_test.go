@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate"
 	"github.com/Beamfall/corvint/internal/liveverify/rbmutate/minirspec"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
@@ -66,7 +67,7 @@ func writeFakeContainerDeclaration(t *testing.T) (string, string) {
 	log := filepath.Join(logs, "runs.log")
 	script := strings.NewReplacer("@LOG@", log, "@RUBY@", ruby, "@SHIM@", shim, "@PATH@", os.Getenv("PATH")).Replace(proveFakeContainer)
 	executable := filepath.Join(bin, "docker")
-	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	declaration, err := json.Marshal(rbmutate.ContainerProfile{

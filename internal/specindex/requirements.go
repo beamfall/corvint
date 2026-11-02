@@ -87,23 +87,31 @@ var heading = regexp.MustCompile("^ {0,3}#")
 // ranks (SRG-V0-003, SRG-V0-004, SRG-V0-548): the first unwrapped definition line, else the first
 // wrapped one (an unbulleted line directly after a non-blank, non-heading line outside a fence),
 // else the first table row that opens with the id, else 0. It is how a reader of the committed
-// index, which carries no line number, finds the clause (SRG-V0-017).
+// index, which carries no line number, finds the clause (SRG-V0-017). A caller locating many ids
+// in one spec scans it once with NewDefinitions instead.
 func DefinitionLine(text, id string) int {
-	quoted := regexp.QuoteMeta(id)
-	const lead = "^[\t\n\v\f\r ]*(?:[-*][\t\n\v\f\r ]+)?(?:\\*\\*)?`?"
-	period := regexp.MustCompile(lead + quoted + "`?\\.(?:\\*\\*)?[\t\n\v\f\r ]")
-	colon := regexp.MustCompile(lead + quoted + "`?(?:\\*\\*)?[\t\n\v\f\r ]*:")
-	table := regexp.MustCompile("^[\t\n\v\f\r ]*\\|[\t\n\v\f\r ]*`?" + quoted + "`?(?:[\t\n\v\f\r |.])")
-	firstWrapped, firstTable := 0, 0
+	return NewDefinitions(text).Line(id)
+}
+
+// Definitions is one spec text scanned once for the id-independent line state DefinitionLine
+// reads: whether each line is wrapped and whether it opens a definition boundary (ASD-V0-981).
+type Definitions struct {
+	lines             []string
+	wrapped, boundary []bool
+}
+
+// NewDefinitions scans text once; Line then answers DefinitionLine for any id without rescanning.
+func NewDefinitions(text string) *Definitions {
+	lines := strings.SplitAfter(text, "\n")
+	d := &Definitions{lines: lines, wrapped: make([]bool, len(lines)), boundary: make([]bool, len(lines))}
 	previousBlank, continues := true, false
 	fence := ""
-	lines := strings.SplitAfter(text, "\n")
 	for i, line := range lines {
 		if line == "" {
 			continue
 		}
-		wrapped := continues && !bulleted.MatchString(line)
-		boundary := previousBlank || marked.MatchString(line)
+		d.wrapped[i] = continues && !bulleted.MatchString(line)
+		d.boundary[i] = previousBlank || marked.MatchString(line)
 		previousBlank = strings.Trim(line, blank) == ""
 		run, rest := "", ""
 		if match := fenceRun.FindStringSubmatch(line); match != nil {
@@ -118,11 +126,27 @@ func DefinitionLine(text, id string) int {
 			fence = run
 		}
 		continues = fence == "" && run == "" && strings.TrimSpace(line) != "" && !heading.MatchString(line)
-		if !strings.Contains(line, id) {
+	}
+	return d
+}
+
+// Line returns the one-based definition line of id, as DefinitionLine does.
+func (d *Definitions) Line(id string) int {
+	quoted := regexp.QuoteMeta(id)
+	const lead = "^[\t\n\v\f\r ]*(?:[-*][\t\n\v\f\r ]+)?(?:\\*\\*)?`?"
+	var period, colon, table *regexp.Regexp
+	firstWrapped, firstTable := 0, 0
+	for i, line := range d.lines {
+		if line == "" || !strings.Contains(line, id) {
 			continue
 		}
-		if boundary && (period.MatchString(line) || colon.MatchString(line)) {
-			if !wrapped {
+		if period == nil {
+			period = regexp.MustCompile(lead + quoted + "`?\\.(?:\\*\\*)?[\t\n\v\f\r ]")
+			colon = regexp.MustCompile(lead + quoted + "`?(?:\\*\\*)?[\t\n\v\f\r ]*:")
+			table = regexp.MustCompile("^[\t\n\v\f\r ]*\\|[\t\n\v\f\r ]*`?" + quoted + "`?(?:[\t\n\v\f\r |.])")
+		}
+		if d.boundary[i] && (period.MatchString(line) || colon.MatchString(line)) {
+			if !d.wrapped[i] {
 				return i + 1
 			}
 			if firstWrapped == 0 {

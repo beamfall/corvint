@@ -78,10 +78,12 @@ func TestSelectionBaselineUnknownKindsAndManifest_V12892(t *testing.T) {
 	}
 	var m manifest
 	m.Units = append(m.Units,
-		manifestUnit{"go", "go:a", "whole", "whole: DIRECT_SOURCE_CHANGE via a/a.go (its test file a/a_test.go changed too)"},
-		manifestUnit{"go", "go:b", "whole", "whole: DEPENDENCY_PATH via a/a.go"},
-		manifestUnit{"go", "go:c", "selected", ""},
-		manifestUnit{"shell", "shell:d", "whole", ""})
+		// The prose is reworded on purpose: the counts read only the code
+		// (STR-V0-548).
+		manifestUnit{"go", "go:a", "whole", "whole: reworded prose", "direct-source-non-function-edit"},
+		manifestUnit{"go", "go:b", "whole", "whole: DIRECT_SOURCE_CHANGE via a/a.go changed too", "reached-via-dependency-path"},
+		manifestUnit{"go", "go:c", "selected", "", "selected-reaching-change"},
+		manifestUnit{"shell", "shell:d", "whole", "", ""})
 	var r Result
 	fillManifest(&r, m)
 	if r.WholePackages != 2 || r.SlicedPackages != 1 || r.WholeWithTests != 1 {

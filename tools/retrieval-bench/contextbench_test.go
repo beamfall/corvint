@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -61,7 +62,7 @@ func TestContextBenchFixtureScoresFileAndLineCoverage(t *testing.T) {
 	t.Setenv("TMPDIR", t.TempDir())
 	directory := filepath.Join("testdata", "contextbench")
 	corvintGo := filepath.Join(t.TempDir(), "corvint")
-	if err := os.WriteFile(corvintGo, []byte("#!/bin/sh\necho Corvint test\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(corvintGo, []byte("#!/bin/sh\necho Corvint test\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	configuration := options{

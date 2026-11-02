@@ -231,6 +231,7 @@ func nullAt(t *testing.T, canonical, path string) []byte {
 // entries than those paths and optionalKeys, and each path's nullable flag
 // matches what ticket create actually accepts on the fixture.
 func TestCALV0073_TemplateFieldsMatchPayloadNullability(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r := receiptFixture(t)
 	item := templateRun(t, r.Root).Items[0]
 	fields := field(item, "fields")

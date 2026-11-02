@@ -7565,7 +7565,7 @@
   "amendment": {
     "profile": "cem-stable-repository-envelope-amendment-index/1",
     "status": "EXPERIMENTAL",
-    "publicManifestSHA256": "e1b0aa8f839d4a8855c893a9b9cebf7c67854e1f5639e0278d71652fa73f84a9",
+    "publicManifestSHA256": "c417f160cfa128733dbcfb2c83d086e48d76405947f9803aef69b5263042a071",
     "fullResultCases": {
       "path": "FULL-RESULT-CASES.json",
       "sha256": "06fb20c0a1903921c7c5f83459bf790313c5e33379538e867982ab9a5e6603be",

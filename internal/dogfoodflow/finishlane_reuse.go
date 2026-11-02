@@ -45,21 +45,46 @@ func (l *finishLane) recordPreflight(lines []string) {
 // matches this run, consuming its receipt, and reports whether it did; any
 // other receipt is removed and the prepare pass runs (DCW-V0-887).
 func (l *finishLane) reusePreflight() bool {
-	path := l.gitDir + "/corvint/" + preflightReceipt
-	data, err := readPrefix(path, 64<<10)
-	_ = removeFile(path)
-	if err != nil {
+	lines, ok := l.matchingPreflight()
+	_ = removeFile(l.gitDir + "/corvint/" + preflightReceipt)
+	if !ok {
 		return false
+	}
+	for _, line := range lines {
+		l.line("%s reused=inputs-check", line)
+	}
+	return true
+}
+
+// reusePreflightCheck replays, for a repeated inputs-check, the prepare lines
+// of a passing pre-flight whose key matches this one, and keeps its receipt
+// for the finish-lane run, so a closeout's two pre-flights over the same
+// inputs prepare once (ICL-V0-010). Any other receipt is left for the caller
+// to replace.
+func (l *finishLane) reusePreflightCheck() bool {
+	lines, ok := l.matchingPreflight()
+	if !ok {
+		return false
+	}
+	for _, line := range lines {
+		l.line("%s reused=inputs-check", line)
+	}
+	return true
+}
+
+// matchingPreflight returns the prepare lines of the receipt whose key equals
+// this run's key, reading it without removing it.
+func (l *finishLane) matchingPreflight() ([]string, bool) {
+	data, err := readPrefix(l.gitDir+"/corvint/"+preflightReceipt, 64<<10)
+	if err != nil {
+		return nil, false
 	}
 	lines := textLines(data)
 	key := l.preflightKey()
 	if len(lines) < 2 || key == "" || lines[0] != key {
-		return false
+		return nil, false
 	}
-	for _, line := range lines[1:] {
-		l.line("%s reused=inputs-check", line)
-	}
-	return true
+	return lines[1:], true
 }
 
 // removePreflight drops a receipt this run cannot honour.

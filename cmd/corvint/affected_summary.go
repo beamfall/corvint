@@ -12,8 +12,11 @@ import (
 // (AFP-V0-510): the plan's scope and counts, the unknowns grouped by reason,
 // and the same as one text line, so a reader needs neither the 60 KB plan
 // nor a JSON tool to learn what the plan decided. It restates plan members
-// and never changes the selection.
+// and never changes the selection. Dirty is plan.dirty, which with --base
+// unions the committed range (AFP-V0-010); Worktree and Committed split it
+// so a clean tree with a range reads worktree=0 (AFP-V0-820).
 type affectedSummary struct {
+	Committed       int            `json:"committed"`
 	Dirty           int            `json:"dirty"`
 	Excluded        int            `json:"excluded"`
 	Line            string         `json:"line"`
@@ -21,11 +24,13 @@ type affectedSummary struct {
 	Selected        int            `json:"selected"`
 	Unknown         int            `json:"unknown"`
 	UnknownByReason map[string]int `json:"unknownByReason"`
+	Worktree        int            `json:"worktree"`
 }
 
 // summarizeAffectedPlan counts the full plan; excluded is the compact
-// exclusion count, which equals len(plan.Excluded).
-func summarizeAffectedPlan(plan affected.Plan, excluded int) affectedSummary {
+// exclusion count, which equals len(plan.Excluded); worktree is the worktree
+// status set's size and committed the range's.
+func summarizeAffectedPlan(plan affected.Plan, excluded, worktree, committed int) affectedSummary {
 	byReason := make(map[string]int, len(plan.Unknown))
 	for _, unknown := range plan.Unknown {
 		byReason[unknown.Reason]++
@@ -40,6 +45,7 @@ func summarizeAffectedPlan(plan affected.Plan, excluded int) affectedSummary {
 		line += fmt.Sprintf(" %s=%d", reason, byReason[reason])
 	}
 	return affectedSummary{
+		Committed:       committed,
 		Dirty:           len(plan.Dirty),
 		Excluded:        excluded,
 		Line:            strings.TrimSpace(line),
@@ -47,5 +53,6 @@ func summarizeAffectedPlan(plan affected.Plan, excluded int) affectedSummary {
 		Selected:        len(plan.Selected),
 		Unknown:         len(plan.Unknown),
 		UnknownByReason: byReason,
+		Worktree:        worktree,
 	}
 }

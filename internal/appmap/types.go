@@ -18,7 +18,7 @@ const (
 	// change to what BuildRoots derives from the same inputs, so `--from` rebuilds a map an
 	// earlier compiler wrote instead of carrying it forward. A binary built from a VCS checkout
 	// also binds its revision (builderIdentity), so an unbumped compiler change still rebuilds.
-	BuilderVersion = "appmap-builder/1"
+	BuilderVersion = "appmap-builder/3"
 
 	DialectUIRouter = "ui-router-states/0"
 	DialectRails    = "rails-routes/0"
@@ -171,7 +171,11 @@ type Screen struct {
 	// Entry records static entry constraints; absent in older maps (AMAP-V0-053/058).
 	Entry *EntryDeclaration `json:"entry,omitempty"`
 	// SplatNonEmpty preserves Rails required-glob semantics while sharing collision keys (AMAP-V0-046).
-	SplatNonEmpty   bool     `json:"splat_nonempty,omitempty"`
+	SplatNonEmpty bool `json:"splat_nonempty,omitempty"`
+	// Dialect is the route dialect of the router file that declared the screen; absent when files
+	// of more than one dialect declared its state, and in maps an earlier builder wrote, whose
+	// readers then rank no candidate (AMAP-V0-881).
+	Dialect         string   `json:"dialect,omitempty"`
 	ID              string   `json:"id"`
 	State           string   `json:"state"`
 	Status          string   `json:"status"`
@@ -345,7 +349,8 @@ type Unknown struct {
 	// Detail names the failed hop (and binding, AMAP-V0-196) of a di-constant refusal
 	// (AMAP-V0-072, AMAP-V0-201), the candidate paths of an ambiguous re-export, why an injected
 	// state name or parent refused (AMAP-V0-202), or the specifier of an unresolved test import
-	// (AMAP-V0-195); absent otherwise.
+	// (AMAP-V0-195), or the screens sharing an ambiguous template key (AMAP-V0-882); absent
+	// otherwise.
 	Detail string `json:"detail,omitempty"`
 }
 

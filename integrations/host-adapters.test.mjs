@@ -625,7 +625,7 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  assert.ok(binary&&existsSync(binary),'Run through TestHostAdapterJavaScriptHosts with the real corvint binary')
  const dir=mkdtempSync(join(tmpdir(),'corvint-opencode-real-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
  const repo=join(dir,'repo'),outside=join(dir,'outside');mkdirSync(join(repo,'src'),{recursive:true});mkdirSync(outside)
- writeFileSync(join(repo,'README.md'),'# fixture\n');writeFileSync(join(repo,'src/parse.go'),'package src\n');writeFileSync(join(repo,'app.ts'),'export const a = 1\n')
+ writeFileSync(join(repo,'README.md'),'# fixture\n');writeFileSync(join(repo,'src/parse.go'),'package src\n');writeFileSync(join(repo,'app.ts'),'export const a = 1\n') //corvint:fixture-path
  const git=(...args)=>execFileSync('git',['-C',repo,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args])
  git('init','-q');git('add','.');git('commit','-qm','fixture')
  // V1-0450: a file the agent creates is untracked when its file-change arrives.
@@ -639,7 +639,7 @@ test('AHI-022 decision 0379 OpenCode lifecycle against the real binary writes no
  const host=await openCode(t,repo,options)
  const context={sessionID:'session-a',signal:new AbortController().signal},verification=[{commandSha256:'b'.repeat(64),status:'passed'}]
  await host.emit('session.created',{sessionID:'session-a'})
- for(const file of ['README.md','src/parse.go','app.ts'])await host.hooks['execute.after'](written(repo,file,'session-a'))
+ for(const file of ['README.md','src/parse.go','app.ts'])await host.hooks['execute.after'](written(repo,file,'session-a')) //corvint:fixture-path
  // Each execute.after awaits its own file-change drain, so these rows belong to created.ts alone.
  const createdFrom={warnings:warnings.length,infos:infos.length}
  await host.hooks['execute.after'](written(repo,'created.ts','session-a'))
@@ -836,12 +836,12 @@ test('AHI-022 OpenCode serializes a burst of file-change subprocesses',async t=>
  const f=fileChangeOnly(t,'delayed',fixture(t).binary)
  spyConsole(t,'info')
  const host=await openCode(t,f.root,{corvintBinary:f.binary,hostVersion:'unknown',...OPEN_TIMEOUTS})
- await Promise.all(Array.from({length:20},(_,i)=>host.hooks['execute.after'](written(f.root,'README.md',`session-${i}`))))
+ await Promise.all(Array.from({length:20},(_,i)=>host.hooks['execute.after'](written(f.root,'README.md',`session-${i}`)))) //corvint:fixture-path
  assert.equal(existsSync(f.overlap),false,'file-change subprocesses overlapped')
  assert.equal(f.captured().length,20)
- await Promise.all(Array.from({length:20},()=>host.hooks['execute.after'](written(f.root,'README.md','same-session'))))
+ await Promise.all(Array.from({length:20},()=>host.hooks['execute.after'](written(f.root,'README.md','same-session')))) //corvint:fixture-path
  assert.equal(f.captured().length,21,'same-session duplicate paths were not coalesced')
- assert.deepEqual(f.captured().at(-1).input.paths,['README.md'])
+ assert.deepEqual(f.captured().at(-1).input.paths,['README.md']) //corvint:fixture-path
 })
 
 test('OpenCode beta context hook envelopes context, refuses terminator collision and escapes hidden characters',async t=>{
@@ -1354,7 +1354,7 @@ test('AHI-032 qualification refuses tuple, gate, source and executable drift and
  assert.equal((await qualificationStatus({...options,hostVersion:'2.0.19'})).integrationSupport,'UNQUALIFIED')
  report.conformance.compaction='FAIL';save();const doctor=await qualificationStatus(options);assert.equal(doctor.integrationSupport,'UNQUALIFIED');assert.deepEqual(doctor.failedCases,['compaction']);assert.match(doctor.qualificationAction,/qualify-opencode/)
  report.conformance.compaction='PASS';report.corvintSHA256='0'.repeat(64);save();assert.equal((await qualificationStatus(options)).integrationSupport,'UNQUALIFIED')
- report.corvintSHA256=report.hostSHA256;save();writeFileSync(join(pkg,'README.md'),'changed')
+ report.corvintSHA256=report.hostSHA256;save();writeFileSync(join(pkg,'README.md'),'changed') //corvint:fixture-path
  assert.equal((await qualificationStatus(options)).reason,'qualification-package-changed')
 })
 
@@ -1482,7 +1482,7 @@ test('AHI-034 cockpit RPC admits only its location and invalidates edits and del
 test('AHI-036 workbench RPC discards late focus after Tasks refresh or session deletion',async t=>{
  const dir=mkdtempSync(join(tmpdir(),'corvint-workbench-rpc-'));t.after(()=>rmSync(dir,{recursive:true,force:true}))
  const git=(...args)=>execFileSync('git',['-C',dir,'-c','user.name=fixture','-c','user.email=fixture@example.invalid','-c','commit.gpgsign=false',...args],{encoding:'utf8'}).trim()
- git('init','-q');writeFileSync(join(dir,'README.md'),'fixture\n');git('add','.');git('commit','-qm','fixture')
+ git('init','-q');writeFileSync(join(dir,'README.md'),'fixture\n');git('add','.');git('commit','-qm','fixture') //corvint:fixture-path
  const ticketId='ticket:corvint:main:APP-0001',digest='a'.repeat(64),script=join(dir,'tasks')
  writeFileSync(script,`#!${process.execPath}\nconst args=process.argv.slice(2),ticket=${JSON.stringify(ticketId)},digest=${JSON.stringify(digest)};\nconst base={profile:'taskman-command-result/0',outcome:'OK',snapshot:{headReceiptSha256:digest}};\nlet value;if(args[0]==='queue'){value={...base,command:['queue','status'],items:[{queueId:'queue:corvint:main',tickets:'1',byStatus:{DRAFT:'0',OPEN:'1',COMPLETED:'0',HELD:'0',ARCHIVED:'0'},blocked:'0',intentChecksPassed:'0',liveAttempts:[]}]};}\nelse if(args[1]==='search'){value={...base,command:['ticket','search'],page:{offset:'0',total:'1',limit:'32'},items:[{ticketId:ticket,title:'Task',status:'OPEN',milestone:null,priority:'P1',eligibility:'ELIGIBLE',nextAction:'claim',gateResults:'NOT_OBSERVED',blockers:[]}]};}\nelse {value={...base,command:['ticket','show'],items:[{ticketId:ticket,title:'Task',status:'OPEN',revision:'1',milestone:null,priority:'P1',eligibility:'ELIGIBLE',nextAction:'claim',gateResults:'NOT_OBSERVED',completion:null,blockers:[],record:{acceptanceCriteria:['Proof remains explicit'],requirementRefs:[],effects:{touchPaths:[]}}}]};}\nsetTimeout(()=>process.stdout.write(JSON.stringify(value)),args[1]==='show'?250:0);\n`,{mode:0o755})
  assert.equal(JSON.parse(execFileSync(script,['queue','status'],{encoding:'utf8'})).outcome,'OK')

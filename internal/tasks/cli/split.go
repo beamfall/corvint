@@ -70,7 +70,7 @@ func ticketSplit(env Env, args []string) *wire.Result {
 	if role == "" {
 		role = "OWNER"
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -97,7 +97,7 @@ func ticketSplit(env Env, args []string) *wire.Result {
 			}
 			repo, queueID = rc.repo, rc.store.Queue.QueueID.Raw
 			if !dryRun && !rc.journalAbsent {
-				idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+				idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 				entry, found, err := idx.Lookup(requestID + "/refine")
 				if err != nil {
 					return err

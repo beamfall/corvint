@@ -126,7 +126,7 @@ func knowHowAdd(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -220,7 +220,7 @@ func knowHowRetract(env Env, cmd []string, args []string) *wire.Result {
 	if err := mutation.ScreenKnowHowArgs([]string{note, reason}); err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -311,7 +311,7 @@ func knowHowReconfirm(env Env, cmd []string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

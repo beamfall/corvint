@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TSP-V0-007: a prior record holds only whole-package passes that no run directory
@@ -222,7 +223,7 @@ func TestTSPV0007RerunReusesPriorPasses(t *testing.T) {
 		return priorRecord{Schema: priorSchema, Head: x, Target: mx, Tree: g("rev-parse", mx+"^{tree}"), Identity: priorIdentity(id), Passed: []string{}}
 	}()
 	selector := filepath.Join(t.TempDir(), "selector")
-	if err := os.WriteFile(selector, []byte("#!/bin/sh\necho 'full UNKNOWN: LANGUAGE_FRONTIER'\n"), 0700); err != nil {
+	if err := execfile.WriteFile(selector, []byte("#!/bin/sh\necho 'full UNKNOWN: LANGUAGE_FRONTIER'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	cases := []struct {

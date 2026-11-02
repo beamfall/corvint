@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 var sharedObservationEvents = map[string]struct{ event, input string }{
@@ -117,7 +118,7 @@ func countingGit(t *testing.T) (string, func() int) {
 	directory := t.TempDir()
 	log := filepath.Join(directory, "spawns.log")
 	shim := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + log + "'\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	path := "PATH=" + directory + string(os.PathListSeparator) + os.Getenv("PATH")

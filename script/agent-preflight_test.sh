@@ -21,6 +21,9 @@ set -eu
 #      names the CI route, abi 3 reports enforcement, a probe that prints nothing
 #      usable, exits other than its ABI implies, or has no temporary directory is
 #      UNKNOWN, and none of them changes the exit status.
+#   6. The tasks-store row (TCL-V0-742, V1-3931): in sync, behind (counts and the
+#      first missing IDs), no parity item, and no staged snapshot each print their
+#      line, the newest staged snapshot is the default, and the exit is unchanged.
 #
 # Each case runs the real script (copied into an isolated fixture repo, per the
 # gate-enumeration_test.sh pattern) against a small git history it controls.
@@ -191,5 +194,25 @@ if [ "$(uname -s)" = Linux ]; then
     assertions=23
 fi
 printf '  %-24s %s\n' "landlock" "abi 0 warns with the CI route, abi 3 enforces, a failed or inconsistent probe or no temp dir is UNKNOWN, exit unchanged"
+
+# Case 6: the tasks-store row (TCL-V0-742, V1-3931), with a stub corvint-tasks in place of queue parity.
+fixture=$(new_fixture tasks-store)
+tasks_store() { # stub-output stub-exit authority expected-text
+    printf '#!/bin/sh\nprintf "%%s\\n" '"'"'%s'"'"'\nexit %s\n' "$1" "$2" > "$harness_root/tasks"
+    chmod +x "$harness_root/tasks"
+    output=$(cd "$fixture" && HOME="$harness_root/home" CORVINT_TASKS_AUTHORITY="$3" CORVINT_TASKS_BIN="$harness_root/tasks" \
+        CORVINT_LANDLOCK_PROBE="$harness_root/probe" CLAUDE_CONFIG_DIR="$claude_dir" PATH=/usr/bin:/bin sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
+    test "$status" = 0 || fail "tasks-store: stub '$1' changed the exit status to $status: $output"
+    printf '%s\n' "$output" | grep -q "^tasks-store  *$4" || fail "tasks-store: expected '$4' for stub '$1': $output"
+}
+tasks_store '{"items":[{"inSync":true}]}' 0 /a/snap.json 'in sync with /a/snap.json'
+tasks_store '{"items":[{"extraCount":"0","inSync":false,"missing":["V1-2600","V1-2601"],"missingCount":"2","staleCount":"1"}]}' 1 /a/snap.json \
+    'WARN behind /a/snap.json: 2 tickets missing (V1-2600,V1-2601), 1 stale, 0 extra'
+tasks_store '{"outcome":"ERROR"}' 1 /a/snap.json 'UNKNOWN: queue parity exited 1 without a parity item'
+tasks_store '{}' 0 '' 'no authoritative queue snapshot'
+mkdir -p "$harness_root/home/lane-inputs/ticket-bodies-ln1" && : > "$harness_root/home/lane-inputs/ticket-bodies-ln1/queue-snapshot.json"
+tasks_store '{"items":[{"inSync":true}]}' 0 '' 'in sync with .*/lane-inputs/ticket-bodies-ln1/queue-snapshot.json'
+assertions=$((assertions + 10))
+printf '  %-24s %s\n' "tasks-store" "in sync, behind with counts and IDs, no parity item, no snapshot and the staged default, exit unchanged"
 
 printf 'agent-preflight_test: %s assertions passed\n' "$assertions"

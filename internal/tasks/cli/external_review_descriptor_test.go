@@ -25,8 +25,8 @@ import (
 // not exceed the 1669-byte maximal derived-event descriptor that
 // TestONV0006_DerivedEventSlotMeasuredAndNarrow measures for every MUTATE.
 func TestERGV0009_ReviewDescriptorMeasured(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "measured", "P1", `["src/"]`)
 	runOK := func(args ...string) run {

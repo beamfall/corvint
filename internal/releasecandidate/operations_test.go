@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func canonicalTemp(t *testing.T) string {
@@ -66,7 +68,7 @@ func TestPUBV0025RecoveryLifecycle(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		if err := os.WriteFile(filepath.Join(newPath, "corvint"), []byte("corrupted"), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(newPath, "corvint"), []byte("corrupted"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := InstallCore(t.Context(), candidate, store); err == nil {
