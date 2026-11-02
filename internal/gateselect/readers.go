@@ -124,9 +124,9 @@ func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex,
 	if walkErr != nil {
 		return nil, walkErr
 	}
-	memo.store(root, module, recalled, results)
 	index.link(imports)
-	index.applyGatedLocators(root, files)
+	index.applyGatedLocators(root, files, recalled)
+	memo.store(root, module, recalled, results)
 	return index, nil
 }
 

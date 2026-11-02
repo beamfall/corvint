@@ -1,6 +1,7 @@
 package gateselect
 
 import (
+	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
@@ -98,5 +99,58 @@ func TestAFPV0822UnpinnedFilesAreNeverRecalled(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(filepath.Join(root, "p07", "p_test.go"), 0o644) })
 	if _, err := indexRepositoryMemo(root, fixtureModule, memo); err == nil {
 		t.Fatal("an unpinned file was recalled instead of read")
+	}
+}
+
+// TestAFPV0823GatedLocatorChecksAreRecalled: the gated root-locator literal
+// check goes through the memo. A warm index recalls the check of an unchanged
+// root-locating file without reading it, and a file whose gate literal moved
+// is read again, so `user` turns into a root-locator dependent as in the full
+// scan.
+func TestAFPV0823GatedLocatorChecksAreRecalled(t *testing.T) {
+	root := writeFixture(t, map[string]string{
+		"go.mod":            "module " + fixtureModule + "\n\ngo 1.22\n",
+		"loc/loc.go":        "package loc\n\nimport \"os\"\n\nconst Gate = \"/gate/root\"\n\nfunc Bind() string { dir, _ := os.Getwd(); return dir }\n",
+		"user/user.go":      "package user\n\nimport _ \"" + fixtureModule + "/loc\"\n",
+		"user/user_test.go": "package user\n",
+		gatedLocatorsPath:   `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"locates only behind /gate/root"}}}`,
+	})
+	full, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body []byte
+	cold, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body))
+	if err != nil || !reflect.DeepEqual(full, cold) || !reflect.DeepEqual(sortedKeys(cold.unresolved()), []string{"loc"}) {
+		t.Fatalf("cold memo index differs from the full scan: err %v", err)
+	}
+	if !bytes.Contains(body, []byte(`"gated"`)) {
+		t.Fatalf("the memo stored no gated check: %s", body)
+	}
+	stored := body
+	locator := filepath.Join(root, "loc", "loc.go")
+	if err := os.Chmod(locator, 0); err != nil {
+		t.Fatal(err)
+	}
+	warm, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body))
+	if err != nil || !reflect.DeepEqual(full, warm) {
+		t.Fatalf("warm memo index differs from the full scan: err %v", err)
+	}
+	if &body[0] != &stored[0] {
+		t.Fatal("an index that recalled every check rewrote the memo")
+	}
+	if err := os.Chmod(locator, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(locator, []byte("package loc\n\nimport \"os\"\n\nconst Gate = \"/moved/root\"\n\nfunc Bind() string { dir, _ := os.Getwd(); return dir }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	full, err = indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rescanned, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body))
+	if err != nil || !reflect.DeepEqual(full, rescanned) || !reflect.DeepEqual(sortedKeys(rescanned.unresolved()), []string{"loc", "user"}) {
+		t.Fatalf("index after a moved gate differs from the full scan: err %v", err)
 	}
 }

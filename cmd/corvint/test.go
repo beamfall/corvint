@@ -306,12 +306,12 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
 		return testSourceIdentity(ctx, gitExecutable, root)
 	}
-	source, err := identify(ctx)
+	source, observed, err := testObserveSource(ctx, gitExecutable, root)
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
 		return 2
 	}
-	input := testRunInput(ctx, root, options, source)
+	input := testRunInput(ctx, root, options, source, observed)
 	if options.goParallel != 0 {
 		input.Declared = input.Declared.WithGoParallel(options.goParallel)
 	}
@@ -445,7 +445,7 @@ func testScanMemo(invocation affectedInvocation, module string) *gateselect.Scan
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
-func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity) sessiontest.Input {
+func testRunInput(ctx context.Context, root string, options testOptions, source sessiontest.SourceIdentity, observed *affectedObservation) sessiontest.Input {
 	input := sessiontest.Input{
 		Base: options.base, Placement: options.placement, RunnerProfile: options.profile, ShardCount: options.shardCount, Source: source,
 		Partition: sessiontest.PartitionFiles{
@@ -461,7 +461,9 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	// The attribution index depends only on the root and module, so it is
 	// built while the graph compiles, and its per-file scans are memoized in
 	// the same cache directory (AFP-V0-822).
-	invocation := affectedInvocation{Root: root, Base: options.base}
+	// The compile reuses the identity's HEAD and dirty set, and its closing
+	// recheck spans the identity read too (AFP-V0-824).
+	invocation := affectedInvocation{Root: root, Base: options.base, observed: observed}
 	err := resolveAffectedBatchAndCache(&invocation)
 	var index *gateselect.Index
 	if module, moduleErr := golang.ReadModulePath(root); err == nil && moduleErr == nil {
@@ -607,21 +609,32 @@ func testReadOptional(name string) []byte {
 // testSourceIdentity is the STR-V0-017 source identity: HEAD, its tree and
 // every dirty path's content digest.
 func testSourceIdentity(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, error) {
+	identity, _, err := testObserveSource(ctx, gitExecutable, root)
+	return identity, err
+}
+
+// testObserveSource is testSourceIdentity that also returns the HEAD and
+// dirty set it read, which the plan's compile then reuses (AFP-V0-824).
+func testObserveSource(ctx context.Context, gitExecutable, root string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	head, err := affectedHeadRevision(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
 	tree, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", head+"^{tree}").Output()
 	if err != nil {
-		return sessiontest.SourceIdentity{}, errors.New("HEAD tree cannot be read")
+		return sessiontest.SourceIdentity{}, nil, errors.New("HEAD tree cannot be read")
 	}
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return sessiontest.SourceIdentity{}, err
+		return sessiontest.SourceIdentity{}, nil, err
 	}
-	return sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	identity, err := sessiontest.Identify(root, head, strings.TrimSpace(string(tree)), dirty)
+	if err != nil {
+		return sessiontest.SourceIdentity{}, nil, err
+	}
+	return identity, &affectedObservation{revision: head, dirty: dirty}, nil
 }
 
 func testVerdict(stderr io.Writer, m sessiontest.Manifest) {

@@ -106,6 +106,10 @@ type affectedInvocation struct {
 	// receipt that is only ever compacted (AFP-V0-641); runAffected sets it
 	// for the default wire. Every other caller gets each chain in Via.
 	sharedVia bool
+	// observed is the HEAD and dirty set a caller already read for this
+	// plan, so the compile does not read them again; its closing recheck
+	// still compares both (AFP-V0-824). Only `corvint test` sets it.
+	observed *affectedObservation
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
@@ -1109,6 +1113,24 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	return receipt, err
 }
 
+// affectedObservation is one read of HEAD and then the dirty set.
+type affectedObservation struct {
+	revision string
+	dirty    []string
+}
+
+func affectedObserve(ctx context.Context, gitExecutable, root string) (*affectedObservation, error) {
+	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, err
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	return &affectedObservation{revision: revision, dirty: dirty}, nil
+}
+
 // compileAffectedGraph is compileAffected that also returns the graph the plan
 // was selected over, so `corvint test` reads the Go universe from the same
 // observation (STR-V0-001, STR-V0-007).
@@ -1118,14 +1140,13 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, affectedGitExecutableRefusal()
 	}
-	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, err
+	observed := invocation.observed
+	if observed == nil {
+		if observed, err = affectedObserve(ctx, gitExecutable, root); err != nil {
+			return affectedReceipt{}, nil, err
+		}
 	}
-	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
-	}
+	revision, dirty := observed.revision, observed.dirty
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}

@@ -1,7 +1,9 @@
 package gateselect
 
 // The scan memo behind AFP-V0-822: what each Go source contributed to the last
-// index, pinned by its stat stamp, so an unchanged file is not read again.
+// index, pinned by its stat stamp, so an unchanged file is not read again. It
+// also holds the gated root-locator literal checks of AFP-V0-823 under the
+// same stamps.
 
 import (
 	"encoding/json"
@@ -29,10 +31,11 @@ type ScanMemo struct {
 }
 
 type scanMemoFile struct {
-	Root     string                   `json:"root"`
-	Module   string                   `json:"module"`
-	Identity string                   `json:"identity"`
-	Files    map[string]scanMemoEntry `json:"files"`
+	Root     string                    `json:"root"`
+	Module   string                    `json:"module"`
+	Identity string                    `json:"identity"`
+	Files    map[string]scanMemoEntry  `json:"files"`
+	Gated    map[string]gatedMemoEntry `json:"gated,omitempty"`
 }
 
 type scanMemoEntry struct {
@@ -44,6 +47,14 @@ type scanMemoEntry struct {
 	Tokens      [][]string `json:"tokens,omitempty"`
 }
 
+// gatedMemoEntry is one literal check of carriesLiteral: whether the file,
+// pinned by Stamp, holds the quoted Literal.
+type gatedMemoEntry struct {
+	Stamp   string `json:"stamp"`
+	Literal string `json:"literal"`
+	Carries bool   `json:"carries,omitempty"`
+}
+
 // errRecalledUntokenized stands for the lexer error of a recalled file; the
 // index reads only that there was one.
 var errRecalledUntokenized = errors.New("recalled: does not tokenize")
@@ -52,17 +63,20 @@ var errRecalledUntokenized = errors.New("recalled: does not tokenize")
 type scanRecall struct {
 	memo  *ScanMemo
 	files map[string]scanMemoEntry
+	gated map[string]gatedMemoEntry
+	// checked holds this index's literal checks, recalled or read.
+	checked map[string]gatedMemoEntry
 }
 
 func (memo *ScanMemo) load(root, module string) *scanRecall {
 	if memo == nil || memo.Identity == "" || memo.Load == nil || memo.Store == nil || memo.Stamp == nil {
 		return nil
 	}
-	recall := &scanRecall{memo: memo}
+	recall := &scanRecall{memo: memo, checked: map[string]gatedMemoEntry{}}
 	var stored scanMemoFile
 	if body := memo.Load(); body != nil && json.Unmarshal(body, &stored) == nil &&
 		stored.Root == root && stored.Module == module && stored.Identity == memo.Identity {
-		recall.files = stored.Files
+		recall.files, recall.gated = stored.Files, stored.Gated
 	}
 	return recall
 }
@@ -91,8 +105,31 @@ func (recall *scanRecall) scan(root, module string, source indexedFile) scannedF
 	return scanned
 }
 
+// carries reports whether the file holds literal, from the memo when its stamp
+// pins the file unchanged since the same check, and otherwise from its bytes
+// (AFP-V0-823). A read error is not recorded.
+func (recall *scanRecall) carries(root string, source indexedFile, literal []byte) (bool, error) {
+	if recall == nil {
+		return readCarries(root, source, literal)
+	}
+	stamp, pinned := recall.memo.Stamp(source.expected)
+	if !pinned {
+		return readCarries(root, source, literal)
+	}
+	if entry, ok := recall.gated[source.relative]; ok && entry.Stamp == stamp && entry.Literal == string(literal) {
+		recall.checked[source.relative] = entry
+		return entry.Carries, nil
+	}
+	carries, err := readCarries(root, source, literal)
+	if err == nil {
+		recall.checked[source.relative] = gatedMemoEntry{Stamp: stamp, Literal: string(literal), Carries: carries}
+	}
+	return carries, err
+}
+
 // store writes the memo of this index's results unless every file was
-// recalled and none was dropped. It runs only after a successful scan.
+// recalled, none was dropped and every literal check was recalled. It runs
+// only after a successful scan and the gated root-locator pass.
 func (memo *ScanMemo) store(root, module string, recall *scanRecall, results []scannedFile) {
 	if recall == nil {
 		return
@@ -107,10 +144,15 @@ func (memo *ScanMemo) store(root, module string, recall *scanRecall, results []s
 		files[scanned.relative] = scanMemoEntry{Stamp: scanned.stamp, Imports: scanned.imports, Calls: scanned.scan.calls,
 			Untokenized: scanned.scan.err != nil, Embeds: scanned.scan.embeds, Tokens: scanned.tokens}
 	}
-	if !fresh && maps.EqualFunc(files, recall.files, func(a, b scanMemoEntry) bool { return a.Stamp == b.Stamp }) {
+	if !fresh && maps.EqualFunc(files, recall.files, func(a, b scanMemoEntry) bool { return a.Stamp == b.Stamp }) &&
+		maps.Equal(recall.checked, recall.gated) {
 		return
 	}
-	body, err := json.Marshal(scanMemoFile{Root: root, Module: module, Identity: memo.Identity, Files: files})
+	var gated map[string]gatedMemoEntry
+	if len(recall.checked) != 0 {
+		gated = recall.checked
+	}
+	body, err := json.Marshal(scanMemoFile{Root: root, Module: module, Identity: memo.Identity, Files: files, Gated: gated})
 	if err == nil {
 		memo.Store(body)
 	}
