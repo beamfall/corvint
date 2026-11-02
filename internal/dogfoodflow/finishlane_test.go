@@ -343,7 +343,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 			// verify file whose line is an unquoted -run alternation gets the
 			// one-line DCW-V0-403 fix naming that line's admitted quoted form.
 			if tc.name == "unquoted-run-alternation" {
-				fix := "  fix: --verify " + tc.verifyFile + " line 2: quote the -run alternation as one word: go test -count=1 -run 'TestA|TestB' ./internal/a (DCW-V0-403), then rerun corvint dogfood finish-lane --base " + base + "\n"
+				fix := "  fix: --verify " + tc.verifyFile + " line 2: quote the -run alternation as one word: go test -count=1 -run 'TestA|TestB' ./internal/a (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE), then rerun corvint dogfood finish-lane --base " + base + "\n"
 				if out != "dogfood-finish-lane: REFUSE unsupported-verify-syntax\n"+fix {
 					t.Fatalf("stderr = %q, want the one-line quoted-form fix", out)
 				}

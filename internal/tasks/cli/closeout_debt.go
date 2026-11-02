@@ -419,19 +419,12 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	// it merged also cites repeats that inner merge's row, so both are
 	// dropped (TCD-V0-731); separate merges and a sole citer still list.
 	cites := make([][]closeoutCite, len(scan.Commits))
-	constituent := map[string]bool{}
-	mergeCiters := map[string][]int{} // ticket ID -> scan indexes of citing merges
 	for i, c := range scan.Commits {
 		cites[i] = index.cites(c.Message)
-		for _, cite := range cites[i] {
-			if c.Parents < 2 {
-				constituent[cite.ticketID] = true
-			} else {
-				mergeCiters[cite.ticketID] = append(mergeCiters[cite.ticketID], i)
-			}
-		}
 	}
-	enclosing := map[[2]int]bool{} // {outer, inner} scan indexes
+	constituent := map[string]bool{}
+	mergeCiters := map[string][]int{} // ticket ID -> scan indexes of citing merges; filled below
+	enclosing := map[[2]int]bool{}    // {outer, inner} scan indexes
 	encloses := func(outer, inner int) bool {
 		k := [2]int{outer, inner}
 		if v, ok := enclosing[k]; ok {
@@ -476,6 +469,21 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 			return excludeBuildLogOnly
 		}
 		return ""
+	}
+	// Only a citation that is a delivery can make a merge's citation a
+	// repeat: an excluded build-log or NOT DELIVERED citation never
+	// suppresses the merge that delivered the ticket (TCD-V0-741).
+	for i, c := range scan.Commits {
+		for _, cite := range cites[i] {
+			if _, open := locals[cite.ticketID]; open && noDelivery(c, cite.ticketID) != "" {
+				continue
+			}
+			if c.Parents < 2 {
+				constituent[cite.ticketID] = true
+			} else {
+				mergeCiters[cite.ticketID] = append(mergeCiters[cite.ticketID], i)
+			}
+		}
 	}
 	excludedBy := map[string]*closeoutExcluded{}
 	listed := map[string]bool{}

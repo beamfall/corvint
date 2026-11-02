@@ -44,7 +44,7 @@ func TestPiBuildManifestDetectsCopiedImageDrift(t *testing.T) {
 		sum := strings.Repeat("a", 64)
 		m := map[string]any{"schema": "corvint-pi-protected-build/0", "status": "EXPERIMENTAL_UNQUALIFIED", "pi": "0.85.1", "node": "22.23.2", "bun": "1.3.11", "nodeArchiveSHA256": sum, "lockSHA256": sum, "bundleSHA256": sum, "workerSHA256": sum, "photonSHA256": sum, "entitlementsSHA256": sum, "assets": map[string]string{"fixture": sum}, "images": map[string]string{"pi-protected": digest([]byte("host")), "corvint": digest([]byte("consumer"))}}
 		for name, data := range map[string][]byte{"pi-protected": []byte("host"), "corvint": []byte("consumer")} {
-			if err := os.WriteFile(filepath.Join(dir, name), data, 0755); err != nil {
+			if err := writeExecutable(filepath.Join(dir, name), data, 0755); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -54,7 +54,7 @@ func TestPiBuildManifestDetectsCopiedImageDrift(t *testing.T) {
 		if err := validatePiBuildFiles(dir, filepath.Join(dir, "corvint"), "pi-build.json"); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "corvint"), []byte("changed"), 0755); err != nil {
+		if err := writeExecutable(filepath.Join(dir, "corvint"), []byte("changed"), 0755); err != nil {
 			t.Fatal(err)
 		}
 		if validatePiBuildFiles(dir, filepath.Join(dir, "corvint"), "pi-build.json") == nil {

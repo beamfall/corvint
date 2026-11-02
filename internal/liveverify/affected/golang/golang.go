@@ -22,6 +22,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/fs"
+	"maps"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -72,6 +73,13 @@ const (
 	// reader refuses. Its use set is unknown, so only the root module is
 	// observed and every other module's packages are absent (AFP-V0-190).
 	FrontierWorkspaceUnparsed = "go:workspace-unparsed"
+	// FrontierSymlinkedSource is the unit frontier of a package with a
+	// symlinked .go file whose target this plugin cannot attribute: one that
+	// does not resolve to a regular .go file inside the root, or lies in a
+	// directory outside the package's module or one the go tool ignores. The
+	// build compiles that target, so an edge the graph cannot show may reach
+	// the package (TSP-V0-721).
+	FrontierSymlinkedSource = "go:symlinked-source-unattributed"
 )
 
 // maxPathTokens bounds one package's distinct path tokens. A package over it
@@ -374,8 +382,17 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var patterns []string
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
+	// The disk walk drops a symlinked .go file, though the build compiles its
+	// target as one of this package's files: read the target under the link's
+	// name and depend on the target's own package (TSP-V0-721).
+	targets, unattributed, linked := linkedSources(root, owner, directory)
+	files = append(slices.Clip(files), slices.Sorted(maps.Keys(targets))...)
 	for _, relative := range files {
-		body, err := root.Read(relative)
+		readPath := relative
+		if target, ok := targets[relative]; ok {
+			readPath = target
+		}
+		body, err := root.Read(readPath)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
@@ -444,21 +461,72 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	if bounded {
 		names, globs = nil, nil
 	}
+	for link, target := range targets {
+		dependency := linkedImportPath(owner, directory, target)
+		switch {
+		case dependency == "":
+		case strings.HasSuffix(link, "_test.go"):
+			testImportPaths[dependency] = true
+		default:
+			importPaths[dependency] = true
+		}
+	}
 	var unitFrontier []string
 	var frontierBears string
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
 		frontierBears = affected.FrontierBearsOnOwnFiles
-		// A symlinked .go file compiles a target outside this directory that
-		// the walk never listed, so the unit's own files are not all here:
-		// the frontier bears on every plan, as it does when the directory
-		// cannot be listed (TSP-V0-002).
-		links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
-		if err != nil || len(links) > 0 {
+		// A symlinked .go file compiles a target outside this directory, so
+		// the unit's own files are not all here: the frontier bears on every
+		// plan, as it does when the directory cannot be listed (TSP-V0-002).
+		if linked {
 			frontierBears = ""
 		}
 	}
+	if unattributed {
+		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
+		frontierBears = ""
+	}
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+}
+
+// linkedSources maps each symlinked .go entry of directory whose target it can
+// attribute to that target's repository-relative path, and reports whether any
+// entry is unattributable (a listing failure, a target that is not a regular
+// .go file inside the root, or one in a directory the go tool ignores or outside
+// owner's module) and whether directory holds any such link (TSP-V0-721).
+func linkedSources(root *affected.Source, owner module, directory string) (map[string]string, bool, bool) {
+	links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
+	if err != nil {
+		return nil, true, true
+	}
+	targets := make(map[string]string, len(links))
+	unattributed := false
+	for _, link := range links {
+		target, ok := root.LinkTarget(link)
+		if !ok || !strings.HasSuffix(target, ".go") || ignoredByGo(path.Dir(target)) || !inModule(path.Dir(target), owner.dir) {
+			unattributed = true
+			continue
+		}
+		targets[link] = target
+	}
+	return targets, unattributed, len(links) > 0
+}
+
+// linkedImportPath is the import path of the package holding a symlink's
+// target, or "" when the target lies in the linking directory itself, whose
+// unit already owns it.
+func linkedImportPath(owner module, directory, target string) string {
+	targetDirectory := path.Dir(target)
+	if targetDirectory == directory {
+		return ""
+	}
+	return strings.TrimPrefix(unitID(owner, targetDirectory), "go:")
+}
+
+// inModule reports whether directory lies in the module rooted at moduleDir.
+func inModule(directory, moduleDir string) bool {
+	return moduleDir == "." || directory == moduleDir || strings.HasPrefix(directory, moduleDir+"/")
 }
 
 // platformNames are the GOOS and GOARCH values a file-name suffix constrains

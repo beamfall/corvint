@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/conformance/release-artifact-v0/archivewire"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 var archiveRepositoryFixture struct {
@@ -459,7 +460,7 @@ func writeVerifierFixture(t *testing.T, result []byte, exitCode int) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "verifier")
 	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s' '%s' > \"$4\"\nexit %d\n", string(result), exitCode)
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return path

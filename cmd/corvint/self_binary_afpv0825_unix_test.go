@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // AFP-V0-825: corvint test judges its own binary against the HEAD it resolved
@@ -30,7 +32,7 @@ func TestAFPV0825StaleCheckReusesThePlanHEAD(t *testing.T) {
 	directory := t.TempDir()
 	argv := filepath.Join(directory, "argv.log")
 	shim := "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '" + argv + "'\nexec '" + gitExecutable + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -134,7 +136,7 @@ func firstHeadReadShim(t *testing.T, action string) (arm func()) {
 	directory := t.TempDir()
 	mark := filepath.Join(directory, "read")
 	shim := "#!/bin/sh\ncase \"$*\" in\n*\"rev-parse --verify --quiet HEAD^{commit}\")\n  if [ ! -e '" + mark + "' ]; then : > '" + mark + "'; " + action + "; fi;;\nesac\nexec '" + gitExecutable + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(shim), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", directory+string(os.PathListSeparator)+os.Getenv("PATH"))

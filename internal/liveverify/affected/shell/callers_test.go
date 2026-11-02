@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -18,6 +19,32 @@ import (
 // misses a file naming the script or lists a file that no longer names it
 // declares nothing, names FrontierForeignCallersInvalid and keeps the
 // frontier bearing; a dirty declaration leaves the plan UNKNOWN.
+// TSP-V0-820 (V1-4062): an over-long reason refusal names its length and the
+// 1024-byte limit; a reason of exactly 1024 bytes reads.
+func TestForeignCallerReasonLimit_TSPV0820(t *testing.T) {
+	for _, tc := range []struct {
+		size int
+		want string
+	}{
+		{size: 1024},
+		{size: 1025, want: `script "run.sh" reason has 1025 bytes; want non-empty valid UTF-8 without control characters, at most 1024 bytes`},
+	} {
+		root := t.TempDir()
+		write(t, root, "run.sh", "#!/bin/sh\n")
+		write(t, root, affected.ShellForeignCallersPath, `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run.sh":{"callers":["Makefile"],"reason":"`+strings.Repeat("r", tc.size)+`"}}}`)
+		err := CheckForeignCallers(affected.DiskSourceContext(context.Background(), root))
+		switch {
+		case tc.want == "" && err != nil:
+			t.Errorf("%d-byte reason refused: %v", tc.size, err)
+		case tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)):
+			t.Errorf("%d-byte reason: error %v, want it to contain %q", tc.size, err, tc.want)
+		}
+	}
+	if err := CheckForeignCallers(affected.DiskSourceContext(context.Background(), t.TempDir())); err != nil {
+		t.Errorf("absent declaration: %v", err)
+	}
+}
+
 func TestForeignCallerDeclaration_TSP_V0_005(t *testing.T) {
 	base := map[string]string{
 		"go.mod":                "module example.test/m\n",

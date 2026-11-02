@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -23,7 +24,7 @@ func TestAffectedStatusCancellationLeavesNoDescendant(t *testing.T) {
 	quoted := "'" + strings.ReplaceAll(pidPath, "'", "'\"'\"'") + "'"
 	script := "#!/bin/sh\n/bin/sleep 30 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\"' EXIT INT TERM\nprintf '%s' \"$child\" > " + quoted + "\nwait \"$child\"\n"
 	executable := filepath.Join(directory, "git")
-	if err := os.WriteFile(executable, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(executable, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

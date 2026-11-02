@@ -8,7 +8,8 @@ import (
 // renderAffectedText is the `--format text` form of an affected-plan/1
 // receipt (AFP-V0-928): the summary line, the receipt warning when it has
 // one, one `selected` line per unit with
-// the reason it was selected, one `unknown` line per plan unknown, and the
+// the reason it was selected, one `unknown` line per plan unknown, one
+// `bears` line per frontier source (TSP-V0-942), and the
 // advice checks with their runnable command. It restates the receipt and
 // never changes the selection; one line is one decision (textWord).
 func renderAffectedText(receipt affectedCompactReceipt) string {
@@ -18,6 +19,11 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, " base=%s", receipt.Range.Base)
 	}
 	out.WriteString("\n")
+	// AFP-V0-871: the AFP-V0-846 degradation, so a merged-stream reader
+	// that gets no stderr line still sees it.
+	for _, degradation := range receipt.Degradations {
+		fmt.Fprintf(&out, "degraded %s\n", textWord(degradation))
+	}
 	// The AFP-V0-044 / AFP-V0-356 warning that the plan read unpinned
 	// worktree content, with its recovery, as the JSON receipt carries it.
 	if receipt.Warning != "" {
@@ -46,6 +52,19 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, "unknown %s %s", textWord(unknown.Reason), textWord(unknown.Detail))
 		if unknown.Hint != "" {
 			fmt.Fprintf(&out, " hint %s", textWord(unknown.Hint))
+		}
+		out.WriteString("\n")
+	}
+	// TSP-V0-942: what made each frontier entry bear.
+	for _, bearer := range receipt.Plan.FrontierBearers {
+		fmt.Fprintf(&out, "bears %s %s", textWord(bearer.Detail), bearer.Via)
+		for _, field := range [][2]string{{"language", bearer.Language}, {"unit", bearer.Unit}, {"witness", bearer.Witness}, {"dirty", bearer.DirtyPath}} {
+			if field[1] != "" {
+				fmt.Fprintf(&out, " %s %s", field[0], textWord(field[1]))
+			}
+		}
+		if bearer.Count != 0 {
+			fmt.Fprintf(&out, " count %d", bearer.Count)
 		}
 		out.WriteString("\n")
 	}

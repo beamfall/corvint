@@ -35,10 +35,10 @@ func createSubjectGuard(env Env, cmd []string, flags mutateFlags, payload wire.V
 	var (
 		warnings, absent, notAtSource []string
 		base, baseSha, branch, sha    string
-		replay                        bool
+		replay, sourceChecked         bool
 	)
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		warnings, absent, notAtSource, base, baseSha, replay = nil, nil, nil, "", "", false
+		warnings, absent, notAtSource, base, baseSha, replay, sourceChecked = nil, nil, nil, "", "", false, false
 		if !rc.journalAbsent {
 			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
@@ -57,7 +57,11 @@ func createSubjectGuard(env Env, cmd []string, flags mutateFlags, payload wire.V
 			warnings = append(warnings, "touchPaths were not checked against the base: this repository has no origin/HEAD or origin/main remote-tracking ref, so subject presence is NOT_OBSERVED (TCL-V0-743)")
 			return nil
 		}
-		absent = pathsAbsentAt(git, baseSha, paths)
+		var unobserved []string
+		absent, unobserved = pathsAbsentAt(git, baseSha, paths)
+		if len(unobserved) > 0 {
+			warnings = append(warnings, unobservedWarning(unobserved, "the base "+base+" at "+baseSha))
+		}
 		if len(absent) == 0 {
 			return nil
 		}
@@ -70,7 +74,11 @@ func createSubjectGuard(env Env, cmd []string, flags mutateFlags, payload wire.V
 			warnings = append(warnings, "source ref "+branch+"@"+sha+" is not in this clone, so its paths "+strings.Join(absent, ", ")+" were not checked there (NOT_OBSERVED); the ticket records it (TCL-V0-743)")
 			return nil
 		}
-		notAtSource = pathsAbsentAt(git, sha, absent)
+		notAtSource, unobserved = pathsAbsentAt(git, sha, absent)
+		if len(unobserved) > 0 {
+			warnings = append(warnings, unobservedWarning(unobserved, "the recorded source ref "+branch+"@"+sha))
+		}
+		sourceChecked = true
 		return nil
 	})
 	if wire.CodeOf(err) == wire.CodeRedoPending {
@@ -85,6 +93,11 @@ func createSubjectGuard(env Env, cmd []string, flags mutateFlags, payload wire.V
 	if sha == "" {
 		return nil, malformedUsage(cmd, "touchPaths "+strings.Join(absent, ", ")+" are absent from the base "+base+" at "+baseSha+", so a lane based on it cannot find the subject; nothing was written. "+
 			"When the code lives on an unlanded branch, add the body line `Source ref: BRANCH@FULL_SHA` naming it (a lane then orders the ticket after that branch lands); when the ticket creates these paths, pass --creates-paths (TCL-V0-743)")
+	}
+	if !sourceChecked {
+		// The recorded commit is not in this clone: it is recorded with the
+		// NOT_OBSERVED warning, never claimed to hold the paths.
+		return warnings, nil
 	}
 	if len(notAtSource) > 0 {
 		return nil, malformedUsage(cmd, "touchPaths "+strings.Join(notAtSource, ", ")+" are absent from both the base "+base+" at "+baseSha+" and the recorded source ref "+branch+"@"+sha+"; nothing was written. "+
@@ -115,17 +128,25 @@ func payloadTouchPaths(payload wire.Value) []string {
 	return paths
 }
 
-// pathsAbsentAt is each path with no tree entry at commit. A directory key
-// ends in "/" and is present when anything lies under it. A git failure
-// counts as present, so the guard never refuses on an observation it could
-// not make.
-func pathsAbsentAt(git func(...string) (string, bool), commit string, paths []string) []string {
-	var absent []string
+// pathsAbsentAt is each path with no tree entry at commit, and each path git
+// could not read there. A directory key ends in "/" and is present when
+// anything lies under it. An unread path is never counted absent, so the
+// guard never refuses on an observation it could not make; the caller warns
+// that it is NOT_OBSERVED.
+func pathsAbsentAt(git func(...string) (string, bool), commit string, paths []string) (absent, unobserved []string) {
 	for _, p := range paths {
 		out, ok := git("ls-tree", "--name-only", commit, "--", strings.TrimSuffix(p, "/"))
-		if ok && out == "" {
+		switch {
+		case !ok:
+			unobserved = append(unobserved, p)
+		case out == "":
 			absent = append(absent, p)
 		}
 	}
-	return absent
+	return absent, unobserved
+}
+
+// unobservedWarning names the touch paths git could not read at where.
+func unobservedWarning(paths []string, where string) string {
+	return "touchPaths " + strings.Join(paths, ", ") + " could not be read at " + where + ", so their presence there is NOT_OBSERVED and they were not counted absent (TCL-V0-743)"
 }

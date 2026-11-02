@@ -44,7 +44,7 @@ Measured on 2026-09-22, darwin arm64, Go 1.27.1, at the introducing commit:
   reports `fresh`. The rebuilt file is the same size but not byte-identical to the first build (460
   differing bytes under `cmp -l`), so the recovery contract is packet identity, not snapshot identity.
 - The version string is the `PUB-V0-001` tuple constant `version` in `cmd/corvint/main.go` and the build
-  stamp is `var build = "0"` (`cmd/corvint/main.go:1843@e7212353`), set by `-ldflags -X main.build=N`.
+  stamp is `var build = "0"` (`cmd/corvint/main.go:1848@e7212353`), set by `-ldflags -X main.build=N`.
 - The archive producer writes `corvint_<goos>_<goarch>.tar.gz` for four targets, `SHA256SUMS` and
   `verification-report.json` (`release-artifact-integrity-v0.md`); the installer refuses a case-fold
   alias of an existing store entry (`internal/releasecandidate/operations.go:180@1161e39d`).
@@ -179,7 +179,7 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 |---|---|
 | SOP-V0-001 | wrapper case 1 (binary), case 2 (archive root `corvint_test_host`), case 3 (tampered `SHA256SUMS` fails at `install-a`, no `first-index` line, exit 1) |
 | SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:48@9ea4ec57` |
-| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:44@5dca69d1` |
+| SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:46@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
 | SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:215@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
@@ -195,27 +195,27 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 
 | Category | Package | Tests |
 |---|---|---|
-| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:197@5817975f`, `internal/genesis/repository_test.go:209@a2e88456`, `internal/genesis/repository_test.go:247@a1e12d68` |
+| hostile-repository | `internal/genesis` | `internal/genesis/repository_test.go:198@5817975f`, `internal/genesis/repository_test.go:210@a2e88456`, `internal/genesis/repository_test.go:248@a1e12d68` |
 | hostile-repository | `internal/contextindex` | `internal/contextindex/history_test.go:115@671cf1e3` |
-| paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:141@e18871cf` |
-| paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:692@5ef76c7b` |
+| paths | `internal/releasegate` | `internal/releasegate/releasegate_test.go:143@e18871cf` |
+| paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:694@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
 | symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:478@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:600@22f1c7f2`, `internal/contextindex/snapshot_test.go:650@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
-| symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` |
+| symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |
-| case-folds | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:190@4d21a51f`, `internal/companionrelease/companionrelease_test.go:462@7f54b5f5` |
+| case-folds | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:192@4d21a51f`, `internal/companionrelease/companionrelease_test.go:464@7f54b5f5` |
 | case-folds | `internal/mcp/testvaliditybridge` | `internal/mcp/testvaliditybridge/testvaliditybridge_test.go:162@e7747668` |
-| case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:105@141529a4` (`case-alias` subcase) |
+| case-folds | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` (`case-alias` subcase) |
 | bounded-output | `internal/procgroup` | `internal/procgroup/process_overflow_test.go:13@8b1b8267`, `internal/procgroup/process_overflow_test.go:93@e6067a5b` |
 | bounded-output | `internal/contextindex` | `internal/contextindex/git_execution_unix_test.go:155@b46f5300`, `internal/contextindex/extractionnote_test.go:63@d2c61a7e` |
 | bounded-output | `internal/trace` | `internal/trace/record_test.go:391@cc18800d` |
-| bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:189@0595c93c` |
+| bounded-output | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:191@0595c93c` |
 | time | `internal/procgroup` | `internal/procgroup/process_test.go:52@028e61d3`, `internal/procgroup/process_test.go:62@704c3abb` |
 | time | `internal/contextindex` | `internal/contextindex/local_completion_context_test.go:194@1bcaa713` |
 | interruption-cleanup | `internal/procgroup` | `internal/procgroup/process_test.go:460@9aa96910`, `internal/procgroup/process_test.go:95@0a8f0be2`, `internal/procgroup/process_hook_test.go:13@f0458815` |
-| interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:238@eab69ef3` |
+| interruption-cleanup | `internal/releasecandidate` | `internal/releasecandidate/operations_posix_test.go:18@d8182271`, `internal/releasecandidate/operations_test.go:240@eab69ef3` |
 | interruption-cleanup | `internal/contextindex` | `internal/contextindex/fifo_unix_test.go:37@5098dd43` |
 | interruption-cleanup | `internal/trace` | `internal/trace/store_test.go:498@139a1f88` |
 | secret-screening | `internal/secretscreen` | `internal/secretscreen/secretscreen_test.go:35@ac274de5`, `internal/secretscreen/secretscreen_test.go:200@c325b643` |
@@ -227,7 +227,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | memory-resident | — | NOT_COVERED: no regression bounds whole-process resident memory or git child memory; the memory row bounds the Go heap one index build allocates |
 
 Related installer evidence outside the matrix, because it is not hostile-input: probe failure
-cleanup `internal/releasecandidate/operations_test.go:160@155b3bc9`.
+cleanup `internal/releasecandidate/operations_test.go:162@155b3bc9`.
 
 ## Traceability
 

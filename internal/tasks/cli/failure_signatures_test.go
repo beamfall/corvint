@@ -189,7 +189,7 @@ func TestTOLV0054_LedgerStaysPrivateAndFailsOpenToRunning(t *testing.T) {
 // before the test command runs or a results directory is written, even
 // across different --out directories that TOL-V0-031 does not compare.
 func TestTOLV0052_RunBatchRefusesRepeatedSignature(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	ledgerDir(t)
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)

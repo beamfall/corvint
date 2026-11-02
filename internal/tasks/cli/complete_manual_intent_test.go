@@ -135,7 +135,8 @@ func TestTCDV0177_CompleteManualHelpStatesTheValidatorLimits(t *testing.T) {
 // TICKET_STATE saying how to free the attempt without a handoff; release help
 // states the rule; and a non-handoff code releases.
 func TestTCDV0178_ReleaseReasonRefusalsNameTheAdmittedCodes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-12*time.Minute))
 	a := claimed[0]
 	release := func(req, reason string) run {
@@ -167,7 +168,8 @@ func TestTCDV0178_ReleaseReasonRefusalsNameTheAdmittedCodes(t *testing.T) {
 // help carries the closed reasonCodes the refusal names, keeps reasonRule
 // verbose-only, and an unknown code-shaped reason refusal names --reason.
 func TestTCDV0178_TerseReleaseHelpListsReasonCodes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-12*time.Minute))
 	for _, flag := range []string{"--help", "-h"} {
 		h := atm(t, root, nil, "release", flag)

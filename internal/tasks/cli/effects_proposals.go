@@ -112,8 +112,8 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 			}
 			rec, _ := rc.store.Inventory.Get(id)
 			// The population is the one the COVERAGE_UNKNOWN blocker names:
-			// every OPEN ticket whose coverage is not QUALIFIED, so UNKNOWN
-			// and INCOMPLETE alike (TLF-V0-742, V1-3957).
+			// every OPEN ticket whose coverage is short of QUALIFIED, so
+			// UNKNOWN and INCOMPLETE alike (TLF-V0-800, TLF-V0-742, V1-3957).
 			if rec.Effects.Coverage == "QUALIFIED" {
 				continue
 			}
@@ -161,8 +161,8 @@ func effectsProposalsCommand(env Env, args []string) *wire.Result {
 	}
 	o.Set("screenedByCoverage", wire.ObjectValue(cov))
 	o.Set("tickets", wire.Array(rows...))
-	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " OPEN ticket(s) without QUALIFIED coverage (the COVERAGE_UNKNOWN blocker's population: " +
-		strconv.Itoa(byCoverage["UNKNOWN"]) + " UNKNOWN, " + strconv.Itoa(byCoverage["INCOMPLETE"]) + " INCOMPLETE) have a proposal; " + labelProposal}, human...)))
+	o.Set("human", wire.Strings(append([]string{"effects-proposals: " + strconv.Itoa(proposed) + " of " + strconv.Itoa(len(rows)) + " OPEN ticket(s) without QUALIFIED coverage have a proposal; screened: coverage short of QUALIFIED (UNKNOWN or INCOMPLETE), the COVERAGE_UNKNOWN blocker's population: " +
+		strconv.Itoa(byCoverage["UNKNOWN"]) + " UNKNOWN, " + strconv.Itoa(byCoverage["INCOMPLETE"]) + " INCOMPLETE; " + labelProposal}, human...)))
 	o.Set("mutationAuthority", wire.Bool(false))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{wire.ObjectValue(o)}

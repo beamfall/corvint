@@ -167,6 +167,7 @@ func recordPublicReleaseGate(t *testing.T, root, releaseID, revision, candidate,
 
 // TM-V0-028 and TM-V0-029 / AS-38: public output drives both ordered promotions.
 func TestTMV0028_AS38_PublicOutputDrivesOrderedReleasePromotion(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("TM-V0-028 TM-V0-029 public output drives both ordered promotions", testPublicOutputDrivesOrderedReleasePromotion)
 }
 
@@ -333,6 +334,7 @@ func nonfixtureTestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t *testing.T
 }
 
 func TestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t, true)
 }
 
@@ -373,7 +375,7 @@ func nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInval
 	if err := os.WriteFile(filepath.Join(r.Root, "source.txt"), []byte("candidate source\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Join(r.Root, "source.txt"), 0o755); err != nil {
+	if err := os.Chmod(filepath.Join(r.Root, "source.txt"), 0o755); err != nil { // a mode change, never executed
 		t.Fatal(err)
 	}
 	modeChanged := atm(t, r.Root, nil, "release", "readiness", "v1-0")

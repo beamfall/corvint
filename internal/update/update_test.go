@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 type transportFunc func(*http.Request) (*http.Response, error)
@@ -39,7 +41,7 @@ func fixtureEngine(t *testing.T) engine {
 }
 func writeScript(t *testing.T, p string, build int) {
 	t.Helper()
-	if err := os.WriteFile(p, []byte(fmt.Sprintf("#!/bin/sh\necho 'Corvint 1.0.0-rc.1 (build %d)'\n", build)), 0700); err != nil {
+	if err := execfile.WriteFile(p, []byte(fmt.Sprintf("#!/bin/sh\necho 'Corvint 1.0.0-rc.1 (build %d)'\n", build)), 0700); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -144,7 +146,7 @@ func TestUPDV0001TasksInstalledVersion(t *testing.T) {
 		`{"items":[{"version":""}],"profile":"taskman-command-result/0","note":"build.407"}`:                   "",
 		`{"items":[],"profile":"taskman-command-result/0","note":"build.407"}`:                                 "",
 	} {
-		if err := os.WriteFile(bin, []byte("#!/bin/sh\ncat <<'EOF'\n"+out+"\nEOF\n"), 0700); err != nil {
+		if err := execfile.WriteFile(bin, []byte("#!/bin/sh\ncat <<'EOF'\n"+out+"\nEOF\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		v, n, err := version(context.Background(), bin, "", "tasks")
@@ -187,7 +189,7 @@ func TestUPDV0009CheckStatesRelation(t *testing.T) {
 	}
 	// A label carrying a malformed version is not a semantic version.
 	label := filepath.Join(e.config.BinDir, "corvint")
-	if err := os.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint 1.0.0garbage (build 407)'\n"), 0700); err != nil {
+	if err := execfile.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint 1.0.0garbage (build 407)'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	relationClient(&e, "v1.0.0", map[string][]byte{"corvint_" + e.platform + ".tar.gz": nil})
@@ -196,7 +198,7 @@ func TestUPDV0009CheckStatesRelation(t *testing.T) {
 	}
 	e.config.Component = "tasks"
 	envelope := `{"items":[{"version":"0.0.0-tcp01-unverified+build.407"}],"profile":"taskman-command-result/0"}`
-	if err := os.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	archive := "corvint-tasks_" + e.platform + ".tar.gz"
@@ -370,7 +372,7 @@ func TestUPDV0005ApplyRollbackAndPreparedReceipt(t *testing.T) {
 	writeScript(t, dest, 163)
 	// The second apply superseded the first transaction (proposed UPD-V0-007),
 	// so the retained one is the one to tamper with.
-	os.WriteFile(filepath.Join(filepath.Dir(r.Receipt), "previous"), []byte("tampered"), 0700)
+	execfile.WriteFile(filepath.Join(filepath.Dir(r.Receipt), "previous"), []byte("tampered"), 0700)
 	if _, err = e.run(context.Background(), "rollback"); err == nil {
 		t.Fatal("tampered rollback accepted")
 	}
@@ -379,7 +381,7 @@ func TestUPDV0006SubprocessCancellationCleanup(t *testing.T) {
 	e := fixtureEngine(t)
 	binary := filepath.Join(e.config.BinDir, "hang")
 	script := "#!/bin/sh\nsleep 60 &\nwait\n"
-	os.WriteFile(binary, []byte(script), 0700)
+	execfile.WriteFile(binary, []byte(script), 0700)
 	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 	o := runProcess(ctx, binary, e.config.BinDir, "--version")
@@ -401,7 +403,7 @@ func TestUPDV0002PlatformAndQualificationIdentity(t *testing.T) {
 	}
 	dir := t.TempDir()
 	p := filepath.Join(dir, "candidate")
-	os.WriteFile(p, []byte("candidate"), 0700)
+	execfile.WriteFile(p, []byte("candidate"), 0700)
 	if err = verifyQualification([]byte(`{"schema":"corvint.release-go-archive-report.v2","verdict":"PASS","targets":[]}`), dir, "core", "darwin_arm64", "archive", p); err == nil {
 		t.Fatal("missing target accepted")
 	}
@@ -590,7 +592,7 @@ func TestUPDV0005PreparedReceiptInterruptionRecovery(t *testing.T) {
 	if err = os.WriteFile(filepath.Join(stage, "receipt.json"), b, 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(filepath.Join(stage, "previous"), previous, 0700); err != nil {
+	if err = execfile.WriteFile(filepath.Join(stage, "previous"), previous, 0700); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -627,7 +629,7 @@ func TestUPDV0007RetentionBoundInterruptedSweepAndRollback(t *testing.T) {
 	const pad = 4 << 20
 	e := fixtureEngine(t)
 	dest := filepath.Join(e.config.BinDir, "corvint")
-	if err := os.WriteFile(dest, scriptBinary(161, pad), 0700); err != nil {
+	if err := execfile.WriteFile(dest, scriptBinary(161, pad), 0700); err != nil {
 		t.Fatal(err)
 	}
 	state := e.config.StateDir
@@ -786,7 +788,7 @@ func TestUPDV0008CoreSwitchRefreshesIndexedCheckouts(t *testing.T) {
 		t.Fatalf("explicit and working root not refreshed once: %+v", r.IndexRefresh)
 	}
 
-	os.WriteFile(dest, []byte(refresher), 0700)
+	execfile.WriteFile(dest, []byte(refresher), 0700)
 	got := refreshIndexes(context.Background(), dest, []string{explicitRoot, filepath.Join(plainRoot, ".")}, filepath.Join(indexedRoot, "sub"))
 	want := []IndexRefresh{
 		{Root: explicitRoot, State: "failed", Reason: "exit 3: broken"},
@@ -868,7 +870,7 @@ func TestUPDV0010UnnumberedLocalBuild(t *testing.T) {
 			releaseClient(t, &e, 163)
 			tag = "v1.0.0-rc.1"
 		}
-		if err := os.WriteFile(dest, []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
+		if err := execfile.WriteFile(dest, []byte("#!/bin/sh\n"+body+"\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		r, err := e.run(context.Background(), "check")
@@ -892,7 +894,7 @@ func TestUPDV0010UnnumberedLocalBuild(t *testing.T) {
 	}
 	// A malformed build marker is not an unnumbered build.
 	e.config.Component = "core"
-	if err := os.WriteFile(core, []byte("#!/bin/sh\necho 'Corvint 1.0.0-rc.3 (build -1)'\n"), 0700); err != nil {
+	if err := execfile.WriteFile(core, []byte("#!/bin/sh\necho 'Corvint 1.0.0-rc.3 (build -1)'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if r, err := e.run(context.Background(), "check"); err == nil || err.Error() != "invalid numeric build" || r.InstalledBuildStatus != "" {
@@ -922,7 +924,7 @@ func TestPUBV0053UpdateReadsTheCommitBearingLine(t *testing.T) {
 		"Corvint 1.0.0-rc.3.dev (build 164, commit " + strings.Repeat("a", 40) + ", modified)": 164,
 	} {
 		binary := filepath.Join(dir, "corvint")
-		if err := os.WriteFile(binary, []byte("#!/bin/sh\necho '"+line+"'\n"), 0o700); err != nil {
+		if err := execfile.WriteFile(binary, []byte("#!/bin/sh\necho '"+line+"'\n"), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		got, build, err := version(context.Background(), binary, dir, "core")
@@ -963,7 +965,7 @@ func TestUPDV0367CheckExplainsSourceAndUnknown(t *testing.T) {
 	serve(200, nil)
 	e.config.Component = "tasks"
 	envelope := `{"items":[{"version":"0.0.0-tcp01-unverified+build.7"}],"profile":"taskman-command-result/0"}`
-	if err = os.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
+	if err = execfile.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	r, err = e.run(context.Background(), "check")
@@ -1066,7 +1068,7 @@ func TestUPDV0910DevelopmentBuildPrecedesItsRelease(t *testing.T) {
 		{"1.0.0-rc.dev.1", "v1.0.0-rc", "LOCAL_NEWER"},
 	} {
 		label := filepath.Join(e.config.BinDir, "corvint")
-		if err := os.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint "+c.label+" (build 7, commit dbc1713779fc17ce0386fe95d3e0f6347f5f9aee)'\n"), 0700); err != nil {
+		if err := execfile.WriteFile(label, []byte("#!/bin/sh\necho 'Corvint "+c.label+" (build 7, commit dbc1713779fc17ce0386fe95d3e0f6347f5f9aee)'\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		relationClient(&e, c.tag, map[string][]byte{"corvint_" + e.platform + ".tar.gz": nil})

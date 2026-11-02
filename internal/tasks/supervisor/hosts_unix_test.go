@@ -14,6 +14,8 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 )
 
 // TestCALV0074_CapsuleHost proves the capsule names its host canonically and
@@ -91,7 +93,7 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 					t.Fatal(e)
 				}
 				exe := filepath.Join(bin, "runtime")
-				if e := os.WriteFile(exe, []byte(original), 0o755); e != nil {
+				if e := fixture.WriteExecutable(exe, []byte(original), 0o755); e != nil {
 					t.Fatal(e)
 				}
 				work, dir := t.TempDir(), t.TempDir()
@@ -103,10 +105,10 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 					}
 					var e error
 					if mode == "in place" {
-						e = os.WriteFile(exe, []byte(replacement), 0o755)
+						e = fixture.WriteExecutable(exe, []byte(replacement), 0o755)
 					} else {
 						next := filepath.Join(bin, "next")
-						if e = os.WriteFile(next, []byte(replacement), 0o755); e == nil {
+						if e = fixture.WriteExecutable(next, []byte(replacement), 0o755); e == nil {
 							e = os.Rename(next, exe)
 						}
 					}
@@ -142,7 +144,7 @@ func TestCALV0074_RuntimeReplacedAtAck(t *testing.T) {
 		t.Fatal(e)
 	}
 	user := filepath.Join(open, "runtime")
-	if e = os.WriteFile(user, []byte(original), 0o755); e != nil {
+	if e = fixture.WriteExecutable(user, []byte(original), 0o755); e != nil {
 		t.Fatal(e)
 	}
 	for path, want := range map[string]bool{system: rootProtected(t, system), user: false} {
@@ -197,7 +199,7 @@ func TestCALV0074_ACLProbe(t *testing.T) {
 	dir := t.TempDir()
 	plain, marked := filepath.Join(dir, "plain"), filepath.Join(dir, "marked")
 	for _, p := range []string{plain, marked} {
-		if e := os.WriteFile(p, nil, 0o755); e != nil {
+		if e := fixture.WriteExecutable(p, nil, 0o755); e != nil {
 			t.Fatal(e)
 		}
 	}

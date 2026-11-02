@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/mcp/protocol"
 	"github.com/Beamfall/corvint/internal/mcp/server"
 )
@@ -56,10 +57,10 @@ func TestVSIXToolIdentityRefusesPathAndSymlinkSwap(t *testing.T) {
 	t.Run("PUB-V0-013 vsix-tool-identity-swap-refusal", func(t *testing.T) {
 		dir := t.TempDir()
 		a, b, tool := filepath.Join(dir, "a"), filepath.Join(dir, "b"), filepath.Join(dir, "tool")
-		if err := os.WriteFile(a, []byte("a"), 0o755); err != nil {
+		if err := execfile.WriteFile(a, []byte("a"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(b, []byte("b"), 0o755); err != nil {
+		if err := execfile.WriteFile(b, []byte("b"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Symlink(a, tool); err != nil {
@@ -81,10 +82,10 @@ func TestVSIXToolIdentityRefusesPathAndSymlinkSwap(t *testing.T) {
 		if err := os.Remove(tool); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(tool, []byte("a"), 0o755); err != nil {
+		if err := execfile.WriteFile(tool, []byte("a"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(tool, []byte("b"), 0o755); err != nil {
+		if err := execfile.WriteFile(tool, []byte("b"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if err := requireFileDigest(tool, want); err == nil {

@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/stablefixture"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/taskman"
 )
 
@@ -115,7 +116,7 @@ func TestTCBV0016GateVerdictRunsBothConsumers(t *testing.T) {
 	}
 	patched := filepath.Join(t.TempDir(), "patched-cem01-go")
 	script := "#!/bin/sh\n'" + consumer + "' \"$@\" | sed -e 's/\"tier\":\"anchored\"/\"tier\":\"cited\"/'\n"
-	if err := os.WriteFile(patched, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(patched, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	code, stdout, stderr = runCLI(t, append([]string{"--root", root}, args(patched)...)...)
@@ -148,7 +149,7 @@ func TestTCBV0042PortableConsumerUnderBareHostPath(t *testing.T) {
 	consumer := buildPortableConsumer(t)
 	root, base, seal := sealedVerdictFixture(t)
 	bare := filepath.Join(t.TempDir(), "bare-path-cem01-go")
-	if err := os.WriteFile(bare, []byte("#!/bin/sh\nPATH=/usr/bin:/bin\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(bare, []byte("#!/bin/sh\nPATH=/usr/bin:/bin\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	in := taskman.CEMVerdictInput{Root: root, BaseCommit: base, CandidateCommit: seal, TouchPaths: []string{"src/"}, Predicate: taskman.PredicateTouchedAnchored, PortableConsumer: bare}
@@ -215,11 +216,11 @@ func attrSourceRejectingConsumer(t *testing.T, consumer string) string {
 		t.Fatal(err)
 	}
 	git := "#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in --attr-source=*) printf '%s\\n' \"error: unknown option \\`attr-source'\" >&2; exit 129;; esac; done\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(git), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "old-git-consumer")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nPATH='"+shim+":/usr/bin:/bin'\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte("#!/bin/sh\nPATH='"+shim+":/usr/bin:/bin'\nexport PATH\nexec '"+consumer+"' \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path

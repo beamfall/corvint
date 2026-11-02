@@ -706,6 +706,61 @@ runtime completeness.
   `spec/requests/users_spec.rb`. Non-goals: no route-file reading, no `test/integration` or
   `test/controllers` mapping. Rollback: remove `requestSpec`, its call, and the two row entries.
 
+### Swift, Kotlin and C# module reverse references (NGI-V0-980 to NGI-V0-988; V1-3724)
+
+`GPK-V0-027` names no reverse-import rule for `.swift`, `.kt` or `.cs`, and its frozen oracle is
+not widened: `ImpactRuleNamed` stays false for these suffixes. Path `impact` instead reads each
+language's module membership from pinned index text, under every language profile. The index does
+not admit `.csproj`, `.sln`, Groovy `build.gradle` or `project.pbxproj`, so only SwiftPM manifests
+supply a build-unit graph; the Kotlin and C# rules read package and namespace syntax.
+
+- `NGI-V0-980`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) For a changed non-test `.swift` path that a SwiftPM
+  target claims, as the affected Swift model (`internal/liveverify/affected/swift`) parses the
+  indexed `Package.swift` manifests, `impact` SHALL list each indexed `.swift` file outside that
+  target whose code (comments and strings excluded) imports the target's module as a
+  `reverse-import` row (score 700, 650 for a test path) with one `syntax` evidence row of `high`
+  confidence naming the module. A module name two targets share is reported for each and disclosed.
+- `NGI-V0-981`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) For a changed non-test `.kt` path in package `P`, an
+  indexed `.kt` file in another package whose explicit `import P.N` (or `P.N.x`) names a
+  declaration `N` the changed path declares SHALL be a `high` `reverse-import` row; a wildcard
+  `import P.*` SHALL be a `medium` row (score 650) only when the importer's code also names a
+  declaration of at least four runes. A path in the default package has no importer. `.kts` carries
+  no reading and keeps the profile gap.
+- `NGI-V0-982`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) For a changed non-test `.cs` path, a `using static` or
+  alias directive (`global` and `global::` forms included) naming a type `ns.T` the path declares in
+  its namespace `ns` SHALL be a `high` `reverse-import` row; a `using ns;` directive SHALL be a
+  `medium` row only when the file's code also names a declaration. A `global using ns;` adds a
+  coverage line naming its unenumerated project-wide reach.
+- `NGI-V0-983`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) An indexed file in the changed path's SwiftPM target,
+  Kotlin package, or a C# namespace enclosing the file's own (the global namespace encloses
+  every one) SHALL be a `reference` row (score 775; `test`, 650, for a test path) only when its
+  code, with import, package, using and namespace directives blanked, names a declaration of at
+  least four runes; the evidence lists the matched lines.
+- `NGI-V0-984`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) A path a reading resolves (a SwiftPM target member, or
+  any loaded `.kt` or `.cs` path) SHALL withhold the no-named-resolution-rule profile gap; an
+  unclaimed `.swift` file and every `.kts` path SHALL keep it and report no `reverse-import` row.
+- `NGI-V0-985`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) Every request naming a non-test path of a language SHALL
+  carry that language's fixed coverage line naming the unresolved limits: for Swift, Xcode
+  project membership, `@_exported` re-exports, conditional compilation and dependents beyond one
+  import; for Kotlin, Gradle module visibility, Java importers, fully qualified references,
+  extension calls and reflection; for C#, project references, global using reach, extension
+  methods, fully qualified references and reflection. A row is syntax evidence, never closure.
+- `NGI-V0-986`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `corvint impact --capabilities` SHALL add the sorted
+  `suffixes.withModuleReferenceRule` list (`.cs`, `.kt`, `.swift`), each also in
+  `admittedWithoutRule`, and `corvint impact --help` SHALL name the three rules and mark `.kts` and
+  `.csproj` NOT_SUPPORTED.
+- `NGI-V0-987`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `swift.ImportedModules` SHALL return each module a Swift
+  source imports, with its line, from code only (attributed and kind-qualified imports included),
+  and `swift.TargetModule` SHALL return the module of a `swift:spm:` unit ID.
+- `NGI-V0-988`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3724) `internal/contextindex` SHALL NOT import
+  `internal/liveverify/affected` or its language packages, so the corvint-tasks source archive
+  closure (`PUB-V0-012`, `PUB-V0-013`) stays unchanged. It SHALL read SwiftPM targets and Swift
+  imports through a `SwiftPMReader` that `internal/swiftimpact` registers. Every binary that links
+  the affected Swift model SHALL link that package, and corvint-tasks SHALL link neither. A Swift
+  request served without a registered reader SHALL report no target membership and no
+  `reverse-import` row, and SHALL keep the profile gap. It SHALL also carry the line
+  `this binary does not link the SwiftPM target reading, so Swift paths have no target membership`.
+
 ## Trust and failure boundaries
 
 Core performs bounded local immutable reads; it adds no network, process provider,
@@ -814,6 +869,15 @@ Observed execution and independent findings are retained in
 | `NGI-V0-307` | `rubyConstantEdges` (`internal/contextindex/import_graph_edges.go`) | `TestImportGraphRubyConstants`, `TestImportGraphRubyIncompleteResolution` |
 | `NGI-V0-308` | `ImportGraphKinds`, `writeGraphEdge`; `importGraphKindsPattern` (`internal/mcp/bridge/import_graph.go`) | `TestImportGraphKindsClosedSet`, `TestImportGraphAngularResources`, `TestImportGraphRubyConstants` |
 | `NGI-V0-761` | `requestSpec` and `rubyRequestSpecConventionScore` in `internal/contextindex/ruby_autoload.go`; `conformance/ruby-profile-v0/rows.json` | `TestRubyControllerReachesItsRequestSpecByConvention_NGIV0761`; `TestRubyProfileImpactRows_RUBYAFFECTEDV0014` (`request-spec`, `controller-spec`) |
+| `NGI-V0-980` | `moduleReading.swiftImpact`, `buildSwiftTargetMap` (`internal/contextindex/module_impact.go`); `Reader.Targets` (`internal/swiftimpact/swiftimpact.go`) | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership` |
+| `NGI-V0-981` | `moduleReading.kotlinImpact`, `kotlinImport` | `TestNGIV0981KotlinReverseImpactFollowsPackageImports` |
+| `NGI-V0-982` | `moduleReading.csharpImpact`, `csharpUsing`, `csharpEncloses` | `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
+| `NGI-V0-983` | `moduleReading.referenceRow`, `references`, `moduleReading.file` | `TestNGIV0983SameModuleMembersAreReferences` |
+| `NGI-V0-984` | `withModuleMapped`; `moduleMapped` in `reverseImportProfileGap` (`internal/contextindex/receipt.go`) | `TestNGIV0984UnmappedModulePathKeepsProfileGap`, `TestImpactProfileGapWordingIsLanguageNeutral` |
+| `NGI-V0-985` | `moduleReading.disclosures` | `TestNGIV0980SwiftReverseImpactFollowsSPMTargetMembership`, `TestNGIV0981KotlinReverseImpactFollowsPackageImports`, `TestNGIV0982CSharpReverseImpactFollowsUsingDirectives` |
+| `NGI-V0-986` | `ImpactCapabilities` (`internal/contextindex/impact_capabilities.go`); `impact` help (`cmd/corvint/help.go`) | `TestNGIV0986CapabilitiesListModuleReferenceSuffixes`, `TestGPKV0085ImpactCapabilitiesAgreeWithAdmission` |
+| `NGI-V0-987` | `ImportedModules`, `TargetModule` (`internal/liveverify/affected/swift/imports.go`) | `TestNGIV0987ImportedModulesReadsCodeOnlyImports` |
+| `NGI-V0-988` | `SwiftPMReader`, `RegisterSwiftPMReader` (`internal/contextindex/swiftpm_reader.go`); `buildSwiftTargetMap`; `internal/swiftimpact`; `cmd/*/swift_impact.go` | `TestNGIV0988UnlinkedSwiftReaderDisclosesNoTargetMembership`, `TestNGIV0988ReaderReadsSwiftPMTargetsAndImports`, `TestNGIV0988TasksClosureExcludesPlannerAndImpactBinariesLinkReader`, `TestCurrentTasksSourceArchiveBuildsOffline` |
 
 ## Non-goals, rollout and rollback
 
@@ -834,6 +898,11 @@ the `rubyImpactRequested` selection, the second-hop loop, the `advisory` count, 
 guard, `rangeRubyAutoload`, `isRubyTestPath` and the index bounds; roll back the whole reading by removing
 `ruby_autoload.go`, `internal/rubyautoload` and their wiring in `impact`; the declaration
 file is then ignored. The implementation stays experimental pending human acceptance and
-integration. Revert task-owned code/spec changes to roll back; preserve original
+integration. The Swift, Kotlin and C# readings (`NGI-V0-980` to `NGI-V0-988`) compile nothing,
+read no `.csproj`, Gradle or Xcode project, follow one import hop, and change neither range
+impact, `corvint graph`, the `GPK-V0-027` oracle nor the historical packet budget; roll them back
+by removing `module_impact.go`, `swiftpm_reader.go`, `internal/swiftimpact`, the `cmd/*/swift_impact.go`
+imports, `imports.go`, the `moduleMapped` view and their wiring in `impact`,
+`reverseImportProfileGap`, `ImpactCapabilities` and the help text. Revert task-owned code/spec changes to roll back; preserve original
 receipts and the failed/unsupported outcomes. Kill or repair the extension if it
 changes legacy Go bytes, invents semantic closure or weakens immutable binding.

@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -62,9 +63,12 @@ func (h Host) observeFile(declared string, keep int) (FileFacts, []byte, error) 
 		return f, nil, err
 	}
 	f.Sha256 = wire.Digest(hex.EncodeToString(sum.Sum(nil)))
-	f.SafeAncestors = h.safeAncestors(filepath.Dir(resolved))
+	unsafe, why := h.unsafeAncestor(filepath.Dir(resolved))
+	f.SafeAncestors = unsafe == ""
 	if !f.SafeAncestors {
-		return f, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, resolved, "an ancestor directory is writable by another user")
+		// V1-3686: name the ancestor and why, so a group-writable directory made under a 0002
+		// umask is told apart from a foreign-owned one.
+		return f, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, resolved, "ancestor directory %s %s", unsafe, why)
 	}
 	f.State = "VERIFIED"
 	return f, raw, nil
@@ -74,21 +78,31 @@ func (h Host) observeFile(declared string, keep int) (FileFacts, []byte, error) 
 // user or root and not group/world writable, except a root-owned sticky
 // directory.
 func (h Host) safeAncestors(dir string) bool {
+	unsafe, _ := h.unsafeAncestor(dir)
+	return unsafe == ""
+}
+
+// unsafeAncestor returns the nearest ancestor of dir (dir included) that
+// safeAncestors refuses, and why; it returns "" when every ancestor is safe.
+func (h Host) unsafeAncestor(dir string) (string, string) {
 	for {
 		fi, err := os.Lstat(dir)
 		if err != nil || !fi.IsDir() {
-			return false
+			return dir, "is not an observable directory"
 		}
 		uid, ok := fileOwner(fi)
-		if !ok || (int(uid) != h.UID && uid != 0) {
-			return false
+		if !ok {
+			return dir, "has no observable owner"
+		}
+		if int(uid) != h.UID && uid != 0 {
+			return dir, fmt.Sprintf("is owned by uid %d, not uid %d or root", uid, h.UID)
 		}
 		if fi.Mode().Perm()&0o022 != 0 && !(uid == 0 && fi.Mode()&os.ModeSticky != 0) {
-			return false
+			return dir, fmt.Sprintf("has mode %04o, so another user can write it", fi.Mode().Perm())
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return true
+			return "", ""
 		}
 		dir = parent
 	}

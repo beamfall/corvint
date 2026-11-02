@@ -13,36 +13,32 @@ import (
 )
 
 // defaultedIssuedAtConflict explains a REQUEST_ID_CONFLICT whose issuedAt the
-// CLI defaulted to now (CAL-V0-250, V1-1384) and that recordedIssuedAt could
-// not resolve to a replay. It names issuedAt as the difference only when a
-// rebuilt digest equals the recorded one; otherwise it names the digest
-// inputs, so the refusal never guesses.
-func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
-	generic := "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
+// CLI defaulted to now (CAL-V0-250, V1-1384). A retry that differs from the
+// recorded request only in that defaulted issuedAt never reaches it: the
+// writer reuses the recorded issuedAt and replays (TCL-V0-800, V1-3958). So
+// the request differs in more than issuedAt, and this names the digest inputs
+// and never attributes the conflict to issuedAt alone.
+func defaultedIssuedAtConflict(issued wire.Timestamp) string {
+	return "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
 		"and issuedAt defaulted to " + string(issued) + " because --issued-at was not given: a retry replays only with the original --issued-at"
-	at, ticketID, ok := recordedIssuedAt(repo, st, operation, actor, flags, payload, issued)
-	if !ok {
-		return generic
-	}
-	return "request " + flags.requestID + " is recorded for ticket " + ticketID + "; this retry differs from the recorded request only in issuedAt: the original was " +
-		string(at) + " and this one defaulted to " + string(issued) + " because --issued-at was not given; retry with --issued-at " + string(at) + " to replay"
 }
 
 // recordedIssuedAt recovers the issuedAt of a recorded request whose retry
-// defaulted issuedAt to now. The request digest covers issuedAt, so a
-// byte-identical retry in a later second conflicts. The journal keeps only
-// the original digest, so this rebuilds the envelope with the recordedAt of
-// the receipt the request-index entry names, which equals a defaulted
-// issuedAt and survives later updates (ATR-V0-275, V1-1438), then the
-// recorded ticket's createdAt and updatedAt (and up to two seconds before
-// each, since the writer clock can tick past the CLI second). It reports a
-// timestamp only when the rebuilt digest equals the recorded one, so every
-// other envelope byte (actor, target, revision, payload) is proven equal and
-// a retry at that timestamp replays the recorded result (TCL-V0-735).
-func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) (wire.Timestamp, string, bool) {
+// omitted --issued-at (TCL-V0-800, TCL-V0-735, V1-3958): it rebuilds this invocation's
+// envelope with the recordedAt of the receipt the request-index entry names
+// (ATR-V0-275), then the recorded ticket's createdAt and updatedAt, each
+// also up to two seconds earlier since the writer clock can tick past the CLI
+// second, and returns the one whose
+// digest equals the recorded mutation digest, with the recorded ticket. A
+// different payload, actor, target or revision never matches, so it never
+// turns a real conflict into a replay. found is false when nothing matched.
+func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) (at wire.Timestamp, ticketID string, found bool) {
+	if flags.requestID == "" {
+		return "", "", false
+	}
 	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
-	entry, found, err := idx.Lookup(flags.requestID)
-	if err != nil || !found || idx.TicketID == "" {
+	entry, ok, err := idx.Lookup(flags.requestID)
+	if err != nil || !ok || idx.TicketID == "" {
 		return "", "", false
 	}
 	var bases []wire.Timestamp

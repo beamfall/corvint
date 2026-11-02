@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func gitFixture(t *testing.T) string {
@@ -175,7 +177,7 @@ func TestMetricsNumstat(t *testing.T) {
 func TestMetricsGitProcessBounds(t *testing.T) {
 	t.Run("PMM-V0-007 output-overflow", func(t *testing.T) {
 		script := filepath.Join(t.TempDir(), "fake-git")
-		if e := os.WriteFile(script, []byte("#!/bin/sh\n/usr/bin/yes payload\n"), 0700); e != nil {
+		if e := execfile.WriteFile(script, []byte("#!/bin/sh\n/usr/bin/yes payload\n"), 0700); e != nil {
 			t.Fatal(e)
 		}
 		g := &GitMeasurer{executable: script}
@@ -191,7 +193,7 @@ func TestMetricsGitProcessBounds(t *testing.T) {
 		script := filepath.Join(root, "fake-git")
 		pidFile := filepath.Join(root, "child-pid")
 		body := "#!/bin/sh\n/bin/sleep 30 &\nprintf '%s' $! > '" + pidFile + "'\nwait\n"
-		if e := os.WriteFile(script, []byte(body), 0700); e != nil {
+		if e := execfile.WriteFile(script, []byte(body), 0700); e != nil {
 			t.Fatal(e)
 		}
 		g := &GitMeasurer{executable: script}

@@ -78,6 +78,7 @@ read-only, offline and in one binary (invariants 4 and 7).
 - `OUE-V0-044`: The diff MUST count, per side, the traces that carried no ARIA snapshot, so absent snapshots are visible rather than read as no change.
 - `OUE-V0-075`: Scrubbing MUST keep a role only from the closed WAI-ARIA 1.2 role vocabulary (plus `text`, `img` and `image`); any other token in the role position MUST be digested as `#other` and counted dropped, so free text or a secret in that position never reaches the digest (#1831).
 - `OUE-V0-076`: Each `structure-changed` screen in the diff MUST name, sorted, the tests that saw its base-only or head-only digests; every other screen MUST carry an empty `tests` list.
+- `OUE-V0-685`: (standing lane auto-accept, 2026-11-01; V1-2723) `observe --records` MUST read the ARIA YAML where Playwright writes it: the `after` record's `result.snapshot` of a `Frame` `ariaSnapshot` call (`locator.ariaSnapshot()`); a real Playwright 1.63.0 chromium trace shows that `trace.snapshots` is a boolean and that no `after.ariaSnapshot` member exists (the former member stays read for existing fixtures). Such a call has no frame snapshot and its `before` record has no `pageId`, so it is placed on the last observed main-frame URL of its page, or of the context stream's only page; with several pages it stays `unknown:unplaced-snapshot`. Frame snapshots MUST also be read from the separate `phase` and `callId` members real 1.63 and 1.64 traces write (phase `action` reads as the former `input`), not only from a `snapshotName` of `phase@call`. The real trace and its spec and config are committed under `internal/appmap/testdata/pw163-aria/`. Non-goals: `toMatchAriaSnapshot` expectations (their YAML is never in the trace) and a role-histogram summary. Failure mode: a test that never calls `ariaSnapshot()` yields no structure, counted by OUE-V0-044. Rollback: drop the `result.snapshot` and `phase` reads and the fixture.
 
 ### 3.6 Impact consumption of observed bindings
 
@@ -112,12 +113,11 @@ template matched), `non-http-url` (a page URL that is not http or https). Stalen
 |---|---|---|
 | Records | OUE-V0-001..014 | `internal/appmap/uirecords_test.go` (TestObserveUIRecords*), `cmd/corvint/flows_appmap_ui_test.go` |
 | Staleness | OUE-V0-030..036 | `internal/observedstale/observedstale_test.go`, `cmd/corvint/flows_appmap_ui_test.go` |
-| ARIA | OUE-V0-040..044, 075, 076 | TestScrubAriaDigest, TestDiffUIStructures, TestOUEV0075ScrubAriaClosedRoles, TestOUEV0076StructureDiffNamesTests |
+| ARIA | OUE-V0-040..044, 075, 076, 685 | TestScrubAriaDigest, TestDiffUIStructures, TestOUEV0075ScrubAriaClosedRoles, TestOUEV0076StructureDiffNamesTests, TestOUEV0685RealPlaywrightAriaSnapshotResult (real Playwright 1.63.0 trace, lane cmd-w26) |
 | Impact | OUE-V0-070..074 | `internal/appmap/impact_observed_test.go` (TestOUEV0070*, TestOUEV0071*, TestOUEV0072*) |
 | Server errors | OUE-V0-050..057 | `internal/playwrightruns/server_errors_test.go`, TestRunsServerErrorsCLI |
 
-OUE-V0-058 commits two real Playwright 1.64.0 chromium traces (TestOUEV0058RealPlaywright164Traces); they carry no `aria` member at all although `snapshots.aria` was on, so the `after.ariaSnapshot` assumption remains unconfirmed. The other fixtures are synthetic; OUE-V0-013/014 use a hand-built Playwright 1.64-shaped multi-context fixture (`internal/appmap/testdata/playwright-1.64-shape`, TestObserveUIRecordsPlaywright164Stacks), and the assumption that 1.64 `before` records carry the same string call ID as the stacks pairs is unverified. NOT_RUN: a real trace that carries an aria snapshot (the
-`after.ariaSnapshot` member is assumed) and a real adopter server log.
+OUE-V0-058 commits two real Playwright 1.64.0 chromium traces (TestOUEV0058RealPlaywright164Traces); they carry no `aria` member at all although `snapshots.aria` was on; OUE-V0-685 (2026-11-01) replaces the unconfirmed `after.ariaSnapshot` assumption with the `ariaSnapshot` call result a real Playwright 1.63.0 trace carries. The other fixtures are synthetic; OUE-V0-013/014 use a hand-built Playwright 1.64-shaped multi-context fixture (`internal/appmap/testdata/playwright-1.64-shape`, TestObserveUIRecordsPlaywright164Stacks), and the assumption that 1.64 `before` records carry the same string call ID as the stacks pairs is unverified. NOT_RUN: a real Playwright 1.64 trace with an `ariaSnapshot()` call (1.63.0 qualified) and a real adopter server log.
 
 ## 5. Failure modes
 

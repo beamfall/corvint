@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -319,7 +320,7 @@ func fakeFrontierRunner(t *testing.T, degraded int, degradation string) (*runner
 		"echo '{\"decision\":\"block\",\"reason\":\"Corvint local completion policy is incomplete. Frontier authority remains unavailable.\"}'\n"
 	output, _ := json.Marshal(map[string]any{"systemMessage": degradation})
 	for name, body := range map[string]string{filepath.Join(r.bin, "corvint"): corvint, filepath.Join(work, "stop.sh"): stop, filepath.Join(state, "degradation"): string(output)} {
-		if err := os.WriteFile(name, []byte(body), 0o755); err != nil {
+		if err := execfile.WriteFile(name, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -455,8 +455,8 @@ case $conflicted in *docs/specs/INDEX.json*) ;; *) fail "the new-spec merge did 
 case $conflicted in *"$uc/ledger.json"*) ;; *) fail "the receipt merge did not conflict in the ledger: $conflicted" ;; esac
 srq() { make -s --no-print-directory -f "$source_root/Makefile" -C "$repo" spec-requirements 2>&1 > /dev/null; }
 err=$(srq) && fail "make spec-requirements ran over an unmerged INDEX.json"
-# One line of its own; make adds its usual `make: *** ... Error 2` line.
-test "$(printf '%s\n' "$err" | grep -vc '^make: \*\*\* ')" = 1 && case $err in *'docs/specs/INDEX.json'*'make spec-requirements-resolve'*) true ;; *) false ;; esac ||
+# One line of its own; make adds its usual `make: *** ... Error 2` line (`make[N]:` when nested).
+test "$(printf '%s\n' "$err" | grep -Evc '^make(\[[0-9]+\])?: \*\*\* ')" = 1 && case $err in *'docs/specs/INDEX.json'*'make spec-requirements-resolve'*) true ;; *) false ;; esac ||
   fail "the unmerged refusal is not one line naming spec-requirements-resolve: $err"
 git add -- docs/specs/INDEX.json
 err=$(srq) && fail "make spec-requirements ran over a staged INDEX.json holding conflict markers"
