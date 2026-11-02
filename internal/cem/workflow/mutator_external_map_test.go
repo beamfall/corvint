@@ -87,12 +87,29 @@ func TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm(t *testing.T) {
 	if err == nil {
 		t.Fatal("an absolute --output was accepted")
 	}
-	for _, want := range []string{"--output must be a repository-relative path", "for example", "repository's lock", "scratch"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("refusal %q lacks %q", err, want)
-		}
-	}
+	assertOutputRefusal(t, "mark", err)
 	if _, statErr := os.Stat(scratch); statErr == nil {
 		t.Error("the scratch output was written")
+	}
+	beginScratch := filepath.Join(t.TempDir(), "begin.cem.json")
+	_, err = openSession(t, root).Begin(ctx(), BeginOptions{PatchPath: "change.patch", Base: base, Output: beginScratch})
+	if err == nil {
+		t.Fatal("an absolute begin --output was accepted")
+	}
+	assertOutputRefusal(t, "begin", err)
+	if _, statErr := os.Stat(beginScratch); statErr == nil {
+		t.Error("the begin scratch output was written")
+	}
+}
+
+func assertOutputRefusal(t *testing.T, command string, err error) {
+	t.Helper()
+	if cemcode.CodeOf(err) != cemcode.InvalidArguments {
+		t.Errorf("%s: error = %v, want invalid-arguments", command, err)
+	}
+	for _, want := range []string{"--output must be a repository-relative path", "for example", "repository's lock", "scratch"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: refusal %q lacks %q", command, err, want)
+		}
 	}
 }
