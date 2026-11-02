@@ -28,7 +28,7 @@ name: CI control plane
 # per event and head SHA, so a newer completion for the same head replaces a queued or running
 # one: both would post the same status. The forward-rows job keeps one run per completed run
 # that succeeded or failed; a cancelled run is never a forward row. AFP-V0-855 narrows the first:
-# a cancelled pull-request run whose head no longer heads a listed pull request starts no job.
+# a cancelled pull-request run whose payload lists pull requests, none at its head, starts no job.
 
 on:
   workflow_run:
@@ -42,9 +42,11 @@ permissions:
 
 jobs:
   control-plane:
-    # AFP-V0-855 (V1-1778): a cancelled run whose head is no listed pull request's head was
-    # superseded by a newer push and would post nothing, so it does not claim a runner.
-    if: github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion != 'cancelled' || contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha))
+    # AFP-V0-855 (V1-1778): a cancelled run whose payload lists pull requests, none at its head,
+    # was superseded by a newer push and would post nothing, so it does not claim a runner. An
+    # empty list (always so for a fork pull request) still starts the job, and the step's own
+    # open pull-request lookup decides whether anything is posted.
+    if: github.event.workflow_run.event == 'pull_request' && (github.event.workflow_run.conclusion != 'cancelled' || toJSON(github.event.workflow_run.pull_requests) == '[]' || contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha))
     concurrency:
       group: ci-control-plane-pull_request-${{ github.event.workflow_run.head_sha }}
       cancel-in-progress: true
