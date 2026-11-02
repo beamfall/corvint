@@ -2387,7 +2387,11 @@ grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/stat
 out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
 [[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
 grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
-[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
+[[ $(lwr --no-reconcile 18) == *"RECONCILE status=SKIPPED "* && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
+grep -q "pr=18 reconcile=skipped" "$lw/state/alerts.log" || fail "skipped reconcile not alerted"
+[[ -s $lw/state/reconcile-18-skipped.log ]] || fail "skipped reconcile has no retained report"
+lwr --no-reconcile --alerts "$lw/missing/alerts.log" 20 > /dev/null
+[[ $? == 2 ]] || fail "unretained skip alert succeeded"
 /bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"

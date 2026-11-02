@@ -2876,6 +2876,8 @@ TCD-V0-730	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owne
 TCD-V0-731	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-11-01); V1-3713; amends	standing	2026-11-01; V1-3713
 TCD-V0-740	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3829; amends	standing	2026-11-01; V1-3829
 TCD-V0-741	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3870; amends	standing	2026-11-01; V1-3870
+TCD-V0-2210	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3496) `make ta	standing	2026-10-11; V1-3496
+TCD-V0-2211	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3496) The land	standing	2026-10-11; V1-3496
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TCT-V0-990	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3564) `--templ	standing	2026-10-11; V1-3564
@@ -3270,6 +3272,8 @@ PUR-V0-004	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo applies 
 PUR-V0-005	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	The amendment adds no top-level recovery verb and no reader error code. Both sta	unrecorded	-
 PUR-V0-1920	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4261) A Go tes	standing	2026-11-02; V1-4261
 PUR-V0-1921	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4261) Any proc	standing	2026-11-02; V1-4261
+PUR-V0-2210	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4261) Policy o	standing	2026-10-11; V1-4261
+PUR-V0-2211	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4261) A qualif	standing	2026-10-11; V1-4261
 PSR-V0-001	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	Optional `memberConfig[MEMBER].safeReuse` adds operator-owned reset argv, verify	unrecorded	-
 PSR-V0-002	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	`pool sweep [--member M] --request-id ID` is an OWNER/OPERATOR foreground mutati	unrecorded	-
 PSR-V0-003	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	The writer durably records exclusive command ownership bound to original allocat	unrecorded	-

@@ -598,7 +598,9 @@ sees `MERGED` also runs the post-merge Tasks reconcile (`script/tasks-reconcile.
 proposing each `batch-close`) once per PR and prints `RECONCILE status=N log=FILE`; debt or a
 refusal adds a `reconcile=` line to the same alerts file, so the Tasks backlog cannot drift from
 main unseen (ASD-V0-1922, V1-3496). It applies a proposal only with `--act` and the operator's
-`RECONCILE_APPLY`.
+`RECONCILE_APPLY`. Every applied proposal must have its evidence commit on `origin/main`.
+A merged PR observed with `--no-reconcile` retains a SKIPPED report and alert, naming
+`make tasks-reconcile` as recovery (TCD-V0-2210, TCD-V0-2211).
 
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of

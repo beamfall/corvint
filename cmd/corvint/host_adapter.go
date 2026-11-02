@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/taskbarrier"
 	"io"
 	"io/fs"
 	"maps"
@@ -697,6 +698,14 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 		return codexDegraded(eventName, "corvint-degradations-unrecognised")
 	}
 	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
+	if event == "session-start" {
+		if warning := taskbarrier.Observe(root); warning != "" {
+			if projection == nil {
+				projection = map[string]any{}
+			}
+			projection["tasksBarrierWarning"] = warning
+		}
+	}
 	if projection == nil {
 		// AHI-910: a successful hook with nothing to inject names its event, so it is not
 		// mistaken for a fault or a killed hook.

@@ -270,3 +270,46 @@ func TestAHI230GuidanceOnlyForCorvintOrEnrolledRepository(t *testing.T) {
 func emptyHookOutput(output map[string]any, event string) bool {
 	return reflect.DeepEqual(output, map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": event}})
 }
+
+// PUR-V0-2210: both native session-start adapters carry the actual pause request
+// and age, even when no other repository context is actionable.
+func TestPURV02210_SessionStartWarnsStaleBarrier(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".taskman"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".taskman", "queue.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	bin := t.TempDir()
+	// The transport fixture is a Tasks command-result envelope; native warning
+	// generation and receipt binding are exercised in internal/tasks/cli.
+	response := `{"profile":"taskman-command-result/0","command":["queue","status"],"outcome":"OK","codes":[],"items":[],"page":null,"snapshot":null,"mutation":null,"untrusted":[],"warnings":["STALE_BARRIER: pause request hook-pause-request, age 7200s (policy limit 3600s)"]}`
+	var value any
+	if err := json.Unmarshal([]byte(response), &value); err != nil {
+		t.Fatal(err)
+	}
+	canonical, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response = string(canonical) + "\n"
+	script := "#!/bin/sh\n[ \"$*\" = 'queue status --fields barrier' ] || exit 9\nprintf '%s' '" + response + "'\n"
+	if err := os.WriteFile(filepath.Join(bin, "corvint-tasks"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	result := map[string]any{"degradations": []any{}}
+	for _, host := range []string{"claude-code", "codex"} {
+		output := renderAdapterResult(host, "SessionStart", "session-start", root, map[string]any{"sessionIdSha256": "k"}, result, false)
+		raw, _ := json.Marshal(output)
+		if !strings.Contains(string(raw), "STALE_BARRIER: pause request hook-pause-request, age 7200s") {
+			t.Fatalf("%s: %s", host, raw)
+		}
+	}
+	output := renderAdapterResult("claude-code", "UserPromptSubmit", "user-prompt", root, map[string]any{}, result, false)
+	raw, _ := json.Marshal(output)
+	if strings.Contains(string(raw), "STALE_BARRIER") {
+		t.Fatalf("warning outside session start: %s", raw)
+	}
+}
