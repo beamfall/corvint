@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.3.11"
+    "version": "0.3.12"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
@@ -21,8 +21,8 @@
     "command": "corvint",
     "args": ["mcp"],
     "protocolVersion": "2025-11-25",
-    "verifiedHostVersion": "2.1.311",
-    "verification": "claude mcp list health check (connected); corvint.help tools/call over stdio"
+    "verifiedHostVersion": "2.1.316",
+    "verification": "2.1.316 --plugin-dir session init lists plugin:corvint:corvint connected with the 7 CORVINT_PLUGIN_TOOLS in a scratch Git project and in this repository (2026-11-01, lane hst-m27); TestAHI631ClaudePluginMCPLaunchHandshakes launches the built binary from .mcp.json"
   },
   "lastValidation": {
     "date": "2026-10-09",
@@ -53,6 +53,16 @@
     ],
     "validation": "production-Go-CLI adapter regressions; installed host matrix NOT_RUN",
     "authority": "local enrollment only; no Frontier authority or execution attestation"
+  },
+  "optInHooks": {
+    "registered": false,
+    "verifiedHostVersion": "2.1.316",
+    "verification": "LIVE 2026-11-01 (lane hst-m27, docs/build-log/2026-11-01-hst-m27.md): registered through --settings in a scratch project, never in this hooks.json",
+    "events": {
+      "SubagentStart": "payload carries agent_id, agent_type, cwd, hook_event_name, prompt_id, scratchpad_dir, session_id and transcript_path but no task text; subagent-start abstains with {} and a missing-prompt ledger row; the spawn is never blocked",
+      "PreToolUse": "pre-tool Read context reached the model as a hook_additional_context attachment in 151-168 ms; the tool ran with no permission decision",
+      "Stop": "userConfig stop_done_list true printed the done-list systemMessage; false and CORVINT_STOP_DONE_LIST=0 printed {}"
+    }
   },
   "compactionHooks": {
     "events": [
