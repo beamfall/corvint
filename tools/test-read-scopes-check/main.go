@@ -13,6 +13,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	json "encoding/json/v2"
 	"errors"
 	"flag"
@@ -27,9 +29,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
@@ -281,7 +285,7 @@ func covered(directory, target string, entries []string) bool {
 // yields "../../protocol/x", which named resolves against the package directory
 // (never from the root); a single literal is already a FilePathTokens token.
 func joinRuns(name string, body []byte) ([]string, error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseTest(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -330,8 +334,7 @@ func joinRuns(name string, body []byte) ([]string, error) {
 // (AFP-V0-981): the test tests the existence of a repository path it read from
 // data, which neither the read scope nor Landlock bounds.
 func statReaders(name string, body []byte) ([]string, error) {
-	fileSet := token.NewFileSet()
-	file, err := parser.ParseFile(fileSet, name, body, parser.SkipObjectResolution)
+	fileSet, file, err := parseTest(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +384,7 @@ func selectorPackage(selector *ast.SelectorExpr, ok bool) (string, bool) {
 // string-literal arguments after "list" that are "." or start with "./" or
 // "../". A listing with no such argument lists the package itself.
 func goListTargets(name string, body []byte) ([]string, error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseTest(name, body)
 	if err != nil {
 		return nil, err
 	}
@@ -452,7 +455,7 @@ var goValueFlags = []string{
 // such as a variable or a file name, is a target the check cannot see. The
 // targets of a verb in goTestVerbs are returned apart, as tests.
 func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
-	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	_, file, err := parseTest(name, body)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -638,6 +641,28 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 	if test {
 		arguments = append(arguments, "-test")
 	}
+	// The same listing for the same package runs once per check (DCW-V0-761),
+	// so its result and its error are those of the first call.
+	key := root + "\x00" + directory + "\x00" + strings.Join(append(slices.Clone(arguments), resolved...), "\x00")
+	found, _ := listings.LoadOrStore(key, &listing{})
+	entry := found.(*listing)
+	entry.once.Do(func() { entry.directories, entry.err = listDependencies(root, directory, arguments, resolved) })
+	return entry.directories, entry.err
+}
+
+// listing is one memoized go list -deps result.
+type listing struct {
+	once        sync.Once
+	directories []string
+	err         error
+}
+
+// listings holds the go list results of the running check; check resets it,
+// since a test may change a fixture between two checks of one root.
+var listings sync.Map
+
+// listDependencies runs one go list -deps and keeps the directories inside root.
+func listDependencies(root, directory string, arguments, resolved []string) ([]string, error) {
 	command := exec.Command("go", append(arguments, resolved...)...)
 	command.Dir = root
 	var stderr bytes.Buffer
@@ -717,6 +742,7 @@ func recordedAbove(recorded map[string]string, dependency string) (string, bool)
 // check returns the unrecorded findings and the recorded literals that no test
 // file names any more.
 func check(root string) ([]finding, []string, error) {
+	listings.Clear()
 	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		return nil, nil, err
@@ -739,9 +765,8 @@ func check(root string) ([]finding, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	used := map[string]bool{}
-	var findings []finding
 	existence := graph.ExistenceReaderPackages()
+	var units []affected.Unit
 	for _, id := range graph.UnitIDs() {
 		unit, _ := graph.Unit(id)
 		// A read-scoped shell test (TSP-V0-950) is declared elsewhere; this
@@ -749,121 +774,38 @@ func check(root string) ([]finding, []string, error) {
 		if !unit.ReadScoped || len(unit.Tests) == 0 || !strings.HasPrefix(id, "go:") {
 			continue
 		}
-		directory := path.Dir(unit.Tests[0])
-		if reason, ok := sandboxes[directory]; ok {
-			findings = append(findings, finding{pkg: directory, sandbox: reason})
-			continue
+		units = append(units, unit)
+	}
+	// DCW-V0-759 (V1-4238): each package is checked on its own, so the
+	// packages run on a bounded pool (their go list calls and file parses
+	// with them) and their results are merged in unit order: the findings,
+	// the used literals and the first error are those of the sequential run.
+	results := make([]unitResult, len(units))
+	work := make(chan int)
+	var group sync.WaitGroup
+	for range min(checkWorkers, max(len(units), 1)) {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			for index := range work {
+				results[index] = checkUnit(root, units[index], paths, recorded, sandboxes, existence)
+			}
+		}()
+	}
+	for index := range units {
+		work <- index
+	}
+	close(work)
+	group.Wait()
+	used := map[string]bool{}
+	var findings []finding
+	for _, result := range results {
+		if result.err != nil {
+			return nil, nil, result.err
 		}
-		tokens, runs := make([][]string, len(unit.Tests)), make([][]string, len(unit.Tests))
-		bodies := make([][]byte, len(unit.Tests))
-		for index, file := range unit.Tests {
-			body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file)))
-			if err != nil {
-				return nil, nil, err
-			}
-			bodies[index] = body
-			if tokens[index], err = golang.FilePathTokens(file, body, ""); err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", file, err)
-			}
-			if runs[index], err = joinRuns(file, body); err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", file, err)
-			}
-			if !slices.Contains(existence, directory) {
-				sites, err := statReaders(file, body)
-				if err != nil {
-					return nil, nil, fmt.Errorf("%s: %w", file, err)
-				}
-				for _, site := range sites {
-					findings = append(findings, finding{pkg: directory, file: file, stat: site})
-				}
-			}
-			targets, err := goListTargets(file, body)
-			if err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", file, err)
-			}
-			if len(targets) > 0 {
-				dependencies, err := dependencyDirectories(root, directory, targets, false)
-				if err != nil {
-					return nil, nil, err
-				}
-				for _, dependency := range dependencies {
-					if !dependencyCovered(directory, dependency, unit.ReadScope) {
-						findings = append(findings, finding{pkg: directory, file: file, path: dependency, listed: true})
-					}
-				}
-			}
-			builds, tests, err := goBuildTargets(file, body)
-			if err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", file, err)
-			}
-			var groups []buildGroup
-			for _, group := range []buildGroup{{targets: builds}, {targets: tests, test: true}} {
-				groups = append(groups, splitOwnTargets(group)...)
-			}
-			for _, group := range groups {
-				if len(group.targets) == 0 {
-					continue
-				}
-				dependencies, err := dependencyDirectories(root, directory, group.targets, group.test)
-				if err != nil {
-					return nil, nil, err
-				}
-				for _, dependency := range dependencies {
-					if dependencyCovered(directory, dependency, unit.ReadScope) {
-						continue
-					}
-					// A recorded path at or above the directory is a build the
-					// confined shard never runs, such as a skipped live test.
-					if target, ok := recordedAbove(recorded[directory], dependency); ok {
-						used[directory+" "+target] = true
-						continue
-					}
-					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true, own: group.own})
-				}
-			}
-		}
-		fromRoot := locatesRoot(tokens)
-		rootedBy := ""
-		if fromRoot {
-			rootedBy = rootLocator(unit.Tests, bodies, tokens)
-		}
-		exempt, err := tempRootOnly(unit.Tests, bodies)
-		if err != nil {
-			return nil, nil, err
-		}
-		marked, err := fixtureMarked(unit.Tests, bodies)
-		if err != nil {
-			return nil, nil, err
-		}
-		for index, file := range unit.Tests {
-			seen := map[string]bool{}
-			values := append(slices.Clone(tokens[index]), runs[index]...)
-			for position, value := range values {
-				// A token only //corvint:fixture-path literals hold is no read (ASD-V0-895).
-				if marked[index][value] {
-					continue
-				}
-				// A join run resolves against the package directory only: fixture
-				// repositories join the same segments onto temporary roots, so a
-				// run is no evidence of a repository-root read (V1-2117). Nor is a
-				// token used only by temp-root-only functions (AFP-V0-828).
-				rooted := fromRoot && position < len(tokens[index]) && !exempt[index][value]
-				for _, target := range named(paths, directory, value, rooted) {
-					if seen[target] || covered(directory, target, unit.ReadScope) {
-						continue
-					}
-					seen[target] = true
-					if _, ok := recorded[directory][target]; ok {
-						used[directory+" "+target] = true
-						continue
-					}
-					found := finding{pkg: directory, file: file, path: target}
-					if target != path.Join(directory, value) {
-						found.rootedBy = rootedBy
-					}
-					findings = append(findings, found)
-				}
-			}
+		findings = append(findings, result.findings...)
+		for _, key := range result.used {
+			used[key] = true
 		}
 	}
 	var stale []string
@@ -876,6 +818,206 @@ func check(root string) ([]finding, []string, error) {
 	}
 	slices.Sort(stale)
 	return findings, stale, nil
+}
+
+// parsedTest is one test file's parse: its own file set and syntax tree, or
+// the parse error.
+type parsedTest struct {
+	fileSet *token.FileSet
+	file    *ast.File
+	err     error
+}
+
+// parsedTests memoizes parseTest by file name and content digest.
+var parsedTests sync.Map
+
+// parseTest parses a test file once for joinRuns, statReaders, goListTargets
+// and goBuildTargets, which each parsed it in the same mode with a file set of
+// its own and only read the tree (DCW-V0-760). The key holds the content's
+// digest, so a fixture repository's file of the same name never reuses another
+// file's tree.
+func parseTest(name string, body []byte) (*token.FileSet, *ast.File, error) {
+	sum := sha256.Sum256(body)
+	key := name + "\x00" + hex.EncodeToString(sum[:])
+	if found, ok := parsedTests.Load(key); ok {
+		parsed := found.(parsedTest)
+		return parsed.fileSet, parsed.file, parsed.err
+	}
+	parsed := parsedTest{fileSet: token.NewFileSet()}
+	parsed.file, parsed.err = parser.ParseFile(parsed.fileSet, name, body, parser.SkipObjectResolution)
+	parsedTests.Store(key, parsed)
+	return parsed.fileSet, parsed.file, parsed.err
+}
+
+// checkWorkers bounds how many packages check runs at once, and parallelFiles
+// runs a package's files on goroutines of their own (DCW-V0-759); a test sets
+// them to 1 and false for the sequential order.
+var (
+	checkWorkers  = runtime.GOMAXPROCS(0)
+	parallelFiles = true
+)
+
+// unitResult is one package's part of check: its findings in file order, the
+// recorded literals it used, or the error that stops the check.
+type unitResult struct {
+	findings []finding
+	used     []string
+	err      error
+}
+
+// fileResult is one test file's part of checkUnit's first pass.
+type fileResult struct {
+	findings []finding
+	used     []string
+	err      error
+}
+
+// checkUnit checks the test files of one read-scoped package unit.
+func checkUnit(root string, unit affected.Unit, paths map[string]bool, recorded map[string]map[string]string, sandboxes map[string]string, existence []string) unitResult {
+	var result unitResult
+	directory := path.Dir(unit.Tests[0])
+	if reason, ok := sandboxes[directory]; ok {
+		result.findings = append(result.findings, finding{pkg: directory, sandbox: reason})
+		return result
+	}
+	tokens, runs := make([][]string, len(unit.Tests)), make([][]string, len(unit.Tests))
+	bodies := make([][]byte, len(unit.Tests))
+	// The files run on their own goroutines (their go list calls are most of a
+	// package's time), and their parts merge in file order (DCW-V0-759).
+	parts := make([]fileResult, len(unit.Tests))
+	var files sync.WaitGroup
+	for index, file := range unit.Tests {
+		files.Add(1)
+		part := func() {
+			defer files.Done()
+			parts[index] = func() fileResult {
+				var part fileResult
+				body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file)))
+				if err != nil {
+					return fileResult{err: err}
+				}
+				bodies[index] = body
+				if tokens[index], err = golang.FilePathTokens(file, body, ""); err != nil {
+					return fileResult{err: fmt.Errorf("%s: %w", file, err)}
+				}
+				if runs[index], err = joinRuns(file, body); err != nil {
+					return fileResult{err: fmt.Errorf("%s: %w", file, err)}
+				}
+				if !slices.Contains(existence, directory) {
+					sites, err := statReaders(file, body)
+					if err != nil {
+						return fileResult{err: fmt.Errorf("%s: %w", file, err)}
+					}
+					for _, site := range sites {
+						part.findings = append(part.findings, finding{pkg: directory, file: file, stat: site})
+					}
+				}
+				targets, err := goListTargets(file, body)
+				if err != nil {
+					return fileResult{err: fmt.Errorf("%s: %w", file, err)}
+				}
+				if len(targets) > 0 {
+					dependencies, err := dependencyDirectories(root, directory, targets, false)
+					if err != nil {
+						return fileResult{err: err}
+					}
+					for _, dependency := range dependencies {
+						if !dependencyCovered(directory, dependency, unit.ReadScope) {
+							part.findings = append(part.findings, finding{pkg: directory, file: file, path: dependency, listed: true})
+						}
+					}
+				}
+				builds, tests, err := goBuildTargets(file, body)
+				if err != nil {
+					return fileResult{err: fmt.Errorf("%s: %w", file, err)}
+				}
+				var groups []buildGroup
+				for _, group := range []buildGroup{{targets: builds}, {targets: tests, test: true}} {
+					groups = append(groups, splitOwnTargets(group)...)
+				}
+				for _, group := range groups {
+					if len(group.targets) == 0 {
+						continue
+					}
+					dependencies, err := dependencyDirectories(root, directory, group.targets, group.test)
+					if err != nil {
+						return fileResult{err: err}
+					}
+					for _, dependency := range dependencies {
+						if dependencyCovered(directory, dependency, unit.ReadScope) {
+							continue
+						}
+						// A recorded path at or above the directory is a build the
+						// confined shard never runs, such as a skipped live test.
+						if target, ok := recordedAbove(recorded[directory], dependency); ok {
+							part.used = append(part.used, directory+" "+target)
+							continue
+						}
+						part.findings = append(part.findings, finding{pkg: directory, file: file, path: dependency, built: true, own: group.own})
+					}
+				}
+
+				return part
+			}()
+		}
+		if parallelFiles {
+			go part()
+		} else {
+			part()
+		}
+	}
+	files.Wait()
+	for _, part := range parts {
+		if part.err != nil {
+			return unitResult{err: part.err}
+		}
+		result.findings = append(result.findings, part.findings...)
+		result.used = append(result.used, part.used...)
+	}
+	fromRoot := locatesRoot(tokens)
+	rootedBy := ""
+	if fromRoot {
+		rootedBy = rootLocator(unit.Tests, bodies, tokens)
+	}
+	exempt, err := tempRootOnly(unit.Tests, bodies)
+	if err != nil {
+		return unitResult{err: err}
+	}
+	marked, err := fixtureMarked(unit.Tests, bodies)
+	if err != nil {
+		return unitResult{err: err}
+	}
+	for index, file := range unit.Tests {
+		seen := map[string]bool{}
+		values := append(slices.Clone(tokens[index]), runs[index]...)
+		for position, value := range values {
+			// A token only //corvint:fixture-path literals hold is no read (ASD-V0-895).
+			if marked[index][value] {
+				continue
+			}
+			// A join run resolves against the package directory only: fixture
+			// repositories join the same segments onto temporary roots, so a
+			// run is no evidence of a repository-root read (V1-2117). Nor is a
+			// token used only by temp-root-only functions (AFP-V0-828).
+			rooted := fromRoot && position < len(tokens[index]) && !exempt[index][value]
+			for _, target := range named(paths, directory, value, rooted) {
+				if seen[target] || covered(directory, target, unit.ReadScope) {
+					continue
+				}
+				seen[target] = true
+				if _, ok := recorded[directory][target]; ok {
+					result.used = append(result.used, directory+" "+target)
+					continue
+				}
+				found := finding{pkg: directory, file: file, path: target}
+				if target != path.Join(directory, value) {
+					found.rootedBy = rootedBy
+				}
+				result.findings = append(result.findings, found)
+			}
+		}
+	}
+	return result
 }
 
 // unsupportedKeys names, for a declaration the planner found invalid, each key

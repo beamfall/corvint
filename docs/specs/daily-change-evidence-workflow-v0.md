@@ -3551,6 +3551,31 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Found in the WSL closeout measurement of V1-3850, where `DCW-V0-745`'s fixed wording claimed a
   receipt that was not there. Evidence: `script/dogfood-cache_test.sh` (a stub receipt check
   answering 1 prints the second form). Rollback: restore the fixed wording.
+- `DCW-V0-759`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4238; refines
+  `AFP-V0-023`, `DCW-V0-815`) `tools/test-read-scopes-check`, which `make test-read-scopes-check`,
+  doc-gates and the `dogfood-inputs-check` static checks run, MUST check its read-scoped packages
+  on a pool of `GOMAXPROCS` workers and each package's test files on goroutines of their own, and
+  merge every package's findings, used literals and first error in unit and file order, so its
+  output is byte-identical to the sequential check's. Non-goals: changing any finding, message or
+  exit status, or the affected graph it reads. Evidence:
+  `TestDCWV0759ParallelCheckMatchesTheSequentialCheck` (a fixture with a named path, a go list and a
+  go build dependency, a nested sandbox and a stale literal, and this repository: the parallel and
+  the sequential check print the same bytes and exit code). Rollback: set `checkWorkers` to 1 and
+  `parallelFiles` false.
+- `DCW-V0-760`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4238) The check
+  MUST parse a test file once for `joinRuns`, `statReaders`, `goListTargets` and `goBuildTargets`,
+  which parsed it in the same mode into a file set of their own and only read the tree; the memo is
+  keyed by the file name and its content's SHA-256, so a fixture file of the same name never reuses
+  another file's tree. Evidence: `TestDCWV0759ParallelCheckMatchesTheSequentialCheck`, which clears
+  the memo before each run. Rollback: parse in each function again.
+- `DCW-V0-761`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4238) The check
+  MUST run each distinct `go list -deps` of one package once per check and reuse its directories or
+  error; the memo is cleared when a check starts. On this repository 27 go commands became 23.
+  Measured on WSL, interleaved with the old binary, at load 22-32: 8.2-9.5 s became 2.1-2.3 s
+  (2.3-2.6 s through `go run`), with identical output. The remaining floor is the affected graph
+  build (`affected.BuildPartial`, 1.2-1.4 s under that load), which this tool only calls, so the
+  2 s target is reached only on a quieter host. Evidence: as `DCW-V0-759` and
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop `listings`.
 
 ## Code vocabulary
 
@@ -3919,6 +3944,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`, `prechangeImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDCWV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
 | `DCW-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DCW-V0-757` case) | implemented; shell test PASS; measured in the build log |
 | `DCW-V0-758` (experimental under the standing lane auto-accept; V1-3850) | `Makefile` `dogfood-closeout` DONE line; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
+| `DCW-V0-759` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `check`, `checkUnit`, `checkWorkers`, `parallelFiles`; `TestDCWV0759ParallelCheckMatchesTheSequentialCheck` | implemented; focused test PASS (fixture also under -race) |
+| `DCW-V0-760` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `parseTest`, `parsedTests` | implemented; focused test PASS |
+| `DCW-V0-761` (experimental under the standing lane auto-accept; V1-4238) | `tools/test-read-scopes-check/main.go` `listings`, `listDependencies`; measured in the build log | implemented; focused test PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
