@@ -347,6 +347,39 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   lookup's. The verification boundary is LGL-V0-808's: a receipt before the checkpoint that the
   route does not walk is accepted as audited. Non-goal: `mutation.IndexEntry` gains no operation
   field, because the request afterimage records none and adding one is a store-format change.
+- `LGL-V0-813`: (proposed; V1-4243) The complete walk MUST read sealed receipts ahead from their
+  verified segment, so a segmented store's receipts are decoded and validated in parallel as an
+  unsealed store's are.
+  - A read-ahead window holds either sealed receipts of the one segment the walk is entering
+    (served from the bytes the segment view checked against the manifest) or active receipts
+    read from disk. It never holds both, so segments load in the order the sequential walk
+    loads them.
+  - The view's consumed-file accounting is applied when the walk reaches each receipt.
+  - Verdicts, records, consumed physical files and every refusal MUST equal the sequential sealed
+    walk's.
+  - Target: a complete audit of a sealed store takes at most 1.1× the unsealed audit of the same
+    receipts.
+- `LGL-V0-814`: (proposed; V1-4243) A seal MUST keep its per-segment protocol and order: a
+  marker, then the synced segment and manifest, the head replace, the unlink of the sealed
+  physical files, the directory syncs, and last the marker removal. Within one segment it MAY
+  run in parallel:
+  - the reads and decodes of the receipts to seal, and the reads and hashes of their request
+    afterimages;
+  - the unlinks;
+  - the directory syncs.
+
+  Every check still runs in sequence order on the results, so the first refusal is the
+  sequential one. Every touched directory is still synced, and the marker is removed only after
+  all of them returned without error. The segments, manifest and head written MUST be
+  byte-identical to the one-at-a-time seal's. Target: `journal seal` of a 40,000-receipt store
+  in at most 20 s.
+- `LGL-V0-815`: (proposed; V1-4243) A seal or unseal MUST retain (LGL-V0-809) the read
+  checkpoint its opening complete audit derives when the migrated head names the same sequence,
+  receipt digest, generation, queue, primary worktree and init digest. A read checkpoint is a
+  function of the chain and of those head fields, and a migration changes neither, so that
+  checkpoint MUST be byte-identical to the one a complete audit of the migrated journal derives.
+  Otherwise the seal or unseal runs that audit.
+
 ## Non-goals
 
 no writer-route admission for the pool verbs (CAL-V0-264 stays declined); no sealed-base resume
@@ -683,6 +716,23 @@ and that a forged checkpoint only falls back. `ticket recur` with a fresh reques
 40,002-receipt store with a current writer checkpoint went from 3.46-3.55 s to 0.49-0.55 s
 (Unraid Linux, load 3.9-4.9).
 
+For `LGL-V0-813` to `LGL-V0-815`:
+- `TestLGLV0813_SegmentPrefetchMatchesTheSequentialSealedWalk` shows the prefetched sealed walk
+  equals the sequential one: verdicts, records, consumed physical files, and the refusals of a
+  tampered segment and of a tampered active receipt.
+- `TestLGLV0814_ParallelSealWritesTheSameBytes` seals one store with 1 and with 32 workers, an
+  unseal between, and finds byte-identical receipts, requests, segments, manifest and head and
+  equal audit verdicts. The inventory digest hashes modification times, so it is not compared.
+- `TestLGLV0815_MigrationReusesTheOpeningCheckpoint` shows the reused checkpoint equals the
+  migrated journal's, byte for byte, after both a seal and an unseal.
+- The JSG seal, settle and refusal tests pass unchanged.
+
+At 40,003 receipts on Unraid Linux, `journal seal` took 152 and 100.5 s on the base binary and
+14.2, 15.8 and 14.6 s after, interleaved, at loads 2.3-8.9. On a store sealed into 77 segments,
+the complete `receipt audit` went from 7.5-7.7 s to 4.6-4.8 s, against 5.4-5.6 s unsealed, and
+`ticket show` with no checkpoint went from 5.5-5.6 s to 2.56-2.58 s, against 3.3 s unsealed. Both
+outputs are byte-identical between the binaries.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -716,4 +766,7 @@ complete audit. Nothing is stored, and both checkpoint files keep their format. 
 LGL-V0-809 returns seal, unseal, compaction and unretire to leaving no read checkpoint, so reads
 pay the complete audit until the next ordinary writer. A read checkpoint they left is still an
 ordinary one that any binary reads or ignores. Reverting LGL-V0-811 (constructing indexes without
-`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored.
+`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored. Reverting LGL-V0-813 (or
+`SetSegmentPrefetchForTest(false)`) returns a sealed walk to sequential reads with equal results.
+Reverting LGL-V0-814 (`sealWorkers` 1) returns the seal to one file at a time and writes the same
+bytes. Reverting LGL-V0-815 runs the closing audit again.
