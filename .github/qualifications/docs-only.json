@@ -1,6 +1,6 @@
 {
   "profile": "corvint-docs-ci-qualification/1",
-  "approved": false,
+  "approved": true,
   "classifierSha256": "c041572657834b19e0daa2a8c54d69fcfa7274d8da17e8ca06edbdb10335871a",
   "policySha256": "666c4cd2fd07485e57aa66650011ff7b79a95b45cdaf9b7f3c2eb7a9cbfafe4b",
   "checks": [
@@ -15,5 +15,5 @@
     "capabilities-check-tests"
   ],
   "inventory": "docs/specs/documentation-ci-v0.md#consumer-inventory",
-  "review": ""
+  "review": "Independent review 2026-11-01: Codex gpt-6.1-sol read-only, one round, over 35475f860..bfba8de1f (lane ci-w34, V1-0470). Both digests match the branch; non-doc changes still select FULL; DOCS runs emit neither race-reuse record (DCI-V0-856). One P2 (AFP-V0-855 fork-PR empty pull_requests) fixed at 5935da9f1."
 }
