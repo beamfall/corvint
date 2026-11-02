@@ -3203,6 +3203,8 @@ type testLinker struct {
 	// built for this packet.
 	links *testLinkTable
 	testLinkMaps
+	// frames is the frame-candidate index, built on first use.
+	frames *frameIndex
 	// tracked is the compiler's candidate universe, read once; counterparts
 	// indexes it by contextStem with each path's contextIsTest role, so
 	// creditMirrored consults the exact-stem paths only: every pairRelation

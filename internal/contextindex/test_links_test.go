@@ -70,35 +70,40 @@ func TestTestLinkTableEqualsMaps_IDXSNAPV0809(t *testing.T) {
 			anchors = append(anchors, path)
 		}
 		slices.Sort(anchors)
-		stride := 1
-		if len(anchors) > 500 {
-			stride = 40 // a repository index: every 40th anchor keeps the run in seconds
+		// Both linkers are read-only once their frame indexes exist, so the
+		// anchors are compared on every CPU.
+		fastLinker.frameIndex()
+		slowLinker.frameIndex()
+		sortedNames := func(names []testName) []testName {
+			names = slices.Clone(names)
+			slices.SortFunc(names, func(left, right testName) int {
+				if left.name != right.name {
+					return compareStrings(left.name, right.name)
+				}
+				return compareStrings(left.path, right.path)
+			})
+			return names
 		}
-		for position := 0; position < len(anchors); position += stride {
+		byPath := func(candidates []*testCandidate) []*testCandidate {
+			slices.SortFunc(candidates, func(left, right *testCandidate) int { return compareStrings(left.path, right.path) })
+			return candidates
+		}
+		mismatch := make([]string, len(anchors))
+		forEachAnchor(len(anchors), func(position int) {
 			anchor := anchors[position]
-			sortedNames := func(names []testName) []testName {
-				names = slices.Clone(names)
-				slices.SortFunc(names, func(left, right testName) int {
-					if left.name != right.name {
-						return compareStrings(left.name, right.name)
-					}
-					return compareStrings(left.path, right.path)
-				})
-				return names
-			}
-			if !reflect.DeepEqual(sortedNames(fastLinker.testNamesAt(anchor)), sortedNames(slowLinker.testNamesAt(anchor))) {
-				t.Fatalf("%s: test names at %s differ", name, anchor)
-			}
-			if got, want := fastLinker.candidates(anchor), slowLinker.candidates(anchor); !reflect.DeepEqual(got, want) {
-				t.Fatalf("%s: candidates of %s differ", name, anchor)
-			}
+			switch {
+			case !reflect.DeepEqual(sortedNames(fastLinker.testNamesAt(anchor)), sortedNames(slowLinker.testNamesAt(anchor))):
+				mismatch[position] = "test names at " + anchor
+			case !reflect.DeepEqual(fastLinker.candidates(anchor), slowLinker.candidates(anchor)):
+				mismatch[position] = "candidates of " + anchor
 			// frameCandidates returns map order; its caller ranks by outranks.
-			byPath := func(candidates []*testCandidate) []*testCandidate {
-				slices.SortFunc(candidates, func(left, right *testCandidate) int { return compareStrings(left.path, right.path) })
-				return candidates
+			case !reflect.DeepEqual(byPath(fastLinker.frameCandidates(anchor)), byPath(slowLinker.frameCandidates(anchor))):
+				mismatch[position] = "frame candidates of " + anchor
 			}
-			if got, want := byPath(fastLinker.frameCandidates(anchor)), byPath(slowLinker.frameCandidates(anchor)); !reflect.DeepEqual(got, want) {
-				t.Fatalf("%s: frame candidates of %s differ", name, anchor)
+		})
+		for _, problem := range mismatch {
+			if problem != "" {
+				t.Fatalf("%s: %s differ", name, problem)
 			}
 		}
 		for _, text := range symbolTermQueries {

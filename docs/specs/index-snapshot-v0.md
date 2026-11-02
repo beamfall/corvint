@@ -1315,6 +1315,25 @@ only.
   Outputs are byte-identical. Writes are deterministic.
 
   Rollback: stop writing the table (`TestLinksLength` 0).
+- `IDX-SNAP-V0-810`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4236;
+  serves the opt-in `TCP-V0-020` frame-relation experiment) `frameCandidates` MUST read, for each
+  anchor, only:
+  - the frame candidates that share its stem, which are the only ones `pairRelation` can relate
+    other than as a module directory member;
+  - the candidates its own imports resolve to, from a per-linker index keyed exactly as
+    `reverseImporters` dispatches: Go by package import path, Python by every import spelling,
+    web by the suffixless target and its `/index` form, with the same self-exclusion rules.
+
+  Definers of the anchor's words MUST be credited when they are frame candidates. Before this
+  change each anchor tested every term-table path. Its candidates, signals and weights MUST equal
+  that full scan for every anchor.
+
+  Evidence: `TestFrameIndexEqualsFullScan_IDXSNAPV0810` compares all 11,225 anchors of this
+  repository with the retained scan, 9,566 of them with candidates, in 10.6 s. The indexed pass
+  over all anchors takes 2.8-4.3 s, against 518 s before. The V1-4198 all-anchor test now runs
+  without a stride in 32.5 s.
+
+  Rollback: restore the per-path loop.
 - `IDX-SNAP-V0-808`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4200)
   `CORVINT_INDEX_STORE=DIR`, an operator env var that is off by default, MUST make DIR (made
   absolute against the working directory) the snapshot store that every write and read uses
@@ -1574,6 +1593,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-806 | `encodeSnapshotBody`, `decodeSnapshotBody`, `decodeSnapshotWire` (`snapshot_chunks.go`), `gobSnapshotFormat` | `TestSnapshotChunkedBodyEqualsSingleMessage_IDXSNAPV0806`, `TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`, `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestSnapshotBytesAreDeterministic` |
 | IDX-SNAP-V0-807 | `buildSymbolTermTable`, `evalPreparePrecomputed`, `symbolTermTable` binary codec (`symbol_terms.go`), `evalPrepareRanking` | `TestSymbolTermTableRankingEqualsFullPass_IDXSNAPV0807`, `TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807`, `TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807` |
 | IDX-SNAP-V0-809 | `buildTestLinkMaps`, `testLinkTable` (`test_links.go`), the `testLinker` lookups | `TestTestLinkTableEqualsMaps_IDXSNAPV0809`, `TestTestLinkTableRefusals_IDXSNAPV0809` |
+| IDX-SNAP-V0-810 | `frameIndex`, `frameCandidates`, `importedBy` (`taskcontext_frame.go`) | `TestFrameIndexEqualsFullScan_IDXSNAPV0810`, `TestTestLinkTableEqualsMaps_IDXSNAPV0809` |
 | IDX-SNAP-V0-808 | `locateSnapshotStore` (`indexStoreSuffix`) | `TestIndexStoreOverride_IDXSNAPV0808` |
 | IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |
