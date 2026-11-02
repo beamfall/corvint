@@ -149,7 +149,14 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   ticket, recording its place in `.git/scale-progress.json`, outside the store's commit. `gen
   --resume` with the same `--root` and `--tickets` continues from that place through the same
   product writers, so a store too large for one bounded command is built across several. Every
-  request ID gen sends is derived from the ticket number, so a ticket redone after a kill replays.
+  request ID gen sends is derived from the ticket number, and every mutation carries the one
+  `issuedAt` the gen recorded at its start, so a ticket redone after a kill replays byte for byte.
+  The first checkpoint is saved before the first mutation (init), and later ones every 50 tickets
+  and at each pause. Each save writes a temporary file in the same directory, syncs it and renames
+  it over the old one, so an interrupted save leaves the previous checkpoint. A resume whose
+  checkpoint still names init skips init when its receipt is present. The manifest's receipt count
+  is the journal head's sequence. Amended after review (Codex r4: replay timestamps, atomic save,
+  test coverage).
   The manifest records `chunkSeconds`, the wall time of each 500 tickets across segments. A
   finished resumed store has the same tickets, statuses and receipt count as an unpaused one.
   Target, set before the build: ticket creation is roughly linear, the last 500-ticket chunk of a
@@ -206,4 +213,4 @@ their commit removes them with no effect on stores.
 | `TCX-V0-847` | `TestTCXV0847PreloadMatchesFullLoad` |
 | `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
 | `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`, `TestTCXV0849SameStatRewriteReparsed` |
-| `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`; chunk times in the build log |
+| `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; chunk times in the build log |

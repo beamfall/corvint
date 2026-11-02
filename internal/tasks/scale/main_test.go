@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -234,44 +235,144 @@ func genOutcome(t *testing.T, store string) (manifest, map[string]string) {
 	return m, statuses
 }
 
-// TestTCXV0850PausedGenResumesToTheSameStore: a gen paused twice and resumed
-// builds the same tickets, statuses, receipts and manifest as one unpaused
-// gen, leaves no progress file, and refuses a resume without a paused gen or
-// with another ticket count.
+func readProgress(t *testing.T, store string) genProgress {
+	t.Helper()
+	raw, err := os.ReadFile(progressPath(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var p genProgress
+	if err := json.Unmarshal(raw, &p); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func receiptFiles(t *testing.T, store string) int {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(store, ".git", "taskman", "receipts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return len(entries)
+}
+
+// TestTCXV0850PausedGenResumesToTheSameStore: with 20-ticket chunks, a
+// 120-ticket gen paused by --max-seconds after its first ticket, paused by
+// --pause-after past three chunk boundaries and its first seed commit and
+// claim, then killed after writing tickets 61-66 (ticket 65 claimed and
+// released) with its checkpoint still at 61, and resumed in a later second,
+// builds the same tickets, statuses and receipts as one unpaused gen: every
+// redone mutation replays byte-identically. Its manifest counts the
+// journal's receipts and times every chunk, and no progress file is left.
 func TestTCXV0850PausedGenResumesToTheSameStore(t *testing.T) {
 	skipPOSIXWriters(t)
 	if testing.Short() {
 		t.Skip("generates two stores")
 	}
+	saved := genChunk
+	genChunk = 20
+	t.Cleanup(func() { genChunk = saved })
+	const n = 120
 	dir := t.TempDir()
 	straight, paused := filepath.Join(dir, "straight"), filepath.Join(dir, "paused")
-	if err := gen([]string{"--root", straight, "--tickets", "70"}); err != nil {
+	if err := gen([]string{"--root", straight, "--tickets", fmt.Sprint(n)}); err != nil {
 		t.Fatal(err)
 	}
-	if err := gen([]string{"--root", paused, "--tickets", "70", "--pause-after", "30"}); err != nil {
+	if err := gen([]string{"--root", paused, "--tickets", fmt.Sprint(n), "--max-seconds", "0.000001"}); err != nil {
 		t.Fatal(err)
+	}
+	if p := readProgress(t, paused); p.Next != 2 || ticketFiles(t, paused) != 1 {
+		t.Fatalf("--max-seconds paused at next %d with %d tickets, want 2 and 1", p.Next, ticketFiles(t, paused))
 	}
 	if _, err := os.Stat(manifestPath(paused)); err == nil {
 		t.Fatal("a paused gen wrote its manifest")
 	}
-	if err := gen([]string{"--root", paused, "--tickets", "71", "--resume"}); err == nil {
+	if err := gen([]string{"--root", paused, "--tickets", fmt.Sprint(n + 1), "--resume"}); err == nil {
 		t.Fatal("a resume with another ticket count was accepted")
 	}
-	if err := gen([]string{"--root", paused, "--tickets", "70", "--resume", "--pause-after", "20"}); err != nil {
+	if err := gen([]string{"--root", paused, "--tickets", fmt.Sprint(n), "--resume", "--pause-after", "59"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := gen([]string{"--root", paused, "--tickets", "70", "--resume"}); err != nil {
+	checkpoint := readProgress(t, paused)
+	if checkpoint.Next != 61 || ticketFiles(t, paused) != 60 || len(checkpoint.ChunkSeconds) != 3 || !checkpoint.Committed {
+		t.Fatalf("paused at %+v with %d tickets, want next 61, 60 tickets, 3 chunks and the seed commit", checkpoint, ticketFiles(t, paused))
+	}
+	raw, err := os.ReadFile(progressPath(paused))
+	if err != nil {
 		t.Fatal(err)
+	}
+	if err := gen([]string{"--root", paused, "--tickets", fmt.Sprint(n), "--resume", "--pause-after", "6"}); err != nil {
+		t.Fatal(err)
+	}
+	// The kill: tickets 61-66 were written, but the checkpoint is still 61.
+	if err := os.WriteFile(progressPath(paused), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(time.Until(time.Now().Truncate(time.Second).Add(1100 * time.Millisecond)))
+	if err := gen([]string{"--root", paused, "--tickets", fmt.Sprint(n), "--resume"}); err != nil {
+		t.Fatalf("resume after the kill: %v", err)
 	}
 	if _, err := os.Stat(progressPath(paused)); !os.IsNotExist(err) {
 		t.Fatalf("the finished gen left its progress file: %v", err)
 	}
+	if a, b := receiptFiles(t, paused), receiptFiles(t, straight); a != b {
+		t.Fatalf("resumed store holds %d receipts, unpaused %d", a, b)
+	}
+	if a, err := headSeq(paused); err != nil || a != receiptFiles(t, paused) {
+		t.Fatalf("head sequence %d (%v), %d receipt files", a, err, receiptFiles(t, paused))
+	}
+	raw, err = os.ReadFile(manifestPath(paused))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var full manifest
+	if err := json.Unmarshal(raw, &full); err != nil {
+		t.Fatal(err)
+	}
+	if len(full.ChunkSeconds) != n/genChunk {
+		t.Fatalf("chunk timings %v, want %d", full.ChunkSeconds, n/genChunk)
+	}
+	for i, c := range full.ChunkSeconds {
+		if c <= 0 {
+			t.Fatalf("chunk %d took %v s", i, c)
+		}
+	}
 	wantM, wantS := genOutcome(t, straight)
 	gotM, gotS := genOutcome(t, paused)
-	if !reflect.DeepEqual(gotM, wantM) || !reflect.DeepEqual(gotS, wantS) {
+	if gotM.Receipts != receiptFiles(t, paused) || !reflect.DeepEqual(gotM, wantM) || !reflect.DeepEqual(gotS, wantS) {
 		t.Fatalf("resumed store %+v %v, unpaused %+v %v", gotM, gotS, wantM, wantS)
 	}
-	if err := gen([]string{"--root", straight, "--tickets", "70", "--resume"}); err == nil {
+	if err := gen([]string{"--root", straight, "--tickets", fmt.Sprint(n), "--resume"}); err == nil {
 		t.Fatal("a resume of a finished gen was accepted")
+	}
+}
+
+// TestTCXV0850ResumeAfterInitSkipsInit: a gen killed after init committed,
+// with the checkpoint still naming init, resumes without running init again
+// and replays the tickets it had already written.
+func TestTCXV0850ResumeAfterInitSkipsInit(t *testing.T) {
+	skipPOSIXWriters(t)
+	if testing.Short() {
+		t.Skip("generates a store")
+	}
+	store := filepath.Join(t.TempDir(), "store")
+	if err := gen([]string{"--root", store, "--tickets", "58", "--pause-after", "1"}); err != nil {
+		t.Fatal(err)
+	}
+	p := readProgress(t, store)
+	p.Next = 0
+	raw, err := json.Marshal(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(progressPath(store), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := gen([]string{"--root", store, "--tickets", "58", "--resume"}); err != nil {
+		t.Fatalf("resume at init: %v", err)
+	}
+	if got := ticketFiles(t, store); got != 58 {
+		t.Fatalf("%d tickets, want 58", got)
 	}
 }
