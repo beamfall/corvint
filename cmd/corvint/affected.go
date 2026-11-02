@@ -188,6 +188,9 @@ type affectedAdvice struct {
 	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	// WholePackages names each selected Go unit a TestMain change makes
+	// whole, with the reason (AFP-V0-550); omitted when there is none.
+	WholePackages []affectedWhole `json:"whole_packages,omitempty"`
 }
 
 type affectedCheck struct {
@@ -1343,6 +1346,7 @@ func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affect
 	plan := affectedSelect(graph, changed, in.shared)
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
+	advice = withWholePackages(ctx, advice, in.repository, in.tree, in.base, in.revision, plan)
 	return graph, plan, provider, advice
 }
 

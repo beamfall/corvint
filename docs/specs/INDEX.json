@@ -4368,5 +4368,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/affected-plan-selection-v0.md",
+    "title": "Affected Plan Selection Precision V0",
+    "reqPrefix": "AFP-V0",
+    "intent": "per requirement, each experimental under the owner's standing lane auto-accept (2026-10-11)",
+    "delivery": "experimental",
+    "claim": "`corvint affected` names Git deadlines as timeouts, marks TestMain changes whole and skips fixture-marked Go test literals as reads.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

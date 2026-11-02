@@ -102,7 +102,7 @@ func TestSTRV0063DryRunSlicesTestOnlyChanges(t *testing.T) {
 		t.Fatalf("stderr %q", stderr)
 	}
 	got := unit(invocations, "go:example.test/m/b")
-	want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: "^(ExampleB|TestBMore)$", Reason: "selected: the tests of b/b_more_test.go", Slice: sessiontest.SliceSelected, Unit: "go:example.test/m/b"}
+	want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: "^(ExampleB|TestBMore)$", Reason: "selected: the tests of b/b_more_test.go", ReasonCode: sessiontest.ReasonSelectedChangedTests, Slice: sessiontest.SliceSelected, Unit: "go:example.test/m/b"}
 	if got != want {
 		t.Fatalf("sliced unit %+v, want %+v", got, want)
 	}

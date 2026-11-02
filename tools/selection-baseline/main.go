@@ -124,6 +124,9 @@ type manifestUnit struct {
 	Unit    string `json:"unit"`
 	Slice   string `json:"slice"`
 	Reason  string `json:"reason"`
+	// ReasonCode is the manifest's stable code (STR-V0-548); the counts
+	// read it, never the prose.
+	ReasonCode string `json:"reasonCode"`
 }
 
 // Result is one replayed change.
@@ -511,7 +514,7 @@ func fillManifest(res *Result, m manifest) {
 		}
 		if u.Slice == "whole" {
 			res.WholePackages++
-			if strings.Contains(u.Reason, "DIRECT_SOURCE_CHANGE") && strings.Contains(u.Reason, "changed too") {
+			if strings.HasPrefix(u.ReasonCode, "direct-source") {
 				res.WholeWithTests++
 			}
 		} else {

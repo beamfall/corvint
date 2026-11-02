@@ -441,7 +441,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			globs[glob] = true
 		}
 		for _, name := range scan.tokens {
-			names[name] = true
+			if !scan.fixtureOnly(name, isTest) {
+				names[name] = true
+			}
 			if reason := escapesPackage(directory, name, isTest); reason != "" {
 				reads.mark(relative+" "+reason, isTest)
 			}
@@ -594,10 +596,28 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 
 // fileScan is what one lexing pass over a file's body after its imports
 // yields: its path tokens, its root-locating calls, and any lexical error.
+// fixture holds each token that only literals on a line carrying
+// FixturePathMarker hold (AFP-V0-551).
 type fileScan struct {
-	tokens []string
-	calls  []string
-	err    error
+	tokens  []string
+	calls   []string
+	err     error
+	fixture map[string]bool
+}
+
+// FixturePathMarker is the per-literal fixture marker of ASD-V0-895: a test
+// file's string literal that starts or ends on a line carrying this comment is
+// a path written into or compared against a temporary repository and names no
+// read. A token only such literals of a test file hold is no path token of the
+// unit, so it selects no PATH_LITERAL_READER (AFP-V0-551); a token any
+// unmarked literal of the file also holds stays, and the marked literal still
+// counts toward the unit's unbounded-read reasons.
+const FixturePathMarker = "//corvint:fixture-path"
+
+// fixtureOnly reports whether a test file's token is one fileScan.fixture
+// holds.
+func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
+	return isTest && scan.fixture[name]
 }
 
 // pathTokens lexes body for the path tokens of every string literal, with the
@@ -609,12 +629,22 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	aliases, dotImported := rootLocatorImports(imports)
 	var scan fileScan
 	var lexer scanner.Scanner
-	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, 0)
+	source := token.NewFileSet().AddFile("", -1, len(body))
+	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
 	previous := [2]string{}
+	var literals []scannedLiteral
+	markers := map[int]bool{}
 	for {
-		_, kind, text := lexer.Scan()
+		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
+			scan.fixture = fixtureTokens(literals, markers)
 			return scan
+		}
+		if kind == token.COMMENT {
+			if strings.TrimSpace(text) == FixturePathMarker {
+				markers[source.Line(position)] = true
+			}
+			continue
 		}
 		if kind == token.IDENT {
 			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
@@ -627,8 +657,38 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		if err != nil {
 			continue
 		}
-		scan.tokens = append(scan.tokens, literalTokens(value, modulePath)...)
+		tokens := literalTokens(value, modulePath)
+		scan.tokens = append(scan.tokens, tokens...)
+		literals = append(literals, scannedLiteral{tokens: tokens, start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
 	}
+}
+
+// scannedLiteral is one string literal's tokens with its first and last line.
+type scannedLiteral struct {
+	tokens     []string
+	start, end int
+}
+
+// fixtureTokens returns the tokens only literals starting or ending on a
+// marker line hold, nil without a marker (AFP-V0-551, ASD-V0-895).
+func fixtureTokens(literals []scannedLiteral, markers map[int]bool) map[string]bool {
+	if len(markers) == 0 {
+		return nil
+	}
+	marked, blocked := map[string]bool{}, map[string]bool{}
+	for _, item := range literals {
+		for _, value := range item.tokens {
+			if markers[item.start] || markers[item.end] {
+				marked[value] = true
+			} else {
+				blocked[value] = true
+			}
+		}
+	}
+	for value := range blocked {
+		delete(marked, value)
+	}
+	return marked
 }
 
 // literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.
