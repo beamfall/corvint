@@ -2748,6 +2748,9 @@ TCL-V0-825	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing l
 TCL-V0-826	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4208) The	standing	2026-11-01; V1-4208
 TCL-V0-827	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4208) An	standing	2026-11-01; V1-4208
 TCL-V0-815	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4184; refines	standing	2026-11-01; V1-4184
+TCL-V0-610	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1)	standing	2026-11-01; V1-3738
+TCL-V0-611	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3738 AC1,	standing	2026-11-01; V1-3738
+TCL-V0-612	docs/specs/corvint-tasks-cli-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3714 AC3)	standing	2026-11-01; V1-3714
 TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
 TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
 TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-
