@@ -622,8 +622,8 @@ HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 hvp sub go test -run X ./... > /dev/null 2>
 # ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE; that
 # default follows TMPDIR (hv sets $off/ltmp), as the Makefile's does (ASD-V0-914, V1-3796).
 out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(unset GOCACHE
-  CORVINT_GOCACHE=/x/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE=/y/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
-[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == "where=local dir=sub gocache=$off/ltmp/corvint-go-build-cache where=local dir=sub gocache=/x/c where=local dir=sub gocache=/y/c " ]] ||
+  CORVINT_GOCACHE="$off/x/c" HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE="$off/y/c" HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
+[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == "where=local dir=sub gocache=$off/ltmp/corvint-go-build-cache where=local dir=sub gocache=$off/x/c where=local dir=sub gocache=$off/y/c " ]] ||
   fail "heavy.sh local Go cache: $out"
 # ASD-V0-914 (V1-3796): the Makefile's CORVINT_GOCACHE default follows TMPDIR (a trailing `/` dropped),
 # else /tmp; an explicit CORVINT_GOCACHE still wins.
@@ -646,7 +646,9 @@ out+=$(HEAVY_REMOTE_HOST=box GOFLAGS=-cpuprofile=p.out hv go test ./... 2> /dev/
   fail "heavy.sh fallback log: $(cat "$off/fallback.log")"
 ok
 # ASD-V0-028: a TERM to the wrapper during an offload stops its ssh at once and exits 143.
-(cd "$off/lc/sub" && exec env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+term_scratch=$off/term-scratch
+mkdir -p "$term_scratch"
+(cd "$off/lc/sub" && exec env PATH="$off/bin:$PATH" TMPDIR="$term_scratch" HEAVY_REMOTE_SSH="$off/bin/ssh" \
   HEAVY_REMOTE_HOST=hang HEAVY_REMOTE_RETRY=0 HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" go test ./...) 2> /dev/null &
 wrapper=$!
 wait_for "$off/hang.pid"
@@ -654,7 +656,7 @@ kill -TERM "$wrapper"
 wait "$wrapper"
 rc=$?
 gone "$(cat "$off/hang.pid")" || { kill "$(cat "$off/hang.pid")" 2> /dev/null; fail "heavy.sh left ssh running after TERM"; }
-[[ $rc == 143 && -z $(ls -A "$off/ltmp") ]] || fail "heavy.sh TERM during offload: exit $rc, scratch $(ls -A "$off/ltmp")"
+[[ $rc == 143 && -z $(ls -A "$term_scratch") ]] || fail "heavy.sh TERM during offload: exit $rc, scratch $(ls -A "$term_scratch")"
 ok
 # ASD-V0-028: HEAVY_CONFIG supplies settings the environment leaves unset; the environment wins.
 printf '# lane host\nHEAVY_REMOTE_HOST=box\nHEAVY_REMOTE_SHELL="bash -s"\nNOT_HEAVY=1\n' > "$off/heavy.env"
@@ -1456,10 +1458,68 @@ x=$tf/xdg
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
   grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
   fail "heavy.sh tmpfs defaults: $(tfv HEAVY_TMP_FSTYPE=tmpfs) $(cat "$tf/err")"
-[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE=/c) == "tmp=$tf cache=/c corvint=/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE=/g) == "tmp=$tf cache=/g corvint=" ]] &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3) == 'tmp= cache=/tmp/corvint-go-build-cache corvint=' ]] ||
+[[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE="$tf/c") == "tmp=$tf cache=$tf/c corvint=$tf/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE="$tf/g") == "tmp=$tf cache=$tf/g corvint=" ]] &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 TMPDIR="$tf/disk") == "tmp=$tf/disk cache=$tf/disk/corvint-go-build-cache corvint=" ]] ||
   fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
+# ASD-V0-1972 (V1-4328): mkdir succeeds on existing read-only sandbox paths, but the actual write
+# probe must refuse before running anything, name every override once and permit a corrected run.
+wp=$tmp/writable-paths
+mkdir -p "$wp/locks" "$wp/scratch" "$wp/cache" "$wp/ro" "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"
+wprun() { (cd "$wp" && env -u GOTMPDIR -u CORVINT_GOCACHE HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" \
+  HEAVY_FALLBACK_LOG="$wp/fallback.log" TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$@" "$heavy" sh -c ': > ran' > "$wp/out" 2> "$wp/err"); }
+wp_refused() {
+  local rc=$1 name
+  [[ $rc == 2 && ! -e $wp/ran && $(cat "$wp/out") == 'heavy.sh: REFUSED unwritable-paths (exit 2)' ]] &&
+    [[ $(grep -c '^heavy.sh: REFUSE ' "$wp/err") == 1 && $(grep -c '^fix: ' "$wp/err") == 1 ]] ||
+    fail "heavy.sh writable-path refusal rc=$rc: $(cat "$wp/out" "$wp/err")"
+  for name in HEAVY_LOCK_DIR HEAVY_SELECTION_LOG HEAVY_FALLBACK_LOG TMPDIR GOTMPDIR GOCACHE CORVINT_GOCACHE; do
+    grep -q "^fix: .* $name=" "$wp/err" || fail "heavy.sh writable-path fix lacks $name: $(cat "$wp/err")"
+  done
+}
+if [[ $(id -u) != 0 ]]; then
+  chmod 555 "$wp/ro"
+  for name in HEAVY_LOCK_DIR TMPDIR GOCACHE CORVINT_GOCACHE GOTMPDIR; do
+    wprun "$name=$wp/ro"; rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable $name=$wp/ro" "$wp/err" || fail "heavy.sh did not identify $name: $(cat "$wp/err")"
+  done
+  : > "$wp/readonly.log"; chmod 444 "$wp/readonly.log"
+  for name in HEAVY_SELECTION_LOG HEAVY_FALLBACK_LOG; do
+    wprun "$name=$wp/readonly.log"; rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable $name=$wp/readonly.log" "$wp/err" || fail "heavy.sh did not identify $name: $(cat "$wp/err")"
+  done
+  : > "$wp/locks/slot1"; chmod 444 "$wp/locks/slot1"
+  wprun; rc=$?
+  wp_refused "$rc"
+  grep -qF "($wp/locks/slot1)" "$wp/err" || fail "heavy.sh did not identify the read-only slot: $(cat "$wp/err")"
+  chmod 644 "$wp/locks/slot1"
+  # A command's explicit cache override must be checked even when the wrapper's own cache works.
+  (cd "$wp" && env HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" HEAVY_FALLBACK_LOG="$wp/fallback.log" \
+    TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$heavy" env GOCACHE="$wp/ro" sh -c ': > ran' > "$wp/out" 2> "$wp/err"); rc=$?
+  wp_refused "$rc"
+  grep -qF "heavy.sh: unwritable GOCACHE=$wp/ro" "$wp/err" || fail "heavy.sh ignored a wrapped cache override: $(cat "$wp/err")"
+  wprun HEAVY_LOCK_DIR="$wp/ro" TMPDIR="$wp/ro" GOCACHE="$wp/ro" HEAVY_SELECTION_LOG="$wp/readonly.log" HEAVY_FALLBACK_LOG="$wp/readonly.log"; rc=$?
+  wp_refused "$rc"
+  # The home-disk defaults are subject to the same check even though both directories exist.
+  chmod 555 "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"
+  wprun env -u TMPDIR -u GOCACHE HEAVY_TMP_FSTYPE=tmpfs XDG_CACHE_HOME="$wp/home-cache"; rc=$?
+  wp_refused "$rc"
+  grep -qF "heavy.sh: unwritable TMPDIR=$wp/home-cache/corvint-tmp" "$wp/err" &&
+    grep -qF "heavy.sh: unwritable GOCACHE=$wp/home-cache/corvint-go-build-cache" "$wp/err" || fail "heavy.sh trusted existing home-cache paths: $(cat "$wp/err")"
+  chmod 755 "$wp/ro" "$wp/home-cache/corvint-tmp" "$wp/home-cache/corvint-go-build-cache"; chmod 644 "$wp/readonly.log"
+else
+  printf 'lane-scripts_test: SKIP chmod read-only paths (root bypasses mode bits)\n'
+fi
+# A non-directory also exercises the refusal under root, and --print-lock-dir stays read-only.
+: > "$wp/not-a-dir"
+wprun HEAVY_LOCK_DIR="$wp/not-a-dir/locks"; rc=$?
+wp_refused "$rc"
+[[ $(HEAVY_LOCK_DIR="$wp/missing/locks" "$heavy" --print-lock-dir) == "$wp/missing/locks" && ! -e $wp/missing ]] || fail "heavy.sh --print-lock-dir wrote a directory"
+wprun && [[ -e $wp/ran ]] || fail "heavy.sh refused writable overrides: $(cat "$wp/out" "$wp/err")"
+[[ -z $(find "$wp" -name '.heavy-write.*' -print) ]] || fail "heavy.sh left write-probe files"
+ok
 # ASD-V0-104 (V1-3787): a local run trims its GOCACHE with go-cache-trim.sh --apply at most once per
 # HEAVY_CACHE_TRIM_HOURS (a stamp in the lock dir); 0 disables it and a malformed value refuses. The
 # df stub reports a 1 MiB file system, so the 40% bound is below the one old 1 MiB entry.
@@ -2387,8 +2447,8 @@ GIT_CONFIG_GLOBAL=$hid/tmp hv_id go test -run TestA ./x > /dev/null 2> "$hid/err
 # V1-3523: a read-only TMPDIR, then an index that cannot be read, refuse before the command runs.
 mkdir -p "$hid/ro" && chmod 555 "$hid/ro"
 ID_TMPDIR=$hid/ro hv_id go test -run TestA ./x > "$hid/out" 2> "$hid/err"
-[[ $? == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED index-copy-failed (exit 2)' && ! -e $hid/ran ]] &&
-  grep -q "^heavy.sh: REFUSE index-copy-failed cannot copy the Git index to a scratch file in $hid/ro on volume /.* KiB free): .*set TMPDIR to a writable directory with space\$" "$hid/err" ||
+[[ $? == 2 && $(cat "$hid/out") == 'heavy.sh: REFUSED unwritable-paths (exit 2)' && ! -e $hid/ran ]] &&
+  grep -qF "heavy.sh: unwritable TMPDIR=$hid/ro" "$hid/err" && grep -q '^fix: .* TMPDIR=' "$hid/err" ||
   fail "heavy.sh read-only TMPDIR (ran=$([[ -e $hid/ran ]] && echo yes)): $(cat "$hid/out" "$hid/err")"
 chmod 755 "$hid/ro"
 if [[ $(id -u) != 0 ]]; then

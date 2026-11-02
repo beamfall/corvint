@@ -160,10 +160,17 @@ pi_tuple "$pi_version"
 if ! command -v node > /dev/null 2>&1; then
   printf 'batch-precheck_test: SKIP case 1b: node is not on PATH, so the Pi tuple test is NOT_RUN\n'
 else
-node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
+# Run node:test in this process with an explicit TAP reporter. Node 22's isolated --test runner
+# can collapse a failing file to ERR_TEST_FAILURE without reporting the assertion's test name.
+# ASD-V0-1970: require a named pass as well as a named failure, never just a nonzero Node exit.
+pi_capabilities() { node --test-reporter=tap --test-name-pattern='^PWV-V0-011 registered tools' "$pi/integrations/pi/capabilities.test.mjs"; }
+pi_capabilities > "$tmp/out" 2>&1 || fail "matching Pi tuple failed: $(tail -40 "$tmp/out")"
+grep -q '^ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "matching tuple did not run PWV-V0-011: $(tail -40 "$tmp/out")"
 pi_tuple "0.0.0-stale"
-node --test "$pi/integrations/pi/capabilities.test.mjs" > "$tmp/out" 2>&1 && fail "a stale Pi spec tuple passed"
+pi_capabilities > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a stale Pi spec tuple did not exit 1: $(tail -40 "$tmp/out")"
 grep -q '^not ok .* PWV-V0-011 registered tools' "$tmp/out" || fail "stale tuple did not fail PWV-V0-011: $(tail -40 "$tmp/out")"
+grep -q "adapterVersion: '0.0.0-stale'" "$tmp/out" || fail "stale tuple assertion did not name its adapter version: $(tail -40 "$tmp/out")"
 fi
 
 # 2. A fixture repository, workflow and packages.
@@ -783,6 +790,22 @@ grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "vol
 printf 'timeout limit 3s exceeded\n--- FAIL: TestX (0.01s)\n' > "$crepo/fail-test-commands-check"
 crun --base "$base2" && fail "a changed diagnostic number was classified base-present"
 grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "diagnostic number: $(cat "$tmp/out")"
+
+# 6b. ASD-V0-1971 (V1-4327): moving a failing test changes locations and group totals, not its
+# finding. A second finding in the same output must still be introduced.
+printf 'lane-scripts_test: FAIL inherited mismatch 42\nlane-scripts_test: 10 groups passed, 1 failed:\n  group 7: line 123: inherited mismatch 42\n  - case "6b. stable case" line 125: inherited mismatch 42\n    fixture_test.go:17:9: inherited mismatch 42\nbatch-precheck_test: FAIL 1 case(s):\n' > "$crepo/fail-test-commands-check"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm shifted-base || fail "shifted base commit"
+shiftbase=$(git -C "$crepo" rev-parse HEAD)
+sed -e 's/10 groups/11 groups/' -e 's/group 7: line 123:/group 8: line 145:/' -e 's/line 125:/line 147:/' -e 's/fixture_test.go:17:9:/fixture_test.go:29:4:/' \
+  "$crepo/fail-test-commands-check" > "$tmp/shifted"
+cp "$tmp/shifted" "$crepo/fail-test-commands-check"
+crun --base "$shiftbase" || fail "shifted inherited finding counted as new: $(cat "$tmp/out")"
+grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "shifted finding not warned: $(cat "$tmp/out")"
+printf 'lane-scripts_test: FAIL genuinely new mismatch 43\n  group 9: line 160: genuinely new mismatch 43\n' >> "$crepo/fail-test-commands-check"
+sed -e 's/1 failed:/2 failed:/' -e 's/FAIL 1 case(s):/FAIL 2 case(s):/' "$crepo/fail-test-commands-check" > "$tmp/shifted"
+cp "$tmp/shifted" "$crepo/fail-test-commands-check"
+crun --base "$shiftbase" && fail "new finding hidden beside shifted inherited failure"
+grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "shifted plus new finding: $(cat "$tmp/out")"
 
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input
