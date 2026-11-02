@@ -281,7 +281,11 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
-	if freshness := selfBinaryStale(ctx, root); freshness.Code != "" {
+	// HEAD is resolved once: the stale-binary check and the source identity
+	// below both use it, so the check spawns no rev-parse of its own. When it
+	// cannot be resolved, the check resolves HEAD itself as before (AFP-V0-825).
+	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
+	if freshness := selfBinaryStaleAt(ctx, root, head); freshness.Code != "" {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
 	}
 	receiptFlag := "--receipt"
@@ -306,7 +310,11 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	identify := func(ctx context.Context) (sessiontest.SourceIdentity, error) {
 		return testSourceIdentity(ctx, gitExecutable, root)
 	}
-	source, observed, err := testObserveSource(ctx, gitExecutable, root)
+	var source sessiontest.SourceIdentity
+	var observed *affectedObservation
+	if err = headErr; err == nil {
+		source, observed, err = testObserveSourceAt(ctx, gitExecutable, root, head)
+	}
 	if err != nil {
 		emitError(stderr, &gokernel.Error{Code: "invalid-arguments", Message: "test cannot capture the source identity: " + err.Error()})
 		return 2
@@ -620,6 +628,11 @@ func testObserveSource(ctx context.Context, gitExecutable, root string) (session
 	if err != nil {
 		return sessiontest.SourceIdentity{}, nil, err
 	}
+	return testObserveSourceAt(ctx, gitExecutable, root, head)
+}
+
+// testObserveSourceAt is testObserveSource for an already-resolved HEAD.
+func testObserveSourceAt(ctx context.Context, gitExecutable, root, head string) (sessiontest.SourceIdentity, *affectedObservation, error) {
 	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
 	defer cancel()
 	tree, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", head+"^{tree}").Output()

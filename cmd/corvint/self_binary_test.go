@@ -56,15 +56,15 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 	ctx := context.Background()
 	root, built := selfBinaryRepository(t)
 	own := selfBinaryInfo("example.test/self", built)
-	if freshness := binaryStaleAgainst(ctx, root, own); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, own, ""); freshness.Code != "" {
 		t.Fatalf("a binary built at HEAD is judged %+v", freshness)
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"self_test.go": "package self\n", "README.md": "docs\n", "testdata/x.go": "package x\n"})
-	if freshness := binaryStaleAgainst(ctx, root, own); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, own, ""); freshness.Code != "" {
 		t.Fatalf("a test, documentation or testdata change is judged %+v", freshness)
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
-	freshness := binaryStaleAgainst(ctx, root, own)
+	freshness := binaryStaleAgainst(ctx, root, own, "")
 	if freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, "1 Go source paths differ at HEAD: self.go;") || !strings.Contains(freshness.Detail, "go install ./cmd/corvint") {
 		t.Fatalf("a Go source change was not reported with its recovery: %+v", freshness)
 	}
@@ -72,12 +72,12 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 		"another module": selfBinaryInfo("example.test/other", built),
 		"no Git stamp":   {Main: debug.Module{Path: "example.test/self"}},
 	} {
-		if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+		if freshness := binaryStaleAgainst(ctx, root, info, ""); freshness.Code != "" {
 			t.Errorf("%s: judged %+v", name, freshness)
 		}
 	}
 	missing := selfBinaryInfo("example.test/self", strings.Repeat("ab", 20))
-	if freshness := binaryStaleAgainst(ctx, root, missing); freshness.Code != selfBinaryUnverifiedCode || !strings.Contains(freshness.Detail, "could not be compared with HEAD") {
+	if freshness := binaryStaleAgainst(ctx, root, missing, ""); freshness.Code != selfBinaryUnverifiedCode || !strings.Contains(freshness.Detail, "could not be compared with HEAD") {
 		t.Fatalf("a commit absent here was not reported unverified: %+v", freshness)
 	}
 }

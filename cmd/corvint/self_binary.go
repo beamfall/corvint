@@ -47,11 +47,18 @@ type binaryFreshness struct {
 
 // selfBinaryStale judges this binary against root (AFP-V0-846).
 func selfBinaryStale(ctx context.Context, root string) binaryFreshness {
+	return selfBinaryStaleAt(ctx, root, "")
+}
+
+// selfBinaryStaleAt is selfBinaryStale with HEAD already resolved by the
+// caller, so the judgement spawns no rev-parse of its own; "" resolves it
+// here (AFP-V0-825).
+func selfBinaryStaleAt(ctx context.Context, root, head string) binaryFreshness {
 	info, ok := selfBuildInfo()
 	if !ok {
 		return binaryFreshness{}
 	}
-	return binaryStaleAgainst(ctx, root, info)
+	return binaryStaleAgainst(ctx, root, info, head)
 }
 
 // executableStale is selfBinaryStale for the executable at path, read with
@@ -61,15 +68,16 @@ func executableStale(ctx context.Context, root, path string) binaryFreshness {
 	if err != nil {
 		return binaryFreshness{}
 	}
-	return binaryStaleAgainst(ctx, root, info)
+	return binaryStaleAgainst(ctx, root, info, "")
 }
 
 // binaryStaleAgainst compares the Git commit stamped into info with HEAD at
-// root: equal commits are fresh after one rev-parse; otherwise one bounded
+// root, the full commit id head or, when head is "", one rev-parse: equal
+// commits are fresh; otherwise one bounded
 // tree diff of the non-test Go source and module files decides. It judges
 // nothing for a binary without a Git stamp (a -buildvcs=false or release
 // build), or for a repository whose module is not the binary's own.
-func binaryStaleAgainst(ctx context.Context, root string, info *debug.BuildInfo) binaryFreshness {
+func binaryStaleAgainst(ctx context.Context, root string, info *debug.BuildInfo, head string) binaryFreshness {
 	commit := producerFrom(version, build, info).Commit
 	if commit == producerUnknown || info.Main.Path == "" {
 		return binaryFreshness{}
@@ -84,11 +92,14 @@ func binaryStaleAgainst(ctx context.Context, root string, info *debug.BuildInfo)
 	deadline, cancel := context.WithTimeout(ctx, selfBinaryDiffDeadline)
 	defer cancel()
 	unverified := binaryFreshness{Code: selfBinaryUnverifiedCode, Detail: fmt.Sprintf("this binary was built from commit %s, which could not be compared with HEAD here (the commit is absent, Git failed or the %s deadline expired); if the commit is absent, rebuild it from this checkout (go install ./cmd/corvint)", shortRevision(commit), selfBinaryDiffDeadline)}
-	head, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", "HEAD^{commit}").Output()
-	if err != nil {
-		return unverified
+	if head == "" {
+		resolved, err := hermeticGitCommand(deadline, gitExecutable, root, "rev-parse", "--verify", "--quiet", "HEAD^{commit}").Output()
+		if err != nil {
+			return unverified
+		}
+		head = strings.TrimSpace(string(resolved))
 	}
-	if strings.TrimSpace(string(head)) == commit {
+	if head == commit {
 		return binaryFreshness{}
 	}
 	command := hermeticGitCommand(deadline, gitExecutable, root, "diff", "--name-only", "-z", "--no-renames", commit, "HEAD", "--",
