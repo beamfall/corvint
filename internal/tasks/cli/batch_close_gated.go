@@ -62,6 +62,23 @@ type gatedRow struct {
 	doc                   []byte
 	docSum                wire.Digest
 	attached              bool
+	scope                 *claimScope
+}
+
+// Claim scope sources of a gated row (TCD-V0-1101, TCD-V0-1102).
+const (
+	scopeDiff      = "DIFF"
+	scopeDeclared  = "DECLARED"
+	scopeCollapsed = "COLLAPSED"
+)
+
+// claimScope is the bounded scope one gated row claims with: the diff
+// itself (--scope-from-diff), the ticket's declared scope, or the diff
+// collapsed to directory keys (--scope).
+type claimScope struct {
+	source  string
+	changed int
+	keys    []string
 }
 
 // parseSeals reads --seal LOCAL=COMMIT[,LOCAL=COMMIT...].
@@ -183,6 +200,7 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 		return
 	}
 	g.tree = tree
+	b.planScope(r, rec, g)
 	for _, id := range transaction.RequiredGates(policy, rec) {
 		if b.ciRun != "" && policy.CIEvidenceGate(id) != nil {
 			g.gates = append(g.gates, gateStep{id: id, via: "CI", state: "PLANNED"})
@@ -203,6 +221,91 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 			g.attached = true
 		}
 	}
+}
+
+// planScope derives the row's bounded claim scope before any write
+// (TCD-V0-1101). A diff within the claim limit claims with --scope-from-diff
+// as before. Over the limit, a declared scope is the claim scope and must
+// cover every changed path; any other ticket claims the diff collapsed to
+// directory keys. No bounded scope makes the row UNRUNNABLE, never a
+// WHOLE_REPOSITORY claim.
+func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
+	paths, err := store.ChangedPaths(b.root, g.base, g.candidate)
+	if err != nil {
+		r.unrunnable(wire.CodePrerequisiteUnsatisfied, "the diff of "+g.candidate+" against "+g.base+" is unreadable here: "+prose(err.Error()), "run `git fetch origin` and rerun, or close it explicitly with --manual")
+		return
+	}
+	g.scope = &claimScope{source: scopeDiff, changed: len(paths), keys: []string{}}
+	if len(paths) <= wire.MaxTouchPaths {
+		return
+	}
+	n := strconv.Itoa(len(paths))
+	if declared := transaction.Declared(rec); len(declared) > 0 {
+		g.scope.source, g.scope.keys = scopeDeclared, declared
+		var bad []string
+		for _, p := range paths {
+			if !slices.ContainsFunc(declared, func(k string) bool { return ticket.PathCovers(k, p) }) {
+				bad = append(bad, p)
+			}
+		}
+		if len(bad) > 0 {
+			r.unrunnable(wire.CodeOutOfScope, strconv.Itoa(len(bad))+" of the "+n+" changed paths of "+g.candidate+" lie outside the ticket's declared scope (first: "+prose(bad[0])+"); batch-close never widens a declared scope",
+				"pass --seal "+r.local+"=<sealed lane commit> so the diff is the lane's own, or close it explicitly with --manual")
+		}
+		return
+	}
+	keys, ok := collapseScope(paths, wire.MaxTouchPaths)
+	g.scope.source, g.scope.keys = scopeCollapsed, keys
+	if !ok {
+		r.unrunnable(wire.CodeLimitExceeded, "the "+n+" changed paths of "+g.candidate+" do not collapse to "+strconv.Itoa(wire.MaxTouchPaths)+" directory keys: "+strconv.Itoa(len(keys))+" top-level entries remain",
+			"pass --seal "+r.local+"=<sealed lane commit> so the diff is the lane's own, or close it explicitly with --manual")
+	}
+}
+
+// collapseScope collapses paths to at most limit PATH keys (TCD-V0-1101):
+// each round replaces every entry at the deepest depth by its parent
+// directory key (ending in "/") and drops the entries a key covers. It
+// reports false, with the top-level entries, when even they exceed limit.
+func collapseScope(paths []string, limit int) ([]string, bool) {
+	depth := func(p string) int { return strings.Count(strings.TrimSuffix(p, "/"), "/") + 1 }
+	set := slices.Clone(paths)
+	slices.Sort(set)
+	set = slices.Compact(set)
+	for len(set) > limit {
+		deepest := 0
+		for _, p := range set {
+			deepest = max(deepest, depth(p))
+		}
+		if deepest <= 1 {
+			return set, false
+		}
+		next := map[string]bool{}
+		for _, p := range set {
+			if depth(p) == deepest {
+				t := strings.TrimSuffix(p, "/")
+				p = t[:strings.LastIndex(t, "/")+1]
+			}
+			next[p] = true
+		}
+		set = set[:0]
+		for p := range next {
+			covered := false
+			t := strings.TrimSuffix(p, "/")
+			for i := strings.Index(t, "/"); i >= 0 && !covered; {
+				covered = next[t[:i+1]]
+				j := strings.Index(t[i+1:], "/")
+				if j < 0 {
+					break
+				}
+				i += j + 1
+			}
+			if !covered {
+				set = append(set, p)
+			}
+		}
+		slices.Sort(set)
+	}
+	return set, true
 }
 
 // unrunnable refuses the row before any write, keeping the first code and
@@ -286,11 +389,21 @@ func (r *closeRow) runGated(env Env, cmd []string, actor mutation.Binding, b *ga
 		g.attached = true
 	}
 	g.step = "claim"
-	res := lease("claim", r.hit.ticketID, "--holder", batchCloseHolder, "--request-id", id("claim"), "--base", g.base, "--scope-from-diff", g.candidate, "--lease-minutes", batchCloseLeaseMinutes)
+	claim := []string{r.hit.ticketID, "--holder", batchCloseHolder, "--request-id", id("claim"), "--base", g.base, "--lease-minutes", batchCloseLeaseMinutes}
+	switch {
+	case g.scope == nil || g.scope.source == scopeDiff:
+		claim = append(claim, "--scope-from-diff", g.candidate)
+	case g.scope.source == scopeCollapsed:
+		claim = append(append(claim, "--scope"), g.scope.keys...)
+	}
+	res := lease("claim", claim...)
 	if res.Outcome != wire.OutcomeOK {
 		r.failResult(res)
-		if r.code == wire.CodeOutOfScope {
+		switch r.code {
+		case wire.CodeOutOfScope:
 			r.recovery = "the candidate diff touches paths outside the ticket's declared scope, which batch-close never widens; pass --seal " + r.local + "=<sealed lane commit> so the diff is the lane's own, or close it with claim, submit, gate run and complete by hand"
+		case wire.CodeLimitExceeded:
+			r.recovery = "the claim scope exceeds the claim limit, and batch-close never claims WHOLE_REPOSITORY; pass --seal " + r.local + "=<sealed lane commit> so the diff is the lane's own, or close it explicitly with --manual"
 		}
 		return
 	}
@@ -433,7 +546,7 @@ func gatedRowValue(o *wire.Object, r closeRow) {
 	o.Set("mode", wire.String("GATED"))
 	g := r.g
 	if g == nil {
-		for _, k := range []string{"step", "candidateCommit", "baseCommit", "sealCommit", "attemptId", "completionKind", "mergeEvidence"} {
+		for _, k := range []string{"step", "candidateCommit", "baseCommit", "sealCommit", "attemptId", "completionKind", "claimScope", "mergeEvidence"} {
 			o.Set(k, wire.Null())
 		}
 		o.Set("gates", wire.Array())
@@ -450,6 +563,15 @@ func gatedRowValue(o *wire.Object, r closeRow) {
 	o.Set("gates", wire.Array(gates...))
 	o.Set("attemptId", orNull(g.attemptID))
 	o.Set("completionKind", orNull(g.completionKind))
+	o.Set("claimScope", batchScopeValue(g.scope))
 	doc, _ := wire.Parse(g.doc)
 	o.Set("mergeEvidence", wire.ObjectValue(wire.NewObject().Set("sha256", wire.String(string(g.docSum))).Set("attached", wire.Bool(g.attached)).Set("document", doc)))
+}
+
+// batchScopeValue is a row's TCD-V0-1102 claimScope, null when unplanned.
+func batchScopeValue(c *claimScope) wire.Value {
+	if c == nil {
+		return wire.Null()
+	}
+	return wire.ObjectValue(wire.NewObject().Set("source", wire.String(c.source)).Set("changedPaths", count(c.changed)).Set("keys", wire.Strings(c.keys)))
 }
