@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
@@ -125,4 +126,47 @@ func sortedCopy(in []string) []string {
 		}
 	}
 	return out
+}
+
+// LGL-V0-814: a seal whose reads, unlinks and directory syncs run in
+// parallel writes exactly the bytes the one-at-a-time seal wrote -- every
+// segment, the manifest and head.json -- and the sealed store audits to the
+// same verdicts. Both seals run on one store: an unseal between them
+// restores the tree byte for byte (JSG-V0-013).
+func TestLGLV0814_ParallelSealWritesTheSameBytes(t *testing.T) {
+	ctx := context.Background()
+	repo := historyStore(t, 3*snapshot.SegmentReceipts+30)
+	sealWith := func(workers int) (map[string]string, *journal.Result) {
+		t.Helper()
+		old := sealWorkers
+		sealWorkers = workers
+		defer func() { sealWorkers = old }()
+		if _, err := SealJournal(ctx, repo); err != nil {
+			t.Fatalf("seal with %d workers: %v", workers, err)
+		}
+		tree := map[string]string{}
+		for p, raw := range stateTree(t, repo) {
+			if p == "head.json" || strings.HasPrefix(p, snapshot.SegmentsDir+"/") || strings.HasPrefix(p, "receipts/") || strings.HasPrefix(p, "requests/") {
+				tree[p] = raw
+			}
+		}
+		res, err := segmentAudit(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tree, res
+	}
+	serial, a := sealWith(1)
+	if _, err := UnsealJournal(ctx, repo); err != nil {
+		t.Fatal(err)
+	}
+	parallel, b := sealWith(32)
+	if !reflect.DeepEqual(serial, parallel) {
+		t.Fatalf("parallel seal wrote different bytes: %d files serial, %d parallel", len(serial), len(parallel))
+	}
+	// The inventory digest hashes modification times, which the unseal and
+	// reseal rewrite, so the identity compared is the head and intent tree.
+	if a.LastSeq != b.LastSeq || a.LastReceiptSha256 != b.LastReceiptSha256 || a.Identity.HeadSha256 != b.Identity.HeadSha256 || a.Identity.IntentTreeSha256 != b.Identity.IntentTreeSha256 || a.StructuralConsistency != b.StructuralConsistency || a.ProjectionAgreement != b.ProjectionAgreement {
+		t.Fatalf("the two sealed stores audit differently: seq %s/%s identity %+v / %+v verdicts %s %s / %s %s", a.LastSeq, b.LastSeq, a.Identity, b.Identity, a.StructuralConsistency, a.ProjectionAgreement, b.StructuralConsistency, b.ProjectionAgreement)
+	}
 }

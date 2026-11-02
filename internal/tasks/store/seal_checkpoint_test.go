@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"reflect"
@@ -54,4 +55,43 @@ func TestLGLV0809_SealAndUnsealLeaveAReadCheckpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("unseal")
+}
+
+// LGL-V0-815: the read checkpoint a seal or unseal retains from its opening
+// complete audit is byte-identical to the one a complete audit of the
+// migrated journal derives.
+func TestLGLV0815_MigrationReusesTheOpeningCheckpoint(t *testing.T) {
+	t.Parallel()
+	ctx := context.Background()
+	repo := historyStore(t, segmentHistory)
+	fresh := func(label string) {
+		t.Helper()
+		retained, err := os.ReadFile(journal.CheckpointPath(repo.StateDir))
+		if err != nil {
+			t.Fatalf("%s: no checkpoint retained: %v", label, err)
+		}
+		head, err := readHead(repo)
+		if err != nil {
+			t.Fatal(err)
+		}
+		proof, err := lockedJournalReader(repo, head).Audit()
+		if err != nil {
+			t.Fatal(err)
+		}
+		cp := proof.Checkpoint()
+		if cp == nil {
+			t.Fatalf("%s: the migrated journal derives no checkpoint", label)
+		}
+		if !bytes.Equal(retained, cp.Encode()) {
+			t.Fatalf("%s: the reused opening checkpoint differs from the migrated journal's", label)
+		}
+	}
+	if _, err := SealJournal(ctx, repo); err != nil {
+		t.Fatal(err)
+	}
+	fresh("seal")
+	if _, err := UnsealJournal(ctx, repo); err != nil {
+		t.Fatal(err)
+	}
+	fresh("unseal")
 }
