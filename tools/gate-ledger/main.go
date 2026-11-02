@@ -1157,11 +1157,25 @@ func (l *ledger) prune() error {
 		}
 		records = append(records, aged{name, info.ModTime()})
 	}
-	sort.Slice(records, func(i, j int) bool { return records[i].at.Before(records[j].at) })
-	for _, old := range records[:len(records)-maxRecords] {
-		os.Remove(old.name)
+	for _, name := range oldestBeyond(records, maxRecords, func(r aged) time.Time { return r.at }, func(r aged) string { return r.name }) {
+		os.Remove(name)
 	}
 	return nil
+}
+
+// oldestBeyond names the oldest records beyond keep. Concurrent prunes of one
+// ledger remove files between the glob and the stat, so fewer than keep may be
+// left: then none is removed (a negative slice bound panicked the step).
+func oldestBeyond[T any](records []T, keep int, at func(T) time.Time, name func(T) string) []string {
+	if len(records) <= keep {
+		return nil
+	}
+	sort.Slice(records, func(i, j int) bool { return at(records[i]).Before(at(records[j])) })
+	var names []string
+	for _, r := range records[:len(records)-keep] {
+		names = append(names, name(r))
+	}
+	return names
 }
 
 // lock serialises concurrent runs of one key so the step executes once and the

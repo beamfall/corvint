@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
@@ -155,5 +156,25 @@ func TestStepLabelIsRecordedOutsideTheKey_ASDV0776(t *testing.T) {
 	}
 	if got := runs(t, root); got != 2 {
 		t.Fatalf("the steps ran %d times, want 2", got)
+	}
+}
+
+// TestOldestBeyondToleratesConcurrentPrunes: a prune whose glob saw more than
+// the bound but whose stats found fewer (another prune removed files between
+// them) removes nothing instead of panicking; otherwise it names the oldest.
+func TestOldestBeyondToleratesConcurrentPrunes(t *testing.T) {
+	type r struct {
+		n  string
+		at time.Time
+	}
+	base := time.Unix(1000, 0)
+	records := []r{{"c", base.Add(3)}, {"a", base.Add(1)}, {"b", base.Add(2)}}
+	at := func(x r) time.Time { return x.at }
+	name := func(x r) string { return x.n }
+	if got := oldestBeyond(records[:2], 5, at, name); got != nil {
+		t.Fatalf("fewer than the bound removed %q", got)
+	}
+	if got := oldestBeyond(records, 1, at, name); strings.Join(got, ",") != "a,b" {
+		t.Fatalf("oldest beyond 1: %q", got)
 	}
 }
