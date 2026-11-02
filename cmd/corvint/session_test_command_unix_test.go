@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -79,7 +80,7 @@ func sessionFixture(t *testing.T, mode string) (root, base, log string) {
 	affectedGit(t, root, "commit", "-qam", "change a")
 	bin := t.TempDir()
 	for name, body := range map[string]string{"go": sessionFakeGo, "make": sessionFakeMake} {
-		if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, name), []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -232,7 +233,7 @@ func TestSTRV0003CLIDeclaredRelativeCommandRunsFromRoot(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(script, []byte("#!/bin/sh\necho \"fake-tests $* in $(pwd)\" >> \"$SESSION_FAKE_LOG\"\n[ \"$1\" = --version ] && echo fake-tests 1\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\necho \"fake-tests $* in $(pwd)\" >> \"$SESSION_FAKE_LOG\"\n[ \"$1\" = --version ] && echo fake-tests 1\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	declaration := sessionDeclaration(`"python": ["./tools/fake-tests"]`)

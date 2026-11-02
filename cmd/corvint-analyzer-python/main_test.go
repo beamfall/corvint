@@ -21,6 +21,7 @@ import (
 	json "encoding/json/v2"
 
 	"github.com/Beamfall/corvint/internal/analyzerpython"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const candidateVector = `{"profile":"corvint-analyzer-candidate/experimental","family":"python","request_id":"request-vector","scope_id":"root","compilation_unit_id":"unit-1","target":{"os":"darwin","architecture":"arm64","abi":"none","features":[]},"inputs":[{"handle":"input-001","family":"py.source","path":"tooling/vector.py","sha256":"sha256:ec7673423ada93ef80011715786b9292af76bc065071428e6fbeca675c3b3427","content_base64":"aW1wb3J0IGV4YW1wbGUK"}]}` + "\n"
@@ -298,7 +299,7 @@ func TestBuiltCLIIsolationAllChannelsAndControls(t *testing.T) {
 	trap := "#!/bin/sh\nprintf process > \"$CORVINT_SPY_PROCESS\"\nexit 43\n"
 	for _, name := range []string{"python", "python3", "git", "sh", "bash"} {
 		path := filepath.Join(traps, name)
-		if err := os.WriteFile(path, []byte(trap), 0o700); err != nil {
+		if err := execfile.WriteFile(path, []byte(trap), 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}

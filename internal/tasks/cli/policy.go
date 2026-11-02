@@ -93,6 +93,11 @@ func policyCommand(env Env, args []string) *wire.Result {
 	o.Set("oldPolicySha256", digestOrNull(report.OldPolicySha256))
 	o.Set("newPolicySha256", digestOrNull(report.NewPolicySha256))
 	if report.Outcome.Outcome == mutation.OutcomeCompleted {
+		if pol, err := intent.DecodePolicy(raw); err == nil {
+			if w := intent.ReservedPolicyWarning(pol); w != "" {
+				res.Warnings = append(res.Warnings, w)
+			}
+		}
 		if fenceErr != nil {
 			o.Set("handoffFences", wire.Null())
 			res.Warnings = append(res.Warnings, "handoff fence preview NOT_OBSERVED ("+wire.CodeOf(fenceErr)+"); the policy update is committed")
@@ -199,7 +204,9 @@ func policyShow(env Env, args []string) *wire.Result {
 		return usage(cmd, "policy show takes no arguments")
 	}
 	var item wire.Value
+	reserved := ""
 	rc, err := withStore(env, func(rc *readCtx) error {
+		reserved = intent.ReservedPolicyWarning(rc.store.Policy)
 		p, err := wire.Parse(rc.store.Policy.Raw)
 		if err != nil {
 			return err
@@ -212,5 +219,8 @@ func policyShow(env Env, args []string) *wire.Result {
 	}
 	res := success(cmd, rc)
 	res.Items = []wire.Value{item}
+	if reserved != "" {
+		res.Warnings = append(res.Warnings, reserved)
+	}
 	return res
 }

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestWorkProductionFixtureIsolation(t *testing.T) {
@@ -55,7 +57,7 @@ func TestWorkProductionFixtureIsolation(t *testing.T) {
 			}
 		}
 		seedBefore, secondBefore := materializationManifest(t, seed), materializationManifest(t, second)
-		if err := os.WriteFile(filepath.Join(first, "script/corvint-work-queue"), []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(first, "script/corvint-work-queue"), []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
 			t.Fatal(err)
 		}
 		materializationGit(t, first, "config", "fixture.private", "true")

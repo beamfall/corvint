@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CRT-V0-005, CRT-V0-012, CRT-V0-015 (V1-2648): `run` drives all three arms
@@ -32,7 +34,7 @@ func TestRunDrivesAllThreeArmsEndToEnd(t *testing.T) {
 	prompts := t.TempDir()
 	recorder := filepath.Join(t.TempDir(), "recording-agent.sh")
 	script := "#!/bin/sh\nset -eu\nprintf '%s' \"$1\" > \"$(mktemp \"" + prompts + "/prompt.XXXXXX\")\"\nexec \"" + fakeAgent + "\" \"$1\"\n"
-	if err := os.WriteFile(recorder, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(recorder, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	document, _, err := runTrial(context.Background(), []string{

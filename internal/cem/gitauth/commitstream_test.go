@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -183,7 +184,7 @@ func TestVerifiedCommitTreesRejectsUnpinnedCommit(t *testing.T) {
 				t.Fatal(err)
 			}
 			script := "#!/bin/sh\nexec /bin/cat '" + strings.ReplaceAll(path, "'", "'\\''") + "'\n"
-			if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))

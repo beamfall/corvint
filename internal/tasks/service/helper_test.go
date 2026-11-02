@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -81,7 +82,7 @@ func newHelperHome(t *testing.T) (*serviceHome, *fakeSystemd) {
 	t.Helper()
 	s := newServiceHome(t)
 	helper := filepath.Join(s.home, "bin", "web-helper")
-	if err := os.WriteFile(helper, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := fixture.WriteExecutable(helper, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := Profile{Executable: s.exe, DispatchConfig: s.config, WorkRoot: s.work, Helpers: []Helper{{ID: "web", Cwd: s.work, Argv: []string{helper, "--port", "8080"}, Env: map[string]string{"MODE": "test"}, Foreground: true, StopWithProgram: true}}}.Encode()
@@ -313,7 +314,7 @@ func TestSERVICE500_HelperInstallAcceptedOnLinuxRefusedElsewhere(t *testing.T) {
 	if err := os.WriteFile(d.profile, []byte(strings.ReplaceAll(string(raw), s.home, d.home)), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(d.home, "bin", "web-helper"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := fixture.WriteExecutable(filepath.Join(d.home, "bin", "web-helper"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	_, err = d.install(t, "install-1", false)

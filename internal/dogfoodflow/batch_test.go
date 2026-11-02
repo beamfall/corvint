@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 type batchRepo struct {
@@ -631,7 +633,7 @@ func TestBatchCheckDCWV0039IgnoresRepositoryDriversAndHooks(t *testing.T) {
 	merge := testGit(t, repo.root, "rev-parse", "HEAD")
 	scratch := t.TempDir()
 	driverRan, hookRan, hook := filepath.Join(scratch, "driver-ran"), filepath.Join(scratch, "hook-ran"), filepath.Join(scratch, "fsmonitor")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+hookRan+"'\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\ntouch '"+hookRan+"'\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	testGit(t, repo.root, "config", "merge.forge.driver", "printf 'a1\\nAB2\\na3\\n' > %A; touch '"+driverRan+"'")

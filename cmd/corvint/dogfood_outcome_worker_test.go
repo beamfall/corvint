@@ -18,6 +18,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/dogfoodflow"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
@@ -547,7 +548,7 @@ func aggregateQualificationNativeSignals(t *testing.T, run portableRun, root, ke
 			marker := filepath.Join(bin, "ready")
 			quote := func(v string) string { return "'" + strings.ReplaceAll(v, "'", "'\\''") + "'" }
 			script := "#!/bin/sh\nparent=$(/bin/ps -p \"$PPID\" -o command=)\ncase \"$parent\" in *dogfood-verifier-worker*) trap '' TERM; /bin/sleep 60 & child=$!; printf '%s %s %s\\n' \"$PPID\" \"$$\" \"$child\" > " + quote(marker) + "; wait;; esac\nexec " + quote(realGit) + " \"$@\"\n"
-			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 				t.Fatal(err)
 			}
 			var stdout, stderr bytes.Buffer

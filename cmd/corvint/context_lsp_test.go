@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestContextLSPOffKeepsTheGoldenAndOnDegrades pins TCP-V0-043 and
@@ -29,7 +31,7 @@ func TestContextLSPOffKeepsTheGoldenAndOnDegrades(t *testing.T) {
 		}
 	}
 	fake := t.TempDir()
-	if err := os.WriteFile(filepath.Join(fake, "gopls"), []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(fake, "gopls"), []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fake+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -74,7 +76,7 @@ func TestContextLSPExplicitSelection(t *testing.T) {
 			}
 		}
 		fake := filepath.Join(t.TempDir(), "gopls")
-		if err := os.WriteFile(fake, []byte("#!/bin/sh\nexit 3\n"), 0755); err != nil {
+		if err := execfile.WriteFile(fake, []byte("#!/bin/sh\nexit 3\n"), 0755); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", filepath.Dir(fake)+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -96,7 +98,7 @@ func TestContextLSPDriftWithholdsPacket(t *testing.T) {
 			t.Run(mutation, func(t *testing.T) {
 				root := evidenceSummaryRepository(t)
 				fake := filepath.Join(t.TempDir(), "gopls")
-				if err := os.WriteFile(fake, []byte("#!/bin/sh\n"+mutation+"\nexit 3\n"), 0755); err != nil {
+				if err := execfile.WriteFile(fake, []byte("#!/bin/sh\n"+mutation+"\nexit 3\n"), 0755); err != nil {
 					t.Fatal(err)
 				}
 				t.Setenv("PATH", filepath.Dir(fake)+string(os.PathListSeparator)+os.Getenv("PATH"))

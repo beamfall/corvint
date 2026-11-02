@@ -28,11 +28,11 @@ register=.corvint/cem-lineage.tsv
 
 tips=()
 tip_count=0
-for ref in "${retained[@]}"; do
+for ref in ${retained[@]+"${retained[@]}"}; do
   if tip=$(git rev-parse --verify -q "$ref^{commit}"); then tips+=("$tip"); tip_count=$((tip_count + 1)); fi
 done
 if ((tip_count == 0)); then
-  echo "check-cem-base-retained: skipped: no retained ref resolves here (${retained[*]}); base retention is NOT_RUN"
+  echo "check-cem-base-retained: skipped: no retained ref resolves here (${retained[*]-}); base retention is NOT_RUN"
   exit 0
 fi
 
@@ -77,12 +77,12 @@ while IFS= read -r map; do
   fi
   reached=0
   if git cat-file -e "$base^{commit}" 2> /dev/null; then
-    for tip in "${tips[@]}"; do
+    for tip in ${tips[@]+"${tips[@]}"}; do
       if git merge-base --is-ancestor "$base" "$tip" 2> /dev/null; then reached=1; break; fi
     done
   fi
   if ((!reached)); then
-    echo "check-cem-base-retained: $map: base $base is not reachable from a retained ref (${retained[*]})" >&2
+    echo "check-cem-base-retained: $map: base $base is not reachable from a retained ref (${retained[*]-})" >&2
     echo "  fix: rebind the change on a base that ${retained[0]} reaches (make dogfood-change BASE=\$(git rev-parse ${retained[0]})), or label the map in $register (decision 0588)" >&2
     refused=1
   fi

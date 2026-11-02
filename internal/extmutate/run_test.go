@@ -363,6 +363,76 @@ func TestCCEV0174DirtyTestDriftDowngrades(t *testing.T) {
 	}
 }
 
+// CCE-V0-684 (V1-2882): editing an untracked test file between the baseline and the mutant runs
+// leaves HEAD, the tracked-clean flag and the tracked diff unchanged, so only the untracked
+// digest shows the drift.
+func TestCCEV0684UntrackedTestDriftDowngrades(t *testing.T) {
+	f := newFixture(t)
+	tests := filepath.Join(f.scratch, "suite")
+	if err := os.MkdirAll(tests, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, tests, "init", "-q")
+	writeFile(t, filepath.Join(tests, "suite.txt"), "suite\n", 0o644)
+	gitRun(t, tests, "add", "-A")
+	gitRun(t, tests, "commit", "-q", "-m", "suite")
+	writeFile(t, filepath.Join(tests, "new_spec.rb"), "it { }\n", 0o644)
+	opts := f.options("sh", "-c", `[ "$CORVINT_EXTMUTATE_RUN" = baseline ] || echo drift >> new_spec.rb; grep -q "age >= 18" `+filepath.Join(f.app, "app/models/user.rb"))
+	opts.TestsDir = tests
+	doc, err := Discriminate(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Tests.Clean || doc.Tests.Unchanged || len(doc.Tests.ChangesDigest) != 64 || doc.Tests.NotEstablished != "" || doc.Outcome != "partial" {
+		t.Fatalf("untracked drift not recorded: %+v outcome %s", doc.Tests, doc.Outcome)
+	}
+	if r := record(t, doc, "app/models/user.rb", 2, "command"); r.State != NotRun || r.Reason != "test-revision-drift" {
+		t.Fatalf("drift record: %+v", r)
+	}
+
+	// An untracked file that does not change keeps the run unchanged.
+	f = newFixture(t)
+	tests = filepath.Join(f.scratch, "suite")
+	if err := os.MkdirAll(tests, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	gitRun(t, tests, "init", "-q")
+	writeFile(t, filepath.Join(tests, "suite.txt"), "suite\n", 0o644)
+	gitRun(t, tests, "add", "-A")
+	gitRun(t, tests, "commit", "-q", "-m", "suite")
+	writeFile(t, filepath.Join(tests, "new_spec.rb"), "it { }\n", 0o644)
+	opts = f.options("sh", "-c", `grep -q "age >= 18" `+filepath.Join(f.app, "app/models/user.rb"))
+	opts.TestsDir = tests
+	if doc, err = Discriminate(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if !doc.Tests.Unchanged || len(doc.Tests.ChangesDigest) != 64 {
+		t.Fatalf("steady untracked file read as drift: %+v", doc.Tests)
+	}
+}
+
+// CCE-V0-684 (V1-2882): a tests directory that is not a Git worktree has no revision to compare,
+// so the test side is not established and no kill or survival stands.
+func TestCCEV0684NonGitTestsDirIsNotEstablished(t *testing.T) {
+	f := newFixture(t)
+	tests := filepath.Join(t.TempDir(), "suite")
+	if err := os.MkdirAll(tests, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	opts := f.options("sh", "-c", `grep -q "age >= 18" `+filepath.Join(f.app, "app/models/user.rb"))
+	opts.TestsDir = tests
+	doc, err := Discriminate(context.Background(), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if doc.Tests.Unchanged || doc.Tests.Revision != "" || doc.Tests.NotEstablished != "not-a-git-worktree" || doc.Outcome != "partial" {
+		t.Fatalf("non-Git tests dir: %+v outcome %s", doc.Tests, doc.Outcome)
+	}
+	if r := record(t, doc, "app/models/user.rb", 2, "command"); r.State != NotRun || r.Reason != "test-revision-not-established" {
+		t.Fatalf("not-established record: %+v", r)
+	}
+}
+
 // CCE-V0-172: --wall-time bounds the commands themselves: a baseline that outlives it is cut
 // at the wall time, not at the longer per-run timeout, and the final rebuild gets only what is
 // left.

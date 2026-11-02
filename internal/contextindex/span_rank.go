@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
 // TCP-V0-025..027: with `CORVINT_CONTEXT_SPANS=on` the packet carries span
@@ -30,6 +28,12 @@ const (
 type contextSpan struct {
 	role, path, symbol, reason, confidence, authority string
 	start, end                                        int
+	// hitStart..hitEnd is the matched range the span grew from, note a
+	// fallback's reason, and parts a merged row's contributors; all three are
+	// emitted only under CRK-V0-009..011's `hits` and `merged` modes.
+	hitStart, hitEnd int
+	note             string
+	parts            []contextSpan
 }
 
 func (span contextSpan) lines() int { return span.end - span.start + 1 }
@@ -38,7 +42,7 @@ func (span contextSpan) overlaps(other contextSpan) bool {
 	return span.path == other.path && span.start <= other.end && other.start <= span.end
 }
 
-func contextSpansEnabled() bool { return runtimeenv.Value("CONTEXT_SPANS") == "on" }
+func contextSpansEnabled() bool { return contextSpanMode() != "" }
 
 // attachSpans is the one hook the packet calls: it adds the `spans` member
 // and `coverage.sufficiency` (TCP-V0-028) when the flag is on and leaves the
@@ -69,6 +73,8 @@ type spanRanker struct {
 	symbols map[string][]Symbol
 	text    map[string]string
 	split   map[string][]string
+	// hits and merge are CRK-V0-009..011's modes, `hits` and `merged`.
+	hits, merge bool
 }
 
 func newSpanRanker(compiler *taskContextCompiler, rows []contextRow) *spanRanker {
@@ -76,6 +82,8 @@ func newSpanRanker(compiler *taskContextCompiler, rows []contextRow) *spanRanker
 		compiler: compiler, rows: rows, weights: map[string]int{},
 		terms: compiler.terms, symbols: map[string][]Symbol{}, text: map[string]string{}, split: map[string][]string{},
 	}
+	mode := contextSpanMode()
+	ranker.hits, ranker.merge = mode == "hits" || mode == "merged", mode == "merged"
 	for _, identifier := range compiler.identifiers {
 		if definitionEligible(identifier) {
 			ranker.addName(identifier.name, identifier.weight)
@@ -134,19 +142,36 @@ func (ranker *spanRanker) lines(path string) ([]string, bool) {
 }
 
 // rank selects core spans in result order, then call sites in core order,
-// skipping any span that would overrun the remaining budget.
+// skipping any span that would overrun the remaining budget. Under `merged` a
+// span touching a selected one is folded into it instead (CRK-V0-011), and
+// under `hits` an overrunning span falls back to its hit window when that
+// fits (CRK-V0-010).
 func (ranker *spanRanker) rank(budget int) ([]contextSpan, int) {
 	cores := ranker.coreSpans()
 	candidates := append(append([]contextSpan{}, cores...), ranker.callSites(cores)...)
 	selected := make([]contextSpan, 0, len(candidates))
 	used, omitted := 0, 0
 	for _, span := range candidates {
+		if ranker.merge {
+			if merged, ok := mergeSpans(selected, span); ok {
+				if spanLines(merged) > budget {
+					omitted++
+				} else {
+					selected, used = merged, spanLines(merged)
+				}
+				continue
+			}
+		}
 		if coveredBy(selected, span) {
 			continue
 		}
 		if used+span.lines() > budget {
-			omitted++
-			continue
+			window, ok := ranker.budgetFallback(span, budget-used)
+			if !ok {
+				omitted++
+				continue
+			}
+			span = window
 		}
 		selected = append(selected, span)
 		used += span.lines()
@@ -214,10 +239,14 @@ func (ranker *spanRanker) definitionSpans(path string, lines []string) []context
 	spans := make([]contextSpan, 0, min(len(defined), contextSpanRowCap))
 	for _, symbol := range defined[:min(len(defined), contextSpanRowCap)] {
 		start, end := ranker.extent(path, symbol, len(lines))
-		spans = append(spans, contextSpan{
+		span := contextSpan{
 			role: "core", path: path, symbol: symbol.Name, start: start, end: end, confidence: "high",
 			authority: SyntaxAuthority, reason: "defines `" + symbol.Name + "`, which the task names",
-		})
+			hitStart: symbol.Line, hitEnd: symbol.Line,
+		}
+		_, full := ranker.fullExtent(path, symbol, len(lines))
+		span.note = ranker.clipNote(symbol.Name, full-start+1)
+		spans = append(spans, span)
 	}
 	return spans
 }
@@ -271,6 +300,12 @@ func insideReason(symbol string) string {
 // line before the file's next symbol, else the file's end; trailing blank
 // lines are trimmed and the span is clipped to contextSpanMaxLines.
 func (ranker *spanRanker) extent(path string, symbol Symbol, count int) (int, int) {
+	start, end := ranker.fullExtent(path, symbol, count)
+	return start, min(end, start+contextSpanMaxLines-1)
+}
+
+// fullExtent is extent before the clip.
+func (ranker *spanRanker) fullExtent(path string, symbol Symbol, count int) (int, int) {
 	end := count
 	if symbol.EndLine > 0 {
 		end = symbol.EndLine
@@ -282,7 +317,7 @@ func (ranker *spanRanker) extent(path string, symbol Symbol, count int) (int, in
 	for end > symbol.Line && strings.TrimSpace(lines[end-1]) == "" {
 		end--
 	}
-	return symbol.Line, min(end, symbol.Line+contextSpanMaxLines-1)
+	return symbol.Line, end
 }
 
 func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
@@ -296,7 +331,8 @@ func (ranker *spanRanker) nextSymbolLine(path string, line int) (int, bool) {
 
 // enclosing takes the last declaration starting at or before line; when that
 // declaration's extent falls short of line, or there is none, it falls back to
-// a window of contextSpanLineRadius lines either side.
+// a window of contextSpanLineRadius lines either side. Under `hits` a clipped
+// declaration, and a hit past the clip, say so in the reason (CRK-V0-010).
 func (ranker *spanRanker) enclosing(path string, line, count int) contextSpan {
 	var owner *Symbol
 	for index := range ranker.symbols[path] {
@@ -304,12 +340,22 @@ func (ranker *spanRanker) enclosing(path string, line, count int) contextSpan {
 			owner = &ranker.symbols[path][index]
 		}
 	}
+	window := contextSpan{
+		role: "core", path: path, start: max(line-contextSpanLineRadius, 1), end: min(line+contextSpanLineRadius, count),
+		hitStart: line, hitEnd: line,
+	}
 	if owner != nil {
-		if start, end := ranker.extent(path, *owner, count); end >= line {
-			return contextSpan{role: "core", path: path, symbol: owner.Name, start: start, end: end}
+		start, full := ranker.fullExtent(path, *owner, count)
+		if end := min(full, start+contextSpanMaxLines-1); end >= line {
+			return contextSpan{
+				role: "core", path: path, symbol: owner.Name, start: start, end: end, hitStart: line, hitEnd: line,
+				note: ranker.clipNote(owner.Name, full-start+1),
+			}
+		} else if full >= line {
+			window.note = ranker.pastClipNote(owner.Name, full-start+1)
 		}
 	}
-	return contextSpan{role: "core", path: path, start: max(line-contextSpanLineRadius, 1), end: min(line+contextSpanLineRadius, count)}
+	return window
 }
 
 // callSites: for each core span with a symbol of at least four bytes, the
@@ -390,6 +436,7 @@ func (ranker *spanRanker) callSite(core contextSpan, candidate string, cores []c
 		site := contextSpan{
 			role: "call-site", path: candidate, symbol: core.symbol, confidence: "medium", authority: SyntaxAuthority,
 			start: max(line-contextSpanCallRadius, 1), end: min(line+contextSpanCallRadius, len(lines)),
+			hitStart: line, hitEnd: line,
 			reason: fmt.Sprintf("names `%s` at line %d; `%s` is declared by the core span %s:%d-%d", core.symbol, line, core.symbol, core.path, core.start, core.end),
 		}
 		if !coveredBy(cores, site) {
@@ -407,12 +454,14 @@ func (ranker *spanRanker) packet(spans []contextSpan, omitted, budget int) map[s
 		if _, overlaid := ranker.compiler.index.overlaidBlob(span.path); overlaid { // DIRTY-CACHE-942
 			span.authority, span.confidence = WorktreeOverlayAuthority, "low"
 		}
-		rows = append(rows, map[string]any{
+		row := map[string]any{
 			"role": span.role, "path": span.path, "start_line": span.start, "end_line": span.end,
-			"symbol": span.symbol, "reason": span.reason, "confidence": span.confidence,
+			"symbol": span.symbol, "reason": span.reason + span.note, "confidence": span.confidence,
 			"blob_hash": ranker.compiler.index.Sources[span.path].BlobHash,
 			"authority": span.authority, "trust": TrustClass(span.authority),
-		})
+		}
+		ranker.spanHitFields(row, span)
+		rows = append(rows, row)
 	}
 	return map[string]any{"line_budget": budget, "lines_used": used, "omitted": omitted, "rows": rows}
 }

@@ -321,6 +321,15 @@ cannot silently go missing or outlive its command.
   lines leave the `flows appmap`, `flows appmap build`, `mcp`, `repro` and `repro record` usage
   (and `repro record` loses the `--path` flag its example contributed). Rollback: restore the
   previous `Synopses` and regenerate the snapshots.
+- `CAP-V0-975`: (experimental under the standing lane auto-accept (2026-11-01); V1-4071; refines
+  `CAP-V0-040`) The flag extractor (`clitree.Flags`) MUST read every `|` alternative of a synopsis
+  field as its own token, so `[--summary|--pins]`, `(--preview|--apply)` and `-c|--cee` name each
+  option, not only the first; an alternative that is not an option (`json|text`, `<path|->`) adds
+  nothing. Failure mode: a node's `flags` omitted every alternative after the first, so
+  `capabilities-check` could not see those options as documented. Evidence:
+  `TestCAPV0975FlagsSplitAlternatives` (`internal/clitree`) and the regenerated
+  `internal/capcatalog/trees/corvint.json`, where `docs maintain` gains `--apply`. Rollback:
+  restore the single-token read and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -464,6 +473,22 @@ cannot silently go missing or outlive its command.
   `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
   unindented line. So an example command never becomes a node's usage, flag or derived example.
   Rollback: drop the example-block skip and regenerate the command trees.
+- `CAP-V0-120`: (experimental under the standing lane auto-accept (2026-11-01); V1-3682; refines
+  `CAP-V0-040`) The `--help` of each daily-path dogfood subverb (every action in
+  `dogfoodFlowOptions`) MUST list an `Options:` block naming each option that subverb accepts with
+  a one-line description, and a subverb that takes `--refresh` or `--citations` MUST also print the
+  citation plan row format and point to `docs/DOGFOOD.md` (`DOGFOOD_CITATIONS`). An option without
+  a description, or a description for no accepted option, fails the test. Non-goals: renaming or
+  adding options; describing options of non-daily-path nodes. Evidence:
+  `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint). Rollback: drop
+  `dogfoodFlowOptionsText` from `nodeHelpText`.
+- `CAP-V0-121`: (experimental under the standing lane auto-accept (2026-11-01); V1-3802) When
+  `corvint query` is given a positional argument (one that does not start with `-`), its
+  `invalid-arguments` refusal MUST keep the `unrecognized arguments: ARG` prefix and add the
+  `--task` form, `corvint query --task "ARG"`; it still exits 2. Non-goals: accepting positional
+  task text (the `--task` contract stays the one input form). Evidence:
+  `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint). Rollback: drop the hint branch in
+  `parseQueryArgumentsForPlatform`.
 - `CAP-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   CAP-V0-961) A command row's `Subcommands` sentence MUST have a typed structure: every backticked
   span at parenthesis depth zero in it is exactly one subcommand name (`^[a-z][a-z0-9-]*$`); a
@@ -478,6 +503,21 @@ cannot silently go missing or outlive its command.
   registry's `HiddenCommands` verbs MUST appear in the catalog and in the capabilities inventory as
   experimental with their gloss, though root help does not list them. Rollback: drop the family
   split and the hidden-verb merge and regenerate the catalog.
+- `CAP-V0-979`: (experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines
+  CAP-V0-041 and CAP-V0-043) The CAP-V0-041 scan MUST NOT report a key of an event table (a table
+  whose identifier contains `event`, case-insensitively, such as `claudeContextEvents`) as a
+  dispatched word, whether an argument indexes the table or is compared with that key
+  (`arguments[1] == "session-start"`); such a value needs no `commandTreeInternal` entry. A word an
+  argument is compared with that no event table holds is still dispatch. Residual risk: a real
+  subcommand spelled like an event key in the same package is not checked. Rollback: drop
+  `eventTable` and the event-key filter; event values again need internal entries.
+
+- `CAP-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-3886) A
+  `missing` finding for a top-level command with no catalog row MUST name the three artifacts a
+  new command updates: its row in the `docs/CAPABILITIES.md` commands table and the README
+  capability table, the `internal/capcatalog` regeneration (`make capability-catalog`), and the
+  use-case receipt repin (`script/repin-use-case-receipts.sh`). Other sections keep their plain
+  detail. Rollback: restore the plain detail for the commands section.
 
 ## Boundaries and failure modes
 
@@ -638,8 +678,13 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
+| CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
+| CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
+| CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
+| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |

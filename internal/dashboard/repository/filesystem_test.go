@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func qualifyTestExecutable(t *testing.T) (string, *os.File, executableEvidence) {
@@ -16,7 +18,7 @@ func qualifyTestExecutable(t *testing.T) (string, *os.File, executableEvidence) 
 		t.Fatal(err)
 	}
 	path := filepath.Join(directory, "helper")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	file, evidence, failure := openExecutableStableRead(context.Background(), path)
@@ -65,7 +67,7 @@ func TestExecutableVerificationDetectsReplacedExecutable(t *testing.T) {
 	t.Run("LOD-V0-005 replaced executable", func(t *testing.T) {
 		path, file, evidence := qualifyTestExecutable(t)
 		replacement := path + ".new"
-		if err := os.WriteFile(replacement, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(replacement, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Rename(replacement, path); err != nil {

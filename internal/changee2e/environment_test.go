@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 )
 
@@ -255,7 +256,7 @@ func TestCCEV0021ServeCommandResolution(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tree, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(tree, "bin", "serve"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(tree, "bin", "serve"), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(self, filepath.Join(tree, "bin", "out")); err != nil {

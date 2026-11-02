@@ -549,14 +549,18 @@ func report(out io.Writer, summary, table, allow, slices string, logs []string, 
 		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the table", len(logs), shards)
 	}
 	o := newOutcomes()
-	for _, name := range logs {
-		f, err := os.Open(name)
+	perShard := make([]*outcomes, len(logs))
+	for i, name := range logs {
+		raw, err := os.ReadFile(name)
 		if err != nil {
 			return 2, err
 		}
-		err = observeStream(f, o)
-		f.Close()
-		if err != nil {
+		if err := observeStream(bytes.NewReader(raw), o); err != nil {
+			return 2, fmt.Errorf("%s: %w", filepath.Base(name), err)
+		}
+		// The same stream parsed alone gives this shard's own load (AFP-V0-604).
+		perShard[i] = newOutcomes()
+		if err := observeStream(bytes.NewReader(raw), perShard[i]); err != nil {
 			return 2, fmt.Errorf("%s: %w", filepath.Base(name), err)
 		}
 	}
@@ -592,6 +596,14 @@ func report(out io.Writer, summary, table, allow, slices string, logs []string, 
 	for material < len(all) && all[material].misplaced() >= materialMS {
 		material++
 	}
+	loads := shardLoads(perShard, o, recorded)
+	slowest := 0
+	for i, l := range loads {
+		if l.observed > loads[slowest].observed {
+			slowest = i
+		}
+	}
+	stale := staleShard(loads[slowest], ideal, materialMS)
 
 	var b strings.Builder
 	b.WriteString(reportHeading)
@@ -609,14 +621,30 @@ func report(out io.Writer, summary, table, allow, slices string, logs []string, 
 			fmt.Fprintf(&b, "| %s | `%s` | %s | %s | %s | %.1f%% |\n", kind, f.pkg, optional(f.recorded), optional(f.observed), seconds(f.misplaced()), 100*float64(f.misplaced())/ideal)
 		}
 	}
+	fmt.Fprintf(&b, "\n#### Shard balance (AFP-V0-604)\n\nPredicted is what the committed table expected each shard to cost; observed is what it cost. The table is stale when the slowest shard exceeds the ideal shard by at least the material share and costs that much more than predicted.\n\n| Shard | Predicted | Observed | Over ideal |\n|---|---|---|---|\n")
+	for i, l := range loads {
+		fmt.Fprintf(&b, "| %d | %s | %s | %.1f%% |\n", i, seconds(l.predicted), seconds(l.observed), 100*(float64(l.observed)-ideal)/ideal)
+	}
+	if stale {
+		fmt.Fprintf(&b, "\n**Stale:** shard %d is the slowest, %s over the ideal shard and %s over its prediction.\n", slowest, seconds(loads[slowest].observed-int64(ideal)), seconds(loads[slowest].observed-loads[slowest].predicted))
+	} else {
+		b.WriteString("\nThe slowest shard is within the material share of the ideal shard or of its prediction.\n")
+	}
 	if summary != "" {
 		if err := appendFile(summary, b.String()); err != nil {
 			return 2, err
 		}
 	}
 
-	// One warning per material finding, keeping the last line for everything else.
-	warnings := min(material, maxWarnings-1)
+	// One warning per material finding, keeping the last line for everything else;
+	// a stale shard balance takes the first line (AFP-V0-604).
+	budget := maxWarnings - 1
+	if stale {
+		budget--
+		l := loads[slowest]
+		fmt.Fprintf(out, "::warning title=CI shard balance stale::%s\n", escape(fmt.Sprintf("shard %d observed %s against %s predicted, %.0f%% over the ideal shard %s; refresh %s (AFP-V0-604)", slowest, seconds(l.observed), seconds(l.predicted), 100*(float64(l.observed)-ideal)/ideal, seconds(int64(ideal)), table)))
+	}
+	warnings := min(material, budget)
 	for _, f := range all[:warnings] {
 		fmt.Fprintf(out, "::warning title=CI shard cost drift::%s\n", escape(fmt.Sprintf("%s misplaces %s (%.0f%% of the ideal shard); refresh %s (AFP-V0-040)", f, seconds(f.misplaced()), 100*float64(f.misplaced())/ideal, table)))
 	}
@@ -628,6 +656,52 @@ func report(out io.Writer, summary, table, allow, slices string, logs []string, 
 		fmt.Fprintf(out, "::warning title=CI shard cost drift::%s\n", escape(fmt.Sprintf("%d further findings (%d drift, %d missing, %d stale); see the job summary (AFP-V0-040)", len(rest), counts["drift"], counts["missing"], counts["stale"])))
 	}
 	return 0, nil
+}
+
+// shardLoad is one shard's predicted and observed cost in milliseconds.
+type shardLoad struct{ predicted, observed int64 }
+
+// shardLoads measures each shard log against the committed table (AFP-V0-604).
+// A shard's observed load is the sum of its package outcomes; its predicted load
+// is the table's cost of the same packages, the median cost for a package the
+// table lacks (as the partition places it), and, for a split package, the
+// table's whole-package cost in the observed share of its slice: slice balance
+// belongs to the AFP-V0-041 slice file, so an exact cost table is never stale.
+func shardLoads(perShard []*outcomes, all *outcomes, recorded map[string]int64) []shardLoad {
+	values := make([]int64, 0, len(recorded))
+	for _, n := range recorded {
+		values = append(values, n)
+	}
+	sort.Slice(values, func(i, j int) bool { return values[i] < values[j] })
+	var median int64
+	if len(values) != 0 {
+		median = values[len(values)/2]
+	}
+	loads := make([]shardLoad, len(perShard))
+	for i, s := range perShard {
+		for p, n := range s.count {
+			if n == 0 {
+				continue
+			}
+			loads[i].observed += max(1, s.elapsed[p])
+			cost, ok := recorded[p]
+			if !ok {
+				cost = median
+			}
+			if all.count[p] > 1 && all.elapsed[p] > 0 {
+				cost = cost * s.elapsed[p] / all.elapsed[p]
+			}
+			loads[i].predicted += cost
+		}
+	}
+	return loads
+}
+
+// staleShard is the AFP-V0-604 trigger: the slowest shard exceeds the ideal
+// shard by at least the material share and costs at least that much more than
+// the table predicted, so refreshing the table, not luck, would rebalance it.
+func staleShard(l shardLoad, ideal float64, materialMS int64) bool {
+	return float64(l.observed)-ideal >= float64(materialMS) && l.observed-l.predicted >= materialMS
 }
 
 func seconds(ms int64) string { return fmt.Sprintf("%.1fs", float64(ms)/1000) }

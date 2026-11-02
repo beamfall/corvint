@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 const navEventsData = "testdata/navigation-events"
@@ -16,7 +18,8 @@ const navEventsData = "testdata/navigation-events"
 // ANL-V0-037..044: the Node producer test drives synthetic instrumentation callbacks and pins the
 // synthetic golden byte-for-byte.
 func TestANLV0037ProducerNodeUnit(t *testing.T) {
-	out, err := exec.Command("node", "--test", "navigation-events_test.cjs").CombinedOutput()
+	node := testsupport.NodeOrSkip(t, "the navigation-events producer unit test")
+	out, err := exec.Command(node, "--test", "navigation-events_test.cjs").CombinedOutput()
 	if err != nil {
 		t.Fatalf("navigation-events producer: %v\n%s", err, out)
 	}
@@ -126,6 +129,7 @@ func TestANLV0042LiveParityWithTraceZip(t *testing.T) {
 // observe reads the same decoded URL and resolves the same screen from the producer's file as from
 // the raw commit, and no secret value reaches the file.
 func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
+	node := testsupport.NodeOrSkip(t, "the producer redaction parity check")
 	raws := []string{
 		"https://u:p@x.test/a?token=sekret1&x=1#t",
 		"http://h/p?a=b&code=sekret2&v=abcdefghijklmnopqrstuvwxyz0123",
@@ -169,7 +173,7 @@ func TestANLV0044ProducerRedactionMatchesObserve(t *testing.T) {
 	withheld := map[string]bool{"http://h/#/r%3Fsession%3Dsekret6&b=%2526": true, "http://h/#/r%3Ftoken%3Dsekret16%zz": true, "http://h/cb#access_token=sekret22%zz": true}
 	in, _ := json.Marshal(raws)
 	script := `const {redactURL} = require('./navigation-events.cjs'); console.log(JSON.stringify(JSON.parse(process.argv[1]).map(redactURL)))`
-	out, err := exec.Command("node", "-e", script, string(in)).CombinedOutput()
+	out, err := exec.Command(node, "-e", script, string(in)).CombinedOutput()
 	if err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}

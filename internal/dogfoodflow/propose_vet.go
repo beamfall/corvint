@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -43,6 +44,12 @@ func (p *proposal) vetRows(owed []proposedHunk, rows []string) ([]string, []stri
 		}
 	}
 	notes := []string{}
+	taken := map[string]bool{}
+	for _, row := range rows {
+		if fields := strings.Split(row, "\t"); len(fields) == 4 && fields[1] != "unknown" {
+			taken[fields[1]+":"+fields[2]] = true
+		}
+	}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
 		if len(fields) != 4 || fields[1] == "unknown" {
@@ -54,6 +61,16 @@ func (p *proposal) vetRows(owed []proposedHunk, rows []string) ([]string, []stri
 		}
 		refusal := p.citeRefusal(fields[1], fields[2], groups[fields[1]], removed[fields[1]])
 		if refusal == "" {
+			continue
+		}
+		if span := p.nearestSurvivingSpan(fields[1], fields[2], refusal, groups[fields[1]], removed[fields[1]], taken); span != "" {
+			delete(taken, fields[1]+":"+fields[2])
+			taken[fields[1]+":"+span] = true
+			rows[index] = fields[0] + "\t" + fields[1] + "\t" + span + "\t" + fields[3]
+			if _, ok := p.proposals[fields[0]]; ok {
+				p.reasons[fields[0]] = fmt.Sprintf("nearest surviving span: %s %s was moved to %s, the nearest BASE lines the change leaves intact; confirm it still supports the hunk (DCW-V0-980)", fields[1], fields[2], span)
+			}
+			notes = append(notes, fmt.Sprintf("row %s: the cite row %s:%s was re-pinned to the nearest surviving span %s:%s: %s (DCW-V0-980)", fields[0], fields[1], fields[2], fields[1], span, refusal))
 			continue
 		}
 		delete(p.proposals, fields[0])
@@ -141,4 +158,69 @@ func (p *proposal) citeRefusal(name, lines string, group *patch.Group, removed [
 		return ""
 	}
 	return fmt.Sprintf("its text is %s after the change (it must occur exactly once in the changed file)", status)
+}
+
+// nearestSurvivingSpanReach bounds how many lines past the refused span
+// nearestSurvivingSpan looks for a line the change leaves intact.
+const nearestSurvivingSpanReach = 8
+
+// nearestSurvivingSpan returns a START:END span of name near the refused
+// line span lines that cem cite admits, or "" when there is none (DCW-V0-980).
+// Only a span refused for overlapping removed lines or for unstable text is
+// moved: the longest part of it no hunk removes is tried first, then single
+// lines outward from it, nearest first and the earlier line on a tie. A span
+// another draft row already cites is skipped, so no two rows are made one.
+func (p *proposal) nearestSurvivingSpan(name, lines, refusal string, group *patch.Group, removed []removedLines, taken map[string]bool) string {
+	if strings.HasPrefix(lines, bytesSpanPrefix) || !strings.Contains(refusal, " overlap BASE lines ") && !strings.HasPrefix(refusal, "its text is ") {
+		return ""
+	}
+	startText, endText, _ := strings.Cut(lines, ":")
+	start, startErr := strconv.Atoi(startText)
+	end, endErr := strconv.Atoi(endText)
+	if startErr != nil || endErr != nil || start < 1 || end < start {
+		return ""
+	}
+	candidates := []string{}
+	for _, part := range survivingParts(start, end, removed) {
+		if part[0] != start || part[1] != end {
+			candidates = append(candidates, fmt.Sprintf("%d:%d", part[0], part[1]))
+		}
+	}
+	for distance := 1; distance <= nearestSurvivingSpanReach; distance++ {
+		for _, line := range []int{start - distance, end + distance} {
+			if line >= 1 {
+				candidates = append(candidates, fmt.Sprintf("%d:%d", line, line))
+			}
+		}
+	}
+	for _, candidate := range candidates {
+		if !taken[name+":"+candidate] && p.citeRefusal(name, candidate, group, removed) == "" {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// survivingParts splits start..end around the removed runs, longest first and
+// the earlier part on a tie.
+func survivingParts(start, end int, removed []removedLines) [][2]int {
+	parts := [][2]int{{start, end}}
+	for _, run := range removed {
+		next := [][2]int{}
+		for _, part := range parts {
+			if run.end < part[0] || part[1] < run.start {
+				next = append(next, part)
+				continue
+			}
+			if part[0] < run.start {
+				next = append(next, [2]int{part[0], run.start - 1})
+			}
+			if run.end < part[1] {
+				next = append(next, [2]int{run.end + 1, part[1]})
+			}
+		}
+		parts = next
+	}
+	sort.SliceStable(parts, func(i, j int) bool { return parts[i][1]-parts[i][0] > parts[j][1]-parts[j][0] })
+	return parts
 }

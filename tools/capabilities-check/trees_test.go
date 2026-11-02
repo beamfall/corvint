@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -85,6 +86,28 @@ func treeFindings(t *testing.T, files map[string]string, binaries []string) map[
 	root := t.TempDir()
 	writeFiles(t, root, files)
 	return kinds(CheckTrees(root, binaries))
+}
+
+// TestCAPV0979EventValuesAreNotDrift is the drift-gate fixture for V1-3679: a dispatcher that
+// compares an argument with a hook event name and indexes an event table by it raises no
+// subcommand-unlisted finding, while a new subcommand beside it still does (CAP-V0-979).
+func TestCAPV0979EventValuesAreNotDrift(t *testing.T) {
+	binaries := []string{"corvint-x"}
+	events := strings.Replace(syntheticDispatch, `func main() {`, `var claudeContextEvents = map[string]string{"session-start": "SessionStart", "post-tool": "PostToolUse"}
+
+func main() {`, 1)
+	events = strings.Replace(events, `	flag.String(`, `	if len(args) > 1 && args[1] == "session-start" {
+	}
+	_ = claudeContextEvents[args[1]]
+	flag.String(`, 1)
+	if found := treeFindings(t, syntheticTreeRepository(t, events), binaries); len(found) != 0 {
+		t.Fatalf("event values raised drift: %v", found)
+	}
+	withVerb := strings.Replace(events, `case "help":`, `case "help":
+	case "beta":`, 1)
+	if found := treeFindings(t, syntheticTreeRepository(t, withVerb), binaries); !slices.Contains(found["subcommand-unlisted"], "corvint-x beta") {
+		t.Fatalf("a new subcommand beside the event table raised no drift: %v", found)
+	}
 }
 
 // TestCAPV0047SyntheticDriftFails proves the gate fails on a new subcommand, a new flag and a new
