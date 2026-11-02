@@ -424,9 +424,7 @@ func notifyHook(t *testing.T, tail string) (string, func() int, func() []byte) {
 	dir := t.TempDir()
 	hook := filepath.Join(dir, "hook.sh")
 	body := "#!/bin/sh\necho run >> '" + dir + "/runs'\ncat > '" + dir + "/stdin'\n" + tail + "\n"
-	if err := os.WriteFile(hook, []byte(body), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, hook, []byte(body), 0o755)
 	runs := func() int {
 		raw, _ := os.ReadFile(filepath.Join(dir, "runs"))
 		return bytes.Count(raw, []byte("run\n"))

@@ -152,13 +152,18 @@ type PreflightGateRun struct {
 // PreflightGateDefinitions resolves each gate id against policy with the
 // lease runner's rules: a COMMAND gate in the worktree with an expected exit
 // code, no reducer, shared resource or inputs (TOL-V0-027). An undeclared
-// gate refuses GATE_UNKNOWN, any other UNSUPPORTED.
+// gate refuses GATE_UNKNOWN, any other UNSUPPORTED. Preflight runs gates
+// without the gate run's sharedResource lock, so it still refuses a gate that
+// declares one (LGL-V0-885).
 func PreflightGateDefinitions(policy *intent.Policy, gateIDs []string) ([]*intent.GateDefinition, error) {
 	defs := make([]*intent.GateDefinition, 0, len(gateIDs))
 	for _, id := range gateIDs {
 		def, err := commandGate(policy, id)
 		if err != nil {
 			return nil, err
+		}
+		if def.SharedResource != nil {
+			return nil, wire.Errorf(wire.CodeUnsupported, "gate", "gate %s declares sharedResource, which preflight does not serialize; run it with gate run, which admits one run per resource (LGL-V0-885)", id)
 		}
 		defs = append(defs, def)
 	}

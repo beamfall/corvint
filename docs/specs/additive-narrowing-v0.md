@@ -11,9 +11,9 @@ and of `corvint test`; they live here to keep that spec's Requirements section u
 256-obligation OCM limit (`maxObligations`).
 
 ## Agent digest
-- Claim: Additive Go changes select only importers that reference a new declaration; documentation and sealed-CEM paths take their readers from the plan.
+- Claim: A Go change selects only importers naming what it adds or what reaches its edits; documentation and sealed-CEM paths take readers from the plan.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3123, V1-3129, V1-3138); ADN-V0-009 amends AFP-V0-094.
-- Exists: `GoAdditive` records and `plan.goAdditive` (`internal/liveverify/affected/additive.go`, `internal/liveverify/affected/golang/additive.go`); `additiveNarrowing` and `planReaders` in `internal/gateselect/select.go`; tests named for each requirement.
+- Exists: `GoAdditive` records and `plan.goAdditive` (`internal/liveverify/affected/additive.go`, `internal/liveverify/affected/golang/additive.go`, `golang/symbol.go`); `additiveNarrowing` and `planReaders` in `internal/gateselect/select.go`; tests named for each requirement.
 - Blocked on: nothing; CI's `gateselect.Select` deliberately keeps the whole attribution.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -122,9 +122,51 @@ not bound, although the planner had already resolved their readers with witnesse
   not dirty in the plan, confines that package outside the path (AFP-V0-161, as the planner); a
   stale or forged plan failing any check SHALL keep the whole rule (c) for that path.
 
+- **ADN-V0-660:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744,
+  V1-3282) When a candidate's change edits or removes an existing top-level declaration, the record
+  SHALL be decided at symbol level instead of falling back with `EXISTING_DECLARATION_CHANGED`. Each
+  changed file SHALL be compared at base and head by declaration key (a function's name, a method's
+  `Type.Method`, a general declaration's token with its names, repeats numbered in source order);
+  the changed declarations are the keys whose printed text differs or that exist on one side only.
+  A change whose keys all print alike (only their order moved) SHALL keep the
+  `EXISTING_DECLARATION_CHANGED` fallback, since package variable initialization follows
+  declaration order. Every other ADN-V0-004 file check (package clause, directives, imports,
+  constrained files, cgo, embeds, `main`) SHALL apply first, unchanged. A NARROWED symbol record
+  SHALL carry `mode` `SYMBOL`, the changed declarations' names in `declarations`, the exported
+  names that reach them in `exposed`, and its direct dependents split into `referencing` and
+  `unreferenced` exactly as ADN-V0-007 checks them against `exposed`; the graph SHALL apply it as
+  any NARROWED record (ADN-V0-002, ADN-V0-003, ADN-V0-005), so a referencing importer propagates
+  at package level.
+- **ADN-V0-661:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744, V1-3282) The declarations reaching a change SHALL be
+  the least set holding each changed declaration at head and each top-level declaration of any
+  non-test Go file of the package directory (every build variant; a file with another package
+  name is skipped) that mentions, anywhere in its syntax, a name of a declaration in the set or of
+  a changed declaration, deleted ones included. A method in the set SHALL add its receiver type's
+  name; a method's own name SHALL NOT be added, since a value of the receiver type leaves the
+  package only through a declaration that mentions the type. The exposed names are the exported
+  names of the set.
+- **ADN-V0-662:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744, V1-3282) A symbol record SHALL instead be FALLBACK,
+  selecting at package level, with reason `CHANGE_REACHES_PACKAGE_INITIALIZATION: <declaration>`
+  when the set holds an `init` function or a package variable whose initializer is not proved safe
+  by the ADN-V0-004 initializer rule (code every test binary linking the package runs);
+  `LINKNAME_ASSEMBLY_OR_BODYLESS_FUNC` when the package directory holds assembly (`.s`, `.S`,
+  `.sx`, `.syso`), a `//go:linkname` directive (read with the Go scanner, so a string literal is
+  none) or a function without a body; `LINKNAME_OR_ASSEMBLY_IN_DEPENDENT: <unit>` when a transitive
+  dependent (test imports included) holds assembly, or a `//go:linkname` directive whose target
+  names the package or cannot be read (a directive pulling another package's symbol, such as
+  `runtime.nanotime`, does not count); and `DOT_IMPORTED_BY_DEPENDENT` as ADN-V0-007.
+- **ADN-V0-663:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2744) Soundness SHALL be checked differentially against the
+  Go toolchain: for each body edit of a fixture hub, every fixture package whose test binary, linked
+  with `go test -c -gcflags=all=-l`, holds the edited symbol (`go tool nm`) SHALL be selected, and
+  the selection SHALL still leave at least one package out. The linker drops what no root reaches,
+  so a linked symbol over-approximates the binaries that can run the change.
+
 ## Non-goals
 
-type-checked reference analysis, narrowing an edited, removed or reordered declaration,
+type-checked reference analysis, narrowing to test functions inside a package (V1-2744's
+allow-list; the always-run `TestMain`, `init` and process-starting package code of `cmd/corvint`,
+`internal/tasks/store` and `internal/tasks/cli` keeps them whole, V1-2708), narrowing past the
+first import hop, narrowing a reordered declaration,
 narrowing a changed `main`, embedding or cgo package, any change to `gateselect.Select` or the CI
 PR tier, and bounding rule (d) readers of a sealed CEM (a package with no bounding literal can read
 any path; AFP-V0-023 read scopes remain the project-owned way to bound it).
@@ -140,7 +182,11 @@ plan's reader rules miss for a documentation or CEM path is missed by `corvint t
 no literal of it resolves to the path: such a literal reader, a declaration change and a CEM name
 that is no commit are checked by the consumer, and declared read scopes are read by the consumer
 itself, so the residual is a glob-only reader the plan misses; the path-token-bound frontier keeps
-the whole rule (c) where the plan says its reads are incomplete.
+the whole rule (c) where the plan says its reads are incomplete. (5) A symbol record misses an
+importer only through a path no syntax names: reflection or `unsafe` reaching an unexported
+declaration through a value an exposed declaration hands out is still a reference to that exposed
+declaration, so the residual is a `//go:linkname` push the scanner cannot see (none, since every
+directive in the package falls back) or a toolchain that links code no mention reaches.
 
 ## Acceptance evidence and traceability
 
@@ -162,10 +208,16 @@ negative replay editing an existing exported function selects every importer aga
 | ADN-V0-008 | `Plan.GoAdditive`, `additiveSummary`; `affectedCompactPlan.GoAdditive` in `cmd/corvint/affected_compact.go` | `TestADNV0003AdditiveRecordPrunesUnreferencedImporters`; `TestADNV0004GraphRefusesARecordItCannotCheck` (a FALLBACK record carries no importer lists); the compact member is a pass-through, observed in the replays of build log 2026-10-29-v1-3123-additive-narrowing |
 | ADN-V0-009 | `affectedGoAdditive` and the `PathList` guard of `compileAffectedGraph` in `cmd/corvint/affected.go`; `AdditiveChangesAt` in `internal/liveverify/affected/golang/additive.go` and `snapshotReviewAffected` in `cmd/corvint/repository_guidance.go` | `TestADNV0009UnreadableBaseFallsBack`, `TestAFPV0094PathListSelectsTwoHopImportersAtHead`, `TestRepositoryGuidanceReviewBranches`; the `--base` replays of build log 2026-10-29-v1-3123-additive-narrowing |
 | ADN-V0-010 | the `documentation` branch of `planReaders`, `documentationDeclaration` in `internal/gateselect/select.go`; `holderReaders` in `internal/gateselect/readers.go` | `TestSelectStructuralTakesDocumentationReadersFromThePlan_ADNV0010` (a plan without the resolving reader and an undeclared path keep rule (c)); `TestADNV0010And0011ProducerToConsumer` in `internal/liveverify/affected/golang` (a real planner run through the JSON plan; a dropped reader and a removed declaration keep rule (c)) |
+| ADN-V0-660 | `symbolRecord`, `symbolChanged`, `symbolFileKeys`, `symbolKey` and `GoSymbolMode` in `internal/liveverify/affected/golang/symbol.go`; the `edited` branch of `additiveRecord`; `GoAdditive.Mode` and `Exposed` | `TestADNV0660BodyEditSelectsOnlyReachingImporters` (four body edits: unexported func, unexported method, exported func, constant; each selection has a witness); `TestADNV0004ModifiedExportedFunctionSelectsEveryImporter` (every importer references); `TestADNV0660DeletedDeclaration`; the reorder-only case of `TestADNV0662SymbolFallbacks`; the live V1-3282 replay of build log 2026-11-01-afs-w27 |
+| ADN-V0-661 | `symbolPackage` and `symbolClosure` in `golang/symbol.go` | `TestADNV0660ReceiverRule`; `TestADNV0660BodyEditSelectsOnlyReachingImporters` |
+| ADN-V0-662 | `symbolAlwaysRun`, `symbolUnmodelledDependent`, `symbolLinknames` and the `Symbol*` reasons in `golang/symbol.go` | `TestADNV0662SymbolFallbacks` (init, unproved var initializer, bodyless func, assembly, linkname in the package and in an indirect dependent, reorder only); `TestADNV0662LinknameElsewhereKeepsNarrowing` |
+| ADN-V0-663 | the test itself | `TestADNV0663SymbolSelectionCoversLinkedTestBinaries` (recall 6/6 linked fixture binaries, 13 unlinked excluded); the live 56-binary `go tool nm` check of build log 2026-11-01-afs-w27 |
 | ADN-V0-011 | the `evidence` branch of `planReaders` and `sealedEvidence` in `internal/gateselect/select.go` | `TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011` (an enumerating fixture test stays selected; a `/`-anchored package is dropped; a path-token-bound frontier, a plan without the enumerating reader, three forged CEM names and `Select` keep the whole set; a holder whose declared read scope excludes the CEM does not block it, unless the declaration is dirty; the sidecar is unchanged); `TestADNV0010And0011ProducerToConsumer` (a real planner run; a dropped reader and a forged CEM name keep rule (c)) |
 
 ## Rollback
 
+revert `golang/symbol.go` and the `edited` branch of `additiveRecord` (an edit then falls back
+with `EXISTING_DECLARATION_CHANGED` again) together with the `mode` and `exposed` wire members, or
 revert `additive.go` in both packages, the `reach`/`traverse` allowed-set parameter, the
 `goAdditive` and `through` wire members, and `planReaders`/`additiveNarrowing` in
 `internal/gateselect`; plans then select as before. No stored state depends on the records.

@@ -16,6 +16,7 @@ import (
 // is refused promptly as not a regular file instead of blocking on the open
 // or the read.
 func TestTOLV0043_LegacyCasesFIFORefused(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	setSources(t, r.Root, id, "set-sources",

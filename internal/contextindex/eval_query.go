@@ -649,13 +649,13 @@ func evalCitedNamedPaths(record Record, named []string) int {
 // ones the ranking loop drops: it is the oracle's `corvint.symbol_term_frequency`,
 // and evalConfidentSymbols picks its anchor term out of the same counts.
 func evalRankSymbols(index *Index, queryText string, queryTerms map[string]struct{}, intent evalIntent) ([]evalSymbolCandidate, map[string]int) {
-	prepared, nameFrequency, termFrequency := evalPrepareSymbols(index, queryTerms, intent)
+	prepared, nameFrequency, termFrequency, anyVersioned := evalPrepareRanking(index, queryText, queryTerms, intent)
 	compactQuery := compactText(queryText)
 	// Decision 0017: a `vN` token narrows the universe only when some path in it
 	// carries a version term to narrow by; where none does, the tokens are
 	// ignored rather than emptying the universe (GPK-V0-043, DR-0015).
 	versionTerms := evalVersionTerms(queryTerms)
-	if len(versionTerms) != 0 && !evalAnyVersionedPath(prepared) {
+	if len(versionTerms) != 0 && !anyVersioned() {
 		versionTerms = nil
 	}
 	result := make([]evalSymbolCandidate, 0)
@@ -756,10 +756,23 @@ func evalAnyVersionedPath(prepared []evalPreparedSymbol) bool {
 	return false
 }
 
-func evalPrepareSymbols(index *Index, queryTerms map[string]struct{}, intent evalIntent) ([]evalPreparedSymbol, map[string]int, map[string]int) {
+// evalPrepareRanking prepares the ranking input through the snapshot's symbol
+// term table when the index carries one for its symbols (IDX-SNAP-V0-807),
+// and through the full pass otherwise. anyVersioned is evalAnyVersionedPath
+// over the full pass's prepared set either way, evaluated only when called.
+func evalPrepareRanking(index *Index, queryText string, queryTerms map[string]struct{}, intent evalIntent) ([]evalPreparedSymbol, map[string]int, map[string]int, func() bool) {
+	windows := index.symbolWindowTerms(queryTerms)
+	if index.symbolTerms.usable(index, windows) {
+		prepared, nameFrequency, termFrequency, anyVersioned := evalPreparePrecomputed(index, index.symbolTerms, queryText, queryTerms, intent, windows)
+		return prepared, nameFrequency, termFrequency, func() bool { return anyVersioned }
+	}
+	prepared, nameFrequency, termFrequency := evalPrepareSymbolsWith(index, queryTerms, intent, windows)
+	return prepared, nameFrequency, termFrequency, func() bool { return evalAnyVersionedPath(prepared) }
+}
+
+func evalPrepareSymbolsWith(index *Index, queryTerms map[string]struct{}, intent evalIntent, windows []map[string]struct{}) ([]evalPreparedSymbol, map[string]int, map[string]int) {
 	workers := min(runtime.NumCPU(), max(len(index.Symbols)/symbolsPerWorker, 1))
 	chunks := make([]evalSymbolChunk, workers)
-	windows := index.symbolWindowTerms(queryTerms)
 	var pending sync.WaitGroup
 	for worker := 0; worker < workers; worker++ {
 		pending.Add(1)

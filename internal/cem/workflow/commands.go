@@ -68,7 +68,7 @@ func (s *Session) Begin(ctx context.Context, options BeginOptions) (map[string]a
 		return nil, invalidArguments("--patch is required")
 	}
 	if options.Output == "" || filepath.IsAbs(options.Output) {
-		return nil, invalidArguments("--output must be a repository-relative path")
+		return nil, invalidArguments("%s", absoluteOutputRefusal)
 	}
 	patchBytes, err := s.readPatchInput(options.PatchPath)
 	if err != nil {
@@ -1033,6 +1033,11 @@ func pruneEvidence(document *wire.Map) {
 	document.Evidence = retained
 }
 
+// absoluteOutputRefusal explains an absolute --output (CEM-V1-647): Core
+// publishes a map only under the repository's lock, so it names no location
+// outside the repository, scratch directories included.
+const absoluteOutputRefusal = "--output must be a repository-relative path (for example .corvint/scratch/change.cem.json): Core publishes a map only under the repository's lock, so an absolute or out-of-repository scratch path is refused; write inside the repository and copy the file out afterwards"
+
 var lockMap = (*publish.Root).Lock
 
 // lockedMapInput locks in-place updates before their first read, so a valid
@@ -1302,7 +1307,7 @@ func mapOutputRelative(inputRelative, outputRelative string) (string, error) {
 		return inputRelative, nil
 	}
 	if filepath.IsAbs(outputRelative) {
-		return "", invalidArguments("--output must be a repository-relative path")
+		return "", invalidArguments("%s", absoluteOutputRefusal)
 	}
 	if err := checkMapSidecarAliasing(inputRelative, outputRelative); err != nil {
 		return "", err

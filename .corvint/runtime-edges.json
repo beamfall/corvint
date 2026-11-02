@@ -1,0 +1,40 @@
+{
+  "profile": "corvint-runtime-edges/0",
+  "edges": [
+    {
+      "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
+      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-console",
+      "reason": "The installed interactive-alpha proof (internal/companionrelease, roadmap-proof.mjs) runs this Playwright spec against the console corvint-console serves (V1-3571)."
+    },
+    {
+      "tests": "conformance/interactive-alpha/fixture/e2e.spec.js",
+      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-dashboard-snapshot",
+      "reason": "The installed interactive-alpha proof runs this Playwright spec over the roadmap corvint-dashboard-snapshot renders (V1-3571)."
+    },
+    {
+      "tests": "internal/doccorpus/testdata/behavior-events/live-1.61.1/tests/",
+      "runs": "typescript:internal/doccorpus/testdata/behavior-events/live-1.61.1/server.cjs",
+      "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/doccorpus/behavior-events.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."
+    },
+    {
+      "tests": "internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/tests/",
+      "runs": "typescript:internal/jstestprovider/testdata/route-stubs/live-1.61.1-residuals/server.cjs",
+      "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/jstestprovider/route-stubs.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."
+    },
+    {
+      "tests": "internal/jstestprovider/testdata/route-stubs/live-1.61.1/tests/",
+      "runs": "typescript:internal/jstestprovider/testdata/route-stubs/live-1.61.1/server.cjs",
+      "reason": "The recorded live Playwright fixture drives the server.cjs stub its own config starts; it imports internal/jstestprovider/route-stubs.cjs, so it stays outside the testdata localization (V1-3571, AFP-V0-725)."
+    },
+    {
+      "tests": "internal/tasks/obligation/obligation-qualification.spec.ts",
+      "runs": "go:github.com/Beamfall/corvint/internal/tasks/obligation",
+      "reason": "The TOL-V0-060 qualification fixture drives no server: it is run by hand and its report is read by the obligation package that embeds it, so its selection follows that package (V1-3571)."
+    },
+    {
+      "tests": "tools/web-flows/test/fixture/flows.spec.ts",
+      "runs": "go:github.com/Beamfall/corvint/cmd/corvint-web-flows",
+      "reason": "tools/web-flows/test/e2e.mjs copies this fixture spec into a scratch app and runs it through the corvint-web-flows observer (CORVINT_FLOW_BIN) (V1-3571)."
+    }
+  ]
+}

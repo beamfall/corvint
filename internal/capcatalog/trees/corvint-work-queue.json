@@ -1,0 +1,56 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-work-queue",
+  "helpJson": "corvint-work-queue help --json",
+  "source": "cmd/corvint-work-queue usageText",
+  "dispatchSources": [
+    "cmd/corvint-work-queue",
+    "internal/worklistadapter"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "details"
+      ],
+      "command": "corvint-work-queue details",
+      "summary": "Print the canonical details document for the same snapshot",
+      "usage": [
+        "corvint-work-queue details"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-work-queue details",
+      "help": "corvint-work-queue details --help"
+    },
+    {
+      "path": [
+        "snapshot"
+      ],
+      "command": "corvint-work-queue snapshot",
+      "summary": "Print the canonical work-queue snapshot of the repository containing the working directory",
+      "usage": [
+        "corvint-work-queue snapshot"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-work-queue snapshot",
+      "help": "corvint-work-queue snapshot --help"
+    },
+    {
+      "path": [
+        "verify"
+      ],
+      "command": "corvint-work-queue verify",
+      "summary": "Print the canonical checkpoint document that verifies the same snapshot",
+      "usage": [
+        "corvint-work-queue verify"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-work-queue verify",
+      "help": "corvint-work-queue verify --help"
+    }
+  ]
+}

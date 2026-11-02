@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -57,7 +56,8 @@ func mixedList(t *testing.T, v wire.Value) string {
 // the defect id and the error's first line; it is never credited, never
 // listed as failed, and the entry stays OPEN (witness never sets DEFECT).
 func TestTOLV0022_ExpectedFailDefectConfirmed(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	spec := "e2e/login.spec.ts"
@@ -99,7 +99,8 @@ func TestTOLV0022_ExpectedFailDefectConfirmed(t *testing.T) {
 // obligation beside it stays defectConfirmed, and other tests in the same
 // report still credit.
 func TestTOLV0023_MixedExpectedFail(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	spec := "e2e/login.spec.ts"
@@ -132,7 +133,8 @@ func TestTOLV0023_MixedExpectedFail(t *testing.T) {
 // passing post-check credits as before; the two flags go together and only
 // with a report.
 func TestTOLV0024_PostCheckRefusesCredit(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	report := writeReport(t, t.TempDir(), r.Root, pwVersion,

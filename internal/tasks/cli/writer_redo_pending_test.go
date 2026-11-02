@@ -133,7 +133,7 @@ type attemptRef struct{ attempt, generation, ticket, receipt string }
 func heldLeaseStore(t *testing.T) (string, attemptRef) {
 	t.Helper()
 	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-12*time.Minute))
-	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	setActor(t, "holder")
 	c := claimed[0]
 	return root, attemptRef{attempt: c.AttemptID, generation: string(c.Generation), ticket: c.Ticket, receipt: c.Receipt}
 }
@@ -146,6 +146,7 @@ func heldLeaseStore(t *testing.T) (string, attemptRef) {
 // settles a validated pending receipt under the store lock. Now each settles
 // the held receipt, commits its own and reports the completed redo.
 func TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	t.Run("pause", func(t *testing.T) {
 		root, a := heldLeaseStore(t)
 		seq := holdPending(t, root, heartbeatOnce(t, root, a, "beat-pause"))

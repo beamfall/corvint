@@ -99,8 +99,8 @@ func TestJRTV0012_RetireCLIAndDoctorJournal(t *testing.T) {
 // unretire, the reviewed ticket, released but not terminal, carries review
 // heads, so retire refuses TICKET_STATE.
 func TestJRTV0008_ReviewAcrossRetirement(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	runOK := func(args ...string) run {
@@ -148,6 +148,7 @@ func TestJRTV0008_ReviewAcrossRetirement(t *testing.T) {
 // audit, whose obligation fold starts from the anchor's ticket afterimage,
 // stays consistent.
 func TestJRTV0008_ObligationAcrossRetirement(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, ledger, _ := obligationRepo(t)
 	seedObligations(t, r.Root, ledger)
 	sealedAt := filepath.Join(t.TempDir(), "ledger.tar")

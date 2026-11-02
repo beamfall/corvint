@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/similar"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -352,7 +353,7 @@ func ticketRecur(env Env, args []string) *wire.Result {
 	if role == "" {
 		role = "OWNER"
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -379,7 +380,7 @@ func ticketRecur(env Env, args []string) *wire.Result {
 			return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in the queue", prose(arg))
 		}
 		if !rc.journalAbsent {
-			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+			idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
 				// The index records no operation, so a replay is the same
 				// ticket whose body already carries this context's line.
@@ -441,6 +442,14 @@ func createDuplicateGuard(env Env, cmd []string, flags mutateFlags, payload wire
 			}
 			named[id] = true
 		}
+		// A payload whose typed supersedes link names a candidate records the
+		// duplicate as that link, so it names the candidate (TCL-V0-739). An
+		// unresolvable link is left for the create's own validation.
+		if v, ok := payload.Obj.Get("supersedes"); ok && v.Kind == wire.KindString {
+			if id, err := resolveTicketArg(rc, v.Str); err == nil {
+				named[id] = true
+			}
+		}
 		var docs []similar.Doc
 		docs, full = storeDocs(rc)
 		open := statusFilter([]string{ticket.StatusOpen}, nil)
@@ -451,7 +460,7 @@ func createDuplicateGuard(env Env, cmd []string, flags mutateFlags, payload wire
 		}
 		if len(dups) > 0 && !rc.journalAbsent {
 			// A replay finds its own ticket; it must replay, not refuse.
-			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+			idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
 				replay = true
 			}
@@ -477,6 +486,6 @@ func createDuplicateGuard(env Env, cmd []string, flags mutateFlags, payload wire
 	first := dups[0].Doc.ID
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeDuplicateID}, NotRetryable: true, Items: items, Untrusted: true, Warnings: []string{
 		prose("the new ticket matches OPEN ticket(s) " + strings.Join(names, "; ") + "; nothing was written. " +
-			"For a recurrence run `corvint-tasks ticket recur " + first + " --context TEXT --request-id R`; to file it anyway pass `--not-duplicate-of ID` for each named ticket (TCL-V0-004)"),
+			"For a recurrence run `corvint-tasks ticket recur " + first + " --context TEXT --request-id R`; to record it as the typed link set the payload's \"supersedes\" to the matched ticket id (TCL-V0-739), or to file it anyway pass `--not-duplicate-of ID` for each named ticket (TCL-V0-004)"),
 	}}
 }

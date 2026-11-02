@@ -59,7 +59,7 @@ async function main(){
  }};
  const worker=await bundle(join(sdk,'dist/utils/image-resize-worker.js'),[basePlugin]);
  const assets={};
- const assetNames=['package.json','README.md','CHANGELOG.md','dist/modes/interactive/theme/dark.json','dist/modes/interactive/theme/light.json','dist/modes/interactive/assets/clankolas.png','dist/core/export-html/template.html','dist/core/export-html/template.css','dist/core/export-html/template.js','dist/core/export-html/vendor/marked.min.js','dist/core/export-html/vendor/highlight.min.js'];
+ const assetNames=['package.json','README.md','CHANGELOG.md','dist/modes/interactive/theme/dark.json','dist/modes/interactive/theme/light.json','dist/modes/interactive/assets/clankolas.png','dist/core/export-html/template.html','dist/core/export-html/template.css','dist/core/export-html/template.js','dist/core/export-html/vendor/marked.min.js','dist/core/export-html/vendor/highlight.min.js']; //corvint:fixture-path
  for(const name of assetNames)assets[name]=readFileSync(join(sdk,name)).toString('base64');
  const banner=readFileSync(join(here,'bootstrap.cjs'),'utf8').replace('CORVINT_EMBEDDED_ASSETS',JSON.stringify(assets));
  const mainPlugin={name:'fixed-image-worker',setup(b){

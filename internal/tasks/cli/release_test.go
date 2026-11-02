@@ -334,6 +334,7 @@ func nonfixtureTestTMV0028_AS38_PolicyCanRemoveReleaseAuthorization(t *testing.T
 }
 
 func TestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInvalidates(t, true)
 }
 
@@ -374,7 +375,7 @@ func nonfixtureTestTMV0028_AS38_CandidateSurvivesTaskmanWritesAndSourceEditInval
 	if err := os.WriteFile(filepath.Join(r.Root, "source.txt"), []byte("candidate source\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(filepath.Join(r.Root, "source.txt"), 0o755); err != nil {
+	if err := os.Chmod(filepath.Join(r.Root, "source.txt"), 0o755); err != nil { // a mode change, never executed
 		t.Fatal(err)
 	}
 	modeChanged := atm(t, r.Root, nil, "release", "readiness", "v1-0")

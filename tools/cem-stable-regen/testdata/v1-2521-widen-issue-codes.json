@@ -1,0 +1,11 @@
+{
+  "reason": "V1-2521: CEM-V1-084 (accepted by decision 0546) refuses a declared receipt attestation at stage artifacts with exit 1 and one of four issue codes, which both consumers emit for the public receipt-authentication refusals and the sealed issueCodes enum lacked (V1-1265); decision 0589 has the schema follow the accepted requirement.",
+  "pointer": "/properties/issueCodes/items",
+  "predecessorSha256": "3971633e0fa4741bb20c18199c0325815b2c7eb92b72e39593a97cf50ea2bed8",
+  "add": [
+    "attestation-malformed",
+    "attestation-key-mismatch",
+    "attestation-subject-mismatch",
+    "attestation-signature-invalid"
+  ]
+}

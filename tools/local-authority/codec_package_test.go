@@ -36,7 +36,7 @@ func TestPLEV0013CodecPackageAdmitsTestdata(t *testing.T) {
 	vector := tree(entry{"100644", "vector.json", put("blob", []byte("{}\n"))})
 	commit := func(codec []byte) string {
 		internal := tree(entry{"40000", "wp3codec", codec})
-		root := tree(entry{"100644", "README.md", blob}, entry{"40000", "internal", internal}, entry{"40000", "tools", vector})
+		root := tree(entry{"100644", "README.md", blob}, entry{"40000", "internal", internal}, entry{"40000", "tools", vector}) //corvint:fixture-path
 		return hex.EncodeToString(put("commit", []byte("tree "+hex.EncodeToString(root)+"\n\nfixture\n")))
 	}
 	real := commit(tree(entry{"100644", "codec.go", blob}, entry{"100644", "codec_test.go", blob}, entry{"100644", "fuzz_test.go", blob}, entry{"40000", "testdata", vector}))

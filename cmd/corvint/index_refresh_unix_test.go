@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -170,7 +172,7 @@ func slowRefreshGit(t *testing.T, root string) (string, string) {
 	dir := t.TempDir()
 	ready := filepath.Join(dir, "ready")
 	script := fmt.Sprintf("#!/bin/sh\nfor arg do\n if [ \"$arg\" = rev-parse ]; then\n /bin/sleep 120 &\n child=$!\n echo \"$child\" > '%s'\n wait \"$child\"\n exit 1\n fi\ndone\nexec '%s' \"$@\"\n", ready, realGit)
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return "PATH=" + dir + string(os.PathListSeparator) + os.Getenv("PATH"), ready
@@ -649,5 +651,20 @@ func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
 	}
 	if snapshotRefreshWallBound != 10*time.Minute || snapshotRefreshCPUBudget != 55*time.Second {
 		t.Fatalf("bounds %s wall, %s CPU", snapshotRefreshWallBound, snapshotRefreshCPUBudget)
+	}
+}
+
+// TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805: the refresh worker
+// inherits neither profile knob, so a profiled hook keeps its own profile; the
+// internal markers and GOMAXPROCS are replaced as before and every other entry
+// passes in order (IDX-SNAP-V0-805).
+func TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805(t *testing.T) {
+	got := snapshotRefreshEnv([]string{
+		"PATH=/usr/bin", "CORVINT_CPUPROFILE=/tmp/hook.prof", "CORVINT_MEMPROFILE=/tmp/hook.mem",
+		snapshotRefreshWorkerEnv + "=0", snapshotRefreshPriorityEnv + "=1", "GOMAXPROCS=8", "CORVINT_CPUPROFILE_NOT=kept", "HOME=/h",
+	})
+	want := []string{"PATH=/usr/bin", "CORVINT_CPUPROFILE_NOT=kept", "HOME=/h", snapshotRefreshWorkerEnv + "=1", "GOMAXPROCS=1"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("worker env %q, want %q", got, want)
 	}
 }

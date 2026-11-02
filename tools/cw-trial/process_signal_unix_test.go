@@ -14,6 +14,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // These subprocesses enter the real main via TestMain, so this also covers
@@ -29,7 +31,7 @@ func TestTrialMainSignalsCleanOwnedAgentGroup(t *testing.T) {
 			}
 			script := filepath.Join(directory, "agent.sh")
 			quoted := "'" + strings.ReplaceAll(executable, "'", "'\\''") + "'"
-			if err := os.WriteFile(script, []byte("#!/bin/sh\nexport TRIAL_COMMAND_MODE=hold\nexec "+quoted+" -test.run='^TestTrialProcessHelper$'\n"), 0o700); err != nil {
+			if err := execfile.WriteFile(script, []byte("#!/bin/sh\nexport TRIAL_COMMAND_MODE=hold\nexec "+quoted+" -test.run='^TestTrialProcessHelper$'\n"), 0o700); err != nil {
 				t.Fatal(err)
 			}
 			command := exec.Command(executable, trialSignalArguments(t, directory, script)...)

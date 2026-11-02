@@ -3,6 +3,7 @@
 package store_test
 
 import (
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestV13010_ReuseKeyBindsResolvedExecutable(t *testing.T) {
 	for _, name := range []string{"one", "two"} {
 		dir := t.TempDir()
 		script := "#!/bin/sh\n# agent " + name + "\nprintf x >> .git/runs-pathgate\nexit 0\n"
-		if err := os.WriteFile(filepath.Join(dir, program), []byte(script), 0o755); err != nil {
+		if err := fixture.WriteExecutable(filepath.Join(dir, program), []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		agent[name] = dir + string(os.PathListSeparator) + os.Getenv("PATH")
@@ -66,7 +67,7 @@ func TestV13010_UnhashableExecutableIsNotReused(t *testing.T) {
 	}
 	dir := t.TempDir()
 	target := filepath.Join(dir, program)
-	if err := os.WriteFile(target, body, 0o755); err != nil {
+	if err := fixture.WriteExecutable(target, body, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(target, 0o111); err != nil {
