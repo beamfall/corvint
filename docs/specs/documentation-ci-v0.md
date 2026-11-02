@@ -98,6 +98,16 @@ from selected package counts. Missing hosted observations remain NOT_OBSERVED.
   `ci-narrowed-tree-record` jobs MUST NOT run for it, and only a `pull_request` event may plan DOCS.
   Every queue entry of a DOCS pull request therefore runs its own root race invocation (full, or
   narrowed only by the queue's own AFP-V0-730 selection when that is enabled) before `main` moves.
+- `DCI-V0-857`: (experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);
+  amends DCI-V0-003 and DCI-V0-006) The admitted Markdown subset MUST accept exactly the two
+  capability-table region markers `<!-- capability-gate:readme -->` and
+  `<!-- /capability-gate:readme -->` as HTML comments. Any other comment, or an unclosed one, MUST
+  choose FULL. A DOCS run MUST also run `go test -race ./tools/capabilities-check`, the consumer
+  that reads that region of the root `README.md`, and the check list gains
+  `capabilities-check-tests`.
+  Design: the root `README.md` gained the capability table and its markers after the 2026-09-29
+  review, so every README change chose FULL (`unsupported-html`) even with a fresh qualification.
+  Its reader is a Go test the omitted root race invocation would otherwise run only in the queue.
 
 ## Consumer inventory
 
@@ -107,6 +117,7 @@ proof of equivalent Go coverage or an automatic waiver of generic `affected` UNK
 | Consumer | Evidence and retained check |
 |---|---|
 | README links, presentation markup and executable examples | `tools/docs-ci-plan` checks immutable blobs and preserves code blocks. Its own fixture tests remain selected. |
+| README capability table (`<!-- capability-gate:readme -->` region) | `tools/capabilities-check` reads the table and maps each row to the catalog; its Go tests run under DOCS (DCI-V0-857). |
 | Frontier decision brief's README line citation | Exact existing file is the only citation-relocation exception. The classifier verifies spans; the full line-citation gate still scans all tracked docs. |
 | Specification index/header/digest consistency | `internal/specindex` runs under DOCS. Its `docs/specs/README.md` input is outside the admitted scope. |
 | Release/archive readers | Full archive-integrity, static/build and interop jobs remain. `internal/companionrelease` and `internal/releasecandidate` README literals largely describe generated bundle/candidate READMEs, not the root file. |
@@ -151,6 +162,7 @@ in the qualification artifact; missing/stale approval already selects FULL. No b
 | DCI-V0-006, DCI-V0-007 | workflow lint, focused native CLI fixtures and hosted DOCS/FULL/failure job observations |
 | DCI-V0-008 | retained local test/review evidence and first hosted README qualification; absent observations stay NOT_OBSERVED |
 | DCI-V0-855 | `TestQualificationInvalidation`, `TestQualificationIgnoresUnrelatedDrift`, `TestNativeCLI`; build log 2026-11-01-ci-w34 |
+| DCI-V0-857 | `TestCapabilityMarkerComments`; `TestDCIV0856DocsRunLeavesNoQueueReuseEvidence` (the DOCS test command); actual README replay in build log 2026-11-01-ci-w34 |
 | DCI-V0-856 | `TestDCIV0856DocsRunLeavesNoQueueReuseEvidence` in `tools/ci-reuse-plan`; hosted DOCS queue run `NOT_OBSERVED` |
 
 Non-goals: general Markdown parsing, accepting changed executable examples, skipping checks merely

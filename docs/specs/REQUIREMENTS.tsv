@@ -3596,6 +3596,7 @@ DCI-V0-007	docs/specs/documentation-ci-v0.md	Only the root Go race invocation ma
 DCI-V0-008	docs/specs/documentation-ci-v0.md	Qualification MUST retain source-bound consumer review and actual adversarial	unrecorded	-
 DCI-V0-855	docs/specs/documentation-ci-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);	standing	2026-10-11; V1-0470
 DCI-V0-856	docs/specs/documentation-ci-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470))	standing	2026-10-11; V1-0470
+DCI-V0-857	docs/specs/documentation-ci-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);	standing	2026-10-11; V1-0470
 DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	(accepted, decision 0506) The gate MUST check every backticked citation in `docs	owner	decision 0506
 DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
 DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
