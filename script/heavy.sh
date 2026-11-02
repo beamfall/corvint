@@ -203,7 +203,7 @@
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
 # appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
 # set test environment with `env K=V` inside the command, or as leading K=V words, which become
-# `env K=V ...` (ASD-V0-830). GOCACHE/GOMODCACHE assignments are
+# `env K=V ...` (ASD-V0-830). GOCACHE/CORVINT_GOCACHE/GOMODCACHE and TMPDIR/GOTMPDIR assignments are
 # dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
 # profiles, -trace, -test.*), as an argument, in a GOFLAGS= argument or in the exported GOFLAGS,
 # always runs locally, because its files would stay on the remote.
@@ -221,12 +221,18 @@
 # there filled it (ENOSPC). The remote command therefore gets CORVINT_GOCACHE (honoured by the
 # Makefile's `?=`, so `make windows-vet` uses it) and GOCACHE (for a plain `go test`/`go vet`) set to
 # ${HEAVY_REMOTE_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache} on the remote disk,
-# unless the remote environment (HEAVY_REMOTE_ENV) already exports them. HEAVY_REMOTE_GOCACHE is
+# unless the remote environment (HEAVY_REMOTE_ENV) already exports them. On Linux both cache paths
+# are checked with stat: tmpfs/ramfs caches move to $HOME/.cache/corvint-go-build-cache, even when
+# explicitly set in the env file. If that path is RAM-backed too, or its type cannot be checked,
+# the remote is unavailable (97), with a fix naming HEAVY_REMOTE_ENV (ASD-V0-2120).
+# HEAVY_REMOTE_GOCACHE is
 # read on the remote. No remote command default touches /tmp for the Go cache; trim it with
 # `make go-cache-trim` if it grows. The remote command's TMPDIR is a fresh directory under
 # ${HEAVY_REMOTE_TMPDIR:-HEAVY_REMOTE_ROOT/tmp} (read on the remote), removed with everything in it
 # when the command ends (V1-2563: the remote disk, as on the CI runners, not a tmpfs /tmp), and its
 # GOTMPDIR is that directory too unless HEAVY_REMOTE_GOTMPDIR or the env file sets one (ASD-V0-938).
+# Caller TMPDIR/GOTMPDIR assignments in argv are dropped even when their paths exist here: remote
+# scratch is host-local and per-run, so a Mac /var/folders path cannot override it (ASD-V0-2121).
 #
 # Pinned Go: the repository root's go.mod (else the nearest one) names the pinned release in its
 # toolchain line, else its go line. When the go on PATH reports another release and the pinned one
@@ -789,7 +795,7 @@ serve() {
   export CORVINT_GOCACHE GOCACHE
   # ASD-V0-930: a Makefile recipe run here is not admitted a second time through this host's heavy.sh.
   export HEAVY_ADMIT=
-  mkdir -p "$GOCACHE" || infra "go cache $GOCACHE unavailable"
+  remote_caches
   # ASD-V0-937: a host short of scratch or cache space is unavailable (97), so the next one is tried.
   for a in "$run_tmp" "$GOCACHE"; do
     fg=$(free_gb "$a")
@@ -814,10 +820,11 @@ serve() {
     export GOOS=$XGOOS GOARCH=$XGOARCH
     printf 'heavy.sh: building for %s/%s\n' "$GOOS" "$GOARCH" >&2
   fi
-  # A local GOCACHE/GOMODCACHE path means nothing here; the remote uses its own Go caches.
+  # Caller cache and scratch paths mean nothing here; keep the host-local setup above, including
+  # Makefile variable assignments (CORVINT_GOCACHE), env words and leading NAME=VALUE words.
   for a in ${CMD[@]+"${CMD[@]}"}; do
     [[ -n ${BUILD-} ]] && a=${a//@RT@/$wt}
-    case $a in GOCACHE=* | GOMODCACHE=*) ;; *) cmd+=("$a") ;; esac
+    case $a in GOCACHE=* | CORVINT_GOCACHE=* | GOMODCACHE=* | TMPDIR=* | GOTMPDIR=*) ;; *) cmd+=("$a") ;; esac
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
   : > "$w/marker" || infra "marker unwritable"
@@ -830,6 +837,32 @@ serve() {
     "$(heavy_secs "$t1" "$t2")" "$(heavy_secs "$t2" "$t3")" "$(heavy_secs "$t3" "$t4")" "heavy-slot$wt_slot" "$reused" >&2
   if [[ -n ${BUILD-} ]]; then keep_built "$rc" || return 96; else keep_written "$rc" || return 96; fi
   return "$rc"
+}
+
+# remote_caches: ASD-V0-2120. An env file can still carry an old /tmp cache setting. Check both
+# the plain Go and Makefile cache, following symlinks with stat, before either command can grow it.
+remote_caches() {
+  local key path fs fallback=$HOME/.cache/corvint-go-build-cache
+  for key in CORVINT_GOCACHE GOCACHE; do
+    path=${!key}
+    mkdir -p "$path" || infra "go cache $path unavailable"
+    if [[ $(uname -s) == Linux ]]; then
+      fs=$(stat -f -c %T "$path" 2> /dev/null) ||
+        infra "cannot check $key=$path; fix: set HEAVY_REMOTE_GOCACHE in HEAVY_REMOTE_ENV to a checkable disk directory"
+      case $fs in
+        tmpfs | ramfs)
+          mkdir -p "$fallback" || infra "go cache $fallback unavailable"
+          fs=$(stat -f -c %T "$fallback" 2> /dev/null) || fs=unknown
+          case $fs in
+            tmpfs | ramfs | unknown)
+              infra "$key=$path is RAM-backed and fallback $fallback is $fs; fix: set HEAVY_REMOTE_GOCACHE and both cache variables in HEAVY_REMOTE_ENV to a disk directory" ;;
+          esac
+          printf 'heavy.sh: remote %s=%s is RAM-backed; using %s\n' "$key" "$path" "$fallback" >&2
+          printf -v "$key" '%s' "$fallback"
+          ;;
+      esac
+    fi
+  done
 }
 
 # keep_written RC: in serve, after the command. When the worktree no longer matches the tested
