@@ -1,10 +1,6 @@
 package similar
 
-import (
-	"testing"
-
-	"github.com/Beamfall/corvint/internal/contextindex"
-)
+import "testing"
 
 // V1-3273: the index takes each doc field's term frequencies in one pass
 // through a counter it reuses across docs (fieldTerms), and ranking reads
@@ -30,8 +26,8 @@ func BenchmarkV13273_TermFrequencies(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			for _, f := range fields {
-				for term, tf := range contextindex.LexicalTermCounts(f) {
-					if !contextindex.LexicalStopWord(term) {
+				for term, tf := range lexicalTermCounts(f) {
+					if !stopWord(term) {
 						_ = tf
 					}
 				}
@@ -58,8 +54,8 @@ func TestV13273_ReusedCounterMatchesPerCallCounts(t *testing.T) {
 		d := recordDoc(r)
 		for _, f := range append([]string{d.ID, d.Title, d.Body}, append(d.Labels, d.Paths...)...) {
 			want := map[string]uint32{}
-			for term, tf := range contextindex.LexicalTermCounts(f) {
-				if !contextindex.LexicalStopWord(term) {
+			for term, tf := range lexicalTermCounts(f) {
+				if !stopWord(term) {
 					want[term] = tf
 				}
 			}
