@@ -123,6 +123,10 @@ func (f *flow) retireStaleState(base, gitDir string, stranded []string, digest s
 			for _, revision := range stranded {
 				f.say("%s: RETIRE stale trace %s quarantined byte-preserved to .context-corvint/legacy-traces/ by migrate-traces --apply --plan-digest %s (DCW-V0-406, LTPM-V0-012)\n", f.prefix, revision, digest)
 			}
+			// DCW-V0-691: retirement is durable, so a later run that retires
+			// again is retiring traces stranded since, by a commit amended,
+			// rebased or reset away after a run recorded a trace at it.
+			f.say("%s: NOTE retired %d stranded trace(s) of commits HEAD no longer reaches; each was recorded at a commit later amended, rebased or reset away, and a later run retires only traces stranded after this one (DCW-V0-691)\n", f.prefix, len(stranded))
 		}
 	}
 }

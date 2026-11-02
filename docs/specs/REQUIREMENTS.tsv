@@ -3760,6 +3760,8 @@ DCW-V0-924	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-548	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3545) A hunk	standing	2026-11-01; V1-3545
 DCW-V0-620	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3633 AC2;	standing	2026-11-01; V1-3633
 DCW-V0-621	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3681; refines	standing	2026-11-01; V1-3681
+DCW-V0-690	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1724; refines	standing	2026-11-01; V1-1724
+DCW-V0-691	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3604; refines	standing	2026-11-01; V1-3604
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
