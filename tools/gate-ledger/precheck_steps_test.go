@@ -64,7 +64,7 @@ func TestPrecheckLedgerNamesAreComplete_GLV0785(t *testing.T) {
 // inScopeSample is one path an edit to which a scope entry covers.
 func inScopeSample(entry string) (string, bool) {
 	switch {
-	case entry == treeScope || entry == neverScope:
+	case entry == treeScope || entry == neverScope || strings.HasPrefix(entry, "!"):
 		return "", false
 	case entry == "@go":
 		return "sample.go", true
@@ -88,8 +88,9 @@ func inScopeSample(entry string) (string, bool) {
 // dimension is outside its key: a CEM-only change, a build-log edit and a
 // source edit each change it. A declared step keys exactly on its scope plus
 // the gate tooling: an edit under each declared entry changes its key, and a
-// CEM-only change outside every entry does not. A `@test:` step's closure is
-// proven by TestRunStepKeysTestScopeOnPackageClosure; a `never` step always runs.
+// CEM-only change outside every entry does not. A `@test:` or `@deps:` step's
+// closure is proven by TestRunStepKeysTestScopeOnPackageClosure and
+// TestRunStepKeysDepsAndAllScope_GLV0787; a `never` step always runs.
 func TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the fixture repository is driven through git")
 	root := fixtureRepository(t)
@@ -121,7 +122,8 @@ func TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785(t *testing.T) {
 		switch {
 		case declared && len(scope) == 1 && scope[0] == neverScope:
 			continue
-		case declared && len(scope) == 1 && strings.HasPrefix(scope[0], testScopePrefix):
+		case declared && len(scope) > 0 && (strings.HasPrefix(scope[0], testScopePrefix) || strings.HasPrefix(scope[0], depsScopePrefix)):
+			// A package-closure scope needs a Go package; its fixture tests cover it.
 			continue
 		case !declared || (len(scope) == 1 && scope[0] == treeScope):
 			for _, file := range []string{".corvint/changes/" + name + ".cem.json", "docs/build-log/" + name + ".md", "main.go"} { //corvint:fixture-path

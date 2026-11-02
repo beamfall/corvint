@@ -138,10 +138,13 @@ func TestDeclaredTestScopesNameOnePackage(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, scope := range testScopes {
-		if len(scope) != 1 || !strings.HasPrefix(scope[0], testScopePrefix) {
-			t.Fatalf("%s: scope %q is not one @test: entry", name, scope)
+		dir, ok := strings.CutPrefix(scope[0], testScopePrefix)
+		if !ok {
+			dir, ok = strings.CutPrefix(scope[0], depsScopePrefix)
 		}
-		dir := strings.TrimPrefix(scope[0], testScopePrefix)
+		if !ok || (len(scope) != 1 && !strings.HasPrefix(scope[0], depsScopePrefix)) {
+			t.Fatalf("%s: scope %q does not start with its one @test: or @deps: package", name, scope)
+		}
 		_, recipe, ok := strings.Cut(string(makefile), "\n"+name+":\n\t")
 		if !ok {
 			t.Fatalf("%s: no Makefile target", name)
@@ -150,5 +153,53 @@ func TestDeclaredTestScopesNameOnePackage(t *testing.T) {
 		if !strings.HasPrefix(recipe, "$(DOC_GATE_GO_TEST) -run ") || !strings.HasSuffix(recipe, " ./"+dir) || strings.Count(recipe, " ./") != 1 {
 			t.Errorf("%s: recipe %q is not one go test -run of ./%s", name, recipe, dir)
 		}
+	}
+}
+
+// TestRunStepKeysDepsAndAllScope_GLV0787 replays GL-V0-787 and GL-V0-788 on the
+// shell-foreign-callers-check scope shape: a CEM-only change, a build-log edit
+// and a new .tsv hit, since the step reads none of them; an edit to a shell
+// script, to a file that names it, to the .corvint declaration, a new caller
+// file, and an embedded .json of the Go test closure (excluded from `@all`, put
+// back by `@deps:`) each rerun it.
+func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := testScopeRepository(t, `{"profile":"corvint-test-read-scopes/0","packages":{}}`+"\n")
+	write(t, root, ".gitignore", "COUNT\n")
+	writeAll(t, root, "lib/lib.go", "package lib\n\nimport _ \"embed\"\n\n//go:embed data.txt\nvar Data string\n\n//go:embed table.json\nvar Table string\n")
+	writeAll(t, root, "lib/table.json", "{}\n")
+	writeAll(t, root, "jobs/run.sh", "#!/bin/sh\necho run\n")
+	writeAll(t, root, "other/caller.go", "package other\n\nconst job = \"jobs/run.sh\"\n")
+	writeAll(t, root, ".corvint/shell-foreign-callers.json", `{"scripts":{}}`+"\n")
+	withScope(t, "fixture-callers", []string{depsScopePrefix + "checks/chk", allScope, "!*.md", "!*.json", "!*.jsonl", "!*.tsv", ".corvint/*.json"})
+	step := append([]string{"run", "fixture-callers+aaa"}, counting...)
+	if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RECORD fixture-callers+aaa") || strings.Contains(out, "unavailable") {
+		t.Fatalf("first run: code %d, %q", code, out)
+	}
+	for _, edit := range []struct{ file, body string }{
+		{".corvint/changes/0123.cem.json", "{}\n"},
+		{"docs/build-log/entry.md", "log, edited\n"},
+		{"docs/specs/REQUIREMENTS.tsv", "id\tpath\n"},
+	} {
+		writeAll(t, root, edit.file, edit.body)
+		if _, out := ledgerRun(t, step...); !strings.Contains(out, "HIT fixture-callers+aaa") {
+			t.Fatalf("an edit to %s, which the step does not read, missed: %q", edit.file, out)
+		}
+	}
+	misses := []struct{ file, body string }{
+		{"jobs/run.sh", "#!/bin/sh\necho changed\n"},
+		{"other/caller.go", "package other\n\nconst job = \"jobs/run.sh --now\"\n"},
+		{".corvint/shell-foreign-callers.json", `{"scripts":{"jobs/run.sh":{}}}` + "\n"},
+		{"tools2/new.py", "import subprocess\nsubprocess.run(['jobs/run.sh'])\n"},
+		{"lib/table.json", "{\"edited\":true}\n"},
+	}
+	for _, edit := range misses {
+		writeAll(t, root, edit.file, edit.body)
+		if _, out := ledgerRun(t, step...); !strings.Contains(out, "RUN fixture-callers+aaa: no recorded pass") {
+			t.Fatalf("an edit to %s, which the step reads, hit: %q", edit.file, out)
+		}
+	}
+	if got := runs(t, root); got != 1+len(misses) {
+		t.Fatalf("the step ran %d times, want %d", got, 1+len(misses))
 	}
 }

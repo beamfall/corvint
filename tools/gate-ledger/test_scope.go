@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -19,6 +20,17 @@ import (
 // .corvint/test-read-scopes.json declaration admits (its subtree, its declared
 // entries and the declaration itself), plus the gate tooling.
 const testScopePrefix = "@test:"
+
+// depsScopePrefix marks `@deps:DIR` (GL-V0-787): DIR's `go list -deps -test`
+// files only, for a step whose reads the scope's other entries declare, so no
+// read-scope declaration for DIR is needed. `@all` selects every worktree path,
+// `!PATTERN` removes the paths it matches from `@all`, and a plain entry (a
+// `*.ext` suffix, a `DIR/` prefix, a one-component `DIR/*.ext` glob or an exact
+// path) adds paths back.
+const (
+	depsScopePrefix = "@deps:"
+	allScope        = "@all"
+)
 
 const (
 	readScopesFile    = ".corvint/test-read-scopes.json"
@@ -33,6 +45,11 @@ const (
 var testScopes = map[string][]string{
 	"shell-test-registration-check": {testScopePrefix + "tools/test-commands-check"},
 	"go-version-pins-check":         {testScopePrefix + "tools/capabilities-check"},
+	// GL-V0-788 (V1-4193): TestRepositoryShellForeignCallersComplete_TSP_V0_005 reads the
+	// tracked listing, every source-walk file except .md, .json, .jsonl and .tsv ones (the
+	// walk skips hidden directories), the shell plugin's .sh and foreign-source files under
+	// it and .github, and the .corvint/ declarations; a sealed CEM or a build log is none.
+	"shell-foreign-callers-check": {depsScopePrefix + "internal/liveverify/affected", allScope, "!*.md", "!*.json", "!*.jsonl", "!*.tsv", ".corvint/*.json"},
 }
 
 func init() {
@@ -47,33 +64,67 @@ func init() {
 // file the worktree digest does not hold) keys the step on the whole tree and
 // says so; it never narrows on a doubt.
 func (l *ledger) scopedInputs(scope []string) string {
-	var dirs, rest []string
+	var dirs, deps, rest, excluded []string
+	all := false
 	for _, s := range scope {
 		if dir, ok := strings.CutPrefix(s, testScopePrefix); ok {
 			dirs = append(dirs, dir)
+		} else if dir, ok := strings.CutPrefix(s, depsScopePrefix); ok {
+			deps = append(deps, dir)
+		} else if s == allScope {
+			all = true
+		} else if pattern, ok := strings.CutPrefix(s, "!"); ok {
+			excluded = append(excluded, pattern)
 		} else {
 			rest = append(rest, s)
 		}
 	}
-	if len(dirs) == 0 {
+	if len(dirs)+len(deps) == 0 && !all && len(excluded) == 0 {
 		return l.inputs(scope)
 	}
-	selected, err := l.testClosure(dirs)
-	if err != nil {
-		fmt.Fprintf(l.stdout, "%sSCOPE %s unavailable: %s; keyed on the whole tree\n", prefixOut, strings.Join(scope, " "), err)
-		return l.inputs([]string{treeScope})
+	selected := map[string]bool{}
+	for _, part := range []struct {
+		dirs     []string
+		declared bool
+	}{{dirs, true}, {deps, false}} {
+		if len(part.dirs) == 0 {
+			continue
+		}
+		closure, err := l.testClosure(part.dirs, part.declared)
+		if err != nil {
+			fmt.Fprintf(l.stdout, "%sSCOPE %s unavailable: %s; keyed on the whole tree\n", prefixOut, strings.Join(scope, " "), err)
+			return l.inputs([]string{treeScope})
+		}
+		for p := range closure {
+			selected[p] = true
+		}
 	}
 	h := sha256.New()
 	for _, entry := range l.entries {
-		if selected[entry.path] || inScope(entry.path, rest) || inScope(entry.path, tooling) {
+		if selected[entry.path] || matchesScope(entry.path, rest) || (all && !matchesScope(entry.path, excluded)) || inScope(entry.path, tooling) {
 			fmt.Fprintf(h, "%s\n", entry.line)
 		}
 	}
 	return "test-closure " + hex.EncodeToString(h.Sum(nil))
 }
 
-// testClosure is the set of worktree paths the `@test:` packages in dirs read.
-func (l *ledger) testClosure(dirs []string) (map[string]bool, error) {
+// matchesScope is inScope plus one-component `DIR/*.ext` globs.
+func matchesScope(p string, patterns []string) bool {
+	for _, pattern := range patterns {
+		if strings.Contains(pattern, "*") && !strings.HasPrefix(pattern, "*.") {
+			if ok, err := path.Match(pattern, p); err == nil && ok {
+				return true
+			}
+		} else if inScope(p, []string{pattern}) {
+			return true
+		}
+	}
+	return false
+}
+
+// testClosure is the set of worktree paths the `@test:` packages in dirs read,
+// or, without declared, only their `go list -deps -test` files (`@deps:`).
+func (l *ledger) testClosure(dirs []string, declared bool) (map[string]bool, error) {
 	if l.root == "" {
 		return nil, errors.New("no repository root")
 	}
@@ -81,13 +132,15 @@ func (l *ledger) testClosure(dirs []string) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	declared, err := readTestScopes(filepath.Join(l.root, filepath.FromSlash(readScopesFile)))
-	if err != nil {
-		return nil, err
+	readScopes := map[string][]string{}
+	if declared {
+		if readScopes, err = readTestScopes(filepath.Join(l.root, filepath.FromSlash(readScopesFile))); err != nil {
+			return nil, err
+		}
 	}
 	patterns := make([]string, 0, len(dirs))
 	for _, dir := range dirs {
-		if _, ok := declared[dir]; !ok {
+		if _, ok := readScopes[dir]; declared && !ok {
 			return nil, fmt.Errorf("%s declares no read scope for %s", readScopesFile, dir)
 		}
 		patterns = append(patterns, "./"+dir)
@@ -112,8 +165,11 @@ func (l *ledger) testClosure(dirs []string) (map[string]bool, error) {
 			}
 			selected[f] = true
 		}
+		if !declared {
+			continue
+		}
 		for p := range present {
-			if inTestReadScope(dir, declared[dir], p) {
+			if inTestReadScope(dir, readScopes[dir], p) {
 				selected[p] = true
 			}
 		}

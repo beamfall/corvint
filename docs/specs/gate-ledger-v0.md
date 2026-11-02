@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160); GL-V0-786 experimental under the standing lane auto-accept (2026-11-01; V1-4194)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160); GL-V0-786 experimental under the standing lane auto-accept (2026-11-01; V1-4194); GL-V0-787 and GL-V0-788 experimental under the standing lane auto-accept (2026-11-01; V1-4193)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -220,6 +220,33 @@ therefore come from something keyed on content, not from Go's cache.
     run-specific path never enters a key.
   - Measured in `docs/build-log/2026-11-01-csp-w33.md`.
   - Rollback: unset the variable in `script/batch-precheck.sh`; each step digests itself again.
+- `GL-V0-787`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4193; refines
+  `GL-V0-775`) A scope entry `@deps:DIR` MUST add every file `go list -deps -test ./DIR`
+  compiles or embeds, without requiring a read-scope declaration for DIR: the scope's other
+  entries declare what the step reads. `@all` MUST select every worktree path; an entry
+  `!PATTERN` MUST remove the paths it matches from `@all` only; a plain entry (a `*.ext` suffix, a
+  `DIR/` prefix, a one-component `DIR/*.ext` glob or an exact path) MUST add paths. The gate
+  tooling is always in the key. A closure that cannot be proven keys on the whole tree, as
+  GL-V0-775 states. Rollback: drop the `@deps:`, `@all` and `!` branches of `scopedInputs`.
+- `GL-V0-788`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4193)
+  - `shell-foreign-callers-check` MUST be declared as
+    `@deps:internal/liveverify/affected @all !*.md !*.json !*.jsonl !*.tsv .corvint/*.json`.
+  - Why that is its full read set: `TestRepositoryShellForeignCallersComplete_TSP_V0_005` reads
+    the tracked listing and every source-walk file except `.md`, `.json`, `.jsonl` and `.tsv`
+    ones. The walk skips hidden directories. The shell plugin reads its `.sh` and
+    foreign-source files there and under `.github`, plus the `.corvint/` declarations.
+  - So a seal that adds only a CEM, a build-log edit or a `.tsv` regeneration reuses its pass.
+    A shell script, a file naming one, a declaration, a new caller or an embedded file of the
+    test closure reruns it.
+  - Measured (Go test log of the real test, 2026-11-01): it opened no `.md`, `.json`, `.jsonl` or
+    `.tsv` file except `.corvint/shell-foreign-callers.json` and
+    `.corvint/shell-read-scopes.json`, and nothing under `.corvint/changes/`.
+  - No read-scope declaration is added for `internal/liveverify/affected`: this test reads the
+    whole tree, and a declaration would change the affected selector's and the confined CI
+    shard's treatment of every test in that package.
+  - Failure mode: a later edit that makes the test read a `.md` or `.json` file outside
+    `.corvint/` must update this scope.
+  - Rollback: delete the entry; the step returns to the whole-tree key.
 
 ## Non-goals and simpler baseline
 
@@ -323,6 +350,8 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
 | GL-V0-785 | `precheckLedgerNames` in `tools/gate-ledger/precheck_steps_test.go` | `TestPrecheckLedgerNamesAreComplete_GLV0785` (every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry is classified); `TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785` (each declared step's key follows its entries and ignores a CEM-only change; each undeclared step's key changes on a CEM, build-log and source edit) |
 | GL-V0-786 | `openShared`, `digestCommand`, `forgetSince` in `tools/gate-ledger/shared_digest.go`; `salt_input`, the shared digest, salt batch and `--verify` in `script/batch-precheck.sh` | `TestSharedDigestKeysEqualOwnDigest_GLV0786` (shared keys equal own keys for declared, salted, tree, `@test:` and unscoped steps; other-root, foreign and malformed files are ignored); `TestSharedDigestVerifyForgetsRecordsOfAMovedTree_GLV0786`; the batch-precheck spawn counts and the per-step `plan` HIT check in the build log |
+| GL-V0-787 | `scopedInputs`, `matchesScope` and `testClosure`'s undeclared mode in `tools/gate-ledger/test_scope.go` | `TestRunStepKeysDepsAndAllScope_GLV0787` |
+| GL-V0-788 | the `shell-foreign-callers-check` entry of `testScopes` | `TestRunStepKeysDepsAndAllScope_GLV0787` (CEM, build-log and `.tsv` edits hit; a script, a caller, the declaration, a new caller and an embedded `.json` rerun); `TestDeclaredTestScopesNameOnePackage`; the test-log read audit in `docs/build-log/2026-11-01-csp-w33.md` |
 
 ## Rollout, rollback, and drift
 
