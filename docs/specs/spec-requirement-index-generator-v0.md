@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:433@e23d2d1f`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:460@e23d2d1f`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
   Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
@@ -621,10 +621,9 @@ No requirement below diverges from the implementation.
   `make spec-requirements` (V1-4068 item 3). Non-goals: staging specs or any other path. Evidence:
   `script/gen-spec-requirements_test.sh` case 17 (both `--write` runs leave no unstaged generated
   file and the second names the staged index). Rollback: drop the staging loop; stage by hand.
-- `SRG-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); V1-3769; refines
-  SRG-V0-965) Every generator mode MUST count each spec's `## Requirements` obligations as
-  `internal/lrfrepo/ocm.go` counts them, warn on standard error from 240 to 256 naming the spec,
-  its count and the companion-spec route, and refuse a section over 256 before printing or writing
+- `SRG-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); amended under the owner's standing auto-accept (2026-11-02); V1-3769; V1-4331; refines SRG-V0-965) Every generator mode MUST count each spec's `## Requirements` obligations as
+  `internal/lrfrepo/ocm.go` counts them, warn on standard error within `SPEC_CAPACITY_MARGIN` of 256 (default 8,
+  override 0..256) naming the spec, its count and the companion-spec route, and refuse a section over 256 before printing or writing
   anything, so the limit is seen at authoring time rather than first at the Go test after the TSV
   is written. Rollback: drop the obligation count and its warning and refusal; SRG-V0-965 still
   refuses after the write.
@@ -632,6 +631,27 @@ No requirement below diverges from the implementation.
   header of `script/gen-spec-requirements.sh` MUST document the minimal Git-index layout each mode
   needs, and the missing-README refusal MUST name the modes that need it and point at that
   comment. Rollback: revert the comment and the message.
+
+- `SRG-V0-744`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331)
+  `make spec-capacity-check` MUST check every staged spec's unique OCM Requirements obligations,
+  warn for each spec from `256-SPEC_CAPACITY_MARGIN` through 255 (default 8, integer 0..256),
+  and fail for each spec above 256. At exactly 256 it MUST fail only when BASE is given and
+  at least one section ID was added since BASE, reserving headroom against concurrent additions;
+  otherwise it MUST warn, including when BASE is absent. Diagnostics MUST name the file, count,
+  cap and companion route:
+  a new spec file with a new requirement prefix, registered in README.md and INDEX.json according
+  to AGENTS.md and SPEC-DRIVEN-DEVELOPMENT.md. It MUST write no generated file. Invalid margins
+  fail closed. OCM's wire bound and generation's admission of exactly 256 remain unchanged.
+- `SRG-V0-745`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331)
+  When generation refuses an over-cap spec or capacity reports a near/full spec, optional
+  `BASE=<rev>` MUST report the sorted requirement IDs present in its staged Requirements section
+  but absent from that spec at the immutable base commit. New specs treat the absent base file
+  as empty; unreadable base objects or invalid revisions fail closed. Added IDs MUST be computed
+  before deciding whether an exact-256 spec fails capacity. Without BASE an over-cap
+  refusal MUST state that added IDs are NOT_OBSERVED and name the BASE rerun. A regression MUST
+  prove two individually admitted lane fixtures overflow when combined, in both OCM and the
+  generator; it MUST prove the base difference attributes only the added lane's IDs, an unchanged
+  exact-256 spec warns and passes with BASE, and filling a spec to 256 since BASE fails capacity.
 
 ## Non-goals and simpler baseline
 
@@ -749,13 +769,15 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-044 | `script/gen-spec-requirements_test.sh` case 11: a definition line ending in `Status: (accepted, decision 0481; GitHub #715).` is refused with its line and id; the case fails on the pre-change generator |
 | SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
 | SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
+| SRG-V0-744 | `make spec-capacity-check`; `script/gen-spec-requirements_test.sh` case 50 (margins, staging, every near spec, 256 without BASE warns, unchanged 256 with BASE warns, filled-to-256 fails, 257 fails); `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` |
+| SRG-V0-745 | `TestSpecCapacityCombinedLanes` in `internal/lrfrepo/ocm_spec_capacity_test.go` (two admitted fixtures, union 257, exact base additions, unchanged versus newly filled 256); `script/gen-spec-requirements_test.sh` case 50 (invalid base, 255-to-256 attribution) |
 | SRG-V0-965 | the `spec-requirements` recipe in `Makefile` runs `TestSpecsStayWithinTheOCMObligationBound` after writing; `script/gen-spec-requirements_test.sh` case 15 checks the recipe names it |
 | SRG-V0-966 | `script/gen-spec-requirements_test.sh` case 15: `RBK-V0-001:` repeated under `### Rollback` is neither a duplicate nor the title; `script/check-requirement-definitions_test.sh` rollback case: a fixture with bulleted and unbulleted restatements under `## Rollback` and `### Rollback` passes the generator (no SRG-V0-891 refusal) and then `check-requirement-definitions.sh` |
 | SRG-V0-967 | `script/gen-spec-requirements_test.sh` case 15: the recipe's `no changes` and `updated` lines |
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-979 | `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex` in `internal/specindex/superseded_test.go`: a live spec superseded in a fixture repository regenerates through `--index` and `--readme` to an index `checkIndex` accepts, and `supersededBy` names the Successor |
 | SRG-V0-820 | `script/gen-spec-requirements_test.sh` case 17: `--write` stages the regenerated files and prints the `staged` line |
-| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 241 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing |
+| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 248 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing |
 | SRG-V0-743 | `script/gen-spec-requirements_test.sh` case 51: a fixture with specs but no README prints the TSV and is refused in `--readme` naming the layout comment |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
@@ -922,3 +944,9 @@ moved to the front of their lines, which would make them `standing`, is a change
 specs and belongs to their owners. Whether old header tails should be cut back to the current
 status is the same kind of edit. Whether `NOT_PROMOTABLE` should fail a gate is for the owner to
 decide once the standing backlog has been read back.
+
+The V1-4331 capacity and base-attribution changes roll back by reverting their generator modes,
+Makefile target and call sites together. They do not raise OCM's 256-obligation bound. A capacity
+warning on an unchanged full baseline names the companion route; filling the last slot since BASE
+fails capacity. New rows go to a companion spec. Independent review and post-commit binding
+remain separate promotion evidence.

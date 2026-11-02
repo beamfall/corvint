@@ -961,7 +961,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
     *) fail "the README range of equal-valued IDs is not CIN-V0-0001..1010: $long_readme" ;; esac
 done
 # 50. SRG-V0-740 (V1-3769): the OCM obligation limit is refused here, not first at the Go test:
-# 241 section definitions warn naming the count and the companion-spec route and still print, 257
+# 248 section definitions warn naming the count and the companion-spec route and still print, 257
 # are refused in the TSV and --all modes and --all writes nothing.
 obligation_spec() {
   { printf '# Big\n\n## Requirements\n\n'
@@ -971,13 +971,52 @@ obligation_spec() {
   } > "$test_root/docs/specs/big.md"
   stage docs/specs/big.md
 }
-obligation_spec 241
-big_err=$(run 2>&1 > /dev/null) || fail "241 section definitions were refused: $big_err"
+obligation_spec 248
+big_err=$(run 2>&1 > /dev/null) || fail "248 section definitions were refused: $big_err"
 case $big_err in
-  *'docs/specs/big.md: warning: its ## Requirements section holds 241 of the 256 obligations'*'companion spec with its own requirement prefix'*'(SRG-V0-740)'*) ;;
-  *) fail "241 section definitions gave no budget warning: $big_err" ;;
+  *'docs/specs/big.md: warning: its ## Requirements section holds 248 of the 256 obligations'*'companion spec with its own requirement prefix'*'(SRG-V0-740)'*) ;;
+  *) fail "248 section definitions gave no budget warning: $big_err" ;;
 esac
+# SRG-V0-744: default margin 8, override 16, multiple specs, and staged-only inputs.
+obligation_spec 247
+big_err=$(run --capacity 2>&1) || fail "247 capacity refused: $big_err"
+case $big_err in *'warning:'*) fail "247 unexpectedly warned with margin 8" ;; esac
+big_err=$(SPEC_CAPACITY_MARGIN=16 run --capacity 2>&1) || fail "margin override refused: $big_err"
+case $big_err in *'holds 247 of the 256 obligations'*) ;; *) fail "margin override gave no warning: $big_err" ;; esac
+for bad_margin in -1 nope 257; do
+  SPEC_CAPACITY_MARGIN=$bad_margin run --capacity > /dev/null 2>&1 && fail "invalid margin $bad_margin passed"
+done
+obligation_spec 248
+# Unstaged bytes must not change the staged budget.
+printf -- '- `BIG-V0-999`: (proposed) Unstaged clause.\n' >> "$test_root/docs/specs/big.md"
+big_err=$(run --capacity 2>&1) || fail "staged capacity refused: $big_err"
+case $big_err in *'holds 248 of the 256 obligations'*) ;; *) fail "capacity read unstaged bytes: $big_err" ;; esac
+# A second near-cap spec must be reported in the same invocation.
+sed 's/BIG-V0-/SECOND-V0-/g' "$test_root/docs/specs/big.md" > "$test_root/docs/specs/second.md"
+stage docs/specs/second.md
+big_err=$(run --capacity 2>&1) || fail "two near-cap specs refused: $big_err"
+for spec_name in big second; do
+  case $big_err in *"docs/specs/$spec_name.md: warning:"*) ;; *) fail "capacity missed $spec_name: $big_err" ;; esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/second.md
+capacity_base() {
+  capacity_tree=$(git -C "$test_root" write-tree)
+  git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit-tree "$capacity_tree" -m 'capacity fixture base'
+}
+obligation_spec 255
+capacity_before=$(capacity_base)
+obligation_spec 256
+run > /dev/null 2>&1 || fail "generator refused the OCM-admitted 256"
+big_err=$(run --capacity 2>&1) || fail "unattributed full spec refused: $big_err"
+case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*) ;; *) fail "full spec lacked warning/route: $big_err" ;; esac
+big_err=$(BASE=$capacity_before run --capacity 2>&1) && fail "capacity accepted a newly filled spec"
+case $big_err in *'256 obligations; the limit is 256'*'requirement IDs added since BASE='*'BIG-V0-256'*) ;; *) fail "newly filled refusal lacked attribution: $big_err" ;; esac
+capacity_full=$(capacity_base)
+big_err=$(BASE=$capacity_full run --capacity 2>&1) || fail "unchanged full spec refused: $big_err"
+case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*'requirement IDs added since BASE='*'(none)'*) ;; *) fail "unchanged full spec lacked warning/attribution: $big_err" ;; esac
+BASE=not-a-revision run --capacity > /dev/null 2>&1 && fail "invalid BASE was ignored"
 obligation_spec 257
+run --capacity > /dev/null 2>&1 && fail "capacity accepted 257 without BASE"
 big_err=$(run 2>&1 > /dev/null) && fail "257 section definitions were accepted"
 case $big_err in
   *'docs/specs/big.md: its ## Requirements section holds 257 obligations; the limit is 256'*'(SRG-V0-740)'*) ;;

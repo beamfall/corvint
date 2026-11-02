@@ -10,6 +10,7 @@
 #   script/batch-precheck.sh --base REV             as above, but rerun each failed step on a detached
 #                                                   worktree of REV and exit 1 only for failures REV
 #                                                   does not already show
+#   script/batch-precheck.sh --static-check         check spec capacity and README rows only
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
 #   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
@@ -816,7 +817,7 @@ steps() {
   # the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
 }
 
-base=${BATCH_PRECHECK_BASE:-}
+base=${BATCH_PRECHECK_BASE:-${DOGFOOD_BASE:-}}
 receipt_path() { git rev-parse --path-format=absolute --git-path batch-precheck-receipt; }
 
 verify_receipt() {
@@ -894,7 +895,20 @@ conflict_comments() {
   return 1
 }
 
+# ASD-V0-2010/2011: always run before repins, planner/builds, receipt reuse and doc gates.
+# Synthetic workflow-only fixtures have neither index file; real spec repositories have both.
+static_checks() {
+  [[ -e docs/specs/README.md || -e docs/specs/INDEX.json ]] || return 0
+  local rc=0
+  "$self_dir/check-spec-readme.sh" || rc=1
+  SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
+    "$root/script/gen-spec-requirements.sh" --capacity || rc=1
+  ((rc == 0)) || { printf 'batch-precheck: FAIL static spec checks; stopped before repins and slow doc gates\n' >&2; return 1; }
+  printf 'batch-precheck: PASS static spec checks\n'
+}
+
 case ${1:-} in
+  --static-check) static_checks; exit $? ;;
   --sync-check) sync_check; exit $? ;;
   --conflict-comments) conflict_comments "${2:-}"; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
@@ -904,8 +918,9 @@ case ${1:-} in
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--static-check|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
+static_checks || exit 1
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
 [[ -z $base ]] || "$self_dir/require-full-history.sh" batch-precheck || exit 2

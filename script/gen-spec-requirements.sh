@@ -28,10 +28,16 @@ set -eu
 # docs/specs/INTENT-STATUS-FROZEN.tsv and script/requirement-definitions-outside-section.txt are
 # optional: absent means no frozen header IDs and no baselined outside definitions.
 
+# --capacity checks staged Requirements headroom without generating files: SPEC_CAPACITY_MARGIN
+# defaults to 8; above 256 fails, as does 256 with IDs added since the optional BASE
+# (or SPEC_REQUIREMENTS_BASE). Other full specs warn. BASE names the revision whose
+# obligation IDs are subtracted in capacity and over-cap diagnostics.
+# Example: BASE=origin/main SPEC_CAPACITY_MARGIN=12 script/gen-spec-requirements.sh --capacity
 usage() {
-  printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check]\n' "$0" >&2
+  printf 'usage: %s [--index | --readme | --lines | --all DIR | --write | --check | --capacity]\n' "$0" >&2
   printf '  --write regenerates docs/specs/REQUIREMENTS.tsv, INDEX.json and README.md (make spec-requirements);\n' >&2
   printf '  --check compares them with a fresh generation (make spec-requirements-check)\n' >&2
+  printf '  --capacity checks staged spec headroom (SPEC_CAPACITY_MARGIN=8, optional BASE=REV)\n' >&2
   exit 2
 }
 out_dir=
@@ -40,6 +46,7 @@ case ${1:-} in
   --index) mode=index ;;
   --readme) mode=readme ;;
   --lines) mode=lines ;;
+  --capacity) test $# = 1 || usage; mode=capacity ;;
   --write | --check) test $# = 1 || usage; mode=${1#--} ;;
   --all)
     test $# = 2 && test -n "$2" || usage
@@ -332,6 +339,28 @@ push @reads, 'docs/specs/README.md'
 my $blobs = index_blobs(@reads);
 my @noted_definitions;
 
+# The same section/fence reader supplies staged counts and immutable-base ID differences.
+# Keep the accepted obligation forms aligned with internal/lrfrepo/ocm.go.
+sub section_obligation_ids {
+    my ($blob) = @_;
+    my ($inside, $fence) = (0, '');
+    my %ids;
+    for my $line (split /^/, $blob) {
+        my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
+        if ($fence ne '') {
+            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
+                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
+            next;
+        }
+        if ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) { $fence = $run; next; }
+        if ($line =~ /^## Requirements\r?\n?\z/) { $inside = 1; }
+        elsif ($line =~ /^##(?: |\r?\n?\z)/) { $inside = 0; }
+        elsif ($inside && $line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
+            $ids{$1 // $2} = 1;
+        }
+    }
+    return \%ids;
+}
 my (%best, %header, %definitions, %section, @outside_section, @continuation_notes, @malformed, %obligations);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
@@ -356,7 +385,6 @@ for my $file (sort @specs) {
     # OCM-form definition after that section before doc-gates does.
     my ($in_section, $sections, $section_fence, @outside) = (0, 0, '');
     # SRG-V0-740: the OCM obligations of the section, counted as internal/lrfrepo/ocm.go counts them.
-    my %section_ids;
     my $section_line = 0;
     my $line_number = 0;
     my $previous_blank = 1;
@@ -406,8 +434,7 @@ for my $file (sort @specs) {
                 $section{$file}[1] = $line_number - 1 if $in_section;
                 $in_section = 0;
             } elsif ($line =~ /^- (?:`([A-Z][A-Z0-9-]*-[0-9]{3,})`: |\*\*([A-Z][A-Z0-9-]*-[0-9]{3,})[:.]\*\* )/) {
-                if ($in_section) { $section_ids{$1 // $2} = 1 }
-                elsif (!$rollback) { push @outside, [$1 // $2, $line_number] }
+                if (!$in_section && !$rollback) { push @outside, [$1 // $2, $line_number] }
             }
             # SRG-V0-791: a definition-shaped bold or backticked id the token scan cannot read; a lettered
             # sub-requirement (`VAF-009A`) stays unindexed under its parent row.
@@ -482,7 +509,7 @@ for my $file (sort @specs) {
     $section{$file}[1] ||= $line_number if $in_section;
     if ($sections == 1) {
         push @outside_section, [$file, @$_] for @outside;
-        $obligations{$file} = scalar keys %section_ids;
+        $obligations{$file} = section_obligation_ids($blob);
     } else {
         delete $section{$file};
     }
@@ -657,21 +684,62 @@ sub status_ids {
             . "spec-requirements (SRG-V0-968)\n";
     }
 }
-# SRG-V0-740 (V1-3769): `ocm prepare` refuses a ## Requirements section with more than 256
-# obligations, which otherwise surfaces only at spec-requirements-check's Go test after the TSV is
-# written (SRG-V0-965). Refuse it here in every mode, and warn from 240 so the companion spec is
-# planned before the limit.
+# SRG-V0-740/744/745: generation retains OCM's >256 refusal; the proactive capacity
+# check also refuses a spec filled to 256 since BASE. Unchanged or unattributed full
+# specs only warn. Both report every spec before exiting.
 {
-    my $route = 'define new requirements in a companion spec with its own requirement prefix, never '
-        . 'in the frozen Intent status header (SRG-V0-980)';
-    my @over = grep { $obligations{$_} > 256 } sort keys %obligations;
-    print STDERR "$_: warning: its ## Requirements section holds $obligations{$_} of the 256 obligations "
-        . "`ocm prepare` admits; $route (SRG-V0-740)\n"
-        for grep { $obligations{$_} >= 240 && $obligations{$_} <= 256 } sort keys %obligations;
+    my $margin = $ENV{SPEC_CAPACITY_MARGIN} // 8;
+    die "SPEC_CAPACITY_MARGIN must be an integer from 0 to 256\n"
+        unless $margin =~ /\A[0-9]{1,3}\z/ && $margin <= 256;
+    my $base = $ENV{SPEC_REQUIREMENTS_BASE} // $ENV{BASE} // '';
+    my $revision;
+    if (length $base) {
+        open my $rev, '-|', 'git', 'rev-parse', '--verify', '--end-of-options', "$base^{commit}"
+            or die "base $base: $!\n";
+        $revision = <$rev>;
+        close $rev or die "base $base is not a commit; set BASE to an available revision\n";
+        chomp $revision;
+    }
+    my $route = 'define new requirements in a companion spec with its own requirement prefix '
+        . '(a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json '
+        . 'per AGENTS.md and docs/SPEC-DRIVEN-DEVELOPMENT.md';
+    my @over;
+    for my $file (sort keys %obligations) {
+        my $count = scalar keys %{$obligations{$file}};
+        next if $count < 256 - $margin;
+        my @added;
+        if (defined $revision) {
+            # ls-tree distinguishes a new spec from an unreadable existing base blob.
+            open my $ls, '-|', 'git', 'ls-tree', $revision, '--', $file or die "git ls-tree: $!\n";
+            my $exists = do { local $/; <$ls> };
+            close $ls or die "cannot list $file at BASE=$base\n";
+            my $old = {};
+            if (length $exists) {
+                open my $fh, '-|', 'git', 'cat-file', 'blob', "$revision:$file" or die "$file at BASE=$base: $!\n";
+                my $blob = do { local $/; <$fh> };
+                close $fh or die "cannot read $file at BASE=$base\n";
+                $old = section_obligation_ids($blob);
+            }
+            @added = sort grep { !$old->{$_} } keys %{$obligations{$file}};
+        }
+        my $fail = $count > 256
+            || ($mode eq 'capacity' && $count == 256 && defined $revision && @added);
+        if ($fail) {
+            print STDERR "$file: its ## Requirements section holds $count obligations; the limit is 256\n";
+            push @over, $file;
+        } else {
+            print STDERR "$file: warning: its ## Requirements section holds $count of the 256 obligations; margin=$margin; $route (SRG-V0-740)\n";
+        }
+        if (defined $revision) {
+            print STDERR "$file: requirement IDs added since BASE=$base ($revision): "
+                . (@added ? join(', ', @added) : '(none)') . "\n";
+        } elsif ($fail) {
+            print STDERR "$file: requirement IDs added since base: NOT_OBSERVED; rerun with BASE=<rev>\n";
+        }
+    }
     if (@over) {
-        print STDERR "$_: its ## Requirements section holds $obligations{$_} obligations; the limit is 256\n" for @over;
-        die "`ocm prepare` refuses a Requirements section over 256 obligations; $route, then rerun "
-            . "make spec-requirements (SRG-V0-740)\n";
+        die "$route, then rerun make spec-" . ($mode eq 'capacity' ? 'capacity-check' : 'requirements')
+            . " (SRG-V0-740) (SRG-V0-744, SRG-V0-745)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
@@ -702,7 +770,7 @@ refuse("a note between the id and its colon is no definition: write `- `ID`: (no
     . "rerun make spec-requirements; see docs/SPEC-DRIVEN-DEVELOPMENT.md \"Accepted forms\" (SRG-V0-760)",
     map { "$_->[0]:$_->[2]: $_->[1]: the note sits before the colon, so this line defines nothing" }
     grep { !$definitions{$_->[1]} } @noted_definitions);
-if ($mode ne 'tsv' && $mode ne 'lines') {
+if ($mode ne 'tsv' && $mode ne 'lines' && $mode ne 'capacity') {
     # SRG-V0-012: INDEX.json and the README.md spec table are projections. A spec header owns its
     # intent and delivery status and its Agent digest owns the claim; INDEX.json owns every other
     # field and README.md every other cell, which the projection keeps byte for byte. A spec with no
@@ -727,6 +795,11 @@ if ($mode ne 'tsv' && $mode ne 'lines') {
 if (@refusals) {
     print STDERR "$_\n" for @refusals, @repairs;
     exit 1;
+}
+if ($mode eq 'capacity') {
+    my $margin = $ENV{SPEC_CAPACITY_MARGIN} // 8;
+    print "spec-capacity-check: PASS (margin=$margin, cap=256)\n";
+    exit 0;
 }
 if ($mode eq 'tsv') {
     print tsv_text();

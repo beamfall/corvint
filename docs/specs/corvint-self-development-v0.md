@@ -256,6 +256,25 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 - `ASD-V0-742`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3245) `script/lane-stage-inputs.sh [--host HOST] LANE TICKET...`, run on the host that owns the Tasks store before a lane session starts, MUST export each ticket's `corvint-tasks ticket show` JSON as `TICKET.json` and its `--format text` packet (`TCL-V0-741`) as `TICKET.txt`, and the whole queue as `queue-snapshot.json` (`corvint-tasks queue snapshot`, the authority that `queue parity` and the agent-preflight `tasks-store` row compare against, `TCL-V0-742`), copy them into `~/lane-inputs/ticket-bodies-LANE/` on HOST over ssh (on the running host without `--host`), then list that directory on the target and print `MISSING` for each file that is absent or empty there. A ticket or snapshot whose export is refused or empty prints `EXPORT` and nothing is copied. It exits 0 with `lane-stage-inputs: PASS N tickets staged and verified at TARGET:~/lane-inputs/ticket-bodies-LANE`, 1 on any `EXPORT` or `MISSING`, and 2 on a usage error, an invalid lane, host or ticket ID, or a failed copy or listing. `docs/LANE-ORCHESTRATION.md` section 14 MUST make a 0 exit the condition for starting the lane session. Non-goals: GitHub issue bodies, which stay a separate staged route.
 - `ASD-V0-815`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4183) `script/tasks-carry-projection.sh [--store DIR] [--commit] WORKTREE`, run on the host that owns the Tasks store as a post-merge routine step, MUST replace `WORKTREE/.taskman/queue.json`, `policy.json`, `tickets/` and `releases/` with those of the store in DIR (default WORKTREE's primary worktree), then compare every file under `WORKTREE/.taskman/` with the sha256 list of a `corvint-tasks queue snapshot` (`TCL-V0-742`) taken in DIR and print `DRIFT` for a file whose digest differs, `MISSING` for a listed file that is absent and `EXTRA` for an unlisted file. It MUST refuse with exit 2, before writing, when WORKTREE is DIR, when WORKTREE has any change under `.taskman/`, when the store has no `queue.json` or when the two `queue.json` files name different `queueId`s. With no finding it stages the carried paths and, with `--commit`, commits them alone as `chore(tasks): carry the QUEUE projection to main`; it exits 0 with `tasks-carry-projection: PASS QUEUE tickets BEFORE -> AFTER, N files changed`, 1 on any finding (nothing committed) and 2 on a usage error or refusal. It never pushes. `docs/LANE-ORCHESTRATION.md` section 12 MUST name it as the post-merge carry step, followed by `script/lane-stage-inputs.sh`. Non-goals: carrying the journal or any file outside the four projection paths; landing the carry commit, which stays an orchestrator pull request. Failure modes: a store written during the carry is `DRIFT` and the step is rerun; a carry not run after a merge leaves fresh lanes behind, which `queue parity` on the lane refuses `STALE_TICKET` with its counts.
 
+- `ASD-V0-2010`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331)
+  Lane closeout and batch-precheck MUST run a static spec-capacity phase before mechanical
+  repins, affected planning, Go builds/tests, slow doc gates and receipt reuse. It uses
+  SRG-V0-744's staged-spec counts, default margin 8 (overridable through
+  `SPEC_CAPACITY_MARGIN`), and SRG-V0-745 attribution: dogfood-closeout MUST pass its lane
+  `BASE=$(BASE)` to spec-capacity-check; batch-precheck MUST use `BATCH_PRECHECK_BASE`, falling
+  back to `DOGFOOD_BASE` (an explicit `--base` overrides these). Above 256 fails; exactly 256
+  fails only with IDs added since BASE, otherwise warns with the companion route. Any static failure
+  stops the run without a passing receipt. `--static-check` runs only this phase; workflow-only
+  fixtures with neither README.md nor INDEX.json have no spec corpus and skip the phase.
+- `ASD-V0-2011`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4332)
+  That static phase MUST cheaply check worktree docs/specs/README.md rows against INDEX.json,
+  before the slower internal/specindex check: byte-identical duplicate spec rows fail with a fix
+  line naming the row and all its line numbers. Each indexed spec MUST have exactly one
+  unanchored file row; missing, anchored-only or multiple file rows fail with the path, available
+  line numbers and repair. Hand-owned links to product/decision contracts outside docs/specs
+  remain outside this spec-row check. The check MUST need no Go build and remain Bash 3.2
+  compatible. Existing status/header/claim conformance stays with internal/specindex.
+
 ## Non-goals and trust boundary
 
 No feature-count target, universal runner, strict LCP schema change, new ledger/database, service,
@@ -476,6 +495,16 @@ omissions and zero-change OUT_OF_SCOPE result. Initial coordination reports miss
 intent scope and outcome plus its unchanged-base preparation failure; these are not erased or
 presented as a finished change. Actual route/use and final qualification pointers belong in the
 same change's BUILD-LOG evidence record.
+
+| Requirement | Implementation and deterministic evidence |
+|---|---|
+| ASD-V0-2010 | `script/batch-precheck.sh` static phase; `script/batch-precheck_test.sh` case 1d checks closeout BASE forwarding, both batch base variables, LANE=1 refusal before repins for newly filled 256 and warning/pass for untouched 256; `make spec-capacity-check` |
+| ASD-V0-2011 | `script/check-spec-readme.sh`; `script/batch-precheck_test.sh` case 1d (duplicate fix and both line numbers, valid row, anchored-only and missing row); `bash script/check-bash32_test.sh` |
+
+For V1-4331/V1-4332, rollback removes the static calls and README check together with their
+Makefile integration. This restores the slower existing specindex/OCM guards; no obligation cap,
+status authority, ranking, hosted dependency or task completion semantics change. Unchanged full
+specs warn; filling a spec to 256 since BASE fails. Moving requirements requires a separate scoped change.
 
 ## Failure and rollback
 
