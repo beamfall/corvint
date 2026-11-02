@@ -194,7 +194,7 @@ func TestQualifiedLifecycleContextBudgetAndReadOnly(t *testing.T) {
 				}
 				return authoritystore.LifecycleResolution{}, errors.New("test-only-currentness-drift")
 			}
-			if result, err := qualifiedLifecycle(context.Background(), qualifiedRequest{event: event, input: input}, drift); err == nil || result != nil {
+			if result, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{event: event, input: input}, drift); err == nil || result != nil {
 				t.Fatal("post-observation scope drift emitted receipt")
 			}
 		}
@@ -613,10 +613,23 @@ func TestQualifiedLifecycleInvocationDeadline(t *testing.T) {
 		defer writer.Close()
 		defer reader.Close()
 		var out, diagnostic bytes.Buffer
+		// The writer is never closed, so only the 1600 ms invocation deadline can end the read:
+		// the call returning at all is the termination proof, and the lower bound proves the
+		// deadline, not an early EOF, ended it. The 60 s select is a hang detector, not a
+		// latency budget (decision 0082), so host load cannot fail it (V1-1413).
 		started := time.Now()
-		status := runQualifiedLifecycle(context.Background(), []string{"--input", "-", "--native-output"}, reader, &out, &diagnostic)
-		if status != 0 || time.Since(started) < 1500*time.Millisecond || time.Since(started) > 3*time.Second {
-			t.Fatalf("deadline result %d %s", status, &out)
+		done := make(chan int, 1)
+		go func() {
+			done <- runQualifiedLifecycle(context.Background(), []string{"--input", "-", "--native-output"}, reader, &out, &diagnostic)
+		}()
+		var status int
+		select {
+		case status = <-done:
+		case <-time.After(time.Minute):
+			t.Fatal("qualified invocation ignored its deadline: still reading an open stdin after 60 s")
+		}
+		if elapsed := time.Since(started); status != 0 || elapsed < 1500*time.Millisecond {
+			t.Fatalf("deadline result %d after %v: %s", status, elapsed, &out)
 		}
 		for _, text := range []string{"corvint-invocation-timeout", "1600 ms", "time bound, not a diagnosed fault"} {
 			if !strings.Contains(out.String(), text) {
