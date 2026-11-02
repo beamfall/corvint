@@ -19,7 +19,7 @@ import (
 // consumed, and every refusal -- and is refused the same way when a segment
 // or an active receipt is tampered with.
 func TestLGLV0813_SegmentPrefetchMatchesTheSequentialSealedWalk(t *testing.T) {
-	t.Parallel()
+	// Not parallel: it switches the process-wide segment read-ahead.
 	repo := historyStore(t, 4*snapshot.SegmentReceipts+40)
 	if err := sealSegmentsLocked(context.Background(), repo); err != nil {
 		t.Fatal(err)
@@ -138,9 +138,8 @@ func TestLGLV0814_ParallelSealWritesTheSameBytes(t *testing.T) {
 	repo := historyStore(t, 3*snapshot.SegmentReceipts+30)
 	sealWith := func(workers int) (map[string]string, *journal.Result) {
 		t.Helper()
-		old := sealWorkers
-		sealWorkers = workers
-		defer func() { sealWorkers = old }()
+		old := sealWorkers.Swap(int64(workers))
+		defer sealWorkers.Store(old)
 		if _, err := SealJournal(ctx, repo); err != nil {
 			t.Fatalf("seal with %d workers: %v", workers, err)
 		}

@@ -387,7 +387,7 @@ func syncDirs(repo *intent.Repository, dirs map[string]bool) error {
 // inParallel calls f(0..n-1) on up to sealWorkers goroutines and returns
 // when every call has returned.
 func inParallel(n int, f func(int)) {
-	workers := min(sealWorkers, n)
+	workers := min(int(sealWorkers.Load()), n)
 	var next atomic.Int64
 	var wg sync.WaitGroup
 	for w := 0; w < workers; w++ {
@@ -411,7 +411,8 @@ func inParallel(n int, f func(int)) {
 var reuseOpeningCheckpoint = true
 
 // sealWorkers bounds a seal's concurrent reads, unlinks and directory syncs.
-var sealWorkers = 32
+// It is atomic because a non-parallel test lowers it.
+var sealWorkers = func() *atomic.Int64 { n := new(atomic.Int64); n.Store(32); return n }()
 
 // settleSegmentSeal finishes or undoes a seal a stop interrupted (JSG-V0-008).
 // It runs under the writer lock before any write. With the prior head still
