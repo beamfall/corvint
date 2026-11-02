@@ -1341,11 +1341,10 @@ func (c *change) precheckCitationPlan() int {
 	}
 	c.addStep(citePrecheckStep, "NOT_PRODUCED", reason)
 	c.say("dogfood-change: FAIL %s refused plan rows=%d (cem cite against the prepared map, before any bind; fix every row, then rerun, DCW-V0-335):\n", citePrecheckStep, len(c.citationRefusals))
-	for _, refusal := range c.citationRefusals[:min(len(c.citationRefusals), maxNamedRefusals)] {
+	// DCW-V0-2130: the plan is already bounded to 256 rows. A prepare
+	// precheck names every refusal so one pass gives the complete repair list.
+	for _, refusal := range c.citationRefusals {
 		c.say("  %s\n", refusal)
-	}
-	if len(c.citationRefusals) > maxNamedRefusals {
-		c.say("  (+%d more)\n", len(c.citationRefusals)-maxNamedRefusals)
 	}
 	return 1
 }

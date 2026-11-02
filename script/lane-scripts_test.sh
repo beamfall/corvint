@@ -997,11 +997,16 @@ axgit add -A && axgit commit -qm base || fail "analyzer fixture commit"
 axbase=$(axgit rev-parse HEAD)
 printf '// changed facts\n' >> "$ax/internal/contextindex/receipt.go"
 axgit commit -qam 'input edit'
-# ASD-V0-903: an empty plan is refused as missing before this check, so the plan has one row.
-printf '1\tunknown\tinsufficient-evidence\tx\n' > "$ax/plan.tsv"
 axfinish() { (cd "$ax" && env -u CORVINT_BIN CORVINT_ANALYZER_OUTPUT_COMMAND="printf 'analyzer output SHA256=%064d\nanalyzer shard SHA256=%064d\n' $1 0" script/dogfood-finish.sh "$axbase" plan.tsv 2>&1); }
+# ASD-V0-2130 (V1-3776): show the earlier empty-plan refusal, then give the analyzer
+# fixture a real row so its drift check cannot pass by stopping at ASD-V0-903 instead.
+: > "$ax/plan.tsv"
 out=$(axfinish 1)
-[[ $? == 2 && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
+[[ $? == 2 && $out == *'REFUSE missing-inputs CITATIONS:empty'* && $out != *'REFUSE analyzer-schema-stale'* ]] ||
+  fail "finish empty-plan control did not stop before the analyzer check: $out"
+printf '1\tunknown\tinsufficient-evidence\tanalyzer fixture has no historical citation\n' > "$ax/plan.tsv"
+out=$(axfinish 1)
+[[ $? == 2 && $out != *CITATIONS:empty* && $out == *'REFUSE analyzer-schema-stale'*'drifted from its pins'*"fix: run script/analyzer-schema.sh bump --base $axbase"*'nothing was built, prepared or bound'* ]] ||
   fail "finish did not refuse a drifted analyzer output before the bind: $out"
 out=$(axfinish 0)
 [[ $out != *analyzer-schema-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused a matching analyzer output: $out"

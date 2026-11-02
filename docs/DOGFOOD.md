@@ -567,6 +567,10 @@ with the same inputs: the input checks and prepare pass alone, which bind and co
 leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a cite of a span the
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
+The prepare check uses `cem cite` itself and names every refused cite row in one pass, up to the
+existing 256-row plan limit, including `cite-span-not-stable` and `cite-self-modified-authority`.
+Each diagnostic names the row, path, BASE span and reason; valid rows are omitted. Fix the whole
+list before binding (`DCW-V0-2130`, [citation-plan precheck](specs/dogfood-citation-plan-precheck-v0.md)).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
 worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
 it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or
