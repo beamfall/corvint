@@ -346,7 +346,7 @@ func dropSealed(repo *intent.Repository, seg *snapshot.Segment, oldThrough uint6
 	// order is the one the sequential loop returned, and the directory
 	// syncs below run only after every unlink returned.
 	inParallel(len(all), func(k int) {
-		if err := os.Remove(segmentPath(repo, all[k].Path)); err != nil && !os.IsNotExist(err) {
+		if err := sealUnlink(segmentPath(repo, all[k].Path)); err != nil && !os.IsNotExist(err) {
 			errs[k] = err
 		}
 	})
@@ -375,7 +375,7 @@ func syncDirs(repo *intent.Repository, dirs map[string]bool) error {
 	// syncs); the call returns only after all of them, with the first error
 	// in name order.
 	errs := make([]error, len(names))
-	inParallel(len(names), func(k int) { errs[k] = syncDir(repo, names[k]) })
+	inParallel(len(names), func(k int) { errs[k] = sealSyncDir(repo, names[k]) })
 	for _, err := range errs {
 		if err != nil {
 			return err
@@ -405,6 +405,14 @@ func inParallel(n int, f func(int)) {
 	}
 	wg.Wait()
 }
+
+// sealUnlink and sealSyncDir are the seal's parallel unlink and directory
+// sync. Only the non-parallel LGL-V0-814 fault tests replace them, to fail or
+// delay one worker.
+var (
+	sealUnlink  = os.Remove
+	sealSyncDir = syncDir
+)
 
 // reuseOpeningCheckpoint is false only in the test that derives both
 // checkpoints to compare them.

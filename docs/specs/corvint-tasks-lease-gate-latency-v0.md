@@ -355,6 +355,10 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
     read from disk. It never holds both, so segments load in the order the sequential walk
     loads them.
   - The view's consumed-file accounting is applied when the walk reaches each receipt.
+  - A read-ahead that fails to load a segment MUST NOT retry. Its error is kept on that receipt
+    and reported through the sequential read path when the walk reaches it.
+  - A refused segment load MUST leave the view's sealed requests unchanged: every request is
+    checked before any is kept.
   - Verdicts, records, consumed physical files and every refusal MUST equal the sequential sealed
     walk's.
   - Target: a complete audit of a sealed store takes at most 1.1× the unsealed audit of the same
@@ -725,6 +729,21 @@ For `LGL-V0-813` to `LGL-V0-815`:
   equal audit verdicts. The inventory digest hashes modification times, so it is not compared.
 - `TestLGLV0815_MigrationReusesTheOpeningCheckpoint` shows the reused checkpoint equals the
   migrated journal's, byte for byte, after both a seal and an unseal.
+- `TestLGLV0813_TransientSegmentLoadErrorIsNotRetried` injects a one-time EIO into a segment load,
+  and `TestLGLV0813_MidSegmentDuplicateRefusedTheSameWay` seals a request a second time after a
+  segment's own request. In both, the prefetched walk's refusal is byte-identical to the
+  sequential walk's. Both fail against the read-ahead that dropped the error or kept requests as
+  it went.
+- The LGL-V0-814 fault tests replace one worker's directory sync or unlink:
+  - `TestLGLV0814_FailedDirectorySyncKeepsTheSealRecoverable`: the seal fails with the injected
+    EIO and keeps its marker, a read reports `REDO_PENDING`, and the next seal settles and
+    finishes clean.
+  - `TestLGLV0814_PartialParallelUnlinkRecovers`: one receipt is kept while others are removed,
+    the marker stays, and the next seal settles the partial drop and finishes clean.
+  - `TestLGLV0814_MarkerRemovedOnlyAfterEveryWorker`: deliberately slow workers still see the
+    marker when they return.
+- The process-wide test seams are atomic and their tests are not parallel. The journal package
+  and the seal tests pass under `-race`.
 - The JSG seal, settle and refusal tests pass unchanged.
 
 At 40,003 receipts on Unraid Linux, `journal seal` took 152 and 100.5 s on the base binary and
