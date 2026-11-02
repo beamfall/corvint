@@ -498,13 +498,18 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if invocation.Cache != "" && (invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--cache cannot be combined with --snapshot or --playwright-config")
 	}
+	// ACX-V0-752: --worktree with --base names the plans that do exist,
+	// ahead of the generic --path and --base refusal.
+	if invocation.Worktree && invocation.Base != "" {
+		return affectedInvocation{}, argumentError(affectedWorktreeBaseRefusal)
+	}
 	if len(invocation.PathList) != 0 || invocation.PathsFrom != "" {
 		if err := affectedPathProfileRefusal(invocation); err != nil {
 			return affectedInvocation{}, err
 		}
 	}
-	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "" || invocation.Base != "") {
-		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean, --snapshot or --base")
+	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "") {
+		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean or --snapshot")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -846,6 +851,12 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	}
 	return 0
 }
+
+// affectedWorktreeBaseRefusal refuses --worktree with --base (ACX-V0-752):
+// the committed range with the whole working tree is what --base alone
+// plans, and a named subset of it against the working tree is a --worktree
+// path list that also names the range's paths.
+const affectedWorktreeBaseRefusal = "--worktree cannot be combined with --base: without --worktree, --base BASE already plans the committed range BASE..HEAD together with every dirty worktree path; to plan only named paths against the working tree, drop --base and pass them with --worktree, adding the range's own paths (git diff --name-only BASE HEAD) to --path or --paths-from"
 
 // degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
 // affected-plan/1 receipt and prints it on stderr when this binary is stale

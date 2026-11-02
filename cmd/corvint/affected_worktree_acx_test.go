@@ -55,6 +55,38 @@ func TestACXV0851WorktreePathPlan(t *testing.T) {
 	}
 }
 
+// TestWorktreeWithBaseNamesTheAlternative_ACXV0752: ACX-V0-752 (NEW-C3).
+// --worktree with --base refuses invalid-arguments and names both plans that
+// exist, ahead of the generic --path and --base refusal; --base alone on the
+// same dirty tree plans the committed range together with the dirty path.
+func TestWorktreeWithBaseNamesTheAlternative_ACXV0752(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	appendAffectedLine(t, root, "core/core.go", "// local edit")
+	for _, arguments := range [][]string{
+		{"--worktree", "--base", base, "--path", "core/core.go"},
+		{"--base", base, "--worktree", "--path", "core/core.go", "--format", "text"},
+		{"--worktree", "--base", base},
+	} {
+		_, raw, stderr, code := runAffectedCLI(t, root, arguments...)
+		if code != 2 || len(raw) != 0 || !strings.Contains(stderr, "invalid-arguments") || !strings.Contains(stderr, "--worktree cannot be combined with --base") ||
+			!strings.Contains(stderr, "already plans the committed range BASE..HEAD together with every dirty worktree path") ||
+			!strings.Contains(stderr, "git diff --name-only BASE HEAD") || strings.Contains(stderr, "each names the change set") {
+			t.Fatalf("%q: exit=%d stdout=%s stderr=%s", arguments, code, raw, stderr)
+		}
+	}
+	receipt, raw, stderr, code := runAffectedCLI(t, root, "--base", base)
+	plan, _ := receipt["plan"].(map[string]any)
+	dirty, _ := plan["dirty"].([]any)
+	if code != 0 || !slices.Contains(dirty, any("core/core.go")) {
+		t.Fatalf("--base alone on a dirty tree: exit=%d stderr=%s receipt=%s", code, stderr, raw)
+	}
+	if !strings.Contains(affectedHelp, "(ACX-V0-752)") {
+		t.Fatal("affected help does not name the --worktree --base alternatives")
+	}
+}
+
 // TestACXV0851WorktreeDirectoryAndByPath: ACX-V0-851. Under --worktree a
 // directory --path expands from the working tree, so an untracked or ignored
 // file there is planned, and --by-path keeps the worktree warning.

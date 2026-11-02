@@ -1046,7 +1046,10 @@ with --require-clean, --snapshot or --base) plans the named paths against the
 working tree, dirty and ignored files included, instead of refusing a dirty
 worktree. The receipt carries the degradation worktree-path-plan and a warning
 naming HEAD and the dirty count: the plan is worktree-derived, not pinned
-evidence. Without --worktree the refusal stays the default.
+evidence. Without --worktree the refusal stays the default. With --base it
+refuses and names the alternatives: --base alone plans BASE..HEAD with every
+dirty worktree path, and a named subset against the working tree is a
+--worktree path list that adds the range's own paths (ACX-V0-752).
 Example: corvint affected --worktree --path internal/foo/foo.go --format text
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
