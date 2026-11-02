@@ -3218,6 +3218,8 @@ PUR-V0-002	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pen
 PUR-V0-003	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo of a pending receipt whose kind is UNPAUSE and which posts no `intent/` pat	unrecorded	-
 PUR-V0-004	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	Redo applies the `TM-V0-007` intent-branch guard only when the pending receipt	unrecorded	-
 PUR-V0-005	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	The amendment adds no top-level recovery verb and no reader error code. Both sta	unrecorded	-
+PUR-V0-1920	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4261) A Go tes	standing	2026-11-02; V1-4261
+PUR-V0-1921	docs/specs/corvint-tasks-pending-unpause-recovery-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4261) Any proc	standing	2026-11-02; V1-4261
 PSR-V0-001	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	Optional `memberConfig[MEMBER].safeReuse` adds operator-owned reset argv, verify	unrecorded	-
 PSR-V0-002	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	`pool sweep [--member M] --request-id ID` is an OWNER/OPERATOR foreground mutati	unrecorded	-
 PSR-V0-003	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	The writer durably records exclusive command ownership bound to original allocat	unrecorded	-
