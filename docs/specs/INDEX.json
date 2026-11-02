@@ -4380,5 +4380,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/regenerated-spec-merge-v0.md",
+    "title": "Regenerated Spec Merge V0",
+    "reqPrefix": "DRS-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A merge conflicting only in the generated REQUIREMENTS.tsv is regenerated and bound by `dogfood batch-check` as `regenerated-specs`.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

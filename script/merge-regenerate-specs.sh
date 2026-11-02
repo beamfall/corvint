@@ -2,12 +2,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # usage: script/merge-regenerate-specs.sh REV [MESSAGE]
 #
-# DCW-V0-1925 (V1-1467): merge REV into HEAD with `git merge --no-ff` (MESSAGE, default
+# DRS-V0-002 (V1-1467): merge REV into HEAD with `git merge --no-ff` (MESSAGE, default
 # `Merge REV`). When the only conflict is the generated docs/specs/REQUIREMENTS.tsv, as when two
 # lanes each add requirement rows, it resolves it inside the merge: it keeps HEAD's side, runs
 # `script/gen-spec-requirements.sh --write` over the merged, staged specs (which rewrites and stages
 # REQUIREMENTS.tsv, INDEX.json and README.md) and commits the merge with --cleanup=strip, so
-# `make dogfood-batch-check` derives it as `regenerated-specs` (DCW-V0-1924) instead of failing
+# `make dogfood-batch-check` derives it as `regenerated-specs` (DRS-V0-001) instead of failing
 # merge-resolution-unbound, and no branch is rewritten afterwards.
 # Any other conflict stays in progress for the operator: it lists the paths and exits 1. A merge
 # without conflicts commits as plain `git merge --no-ff`. Exit 2 on a usage error or a checkout
@@ -41,4 +41,4 @@ git checkout --ours -- "$generated"
 git add -- "$generated"
 script/gen-spec-requirements.sh --write
 git commit -q --no-edit --cleanup=strip
-printf 'merge-regenerate-specs: merged %s; the only conflict, %s, was regenerated from the merged specs (DCW-V0-1925)\n' "$rev" "$generated"
+printf 'merge-regenerate-specs: merged %s; the only conflict, %s, was regenerated from the merged specs (DRS-V0-002)\n' "$rev" "$generated"
