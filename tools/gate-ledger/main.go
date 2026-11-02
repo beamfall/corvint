@@ -104,6 +104,9 @@ var scopes = map[string][]string{
 	// post-seal precheck whose only new path is a CEM or a build log hits.
 	"selection-baseline-check": {goScope, rootScope, ".github/cishards/", "benchmarks/selection-baseline/"},
 	"capability-catalog-check": {goScope, rootScope, "docs/*.md"},
+	// GL-V0-770 (V1-4194): the inputs ASD-V0-640 declares for the serial lane shell tests, so a
+	// rebind rerun after a docs, spec or Go fix hits instead of repeating about 85 s.
+	"lane-scripts-test": {"script/", "Makefile", "docs/DOGFOOD.md", "benchmarks/retained-data.tsv"},
 }
 
 type record struct {

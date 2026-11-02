@@ -2235,6 +2235,10 @@ ASD-V0-781	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-782	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3884) `make do	standing	2026-11-01; V1-3884
 ASD-V0-783	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3486) `make im	standing	2026-11-01; V1-3486
 ASD-V0-784	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3504) `script/	standing	2026-11-01; V1-3504
+ASD-V0-785	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D1, batch as	standing	2026-11-02
+ASD-V0-786	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D1) `docs/LA	standing	2026-11-02
+ASD-V0-787	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D4; refines	standing	2026-11-02
+ASD-V0-788	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D6, a usage-	standing	2026-11-02
 ASD-V0-600	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4100; amends `	standing	2026-11-01; V1-4100
 ASD-V0-601	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4100) A `make	standing	2026-11-01; V1-4100
 ASD-V0-980	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3888; refines	standing	2026-11-01; V1-3888
@@ -2843,6 +2847,11 @@ TCD-V0-680	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the 
 TCD-V0-1101	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4266; amends	standing	2026-11-01; V1-4266
 TCD-V0-1102	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4266; refines	standing	2026-11-01; V1-4266
 TCD-V0-1103	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4267; amends	standing	2026-11-01; V1-4267
+TCD-V0-770	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D2, the owne	standing	2026-11-02
+TCD-V0-771	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D2) the gate	standing	2026-11-02
+TCD-V0-772	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D2) each `/1	standing	2026-11-02
+TCD-V0-773	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D7, a	standing	2026-11-02
+TCD-V0-774	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-02); NEW-D7; refines	standing	2026-11-02
 TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151)	standing	V1-3548
 TCD-V0-807	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3541) a committed `ticket	standing	V1-3541
 TCD-V0-870	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496; amends TCD-V0-163 an	standing	V1-3496
@@ -3782,6 +3791,7 @@ DCW-V0-620	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-621	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3681; refines	standing	2026-11-01; V1-3681
 DCW-V0-690	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-1724; refines	standing	2026-11-01; V1-1724
 DCW-V0-691	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3604; refines	standing	2026-11-01; V1-3604
+DCW-V0-770	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends	standing	2026-11-02; V1-4318
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -4708,6 +4718,7 @@ GL-V0-051	docs/specs/gate-ledger-v0.md	(experimental under the standing lane aut
 GL-V0-720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends	standing	2026-11-01; V1-3846
 GL-V0-600	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)	standing	2026-11-01; V1-3580; V1-4099
 GL-V0-601	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)	standing	2026-11-01; V1-3580; V1-4099
+GL-V0-770	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-02); V1-4194)	standing	2026-11-02; V1-4194
 GL-V0-910	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends	standing	2026-11-01; V1-4241
 GL-V0-911	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A recor	standing	2026-11-01; V1-4241
 GL-V0-912	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends	standing	2026-11-01; V1-4241

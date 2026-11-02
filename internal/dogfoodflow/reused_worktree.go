@@ -35,9 +35,13 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // something is still stale after that, naming the exact manual recovery.
 // Nothing is deleted. A trace store that cannot be evaluated is left to the
 // steps that already report it. The dogfood inputs-check pre-flight passes
-// retire=false: it only checks, notes stale sidecars alone (DCW-V0-964), and
-// refuses a stranded trace with the manual recovery (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
-// its own unpushed bind/seal commits, and its one-step recovery (DCW-V0-844).
+// retire=false: it only checks and moves nothing. It notes stale sidecars
+// (DCW-V0-810, DCW-V0-964) and stranded traces whose dry-run plan holds them
+// alone (DCW-V0-770), the state finish-lane retires itself, and refuses the
+// rest with the manual recovery (DCW-V0-400). The refusal names the
+// reset-after-bind case, a lane that reset its own unpushed bind/seal commits,
+// and its one-step recovery (DCW-V0-844), as one copy-paste fix line
+// (DCW-V0-770).
 func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
@@ -46,9 +50,15 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	}
 	// DCW-V0-810: the pre-flight runs no OCM step, and finish-lane moves stale
 	// sidecars aside byte-preserved before it prepares, so sidecars alone are
-	// a note there; a stranded trace, whose retirement is a migration, still
-	// refuses.
-	if !retire && len(stranded) == 0 {
+	// a note there. DCW-V0-770 (V1-4318): a stranded trace whose dry-run plan
+	// holds only stranded traces is a note too, since finish-lane applies that
+	// plan itself (DCW-V0-406), so resetting a reused worktree and rerunning
+	// needs no manual step; a plan that would also rekey a reachable legacy
+	// trace still refuses.
+	if !retire && (len(stranded) == 0 || (legacy == 0 && digest != "")) {
+		for _, revision := range stranded {
+			f.say("%s: NOTE stranded trace %s: the worktree-local trace store names a commit HEAD does not reach (a reset, amend or earlier lane); dogfood finish-lane quarantines it byte-preserved with migrate-traces --apply --plan-digest %s before it prepares (DCW-V0-406, DCW-V0-770)\n", f.prefix, revision, digest)
+		}
 		for _, name := range stale {
 			f.say("%s: NOTE stale sidecar %s is ignored and was last written before BASE %s was committed; dogfood finish-lane moves it under %s/corvint/stale-ocm before it prepares (DCW-V0-406, DCW-V0-810)\n", f.prefix, name, base[:12], gitDir)
 		}
@@ -73,15 +83,21 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	for _, name := range stale {
 		f.say("  stale sidecar: %s is ignored and was last written before BASE %s was committed\n", name, base[:12])
 	}
-	if len(stale) > 0 {
-		aside := gitDir + "/corvint/stale-ocm"
-		f.say("  fix: mkdir -p %s && mv %s %s/\n", shellQuote(aside), strings.Join(quoteAll(stale), " "), shellQuote(aside))
-	}
-	if retire && len(stranded) > 0 && legacy > 0 {
+	if len(stranded) > 0 && legacy > 0 {
 		f.say("  the same migration plan also rekeys %d reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n", legacy)
 	}
+	// DCW-V0-770: one copy-paste command for everything still stale.
+	var fix []string
+	if len(stale) > 0 {
+		aside := shellQuote(gitDir + "/corvint/stale-ocm")
+		fix = append(fix, "mkdir -p "+aside, "mv "+strings.Join(quoteAll(stale), " ")+" "+aside+"/")
+	}
 	if len(stranded) > 0 {
-		f.say("  fix: corvint migrate-traces --apply --plan-digest %s (the digest of corvint migrate-traces --dry-run now; it quarantines the stranded traces byte-preserved). This is also the one-step recovery after a reset of this lane's own unpushed bind/seal commits (DCW-V0-844)\n", digest)
+		fix = append(fix, "corvint migrate-traces --apply --plan-digest "+digest)
+	}
+	f.say("  fix: %s\n", strings.Join(fix, " && "))
+	if len(stranded) > 0 {
+		f.say("  the plan digest is that of corvint migrate-traces --dry-run now; the apply quarantines the stranded traces byte-preserved. This is also the one-step recovery after a reset of this lane's own unpushed bind/seal commits (DCW-V0-844)\n")
 	}
 	f.say("  then rerun the same command; each lane should use a fresh worktree (git worktree add) rather than a reused path (DCW-V0-044)\n")
 	f.exit(2)

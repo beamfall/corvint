@@ -3620,6 +3620,33 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0406ChangeRetiresStrandedTracesOnce` (three retired then none; after an amend only
   the amended commit's trace, then none). Rollback: drop the NOTE line.
 
+- `DCW-V0-770`: (experimental under the standing lane auto-accept (2026-11-02); V1-4318; amends
+  `DCW-V0-400`, `DCW-V0-406`, `DCW-V0-810` and `DCW-V0-844`) The check-only `dogfood
+  inputs-check` pre-flight MUST NOT refuse `reused-worktree-state` for a stranded trace whose
+  `migrate-traces --dry-run` plan holds only stranded traces: it MUST print one `NOTE stranded
+  trace` line naming the revision and the plan digest that `dogfood finish-lane` applies itself
+  (`DCW-V0-406`), and continue, as it already does for stale sidecars alone (`DCW-V0-810`). So
+  resetting a reused rebind worktree and rerunning the same step needs no manual sidecar move and
+  no manual `migrate-traces --apply`. A plan that also rekeys a reachable tree-keyed legacy trace
+  still refuses in both the pre-flight and a real run, and that refusal, together with any other
+  `reused-worktree-state` refusal, MUST print exactly one `fix:` line that pastes as one POSIX
+  command: the sidecar `mkdir -p`/`mv` and the `migrate-traces --apply --plan-digest` joined by
+  `&&`, still naming the reset case and its recovery (`DCW-V0-844`) and the legacy rekey count.
+  The `DCW-V0-400`, `DCW-V0-406` and `DCW-V0-844` texts that say a check-only pre-flight still
+  refuses a stranded trace are amended accordingly. Design: accepting a reset to an ancestor of
+  the recorded state was rejected, since the rerun merges a new base and HEAD is then a new
+  merge commit, not an ancestor of the stranded seal commits. Non-goals: applying the migration
+  in the pre-flight (it stays check-only), deleting any trace or sidecar. Failure modes: the
+  note path lets the pre-flight run its steps and write `.corvint/dogfood-report.json`, as any
+  passing pre-flight does; a trace store that cannot be evaluated is left to the steps that
+  already report it. Evidence: `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` (bind,
+  `git reset --hard`, rerun: the pre-flight notes the stranded trace and runs its steps, the real
+  run retires it), `TestDCWV0770PreflightRefusalPrintsOneCommand` (stale sidecar plus a stranded
+  and a legacy trace: one refusal, one `fix:` line, and its move part runs as printed) and
+  `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` (a plan with a legacy rekey still
+  refuses); all three fail on the BASE `reused_worktree.go`. Rollback: restore the
+  `len(stranded) == 0` pre-flight condition and the separate fix lines in `reused_worktree.go`.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -4018,6 +4045,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-886` (experimental under the standing lane auto-accept; V1-3283) | `internal/dogfoodflow/propose_owner.go` `governingSpecs`, `rankAnchors`, `weakAnchorNote`; `internal/dogfoodflow/propose.go` `anchoredProposal`, `prepareAnchors`; `TestProposeCitationsDCWV0886PrefersTheGoverningSpec`, `TestDCWV0886AModifiedSpecGovernsTheChange` | implemented; focused tests PASS |
 | `DCW-V0-887` (experimental under the standing lane auto-accept; V1-2978) | `internal/dogfoodflow/finishlane_reuse.go` `preflightKey`, `recordPreflight`, `reusePreflight`; `TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare` | implemented; focused tests PASS |
 | `DCW-V0-844` (experimental under the standing lane auto-accept; V1-3318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` | implemented; focused tests PASS |
+| `DCW-V0-770` (experimental under the standing lane auto-accept (2026-11-02); V1-4318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase`, `TestDCWV0770PreflightRefusalPrintsOneCommand`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
 | `DCW-V0-845` (experimental under the standing lane auto-accept; V1-3302) | `internal/dogfoodflow/propose.go` `run`, `template`; `internal/dogfoodflow/change.go` `fixHints`, `citeSpanUnalignedHint`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal`, `TestChangeDCWV0063NamesUnalignedCiteSpanCause`, `script/dogfood-change_test.sh` | implemented; focused Go tests PASS |
 | `DCW-V0-846` (experimental under the standing lane auto-accept; V1-1724) | `internal/dogfoodflow/propose.go` `propose`, `printDraft`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal` | implemented; amended by `DCW-V0-962`; focused tests PASS |
 | `DCW-V0-548` (experimental under the standing lane auto-accept; V1-3545) | `internal/dogfoodflow/propose_repin.go` `repinOnly`, `repinProposal`; the call in `internal/dogfoodflow/propose.go`; `TestProposeCitationsDCWV0548RepinOnlyHunkCitesTheRepinRule` | implemented; focused tests PASS |

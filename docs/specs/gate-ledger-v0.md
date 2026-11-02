@@ -198,6 +198,16 @@ therefore come from something keyed on content, not from Go's cache.
   (build log 2026-11-01-perf-w22): the post-seal rerun of `selection-baseline-check` went from
   221 s (a miss) to 2 s, and `capability-catalog-check` from 11 s to 2 s. Rollback: delete the two
   entries; both steps return to the whole-tree key of GL-V0-051.
+- `GL-V0-770`: (experimental under the standing lane auto-accept (2026-11-02); V1-4194)
+  `lane-scripts-test` MUST be scoped `script/ Makefile docs/DOGFOOD.md benchmarks/retained-data.tsv`,
+  the inputs `script/batch-precheck.sh` declares for it (`LST_INPUTS`, `ASD-V0-640`), so a rebind
+  rerun whose only new paths are a Go file, a spec, a CEM, a build log or another document hits
+  instead of repeating the serial shell suite (about 85 s per run on the WSL lane host). A change
+  to any declared input, the gate tooling under `tools/` or `go.mod`/`go.sum` included, MUST run
+  the step. Failure mode: a lane script test that reads a path outside these inputs would hit when
+  it should run; its Go calls build only fixture modules, and `ASD-V0-640` already skips the step on
+  the same input list. Measured in build log 2026-11-02-bat-w43. Rollback: delete the entry; the
+  step returns to the whole-tree key of GL-V0-051.
 
 - `GL-V0-910`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends
   `GL-V0-006`) The directory MUST hold at most 32768 records, the oldest by modification time
@@ -344,6 +354,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-051 | `TestRunStepKeysSaltedStepsByBaseScope`: `NAME+SALT` records, hits after a change outside NAME's scope, a different salt runs, an undeclared salted name records on the whole tree and reruns after any change, an unsalted undeclared name records nothing |
 | GL-V0-600 | `TestInScopeBatchPrecheckForms`: `@root` matches a root file only, `docs/*.md` matches a top-level docs page but not a build-log entry or another extension, `@go` matches a Go file, a `testdata` file under a Go package, a nested `go.sum` and a data file beside a `.go` file, and not a workflow, a CEM, a build-log entry or a non-Go directory |
 | GL-V0-601 | `TestRunStepKeysBatchPrecheckScopes`: both steps hit after a new CEM or build-log entry and run after a change to a Go file, an embedded `testdata` file, `go.mod`, a root file or `script/`; `selection-baseline-check` runs after a cost-table or change-set edit and hits after a docs page edit, `capability-catalog-check` the reverse; measured hit on WSL (build log 2026-11-01-perf-w22) |
+| GL-V0-770 | `TestRunStepKeysLaneScriptsScope`: `lane-scripts-test+SALT` hits on an unchanged tree and after a CEM, build-log, spec, Go or decision edit, and runs after a change to a script, the `Makefile`, `docs/DOGFOOD.md` or `benchmarks/retained-data.tsv`; measured hit on WSL (build log 2026-11-02-bat-w43) |
 
 ## Traceability
 
@@ -369,6 +380,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-600 | `goScope`, `rootScope`, `goDirectories`, `goInput`, `inScope` and `inputs` in `tools/gate-ledger/main.go` | `TestInScopeBatchPrecheckForms` |
 | GL-V0-601 | the `selection-baseline-check` and `capability-catalog-check` entries of `scopes` in `tools/gate-ledger/main.go` | `TestRunStepKeysBatchPrecheckScopes`; build log 2026-11-01-perf-w22 |
 | GL-V0-787 | `invocation`, `processInvocation`, `command`, `getenv` in `tools/gate-ledger/main.go`; `lookPath`, `tempDir`, `userHomeDir` in `tools/gate-ledger/invocation_unix.go` and `invocation_other.go` | Every test in `tools/gate-ledger/main_test.go` runs on a per-test invocation with `t.Parallel`, except `TestWorktreeDigestImportFailureRunsWithoutRecord`, which stays serial because it writes and execs a `git` wrapper. That test finds the wrapper through the invocation's PATH and its private index through the invocation's TMPDIR, and passes only if both are honoured. `TestRunStepRefusesWhatItCannotDigest` (`CORVINT_GATE_LEDGER=off` from the invocation); `TestRunStepRecordsFromLinkedWorktree` (the invocation's directory). `-race` is clean. Package 7.6-8.1 s → 2.3-2.5 s (build log `docs/build-log/2026-11-01-tsf-w33.md`) |
+| GL-V0-770 | the `lane-scripts-test` entry of `scopes` in `tools/gate-ledger/main.go` | `TestRunStepKeysLaneScriptsScope`; build log 2026-11-02-bat-w43 |
 
 ## Rollout, rollback, and drift
 

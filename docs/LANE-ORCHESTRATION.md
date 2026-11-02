@@ -1221,3 +1221,70 @@ test that blocks on the old code otherwise hangs for the full 10-minute tool tim
 test that races a FIFO opens the writer non-blocking so a missing reader fails fast:
 `syscall.Open(path, O_WRONLY|O_NONBLOCK, 0)` in a retry loop bounded by a deadline (ENXIO means no
 reader yet), never a plain `os.OpenFile(path, O_WRONLY, 0)`, which blocks forever against old code.
+
+## 16. Parallel batch assembly (ASD-V0-785..786, NEW-D1)
+
+The per-lane rebind merges the batch tip into each lane and rebinds and reseals it there before the
+lane merges, so each lane waits for the one before it: batch-1102a took 94 minutes for 13 lanes.
+This procedure seals each lane once, at its own base, and adds one sealed change after assembly. It
+is the `DCW-V0-073` path: a merge may keep the batch side (`-Xours`) because a later sealed change
+restores or dispositions every dropped hunk. The "do not use -X ours" advice of `docs/DOGFOOD.md`
+section 4 step 2 applies to the per-lane rebind, where no such change follows.
+
+1. Bind, check and seal each lane against its own base, in parallel, each in its own worktree
+   (`DCW-V0-044`). Do not merge the batch tip into a lane.
+2. On the batch branch, at its base, run `make batch-assemble BRANCHES='claude/lane-a claude/lane-b'`
+   in merge order. Each merge uses `dogfood batch-check`'s own attribute-free derivation, so the
+   repository's merge drivers (`merge=union`, `merge=use-case-pins`) do not run: a clean merge is
+   `derivation=ort`, a conflict keeps the batch side and names its paths (`derivation=ort-ours`), and
+   a branch `-Xours` cannot resolve (modify/delete, rename) is skipped as `ours-unresolved`. The
+   manifest is `<git-dir>/corvint/batch-assemble-manifest.txt`.
+3. Build and run the affected selection at the assembled head (`NEXT verify`). Textually clean merges
+   can still break the build: batch-1102a's assembly did not compile `internal/tasks/cli`, because
+   one lane changed `initActor`'s signature and another added a call to it.
+4. Commit one restore change on the assembled head. It restores the lane side of each conflicted
+   path's dropped hunks, keeping each hunk's lines contiguous. It also regenerates generated files
+   (`make spec-requirements`, `make capability-catalog`) and carries the step 3 fix.
+5. Run `make dogfood-batch-check BASE=<batch base>` once before sealing to list each `dropped-hunk`
+   and its `id`. Some hunks cannot be held contiguously, such as a regenerated catalog entry or a
+   line both sides rewrote. Disposition each one this way:
+   1. Write one `BRANCH ID REASON` line per hunk to a file.
+   2. Start a fresh branch at the batch base and rerun step 2 with `DISPOSITIONS=FILE`. The merge
+      trees are identical; only those merge messages change.
+   3. Cherry-pick the restore change onto the new head.
+6. Bind, check and seal the restore change once with `BASE=<assembled head>` (`docs/DOGFOOD.md`
+   section 4). Then run `make dogfood-batch-check BASE=<batch base>`. Every `dropped-hunk` must read
+   `coverage=restored:...` or `coverage=disposition`.
+7. Some lanes were skipped as `ours-unresolved`. Each takes the per-lane rebind of `docs/DOGFOOD.md`
+   section 4 step 2 at the assembled head, then merges.
+
+## 17. Interrupted lanes: marker and resume (ASD-V0-788, NEW-D6)
+
+A lane session can end without its handback: a usage-limit kill, a crash or a closed SSH session.
+Its commits and uncommitted edits stay in the worktree, but nothing records which tickets are left,
+so the lane was neither resumed nor requeued. The marker is derived from Git state alone, so the
+orchestrator writes it on the lane's host after the fact and the dead lane does nothing.
+
+1. Detect: the idle watchdog (section 5) flags the lane, or the session ends with no
+   `~/lane-reports/<lane>/final.md` (section 14).
+2. Record, on the lane's host:
+
+   ```sh
+   script/lane-interrupted.sh record --dir <lane dir> --env <dir>/lane.env --reason usage-limit
+   ```
+
+   It writes `<worktree git dir>/corvint/lane-interrupted` and prints it: `head`, `base`,
+   `commits`, `cited` (each ID a lane commit names, with the newest such commit), `remaining` (the
+   other IDs in dispatch order) and one `path <XY> <path>` line per uncommitted entry. Without a
+   `lane.env`, pass `--lane`, `--base` and the IDs. Only the lane's own non-merge commits on its
+   first-parent chain cite, so a merged batch tip never marks another lane's IDs as done.
+3. Requeue: each round, `script/lane-interrupted.sh list` in the host's repository prints one
+   `INTERRUPTED lane=... head=... remaining=<n> dirty=<n> dir=...` line per marker and exits 1
+   while any exists.
+4. Resume in the same worktree and branch, never from a fresh base: the new brief names `head`, the
+   `remaining` IDs and the dirty paths, which are the killed session's work and must not be
+   discarded. A cited ID is not delivered; the resumed lane screens it again (charter rule 0).
+5. Clear: after the resumed lane hands back, `script/lane-interrupted.sh clear --dir <lane dir>`.
+
+`lane-clean.sh` keeps a dirty or unmerged checkout (section 6), so an interrupted worktree is not
+removed before it is recorded.

@@ -279,7 +279,9 @@ type LaneHead struct{ Ref, Commit string }
 // that base does not contain and that share a root commit with base, each
 // commit once, sorted by ref; an unrelated lineage is no lane of base. More
 // than MaxLaneHeads is refused LIMIT_EXCEEDED rather than silently cut.
-func LaneHeads(root, base string) ([]LaneHead, error) {
+// namespaces are further ref prefixes listed the same way, such as the
+// fetched refs/lanes/ heads (TCD-V0-774).
+func LaneHeads(root, base string, namespaces ...string) ([]LaneHead, error) {
 	rootsOut, err := gitOutput(root, "rev-list", "--max-parents=0", "--end-of-options", base)
 	if err != nil {
 		return nil, err
@@ -289,7 +291,7 @@ func LaneHeads(root, base string) ([]LaneHead, error) {
 	for _, r := range roots {
 		args = append(args, "--contains="+r)
 	}
-	out, err := gitOutput(root, append(args, "refs/heads/")...)
+	out, err := gitOutput(root, append(append(args, "refs/heads/"), namespaces...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -329,4 +331,72 @@ func LaneHeads(root, base string) ([]LaneHead, error) {
 	}
 	sort.Slice(heads, func(i, j int) bool { return heads[i].Ref < heads[j].Ref })
 	return heads, nil
+}
+
+// LaneMention is one lane commit whose message names a screened token, with
+// the head the walk reached it from (TCD-V0-774).
+type LaneMention struct {
+	Ref string
+	ScannedCommit
+}
+
+// LaneMentionScan is the bounded result of ScanLaneMentions.
+type LaneMentionScan struct {
+	// Mentions is sorted by head ref, newest first within a head.
+	Mentions []LaneMention
+	// Truncated is more than limit commits naming a token; the kept ones
+	// are the newest of the walk, and Last is the oldest kept one.
+	Truncated bool
+	Last      string
+}
+
+// ScanLaneMentions reads, in one `git log` walk over every head and not from
+// base, at most limit commits whose message holds one of tokens as a fixed,
+// case-insensitive string, each attributed to the first head that reached it
+// (TCD-V0-774). The match is only a prefilter: the caller classifies every
+// message it returns. No head or no token reads nothing. Every head is walked
+// by its captured commit, so ref movement cannot change the scan.
+func ScanLaneMentions(root, base string, heads []LaneHead, tokens []string, limit int) (LaneMentionScan, error) {
+	var scan LaneMentionScan
+	if len(heads) == 0 || len(tokens) == 0 {
+		return scan, nil
+	}
+	args := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "log", "--no-show-signature", "--no-color", "--encoding=UTF-8", "-z",
+		"--source", "--fixed-strings", "--regexp-ignore-case", "--format=%H %S%n%B", "--max-count="+strconv.Itoa(limit+1))
+	for _, t := range tokens {
+		args = append(args, "--grep="+t)
+	}
+	args = append(args, "--end-of-options")
+	source := make(map[string]string, len(heads))
+	for _, h := range heads {
+		if _, seen := source[h.Commit]; seen {
+			continue
+		}
+		source[h.Commit] = h.Ref
+		args = append(args, h.Commit)
+	}
+	out, err := runScanGit(root, "", append(args, "^"+base))
+	if err != nil {
+		return scan, err
+	}
+	for _, rec := range strings.Split(string(out), "\x00") {
+		rec = strings.TrimLeft(rec, "\n")
+		if rec == "" {
+			continue
+		}
+		if len(scan.Mentions) == limit {
+			scan.Truncated = true
+			break
+		}
+		header, message, _ := strings.Cut(rec, "\n")
+		commit, src, _ := strings.Cut(header, " ")
+		ref, ok := source[src]
+		if !ok {
+			return LaneMentionScan{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: lane commit %s has unknown source %q", commit, src)
+		}
+		scan.Mentions = append(scan.Mentions, LaneMention{Ref: ref, ScannedCommit: ScannedCommit{Commit: commit, Subject: subjectOf(message), Message: message}})
+		scan.Last = commit
+	}
+	sort.SliceStable(scan.Mentions, func(i, j int) bool { return scan.Mentions[i].Ref < scan.Mentions[j].Ref })
+	return scan, nil
 }

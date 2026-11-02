@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -93,12 +94,17 @@ type ghPR struct {
 }
 
 // ghRun is one record of `gh run list --json
-// databaseId,headSha,conclusion[,url]`.
+// databaseId,headSha,conclusion[,url,workflowName,event,updatedAt]`. The
+// optional workflowName, event and updatedAt let a gated batch close derive
+// a CI run record for a policy ciEvidence gate (TCD-V0-770).
 type ghRun struct {
-	DatabaseID int64  `json:"databaseId"`
-	HeadSha    string `json:"headSha"`
-	Conclusion string `json:"conclusion"`
-	URL        string `json:"url"`
+	DatabaseID   int64  `json:"databaseId"`
+	HeadSha      string `json:"headSha"`
+	Conclusion   string `json:"conclusion"`
+	URL          string `json:"url"`
+	WorkflowName string `json:"workflowName"`
+	Event        string `json:"event"`
+	UpdatedAt    string `json:"updatedAt"`
 }
 
 // readGitHubExport decodes a bounded `gh --json` array file into out.
@@ -159,7 +165,7 @@ func (p *ghPR) mergeOid() string {
 func (x *closeoutIndex) lineTickets(line string) []string {
 	var out []string
 	for _, w := range closeoutWord.FindAllString(line, -1) {
-		if id, ok := x.tokens[wire.FoldToken(strings.TrimRight(w, ".:"))]; ok && !slices.Contains(out, id) {
+		if id, ok := x.screenToken(w); ok && !slices.Contains(out, id) {
 			out = append(out, id)
 		}
 	}
@@ -215,7 +221,7 @@ func (x *closeoutIndex) idReferences(line string, anywhere bool) (refs map[strin
 		lo, hi := bounds[c], bounds[c+1]
 		var occs []occ
 		for _, w := range closeoutWord.FindAllStringIndex(line[lo:hi], -1) {
-			if id, ok := x.tokens[wire.FoldToken(strings.TrimRight(line[lo+w[0]:lo+w[1]], ".:"))]; ok {
+			if id, ok := x.screenToken(line[lo+w[0] : lo+w[1]]); ok {
 				occs = append(occs, occ{lo + w[0], lo + w[1], id})
 			}
 		}
@@ -255,6 +261,22 @@ func (x *closeoutIndex) idReferences(line string, anywhere bool) (refs map[strin
 		}
 	}
 	return refs, vetoed
+}
+
+// screenToken keeps audited IDs scoped to their indexed authority and queue.
+// With no store, any valid qualified reference to a supplied raw ID names it.
+func (x *closeoutIndex) screenToken(token string) (string, bool) {
+	key := wire.FoldToken(strings.TrimRight(token, ".:"))
+	if id, ok := x.tokens[key]; ok {
+		return id, true
+	}
+	if x.rawIDs {
+		if qualified, err := wire.ParseTicketID("reference", key); err == nil {
+			id, ok := x.tokens[wire.FoldToken(qualified.Local)]
+			return id, ok
+		}
+	}
+	return "", false
 }
 
 // references maps each ticket a PR title or body names to delivered or
@@ -411,7 +433,7 @@ type screenRow struct {
 // deliveryScreenBools and deliveryScreenValues are the declared boolean and
 // value flags of delivery-screen; its usage names exactly these (TCL-V0-737).
 var (
-	deliveryScreenBools  = []string{"lane-refs", "json"}
+	deliveryScreenBools  = []string{"lane-refs", "unaudited", "json"}
 	deliveryScreenValues = []string{"prs", "ref", "since", "limit"}
 )
 
@@ -424,13 +446,18 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
 	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
 	fl, set, pos, err := flagsBool(args, deliveryScreenBools, deliveryScreenValues...)
-	laneRefs := set["lane-refs"]
+	laneRefs, unaudited := set["lane-refs"], set["unaudited"]
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}
 	limit := 0
 	if err == nil {
 		limit, err = parseScanLimit(fl)
+	}
+	if _, given := fl["limit"]; unaudited && !given {
+		// No creation time bounds an unaudited window, so a cut scan leaves
+		// every undelivered ID TRUNCATED: read the deepest one (TCD-V0-773).
+		limit = maxCloseoutScanLimit
 	}
 	var prs []ghPR
 	file, observed := fl["prs"]
@@ -445,35 +472,49 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 		rows   []screenRow
 		branch string
 		phases map[string]string
+		rc     *readCtx
+		root   string
 	)
-	rc, err := withInventoryStore(env, func(rc *readCtx) error {
-		index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
-		rows, branch, phases = nil, rc.store.Queue.IntentBranch, map[string]string{}
-		for _, id := range rc.store.Inventory.Sorted() {
-			rec, _ := rc.store.Inventory.Get(id)
-			index.add(rec)
+	if unaudited {
+		root, index, rows, err = unauditedScreen(env, pos)
+		branch = "main"
+	} else {
+		rc, err = withInventoryStore(env, func(rc *readCtx) error {
+			index = &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
+			rows, branch, phases = nil, rc.store.Queue.IntentBranch, map[string]string{}
+			for _, id := range rc.store.Inventory.Sorted() {
+				rec, _ := rc.store.Inventory.Get(id)
+				index.add(rec)
+			}
+			for _, arg := range pos {
+				id, e := resolveTicketArg(rc, arg)
+				if e != nil {
+					return e
+				}
+				rec, ok := rc.store.Inventory.Get(id)
+				if !ok && rc.journalAbsent {
+					// A journal-less host reads a projection that may lack the
+					// ticket; name the store-free screen (TCD-V0-773).
+					return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in this checkout's intent projection (journal absent); rerun with --unaudited to screen the raw ID against commit messages only", prose(arg))
+				}
+				if !ok {
+					return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in the queue", prose(arg))
+				}
+				if !slices.ContainsFunc(rows, func(r screenRow) bool { return r.ticketID == id }) {
+					created, _ := time.Parse(time.RFC3339Nano, string(rec.CreatedAt))
+					rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
+					phases[id] = rec.EffectivePhase()
+				}
+			}
+			return nil
+		})
+		if err == nil {
+			root = rc.repo.PrimaryWorktree
 		}
-		for _, arg := range pos {
-			id, e := resolveTicketArg(rc, arg)
-			if e != nil {
-				return e
-			}
-			rec, ok := rc.store.Inventory.Get(id)
-			if !ok {
-				return wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is not in the queue", prose(arg))
-			}
-			if !slices.ContainsFunc(rows, func(r screenRow) bool { return r.ticketID == id }) {
-				created, _ := time.Parse(time.RFC3339Nano, string(rec.CreatedAt))
-				rows = append(rows, screenRow{ticketID: id, local: rec.TicketID.Local, status: rec.Status, created: created, holds: slices.Clone(rec.Holds), note: operatorNoteShowValue(rc, rec)})
-				phases[id] = rec.EffectivePhase()
-			}
-		}
-		return nil
-	})
+	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
 	}
-	root := rc.repo.PrimaryWorktree
 	ref, refCommit, since, err := closeoutRef(root, branch, fl)
 	var scan store.CommitScan
 	if err == nil {
@@ -487,25 +528,20 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil && scan.Truncated && len(scan.Commits) > 0 {
 		windowStart, err = store.CommitTime(root, scan.Commits[len(scan.Commits)-1].Commit)
 	}
-	var lanes []laneScan
+	var (
+		heads []store.LaneHead
+		lanes store.LaneMentionScan
+	)
 	if err == nil && laneRefs {
-		lanes, err = scanLaneHeads(root, refCommit, limit)
+		heads, lanes, err = scanLaneHeads(root, refCommit, index, rows, limit)
 	}
-	// laneWindowStart is the latest oldest-scanned-commit time over the lane
-	// scans cut at --limit: a ticket created before it may be delivered by a
-	// lane commit the scan never read, so it is TRUNCATED, never CLEAR
-	// (TLF-V0-887).
+	// laneWindowStart is the time of the oldest kept lane commit when the
+	// walk stopped at --limit: a ticket created before it may be delivered by
+	// a lane commit the walk never kept, so it is TRUNCATED, never CLEAR
+	// (TLF-V0-887, TCD-V0-774).
 	var laneWindowStart time.Time
-	laneTruncated := false
-	for _, l := range lanes {
-		if err != nil || !l.scan.Truncated || len(l.scan.Commits) == 0 {
-			continue
-		}
-		laneTruncated = true
-		var at time.Time
-		if at, err = store.CommitTime(root, l.scan.Commits[len(l.scan.Commits)-1].Commit); err == nil && at.After(laneWindowStart) {
-			laneWindowStart = at
-		}
+	if err == nil && lanes.Truncated && lanes.Last != "" {
+		laneWindowStart, err = store.CommitTime(root, lanes.Last)
 	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
@@ -513,6 +549,10 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	commitRefs := make([]map[string]string, len(scan.Commits))
 	for i, c := range scan.Commits {
 		commitRefs[i] = index.commitReferences(c.Message)
+	}
+	laneCommitRefs := make([]map[string]string, len(lanes.Mentions))
+	for i, m := range lanes.Mentions {
+		laneCommitRefs[i] = index.commitReferences(m.Message)
 	}
 	prRefs := make([]map[string]string, len(prs))
 	for i := range prs {
@@ -538,19 +578,17 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			}
 		}
 		onLane := false
-		for _, l := range lanes {
-			for _, c := range l.scan.Commits {
-				if index.commitReferences(c.Message)[r.ticketID] != refDelivered {
-					continue
-				}
-				onLane = true
-				if len(r.lanes) < maxScreenHits {
-					o := wire.NewObject()
-					o.Set("ref", wire.String(l.ref))
-					o.Set("commit", wire.String(c.Commit))
-					o.Set("subject", wire.String(truncateUTF8(c.Subject, maxCloseoutSubjectBytes)))
-					r.lanes = append(r.lanes, wire.ObjectValue(o))
-				}
+		for j, m := range lanes.Mentions {
+			if laneCommitRefs[j][r.ticketID] != refDelivered {
+				continue
+			}
+			onLane = true
+			if len(r.lanes) < maxScreenHits {
+				o := wire.NewObject()
+				o.Set("ref", wire.String(m.Ref))
+				o.Set("commit", wire.String(m.Commit))
+				o.Set("subject", wire.String(truncateUTF8(m.Subject, maxCloseoutSubjectBytes)))
+				r.lanes = append(r.lanes, wire.ObjectValue(o))
 			}
 		}
 		if laneRefs && pastInProgress(phases[r.ticketID]) {
@@ -591,7 +629,10 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 		case onLane:
 			r.verdict = verdictOnLane
 		case !windowStart.IsZero() && r.created.Before(windowStart.Add(time.Second)),
-			!laneWindowStart.IsZero() && r.created.Before(laneWindowStart.Add(time.Second)):
+			!laneWindowStart.IsZero() && r.created.Before(laneWindowStart.Add(time.Second)),
+			// An unaudited ticket's creation time is NOT_OBSERVED, so any cut
+			// scan may have missed its delivery (TCD-V0-773).
+			unaudited && (scan.Truncated || lanes.Truncated):
 			r.verdict = verdictTruncated
 		case cited:
 			r.verdict = verdictCited
@@ -604,29 +645,46 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			clear++
 		}
 	}
-	res := success(cmd, rc)
+	var res *wire.Result
+	if unaudited {
+		res = &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Warnings: []string{unauditedWarning}}
+	} else {
+		res = success(cmd, rc)
+	}
 	if scan.Truncated {
 		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older references are not reported, and a ticket created before the oldest scanned commit is TRUNCATED")
 	}
 	if !observed {
 		res.Warnings = append(res.Warnings, "no --prs export; open and merged PRs NOT_OBSERVED")
 	}
-	for _, l := range lanes {
-		if l.scan.Truncated {
-			res.Warnings = append(res.Warnings, "lane head "+prose(l.ref)+" scan stopped at --limit "+strconv.Itoa(limit)+"; older lane commits are not reported, and a ticket created before its oldest scanned commit is TRUNCATED")
-		}
+	if lanes.Truncated {
+		res.Warnings = append(res.Warnings, "lane walk stopped at --limit "+strconv.Itoa(limit)+" commits naming a screened ticket; older lane commits are not reported, and a ticket created before the oldest kept one is TRUNCATED")
 	}
 	item := deliveryScreenValue(rows, ref, refCommit, observed, len(prs), len(scan.Commits), scan.Truncated)
 	if laneRefs {
-		scanned := make([]wire.Value, 0, len(lanes))
-		for _, l := range lanes {
-			scanned = append(scanned, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(l.ref)).Set("commit", wire.String(l.commit)).Set("commitsScanned", count(len(l.scan.Commits))).Set("scanTruncated", wire.Bool(l.scan.Truncated))))
+		matched := map[string]int{}
+		for _, m := range lanes.Mentions {
+			matched[m.Ref]++
+		}
+		scanned := make([]wire.Value, 0, len(heads))
+		for _, h := range heads {
+			scanned = append(scanned, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(h.Ref)).Set("commit", wire.String(h.Commit)).Set("commitsMatched", count(matched[h.Ref])).Set("scanTruncated", wire.Bool(lanes.Truncated))))
 		}
 		item.Obj.Set("laneHeads", wire.Array(scanned...))
-		item.Obj.Set("laneScanTruncated", wire.Bool(laneTruncated))
+		item.Obj.Set("laneScanTruncated", wire.Bool(lanes.Truncated))
 		if tickets, ok := item.Obj.Get("tickets"); ok {
 			for i, t := range tickets.Arr {
 				t.Obj.Set("laneCommits", wire.Array(rows[i].lanes...))
+			}
+		}
+	}
+	if unaudited {
+		// Ticket state was never read: NOT_OBSERVED, never absent (TCD-V0-773).
+		item.Obj.Set("audited", wire.Bool(false))
+		item.Obj.Set("ticketState", wire.String(notObserved))
+		if tickets, ok := item.Obj.Get("tickets"); ok {
+			for _, t := range tickets.Arr {
+				t.Obj.Set("holds", wire.String(notObserved))
 			}
 		}
 	}
@@ -638,33 +696,61 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	return res, 1
 }
 
-// deliveryScreenValue renders the taskman-delivery-screen/0 item (TCD-V0-161).
-// laneScan is one local head's commits that the screened ref lacks.
-type laneScan struct {
-	ref, commit string
-	scan        store.CommitScan
-}
+// unauditedWarning heads every --unaudited result (TCD-V0-773).
+const unauditedWarning = "unaudited: no Tasks store read; the raw ticket IDs are screened against commit messages (and any --prs export) only, and ticket status, holds, operator notes and progress are NOT_OBSERVED, never absent"
 
-// scanLaneHeads reads, for every local branch and detached worktree head not
-// contained in refCommit, at most limit of its commits outside refCommit
-// (TLF-V0-887).
-func scanLaneHeads(root, refCommit string, limit int) ([]laneScan, error) {
-	heads, err := store.LaneHeads(root, refCommit)
+// rawTicketID is one ID --unaudited screens (TCD-V0-773): a letter, then
+// letters, digits, `_` or `-`, ending in a letter or digit, 2..64 bytes.
+var rawTicketID = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,62}[A-Za-z0-9]$`)
+
+// unauditedScreen is the store-free read of --unaudited (TCD-V0-773): the
+// repository's primary worktree, and one row per distinct raw ID (folded),
+// whose status and operator note are NOT_OBSERVED. It never opens the
+// journal or the intent projection, so it runs on a lane host with neither.
+func unauditedScreen(env Env, pos []string) (string, *closeoutIndex, []screenRow, error) {
+	common, err := intent.ResolveCommonDir(env.Cwd)
 	if err != nil {
-		return nil, err
+		return "", nil, nil, err
 	}
-	var out []laneScan
-	for _, h := range heads {
-		if store.IsAncestor(root, h.Commit, refCommit) {
+	index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, rawIDs: true}
+	note := wire.ObjectValue(wire.NewObject().Set("state", wire.String(notObserved)))
+	var rows []screenRow
+	for _, arg := range pos {
+		if !rawTicketID.MatchString(arg) {
+			return "", nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "--unaudited takes raw ticket IDs such as V1-0001; %s is not one", prose(arg))
+		}
+		key := wire.FoldToken(arg)
+		if _, dup := index.tokens[key]; dup {
 			continue
 		}
-		scan, err := store.ScanCommits(root, h.Commit, refCommit, limit)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, laneScan{ref: h.Ref, commit: h.Commit, scan: scan})
+		index.tokens[key] = arg
+		rows = append(rows, screenRow{ticketID: arg, local: arg, status: notObserved, note: note})
 	}
-	return out, nil
+	return filepath.Dir(common), index, rows, nil
+}
+
+// scanLaneHeads lists the lane heads the screened ref does not contain
+// (local branches, fetched refs/lanes/ heads and detached worktree heads)
+// and reads, in one walk outside refCommit, the commits naming a token of a
+// screened ticket (TLF-V0-887, TCD-V0-774).
+func scanLaneHeads(root, refCommit string, index *closeoutIndex, rows []screenRow, limit int) ([]store.LaneHead, store.LaneMentionScan, error) {
+	heads, err := store.LaneHeads(root, refCommit, "refs/lanes/")
+	if err != nil {
+		return nil, store.LaneMentionScan{}, err
+	}
+	screened := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		screened[r.ticketID] = true
+	}
+	var tokens []string
+	for tok, id := range index.tokens {
+		if screened[id] {
+			tokens = append(tokens, tok)
+		}
+	}
+	sort.Strings(tokens)
+	scan, err := store.ScanLaneMentions(root, refCommit, heads, tokens, limit)
+	return heads, scan, err
 }
 
 // pastInProgress reports a progress phase that records delivered work not yet
@@ -677,6 +763,7 @@ func pastInProgress(phase string) bool {
 	return false
 }
 
+// deliveryScreenValue renders the taskman-delivery-screen/0 item (TCD-V0-161).
 func deliveryScreenValue(rows []screenRow, ref, refCommit string, observed bool, prCount, scanned int, truncated bool) wire.Value {
 	github := notObserved
 	if observed {

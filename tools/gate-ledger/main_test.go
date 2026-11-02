@@ -1210,6 +1210,59 @@ func TestRunStepKeysBatchPrecheckScopes(t *testing.T) {
 	}
 }
 
+// TestRunStepKeysLaneScriptsScope replays GL-V0-770 (V1-4194): the serial lane
+// shell tests hit after a rebind fix outside their ASD-V0-640 inputs (a Go
+// file, a spec, a CEM, a build log, a root-level file) and run after a change to
+// each declared input: a script, the Makefile, the dogfood recipe, and the
+// retained-data table.
+func TestRunStepKeysLaneScriptsScope(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	for _, dir := range []string{".corvint/changes", "docs/build-log", "docs/specs", "benchmarks", "script", "pkg"} { //corvint:fixture-path
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(t, root, ".gitignore", "COUNT\n")
+	write(t, root, "Makefile", "all:\n")                     //corvint:fixture-path
+	write(t, root, "docs/DOGFOOD.md", "one\n")               //corvint:fixture-path
+	write(t, root, "benchmarks/retained-data.tsv", "a\tb\n") //corvint:fixture-path
+	write(t, root, "script/lane-scripts_test.sh", "true\n")  //corvint:fixture-path
+	write(t, root, "pkg/a.go", "package pkg\n")              //corvint:fixture-path
+	write(t, root, "docs/specs/x-v0.md", "one\n")            //corvint:fixture-path
+	const step = "lane-scripts-test+l1"
+	run := append([]string{"run", step}, counting...)
+	if code, out := ledgerRun(t, run...); code != 0 || !strings.Contains(out, "RECORD "+step) {
+		t.Fatalf("first run: code %d, %q", code, out)
+	}
+	if _, out := ledgerRun(t, run...); !strings.Contains(out, "HIT "+step) {
+		t.Fatalf("an unchanged tree must hit: %q", out)
+	}
+	check := func(file, body string, hit bool) {
+		t.Helper()
+		write(t, root, file, body)
+		_, out := ledgerRun(t, run...)
+		if hit && !strings.Contains(out, "HIT "+step) {
+			t.Fatalf("a change to %s missed: %q", file, out)
+		}
+		if !hit && !strings.Contains(out, "RUN "+step+": no recorded pass") {
+			t.Fatalf("a change to %s hit: %q", file, out)
+		}
+	}
+	check(".corvint/changes/l1.cem.json", "{}\n", true)          //corvint:fixture-path
+	check("docs/build-log/l1.md", "entry\n", true)               //corvint:fixture-path
+	check("docs/specs/x-v0.md", "two\n", true)                   //corvint:fixture-path
+	check("pkg/a.go", "package pkg\n\n// two\n", true)           //corvint:fixture-path
+	check("docs/decisions/0001.md", "two\n", true)               //corvint:fixture-path
+	check("script/lane-scripts_test.sh", "# two\ntrue\n", false) //corvint:fixture-path
+	check("Makefile", "all:\n\t@true\n", false)                  //corvint:fixture-path
+	check("docs/DOGFOOD.md", "two\n", false)                     //corvint:fixture-path
+	check("benchmarks/retained-data.tsv", "a\tc\n", false)       //corvint:fixture-path
+	if got := runs(t, root); got != 5 {
+		t.Fatalf("the step ran %d times, want 5 (first run and four declared-input changes)", got)
+	}
+}
+
 // TestInScopeBatchPrecheckForms pins the GL-V0-600 scope forms.
 func TestInScopeBatchPrecheckForms(t *testing.T) {
 	for _, c := range []struct {

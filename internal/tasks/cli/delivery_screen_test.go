@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -351,9 +352,10 @@ func TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead(t *testing.T) {
 }
 
 // TestTLFV0887_TruncatedLaneScanIsNotClear: a lane whose penultimate commit
-// delivers a ticket and whose tip does not, read with --lane-refs --limit 1,
-// leaves that ticket TRUNCATED (never CLEAR, exit 1) and reports the cut on
-// the lane head and the item (TLF-V0-887).
+// delivers a ticket and whose tip only mentions it, read with --lane-refs
+// --limit 1, leaves that ticket TRUNCATED (never CLEAR, exit 1) and reports
+// the cut on the lane head and the item (TLF-V0-887, TCD-V0-774: the limit
+// bounds the commits naming a screened ticket).
 func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
 	setActor(t, "tester")
 	root, _ := ergStore(t)
@@ -365,7 +367,7 @@ func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
 	main := strings.TrimSpace(string(out))
 	git(t, root, "checkout", "-q", "-b", "claude/lane-y")
 	tcdCommit(t, root, "tasks: lane work\n\nRefs "+hidden)
-	tcdCommit(t, root, "docs: unrelated tip")
+	tcdCommit(t, root, "docs: note "+hidden+" follow-up")
 	git(t, root, "checkout", "-q", "-f", main)
 	prs := tdsExport(t, "prs.json", "[]")
 
@@ -380,6 +382,138 @@ func TestTLFV0887_TruncatedLaneScanIsNotClear(t *testing.T) {
 	x = tdsRun(t, root, "ticket", "delivery-screen", hidden, "--prs", prs, "--lane-refs")
 	if got := tdsVerdicts(t, x); got[hidden] != "DELIVERED_ON_LANE" || field(x.res.Items[0], "laneScanTruncated").Bool {
 		t.Fatalf("full lane scan: verdicts %v\n%s", got, x.stdout)
+	}
+}
+
+// TestTCDV0773_UnauditedScreensRawIDsWithoutStore: on a repository with no
+// Tasks journal or projection, --unaudited screens raw IDs against commit
+// messages only. A ref commit delivers, a lane commit is DELIVERED_ON_LANE,
+// an unnamed ID with an empty --prs export is CLEAR, a repeated ID is one
+// row, every status, hold and operator note and the item's ticketState are
+// NOT_OBSERVED with audited false, a scan cut at --limit leaves every
+// undelivered ID TRUNCATED, and a non-ID argument is refused; the audited
+// screen on the same repository refuses (TCD-V0-773).
+func TestTCDV0773_UnauditedScreensRawIDsWithoutStore(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	tcdCommit(t, root, "init")
+	tcdCommit(t, root, "feat(ticket:corvint:main:V1-9001): delivered on main")
+	git(t, root, "checkout", "-q", "-b", "claude/lane-z")
+	tcdCommit(t, root, "tasks: lane work\n\nRefs TICKET:corvint:main:v1-9002")
+	git(t, root, "checkout", "-q", "main")
+	prs := tdsExport(t, "prs.json", "[]")
+
+	x := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001", "V1-9002", "V1-9003", "v1-9001", "--unaudited", "--lane-refs", "--prs", prs)
+	got := tdsVerdicts(t, x)
+	if x.code != 1 || len(got) != 3 || got["V1-9001"] != "DELIVERED" || got["V1-9002"] != "DELIVERED_ON_LANE" || got["V1-9003"] != "CLEAR" {
+		t.Fatalf("unaudited exit %d: %v\n%s", x.code, got, x.stdout)
+	}
+	item := x.res.Items[0]
+	if field(item, "audited").Kind != wire.KindBool || field(item, "audited").Bool || field(item, "ticketState").Str != "NOT_OBSERVED" || field(item, "ref").Str != "refs/heads/main" {
+		t.Fatalf("unaudited item: %s", x.stdout)
+	}
+	for _, row := range field(item, "tickets").Arr {
+		if field(row, "status").Str != "NOT_OBSERVED" || field(row, "holds").Str != "NOT_OBSERVED" || field(field(row, "operatorNote"), "state").Str != "NOT_OBSERVED" {
+			t.Fatalf("unaudited row: %s", wire.Encode(row))
+		}
+	}
+	if !slices.ContainsFunc(x.res.Warnings, func(w string) bool { return strings.HasPrefix(w, "unaudited:") }) {
+		t.Fatalf("unaudited warning: %v", x.res.Warnings)
+	}
+	if field(item, "commitsScanned").Str != "2" || field(item, "scanTruncated").Bool {
+		t.Fatalf("unaudited default limit: %s", x.stdout)
+	}
+	cut := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001", "V1-9002", "V1-9003", "--unaudited", "--lane-refs", "--prs", prs, "--limit", "1")
+	if got := tdsVerdicts(t, cut); got["V1-9001"] != "DELIVERED" || got["V1-9002"] != "DELIVERED_ON_LANE" || got["V1-9003"] != "TRUNCATED" {
+		t.Fatalf("unaudited cut scan: %v\n%s", got, cut.stdout)
+	}
+	if bad := tdsRun(t, root, "ticket", "delivery-screen", "../V1-9001", "--unaudited"); bad.code != 2 || !hasCode(bad.res, wire.CodeMalformed) {
+		t.Fatalf("bad raw ID: exit %d %s", bad.code, bad.stdout)
+	}
+	if audited := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001"); audited.res.Outcome == wire.OutcomeOK {
+		t.Fatalf("audited screen without a store: %s", audited.stdout)
+	}
+	help := tdsRun(t, root, "ticket", "delivery-screen", "--help", "--verbose")
+	if !strings.Contains(string(help.stdout), "--unaudited") || !strings.Contains(string(help.stdout), "TCD-V0-773") {
+		t.Fatalf("help: %s", help.stdout)
+	}
+}
+
+// TCD-V0-773: qualified PR references use the same whole-token delivery and
+// veto rules as raw IDs, without admitting a look-alike local token.
+func TestTCDV0773_UnauditedQualifiedPRReferences(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	tcdCommit(t, root, "init")
+	for _, c := range []struct{ text, verdict string }{
+		{"Delivers ticket:corvint:main:V1-9001", "IN_FLIGHT"},
+		{"Delivers TICKET:other:queue:v1-9001", "IN_FLIGHT"},
+		{"NOT_DELIVERED ticket:corvint:main:V1-9001", "MENTIONED"},
+		{"Delivers ticket:corvint:main:V1-90010", "CLEAR"},
+		{"Delivers ticket:corvint:main:prefix-V1-9001", "CLEAR"},
+		{"Delivers ticket:corvint:main:V1-9001:extra", "CLEAR"},
+	} {
+		t.Run(c.text, func(t *testing.T) {
+			prs := tdsExport(t, "prs.json", `[{"number":1,"state":"OPEN","title":"`+c.text+`","body":"","labels":[]}]`)
+			x := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001", "--unaudited", "--prs", prs)
+			if got := tdsVerdicts(t, x); got["V1-9001"] != c.verdict {
+				t.Fatalf("qualified PR: %v, want %s\n%s", got, c.verdict, x.stdout)
+			}
+		})
+	}
+}
+
+// TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes: --lane-refs reads fetched
+// refs/lanes/ heads with the local branches in one walk. A ticket delivered
+// only on a refs/lanes/ head is DELIVERED_ON_LANE with that ref, each
+// laneHeads entry counts the commits it contributed that name a screened
+// ticket, and a head naming none is listed with zero (TCD-V0-774).
+func TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	_, remote := tcdTicket(t, root, "remote", "")
+	_, local := tcdTicket(t, root, "local", "")
+	out, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	head := strings.TrimSpace(string(out))
+	delivers := tdsCommit(t, root, "tasks: remote lane\n\nRefs "+remote, head)
+	git(t, root, "update-ref", "refs/lanes/wsl/lane-q", tdsCommit(t, root, "docs: note "+remote+" follow-up", delivers))
+	git(t, root, "update-ref", "refs/heads/claude/lane-quiet", tdsCommit(t, root, "docs: unrelated", head))
+	localLane := tdsCommit(t, root, "tasks: local lane\n\nRefs "+local, head)
+	git(t, root, "update-ref", "refs/heads/claude/lane-l", localLane)
+	prs := tdsExport(t, "prs.json", "[]")
+
+	x := tdsRun(t, root, "ticket", "delivery-screen", remote, local, "--lane-refs", "--prs", prs)
+	if got := tdsVerdicts(t, x); x.code != 1 || got[remote] != "DELIVERED_ON_LANE" || got[local] != "DELIVERED_ON_LANE" {
+		t.Fatalf("--lane-refs exit %d: %v\n%s", x.code, got, x.stdout)
+	}
+	want := []struct {
+		ref     string
+		matched string
+	}{{"refs/heads/claude/lane-l", "1"}, {"refs/heads/claude/lane-quiet", "0"}, {"refs/lanes/wsl/lane-q", "2"}}
+	heads := field(x.res.Items[0], "laneHeads").Arr
+	if len(heads) != len(want) {
+		t.Fatalf("laneHeads: %s", wire.Encode(field(x.res.Items[0], "laneHeads")))
+	}
+	for i, w := range want {
+		if field(heads[i], "ref").Str != w.ref || field(heads[i], "commitsMatched").Str != w.matched || field(heads[i], "scanTruncated").Bool {
+			t.Fatalf("laneHeads[%d]: %s", i, wire.Encode(heads[i]))
+		}
+	}
+	for _, row := range field(x.res.Items[0], "tickets").Arr {
+		lc := field(row, "laneCommits").Arr
+		switch field(row, "local").Str {
+		case remote:
+			if len(lc) != 1 || field(lc[0], "ref").Str != "refs/lanes/wsl/lane-q" || field(lc[0], "commit").Str != delivers {
+				t.Fatalf("remote laneCommits: %s", wire.Encode(row))
+			}
+		case local:
+			if len(lc) != 1 || field(lc[0], "ref").Str != "refs/heads/claude/lane-l" || field(lc[0], "commit").Str != localLane {
+				t.Fatalf("local laneCommits: %s", wire.Encode(row))
+			}
+		}
 	}
 }
 

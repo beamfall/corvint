@@ -257,6 +257,7 @@ The implementation is accepted for this experimental slice when:
    requirement (separately accepted; see `## Accepted amendment: Go binary archive profile`),
    still live, or retired; and
 5. the `make gate` target (`Makefile:138@e0f6fc30`) remains green. There is no separate Python gate: decision
+5. the `make gate` target (`Makefile:137@e0f6fc30`) remains green. There is no separate Python gate: decision
    0088 (`docs/decisions/0088-go-only-cutover-and-oracle-retirement-2026-09-11.md`) retired the
    Python oracle and packaging, and the Makefile defines no python target (`grep -n -i python
    Makefile` returns nothing).

@@ -1060,7 +1060,57 @@ at_base() {
 }
 
 dir=
+# unstage_repin (ASD-V0-787, NEW-D4): the line-citation repin stages what it rewrites, because its
+# check reads the index, so each index entry the mechanical repin changed is put back as it was
+# before the repin when the run ends, however it ends; the rewrites stay in the worktree. An entry
+# that changed again after the repin (someone staged it meanwhile) is left alone.
+repin_warn() {
+  printf 'batch-precheck: WARN could not unstage what the mechanical repin staged; git diff --cached shows it (ASD-V0-787)\n' >&2
+}
+unstage_repin() {
+  local n prog
+  [[ -n $dir && -f $dir/stage.before ]] || return 0
+  # A signal can arrive while the repinner is running, before the after snapshot exists.
+  # No later check has run yet: capture the interrupted repin's current entries for cleanup.
+  if [[ ! -f $dir/stage.repin ]]; then
+    git -C "$root" ls-files -s -z > "$dir/stage.repin" 2> /dev/null || { repin_warn; return 0; }
+  fi
+  cmp -s "$dir/stage.before" "$dir/stage.repin" && return 0
+  # Reads the three `ls-files -s -z` snapshots; writes the --index-info input that removes each
+  # path the repin changed and still holds, then restores its entries from before; prints the count.
+  prog='
+    my @snap = ({}, {}, {});
+    for my $i (0 .. 2) {
+        open my $in, "<", $ARGV[$i] or die "$ARGV[$i]: $!\n";
+        local $/ = "\0";
+        while (my $rec = <$in>) {
+            my ($path) = $rec =~ /\t(.*)\0\z/s or die "$ARGV[$i]: malformed entry\n";
+            $snap[$i]{$path} .= $rec;
+        }
+    }
+    my ($before, $repin, $exit) = @snap;
+    my %paths = (%$before, %$repin);
+    open my $out, ">", $ARGV[3] or die "$ARGV[3]: $!\n";
+    my $count = 0;
+    for my $path (sort keys %paths) {
+        my ($was, $staged, $now) = map { $_->{$path} // "" } $before, $repin, $exit;
+        next if $was eq $staged || $now ne $staged;
+        my ($oid) = ($was || $staged) =~ /\A[0-7]+ ([0-9a-f]+) /;
+        print $out "0 " . ("0" x length $oid) . "\t$path\0" . $was;
+        $count++;
+    }
+    close $out or die "$ARGV[3]: $!\n";
+    print "$count\n";'
+  if git -C "$root" ls-files -s -z > "$dir/stage.exit" 2> /dev/null &&
+    n=$(perl -e "$prog" "$dir/stage.before" "$dir/stage.repin" "$dir/stage.exit" "$dir/stage.info") &&
+    { ((n == 0)) || git -C "$root" update-index -z --index-info < "$dir/stage.info"; }; then
+    ((n == 0)) || printf 'batch-precheck: unstaged %s path(s) the mechanical repin staged; its rewrites stay in the worktree (ASD-V0-787)\n' "$n"
+  else
+    repin_warn
+  fi
+}
 cleanup() {
+  unstage_repin
   [[ -z $dir ]] || /bin/rm -rf "$dir"
   if [[ -n $basewt ]]; then
     git worktree remove --force "$basewt" > /dev/null 2>&1
@@ -1148,9 +1198,15 @@ tree_clean && pristine_before=1
 repin_rc=0
 if [[ -n $regen ]]; then
   t0=$SECONDS
+  # ASD-V0-787 (NEW-D4): the index before and after the repin, for unstage_repin.
+  { git ls-files -s -z > "$dir/stage.before.tmp" 2> /dev/null && mv "$dir/stage.before.tmp" "$dir/stage.before"; } || repin_warn
   "$regen" --mechanical > "$dir/repin.log" 2>&1 < /dev/null || repin_rc=1
+  if [[ -f $dir/stage.before ]]; then
+    { git ls-files -s -z > "$dir/stage.repin.tmp" 2> /dev/null && mv "$dir/stage.repin.tmp" "$dir/stage.repin"; } ||
+      { /bin/rm -f "$dir/stage.before"; repin_warn; }
+  fi
   if ((clean_before)) && ! tracked_clean; then
-    { printf 'mechanical repins changed tracked files; commit them and rerun:\n'; git status --porcelain --untracked-files=no; } >> "$dir/repin.log"
+    { printf 'mechanical repins changed tracked files; commit them and rerun (the run unstages what the repin staged):\n'; git status --porcelain --untracked-files=no; } >> "$dir/repin.log"
     repin_rc=1
   fi
   printf '%s %s\n' "$repin_rc" $((SECONDS - t0)) > "$dir/repin.rc"

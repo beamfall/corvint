@@ -72,6 +72,7 @@ GATE_STEPS = \
   analyzer-schema-test \
   bash32-check \
   bash32-test \
+  batch-assemble-test \
   batch-precheck-test \
   binary-blobs-check \
   capability-catalog-test \
@@ -106,6 +107,7 @@ GATE_STEPS = \
   host-package-versions-test \
   instruction-conflicts-test \
   interop-gate \
+  lane-interrupted-test \
   legal-file-pins-check \
   license-headers-check \
   license-headers-test \
@@ -870,6 +872,18 @@ batch-regen:
 batch-push-check:
 	@BATCH_PRECHECK_LANE_CLOSEOUT=0 script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
 
+# batch-assemble BRANCHES='claude/lane-a claude/lane-b' [DISPOSITIONS=FILE] merges lanes sealed at
+# their own base into the checked-out batch branch in one pass, with batch-check's attribute-free
+# derivation (ASD-V0-785..786, NEW-D1; docs/LANE-ORCHESTRATION.md section 16).
+.PHONY: batch-assemble
+batch-assemble:
+	@test -n "$(BRANCHES)" || { echo "BRANCHES is required: make batch-assemble BRANCHES='claude/lane-a claude/lane-b'" >&2; exit 2; }
+	@script/batch-assemble.sh $(if $(DISPOSITIONS),--dispositions '$(DISPOSITIONS)') $(BRANCHES)
+
+.PHONY: batch-assemble-test
+batch-assemble-test:
+	@script/batch-assemble_test.sh
+
 .PHONY: adopter-ci-advisory-test
 adopter-ci-advisory-test:
 	@script/adopter-ci-advisory_test.sh
@@ -1211,6 +1225,11 @@ dogfood-change-runs:
 lane-scripts-test:
 	@script/lane-scripts_test.sh
 
+# ASD-V0-788 (NEW-D6): the interrupted-lane marker (docs/LANE-ORCHESTRATION.md section 17).
+.PHONY: lane-interrupted-test
+lane-interrupted-test:
+	@script/lane-interrupted_test.sh
+
 # ASD-V0-641 (V1-3745): every script a shell test or a Makefile recipe names exists.
 .PHONY: test-script-refs-check
 test-script-refs-check:
@@ -1318,6 +1337,7 @@ shell-test: \
   ai-coauthor-trailers-test \
   analyzer-schema-test \
   bash32-test \
+  batch-assemble-test \
   batch-precheck-test \
   capability-catalog-test \
   cem-base-retention-test \
@@ -1339,6 +1359,7 @@ shell-test: \
   hlq-local-test \
   host-package-versions-test \
   instruction-conflicts-test \
+  lane-interrupted-test \
   license-headers-test \
   line-citations-test \
   no-python-runtime-dependency-test \
