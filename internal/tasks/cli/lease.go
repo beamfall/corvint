@@ -684,6 +684,10 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	}
 	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
 	reader.Checkpoint, rc.checkpoint = readCheckpoint(rc.repo)
+	// LGL-V0-807: without a read checkpoint that serves, resume from the
+	// writer checkpoint before paying the complete audit.
+	repo := rc.repo
+	reader.WriterCheckpoint = func() *journal.WriterCheckpoint { return store.ReadWriterCheckpoint(repo) }
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return nil, err
@@ -714,16 +718,20 @@ func readCheckpoint(repo *intent.Repository) (*journal.Checkpoint, string) {
 }
 
 // auditCheckpoint says what the shared audit made of the retained read
-// checkpoint (LGL-V0-803): USED when it resumed from it, ABSENT, UNREADABLE
-// or MALFORMED when a complete audit ran because none was valid to read,
-// NOT_APPLIED when one was read but did not bind the store as it is, and
-// NOT_OBSERVED when the command needed no journal audit. It reads nothing.
+// checkpoint (LGL-V0-803): USED when it resumed from it, WRITER_CHECKPOINT
+// when it resumed from the writer checkpoint instead (LGL-V0-807), ABSENT,
+// UNREADABLE or MALFORMED when a complete audit ran because no read
+// checkpoint was valid to read, NOT_APPLIED when one was read but did not
+// bind the store as it is, and NOT_OBSERVED when the command needed no
+// journal audit. It reads nothing.
 func auditCheckpoint(rc *readCtx) string {
 	switch {
 	case rc.proof == nil:
 		return "NOT_OBSERVED"
 	case rc.proof.Mode == journal.ModeCheckpoint:
 		return "USED"
+	case rc.proof.Mode == journal.ModeWriter:
+		return "WRITER_CHECKPOINT"
 	case rc.checkpoint != "":
 		return rc.checkpoint
 	}

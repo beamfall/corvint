@@ -84,6 +84,15 @@ func boundWriterCheckpoint(repo *intent.Repository) (*journal.WriterCheckpoint, 
 	return wc, token
 }
 
+// ReadWriterCheckpoint is the retained writer checkpoint for a read that has
+// no binding read checkpoint (LGL-V0-807): the one boundWriterCheckpoint
+// returns, published under the current CAL-V0-117 invalidation token, or nil.
+// It writes nothing; the journal reader rebinds it before use.
+func ReadWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
+	wc, _ := boundWriterCheckpoint(repo)
+	return wc
+}
+
 // retainWriterCheckpoint replaces the derived writer checkpoint with wc,
 // bound to since: the token read before the audit wc was derived from. It
 // retains nothing when that token was unobserved or has changed since, so a
