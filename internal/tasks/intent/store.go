@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
@@ -83,6 +84,7 @@ type Tree struct {
 	Files      []File // sorted by path
 	TotalBytes int
 	Sha256     wire.Digest
+	listing    []capturedInfo
 }
 
 // Store is the loaded, validated intent store of the primary worktree.
@@ -106,8 +108,12 @@ func DigestOfFiles(files []File) wire.Digest {
 	sorted := make([]File, len(files))
 	copy(sorted, files)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Path < sorted[j].Path })
+	return digestSortedFiles(sorted)
+}
+
+func digestSortedFiles(files []File) wire.Digest {
 	h := sha256.New()
-	for _, f := range sorted {
+	for _, f := range files {
 		h.Write([]byte(f.Path))
 		h.Write([]byte{0})
 		h.Write([]byte(f.Sha256))
@@ -172,7 +178,9 @@ type plannedFile struct {
 	max  int
 	// known is the closed-index entry whose sha stands for this file's
 	// bytes (TCX-V0-981); the file is then not read.
-	known *ClosedEntry
+	known  *ClosedEntry
+	reused File
+	info   os.FileInfo
 }
 
 // TreeDigest reads the intent store of a primary worktree through a
@@ -202,6 +210,11 @@ func TreeDigestIndexed(primaryWorktree string, idx *ClosedIndex) (Tree, error) {
 // treeDigest also records each ticket file's stat key in keys when keys is
 // not nil, for the closed index writer.
 func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKey) (Tree, error) {
+	return captureDigest(primaryWorktree, idx, keys, nil)
+}
+
+func captureDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKey, cache *TreeCapture) (Tree, error) {
+	capturedAt := time.Now()
 	rootPath := filepath.Join(primaryWorktree, Dir)
 	fi, err := os.Lstat(rootPath)
 	if err != nil {
@@ -225,6 +238,14 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 	// Phase 1: list (bounded per directory), validate names, stat sizes;
 	// nothing is read yet.
 	var plan []plannedFile
+	var listing []capturedInfo
+	if cache != nil && len(cache.files) > 0 {
+		plan = make([]plannedFile, 0, len(cache.files))
+		listing = make([]capturedInfo, 0, len(cache.files)+3)
+	}
+	if cache != nil {
+		listing = append(listing, capturedInfo{"", fi})
+	}
 	total := int64(0)
 	names, err := listNames(root, rootPath, ".", Dir+"/", MaxIntentRootEntries)
 	if err != nil {
@@ -235,12 +256,12 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 		switch name {
 		case QueueFile, PolicyFile, ImportMapFile:
 			max, _ := BoundFor(name)
-			size, err := statRegular(root, full, name, max)
+			info, err := statRegularInfo(root, full, name, max)
 			if err != nil {
 				return Tree{}, err
 			}
-			total += size
-			plan = append(plan, plannedFile{path: name, max: max})
+			total += info.Size()
+			plan = append(plan, plannedFile{path: name, max: max, info: info})
 		case TicketsDir, ReleasesDir:
 			info, err := root.Lstat(name)
 			if err != nil {
@@ -248,6 +269,9 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 			}
 			if info.Mode()&os.ModeSymlink != 0 {
 				return Tree{}, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "symlink inside the intent store")
+			}
+			if cache != nil {
+				listing = append(listing, capturedInfo{name, info})
 			}
 			if !info.IsDir() {
 				return Tree{}, wire.Errorf(wire.CodeMalformed, full, "%s is not a directory", name)
@@ -295,7 +319,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 					return Tree{}, err
 				}
 				total += info.Size()
-				pf := plannedFile{path: rel, max: bound}
+				pf := plannedFile{path: rel, max: bound, info: info}
 				if name == TicketsDir {
 					key := statKeyOf(info)
 					if keys != nil {
@@ -316,6 +340,21 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 		}
 	}
 
+	if cache != nil {
+		for _, p := range plan {
+			listing = append(listing, capturedInfo{p.path, p.info})
+		}
+	}
+	if cache != nil {
+		for i := range plan {
+			p := &plan[i]
+			if old, ok := cache.files[p.path]; ok && sameCaptureFile(old.info, p.info, cache.at) {
+				f := old.file
+				p.reused = f
+			}
+		}
+	}
+
 	// Phase 2: read exactly the planned entries through the root descriptor.
 	// A pinned subdirectory no longer bound to its name when the capture
 	// ends was replaced while it was read, so the capture is repeated with
@@ -329,7 +368,14 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 		return dirs.read(root, full, rel, max)
 	})
 	if err != nil || dirs.bound(root) {
+		tree.listing = listing
+		if err == nil && cache != nil {
+			cache.retain(tree, plan, capturedAt)
+		}
 		return tree, err
+	}
+	for i := range plan {
+		plan[i].reused = File{}
 	}
 	return captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
 		return readInRoot(root, full, rel, max)
@@ -344,12 +390,23 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int) ([]byte, error)) (Tree, error) {
 	files := make([]File, len(plan))
 	refusals := make([]error, len(plan))
-	ParallelEach(len(plan), func(i int) {
-		p := plan[i]
+	// Reused entries need no worker, atomic scheduling or content read.
+	// Keep only real reads in the bounded worker queue.
+	var pending []int
+	for i, p := range plan {
+		if p.reused.Path != "" {
+			files[i] = p.reused
+			continue
+		}
 		if p.known != nil {
 			files[i] = File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)}
-			return
+			continue
 		}
+		pending = append(pending, i)
+	}
+	ParallelEach(len(pending), func(k int) {
+		i := pending[k]
+		p := plan[i]
 		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
 		if err != nil {
 			refusals[i] = err
@@ -357,6 +414,7 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 		}
 		files[i] = File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw}
 	})
+
 	captured := 0
 	for i := range plan {
 		if refusals[i] != nil {
@@ -370,7 +428,7 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 		}
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
-	return Tree{Files: files, TotalBytes: captured, Sha256: DigestOfFiles(files)}, nil
+	return Tree{Files: files, TotalBytes: captured, Sha256: digestSortedFiles(files)}, nil
 }
 
 // parallelSerialBelow keeps a small walk on the calling goroutine, where
@@ -773,4 +831,27 @@ func decodeTicketFile(f File, q *Queue, gateIDs map[string]bool) (*ticket.Record
 		}
 	}
 	return rec, nil
+}
+
+type capturedInfo struct {
+	path string
+	info os.FileInfo
+}
+
+// CapturedListing visits the validated layout of a native capture. A writer
+// may share it with its audit only under the same continuously held lock and
+// must independently rebind the current content before effects (TCX-V0-977).
+// Synthetic/archive trees have no listing and return false.
+func (t *Tree) CapturedListing(visit func(string, os.FileInfo)) bool {
+	if t == nil || t.listing == nil {
+		return false
+	}
+	for _, entry := range t.listing {
+		p := "intent"
+		if entry.path != "" {
+			p += "/" + entry.path
+		}
+		visit(p, entry.info)
+	}
+	return true
 }

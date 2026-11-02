@@ -2763,6 +2763,9 @@ TCX-V0-973	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315
 TCX-V0-974	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The intent-tree capture (`intent.TreeDigest`, its stat pass	unrecorded	-
 TCX-V0-975	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The claim's know-how delivery read MUST load the inventory a	unrecorded	-
 TCX-V0-976	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends	unrecorded	-
+TCX-V0-977	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCX-V0-978	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
+TCX-V0-979	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4315)	standing	2026-10-11; V1-4315
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-

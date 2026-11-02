@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -169,6 +170,9 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 		// post-command refresh is: a failure leaves the full decode in
 		// place, and a --dry-run refreshes nothing.
 		_ = intent.WriteClosedIndex(rc.repo.IntentRoot(), rc.repo.StateDir)
+	}
+	if gb != nil && !dryRun {
+		env.batchWriteContext = store.WithBatchWrites(env.writerContext())
 	}
 	failed := false
 	var codes []string

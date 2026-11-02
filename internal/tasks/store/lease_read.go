@@ -96,12 +96,13 @@ func checkpointedLeaseProof(ctx context.Context, repo *intent.Repository) (*jour
 		// each file's bytes from it while the size matches and lists the
 		// rest. The lease write that records the run captures and rechecks
 		// the tree again on its own route (TCX-V0-974).
-		tree, err := intent.TreeDigest(repo.IntentRoot())
+		tree, err := captureWriteTree(ctx, repo)
 		if err != nil {
 			return readLeaseProof(ctx, repo)
 		}
 		reader := journalReader(repo, head)
 		reader.IntentTree = &tree
+		reader.RetainIntentRaw = batchWrites(ctx) != nil
 		reader.SelectState = true
 		reader.Checkpoint = readAuditCheckpoint(repo)
 		reader.WriterCheckpoint = func() *journal.WriterCheckpoint { return ReadWriterCheckpoint(repo) }
@@ -113,6 +114,20 @@ func checkpointedLeaseProof(ctx context.Context, repo *intent.Repository) (*jour
 			// A writer committed between the head read and the audit: the
 			// next round reads the new head.
 			continue
+		}
+		if reader.RetainIntentRaw {
+			mutationStage(ctx, "batch.pre-read.audit")
+			// Projection bytes came from our native capture, so validate the
+			// complete live tree again before the gate may use them. Keep the
+			// audit's independent listings and the complete-read fallback.
+			current, err := captureWriteTree(ctx, repo)
+			if err != nil || current.Sha256 != proof.Identity.IntentTreeSha256 {
+				return readLeaseProof(ctx, repo)
+			}
+			raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes)
+			if err != nil || wire.Sum(raw) != proof.Identity.HeadSha256 {
+				return readLeaseProof(ctx, repo)
+			}
 		}
 		return proof, proof.IntentError
 	}

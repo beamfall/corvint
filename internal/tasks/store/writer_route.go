@@ -38,7 +38,15 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	start := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, false, nil, nil, preloadTreeOf(ctx))
+	preload := preloadTreeOf(ctx)
+	if batchWrites(ctx) != nil {
+		tree, err := captureWriteTree(ctx, repo)
+		if err != nil {
+			return false, nil, nil
+		}
+		preload = &tree
+	}
+	w, decline, terminal := observeWriter(ctx, repo, headState, env.RequestID, true, false, nil, nil, preload)
 	if terminal != nil {
 		out, err = guardFailure(report, env.RequestID, terminal)
 		return true, out, err
@@ -71,6 +79,13 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		}
 	}
 	tickets := make([][]byte, 0, len(paths)-2)
+	var digests []wire.Digest
+	// An external CLI preload can carry forged Raw alongside an unchanged
+	// digest (LGL-V0-845). Borrow only from our native lock-held capture;
+	// the ordinary mutation route must continue hashing its canonical bytes.
+	if batchWrites(ctx) != nil {
+		digests = make([]wire.Digest, 0, len(paths)-2)
+	}
 	releases := [][]byte{}
 	for _, path := range paths {
 		record, ok := w.proof.Records[path]
@@ -83,6 +98,9 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 			releases = append(releases, record.Raw)
 		default:
 			tickets = append(tickets, record.Raw)
+			if digests != nil {
+				digests = append(digests, *record.Sha256)
+			}
 		}
 	}
 	queue := w.proof.Records["intent/queue.json"].Raw
@@ -101,25 +119,26 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	// TCX-V0-846: the derived ticket index lets the model hold an unselected
 	// ticket as its summary when the canonical bytes equal an admitted
 	// entry's; it governs only this queue and policy, and is never authority.
-	index := intent.ReadClosedIndex(repo.StateDir).WriterSummaries(q.QueueID.Raw, wire.Sum(w.proof.Records["intent/policy.json"].Raw))
+	index := writerSummaries(ctx, repo, q.QueueID.Raw, wire.Sum(w.proof.Records["intent/policy.json"].Raw))
 	result := transaction.Model(request, transaction.Input{
-		Inventory:         w.inv,
-		Head:              w.head,
-		HeadReceipt:       w.headReceipt,
-		Queue:             queue,
-		Policy:            w.proof.Records["intent/policy.json"].Raw,
-		Barrier:           w.barrier,
-		Reservations:      w.reservations,
-		CanonicalTickets:  tickets,
-		CanonicalReleases: releases,
-		Attempts:          [][]byte{},
-		Premise:           transaction.LocalOperator,
-		Branch:            w.branch,
-		Replay:            transaction.ReplayObservation{State: "ABSENT"},
-		RecordedAt:        now,
-		PriorNoteEvent:    priorNote,
-		ValueScreen:       screen,
-		TicketIndex:       index,
+		Inventory:              w.inv,
+		Head:                   w.head,
+		HeadReceipt:            w.headReceipt,
+		Queue:                  queue,
+		Policy:                 w.proof.Records["intent/policy.json"].Raw,
+		Barrier:                w.barrier,
+		Reservations:           w.reservations,
+		CanonicalTickets:       tickets,
+		CanonicalTicketDigests: digests,
+		CanonicalReleases:      releases,
+		Attempts:               [][]byte{},
+		Premise:                transaction.LocalOperator,
+		Branch:                 w.branch,
+		Replay:                 transaction.ReplayObservation{State: "ABSENT"},
+		RecordedAt:             now,
+		PriorNoteEvent:         priorNote,
+		ValueScreen:            screen,
+		TicketIndex:            index,
 	})
 	at = writerStage(ctx, "model", at)
 	if w.inv.Incomplete() {
@@ -128,7 +147,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if err = requireBranch(repo, q.IntentBranch); err != nil {
 		return declined(err.Error())
 	}
-	if err = bindObservation(repo, w.proof.Identity, transaction.Mutate); err != nil {
+	if err = bindWriterObservation(ctx, repo, w.proof.Identity, transaction.Mutate); err != nil {
 		return declined(err.Error())
 	}
 	at = writerStage(ctx, "bind", at)
@@ -260,17 +279,13 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return leaseDeclined(ctx, request, "staging")
 	}
 	read := time.Now()
-	// TCX-V0-974 (V1-4315): the route captures the intent tree itself,
-	// under the lock, and hands it to the audit as its outer snapshot, as
-	// the mutation writer takes the CLI's preload (LGL-V0-845): the audit
-	// takes a file's bytes from it while the file still has that size and
-	// lists the rest, and bindObservation reads and hashes every intent
-	// file again before any effect, so the capture is never the evidence
-	// that the modeled bytes are current. A liveness write lists no intent
-	// directory (JSG-V0-001) and captures nothing.
+	// TCX-V0-974/977: capture under the lock. A batch capture freshly lists
+	// and validates every identity, reusing only content-safe stable entries.
+	// Its listing can serve this audit under the same lock; the independent
+	// pre-effect binding below validates the live content again.
 	var preload *intent.Tree
 	if !transaction.LivenessLease(request) {
-		tree, err := intent.TreeDigest(repo.IntentRoot())
+		tree, err := captureWriteTree(ctx, repo)
 		if err != nil {
 			return leaseDeclined(ctx, request, "preload: "+err.Error())
 		}
@@ -279,7 +294,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
 	var walks journal.WalkStats
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, preload)
+	w, decline, terminal := observeWriter(ctx, repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, preload)
 	timing.SnapshotRead += time.Since(read)
 	timing.walked(walks)
 	if terminal != nil {
@@ -312,6 +327,12 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	now = recordedAt(ctx, now)
 	input := transaction.Input{Inventory: w.inv, Head: w.head, HeadReceipt: w.headReceipt, Queue: w.proof.Records["intent/queue.json"].Raw, Policy: w.proof.Records["intent/policy.json"].Raw, Barrier: w.barrier, Reservations: w.reservations, Pools: w.proof.Records["pools.json"].Raw, Programs: w.proof.Records["programs.json"].Raw, Premise: transaction.LocalOperator, Branch: w.branch, Replay: transaction.ReplayObservation{State: "ABSENT"}, RecordedAt: now}
 	live := w.proof.ProjectionAgreement == journal.IntentRecordsNotCompared
+	if preload != nil {
+		n := len(preload.Files)
+		input.CanonicalTickets = make([][]byte, 0, n)
+		input.CanonicalTicketPaths = make([]string, 0, n)
+		input.CanonicalTicketDigests = make([]wire.Digest, 0, n)
+	}
 	for path, record := range w.proof.Records {
 		if record.Raw == nil {
 			continue
@@ -323,6 +344,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		case strings.HasPrefix(path, "intent/tickets/"):
 			input.CanonicalTickets = append(input.CanonicalTickets, record.Raw)
 			input.CanonicalTicketPaths = append(input.CanonicalTicketPaths, path)
+			input.CanonicalTicketDigests = append(input.CanonicalTicketDigests, *record.Sha256)
 		case strings.HasPrefix(path, "intent/releases/"):
 			input.CanonicalReleases = append(input.CanonicalReleases, record.Raw)
 		case strings.HasPrefix(path, "attempts/"):
@@ -341,7 +363,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		// is never authority: every projection check and refusal of the
 		// decoding route is kept, and a store without an index decodes as
 		// before.
-		input.TicketIndex = intent.ReadClosedIndex(repo.StateDir).WriterSummaries(request.QueueID, wire.Sum(input.Policy))
+		input.TicketIndex = writerSummaries(ctx, repo, request.QueueID, wire.Sum(input.Policy))
 	}
 	if err := leaseInput(w.proof, input.Attempts, facts, &input); err != nil {
 		return leaseDeclined(ctx, request, "facts: "+err.Error())
@@ -362,7 +384,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		if err := bindLiveness(repo, w, result.Plan, guardOperation(request)); err != nil {
 			return leaseDeclined(ctx, request, "bind")
 		}
-	} else if err := bindObservation(repo, w.proof.Identity, guardOperation(request)); err != nil {
+	} else if err := bindWriterObservation(ctx, repo, w.proof.Identity, guardOperation(request)); err != nil {
 		return leaseDeclined(ctx, request, "bind")
 	}
 	// As commitLease does under the lock: the modeled branch is still the

@@ -47,6 +47,7 @@ var Build = "0"
 
 // Env is the process environment a command runs in.
 type Env struct {
+	batchWriteContext context.Context
 	// leaseDeadline bounds a detached claim or pool acquire (ATR-V0-023).
 	leaseDeadline time.Time
 	// leaseProgress receives a detached lease command's timing after each
