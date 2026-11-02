@@ -52,9 +52,16 @@ func TaskLexicalChannel(ctx context.Context, index *Index, task string, limit in
 	if len(task) > maxTaskContextChars {
 		return LexicalChannel{}, &Error{Message: fmt.Sprintf("task text exceeds %d characters", maxTaskContextChars)}
 	}
-	// GPK-V0-1950: the channel tokenizes an escaped task on its decoded text,
-	// so it never searches for, or discloses, a name the task did not write.
-	compiler := newTaskContextCompiler(index, taskScanText(task), "")
+	// GPK-V0-1950: let the compiler extract JSON envelope values first. With
+	// identifier selection off, apply the same extraction to the lexical scan
+	// only. Never feed decoded values back through JSON extraction a second time.
+	compiler := newTaskContextCompiler(index, task, "")
+	if compiler.selectedTerms == nil {
+		if text := taskScanText(task); text != task {
+			compiler.identifiers = taskIdentifiers(text)
+			compiler.terms = taskLexicalTerms(text)
+		}
+	}
 	compiler.ctx = ctx
 	defer compiler.join()
 	hits := compiler.lexicalHits()
