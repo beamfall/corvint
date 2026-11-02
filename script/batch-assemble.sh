@@ -41,29 +41,29 @@ refuse() {
   exit 2
 }
 
-usage='usage: script/batch-assemble.sh [--dispositions FILE] BRANCH...'
+usage='script/batch-assemble.sh [--dispositions FILE] BRANCH...'
 dispositions=
 if [[ ${1-} == --dispositions ]]; then
-  [[ $# -ge 2 ]] || refuse "$usage"
+  [[ $# -ge 2 ]] || refuse "usage: $usage"
   dispositions=$2
   shift 2
 fi
-[[ $# -gt 0 ]] || refuse "$usage"
+[[ $# -gt 0 ]] || refuse "usage: $usage"
 top=$(git rev-parse --show-toplevel 2> /dev/null) || refuse 'not-a-git-worktree: run it from the batch worktree'
-cd "$top" || refuse "not-a-git-worktree: $top"
+cd "$top" || refuse "not-a-git-worktree: $top; fix: run it from the batch worktree"
 batch=$(git symbolic-ref -q --short HEAD) || refuse 'detached-head: check out the batch branch first'
 [[ -z $(git status --porcelain --untracked-files=no) ]] ||
   refuse 'dirty-worktree: commit or remove the tracked changes first; nothing was merged'
 base=$(git rev-parse --verify --quiet 'HEAD^{commit}') || refuse 'unborn-head'
 lanes=()
 for branch in "$@"; do
-  lane=$(git rev-parse --verify --quiet "$branch^{commit}") || refuse "unknown-branch $branch: nothing was merged"
+  lane=$(git rev-parse --verify --quiet "$branch^{commit}") || refuse "unknown-branch $branch: nothing was merged; fix: git fetch the lane branch or name it as REMOTE/BRANCH"
   lanes+=("$lane")
 done
 # Each disposition line is BRANCH, a 64-hex hunk id and a non-empty reason, for a named BRANCH.
 disposition_lines=()
 if [[ -n $dispositions ]]; then
-  [[ -f $dispositions && -r $dispositions ]] || refuse "dispositions-unreadable $dispositions"
+  [[ -f $dispositions && -r $dispositions ]] || refuse "dispositions-unreadable $dispositions; fix: pass a readable FILE of BRANCH HUNK-ID REASON lines"
   number=0
   while IFS= read -r line || [[ -n $line ]]; do
     number=$((number + 1))
@@ -73,7 +73,7 @@ if [[ -n $dispositions ]]; then
       refuse "dispositions-malformed $dispositions:$number: want BRANCH HUNK-ID REASON"
     named=no
     for branch in "$@"; do [[ $branch == "$d_branch" ]] && named=yes; done
-    [[ $named == yes ]] || refuse "dispositions-unknown-branch $dispositions:$number: $d_branch is not a BRANCH argument"
+    [[ $named == yes ]] || refuse "dispositions-unknown-branch $dispositions:$number: $d_branch is not a BRANCH argument; fix: name that branch as an argument or drop the line"
     disposition_lines+=("$d_branch $d_id $d_reason")
   done < "$dispositions"
 fi
@@ -99,9 +99,9 @@ format=$(git rev-parse --show-object-format 2> /dev/null) || format=sha1
   > /dev/null 2>&1 || refuse 'scratch-repository-unavailable'
 
 manifest_dir=$git_dir/corvint
-mkdir -p "$manifest_dir" 2> /dev/null || refuse "manifest-unavailable $manifest_dir"
+mkdir -p "$manifest_dir" 2> /dev/null || refuse "manifest-unavailable $manifest_dir; fix: make the Git directory writable, then rerun"
 manifest=$manifest_dir/batch-assemble-manifest.txt
-: > "$manifest" 2> /dev/null || refuse "manifest-unavailable $manifest"
+: > "$manifest" 2> /dev/null || refuse "manifest-unavailable $manifest; fix: make the Git directory writable, then rerun"
 note() {
   say "$*"
   printf 'batch-assemble: %s\n' "$*" >> "$manifest"
@@ -144,7 +144,7 @@ for branch in "$@"; do
   fi
   tree=$(printf '%s\n' "$out" | sed -n 1p)
   if [[ $status != 0 || ! $tree =~ ^[0-9a-f]{40}([0-9a-f]{24})?$ ]]; then
-    refuse "merge-tree-failed branch=$branch status=$status after $merges merges; the branch $batch is unchanged at $base"
+    refuse "merge-tree-failed branch=$branch status=$status after $merges merges; the branch $batch is unchanged at $base; fix: run git merge-tree --write-tree $tip $branch to see the error, then rerun"
   fi
   message="Merge $branch into $batch"
   disposed=0
@@ -163,7 +163,7 @@ for branch in "$@"; do
     fi
   fi
   commit=$(git commit-tree "$tree" -p "$tip" -p "$lane" -m "$message") ||
-    refuse "commit-tree-failed branch=$branch after $merges merges; the branch $batch is unchanged at $base"
+    refuse "commit-tree-failed branch=$branch after $merges merges; the branch $batch is unchanged at $base; fix: set a Git identity or repair the object store named above, then rerun"
   tip=$commit
   merges=$((merges + 1))
   if [[ $derivation == ort ]]; then
@@ -182,11 +182,11 @@ for entry in ${disposition_lines[@]+"${disposition_lines[@]}"}; do
   hit=no
   for branch in ${used[@]+"${used[@]}"}; do [[ ${entry%% *} == "$branch" ]] && hit=yes; done
   [[ $hit == yes ]] ||
-    refuse "disposition-unused ${entry%% *}: it made no ort-ours merge; the branch $batch is unchanged at $base"
+    refuse "disposition-unused ${entry%% *}: it made no ort-ours merge; the branch $batch is unchanged at $base; fix: drop that line from the dispositions file, then rerun"
 done
 if [[ $tip != "$base" ]]; then
   git merge --ff-only -q "$tip" ||
-    refuse "fast-forward-failed: $tip holds the assembled merges; the branch $batch is unchanged at $base"
+    refuse "fast-forward-failed: $tip holds the assembled merges; the branch $batch is unchanged at $base; fix: run git merge --ff-only $tip"
 fi
 note "DONE head=$tip merges=$merges ort=$ort ours=$ours skipped=$skipped"
 if [[ $ours -gt 0 ]]; then

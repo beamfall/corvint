@@ -78,34 +78,34 @@ record() {
         case $1 in --dir) dir=$2 ;; --env) envf=$2 ;; --lane) lane=$2 ;; --base) base=$2 ;; --reason) reason=$2 ;; esac
         shift 2
         ;;
-      -*) refuse "unknown-option $1" ;;
+      -*) refuse "unknown-option $1; usage: record --dir LANE_DIR [--env FILE] [--lane L] [--base REV] [--reason R] [ID...]" ;;
       *) ids+=("$1"); given=1; shift ;;
     esac
   done
   [[ -n $dir ]] || refuse 'dir-required: pass --dir LANE_DIR, the lane worktree'
   if [[ -n $envf ]]; then
-    [[ -f $envf && -r $envf ]] || refuse "env-unreadable $envf"
+    [[ -f $envf && -r $envf ]] || refuse "env-unreadable $envf; fix: pass the lane.env the dispatch wrote, or --lane and --base"
     [[ -n $lane ]] || lane=$(env_value "$envf" LANE)
     [[ -n $base ]] || base=$(env_value "$envf" BASE)
     ((given)) || read -r -a ids <<< "$(env_value "$envf" TICKETS)"
   fi
-  [[ $lane =~ ^[a-z0-9][a-z0-9.-]*$ ]] || refuse "bad-lane '$lane' (pass --lane or LANE= in --env; lower-case letters, digits, . and -)"
+  [[ $lane =~ ^[a-z0-9][a-z0-9.-]*$ ]] || refuse "bad-lane '$lane'; fix: pass --lane or LANE= in --env (lower-case letters, digits, . and -)"
   ((${#ids[@]})) || refuse 'no-tickets: name the dispatched IDs (positional, or TICKETS= in --env)'
   for id in ${ids[@]+"${ids[@]}"}; do
-    [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "bad-id '$id'"
+    [[ $id =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || refuse "bad-id '$id'; fix: pass ticket IDs of letters, digits, ., _ and - only"
   done
   [[ $reason != *$'\n'* && $reason != *$'\r'* ]] || refuse 'bad-reason: one line only'
   [[ -n $base ]] || refuse 'base-required: pass --base or BASE= in --env'
-  marker=$(marker_path "$dir") || refuse "not-a-worktree $dir"
-  dir=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || refuse "not-a-worktree $dir"
-  head=$(git -C "$dir" rev-parse -q --verify HEAD^{commit}) || refuse "no-head $dir"
-  sha=$(git -C "$dir" rev-parse -q --verify "$base^{commit}") || refuse "base-unknown $base"
+  marker=$(marker_path "$dir") || refuse "not-a-worktree $dir; fix: pass --dir LANE_DIR, the lane worktree"
+  dir=$(git -C "$dir" rev-parse --show-toplevel 2> /dev/null) || refuse "not-a-worktree $dir; fix: pass --dir LANE_DIR, the lane worktree"
+  head=$(git -C "$dir" rev-parse -q --verify HEAD^{commit}) || refuse "no-head $dir; fix: the worktree has no commit; redispatch the lane instead of recording it"
+  sha=$(git -C "$dir" rev-parse -q --verify "$base^{commit}") || refuse "base-unknown $base; fix: git fetch origin, then pass the dispatch BASE as a full sha"
   base=$sha
-  git -C "$dir" merge-base --is-ancestor "$base" "$head" || refuse "base-not-ancestor $base is not an ancestor of $head in $dir"
+  git -C "$dir" merge-base --is-ancestor "$base" "$head" || refuse "base-not-ancestor $base is not an ancestor of $head in $dir; fix: pass the BASE the lane was dispatched from"
   branch=$(git -C "$dir" symbolic-ref -q --short HEAD) || branch=detached
 
-  mkdir -p "${marker%/*}" || refuse "marker-dir-unwritable ${marker%/*}"
-  tmp=$(mktemp "${marker%/*}/.lane-interrupted.XXXXXX") || refuse "marker-dir-unwritable ${marker%/*}"
+  mkdir -p "${marker%/*}" || refuse "marker-dir-unwritable ${marker%/*}; fix: make the Git directory writable, then rerun"
+  tmp=$(mktemp "${marker%/*}/.lane-interrupted.XXXXXX") || refuse "marker-dir-unwritable ${marker%/*}; fix: make the Git directory writable, then rerun"
   {
     git -C "$dir" log -z --first-parent --no-merges --format='%H%n%B' "$base..$head" > "$tmp.log" &&
       git -C "$dir" status --porcelain > "$tmp.status" &&
@@ -119,7 +119,7 @@ record() {
       } > "$tmp" && mv -f "$tmp" "$marker"
   } || {
     /bin/rm -f "$tmp" "$tmp.log" "$tmp.status"
-    refuse "record-failed: could not read $dir or write $marker"
+    refuse "record-failed: could not read $dir or write $marker; fix: rerun record once the worktree and Git directory are readable"
   }
   /bin/rm -f "$tmp.log" "$tmp.status"
   cat "$marker"
@@ -132,11 +132,11 @@ list() {
   while (($#)); do
     case $1 in
       --repo) [[ $# -ge 2 ]] || refuse 'usage: --repo needs a value'; repo=$2; shift 2 ;;
-      *) refuse "unknown-argument $1" ;;
+      *) refuse "unknown-argument $1; usage: list [--repo DIR] | clear --dir LANE_DIR" ;;
     esac
   done
-  common=$(git -C "$repo" rev-parse --git-common-dir 2> /dev/null) || refuse "not-a-repository $repo"
-  [[ $common == /* ]] || common=$(cd "$repo" && cd "$common" && pwd) || refuse "not-a-repository $repo"
+  common=$(git -C "$repo" rev-parse --git-common-dir 2> /dev/null) || refuse "not-a-repository $repo; fix: pass --repo, a checkout of the repository"
+  [[ $common == /* ]] || common=$(cd "$repo" && cd "$common" && pwd) || refuse "not-a-repository $repo; fix: pass --repo, a checkout of the repository"
   shopt -s nullglob
   for f in "$common/corvint/lane-interrupted" "$common"/worktrees/*/corvint/lane-interrupted; do
     [[ -f $f ]] || continue
@@ -160,13 +160,13 @@ clear_marker() {
   while (($#)); do
     case $1 in
       --dir) [[ $# -ge 2 ]] || refuse 'usage: --dir needs a value'; dir=$2; shift 2 ;;
-      *) refuse "unknown-argument $1" ;;
+      *) refuse "unknown-argument $1; usage: list [--repo DIR] | clear --dir LANE_DIR" ;;
     esac
   done
   [[ -n $dir ]] || refuse 'dir-required: pass --dir LANE_DIR'
-  marker=$(marker_path "$dir") || refuse "not-a-worktree $dir"
+  marker=$(marker_path "$dir") || refuse "not-a-worktree $dir; fix: pass --dir LANE_DIR, the lane worktree"
   if [[ -f $marker ]]; then
-    /bin/rm -f "$marker" || refuse "clear-failed $marker"
+    /bin/rm -f "$marker" || refuse "clear-failed $marker; fix: make the marker writable, then rerun clear"
     printf '%s: cleared %s\n' "$me" "$marker"
   else
     printf '%s: no marker in %s\n' "$me" "$dir"
