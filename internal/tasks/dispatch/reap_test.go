@@ -5,6 +5,7 @@ package dispatch
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -44,6 +45,10 @@ func init() {
 // deadManEnv selects the dead-man reaper mode of this test binary.
 const deadManEnv = "CORVINT_DISPATCH_TEST_DEAD_MAN"
 
+// deadManAliasEnv names the temporary directory holding the reaper's alias,
+// which the reaper removes once it runs (ATR-V0-700).
+const deadManAliasEnv = "CORVINT_DISPATCH_TEST_DEAD_MAN_ALIAS"
+
 // deadManName is the reaper's process name (ATR-V0-700); it is not the test
 // binary's name, and fits the 15-byte Linux comm.
 const deadManName = "dispatch-reaper"
@@ -61,10 +66,14 @@ var deadMan struct {
 // startDeadMan re-executes this test binary as a reaper in its own session,
 // reading launched groups from a pipe until end of file.
 //
-// ATR-V0-700 (V1-2815): the reaper runs this binary through a symlink named
-// deadManName, so its process name and argv[0] differ from the test
-// binary's and a kill by that name (pkill dispatch.test) does not take the
-// reaper with it. The symlink is removed once the reaper has started.
+// ATR-V0-700 (V1-2815): the reaper runs this binary through a hard link (or,
+// across file systems, a copy) named deadManName, so its kernel process name
+// and argv[0] differ from the test binary's and a kill by that name (pkill
+// dispatch.test) does not take the reaper with it. A symlink is not enough:
+// Darwin resolves it before naming the process, so only argv[0] would
+// change. The reaper removes the alias itself once it runs (deadManAliasEnv):
+// removing it as soon as exec returns raced Darwin's process start, and the
+// reaper sometimes died before it ran.
 func startDeadMan() error {
 	exe, err := os.Executable()
 	if err != nil {
@@ -74,10 +83,17 @@ func startDeadMan() error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(link)
+	started := false
+	defer func() {
+		if !started {
+			os.RemoveAll(link)
+		}
+	}()
 	alias := filepath.Join(link, deadManName)
-	if err := os.Symlink(exe, alias); err != nil {
-		return err
+	if err := os.Link(exe, alias); err != nil {
+		if err := copyExecutable(exe, alias); err != nil {
+			return err
+		}
 	}
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -85,17 +101,36 @@ func startDeadMan() error {
 	}
 	defer r.Close()
 	cmd := exec.Command(alias, "-test.run=^$")
-	cmd.Env = append(os.Environ(), deadManEnv+"=1")
+	cmd.Env = append(os.Environ(), deadManEnv+"=1", deadManAliasEnv+"="+link)
 	cmd.Stdin = r
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	if err := cmd.Start(); err != nil {
 		w.Close()
 		return err
 	}
+	started = true
 	deadMan.Lock()
 	deadMan.w, deadMan.cmd = w, cmd
 	deadMan.Unlock()
 	return nil
+}
+
+// copyExecutable copies the executable src to the new file dst.
+func copyExecutable(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o700)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 // stopDeadMan closes the pipe after a normal run, whose own leak check has
@@ -243,6 +278,9 @@ func reapOnCleanup(t *testing.T) {
 // reaper also stops the groups then (ATR-V0-213).
 func TestMain(m *testing.M) {
 	if os.Getenv(deadManEnv) == "1" {
+		if link := os.Getenv(deadManAliasEnv); strings.Contains(filepath.Base(link), "dispatch-dead-man-") {
+			_ = os.RemoveAll(link)
+		}
 		runDeadMan(os.Stdin)
 		os.Exit(0)
 	}

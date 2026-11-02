@@ -1987,15 +1987,19 @@ with the reaper start disabled, and its bounded repeat run recorded in
 Rollback: revert the commit; the leak check and cleanups of ATR-V0-183 are unchanged.
 - `ATR-V0-700`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2815; refines
   ATR-V0-213) The dead-man reaper MUST run under a process name and argv[0] (`dispatch-reaper`)
-  that differ from the test binary's, by executing the binary through a symlink of that name that
-  is removed once the reaper has started, so a kill by the test binary's name (`pkill
-  dispatch.test`) does not also kill the reaper and orphan the worker groups. Failure mode: before
-  this, the reaper carried the binary's name and died with it, and `host.sh` workers of
+  that differ from the test binary's, by executing the binary through a hard link of that name
+  (a copy when the temporary directory is on another file system), which the reaper removes once it
+  runs, so a kill by the test binary's name (`pkill dispatch.test`) does not also kill the
+  reaper and orphan the worker groups. A symlink does not meet this: Darwin names the process
+  (`p_comm`) after the symlink's target, so only argv[0] would change; and removing the alias as
+  soon as exec returns raced Darwin's process start, so the reaper sometimes died at once. Failure mode: before this,
+  the reaper carried the binary's name and died with it, and `host.sh` workers of
   `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns` stayed alive for a day. Acceptance evidence:
   `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` now kills every process of the child's tree
-  carrying the binary's name and requires exactly one (the child); with the base reaper start it
-  finds two and fails. Non-goals: a kill that matches the reaper's own name or its environment.
-  Rollback: revert the symlink start in `startDeadMan` and the by-name kill in the test.
+  carrying the binary's name by argv[0] or by kernel name (`ps -o ucomm`) and requires exactly one
+  (the child) and a reaper named `dispatch-reaper` by both; with the base reaper start it finds two
+  and fails. Non-goals: a kill that matches the reaper's own name or its environment.
+  Rollback: revert the aliased start in `startDeadMan` and the by-name kill in the test.
 
 ### V1-0830, V1-0828, V1-1874 and V1-1438 refusal and recovery messages
 V1-0830: the dispatch verbs' usage line said `[--grant FILE]` while `--grant` takes a grant ID.
@@ -2779,7 +2783,7 @@ receipt or wire shape changes.
 | ATR-V0-240 | `internal/tasks/store/program.go` (`programTransition` `keepControl`), `internal/tasks/store/workflow.go` (`persistFenced`, stage journal callback), `internal/tasks/store/program_run.go` (`record`) | `TestATRV0240_PhaseWriteKeepsControlRecordedMeanwhile`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; fails with the fix reverted |
 | ATR-V0-241 | `internal/tasks/store/lease_write.go` (recorded limit; no runtime change) | `TestATRV0241_MappedWriteAfterLeaseAuditRefusedByNextWrite`; accepted under the owner's standing auto-accept (2026-10-11); Darwin focused run passes; Linux NOT_RUN |
 | ATR-V0-213 | `internal/tasks/dispatch/reap_test.go` (`TestMain` dead-man reaper) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`) |
-| ATR-V0-700 | `internal/tasks/dispatch/reap_test.go` (`startDeadMan`, `deadManName`) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`), by-name kill |
+| ATR-V0-700 | `internal/tasks/dispatch/reap_test.go` (`startDeadMan`, `deadManName`, `copyExecutable`) | `TestATRV0213_FixtureWorkersDieWithTheirTestBinary` (`internal/tasks/dispatch`), by-name kill on argv[0] and kernel name (`kernelNames`) |
 | ATR-V0-310 | `internal/tasks/cli/worker_reap_internal_test.go` (`TestMain` dead-man reaper, `reapTracker`, `ReapWorkersOnCleanup`), `worker_reap_linux_internal_test.go` (pidfd pins), `detach_join_internal_test.go`, `internal/tasks/cli/lease_detach.go` and `attempt_detach.go` (`detachLaunched`), `internal/groupreap/table.go` | `TestATRV0310_LeakedWorkerGroupsAreReaped`, `TestATRV0310_ReusedWorkerPIDIsTrackedByIncarnation`, `TestATRV0310_MembershipIsReadFromThePinnedProcess`, `TestATRV0310_NoSignalWithoutAPinnedOwner`, `TestATRV0310_UnobservableCleanupFails`, `TestATRV0310_StalledReaperIsRetiredWithItsGroup`, `TestATRV0310_DetachedChildrenAreJoinedBeforeTheLeakCheck` (`internal/tasks/cli`) |
 | ATR-V0-311 | `internal/tasks/cli/lease_detach.go` (`leaseDetachAwait`), `internal/tasks/cli/lease_detach_unix.go` (`leaseDetachShareLaunch`) | `TestATRV0311_AttachNeverReportsALaunchCompletingBetweenItsReadsLost`, `TestATRV0311_LateRelaunchIsNeverReportedLost`, `TestATRV0311_AttachDuringARelaunchIsPending`, `TestATRV0311_AttachDuringChildStartupIsNeverLost` (`internal/tasks/cli`) |
 | ATR-V0-312 | `internal/tasks/cli/lease_detach.go` (no detach-specific store semantics) | `TestATRV0312_DetachedClaimOutcomeEqualsForeground` (`internal/tasks/cli`) |

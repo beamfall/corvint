@@ -326,7 +326,7 @@ if [[ \$1 == build ]]; then
   exit 0
 fi
 [[ \$1 == test || \$1 == vet || \$1 == windows-vet ]] || exit 0
-case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
+case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; printf '%s\n' "\${GOTMPDIR-}" > "$off/gotmpdir.last"; printf '%s\n' "\${GIT_CONFIG_GLOBAL-unset}" > "$off/gcg.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
 for a in "\$@"; do
@@ -671,6 +671,17 @@ GIT_CONFIG_GLOBAL=$off/gcg hv go test -exit=0 ./... > "$off/v.out" 2> "$off/err"
   fail "heavy.sh under a broken GIT_CONFIG_GLOBAL: $(cat "$off/v.out" "$off/err")"
 out=$(GIT_CONFIG_GLOBAL=$off/gcg hv sh -c 'printf %s "$GIT_CONFIG_GLOBAL"' 2> /dev/null)
 [[ $out == "$off/gcg" ]] || fail "heavy.sh hid GIT_CONFIG_GLOBAL from the wrapped command: $out"
+# An offloaded command inherits it too, over a value the remote environment file sets (the fake ssh
+# passes no environment), and runs without one when the caller has it unset.
+/bin/cp -f "$off/rhome/go.env" "$off/go.env.keep"
+printf 'export GIT_CONFIG_GLOBAL=/remote/env/gitconfig\n' >> "$off/rhome/go.env"
+out=$(GIT_CONFIG_GLOBAL=$off/gcg HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... 2> "$off/err")
+[[ $out == where=remote* && $(cat "$off/gcg.last") == "$off/gcg" ]] ||
+  fail "heavy.sh offload lost GIT_CONFIG_GLOBAL: $out $(cat "$off/gcg.last" "$off/err")"
+out=$(unset GIT_CONFIG_GLOBAL; HEAVY_REMOTE_HOST=box hv go test -exit=0 ./... 2> "$off/err")
+/bin/mv -f "$off/go.env.keep" "$off/rhome/go.env"
+[[ $out == where=remote* && $(cat "$off/gcg.last") == unset ]] ||
+  fail "heavy.sh offload set GIT_CONFIG_GLOBAL the caller had unset: $out $(cat "$off/gcg.last" "$off/err")"
 ok
 # ASD-V0-707 (V1-3523): when the Git index cannot be copied into TMPDIR, heavy.sh refuses with exit
 # 2 naming that volume before the command runs: a read-only TMPDIR (mktemp fails) and an
@@ -1155,6 +1166,10 @@ HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/o
 # Its own logs, so the run-line counts below stay as they are.
 pe() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel-env.log" HEAVY_FALLBACK_LOG="$pol/fb-env.log"   HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD=1.00 HEAVY_SLOTS=1 HEAVY_WHOLE_REASON= "$heavy" "$@"); }
 pe env HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null || fail "heavy.sh ignored HEAVY_WHOLE_REASON given through env"
+# The operand of an env option (-u NAME, --unset NAME, -C DIR) is not the command.
+pe env -u GOFLAGS HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null || fail "heavy.sh stopped reading env words at -u's operand"
+pe env --unset GOFLAGS -C . HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null ||
+  fail "heavy.sh stopped reading env words at --unset's or -C's operand"
 pe HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null || fail "heavy.sh ignored a leading HEAVY_WHOLE_REASON= word"
 HEAVY_REMOTE=0 pe env GOFLAGS=-count=1 HEAVY_LOCAL_REASON=r HEAVY_WHOLE_REASON=x go test ./x 2> /dev/null ||
   fail "heavy.sh ignored HEAVY_LOCAL_REASON and HEAVY_WHOLE_REASON given through env"

@@ -180,7 +180,9 @@
 # not retried. A TERM, INT or HUP to this wrapper during an offload stops the local ssh and exits
 # 143, 130 or 129; the remote command keeps running until it ends or HEAVY_REMOTE_TIMEOUT stops it.
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
-# appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
+# appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv, the
+# caller's exported GOMAXPROCS (ASD-V0-835) and GIT_CONFIG_GLOBAL (ASD-V0-708: set to the same value,
+# a path read on the remote, or unset when the caller has it unset) travel:
 # set test environment with `env K=V` inside the command, or as leading K=V words, which become
 # `env K=V ...` (ASD-V0-830). GOCACHE/GOMODCACHE assignments are
 # dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
@@ -232,7 +234,7 @@ set -uo pipefail
 # git: ASD-V0-708 (V1-3684). heavy.sh's own Git calls ignore the caller's GIT_CONFIG_GLOBAL, which
 # a lane may point at a private, missing or placeholder file (even a directory, which makes every
 # Git command fail); a failing rev-parse here read as "no checkout". The wrapped command still
-# inherits the variable unchanged.
+# inherits the variable unchanged, on the remote too (offload carries it in the payload).
 git() {
   if [[ -n ${GIT_CONFIG_GLOBAL+set} ]]; then env -u GIT_CONFIG_GLOBAL git "$@"; else command git "$@"; fi
 }
@@ -530,6 +532,7 @@ offload() {
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
     printf 'BUSY=%q\nGMP=%q\nMINFREE=%q\nCALLER_GMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}" "$heavy_min_free" "${GOMAXPROCS-}"
+    printf 'CALLER_GCG_SET=%q\nCALLER_GCG=%q\n' "${GIT_CONFIG_GLOBAL+1}" "${GIT_CONFIG_GLOBAL-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -792,6 +795,9 @@ serve() {
     case $a in GOCACHE=* | GOMODCACHE=*) ;; *) cmd+=("$a") ;; esac
   done
   command -v timeout > /dev/null || infra "timeout(1) missing; HEAVY_REMOTE_TIMEOUT cannot be enforced"
+  # ASD-V0-708: the command sees the caller's GIT_CONFIG_GLOBAL, set or unset, as a local run would;
+  # heavy.sh's own Git calls (the git function) still run without it.
+  if [[ -n ${CALLER_GCG_SET-} ]]; then export GIT_CONFIG_GLOBAL=$CALLER_GCG; else unset GIT_CONFIG_GLOBAL; fi
   : > "$w/marker" || infra "marker unwritable"
   t3=$(heavy_now)
   perl -e "$slot_perl" "$root/slots" "$slots" "$nice_level" timeout "$TIMEOUT" ${cmd[@]+"${cmd[@]}"} < /dev/null
@@ -1323,14 +1329,21 @@ selection_policy() {
 
 # env_reasons COMMAND...: ASD-V0-709 (V1-3739). In `env NAME=VALUE... CMD` (also what leading
 # NAME=VALUE words and an unwrapped `sh -c` become), a HEAVY_WHOLE_REASON or HEAVY_LOCAL_REASON word
-# is heavy.sh's own reason too, so the policy sees it; the words stay in the command.
+# is heavy.sh's own reason too, so the policy sees it; the words stay in the command. The operand of
+# an env option that takes one (-u/--unset NAME, -C/--chdir DIR, -P PATH) is skipped, not read as
+# the command.
 env_reasons() {
-  local w
+  local w skip=
   [[ ${1##*/} == env ]] || return 0
   shift
   for w; do
+    if [[ -n $skip ]]; then
+      skip=
+      continue
+    fi
     case $w in
       HEAVY_WHOLE_REASON=* | HEAVY_LOCAL_REASON=*) export "$w" ;;
+      -u | --unset | -C | --chdir | -P) skip=1 ;;
       -*) ;;
       [A-Za-z_]*=*) ;;
       *) return 0 ;;
