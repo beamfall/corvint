@@ -394,3 +394,36 @@ index a2ab7d2d9..19897e659 100644
      one pairing call's Git observation (1,304 ms at load 12, about 16 ms when quiet) failed the
      1 s bound once in round 1. BASE and lane both take exactly one such observation per run, so
      the flake predates this lane.
+
+## Round 3 (orchestrator decision 2026-11-02)
+
+Declined: a stat-trusted preload, because it would skip the byte-exact verification. To build:
+
+- an incremental index (`TCX-V0-849`);
+- one intent capture shared by the preload and the writer audit (`LGL-V0-845`), through the
+  journal reader's existing `IntentTree` seam only;
+- V1-4263, a request-ID conflict refused before the complete route (`LGL-V0-846`).
+
+The `TCX-V0-848` target is unchanged; changing it is the owner's call.
+
+### Round 3 before numbers
+
+The conflict refusal: `ticket create --request-id m2` on a gen-built 500-ticket store, where `m2`
+is gen's own complete-manual request. Six interleaved samples per side, load 1.97 to 2.05:
+
+| Binary | wall p50 | CPU p50 | allocated p50 |
+|---|---|---|---|
+| BASE | 490.2 ms | 1,166 ms | 324.9 MB |
+| round-2 head `d6e82da66` | 458.7 ms | 1,123 ms | 309.9 MB |
+
+The output differs between samples only in the defaulted `issuedAt` (the current second) named in
+the warning.
+
+A stage trace of the round-2 head shows where the time goes:
+
+- The writer route declines: `requests/...json: checkpoint unusable: request is not within the
+  bound before the checkpoint`.
+- The complete route then runs the full `AuditForMutation`.
+- The CLI runs a second full audit in `RequestIndex.Lookup` to explain the conflict.
+
+The three-pass numbers before this round are round 2's (17.5 ms at 500, 61 ms at 2,000).
