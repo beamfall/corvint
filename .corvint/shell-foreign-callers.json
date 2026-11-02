@@ -45,6 +45,16 @@
       ],
       "reason": "Every tracked file in the source universe naming check-install-lifecycle.sh: its shell test runs it. The release-gates workflow also runs it through run-gate; .github is outside the source universe and holds no test unit, so it adds no edge (TSP-V0-005; V1-3571)."
     },
+    "script/doc-gates.sh": {
+      "callers": [
+        "Makefile",
+        "script/doc-gates_test.sh"
+      ],
+      "reason": "make doc-gates runs it and its shell test runs it; batch-precheck.sh matches the doc-gates recipe that names it to expand the gates into steps (ASD-V0-779) (TSP-V0-005).",
+      "mentions": [
+        "script/batch-precheck.sh"
+      ]
+    },
     "script/dogfood-bind-coverage.sh": {
       "callers": [
         "script/dogfood-bind-range_test.sh"
