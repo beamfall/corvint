@@ -416,7 +416,8 @@ and container qualification; full fallback remains available.
 
 - **AFP-V0-016:** (accepted (decision 0431); amended by decision 0431; originally decision 0320; ruleset and consent amended by decision 0390)
   `.github/workflows/ci-control-plane.yml` SHALL run
-  on `workflow_run` after every completed `CI` run, cancelled ones included (AFP-V0-079), never check out
+  on `workflow_run` after every completed `CI` run, cancelled ones included (AFP-V0-079) except a
+  cancelled pull-request run whose head is no listed pull request's head (AFP-V0-855), never check out
   or execute PR code, and post the commit status
   `ci-control-plane` on the PR head: `failure` when a changed or renamed-from path is under
   `.github/` or the PR exceeds the files API's 3000-file listing, `success` otherwise. An API
@@ -1980,7 +1981,8 @@ and container qualification; full fallback remains available.
   restores the old relation failing the first and one mutation per clause failing the second, and the before/after plans on the
   PR #1134 range (build log 2026-10-18-V1-1806-affected-overselection-1806). Rollback: make
   `resolves` return true for every path but the CEM sidecar and delete the two tests.
-- **AFP-V0-079:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) The
+- **AFP-V0-079:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue;
+  the `control-plane` start rule for a cancelled run amended by AFP-V0-855) The
   `control-plane` and `merge-group` jobs of `.github/workflows/ci-control-plane.yml` SHALL start
   for every completed `CI` run of their event whatever its conclusion, `cancelled` included, and
   each SHALL hold the job concurrency group `ci-control-plane-<event>-<head sha>` (event
@@ -2008,6 +2010,27 @@ and container qualification; full fallback remains available.
   (each status step, with a stub `gh`, posts one status on a cancelled run's head that had none);
   hosted behavior `NOT_OBSERVED` until this change runs on `main` (the workflow runs from the
   default branch).
+- **AFP-V0-855:** (experimental under the owner's standing lane auto-accept (2026-10-11; V1-1778);
+  amends AFP-V0-079) The `control-plane` job of `.github/workflows/ci-control-plane.yml` SHALL NOT
+  start for a completed `pull_request` `CI` run that concluded `cancelled` unless the run's head SHA
+  is the head SHA of a pull request the `workflow_run` payload lists
+  (`contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)`).
+  Every other conclusion, and a cancelled run whose head is still a listed pull request's head, keeps
+  the AFP-V0-079 behavior. The `merge-group` and `forward-rows` jobs are unchanged.
+  Design: a run cancelled because a newer push superseded its head can post nothing (no open pull
+  request has that head), yet each such run still claimed a runner. Whether GitHub lists a pull
+  request by head SHA or by branch, a superseded head is not the head of any listed pull request,
+  so the condition skips it without a runner; the AFP-V0-079 case (a cancelled run whose head is
+  still the pull request's head) still starts the job. In the window of build log
+  2026-11-01-ci-w34 (201 control-plane runs, 2026-10-30 to 2026-11-01), 31 started for a cancelled
+  pull-request run, 30 of them for a head a newer push had superseded (26 s mean wall each).
+  Failure modes: a fork pull request is never listed, so its cancelled run posts nothing; this fails
+  closed (the required context stays missing until a rerun or the next push), never open. If GitHub
+  echoes the run's own head in a listed entry, the job starts as before: no saving, no new risk.
+  Acceptance evidence: `TestAFPV0079ControlPlaneReportsEveryCompletedRun` (the conditions evaluated
+  for every event, conclusion and listed-head case), `TestAFPV0855SupersededCancelledRunStartsNoJob`,
+  `TestAFPV0079CancelledRunStillPostsTheStatus`; the before window in build log 2026-11-01-ci-w34;
+  the after window `NOT_OBSERVED` until this change runs on `main`.
   Rollback: remove both `concurrency` blocks.
 - **AFP-V0-080:** (accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642); no GitHub issue) A `push`
   run of `.github/workflows/ci.yml` on `refs/heads/main` SHALL skip `go-static`, `go-interop` and
@@ -5987,6 +6010,7 @@ traceability table.
 | AFP-V0-072 | `resolves` and `namesFileOnlyWithin` in `internal/liveverify/affected/readers.go` | `TestFileNameOnlyReadersMustPlaceThePath_AFPV0072` (temp-dir fixture dropped for `docs/specs/README.md`, kept in its subtree, at the root and when its tokens name every directory; anchored and multi-component readers kept), `TestNonGoFileNameReaderIsNotNarrowed_AFPV0072`; PR #1134 range 163 to 156 units in build log 2026-10-18-V1-1806-affected-overselection-1806 |
 | AFP-V0-060 | `.github/cishards/test-slices.json` and `.github/cishards/package-costs.json` refreshed from run 39120414701 (revision 2ab0e744), then from run 39709153564 (revision f29ddc0db; build log 2026-10-21-cisplit-1021v-store-slices), then from run 40122992631 (revision 16fb20b2; build log 2026-10-26-ci-speed-shards-verdict-reuse) | `TestAFPV0060CommittedSlicesBoundOversizedPackages`; `TestSTRV0007UniversePlacementEqualsCIPlan` and `TestSTRV0008BalancedPlacesEveryUnitOnce` over the committed files; `tools/ci-test-slices replay` in build log 2026-10-18-v1-1096-ci-slice-refresh; hosted run of this change; paired runs NOT_OBSERVED |
 | AFP-V0-079 | the event-only conditions and `concurrency` groups of the `control-plane` and `merge-group` jobs in `.github/workflows/ci-control-plane.yml` | `TestAFPV0079ControlPlaneReportsEveryCompletedRun`; `TestAFPV0079CancelledRunStillPostsTheStatus`; `actionlint`; build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
+| AFP-V0-855 | the cancelled-run clause of the `control-plane` job condition in `.github/workflows/ci-control-plane.yml` | `TestAFPV0079ControlPlaneReportsEveryCompletedRun`; `TestAFPV0855SupersededCancelledRunStartsNoJob`; `actionlint`; before window in build log 2026-11-01-ci-w34; hosted after window `NOT_OBSERVED` |
 | AFP-V0-080 | the `static-reuse` job, the `needs`/`if` of `go-static`, `go-interop` and `artifact-integrity`, and the `STATIC_REUSE` check of `go-product` in `.github/workflows/ci.yml` | `TestAFPV0080WorkflowWiresPushStaticReuse`, `TestAFPV0080StaticReuseDecidesOnlyForAPassedQueueRunOfThisCommit`; live replays in build log 2026-10-18-ci-waste-1778-1642; hosted `NOT_OBSERVED` |
 | AFP-V0-081 | the `ci:batched` clause of `go-interop`, `artifact-integrity` and `ci-shard-cost-drift` in `.github/workflows/ci.yml` and of `containment` in `.github/workflows/intake-containment.yml` | `TestAFPV0081BatchedConstituentSkipsOnlyRerunJobs`; hosted `NOT_OBSERVED` |
 | AFP-V0-082 | the workflow `concurrency` group of `.github/workflows/ci.yml` | `TestAFPV0082PushConcurrencyGroupsByCommit`; hosted `NOT_OBSERVED` |
@@ -5997,7 +6021,7 @@ traceability table.
 | AFP-V0-153 | `taskStateOnly` and the `Plan.Scope`/`Plan.NonSource` receipt members in `internal/gateselect/select.go` | `TestSelectPackagesTaskStateOnlyDiffSelectsNothing` (classified task state is `NOTHING`; an unclassified path, an absent `nonSource`, an `UNKNOWN` plan and an out-of-layout path fall back; a package naming `.taskman/queue.json` is still selected) |
 | AFP-V0-154 | the `_test.go` early return in `attributeStructure`, `internal/gateselect/select.go` | `TestSelectPackagesAttributesEveryDirtyPath` (a changed or deleted test file selects only its package; a deleted source still widens to its importers; a test file in an embedding package still selects its importer); both test-file cases fail before the change |
 | AFP-V0-155 | `compactAdviceUnknown` and `affectedPlanUnknownReference` in `cmd/corvint/affected_compact.go` | `TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown`; `resolveCompactAdvice` resolution against `--full` in `TestAFPV0038CompactAdviceReferencesProviderPackages` and `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; the amended `affected-committed-range.json` core-freeze golden |
-| AFP-V0-163 | the `reuse` and `Retain integrity reuse decision` steps, `permissions`, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity`, and the `artifact-integrity-record` job, in `.github/workflows/ci.yml`; the `job:artifact-integrity` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163RecordJobRunsNoRepositoryCode`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (all fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement `NOT_OBSERVED` |
+| AFP-V0-163 | the `reuse` and `Retain integrity reuse decision` steps, `permissions`, `fetch-depth: 2` and the `steps.reuse.outputs.mode` conditions of `artifact-integrity`, and the `artifact-integrity-record` job, in `.github/workflows/ci.yml`; the `job:artifact-integrity` row of `script/ci-least-privilege-exceptions.tsv` | `TestAFPV0163WorkflowWiresIntegrityTreeReuse`, `TestAFPV0163RecordJobRunsNoRepositoryCode`, `TestAFPV0163IntegrityReuseDecidesOnlyForAPassedPullRequestRunOfThisTree` (all fail before the change); queue timings in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; hosted after-measurement in build log 2026-11-01-ci-w34 (40 queue runs: the reuse fired on every entry whose tree its pull-request run tested) |
 | AFP-V0-164 | the `internal/tasks/cli` and `internal/tasks/authority` entries of `.github/cishards/test-split-allow.json` and their slices in `.github/cishards/test-slices.json` (regenerated from run 39613481398) | `TestAFPV0060CommittedSlicesBoundOversizedPackages` (requires `cmd/corvint`, `internal/tasks/store` and `internal/tasks/cli` split and every allowed package above the bound split, every test selected once, each slice within 400 s); amendment replay in build log 2026-10-21-cisplit-1021v-store-slices; `tools/ci-test-slices replay` before/after in build log 2026-10-21-ci-waste-1021g-integrity-reuse-and-tasks-slices; shuffled package runs; hosted observed max shard `NOT_OBSERVED` |
 | AFP-V0-316 | `scanFiles`, `scanFile` and `record` in `internal/gateselect/readers.go` | `TestAFPV0316ParallelIndexMatchesSerial` (the pooled index deep-equals the `GOMAXPROCS=1` serial index over a 99-file fixture, five times) and `TestAFPV0316ParallelIndexReportsTheFirstErrorInWalkOrder` (two unparsable sources: always the walk-first one; recording in completion order fails it); `BenchmarkIndexRepository` |
 | AFP-V0-296 | `admittedGoVersions` in `tools/corvint-pr-tests/main.go` | `TestToolIdentityRequiresCurrentGoVersion` (go1.27.3 admitted; go1.27.1, go1.27.2, go1.27.4 and go1.28.2 refused, decision 0557), run green under go1.27.3 |

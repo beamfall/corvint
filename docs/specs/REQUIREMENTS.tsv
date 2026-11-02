@@ -151,6 +151,7 @@ AFP-V0-060	docs/specs/affected-plan-v0.md	(accepted by the owner in owner chat, 
 AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
 AFP-V0-072	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no	standing	2026-10-11; V1-1806
 AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-855	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-1778);	standing	2026-10-11; V1-1778
 AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
 AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
 AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
@@ -3593,6 +3594,8 @@ DCI-V0-005	docs/specs/documentation-ci-v0.md	Admission MUST require an approved 
 DCI-V0-006	docs/specs/documentation-ci-v0.md	CI MUST build the classifier from a separate checkout at the captured event base	unrecorded	-
 DCI-V0-007	docs/specs/documentation-ci-v0.md	Only the root Go race invocation may be omitted. Documentation gates, shard-0	unrecorded	-
 DCI-V0-008	docs/specs/documentation-ci-v0.md	Qualification MUST retain source-bound consumer review and actual adversarial	unrecorded	-
+DCI-V0-855	docs/specs/documentation-ci-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470);	standing	2026-10-11; V1-0470
+DCI-V0-856	docs/specs/documentation-ci-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-0470))	standing	2026-10-11; V1-0470
 DCG-V0-001	docs/specs/documentation-citation-gate-v0.md	(accepted, decision 0506) The gate MUST check every backticked citation in `docs	owner	decision 0506
 DCG-V0-002	docs/specs/documentation-citation-gate-v0.md	For every checked citation the gate MUST fail when the named file is not tracked	unrecorded	-
 DCG-V0-003	docs/specs/documentation-citation-gate-v0.md	The gate MUST additionally fail when a cited line is blank or contains only	unrecorded	-
