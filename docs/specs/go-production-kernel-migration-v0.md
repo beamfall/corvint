@@ -931,6 +931,31 @@ which is the whole of what the row asserts.
   had room. Acceptance evidence: `TestGPKV0882UnsetTMPDIRPrefersUserCacheOverTmp`,
   `TestGPKV0882StatusUsesUserCacheWhenTMPDIRUnset`, `TestGPKV0882FullScratchRefusalIsTyped`.
   Rollback: restore the `os.TempDir()`, `/tmp`, user-cache order and drop the `explicit` flag.
+- `GPK-V0-845`: (experimental 2026-11-02, standing lane auto-accept; V1-2240) Git zeroes the
+  recorded size of an index entry written within the same second as the index ("smudged"), and
+  re-hashes such entries on every status until an index write records them again. An isolated
+  status never writes the live index, so after a checkout, rebase or `commit -a` every hook read
+  paid that re-hash: two isolated reads per Claude Code hook event at about 235 ms each on an
+  11,217-file checkout. When the captured index holds a regular-file entry with recorded size 0,
+  `gitstatus.Status` MUST refresh its private index copy with `update-index -q --refresh` before
+  the status run, and MUST remember the refreshed copy's bytes and modification time in process
+  memory only, keyed by the root, the Git directory, the captured index bytes and the captured
+  config bytes. A later call in the same process with the same key MUST write that refreshed copy,
+  with its own modification time, as its private index instead of the live index copy, and MUST
+  NOT run the refresh again. The live index, the live repository and every other metadata check
+  are unchanged, a refreshed copy that is not a simple index (a split index or an unknown
+  extension) is never remembered, a failed refresh leaves the live copy in place, and the status
+  run itself is never reused. Status output MUST be byte-identical to the unrefreshed run.
+  `MaxProcesses` becomes 8. Target, set before the build: on a fresh checkout of this repository
+  (11,217 files, smudged entries), the second isolated read in one process at or under 50 ms, and
+  the session-start, user-prompt, post-tool and stop hook p50 each at least 150 ms lower than
+  before (1,025, 1,003, 550 and 543 ms). Non-goals: persisting a refreshed index across
+  processes, which would be a new write outside the admitted ledgers (invariant 4); writing the
+  live index; the untracked cache and fsmonitor (measured and rejected). Failure mode closed: a
+  hook that re-hashes the same unchanged files twice per event until something else writes the
+  index. Acceptance evidence: `TestGPKV0845RefreshedIndexReusedInProcess`,
+  `TestGPKV0845RefreshedStatusMatchesUnrefreshed`, `TestGPKV0845NoRefreshWithoutSmudgedEntries`.
+  Rollback: drop the refresh and the in-process copy; every read copies the live index again.
 
 ### Conformance authority
 
@@ -2087,6 +2112,7 @@ negative result.
 | `GPK-V0-976` (experimental 2026-10-31, V1-0179) | `impact` in `internal/contextindex/impact.go` | `TestImpactOrdersAReferencingSpecBeforeAReferencingDecision_GPKV0976`; `DR-0047` |
 | `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
 | `GPK-V0-882` (experimental 2026-11-01, V1-3921) | `Status`, `ambientScratchParents`, `scratchUnder`, the private-copy write in `statusIn`, `internal/gitstatus/status.go` | `TestGPKV0882UnsetTMPDIRPrefersUserCacheOverTmp`, `TestGPKV0882StatusUsesUserCacheWhenTMPDIRUnset`, `TestGPKV0882FullScratchRefusalIsTyped` |
+| `GPK-V0-845` (experimental 2026-11-02, V1-2240) | `statusIn`, `refreshPrivateIndex`, `smudgedEntries` in `internal/gitstatus/status.go`, `simple.go` | `TestGPKV0845RefreshedIndexReusedInProcess`, `TestGPKV0845RefreshedStatusMatchesUnrefreshed`, `TestGPKV0845NoRefreshWithoutSmudgedEntries` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |
 
 ## Amendment 2026-11-01 (V1-3873, V1-2081): the suffix refusal names `affected --path`, and the capability listing states the reverse-import closure
