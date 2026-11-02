@@ -76,6 +76,7 @@ func tlfProposals(t *testing.T, root string) wire.Value {
 // not proposed, a ticket naming none is NO_PROPOSAL, and a QUALIFIED ticket
 // is not screened.
 func TestTLFV0888_EffectsProposals(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setActor(t, "tester")
 	root, _ := ergStore(t)
 	if err := os.MkdirAll(filepath.Join(root, "src", "parser"), 0o755); err != nil {
@@ -155,6 +156,7 @@ func TestTLFV0889_ProposalsAreNotAuthority(t *testing.T) {
 // dotfile or extensionless root file gets it proposed; a bare word that
 // names no root file, or names a directory, is not proposed (TLF-V0-888).
 func TestTLFV0888_RootFilesWithoutExtension(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setActor(t, "tester")
 	root, _ := ergStore(t)
 	for _, f := range []string{".gitignore", "Makefile"} {

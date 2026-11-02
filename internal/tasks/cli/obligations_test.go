@@ -447,7 +447,8 @@ func TestTOLV0008_DeclaredWitness(t *testing.T) {
 // refused rather than reported as written:false, including bytes that
 // derive no credit from the ledger before the recorded request.
 func TestTOLV0014_WitnessReplay(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	rev := obligationRevision(t, r.Root, id)
@@ -492,7 +493,8 @@ func TestTOLV0014_WitnessReplay(t *testing.T) {
 // TestTOLV0009_SubsetIgnoresExcludedMatchBound: an id outside --ids whose
 // matches exceed the per-id bound does not refuse a witness of the subset.
 func TestTOLV0009_SubsetIgnoresExcludedMatchBound(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	spec := "e2e/login.spec.ts"
@@ -520,6 +522,7 @@ func TestTOLV0009_SubsetIgnoresExcludedMatchBound(t *testing.T) {
 // writes nothing; an admitted report is never retained, only its digest; a
 // secret in a credited title refuses SECRET_DETECTED.
 func TestTOLV0009_ReportAdmissionAndRetention(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	report := obligationCaseReport(t, r.Root)
@@ -528,7 +531,7 @@ func TestTOLV0009_ReportAdmissionAndRetention(t *testing.T) {
 		!strings.Contains(string(x.stdout), "OBLIGATION_REPORT_VERSION_UNQUALIFIED:") || !strings.Contains(string(x.stdout), wire.CodeUnsupportedVersion) {
 		t.Fatalf("unqualified version: %s", x.stdout)
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	dir := t.TempDir()
 	bad := map[string]string{"non-json": "not json", "shape": `{"config":{"version":"` + pwVersion + `"},"suites":[]}`, "two values": `{} {}`}
 	before := fixture.TreeSnapshot(t, r.StateDir)
@@ -585,7 +588,7 @@ func TestTOLV0009_ReportAdmissionAndRetention(t *testing.T) {
 // TestTOLV0012_SourcePresence share one witness of the case report.
 func caseWitness(t *testing.T) (*fixture.Repo, string, wire.Value) {
 	t.Helper()
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	x := atm(t, r.Root, nil, witnessArgs(id, "w-case", obligationRevision(t, r.Root, id), head, "--from-playwright-report", obligationCaseReport(t, r.Root))...)
@@ -600,6 +603,7 @@ func caseWitness(t *testing.T) (*fixture.Repo, string, wire.Value) {
 // nested step's parent do not credit; a test-level id credits only on a
 // passed result.
 func TestTOLV0010_StepOwnErrorCredits(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, item := caseWitness(t)
 	if got := strList(item, "credited"); got != "AC-1,AC-3" {
 		t.Fatalf("credited %q: %s", got, wire.Encode(item))
@@ -616,7 +620,7 @@ func TestTOLV0010_StepOwnErrorCredits(t *testing.T) {
 			t.Fatalf("AC-3 match: %s", wire.Encode(e))
 		}
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	nested := writeReport(t, t.TempDir(), r.Root, pwVersion,
 		pwSpec{Title: "nested", ID: "n1", File: "e2e/login.spec.ts", Tests: []pwTest{failedTest("chromium", step("AC-4 conflicting parent", true, step("inner", true)))}},
 		pwSpec{Title: "timed", ID: "n2", File: "e2e/login.spec.ts", Tests: []pwTest{{ExpectedStatus: "passed", ProjectName: "chromium",
@@ -630,7 +634,8 @@ func TestTOLV0010_StepOwnErrorCredits(t *testing.T) {
 // TestTOLV0010_Retry0Only: only retry-0 results count; a retry-1 pass after
 // a retry-0 failure credits nothing.
 func TestTOLV0010_Retry0Only(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	flaky := pwTest{ExpectedStatus: "passed", ProjectName: "chromium", Results: []pwResult{
@@ -646,6 +651,7 @@ func TestTOLV0010_Retry0Only(t *testing.T) {
 // is conflicting and not credited; an id outside the ledger is unknown; a
 // ledger id with no match is unmatched; nothing becomes DEFECT.
 func TestTOLV0011_ConflictingMatches(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, item := caseWitness(t)
 	if strList(item, "conflicting") != "AC-4" || strList(item, "unknown") != "AC-99" || strList(item, "unmatched") != "AC-9" {
 		t.Fatalf("lists: %s", wire.Encode(item))
@@ -662,6 +668,7 @@ func TestTOLV0011_ConflictingMatches(t *testing.T) {
 // reason and not credited; the same report at a commit that lacks the spec
 // file binds nothing.
 func TestTOLV0012_SourcePresence(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, item := caseWitness(t)
 	if got := strList(item, "unbound"); got != "AC-6:OUTSIDE_REPOSITORY,AC-7:ABSENT_AT_COMMIT,AC-8:ID_NOT_IN_SOURCE" {
 		t.Fatalf("unbound %q", got)
@@ -672,7 +679,7 @@ func TestTOLV0012_SourcePresence(t *testing.T) {
 			t.Fatalf("%s credited", eid)
 		}
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	base := strings.TrimSpace(gitOut(t, r.Root, "rev-list", "--max-parents=0", "HEAD"))
 	report := writeReport(t, t.TempDir(), r.Root, pwVersion, pwSpec{Title: "AC-5 failing", ID: "s4", File: "e2e/login.spec.ts", Tests: []pwTest{passed("chromium")}})
 	x := atm(t, r.Root, nil, witnessArgs(id, "w-old", obligationRevision(t, r.Root, id), base, "--from-playwright-report", report)...)
@@ -708,14 +715,15 @@ func auditConsistent(t *testing.T, root string) bool {
 // nothing; the admitted witness passes receipt audit, which re-checks the
 // retained matches against the commit.
 func TestTOLV0013_CreditMismatchAndAudit(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	match := ticket.ObligationMatch{Path: "e2e/login.spec.ts", TestID: "s4@chromium", TitlePath: []string{"AC-5 failing"}, StepPath: []string{}}
 	sum, version := wire.Sum([]byte("report")), pwVersion
 	forged := ticket.ObligationWitnessPayload{Source: ticket.ObligationSourceReport, Commit: head, ReportSha256: &sum, PlaywrightVersion: &version,
 		Credits: []ticket.ObligationCredit{{ID: "AC-5", Matches: []ticket.ObligationMatch{match}}}}
-	env := cli.Env{Cwd: r.Root, Stdout: io.Discard, Stderr: io.Discard}
+	env := testEnv(t, cli.Env{Cwd: r.Root, Stdout: io.Discard, Stderr: io.Discard})
 	honest := &mutation.ObligationReportCheck{ReportSha256: sum, PlaywrightVersion: version, Commit: head,
 		Eligible: map[string][]ticket.ObligationMatch{"AC-1": {{Path: "e2e/login.spec.ts", TestID: "s1@chromium", TitlePath: []string{"AC-1 login"}, StepPath: []string{}}}}}
 	before := fixture.TreeSnapshot(t, r.StateDir)
@@ -743,7 +751,8 @@ func TestTOLV0013_CreditMismatchAndAudit(t *testing.T) {
 // the audit, so deleting it leaves receipt audit consistent; deleting the
 // retained ledger event does not.
 func TestTOLV0013_AuditAfterReportDeleted(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	report := obligationCaseReport(t, r.Root)
@@ -835,6 +844,7 @@ func TestTOLV0014_RevisionOnlyWrite(t *testing.T) {
 // report witness under obligations.workerWitness; REVIEWER is refused and no
 // other role's row may name the verbs.
 func TestTOLV0015_RoleMatrix(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, head := obligationRepo(t)
 	seedArgs := func(req, role string) []string {
 		return []string{"ticket", "obligations", "seed", "--target", id, "--expected-revision", obligationRevision(t, r.Root, id),
@@ -846,7 +856,7 @@ func TestTOLV0015_RoleMatrix(t *testing.T) {
 		}
 	}
 	seedObligations(t, r.Root, id)
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	report := obligationCaseReport(t, r.Root)
 	if x := atm(t, r.Root, nil, witnessArgs(id, "w-worker", obligationRevision(t, r.Root, id), head, "--from-playwright-report", report, "--role", "WORKER")...); x.res.Outcome == wire.OutcomeOK {
 		t.Fatalf("WORKER witnessed without the policy key: %s", x.stdout)
@@ -911,7 +921,8 @@ func workerObligationRepo(t *testing.T) (r *fixture.Repo, id, head, attempt, gen
 // attempt is released and the same actor claims again, the old generation
 // is FENCED; an unrecorded generation is PROVENANCE_UNVERIFIED.
 func TestTOLV0015_WorkerStaleGenerationFenced(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head, attempt, gen := workerObligationRepo(t)
 	report := obligationCaseReport(t, r.Root)
 	worker := func(req string, extra ...string) run {

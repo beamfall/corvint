@@ -191,10 +191,7 @@ func TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus(t *testing.T) {
 	t.Setenv("RECONCILE_REF", "main")
 	root, l, prs, runs := reconcileRepo(t)
 	stub := filepath.Join(t.TempDir(), "gh")
-	fixture.Write(t, stub, []byte("#!/bin/sh\ncase \"$1\" in pr) cat '"+prs+"' ;; run) cat '"+runs+"' ;; *) exit 9 ;; esac\n"))
-	if err := os.Chmod(stub, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, stub, []byte("#!/bin/sh\ncase \"$1\" in pr) cat '"+prs+"' ;; run) cat '"+runs+"' ;; *) exit 9 ;; esac\n"), 0o755)
 	reconcile := func(env ...string) (int, string) {
 		t.Helper()
 		c := exec.Command(script)

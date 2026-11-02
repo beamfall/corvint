@@ -80,6 +80,9 @@ type Env struct {
 	// leaves it empty, so the binary resolves the process environment as
 	// before; in-process callers such as parallel tests set it.
 	Actor string
+	// qualifiedVersions, when non-nil, replaces the shipped TOL-V0-009
+	// qualified Playwright versions; only tests set it (TCL-V0-826).
+	qualifiedVersions []string
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure

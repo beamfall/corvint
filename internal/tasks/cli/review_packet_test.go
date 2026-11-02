@@ -105,6 +105,7 @@ func reviewRounds(t *testing.T) (root, id, c1, c3 string) {
 // last RETURN with its touched status, fits the cap with nothing omitted,
 // and writes nothing (ERG-V0-017, 018, 020, 021).
 func TestERGV0017_ReviewPacketAcrossRounds(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, id, c1, c3 := reviewRounds(t)
 	before := fixture.TreeSnapshot(t, filepath.Join(root, ".git"))
 	v, x := packetOf(t, root, id, "--commit", "HEAD")
@@ -133,6 +134,7 @@ func TestERGV0017_ReviewPacketAcrossRounds(t *testing.T) {
 // item code and status and lists each omitted hunk by its line range; a cap
 // outside 4096..262144 is a usage error (ERG-V0-019).
 func TestERGV0019_CapNamesOmittedRanges(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, id, _, _ := reviewRounds(t)
 	big := map[string]string{}
 	for _, name := range []string{"a", "b", "c"} {
@@ -168,6 +170,7 @@ func TestERGV0019_CapNamesOmittedRanges(t *testing.T) {
 // generation without the candidate, it refuses with the named reason
 // instead of a bare missing branch (Codex #1189 finding 2).
 func TestERGV0017_ReviewClaimNamesClearedCandidate(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
@@ -199,6 +202,7 @@ func TestERGV0017_ReviewClaimNamesClearedCandidate(t *testing.T) {
 // full diff from its fallback base, every path, and the packet says so
 // (ERG-V0-018).
 func TestERGV0018_NoPassedAncestorFallsBack(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setActor(t, "tester")
 	root, _ := ergStore(t)
 	id := planTicket(t, root, "unreviewed", "P1", `["src/"]`)
@@ -218,6 +222,7 @@ func TestERGV0018_NoPassedAncestorFallsBack(t *testing.T) {
 // `gate history --cursor` command, and that command returns the events the
 // packet did not read (ERG-V0-027).
 func TestERGV0027_HistoryBoundNamesNextCursor(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, id, c1, _ := reviewRounds(t)
 	cli.ShrinkReviewPacketHistory(t, 2, 1)
 	v, x := packetOf(t, root, id, "--commit", "HEAD")
@@ -256,6 +261,7 @@ func TestERGV0027_HistoryBoundNamesNextCursor(t *testing.T) {
 // to the reviewed commit; a commit the repository lacks stays NOT_OBSERVED
 // (ERG-V0-026).
 func TestERGV0026_CheckpointCommitBinding(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, id, c1, c3 := reviewRounds(t)
 	note := func(name, commit string) string {
 		raw, err := json.Marshal(&dispatch.HandoffNote{Profile: dispatch.HandoffNoteProfile, Worker: "w-1", Ticket: id, Role: "implement",

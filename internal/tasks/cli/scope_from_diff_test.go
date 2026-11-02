@@ -67,6 +67,7 @@ func revParse(t *testing.T, root, rev string) string {
 // closes the ticket COMPLETED, and the receipt audit stays OK. No
 // touchPaths are written by hand and the ticket's effects are unchanged.
 func TestTCDV0174_DiffDerivedScopeClosesAnIncompleteTicketNatively(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, base, head, headTree := diffScopeRepo(t)
 	id, _ := effectsTicket(t, root, "incomplete", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":["elsewhere/"]}`)
 	runOK := func(args ...string) run {
@@ -128,6 +129,7 @@ func TestTCDV0174_DiffDerivedScopeClosesAnIncompleteTicketNatively(t *testing.T)
 // flag combination that would mix scope sources refuse; none falls back to
 // WHOLE_REPOSITORY.
 func TestTCDV0175_DiffScopeNeverWidensAndFailsClosed(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, base, head, _ := diffScopeRepo(t)
 	narrow, _ := effectsTicket(t, root, "narrow", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
 	before := fixture.TreeSnapshot(t, filepath.Join(root, ".git", "taskman"))
@@ -176,6 +178,7 @@ func TestTCDV0175_DiffScopeNeverWidensAndFailsClosed(t *testing.T) {
 // same tree. Another tree, including the same symbolic revision after it
 // moved, refuses REQUEST_ID_CONFLICT and the stored claim still replays.
 func TestTCDV0181_ScopeFromDiffJoinsTheClaimRequest(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, base, head, _ := diffScopeRepo(t)
 	id, _ := effectsTicket(t, root, "incomplete", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":[]}`)
 	claim := func(rev string) run {
@@ -215,6 +218,7 @@ func TestTCDV0181_ScopeFromDiffJoinsTheClaimRequest(t *testing.T) {
 // names claim --scope-from-diff in alternativeActions, which that claim then
 // proves valid. A ticket with qualified effects carries no such member.
 func TestTCDV0182_ShowNamesClaimScopeFromDiffBesideSetEffects(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, base, head, _ := diffScopeRepo(t)
 	open, _ := effectsTicket(t, root, "incomplete", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":[]}`)
 	qualified, _ := effectsTicket(t, root, "qualified", "P2", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
@@ -259,6 +263,7 @@ func TestTCDV0182_ShowNamesClaimScopeFromDiffBesideSetEffects(t *testing.T) {
 // COVERAGE_UNKNOWN carries the alternativeActions member `ticket show`
 // reports for it, and an entry with qualified effects carries none.
 func TestTCDV0184_PlanPreviewNamesClaimScopeFromDiff(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, _, _, _ := diffScopeRepo(t)
 	open, _ := effectsTicket(t, root, "incomplete", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":[]}`)
 	qualified, _ := effectsTicket(t, root, "qualified", "P2", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)

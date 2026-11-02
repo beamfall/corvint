@@ -327,6 +327,7 @@ func TestTOLV0081_GrantedOperatorCannotAccept(t *testing.T) {
 // with no HEAD commit leaves it SUBJECT_UNVERIFIED, never SUBJECT_CHANGED
 // (TOL-V0-086; Codex finding on this change).
 func TestTOLV0086_WorklistTestRepositoryUnverified(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)

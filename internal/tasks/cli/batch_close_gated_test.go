@@ -86,6 +86,7 @@ func gbRepo(t *testing.T) (root, base, laneA, merge string) {
 // closed tickets and claims afresh; --manual still closes the rest manually
 // and the receipt audit counts the two kinds apart (TCD-V0-190).
 func TestTCDV0185_GatedBatchCloseRunsRequiredGates(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, base, laneA, merge := gbRepo(t)
 	scopedID, _ := effectsTicket(t, root, "scoped", "P1", `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`)
 	wholeID, _ := effectsTicket(t, root, "whole", "P1", `{"coverage":"INCOMPLETE","externalUnbounded":false,"resources":[],"touchPaths":["elsewhere/"]}`)

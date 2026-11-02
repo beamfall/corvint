@@ -58,7 +58,7 @@ func findingCodes(v wire.Value) []string {
 // --witness-receipts audit finds every witness resolvable, and the plain
 // journal audit is unchanged by the store (TOL-V0-135, 136, 138).
 func TestTOLV0135_WitnessRetainResolves(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, _, _, raw, x := witnessed(t, true)
 	ret := field(x.res.Items[0], "retained")
 	sum := wire.Sum(raw)
@@ -97,7 +97,8 @@ func TestTOLV0135_WitnessRetainResolves(t *testing.T) {
 // unreviewable; a put of the report resolves it, and tampering with the
 // stored bytes is RECEIPT_MISMATCH.
 func TestTOLV0138_AuditReportsUnresolvable(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, report, raw, _ := witnessed(t, false)
 	if !auditConsistent(t, r.Root) {
 		t.Fatal("plain audit refused")
@@ -160,7 +161,8 @@ func TestTOLV0138_AuditReportsUnresolvable(t *testing.T) {
 // cites, keeps the cited one and a recently put one, and --dry-run writes
 // nothing.
 func TestTOLV0140_PruneKeepsCited(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, _, _, raw, _ := witnessed(t, true)
 	cited := evidencestore.Path(r.StateDir, wire.Sum(raw))
 	dir := t.TempDir()
@@ -221,7 +223,8 @@ func TestTOLV0140_PruneKeepsCited(t *testing.T) {
 // stored witness receipt under witness-receipts/<sha256> and the export
 // verifies; a put in progress is skipped and a stray file is refused.
 func TestTOLV0139_ArchiveCarriesReceipts(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, _, _, raw, _ := witnessed(t, true)
 	store := filepath.Join(r.StateDir, evidencestore.Dir)
 	fixture.Write(t, filepath.Join(store, evidencestore.TempPrefix+"00ff"), []byte("partial"))

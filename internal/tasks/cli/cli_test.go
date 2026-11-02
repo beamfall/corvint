@@ -21,6 +21,29 @@ import (
 // keyed by t.Name() and read through the subtest name prefixes (V1-4187).
 var testActors, parallelTests sync.Map
 
+// testQualified maps a test name to the TOL-V0-009 qualified Playwright
+// versions setQualifiedVersions named for it (TCL-V0-826).
+var testQualified sync.Map
+
+// setQualifiedVersions makes v the qualified Playwright version list of every
+// command t runs through testEnv, in place of the shipped list, without a
+// package-variable write, so t may run in parallel (TCL-V0-826).
+func setQualifiedVersions(t *testing.T, v []string) {
+	t.Helper()
+	testQualified.Store(t.Name(), append([]string{}, v...))
+	t.Cleanup(func() { testQualified.Delete(t.Name()) })
+}
+
+// testEnv is env with the actor and qualified versions named for t or a test
+// enclosing it.
+func testEnv(t *testing.T, env cli.Env) cli.Env {
+	env.Actor = testActor(t)
+	if v, ok := lookupByTestName(&testQualified, t.Name()); ok {
+		env = cli.WithObligationQualifiedVersions(env, v.([]string))
+	}
+	return env
+}
+
 // parallelTest runs t in parallel and makes every setActor under it name the
 // actor through cli.Env.Actor instead of the process environment, which a
 // parallel test may not write (TCL-V0-825).
@@ -89,7 +112,7 @@ func atmWith(t *testing.T, cwd string, stdin []byte, derive store.ScopeDeriver, 
 	// (CTS-V0-025); help and the refusal itself are tested with cli.Run.
 	fixture.SkipUnsupportedPlatform(t)
 	var out, errb bytes.Buffer
-	code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive, Actor: testActor(t)})
+	code := cli.Run(testEnv(t, cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(stdin), Stdout: &out, Stderr: &errb, ScopeDeriver: derive}))
 	r := run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
 	env := r.stdout
 	if len(args) >= 2 && args[0] == "archive" && args[1] == "export" {

@@ -19,31 +19,37 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// obligationQualifiedVersions is the TOL-V0-009 qualified Playwright version
-// list a report is admitted against. It is a variable only so tests can
-// exercise the admitted path with a synthetic version; the shipped list is
-// obligation.QualifiedVersions (1.63.0, TOL-V0-126).
-var obligationQualifiedVersions = obligation.QualifiedVersions
+// qualifiedVersions is the TOL-V0-009 qualified Playwright version list a
+// report is admitted against: the shipped obligation.QualifiedVersions
+// (1.63.0, TOL-V0-126), or env.qualifiedVersions when a test set it to
+// exercise the admitted path with a synthetic version. It is carried on Env,
+// not a package variable, so such a test can run in parallel (TCL-V0-826).
+func qualifiedVersions(env Env) []string {
+	if env.qualifiedVersions != nil {
+		return append([]string(nil), env.qualifiedVersions...)
+	}
+	return obligation.QualifiedVersions()
+}
 
-// admittedVersions is the shipped TOL-V0-009 list with the store-local
+// admittedVersions is the qualified TOL-V0-009 list with the store-local
 // allow-list an operator recorded with qualify-version (TOL-V0-063). An
 // unreadable or malformed allow-list refuses; it never admits nothing
 // silently or everything.
-func admittedVersions(commonDir string) ([]string, error) {
+func admittedVersions(env Env, commonDir string) ([]string, error) {
 	a, err := obligation.ReadAllowList(obligation.AllowListPath(commonDir))
 	if err != nil {
 		return nil, err
 	}
-	return append(append([]string{}, obligationQualifiedVersions()...), a.Admitted()...), nil
+	return append(qualifiedVersions(env), a.Admitted()...), nil
 }
 
-// admittedVersionsAt is admittedVersions for the store holding cwd.
-func admittedVersionsAt(cwd string) ([]string, error) {
-	repo, err := intent.Resolve(cwd)
+// admittedVersionsAt is admittedVersions for the store holding env.Cwd.
+func admittedVersionsAt(env Env) ([]string, error) {
+	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
 		return nil, err
 	}
-	return admittedVersions(repo.CommonDir)
+	return admittedVersions(env, repo.CommonDir)
 }
 
 // declaredTestRepository resolves a policy-declared test repository name to
@@ -623,7 +629,7 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 			lists.credited = append(lists.credited, id)
 		}
 	} else {
-		qualified, err := admittedVersions(rc.repo.CommonDir)
+		qualified, err := admittedVersions(env, rc.repo.CommonDir)
 		if err != nil {
 			return errorResult(cmd, err)
 		}

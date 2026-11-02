@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -135,7 +134,8 @@ func TestTOLV0036_PreflightMatchesAliases(t *testing.T) {
 // longer token, and an alias shaped like a defect id is not read as a
 // defect inside an expected-failure test.
 func TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := preflightRepo(t, aliasSpec, aliasSeed)
 	spec := "e2e/checkout.spec.ts"
 	xfail := writeReport(t, t.TempDir(), r.Root, pwVersion,

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
@@ -106,12 +107,18 @@ func DecodeRunRecord(raw []byte) error {
 	return err
 }
 
-// SetObligationQualifiedVersions replaces the TOL-V0-009 qualified Playwright
-// version list for a test and returns the restore function.
-func SetObligationQualifiedVersions(v []string) func() {
-	was := obligationQualifiedVersions
-	obligationQualifiedVersions = func() []string { return append([]string(nil), v...) }
-	return func() { obligationQualifiedVersions = was }
+// WriteExecutable writes an executable fixture without an in-process write
+// descriptor (TCL-V0-827).
+func WriteExecutable(t testing.TB, path string, body []byte, mode os.FileMode) {
+	t.Helper()
+	writeExecutable(t, path, body, mode)
+}
+
+// WithObligationQualifiedVersions returns env with the TOL-V0-009 qualified
+// Playwright version list replaced by v for this run only (TCL-V0-826).
+func WithObligationQualifiedVersions(env Env, v []string) Env {
+	env.qualifiedVersions = append([]string{}, v...)
+	return env
 }
 
 // SubmitObligationWitness submits a caller-composed OBLIGATIONS_WITNESS

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -275,14 +276,12 @@ func gitIn(t *testing.T, root, stdin string, args ...string) string {
 // that would write into the repository does not run when --deep creates or
 // removes its worktree.
 func TestTOLV0027_PreflightDeepRunsNoRepositoryHooks(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, _ := preflightRepo(t, cleanSpec, cleanSeed, deepGate("noop", "true", "60"))
 	hooks := gitIn(t, r.Root, "", "rev-parse", "--path-format=absolute", "--git-path", "hooks")
 	common := gitIn(t, r.Root, "", "rev-parse", "--path-format=absolute", "--git-common-dir")
 	marker := filepath.Join(common, "preflight-hook-ran")
-	fixture.Write(t, filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\nprintf changed > \""+marker+"\"\n"))
-	if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\nprintf changed > \""+marker+"\"\n"), 0o755)
 	x := atm(t, r.Root, nil, "preflight", id, "--deep", "--gate", "noop")
 	if x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("deep preflight: %s", x.stdout)

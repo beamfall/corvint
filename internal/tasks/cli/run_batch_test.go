@@ -222,7 +222,8 @@ func runBatchArgs(id, config, out, request string, extra ...string) []string {
 // cause: witnessed, failed with the error, not reached because an earlier
 // test failed, and not named.
 func TestTOLV0029_RunBatchCreditsAndWritesCauses(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)
 	out := filepath.Join(t.TempDir(), "out")
@@ -254,7 +255,8 @@ func TestTOLV0029_RunBatchCreditsAndWritesCauses(t *testing.T) {
 // TOL-V0-029: a failed prep step leaves every in-scope obligation NOT_REACHED
 // with the prep error, credits nothing and refuses GATE_FAILED.
 func TestTOLV0029_RunBatchPrepFailureIsNotReached(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)
 	config := rbConfig(t, test, func(c map[string]any) {
@@ -278,7 +280,8 @@ func TestTOLV0029_RunBatchPrepFailureIsNotReached(t *testing.T) {
 
 // TOL-V0-030: the job runs only a clean checkout of --commit.
 func TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)
 	config := rbConfig(t, test, nil)
@@ -305,7 +308,8 @@ func TestTOLV0030_RunBatchRefusesAStaleOrDirtyCheckout(t *testing.T) {
 // out with --ids or changing a fixture path admits the next job. With a
 // pool, the job acquires a member and releases it after the capture.
 func TestTOLV0031_RepeatFailureRefusedBeforeLaneAcquire(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)
 	config := rbConfig(t, test, func(c map[string]any) {
@@ -411,7 +415,8 @@ func qualifyRun(t *testing.T, root, config string) (run, verdictDoc, string) {
 // a neighbour failure the base shares is PRE_EXISTING and does not
 // disqualify; static checks run first.
 func TestTOLV0032_QualifyVerdicts(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	c, nb := "e2e/a/cand.spec.ts", "e2e/a/nb.spec.ts"
 	pass, nbPass, nbFail := []rbSpec{rbPass(c, "cand one")}, rbPass(nb, "nb one"), rbFail(nb, "nb one", "Error: nb broke")
 	cases := []struct {
@@ -523,7 +528,7 @@ func markerInterrupt(marker string) func() {
 // is read but before the witness mutation is submitted credits nothing and
 // refuses with LANE_FAILED.
 func TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, _ := rbTools(t)
 	var cancel context.CancelFunc
@@ -550,7 +555,7 @@ func TestTOLV0033_InterruptBeforeWitnessSubmitCreditsNothing(t *testing.T) {
 // TOL-V0-033 (Codex round 1, finding 4): an interrupt during the tests still
 // runs the capture, on a fresh context, so server-side errors are kept.
 func TestTOLV0033_CaptureRunsAfterAnInterruptDuringTests(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	out := filepath.Join(t.TempDir(), "out")
 	defer markerInterrupt(filepath.Join(out, "b1", "interrupt.now"))()
@@ -589,7 +594,8 @@ func laneRepo(t *testing.T) (*fixture.Repo, string, []string) {
 // job: run-batch witnesses nothing and returns the release refusal, and
 // qualify is NOT_QUALIFIED with LANE_FAILED.
 func TestTOLV0030_RefusedReleaseFailsTheJob(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	defer cli.FailJobPoolRelease(wire.CodeResourceCollision)()
 	r, id, lane := laneRepo(t)
 	test, _ := rbTools(t)
@@ -617,7 +623,8 @@ func TestTOLV0030_RefusedReleaseFailsTheJob(t *testing.T) {
 // TOL-V0-030 (Codex round 1, finding 6): a refused acquire is the job's
 // result code, not GATE_FAILED.
 func TestTOLV0030_AcquireRefusalCodeIsTheJobs(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, lane := laneRepo(t)
 	// The attempt already holds a member, so the job's acquire is refused.
 	held := atm(t, r.Root, nil, "pool", "acquire", lane[2], lane[3], lane[4], lane[5], lane[0], lane[1], "--request-id", "held-1")
@@ -645,7 +652,8 @@ func TestTOLV0030_AcquireRefusalCodeIsTheJobs(t *testing.T) {
 // TOL-V0-031 (Codex round 1, finding 5): a fixture path "." digests the
 // commit's root tree, so a change anywhere clears the repeat refusal.
 func TestTOLV0031_RootFixturePathIsDigested(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, _ := rbTools(t)
 	config := rbConfig(t, test, func(c map[string]any) { c["fixturePaths"] = []string{"."} })
@@ -670,7 +678,7 @@ func TestTOLV0031_RootFixturePathIsDigested(t *testing.T) {
 // hash, so an artifact far larger than the report bound is listed without
 // being read into memory, and the oversized report is still refused.
 func TestTOLV0033_ManifestStreamsAnOversizedArtifact(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	c := "e2e/a/cand.spec.ts"
 	root, _ := qualifyRepo(t, []rbSpec{rbPass(c, "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
 	const size = 512 << 20
@@ -699,7 +707,7 @@ func atmWithin(t *testing.T, d time.Duration, cwd string, args ...string) run {
 	done := make(chan run, 1)
 	go func() {
 		var out, errb bytes.Buffer
-		code := cli.Run(cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb})
+		code := cli.Run(testEnv(t, cli.Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &errb}))
 		done <- run{code: code, stdout: out.Bytes(), stderr: errb.Bytes()}
 	}()
 	select {
@@ -726,10 +734,11 @@ func rbWrap(test []string, shell string) []string {
 // runs. The same holds when the capture swaps the report for a FIFO or
 // changes it before the witness reads it again.
 func TestTOLV0033_ReportPathMustBeARegularFile(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	if runtime.GOOS == "windows" {
 		t.Skip("no FIFOs on Windows")
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	test, _ := rbTools(t)
 	cases := []struct{ name, testShell, capture, warning, code string }{
 		{"fifo report", "rm -f \"$PLAYWRIGHT_JSON_OUTPUT_NAME\"; mkfifo \"$PLAYWRIGHT_JSON_OUTPUT_NAME\"", "true", "holds no regular file", wire.CodeGateFailed},
@@ -778,10 +787,11 @@ func TestTOLV0033_ReportPathMustBeARegularFile(t *testing.T) {
 // a FIFO by type without following or opening them, and lists a file above
 // the per-file bound by size without hashing it.
 func TestTOLV0033_ManifestRecordsNonRegularEntriesByType(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	if runtime.GOOS == "windows" {
 		t.Skip("no FIFOs or /dev/zero on Windows")
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	root, _ := qualifyRepo(t, []rbSpec{rbPass("e2e/a/cand.spec.ts", "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
 	test, _ := rbTools(t)
 	config := rbConfig(t, rbWrap(test, "ln -sf /dev/zero \"$CORVINT_RUN_DIR/zero\"; mkfifo \"$CORVINT_RUN_DIR/pipe\"; "+
@@ -825,10 +835,11 @@ func TestTOLV0033_ManifestRecordsNonRegularEntriesByType(t *testing.T) {
 // as a symlink is never followed: the file it points at is unchanged, the
 // job refuses and nothing is credited.
 func TestTOLV0033_PlantedSummarySymlinkIsRefused(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	if runtime.GOOS == "windows" {
 		t.Skip("symlinks need privileges on Windows")
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, _ := rbTools(t)
 	other := filepath.Join(t.TempDir(), "other.txt")
@@ -850,7 +861,7 @@ func TestTOLV0033_PlantedSummarySymlinkIsRefused(t *testing.T) {
 // TOL-V0-033 (Codex round 2, finding 4): an interrupted witness phase is
 // LANE_FAILED even when it would have credited nothing.
 func TestTOLV0033_ZeroCreditInterruptIsLaneFailed(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id := obligationBatchRepo(t)
 	test, _ := rbTools(t)
 	var cancel context.CancelFunc
@@ -874,7 +885,8 @@ func TestTOLV0033_ZeroCreditInterruptIsLaneFailed(t *testing.T) {
 // base run that ends abnormally observes nothing, so no failure is
 // PRE_EXISTING on its word.
 func TestTOLV0032_AbnormalNeighbourRunDisqualifies(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	c, nb := "e2e/a/cand.spec.ts", "e2e/a/nb.spec.ts"
 	nbFail := rbFail(nb, "nb one", "Error: nb broke")
 	cases := []struct{ name, slow, reason, neighbour string }{
@@ -903,7 +915,7 @@ func TestTOLV0032_AbnormalNeighbourRunDisqualifies(t *testing.T) {
 // file's hash still stops the manifest: nothing is published and qualify
 // refuses GATE_FAILED with LANE_FAILED instead of QUALIFIED.
 func TestTOLV0033_InterruptDuringLastManifestHashRefuses(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	root, _ := qualifyRepo(t, []rbSpec{rbPass("e2e/a/cand.spec.ts", "cand one")}, rbPass("e2e/a/nb.spec.ts", "nb one"), rbPass("e2e/a/nb.spec.ts", "nb one"))
 	test, _ := rbTools(t)
 	var cancel context.CancelFunc
@@ -940,7 +952,7 @@ func TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("no FIFOs on Windows")
 	}
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	setQualifiedVersions(t, []string{pwVersion})
 	cases := []struct {
 		name string
 		swap func(t *testing.T, file string)
@@ -1005,7 +1017,8 @@ func TestTOLV0031_PriorSummaryReadIsBoundToItsDescriptor(t *testing.T) {
 // writes nothing; after qualify-version records the version for this store
 // the same batch credits the ledger.
 func TestTOLV0063_RunBatchAdmitsStoreLocalQualifiedVersion(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{"0.0.0-shipped"})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{"0.0.0-shipped"})
 	r, id := obligationBatchRepo(t)
 	test, counter := rbTools(t)
 	out := filepath.Join(t.TempDir(), "out")

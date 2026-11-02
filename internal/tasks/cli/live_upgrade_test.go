@@ -78,9 +78,7 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(installed+".new", raw, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		cli.WriteExecutable(t, installed+".new", raw, 0o755)
 		if err := os.Rename(installed+".new", installed); err != nil {
 			t.Fatal(err)
 		}

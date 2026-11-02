@@ -384,6 +384,22 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   package-variable write, executable-mode literal (a written-then-executed file can fail
   `ETXTBSY` under fork, V1-2587) or direct `cli.Run`. Non-goals: changing the precedence or
   authenticating the actor.
+- `TCL-V0-826`: (experimental under the standing lane auto-accept (2026-11-01); V1-4208) The
+  TOL-V0-009 qualified Playwright version list a report is admitted against MUST be read from the
+  run's `cli.Env` (an unexported field that only tests set, through
+  `WithObligationQualifiedVersions` in `export_test.go`), and otherwise be the shipped
+  `obligation.QualifiedVersions`. No package variable may hold it, and the package-global
+  `SetObligationQualifiedVersions` hook MUST NOT exist. Tests name a synthetic version with
+  `setQualifiedVersions`, which `atm`, `atmWithin` and `testEnv` apply per test name.
+- `TCL-V0-827`: (experimental under the standing lane auto-accept (2026-11-01); V1-4208) An
+  executable test fixture in `internal/tasks/cli` MUST be written with `writeExecutable` (or
+  `cli.WriteExecutable`). It writes the file through a short-lived `/bin/sh` child, so the test
+  binary never holds a write descriptor on a file it later executes, and a concurrently forked
+  child cannot make that exec fail `ETXTBSY` (V1-2587). A test may run in parallel only when it
+  also reaches no process-wide measurement (`runtime.ReadMemStats`, `runtime.NumGoroutine`,
+  `testing.AllocsPerRun`, `runtime.GOMAXPROCS`) and no package-qualified `Set*`, `Swap*` or
+  `Override*` hook of any package, in addition to the `TCL-V0-825` exclusions. A process-signalling
+  test, `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` included, stays serial.
 
 ## Non-goals
 
@@ -490,6 +506,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/actor_seam_internal_test.go`: `TestTCLV0825_ActorSeamKeepsEnvPrecedence`;
   the 126 `parallelTest` tests passing in the whole-package run, with wall times in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-825).
+- `internal/tasks/cli/exec_fixture_internal_test.go` `writeExecutable`; the 39 tests that use
+  `setQualifiedVersions` and the 60 `(V1-4208)` parallel tests passing in the whole-package run,
+  with paired wall times in `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-826, TCL-V0-827).
 
 ## Rollback
 

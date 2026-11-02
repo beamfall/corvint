@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -128,7 +127,8 @@ func readFile(t *testing.T, path string) []byte {
 // JOURNAL_FORKED; the same rewrite to the true generation (the control)
 // stays consistent, so the refusal is the replayed provenance alone.
 func TestTOLV0013_TamperedWorkerGenerationInconsistent(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	for _, forge := range []bool{false, true} {
 		r, id, head, attempt, gen := workerObligationRepo(t)
 		x := atm(t, r.Root, nil, witnessArgs(id, "w-ok", obligationRevision(t, r.Root, id), head, "--role", "WORKER",
