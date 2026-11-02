@@ -50,9 +50,10 @@
         "Makefile",
         "script/doc-gates_test.sh"
       ],
-      "reason": "make doc-gates runs it and its shell test runs it; batch-precheck.sh matches the doc-gates recipe that names it to expand the gates into steps (ASD-V0-779) (TSP-V0-005).",
+      "reason": "make doc-gates runs it and its shell test runs it; batch-precheck.sh matches the doc-gates recipe that names it to expand the gates into steps, and batch-precheck_test.sh checks that recipe (ASD-V0-779) (TSP-V0-005).",
       "mentions": [
-        "script/batch-precheck.sh"
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh"
       ]
     },
     "script/dogfood-bind-coverage.sh": {
