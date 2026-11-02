@@ -335,7 +335,7 @@ func TestInvalidShellReadScopeEntryRefused_TSP_V0_831(t *testing.T) {
 	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
 	for name, body := range map[string]string{
 		"script/plain_test.sh":            "#!/bin/sh\necho plain\n",
-		".corvint/shell-read-scopes.json": `{"profile":"corvint-shell-read-scopes/0","tests":{"script/plain_test.sh":{"reads":["Makefile"],"reason":"r"}}}`,
+		".corvint/shell-read-scopes.json": `{"profile":"corvint-shell-read-scopes/0","tests":{"script/plain_test.sh":{"reads":["Makefile"],"reason":"r"}}}`, //corvint:fixture-path
 	} {
 		file := filepath.Join(root, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
