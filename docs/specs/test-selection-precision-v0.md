@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-908: V1-3538; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348; TSP-V0-950 and TSP-V0-951: V1-2167; TSP-V0-941: V1-3507; TSP-V0-942: V1-3349; TSP-V0-943: V1-3351; TSP-V0-944: V1-3808; TSP-V0-945: V1-3798; TSP-V0-946: V1-3616; TSP-V0-961: V1-3907; TSP-V0-947: V1-3587, V1-3763, V1-3788, V1-3616; TSP-V0-820: V1-4062; TSP-V0-720: V1-3350; TSP-V0-721: V1-3355; TSP-V0-722: V1-3300; TSP-V0-723: V1-3780, V1-3825; TSP-V0-830: V1-3763, V1-3587, V1-3788, V1-3755. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -410,6 +410,22 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   non-test script that names the dirty path carries its TSP-V0-005 callers, which is sound;
   `.corvint/test-binary-consumers.json` names only `cmd/corvint-web-flows`, so no hub command widens
   a plan. Rollback: delete this record; no code depends on it.
+- **TSP-V0-830:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3763,
+  V1-3587, V1-3788, V1-3755; amending TSP-V0-902) The three `shell:runs-toolchain` script tests whose
+  only toolchain is `make` over this repository's `Makefile`, `script/capability-catalog_test.sh`
+  (a stub generator in a scratch directory), `script/repin_test.sh` (`make -n repin`) and
+  `script/gate-receipt_test.sh` (`make -pq gate` and a logger-recipe `make -j8 gate`), SHALL be
+  declared under TSP-V0-950 with the one read `Makefile` and SHALL leave
+  `.corvint/unbounded-readers.json`. The `Makefile` includes no file and its only `$(shell ...)`
+  call is `command -v nice`, so make reads nothing else of the tree; each test passes in a copy of
+  the tree holding only `script/` and `Makefile`. A spec edit and a `REQUIREMENTS.tsv` edit SHALL
+  then select none of the three, and a `Makefile` edit SHALL still select all three. Target,
+  measured with `affected --path` at the lane head: 46 to 43 units for each of those two edits.
+  `script/qualify-tasks-basic_test.sh` stays on the floor: `script/qualify-tasks-basic.sh` runs
+  `git status` and `git rev-parse` over the real checkout. Failure mode: a recipe these tests run
+  that gains a file read outside `script/` is missed until the declaration is widened; the
+  scratch-tree run catches it when rerun. Rollback: drop the three entries from
+  `.corvint/shell-read-scopes.json` and restore them in `.corvint/unbounded-readers.json`.
 - **TSP-V0-710:** (experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,
   2026-10-11; V1-3501) A change of `changes.json` MAY carry `recorded: {ciScope, verdict}`, the CI
   scope and selector verdict of the replay the floor was last measured on. `tools/selection-baseline`
@@ -666,6 +682,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-900 | `.corvint/test-read-scopes.json`, `.corvint/test-read-scope-literals.json`, `.corvint/shell-read-scopes.json` and `.corvint/unbounded-readers.json`, read by `ReadScoped` in `internal/liveverify/affected/readers.go` and `applyShellReadScopes` in `internal/liveverify/affected/shell/readscopes.go` | `TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900` in `internal/liveverify/affected/readscope_narrowing_repo_test.go` (fails with the base declarations: 30 narrowed units selected); `TestRepositoryShellReadScopes_TSP_V0_951`; `make test-read-scopes-check`; `make unbounded-readers-check`; confined runs and measured plans in build log `docs/build-log/2026-11-01-rsd-w17.md` |
 | TSP-V0-901 | the same declarations | `TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901` in `internal/liveverify/affected/readscope_narrowing_repo_test.go` (fails when the `conformance/mcp-2026-07-28` spec read or the `internal/tasks/ticket` fixture read is dropped) |
 | TSP-V0-902 | `driverInput`, `bearsOnUnowned` and `readsResolutionInput` in `internal/liveverify/affected/select.go` (unchanged) | the measured plans in build log `docs/build-log/2026-11-01-rsd-w17.md` |
+| TSP-V0-830 | `.corvint/shell-read-scopes.json` and `.corvint/unbounded-readers.json` (the three Makefile-only entries) | `TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830` in `internal/liveverify/affected/readscope_narrowing_repo_test.go`; `TestRepositoryShellReadScopes_TSP_V0_951`; the scratch-tree runs in build log `docs/build-log/2026-11-01-aff-w34.md` |
 | TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 | TSP-V0-908 | `servedByOrigin` and its call in `main` (`tools/selection-baseline/main.go`) | `TestSelectionBaselineRefusesCommitsOriginDoesNotServe_TSPV0908` in `tools/selection-baseline/served_test.go` (a commit on origin/main and one only on an origin branch pass; a local-only head is refused naming its change id and no other) |
 
