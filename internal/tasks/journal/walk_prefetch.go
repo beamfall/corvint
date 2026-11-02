@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"math"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -132,7 +133,9 @@ func (r Reader) prefetchFrom(pf *receiptPrefetch, names []string, i int) {
 	if sealedWindow {
 		first := view.manifest.Segments[0].First
 		segEnd := first + ((seq-first)/snapshot.SegmentReceipts+1)*snapshot.SegmentReceipts - 1
-		end = min(end, int(min(segEnd, view.manifest.Through)))
+		if b := min(segEnd, view.manifest.Through); b <= math.MaxInt && int(b) < end {
+			end = int(b)
+		}
 	}
 	pf.stats.windows++
 	held := 0
