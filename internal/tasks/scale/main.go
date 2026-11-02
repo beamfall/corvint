@@ -48,6 +48,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -1199,5 +1200,9 @@ func headSeq(store string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int(h.LastSeq.Uint64()), nil
+	seq := h.LastSeq.Uint64()
+	if seq > math.MaxInt {
+		return 0, fmt.Errorf("head sequence %d exceeds the int range", seq)
+	}
+	return int(seq), nil
 }
