@@ -361,16 +361,6 @@
       "interop/cem01-go/testdata/omission/",
       "protocol/cem-1.0/"
     ],
-    "internal/cemchain": [
-      ".github/cishards/",
-      "cmd/corvint-tasks/",
-      "cmd/corvint-test-runner/",
-      "cmd/corvint/",
-      "go.mod",
-      "go.sum",
-      "internal/",
-      "interop/cem01-go/"
-    ],
     "internal/cemdiscriminate": [],
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"

@@ -65,6 +65,11 @@ var dogfoodFlowOptionHelp = map[string]string{
 	"--intents":           "file of intent spec paths, one per line (default: DOGFOOD_INTENTS_FILE)",
 	"--verify":            "file of verification commands, one per line (default: DOGFOOD_VERIFY_FILE)",
 	"--outcome":           "passed, failed or blocked (default: DOGFOOD_OUTCOME)",
+	"--from-cem":          "sealed CEM whose citation rows seed the draft plan",
+	"--plan":              "reviewed citation plan whose rows are recorded as claims",
+	"--claims":            "claims file to write: the plan's rows keyed by edit content",
+	"--draft":             "proposed draft plan; its cite rows the reviewed plan dropped become tombstones",
+	"--sealed":            "skip: a pre-flight on a seal head reports SKIP and exits 0",
 }
 
 // dogfoodCitationPlanFormat is the citation plan row format the plan-taking subverbs print
