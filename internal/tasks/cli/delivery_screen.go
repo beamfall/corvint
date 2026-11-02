@@ -93,12 +93,17 @@ type ghPR struct {
 }
 
 // ghRun is one record of `gh run list --json
-// databaseId,headSha,conclusion[,url]`.
+// databaseId,headSha,conclusion[,url,workflowName,event,updatedAt]`. The
+// optional workflowName, event and updatedAt let a gated batch close derive
+// a CI run record for a policy ciEvidence gate (TCD-V0-770).
 type ghRun struct {
-	DatabaseID int64  `json:"databaseId"`
-	HeadSha    string `json:"headSha"`
-	Conclusion string `json:"conclusion"`
-	URL        string `json:"url"`
+	DatabaseID   int64  `json:"databaseId"`
+	HeadSha      string `json:"headSha"`
+	Conclusion   string `json:"conclusion"`
+	URL          string `json:"url"`
+	WorkflowName string `json:"workflowName"`
+	Event        string `json:"event"`
+	UpdatedAt    string `json:"updatedAt"`
 }
 
 // readGitHubExport decodes a bounded `gh --json` array file into out.

@@ -112,6 +112,7 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
+	defer gb.cleanup()
 	merge := in.batch.mergeOid()
 	if gb != nil {
 		merge = gb.merge

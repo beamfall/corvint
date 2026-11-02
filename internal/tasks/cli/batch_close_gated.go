@@ -42,14 +42,20 @@ type gatedBatch struct {
 	runURL        string
 	mergedAt      string
 	ciRun         string
+	runs          []ghRun
+	repo          string
+	ci            map[string]*ciGate
+	ciDir         string
+	ciFiles       []string
 	role          string
 	issued        string
 	seals         map[string]string
 	used          map[string]bool
 }
 
-// gateStep is one required gate of a gated row and how it ran.
-type gateStep struct{ id, via, state string }
+// gateStep is one required gate of a gated row, how it ran and, for a CI
+// gate, the run id of its record (TCD-V0-772).
+type gateStep struct{ id, via, state, ciRunID string }
 
 // gatedRow is the gated part of one batch-close row.
 type gatedRow struct {
@@ -116,7 +122,7 @@ func batchPRURL(in *batchInput, repo, runURL string) (string, error) {
 // newGatedBatch resolves the merge commit and its first parent before any
 // write: a merge this clone does not hold refuses the whole run.
 func newGatedBatch(env Env, in *batchInput, fl map[string]string, repo, runURL, role, issued string) (*gatedBatch, error) {
-	b := &gatedBatch{root: env.Cwd, runURL: runURL, mergedAt: in.batch.MergedAt, role: role, issued: issued, seals: map[string]string{}, used: map[string]bool{}}
+	b := &gatedBatch{root: env.Cwd, runURL: runURL, mergedAt: in.batch.MergedAt, runs: in.runs, repo: repo, ci: map[string]*ciGate{}, role: role, issued: issued, seals: map[string]string{}, used: map[string]bool{}}
 	var err error
 	if v, ok := fl["seal"]; ok {
 		if b.seals, err = parseSeals(v); err != nil {
@@ -202,8 +208,19 @@ func (b *gatedBatch) plan(r *closeRow, rec *ticket.Record, policy *intent.Policy
 	g.tree = tree
 	b.planScope(r, rec, g)
 	for _, id := range transaction.RequiredGates(policy, rec) {
-		if b.ciRun != "" && policy.CIEvidenceGate(id) != nil {
-			g.gates = append(g.gates, gateStep{id: id, via: "CI", state: "PLANNED"})
+		if entry := policy.CIEvidenceGate(id); entry != nil {
+			// TCD-V0-770, TCD-V0-771: a ciEvidence gate is recorded from
+			// --ci-run, else from the --runs export, and never runs locally.
+			if b.ciRun != "" {
+				g.gates = append(g.gates, gateStep{id: id, via: "CI", state: "PLANNED"})
+				continue
+			}
+			if c := b.ciGateFor(policy, id, entry); c.code != "" {
+				g.gates = append(g.gates, gateStep{id: id, via: "NONE", state: closeUnrunnable})
+				r.unrunnable(c.code, c.detail, c.recovery)
+			} else {
+				g.gates = append(g.gates, gateStep{id: id, via: "CI", state: "PLANNED", ciRunID: c.runID})
+			}
 			continue
 		}
 		if _, err := store.PreflightGateDefinitions(policy, []string{id}); err != nil {
@@ -448,7 +465,13 @@ func (r *closeRow) runGates(b *gatedBatch, lease func(string, ...string) *wire.R
 			s := &g.gates[i]
 			args := []string{"--attempt", g.attemptID, "--generation", g.generation, "--gate", s.id, "--request-id", id("gate" + strconv.Itoa(i))}
 			if s.via == "CI" {
-				args = append(args, "--ci-run", b.ciRun)
+				file, err := b.ciRunFile(s.id)
+				if err != nil {
+					s.state = "REFUSED"
+					r.fail(err.Error(), wire.CodeOf(err))
+					return false
+				}
+				args = append(args, "--ci-run", file)
 			} else {
 				args = append(args, "--worktree", wt)
 			}
@@ -462,6 +485,11 @@ func (r *closeRow) runGates(b *gatedBatch, lease func(string, ...string) *wire.R
 			s.state = "PASSED"
 			if v, ok := item.Obj.Get("reusedFrom"); ok && v.Kind != wire.KindNull {
 				s.state = "REUSED"
+				if v.Kind == wire.KindObject {
+					if c, ok := v.Obj.Get("ciRunId"); ok && c.Kind == wire.KindString {
+						s.ciRunID = c.Str
+					}
+				}
 			} else if v, ok := item.Obj.Get("gateResult"); ok && v.Kind != wire.KindNull {
 				if st, _ := v.Obj.Get("state"); st.Str != "PASSED" {
 					s.state = st.Str
@@ -563,7 +591,7 @@ func gatedRowValue(o *wire.Object, r closeRow) {
 	o.Set("sealCommit", orNull(g.seal))
 	gates := make([]wire.Value, 0, len(g.gates))
 	for _, s := range g.gates {
-		gates = append(gates, wire.ObjectValue(wire.NewObject().Set("gateId", wire.String(s.id)).Set("via", wire.String(s.via)).Set("state", wire.String(s.state))))
+		gates = append(gates, wire.ObjectValue(wire.NewObject().Set("gateId", wire.String(s.id)).Set("via", wire.String(s.via)).Set("state", wire.String(s.state)).Set("ciRunId", orNull(s.ciRunID))))
 	}
 	o.Set("gates", wire.Array(gates...))
 	o.Set("attemptId", orNull(g.attemptID))
