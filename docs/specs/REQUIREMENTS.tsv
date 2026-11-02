@@ -3033,6 +3033,19 @@ LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623)
 LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
 LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757
 LGL-V0-810	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3941; experimental under the standing lane auto-accept) While	standing	V1-3941
+LGL-V0-802	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The canonical encoder MUST copy each run of string bytes tha	unrecorded	-
+LGL-V0-803	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1058) `queue status` and `doctor` MUST report, beside	unrecorded	-
+LGL-V0-804	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2186) The V1-1701 walk-cost harness `TestV11701_WalkCost` MUST	unrecorded	-
+LGL-V0-805	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4202) Decoding a receipt from bytes MUST keep each inline post	unrecorded	-
+LGL-V0-806	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4202) The journal walk MUST NOT parse an inline post's bytes again	unrecorded	-
+LGL-V0-807	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4203) A read's shared journal audit (`auditState`: `ticket show`,	unrecorded	-
+LGL-V0-808	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4203) The verification boundary of a resumed read is the same for	unrecorded	-
+LGL-V0-809	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4217) Every administrative writer that drops the read checkpoint	unrecorded	-
+LGL-V0-811	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3275) `RequestIndex.Lookup` MUST, when given the bound writer	unrecorded	-
+LGL-V0-813	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243) The complete walk MUST read sealed receipts ahead from their	unrecorded	-
+LGL-V0-814	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243) A seal MUST keep its per-segment protocol and order: a	unrecorded	-
+LGL-V0-815	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243) A seal or unseal MUST retain (LGL-V0-809) the read	unrecorded	-
+LGL-V0-816	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4217) `receipt retire` MUST NOT retain a read checkpoint. A store	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-

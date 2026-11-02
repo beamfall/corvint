@@ -280,7 +280,7 @@ func PoolSweep(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		if probe.Head.QueueID.Raw != c.QueueID {
 			return &PoolSweepReport{Report: initial}, wire.Errorf(wire.CodeOutOfScope, "queue", "sweep queue differs")
 		}
-		index := journal.RequestIndex{Reader: journalReader(repo, probe.Head)}
+		index := RequestIndexOf(repo, journalReader(repo, probe.Head))
 		entry, found, err := index.Lookup(c.RequestID)
 		if err != nil {
 			return &PoolSweepReport{Report: initial}, err

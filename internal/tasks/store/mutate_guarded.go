@@ -7,7 +7,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -35,7 +34,7 @@ func (g *TicketGuard) check(repo *intent.Repository, head *snapshot.Head, reques
 		return nil
 	}
 	reader := lockedJournalReader(repo, head)
-	idx := journal.RequestIndex{Reader: reader}
+	idx := RequestIndexOf(repo, reader)
 	if _, found, err := idx.Lookup(requestID); err != nil || found {
 		return err
 	}

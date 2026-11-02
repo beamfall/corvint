@@ -36,7 +36,7 @@ func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation strin
 	if flags.requestID == "" {
 		return "", "", false
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	entry, ok, err := idx.Lookup(flags.requestID)
 	if err != nil || !ok || idx.TicketID == "" {
 		return "", "", false
@@ -102,7 +102,7 @@ func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, 
 	if err != nil {
 		return live
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	entry, found, err := idx.Lookup(flags.requestID)
 	if err != nil || !found {
 		return live

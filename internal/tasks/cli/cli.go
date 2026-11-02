@@ -521,6 +521,7 @@ func globalRoot(env *Env) *wire.Result {
 
 func emit(w io.Writer, res *wire.Result) int {
 	binaryVersionWarning(res)
+	retentionWarning(res)
 	data, err := res.Encode()
 	if err != nil {
 		fallback := errorResult(res.Command, err)
@@ -547,6 +548,16 @@ func binaryVersionWarning(res *wire.Result) {
 			res.Warnings = append(res.Warnings, "this binary is corvint-tasks "+Version+"+build."+Build+"; compare it with the build that wrote the store")
 			return
 		}
+	}
+}
+
+// retentionWarning names the derived checkpoint files a writer in this
+// command failed to retain (LGL-V0-803, V1-1058). The outcome is unchanged
+// (CAL-V0-060), committed or refused; the warning is what keeps a retention that fails
+// on every write from showing only as slow complete reads.
+func retentionWarning(res *wire.Result) {
+	for _, name := range store.TakeRetentionFailures() {
+		res.Warnings = append(res.Warnings, "CHECKPOINT_RETENTION_FAILED: derived file "+name+" was not retained; this result is the one the command would have given with it retained, and the next read or write that needs it pays one complete journal audit (CAL-V0-060)")
 	}
 }
 
@@ -703,6 +714,9 @@ type readCtx struct {
 	// proof is the one journal audit a read command shares (CAL-V0-061). It
 	// is bound to snap and dropped whenever the snapshot is re-read.
 	proof *journal.Result
+	// checkpoint is why the shared audit had no retained checkpoint to
+	// resume from, or "" when it had one (LGL-V0-803).
+	checkpoint string
 	// tree is the intent tree the snapshot's first probe hashed, set only
 	// while body runs: the second probe hashes the tree again after body, so
 	// a journal audit inside body shares both hashes instead of reading the
@@ -2236,6 +2250,7 @@ func queueStatus(env Env, args []string) *wire.Result {
 			o.Set("retries", wire.Array(retries...))
 		}
 		o.Set("journalAudit", wire.String(auditMode(rc)))
+		o.Set("journalAuditCheckpoint", wire.String(auditCheckpoint(rc)))
 		o.Set("publication", wire.String(string(ticket.NotObserved)))
 		item = wire.ObjectValue(o)
 		return nil

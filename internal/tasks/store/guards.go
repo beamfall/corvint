@@ -231,6 +231,7 @@ func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
 	os.Remove(tmp)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
+		noteRetentionFailure(path)
 		return
 	}
 	raw := cp.Encode()
@@ -244,6 +245,7 @@ func retainCheckpoint(repo *intent.Repository, proof *journal.Result) {
 	}
 	if err != nil {
 		os.Remove(tmp)
+		noteRetentionFailure(path)
 	}
 }
 

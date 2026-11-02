@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -40,7 +41,7 @@ func createSubjectGuard(env Env, cmd []string, flags mutateFlags, payload wire.V
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		warnings, absent, notAtSource, base, baseSha, replay, sourceChecked = nil, nil, nil, "", "", false, false
 		if !rc.journalAbsent {
-			idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+			idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 			if _, found, err := idx.Lookup(flags.requestID); err == nil && found {
 				replay = true
 				return nil

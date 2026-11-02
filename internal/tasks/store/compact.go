@@ -75,7 +75,8 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 	if err != nil {
 		return nil, err
 	}
-	if err := compactAudit(repo, head); err != nil {
+	opening, err := compactAudit(repo, head)
+	if err != nil {
 		return nil, err
 	}
 	report := &CompactReport{DryRun: dryRun, HeadSeq: head.LastSeq.Uint64()}
@@ -166,7 +167,14 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 		}
 	}
 	report.BytesAfter = report.BytesBefore - saved
-	if dryRun || report.Elided == 0 {
+	if dryRun {
+		return report, nil
+	}
+	if report.Elided == 0 {
+		// Nothing was rewritten: the opening audit is of the store as it
+		// stands, so it leaves the read checkpoint compaction dropped
+		// (LGL-V0-809).
+		retainCheckpoint(repo, opening)
 		return report, nil
 	}
 	dir, err := authority.OpenDir(repo, "receipts")
@@ -180,21 +188,27 @@ func compactLiveness(ctx context.Context, repo *intent.Repository, dryRun bool, 
 	if err != nil {
 		return report, err
 	}
-	return report, compactAudit(repo, head)
+	closing, err := compactAudit(repo, head)
+	if err != nil {
+		return report, err
+	}
+	// LGL-V0-809: the closing complete audit leaves the read checkpoint.
+	retainCheckpoint(repo, closing)
+	return report, nil
 }
 
 // compactAudit requires a complete settled audit of head with no staging
 // slot: compaction never runs over a pending receipt or a half-published
 // write.
-func compactAudit(repo *intent.Repository, head *snapshot.Head) error {
+func compactAudit(repo *intent.Repository, head *snapshot.Head) (*journal.Result, error) {
 	proof, err := lockedJournalReader(repo, head).Audit()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if proof.StagingPresent || proof.LastSeq != head.LastSeq {
-		return wire.Errorf(wire.CodeRedoPending, "receipts", "liveness compaction needs a settled journal with no staging slot")
+		return nil, wire.Errorf(wire.CodeRedoPending, "receipts", "liveness compaction needs a settled journal with no staging slot")
 	}
-	return nil
+	return proof, nil
 }
 
 // publishTombstone replaces one receipt with its proven taskman-receipt/1
