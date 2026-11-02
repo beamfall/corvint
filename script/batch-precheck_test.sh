@@ -1421,7 +1421,7 @@ grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo u
 # 15. ASD-V0-943, ASD-V0-944, DCW-V0-944 (V1-3550): the closeout's sealed-head run selects since the
 # first run's receipt, and selection-baseline-check is skipped when none of its inputs changed, with
 # or without a usable plan.
-grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck' ||
+grep -A2 '^dogfood-closeout-precheck:$' "$script/../Makefile" | grep -qxF $'\t@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base \'$(DOGFOOD_BASE)\')' ||
   fail "dogfood-closeout-precheck does not select since the receipt (DCW-V0-923)"
 rrepo=$tmp/rrepo
 git clone -q "$srepo" "$rrepo" || fail "since-receipt fixture clone"
@@ -1557,8 +1557,8 @@ BATCH_PRECHECK_SKIP_DRIFT=1 prun && fail "a failing pre-bind entry passed the pr
 row_is FAIL 'batch-drift (pre-bind, 2 packages)'
 grep -q 'batch-drift (skipped before the bind)' "$tmp/out" && fail "a skip row with nothing held: $(cat "$tmp/out")"
 [[ -f $prec ]] && fail "a failed pre-bind run left a record: $(cat "$prec")"
-# ASD-V0-825 (V1-4069): under LANE=1 an @own entry runs only when a companion input changed; the
-# receipt of such a run is marked, and a since-receipt run without LANE does not narrow from it.
+# ASD-V0-825 (V1-4069): in explicit lane-closeout mode an @own entry runs only when a companion
+# input changed; its receipt is marked, and a batch since-receipt run does not narrow from it.
 odrift='./golden TestGoldenDrift @go
 ./golden TestFreeze @own @go'
 orun() { (unset GOFLAGS; cd "$rrepo" && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$odrift "$pre" "$@") > "$tmp/out" 2>&1; }
@@ -1566,7 +1566,7 @@ printf 'package golden\n' > "$rrepo/golden/extra.go"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'lane go change'
 ohead=$(git -C "$rrepo" rev-parse HEAD)
 pbase=$rbase plan "$frontier" golden
-LANE=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run failed: $(cat "$tmp/out")"
 grep -qx "batch-precheck:   skipped ./golden TestFreeze (lane closeout: no companion input changed since $rbase; the batch precheck runs it, ASD-V0-825)" "$tmp/out" ||
   fail "the lane run did not skip the @own entry: $(cat "$tmp/out")"
 grep -q '| batch-drift TestFreeze$' "$tmp/out" && fail "the lane run ran the @own entry: $(cat "$tmp/out")"
@@ -1583,7 +1583,7 @@ row_is PASS 'batch-drift TestFreeze'
 [[ ! -e $olane ]] || fail "a batch receipt kept the .lane mark"
 # A changed companion input runs the @own entry in a lane closeout too.
 mkdir -p "$rrepo/internal/companionrelease" && printf 'x\n' > "$rrepo/internal/companionrelease/note.txt"
-LANE=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
 
@@ -1592,6 +1592,7 @@ row_is PASS 'batch-drift TestFreeze'
 # including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
 for target in dogfood-closeout dogfood-closeout-precheck; do
   grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
+  grep -A4 "^$target:\$" "$script/../Makefile" | grep -q 'BATCH_PRECHECK_LANE_CLOSEOUT=1 .*script/batch-precheck.sh' || fail "$target does not opt in inline"
 done
 baseline_deferred() {
   grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
@@ -1605,36 +1606,76 @@ baseline_deferred() {
 }
 pbase=$rbase plan "$frontier" golden
 : > "$tmp/scalls"
-LANE=1 BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "pre-bind lane baseline run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "pre-bind lane baseline run: $(cat "$tmp/out")"
 baseline_deferred
 : > "$tmp/scalls"
-LANE=1 STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan lane baseline run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan lane baseline run: $(cat "$tmp/out")"
 baseline_deferred
 : > "$tmp/scalls"
-LANE=1 rrun || fail "no-base lane baseline run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun || fail "no-base lane baseline run: $(cat "$tmp/out")"
 baseline_deferred
 # sdrift contains no @own entry: selection-baseline alone must mark the clean lane receipt.
 : > "$tmp/scalls"
-LANE=1 rrun --base "$rbase" || fail "lane baseline receipt run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "lane baseline receipt run: $(cat "$tmp/out")"
 baseline_deferred
 bhead=$(git -C "$rrepo" rev-parse HEAD)
 breceipt=$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
 grep -qx 'not-run selection-baseline-check lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$breceipt" ||
   fail "receipt does not retain the deferral: $(cat "$breceipt")"
 [[ $(cat "$breceipt.lane" 2> /dev/null) == "$bhead" ]] || fail "baseline-only deferral did not mark the lane receipt"
-rrun --verify-receipt "$bhead" || fail "deferred receipt refused: $(cat "$tmp/out")"
+# Review regression: deferred-receipt-push-refusal (ASD-V0-1992).
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: guard accepted a lane receipt"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "deferred-receipt-push-refusal: missing repair command"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --verify-receipt "$bhead" || fail "lane reader refused its own receipt: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt records NOT_RUN selection-baseline-check lane closeout:' "$tmp/out" || fail "receipt hides deferral"
+# Use the real entry-point recipes; only the nested precheck workload is stubbed.
+real_make=$(command -v make)
+# BATCH_PRECHECK_ROOT is a fixture: give the script an absolute argv[0], as rrun does, so its
+# helper steps resolve to the real scripts after it changes directory. Keep recipe env intact.
+printf '#!/bin/sh\n[ "$1" = script/batch-precheck.sh ] || exit 2\nshift\nexec "%s" "$@"\n' "$pre" > "$tmp/precheck-entry"
+chmod +x "$tmp/precheck-entry"
+bmake() { (unset GOFLAGS; cd "$script/.." && PATH=$sbin:$PATH BATCH_PRECHECK_ROOT=$rrepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER=$tmp/planner BATCH_PRECHECK_DRIFT=$sdrift "$real_make" --no-print-directory -s HEAVY_ADMIT="$tmp/precheck-entry" BASE="$rbase" "$@") > "$tmp/out" 2>&1; }
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 bmake batch-push-check && fail "deferred-receipt-push-refusal: push entry point trusted inherited closeout mode"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "push refusal missing repair command"
+# Neither omission of the sidecar nor omission of the deferral line can bypass the guard.
+cp "$breceipt" "$tmp/deferred-receipt"
+/bin/rm -f "$breceipt.lane"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: unmarked deferral accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "unmarked deferral missing repair command"
+# The verifier's field grammar accepts tabs too; the limit check must use that same grammar.
+sed $'s/^not-run selection-baseline-check /not-run\tselection-baseline-check\t/' "$tmp/deferred-receipt" > "$breceipt"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: tab-separated deferral accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "tab-separated deferral missing repair command"
+printf '%s\n' "$bhead" > "$breceipt.lane"
+sed '/^not-run selection-baseline-check /d; s/^steps .*/steps 1/; s/^passed .*/passed 1/' "$tmp/deferred-receipt" > "$breceipt"
+rrun --verify-receipt "$bhead" && fail "deferred-receipt-push-refusal: marker-only receipt accepted"
+grep -q '^batch-precheck: fix: make batch-precheck' "$tmp/out" || fail "marker-only receipt missing repair command"
+cp "$tmp/deferred-receipt" "$breceipt"
+# Review regression: inherited-lane-batch-entry (ASD-V0-1991), including the HEAD shortcut.
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 bmake batch-precheck || fail "inherited-lane-batch-entry: batch run failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "inherited-lane-batch-entry: inherited lane mode suppressed baseline"
+row_is PASS 'make selection-baseline-check'
+[[ ! -e $breceipt.lane ]] || fail "inherited-lane-batch-entry: batch kept lane marker"
+[[ -f $breceipt ]] || fail "inherited-lane-batch-entry: batch wrote no receipt: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 bmake batch-push-check || fail "push guard refused completed batch evidence: $(cat "$tmp/out")"
+# Plain LANE alone cannot defer even at a direct script entry point.
+: > "$tmp/scalls"
+LANE=1 rrun --base "$rbase" || fail "plain LANE batch run failed: $(cat "$tmp/out")"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "inherited-lane-batch-entry: plain LANE deferred baseline"
+# Restore the closeout receipt for the sealed-head composition below.
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "restore lane receipt: $(cat "$tmp/out")"
 # Model the sealed-head pass: an evidence-only commit follows the marked lane receipt.
 printf '{}\n' > "$rrepo/.corvint/changes/$bhead.cem.json"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal baseline deferral'
 pbase=$bhead plan "$frontier"
 : > "$tmp/scalls"
-LANE=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "sealed-head lane baseline run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "sealed-head lane baseline run: $(cat "$tmp/out")"
 baseline_deferred
 # Outside lane closeout the marked receipt cannot hide Go changes, even at the same clean HEAD.
 pbase=$rbase plan "$frontier" golden
 : > "$tmp/scalls"
-LANE=0 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "batch baseline run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "batch baseline run: $(cat "$tmp/out")"
 grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check' "$tmp/out" || fail "batch reused lane deferral"
 grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "batch did not run baseline: $(cat "$tmp/scalls")"
 row_is PASS 'make selection-baseline-check'
@@ -1645,13 +1686,13 @@ row_is PASS 'make selection-baseline-check'
 sed -i.bak 's/make -s spec-requirements-check selection-baseline-check/make doc-gates/' "$rrepo/.github/workflows/ci.yml" && /bin/rm -f "$rrepo/.github/workflows/ci.yml.bak"
 printf 'DOC_GATE_TARGETS := spec-requirements-check selection-baseline-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' >> "$rrepo/Makefile"
 : > "$tmp/scalls"
-LANE=1 rrun --base "$rbase" || fail "expanded doc-gates lane run: $(cat "$tmp/out")"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase" || fail "expanded doc-gates lane run: $(cat "$tmp/out")"
 baseline_deferred
 grep -qx 'make -s spec-requirements-check' "$tmp/scalls" || fail "lane deferral hid a peer doc gate"
 # Recipe drift must refuse before an opaque aggregate can build/run the deferred baseline.
 printf '\t@echo extra\n' >> "$rrepo/Makefile"
 : > "$tmp/scalls"
-LANE=1 rrun --base "$rbase"
+LANE=1 BATCH_PRECHECK_LANE_CLOSEOUT=1 rrun --base "$rbase"
 [[ $? == 2 ]] || fail "opaque doc-gates lane run did not refuse: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates;' "$tmp/out" || fail "opaque aggregate refusal unnamed"
 grep -qE '^make -s (doc-gates|selection-baseline-check)$' "$tmp/scalls" && fail "opaque aggregate built/ran the baseline"
