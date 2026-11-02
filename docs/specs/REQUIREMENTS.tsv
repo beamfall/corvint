@@ -1395,6 +1395,9 @@ CEM-V1-955	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-961	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-962	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3756)	standing	2026-10-11; V1-3756
 CEM-V1-963	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)	standing	2026-10-11; V1-3758
+CEM-V1-860	docs/specs/cem-stable-v1.md	(proposed; V1-0591) Every platform row of the committed release-readiness	unrecorded	-
+CEM-V1-861	docs/specs/cem-stable-v1.md	(proposed; V1-0591) A `hosts` entry of `QUALIFICATION.json` MUST identify the ho	unrecorded	-
+CEM-V1-862	docs/specs/cem-stable-v1.md	(proposed; V1-0591) `protocol/cem-1.0/structural-corpus/manifest.json`	unrecorded	-
 CEM-V1-1020	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
 CEM-V1-1021	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)	standing	2026-10-11; V1-3852
 CEM-V1-750	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`	standing	V1-3771
