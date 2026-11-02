@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"syscall"
@@ -66,6 +67,7 @@ type leaseArgs struct {
 	next          bool
 	timing        bool
 	admit         bool
+	widenToDiff   bool
 	repos         []string
 	pos           []string
 }
@@ -133,6 +135,8 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 			out.timing = true
 		case a == "--admit-under-barrier":
 			out.admit = true
+		case a == "--widen-to-diff":
+			out.widenToDiff = true
 		case a == "--exclude-member":
 			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
 				return out, wire.Errorf(wire.CodeMalformed, "argv", "--exclude-member needs one nonempty member")
@@ -310,6 +314,11 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	if fromDiff && (name != "claim" || scopeFromDiff == "" || parsed.next || parsed.whole || len(parsed.scope) > 0) {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope and --next"))
 	}
+	// LGL-V0-812: --widen-to-diff widens the declared scope to the diff
+	// through an ordinary set-effects write, only beside --scope-from-diff.
+	if parsed.widenToDiff && !fromDiff {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--widen-to-diff belongs to claim --scope-from-diff REV of one named ticket (LGL-V0-812)"))
+	}
 	// TCL-V0-866: only widen takes --whole-repository; a claim reaches
 	// WHOLE_REPOSITORY as its fallback scope, so the flag is refused here
 	// before any store read rather than as a misfit lease request.
@@ -367,6 +376,12 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	now, err := wire.ParseTimestamp("recordedAt", time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	if err != nil {
 		return fail(err)
+	}
+	var widened *wire.Result
+	if parsed.widenToDiff {
+		if widened = widenToDiff(env, actor, role, requestID, lease, scopeFromDiff); widened != nil && widened.Outcome != wire.OutcomeOK {
+			return widened
+		}
 	}
 	choice := store.LeaseChoice{QueueID: queueID, RequestID: requestID, Root: env.Cwd, Lease: lease, Derive: env.ScopeDeriver, KnowHowRepos: knowHowRepos, ScopeFromDiff: scopeFromDiff}
 	if name == "pool observe" {
@@ -444,6 +459,15 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 			held = wire.String(string(transaction.PoolHoldAllocation(queueID, requestID, lease.Member)))
 		}
 		res.Items[0].Obj.Set("allocationId", held)
+	}
+	if widened != nil {
+		// LGL-V0-812: the claim names the set-effects receipt that widened it.
+		res.Warnings = append(res.Warnings, widened.Warnings...)
+		if len(widened.Items) == 1 && widened.Items[0].Obj != nil && len(res.Items) > 0 && res.Items[0].Obj != nil {
+			if r, ok := widened.Items[0].Obj.Get("receipt"); ok {
+				res.Items[0].Obj.Set("scopeWidening", wire.ObjectValue(wire.NewObject().Set("requestId", wire.String(requestID+"/widen-to-diff")).Set("receipt", r)))
+			}
+		}
 	}
 	return res
 }
@@ -921,5 +945,66 @@ func withDrainNotice(res *wire.Result) *wire.Result {
 		return res
 	}
 	res.Warnings = append(res.Warnings, "DRAIN_PENDING since "+s.Since+": "+s.Notice)
+	return res
+}
+
+// widenToDiff is the LGL-V0-812 step of `claim --scope-from-diff REV
+// --widen-to-diff`: when the diff names paths the ticket's declared PATH
+// scope does not cover, it adds exactly those paths to the ticket's
+// touchPaths through one ordinary `ticket set-effects` write under request
+// ID <claim request>/widen-to-diff, so the widening is its own receipt and
+// passes the writer's own authority, revision and replay checks. It returns
+// nil when nothing needs widening (no declared scope, or the diff already
+// fits), the set-effects result otherwise. A retry of the claim finds the
+// widened scope and widens nothing again.
+func widenToDiff(env Env, actor mutation.Binding, role, requestID string, lease transaction.LeaseRequest, rev string) *wire.Result {
+	cmd := []string{"claim"}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	st, err := intent.Load(repo.IntentRoot())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	rec, ok := st.Inventory.Get(lease.TicketID)
+	if !ok {
+		return nil // the claim refuses the unknown ticket itself
+	}
+	paths, err := store.DiffScopePaths(env.Cwd, lease.Base, rev)
+	if err != nil {
+		return nil // the claim derives and refuses the same diff itself
+	}
+	missing := transaction.OutsideDeclared(rec, paths)
+	if len(missing) == 0 {
+		return nil
+	}
+	v, err := wire.Parse(rec.Encode())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	effects, _ := v.Obj.Get("effects")
+	touch, _ := effects.Obj.Get("touchPaths")
+	keys := append([]string{}, missing...)
+	for _, t := range touch.Arr {
+		keys = append(keys, t.Str)
+	}
+	sort.Strings(keys)
+	keys = slices.Compact(keys)
+	if len(keys) > wire.MaxTouchPaths {
+		return errorResult(cmd, wire.Errorf(wire.CodeLimitExceeded, "--widen-to-diff", "widening ticket %s to the diff needs %d touchPaths, over the %d-path limit; declare directory keys with ticket set-effects (LGL-V0-812)", rec.TicketID.Raw, len(keys), wire.MaxTouchPaths))
+	}
+	effects.Obj.Set("touchPaths", wire.Strings(keys))
+	capabilities, _ := v.Obj.Get("capabilities")
+	class, _ := v.Obj.Get("executionClass")
+	payload := wire.ObjectValue(wire.NewObject().Set("capabilities", capabilities).Set("effects", effects).Set("executionClass", class))
+	if payload, err = mutation.CanonicalPayload(mutation.OpSetEffects, payload); err != nil {
+		return errorResult(cmd, err)
+	}
+	flags := mutateFlags{role: role, requestID: requestID + "/widen-to-diff", target: rec.TicketID.Raw, expected: string(rec.Revision)}
+	res := submitMutation(env, []string{"ticket", "set-effects"}, mutation.OpSetEffects, actor, flags, payload)
+	if res.Outcome == wire.OutcomeOK {
+		res.Warnings = append(res.Warnings, "SCOPE_WIDENED_TO_DIFF: ticket "+rec.TicketID.Raw+" touchPaths widened by "+strings.Join(missing, " ")+" under request "+flags.requestID+" before the claim (LGL-V0-812)")
+	}
 	return res
 }
