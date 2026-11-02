@@ -25,7 +25,9 @@ unset $(git rev-parse --local-env-vars)
 unset DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_PREFLIGHT
 
 script=$(cd "$(dirname "$0")" && pwd)
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1
+# A trailing slash on TMPDIR (the macOS default) is dropped: heavy.sh and Perl name paths without "//".
+tmp=${TMPDIR:-/tmp}
+tmp=$(mktemp -d "${tmp%/}/corvint-lane-scripts-test.XXXXXX") || exit 1
 trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
 # DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
 # run reports every failing group. A group is the code up to its `ok`; `ok` counts it passed only
@@ -1698,21 +1700,23 @@ stubborn=$(cat "$to/stubborn.pid" 2> /dev/null)
   fail "the light cap left a TERM-ignoring descendant running (rc=$rc, pid=$stubborn, $((SECONDS - s0))s): $(cat "$to/err")"
 # ASD-V0-734 (V1-4319): the command's TMPDIR is a private directory under the caller's, removed
 # after a normal run and after a timeout or cap kill, so a killed job leaves nothing behind.
+# The commands name $TMPDIR in the template: a bare `mktemp -d` on macOS ignores TMPDIR. The shared Go
+# cache, derived from the caller's TMPDIR and probed before the run (ASD-V0-1972), is kept outside it.
 mkdir -p "$to/tmproot"
-TMPDIR=$to/tmproot tv --admit-only sh -c 'echo "$TMPDIR" > "$1/run.tmp"; mktemp -d > /dev/null' _ "$to" ||
+TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache tv --admit-only sh -c 'echo "$TMPDIR" > "$1/run.tmp"; mktemp -d "$TMPDIR/t.XXXXXX" > /dev/null' _ "$to" ||
   fail "heavy.sh private TMPDIR run failed: $(cat "$to/err")"
 rtmp=$(cat "$to/run.tmp")
 [[ ${rtmp%/*} == "$to/tmproot" && ${rtmp##*/} == heavy-run.* && -z $(/bin/ls -A "$to/tmproot") ]] ||
   fail "heavy.sh did not run the command in a private TMPDIR it removed (TMPDIR=$rtmp, left: $(/bin/ls -A "$to/tmproot"))"
-leaker='d=$(mktemp -d); echo "$d" > "$1/leak.path"; : > "$d/f"; mkdir "$d/ro"; chmod 555 "$d/ro"; exec sleep 30'
-TMPDIR=$to/tmproot HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c "$leaker" _ "$to"
+leaker='d=$(mktemp -d "$TMPDIR/leak.XXXXXX"); echo "$d" > "$1/leak.path"; : > "$d/f"; mkdir "$d/ro"; chmod 555 "$d/ro"; exec sleep 30'
+TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c "$leaker" _ "$to"
 rc=$?
 leak=$(cat "$to/leak.path" 2> /dev/null)
 ((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
   fail "a job stopped by the light cap left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
 if command -v timeout > /dev/null; then
   : > "$to/leak.path"
-  TMPDIR=$to/tmproot tv --admit-only timeout 1 sh -c "$leaker" _ "$to"
+  TMPDIR=$to/tmproot CORVINT_GOCACHE=$to/gocache tv --admit-only timeout 1 sh -c "$leaker" _ "$to"
   rc=$?
   leak=$(cat "$to/leak.path" 2> /dev/null)
   ((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
@@ -2357,7 +2361,7 @@ out=$(lwr 19)
 grep -q '^reconciled=' "$lw/state/pr-19" && fail "missing merge consumed reconciliation"
 printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
 out=$(lwr 19)
-[[ $out == *'RECONCILE status=0 '* && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "verified merge was not retried: $out"
+[[ $out == *'RECONCILE status=0 '* && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 1 ]] || fail "verified merge was not retried: $out"
 /bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
 # Move origin ahead again: the first successful pass must refresh origin/main.
 printf 'later merge\n' > "$lw/origin/merged"
@@ -2368,7 +2372,7 @@ out=$(lwr 7)
 [[ $(git -C "$lw/checkout" rev-parse origin/main) == "$merge40" ]] || fail "reconciled against stale origin/main"
 [[ $out == "MERGED
 RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch missed a merged PR or its reconcile: $out"
-[[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "a merged PR was reconciled twice"
+[[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 1 ]] || fail "a merged PR was reconciled twice"
 [[ $(cat "$lw/s/reconciles") == apply= ]] || fail "a dry pass applied: $(cat "$lw/s/reconciles")"
 grep -q 'closeout-debt report' "$lw/state/reconcile-7.log" || fail "reconcile output not kept"
 [[ ! -e $lw/state/alerts.log ]] || fail "a clean reconcile alerted: $(cat "$lw/state/alerts.log")"
@@ -2381,7 +2385,7 @@ grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/stat
 out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
 [[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
 grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
-[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles") == 3 ]] || fail "--no-reconcile still reconciled"
+[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles" | tr -d ' ') == 3 ]] || fail "--no-reconcile still reconciled"
 /bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
@@ -2770,7 +2774,7 @@ mkdir -p "$hid/bin" "$hid/repo/x" "$hid/tmp" && printf '#!/bin/sh\n: > "%s/ran"\
   printf 'module example.com/m\n\ngo 1.27\n' > "$hid/repo/go.mod" && git -C "$hid/repo" init -q && git -C "$hid/repo" add -A &&
   git -C "$hid/repo" -c user.name=t -c user.email=t@t commit -qm i || fail "identity fixture setup failed"
 hv_id() { /bin/rm -f "$hid/ran"; (cd "$hid/repo" && env PATH="$hid/bin:$PATH" HEAVY_SELECTION_LOG="$hid/sel.log" HEAVY_LOCK_DIR="$pol/slots" HEAVY_SLOTS=1 \
-  HEAVY_WHOLE_REASON= TMPDIR="${ID_TMPDIR:-$hid/tmp}" "$heavy" "$@"); }
+  HEAVY_WHOLE_REASON= TMPDIR="${ID_TMPDIR:-$hid/tmp}" CORVINT_GOCACHE="$hid/gocache" "$heavy" "$@"); }
 hid_head=$(git -C "$hid/repo" rev-parse HEAD)
 hv_id go test -run TestA ./x > /dev/null 2> "$hid/err" && grep -Eq "^heavy.sh: running locally at $hid_head tree=[0-9a-f]{40} dirty=0\$" "$hid/err" ||
   fail "heavy.sh local identity: $(cat "$hid/err")"
