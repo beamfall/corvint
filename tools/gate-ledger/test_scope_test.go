@@ -170,7 +170,7 @@ func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
 	writeAll(t, root, "lib/table.json", "{}\n")
 	writeAll(t, root, "jobs/run.sh", "#!/bin/sh\necho run\n")
 	writeAll(t, root, "other/caller.go", "package other\n\nconst job = \"jobs/run.sh\"\n")
-	writeAll(t, root, ".corvint/shell-foreign-callers.json", `{"scripts":{}}`+"\n")
+	writeAll(t, root, ".corvint/shell-foreign-callers.json", `{"scripts":{}}`+"\n") //corvint:fixture-path
 	withScope(t, "fixture-callers", []string{depsScopePrefix + "checks/chk", allScope, "!*.md", "!*.json", "!*.jsonl", "!*.tsv", ".corvint/*.json"})
 	step := append([]string{"run", "fixture-callers+aaa"}, counting...)
 	if code, out := ledgerRun(t, step...); code != 0 || !strings.Contains(out, "RECORD fixture-callers+aaa") || strings.Contains(out, "unavailable") {
@@ -179,7 +179,7 @@ func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
 	for _, edit := range []struct{ file, body string }{
 		{".corvint/changes/0123.cem.json", "{}\n"},
 		{"docs/build-log/entry.md", "log, edited\n"},
-		{"docs/specs/REQUIREMENTS.tsv", "id\tpath\n"},
+		{"docs/specs/REQUIREMENTS.tsv", "id\tpath\n"}, //corvint:fixture-path
 	} {
 		writeAll(t, root, edit.file, edit.body)
 		if _, out := ledgerRun(t, step...); !strings.Contains(out, "HIT fixture-callers+aaa") {
@@ -189,7 +189,7 @@ func TestRunStepKeysDepsAndAllScope_GLV0787(t *testing.T) {
 	misses := []struct{ file, body string }{
 		{"jobs/run.sh", "#!/bin/sh\necho changed\n"},
 		{"other/caller.go", "package other\n\nconst job = \"jobs/run.sh --now\"\n"},
-		{".corvint/shell-foreign-callers.json", `{"scripts":{"jobs/run.sh":{}}}` + "\n"},
+		{".corvint/shell-foreign-callers.json", `{"scripts":{"jobs/run.sh":{}}}` + "\n"}, //corvint:fixture-path
 		{"tools2/new.py", "import subprocess\nsubprocess.run(['jobs/run.sh'])\n"},
 		{"lib/table.json", "{\"edited\":true}\n"},
 	}
