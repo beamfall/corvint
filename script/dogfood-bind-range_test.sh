@@ -63,6 +63,11 @@ case $action in
       printf '{"code": "unknown-hunk-id", "error": "no such hunk", "ok": false}\n' >&2
       exit 2
     fi
+    # DCW-V0-710: a span refusal on every row but the 1:1 one, with an escaped quote in its detail.
+    if [[ ${DOGFOOD_TEST_CITE:-} == span && ${12} != 1:1 ]]; then
+      printf '{"code": "cite-span-not-stable", "error": "evidence span in \\"%s\\" would be stale; accepted span inside it: --lines 1:1", "ok": false}\n' "${10}" >&2
+      exit 2
+    fi
     printf "cite %s %s %s\n" "$8" "${11}" "${12}" >> "$DOGFOOD_TEST_LOG"
     # A cite or mark adds a member, so the sidecar stays one JSON object, as a real map does.
     sed 's/}$/,"cited'"$8"'":true}/' "$root/.corvint/change.cem.json" > "$root/.corvint/edit.json"
@@ -139,6 +144,21 @@ output=$(bind DOGFOOD_TEST_CITE=fail DOGFOOD_CITATIONS="$test_root/citations.tsv
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
 test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-cite unknown-hunk-id'
+# DCW-V0-710: plan-row refusals do not stop at the first row; every refused row is named with its
+# detail and a fix, and the passing row between them is still cited.
+printf '1\tdoc.md\t2:2\tspecification\n2\tdoc.md\t1:1\tspecification\n3\tdoc.md\t3:3\tspecification\n' \
+  > "$test_root/citations-span.tsv"
+cited_before=$(grep -c '^cite 2 --lines 1:1$' "$test_root/corvint.log" || :)
+status=0
+output=$(bind DOGFOOD_TEST_HUNKS=3 DOGFOOD_TEST_CITE=span DOGFOOD_CITATIONS="$test_root/citations-span.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$(sed -n 1p <<< "$output")" = 'dogfood-bind-range: FAIL cem-cite cite-span-not-stable refused plan rows=2 (DCW-V0-710)'
+test "$(sed -n 2p <<< "$output")" = '  row 1 hunk=1 path=doc.md lines=2:2 cite-span-not-stable: evidence span in "doc.md" would be stale; accepted span inside it: --lines 1:1'
+test "$(sed -n 3p <<< "$output")" = '  row 3 hunk=3 path=doc.md lines=3:3 cite-span-not-stable: evidence span in "doc.md" would be stale; accepted span inside it: --lines 1:1'
+rg -q "^  fix: repair every named row in $test_root/citations-span.tsv " <<< "$output"
+test "$(wc -l <<< "$output" | tr -d ' ')" = 4
+test "$(grep -c '^cite 2 --lines 1:1$' "$test_root/corvint.log")" = "$((cited_before + 1))"
 status=0
 output=$(bind DOGFOOD_TEST_STATUS=incomplete script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
 test "$status" = 1

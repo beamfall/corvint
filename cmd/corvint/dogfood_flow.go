@@ -29,8 +29,9 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	"batch-check": {"--base": true, "--verifier": true},
 	// propose-citations is read-only and prints a draft plan (DCW-V0-150);
 	// --refresh carries an earlier plan's rows forward (DCW-V0-442), and
-	// --from-cem a sealed CEM's (DCW-V0-843).
-	"propose-citations": {"--base": true, "--refresh": true, "--from-cem": true},
+	// --from-cem a sealed CEM's (DCW-V0-843); --intents-draft is its one
+	// write, the draft intents manifest (DCW-V0-711).
+	"propose-citations": {"--base": true, "--refresh": true, "--from-cem": true, "--intents-draft": true},
 	// record-claims writes only its --claims file: the reviewed plan's rows
 	// keyed by edit content, which --refresh compiles (CKC-V0-002).
 	"record-claims": {"--base": true, "--plan": true, "--claims": true, "--draft": true},
@@ -69,6 +70,7 @@ var dogfoodFlowOptionHelp = map[string]string{
 	"--verify":            "file of verification commands, one per line (default: DOGFOOD_VERIFY_FILE)",
 	"--outcome":           "passed, failed or blocked (default: DOGFOOD_OUTCOME)",
 	"--from-cem":          "sealed CEM whose citation rows seed the draft plan",
+	"--intents-draft":     "file to write the draft DOGFOOD_INTENTS_FILE to",
 	"--plan":              "reviewed citation plan whose rows are recorded as claims",
 	"--claims":            "claims file to write: the plan's rows keyed by edit content",
 	"--draft":             "proposed draft plan; its cite rows the reviewed plan dropped become tombstones",
@@ -306,7 +308,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Change(ctx, change, stderr)
 	}
 	if action == "propose-citations" {
-		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"], FromCEM: flags["--from-cem"]}, stdout, stderr)
+		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"], FromCEM: flags["--from-cem"], IntentsDraft: flags["--intents-draft"]}, stdout, stderr)
 	}
 	if action == "record-claims" {
 		return dogfoodflow.RecordClaims(ctx, dogfoodflow.RecordClaimsOptions{Root: root, Base: base, Plan: flags["--plan"], Claims: flags["--claims"], Draft: flags["--draft"]}, stdout, stderr)
