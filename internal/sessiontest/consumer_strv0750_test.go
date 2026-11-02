@@ -14,7 +14,7 @@ import (
 // and a malformed detail goes FULL on either profile.
 func TestBinaryConsumerIsANamedCheckOnTheLocalProfile_STRV0750(t *testing.T) {
 	consumer := func(detail string) Unknown { return Unknown{Reason: "UNSELECTED_BINARY_CONSUMER", Detail: detail} }
-	e2e, navigation := "tools/web-flows/test/e2e.mjs", "tools/web-flows/test/navigation-e2e.mjs"
+	e2e, navigation := "web/test/e2e.mjs", "web/test/navigation-e2e.mjs"
 	for _, tc := range []struct {
 		name    string
 		profile string
