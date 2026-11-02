@@ -32,6 +32,10 @@ func gbCIPolicy(t *testing.T, root string) {
 	v.Obj.Set("ciEvidence", wire.ObjectValue(wire.NewObject().Set("gates", wire.Array(wire.ObjectValue(entry)))))
 	path := filepath.Join(t.TempDir(), "policy-4.json")
 	fixture.Write(t, path, wire.EncodeFile(v))
+	path, err = filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if x := atm(t, root, nil, "policy", "update", "--request-id", "policy-4", "--expected-policy-version", "3", "--file", path); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("policy update: %s", x.stdout)
 	}
@@ -47,6 +51,19 @@ func gbGate(t *testing.T, row wire.Value, id string) wire.Value {
 	}
 	t.Fatalf("no gate %s in %s", id, wire.Encode(row))
 	return wire.Value{}
+}
+
+// TCD-V0-770: default macOS temporary directories have symlink ancestors.
+// Exercise the policy fixture through such a TMPDIR on other hosts too.
+func TestTCDV0770_CIPolicyThroughSymlinkTempDir(t *testing.T) {
+	root, _, _, _ := gbRepo(t)
+	parent := t.TempDir()
+	alias := filepath.Join(t.TempDir(), "temp-alias")
+	if err := os.Symlink(parent, alias); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+	t.Setenv("TMPDIR", alias)
+	t.Run("policy", func(t *testing.T) { gbCIPolicy(t, root) })
 }
 
 // TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun covers NEW-D2 (the

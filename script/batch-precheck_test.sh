@@ -176,7 +176,9 @@ cat > "$tmp/regen-stub" <<'EOF'
 case $1 in
   --golden-tests) printf '%s\n' ${STUB_GOLDENS:-} | sed 's/:/ /' ;;
   --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt
-    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt; exit 0 ;;
+    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt
+    [ -n "${STUB_REPIN_TERM:-}" ] && kill -TERM "$PPID"
+    exit 0 ;;
 esac
 EOF
 chmod +x "$tmp/regen-stub"
@@ -567,6 +569,12 @@ grep -q 'mechanical repins changed tracked files' "$tmp/out" || fail "repin mess
 git -C "$repo" checkout -q -- derived.txt
 # ASD-V0-787 (NEW-D4): a repin that staged its rewrite is unstaged when the run ends, and the
 # rewrite stays in the worktree; an entry staged again after the repin is left alone.
+STUB_REPIN=1 STUB_REPIN_STAGE=1 STUB_REPIN_TERM=1 run
+[[ $? == 143 ]] || fail 'an interrupted repin must exit 143'
+grep -q '^batch-precheck: unstaged 1 path(s) the mechanical repin staged' "$tmp/out" || fail "interrupted unstage line: $(cat "$tmp/out")"
+git -C "$repo" diff --cached --quiet HEAD -- || fail 'the interrupted run left the repin staged'
+[[ $(cat "$repo/derived.txt") == $'v0\nrepinned' ]] || fail 'the interrupted repin rewrite left the worktree'
+git -C "$repo" checkout -q HEAD -- derived.txt
 STUB_REPIN=1 STUB_REPIN_STAGE=1 run && fail "a staged repin that changed a file passed"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | repin (mechanical)$' "$tmp/out" || fail "staged repin fail row: $(cat "$tmp/out")"
 grep -q '^batch-precheck: unstaged 1 path(s) the mechanical repin staged' "$tmp/out" || fail "unstage line: $(cat "$tmp/out")"

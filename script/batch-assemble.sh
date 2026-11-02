@@ -87,15 +87,22 @@ case $scratch/ in "$top"/*) refuse "scratch-inside-repository: set TMPDIR outsid
 # sgit runs Git in the private bare repository: no system, global or repository configuration or
 # attributes apply, so no merge driver, hook or filter can run, and new objects land in this
 # repository's object store (its alternates still apply).
+# Match batch-check's allowlisted Git environment, including neither GIT_CONFIG_PARAMETERS
+# nor GIT_CONFIG_COUNT/KEY_*/VALUE_* inherited from the caller.
+scratch_env=()
+for name in PATH SystemRoot TMPDIR TEMP TMP USERPROFILE; do
+  [[ ! ${!name+x} ]] || scratch_env+=("$name=${!name}")
+done
+scratch_env+=(LANG=C LC_ALL=C GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null
+  GIT_CONFIG_SYSTEM=/dev/null GIT_TERMINAL_PROMPT=0 GIT_OPTIONAL_LOCKS=0 GIT_NO_LAZY_FETCH=1
+  GIT_NO_REPLACE_OBJECTS=1 GCM_INTERACTIVE=never GIT_ASKPASS= GIT_ALLOW_PROTOCOL= GIT_ATTR_NOSYSTEM=1)
 sgit() {
-  (cd "$scratch" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR -u GIT_ATTR_SOURCE \
-    GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_ATTR_NOSYSTEM=1 GIT_CEILING_DIRECTORIES="$scratch" \
+  (cd "$scratch" && env -i "${scratch_env[@]}" GIT_CEILING_DIRECTORIES="$scratch" \
     GIT_OBJECT_DIRECTORY="$objects" git --git-dir=repository.git -c core.hooksPath=/dev/null \
     -c core.attributesFile=/dev/null -c merge.conflictStyle=merge "$@")
 }
 format=$(git rev-parse --show-object-format 2> /dev/null) || format=sha1
-(cd "$scratch" && env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY \
-  GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null git init -q --bare --template= --object-format="$format" repository.git) \
+(cd "$scratch" && env -i "${scratch_env[@]}" git init -q --bare --template= --object-format="$format" repository.git) \
   > /dev/null 2>&1 || refuse 'scratch-repository-unavailable'
 
 manifest_dir=$git_dir/corvint

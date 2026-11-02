@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -164,7 +165,7 @@ func (p *ghPR) mergeOid() string {
 func (x *closeoutIndex) lineTickets(line string) []string {
 	var out []string
 	for _, w := range closeoutWord.FindAllString(line, -1) {
-		if id, ok := x.tokens[wire.FoldToken(strings.TrimRight(w, ".:"))]; ok && !slices.Contains(out, id) {
+		if id, ok := x.screenToken(w); ok && !slices.Contains(out, id) {
 			out = append(out, id)
 		}
 	}
@@ -220,7 +221,7 @@ func (x *closeoutIndex) idReferences(line string, anywhere bool) (refs map[strin
 		lo, hi := bounds[c], bounds[c+1]
 		var occs []occ
 		for _, w := range closeoutWord.FindAllStringIndex(line[lo:hi], -1) {
-			if id, ok := x.tokens[wire.FoldToken(strings.TrimRight(line[lo+w[0]:lo+w[1]], ".:"))]; ok {
+			if id, ok := x.screenToken(line[lo+w[0] : lo+w[1]]); ok {
 				occs = append(occs, occ{lo + w[0], lo + w[1], id})
 			}
 		}
@@ -260,6 +261,22 @@ func (x *closeoutIndex) idReferences(line string, anywhere bool) (refs map[strin
 		}
 	}
 	return refs, vetoed
+}
+
+// screenToken keeps audited IDs scoped to their indexed authority and queue.
+// With no store, any valid qualified reference to a supplied raw ID names it.
+func (x *closeoutIndex) screenToken(token string) (string, bool) {
+	key := wire.FoldToken(strings.TrimRight(token, ".:"))
+	if id, ok := x.tokens[key]; ok {
+		return id, true
+	}
+	if x.rawIDs {
+		if qualified, err := wire.ParseTicketID("reference", key); err == nil {
+			id, ok := x.tokens[wire.FoldToken(qualified.Local)]
+			return id, ok
+		}
+	}
+	return "", false
 }
 
 // references maps each ticket a PR title or body names to delivered or
@@ -691,11 +708,11 @@ var rawTicketID = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]{0,62}[A-Za-z0-9]$`)
 // whose status and operator note are NOT_OBSERVED. It never opens the
 // journal or the intent projection, so it runs on a lane host with neither.
 func unauditedScreen(env Env, pos []string) (string, *closeoutIndex, []screenRow, error) {
-	repo, err := intent.Resolve(env.Cwd)
+	common, err := intent.ResolveCommonDir(env.Cwd)
 	if err != nil {
 		return "", nil, nil, err
 	}
-	index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}}
+	index := &closeoutIndex{tokens: map[string]string{}, issues: map[string][]string{}, rawIDs: true}
 	note := wire.ObjectValue(wire.NewObject().Set("state", wire.String(notObserved)))
 	var rows []screenRow
 	for _, arg := range pos {
@@ -709,7 +726,7 @@ func unauditedScreen(env Env, pos []string) (string, *closeoutIndex, []screenRow
 		index.tokens[key] = arg
 		rows = append(rows, screenRow{ticketID: arg, local: arg, status: notObserved, note: note})
 	}
-	return repo.PrimaryWorktree, index, rows, nil
+	return filepath.Dir(common), index, rows, nil
 }
 
 // scanLaneHeads lists the lane heads the screened ref does not contain

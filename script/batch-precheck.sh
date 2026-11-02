@@ -1009,9 +1009,17 @@ dir=
 # check reads the index, so each index entry the mechanical repin changed is put back as it was
 # before the repin when the run ends, however it ends; the rewrites stay in the worktree. An entry
 # that changed again after the repin (someone staged it meanwhile) is left alone.
+repin_warn() {
+  printf 'batch-precheck: WARN could not unstage what the mechanical repin staged; git diff --cached shows it (ASD-V0-787)\n' >&2
+}
 unstage_repin() {
   local n prog
-  [[ -n $dir && -f $dir/stage.before && -f $dir/stage.repin ]] || return 0
+  [[ -n $dir && -f $dir/stage.before ]] || return 0
+  # A signal can arrive while the repinner is running, before the after snapshot exists.
+  # No later check has run yet: capture the interrupted repin's current entries for cleanup.
+  if [[ ! -f $dir/stage.repin ]]; then
+    git -C "$root" ls-files -s -z > "$dir/stage.repin" 2> /dev/null || { repin_warn; return 0; }
+  fi
   cmp -s "$dir/stage.before" "$dir/stage.repin" && return 0
   # Reads the three `ls-files -s -z` snapshots; writes the --index-info input that removes each
   # path the repin changed and still holds, then restores its entries from before; prints the count.
@@ -1043,7 +1051,7 @@ unstage_repin() {
     { ((n == 0)) || git -C "$root" update-index -z --index-info < "$dir/stage.info"; }; then
     ((n == 0)) || printf 'batch-precheck: unstaged %s path(s) the mechanical repin staged; its rewrites stay in the worktree (ASD-V0-787)\n' "$n"
   else
-    printf 'batch-precheck: WARN could not unstage what the mechanical repin staged; git diff --cached shows it (ASD-V0-787)\n' >&2
+    repin_warn
   fi
 }
 cleanup() {
@@ -1136,10 +1144,11 @@ repin_rc=0
 if [[ -n $regen ]]; then
   t0=$SECONDS
   # ASD-V0-787 (NEW-D4): the index before and after the repin, for unstage_repin.
-  git ls-files -s -z > "$dir/stage.before" 2> /dev/null || /bin/rm -f "$dir/stage.before"
+  { git ls-files -s -z > "$dir/stage.before.tmp" 2> /dev/null && mv "$dir/stage.before.tmp" "$dir/stage.before"; } || repin_warn
   "$regen" --mechanical > "$dir/repin.log" 2>&1 < /dev/null || repin_rc=1
   if [[ -f $dir/stage.before ]]; then
-    git ls-files -s -z > "$dir/stage.repin" 2> /dev/null || /bin/rm -f "$dir/stage.before"
+    { git ls-files -s -z > "$dir/stage.repin.tmp" 2> /dev/null && mv "$dir/stage.repin.tmp" "$dir/stage.repin"; } ||
+      { /bin/rm -f "$dir/stage.before"; repin_warn; }
   fi
   if ((clean_before)) && ! tracked_clean; then
     { printf 'mechanical repins changed tracked files; commit them and rerun (the run unstages what the repin staged):\n'; git status --porcelain --untracked-files=no; } >> "$dir/repin.log"

@@ -74,6 +74,7 @@ type closeoutIndex struct {
 	tokens map[string]string   // folded local or full ID -> ticket ID
 	issues map[string][]string // issue number -> ticket IDs, ascending
 	origin string              // folded owner/repo of origin, or ""
+	rawIDs bool                // unaudited screen: accept qualified references to raw IDs
 }
 
 // issueNumber normalizes a decimal issue number ("007" -> "7").

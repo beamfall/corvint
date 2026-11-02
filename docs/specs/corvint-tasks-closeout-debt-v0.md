@@ -615,12 +615,16 @@ closeout step is missing.
   every path; the store's `evidence/<sha256>` copy is the retained record.
 - `TCD-V0-773`: (experimental under the standing lane auto-accept (2026-11-02); NEW-D7, a
   journal-less lane host refused `ticket V1-3739 is not in the queue`) `ticket delivery-screen
-  --unaudited` reads no Tasks journal, projection or policy, so it runs on any checkout of the
-  repository. Each argument is a raw ticket ID (a letter, then letters, digits, `_` or `-`, ending
-  in a letter or digit, at most 64 bytes); any other argument is refused `MALFORMED`, and a repeat
-  that folds to the same ID is one row. Each ID is screened against commit messages, `--lane-refs`
-  heads and any `--prs` export by the same rules as an audited ticket (TCD-V0-160, TCD-V0-167,
-  TLF-V0-887). The item carries `audited` false and `ticketState` `NOT_OBSERVED`, and each row's
+  --unaudited` reads no Tasks journal, projection, queue hint or policy, so it runs on any
+  checkout of the repository. Repository resolution MUST omit intent discovery, and the command
+  MUST be registered as a pure read so startup never prepares a writer index refresh. Each
+  argument is a raw ticket ID (a letter, then letters, digits, `_` or `-`, ending in a letter or
+  digit, at most 64 bytes); any other argument is refused `MALFORMED`, and a repeat
+  that folds to the same ID is one row. A valid `ticket:<authority>:<queue>:<local>` reference
+  to a supplied raw local ID MUST match it case-insensitively in commits, lanes and PR text,
+  using whole tokens and the existing delivery/veto rules. Each ID is screened against commit
+  messages, `--lane-refs` heads and any `--prs` export by the same rules as an audited ticket
+  (TCD-V0-160, TCD-V0-167, TLF-V0-887). The item carries `audited` false and `ticketState` `NOT_OBSERVED`, and each row's
   `status`, `holds` and `operatorNote` state are `NOT_OBSERVED`, never absent, so no row is
   `COMPLETED`, `HELD` or progress-`IN_FLIGHT`. `--ref` defaults to `origin/main`, else local
   `main`. A ticket's creation time is not observed, so while the commit scan or the lane walk is
@@ -632,7 +636,9 @@ closeout step is missing.
   TLF-V0-887) `--lane-refs` lists, besides local branches and detached worktree heads, every
   `refs/lanes/` head (another host's lanes fetched, for example, with `git fetch HOST
   '+refs/heads/claude/lane-*:refs/lanes/HOST/*'`) under the same containment, lineage and 256-head
-  rules. It reads all heads in one `git log --source` walk outside the screened ref, filtered by
+  rules. It reads all heads by their captured immutable `LaneHead.Commit` values in one
+  `git log --source` walk outside the screened ref, even if a ref moves or disappears after
+  capture; duplicate commit pins retain the first head attribution. The walk is filtered by
   one fixed-string, case-insensitive grep per token of a screened ticket, and keeps at most
   `--limit` matching commits, each attributed to the head the walk reached it from. It never
   spawns Git per head or per ticket. A walk cut at `--limit` sets `scanTruncated` on every
@@ -1037,11 +1043,11 @@ closeout step is missing.
 | TCD-V0-1101 | V1-4266 | `internal/tasks/cli` (`gatedBatch.plan`, `planScope`, `collapseScope`, `runGated`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (a 712-path batch merge: an undeclared ticket claims a `COLLAPSED` REQUESTED scope of at most 256 directory keys recorded in the claim receipt and closes `VERIFIED`; a declared ticket the diff exceeds is `UNRUNNABLE` `OUT_OF_SCOPE` naming `--seal` and `--manual`, never claimed); `TestTCDV01101_CollapseScope` (deepest-level rounds, covered entries dropped, top-level overflow refused); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` unchanged | a live batch close of PR #48: NOT_RUN |
 | TCD-V0-1102 | V1-4266 | `internal/tasks/cli` (`gatedRowValue`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (`claimScope` `{source, changedPaths, keys}` on the dry run and the real run); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`DIFF` rows) | none |
 | TCD-V0-1103 | V1-4267 | `internal/tasks/cli` (`parseBatchInput`, `batchPRFields`) | `TestTCDV01103_MissingStateNamesTheField` (batch-delivered and batch-close refuse `MALFORMED` naming `state` and the field list, never `message withheld`; an OPEN state still `PREREQUISITE_UNSATISFIED`) | none |
-| TCD-V0-770 | NEW-D2 | `internal/tasks/cli` (`ghRun`, `deriveCIRun`, `gatedBatch.ciGateFor`, `plan`, `runGates`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (push run 7 of workflow CI is chosen over a higher merge-queue CI run and another workflow's run; the gate's command exits 1, yet the row closes `VERIFIED` with the gate `REUSED`; the retained `evidence/<sha256>` is the derived record byte for byte; receipt audit passes) | a live close of a merged batch: NOT_RUN (the store policy has no `ciEvidence` entry for `full-gate` until the operator's `policy update`) |
+| TCD-V0-770 | NEW-D2 | `internal/tasks/cli` (`ghRun`, `deriveCIRun`, `gatedBatch.ciGateFor`, `plan`, `runGates`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (push run 7 of workflow CI is chosen over a higher merge-queue CI run and another workflow's run; the gate's command exits 1, yet the row closes `VERIFIED` with the gate `REUSED`; the retained `evidence/<sha256>` is the derived record byte for byte; receipt audit passes); `TestTCDV0770_CIPolicyThroughSymlinkTempDir` (policy fixture canonicalizes the temporary file path before safe-open, including macOS temporary ancestors) | a live close of a merged batch: NOT_RUN (the store policy has no `ciEvidence` entry for `full-gate` until the operator's `policy update`) |
 | TCD-V0-771 | NEW-D2 | `internal/tasks/cli` (`deriveCIRun`, `ciGateFor`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (merge-queue run only, pull-request run only, an export without event, another repository `GATE_STALE`, a later failed push run `GATE_FAILED`, a push run of another commit: each row `UNRUNNABLE` with the gate `NONE`, the store byte-identical) | none |
 | TCD-V0-772 | NEW-D2 | `internal/tasks/cli` (`gatedRowValue`, `ciRunFile`, `cleanup`) | `TestTCDV0770_BatchCloseRecordsCIGateFromGreenPushRun` (`ciRunId` `7` on the dry run and after the close, null on the `LOCAL` gate; no `corvint-batch-close-ci-*` directory left behind) | none |
-| TCD-V0-773 | NEW-D7 | `internal/tasks/cli` (`unauditedScreen`, `rawTicketID`, `deliveryScreenCommand`) | `TestTCDV0773_UnauditedScreensRawIDsWithoutStore` (a repository with no store: ref commit `DELIVERED`, lane commit `DELIVERED_ON_LANE`, unnamed ID `CLEAR`, repeated ID one row, `audited` false, `ticketState`, `status`, `holds` and note `NOT_OBSERVED`, a cut scan `TRUNCATED`, `../V1-9001` refused `MALFORMED`, the audited screen refused) | none |
-| TCD-V0-774 | NEW-D7 | `internal/tasks/store` (`LaneHeads`, `ScanLaneMentions`), `internal/tasks/cli` (`scanLaneHeads`) | `TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes` (a `refs/lanes/` head delivers, `commitsMatched` 1, 0 and 2 per head); `TestTLFV0887_TruncatedLaneScanIsNotClear` (a walk cut at `--limit 1` keeps the tip mention and leaves the earlier delivery `TRUNCATED`) | wsl-lanes timing in `docs/build-log/2026-11-02-bat-w43.md` |
+| TCD-V0-773 | NEW-D7 | `internal/tasks/cli` (`unauditedScreen`, `rawTicketID`, `deliveryScreenCommand`, `readOnlyVerbs`), `internal/tasks/intent` (`ResolveCommonDir`) | `TestTCDV0773_UnauditedScreensRawIDsWithoutStore` (a repository with no store: qualified ref commit `DELIVERED`, qualified lane commit `DELIVERED_ON_LANE`, unnamed ID `CLEAR`, repeated ID one row, `audited` false, `ticketState`, `status`, `holds` and note `NOT_OBSERVED`, a cut scan `TRUNCATED`, `../V1-9001` refused `MALFORMED`, the audited screen refused); `TestTCDV0773_UnauditedQualifiedPRReferences` (case folding, qualified PR delivery, veto and look-alikes); `TestTCDV0773_UnauditedNeverOpensQueue` (Linux open-event watch with positive read control) | none |
+| TCD-V0-774 | NEW-D7 | `internal/tasks/store` (`LaneHeads`, `ScanLaneMentions`), `internal/tasks/cli` (`scanLaneHeads`) | `TestTCDV0774_LaneRefsOneWalkIncludesRefsLanes` (a `refs/lanes/` head delivers, `commitsMatched` 1, 0 and 2 per head); `TestTLFV0887_TruncatedLaneScanIsNotClear` (a walk cut at `--limit 1` keeps the tip mention and leaves the earlier delivery `TRUNCATED`); `TestTCDV0774_LaneScanUsesCapturedCommits` (moved and deleted refs, duplicate pins keep first attribution) | wsl-lanes timing in `docs/build-log/2026-11-02-bat-w43.md` |
 
 ## Rollout and rollback
 

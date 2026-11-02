@@ -354,8 +354,8 @@ type LaneMentionScan struct {
 // base, at most limit commits whose message holds one of tokens as a fixed,
 // case-insensitive string, each attributed to the first head that reached it
 // (TCD-V0-774). The match is only a prefilter: the caller classifies every
-// message it returns. No head or no token reads nothing. A detached worktree
-// head is walked by its commit.
+// message it returns. No head or no token reads nothing. Every head is walked
+// by its captured commit, so ref movement cannot change the scan.
 func ScanLaneMentions(root, base string, heads []LaneHead, tokens []string, limit int) (LaneMentionScan, error) {
 	var scan LaneMentionScan
 	if len(heads) == 0 || len(tokens) == 0 {
@@ -369,12 +369,11 @@ func ScanLaneMentions(root, base string, heads []LaneHead, tokens []string, limi
 	args = append(args, "--end-of-options")
 	source := make(map[string]string, len(heads))
 	for _, h := range heads {
-		arg := h.Ref
-		if !strings.HasPrefix(arg, "refs/") {
-			arg = h.Commit
+		if _, seen := source[h.Commit]; seen {
+			continue
 		}
-		source[arg] = h.Ref
-		args = append(args, arg)
+		source[h.Commit] = h.Ref
+		args = append(args, h.Commit)
 	}
 	out, err := runScanGit(root, "", append(args, "^"+base))
 	if err != nil {

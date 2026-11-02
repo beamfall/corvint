@@ -54,7 +54,12 @@ git checkout -q batch
 [[ $? == 2 ]] && grep -q 'REFUSE usage' "$tmp/out" || fail 'no branch must refuse with usage'
 
 # 2. One pass: a, b (conflicts with a on notes.txt), c, e (clean), d (modify/delete against e).
-"$script" lane-a lane-b lane-c lane-e lane-d > "$tmp/out" 2>&1 || fail "the pass must exit 0, got $?"
+# Both environment configuration channels must be inert in scratch Git, including a default
+# driver (which needs no attributes). Keep these scoped to the command, not the oracle below.
+GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=merge.default GIT_CONFIG_VALUE_0=marker \
+  GIT_CONFIG_KEY_1=merge.marker.driver GIT_CONFIG_VALUE_1="touch '$tmp/driver-ran'; cp %B %A" \
+  GIT_CONFIG_PARAMETERS="'merge.default=marker' 'merge.marker.driver=touch $tmp/parameters-driver-ran'" \
+  "$script" lane-a lane-b lane-c lane-e lane-d > "$tmp/out" 2>&1 || fail "the pass must exit 0, got $?"
 head=$(git rev-parse HEAD)
 manifest=$(git rev-parse --absolute-git-dir)/corvint/batch-assemble-manifest.txt
 grep -q "^batch-assemble: BASE $base branch=batch$" "$tmp/out" || fail 'BASE line'
@@ -75,6 +80,7 @@ grep -q "^batch-assemble: NEXT check: make dogfood-batch-check BASE=$base$" "$tm
 [[ $(grep -c '^batch-assemble: ' "$manifest") == $(grep -c '^batch-assemble: [A-Z][A-Z]* ' "$tmp/out" | tr -d ' ') ]] &&
   grep -q "^batch-assemble: DONE head=$head " "$manifest" || fail 'the manifest must hold every BASE/MERGE/SKIP/DONE/NEXT line'
 [[ ! -e $tmp/driver-ran ]] || fail 'the configured merge driver ran'
+[[ ! -e $tmp/parameters-driver-ran ]] || fail 'the environment parameters merge driver ran'
 [[ $(git show HEAD:notes.txt) == $'base\nlane a' ]] || fail 'notes.txt must keep the batch side, not a driver result'
 [[ -z $(git status --porcelain) ]] || fail 'the worktree must be clean after the fast-forward'
 [[ $(git rev-list --count "$base..HEAD") == 8 ]] || fail 'four lane commits and four merges'

@@ -397,9 +397,9 @@ func TestTCDV0773_UnauditedScreensRawIDsWithoutStore(t *testing.T) {
 	root := t.TempDir()
 	git(t, root, "init", "-q", "-b", "main")
 	tcdCommit(t, root, "init")
-	tcdCommit(t, root, "feat(V1-9001): delivered on main")
+	tcdCommit(t, root, "feat(ticket:corvint:main:V1-9001): delivered on main")
 	git(t, root, "checkout", "-q", "-b", "claude/lane-z")
-	tcdCommit(t, root, "tasks: lane work\n\nRefs V1-9002")
+	tcdCommit(t, root, "tasks: lane work\n\nRefs TICKET:corvint:main:v1-9002")
 	git(t, root, "checkout", "-q", "main")
 	prs := tdsExport(t, "prs.json", "[]")
 
@@ -436,6 +436,30 @@ func TestTCDV0773_UnauditedScreensRawIDsWithoutStore(t *testing.T) {
 	help := tdsRun(t, root, "ticket", "delivery-screen", "--help", "--verbose")
 	if !strings.Contains(string(help.stdout), "--unaudited") || !strings.Contains(string(help.stdout), "TCD-V0-773") {
 		t.Fatalf("help: %s", help.stdout)
+	}
+}
+
+// TCD-V0-773: qualified PR references use the same whole-token delivery and
+// veto rules as raw IDs, without admitting a look-alike local token.
+func TestTCDV0773_UnauditedQualifiedPRReferences(t *testing.T) {
+	root := t.TempDir()
+	git(t, root, "init", "-q", "-b", "main")
+	tcdCommit(t, root, "init")
+	for _, c := range []struct{ text, verdict string }{
+		{"Delivers ticket:corvint:main:V1-9001", "IN_FLIGHT"},
+		{"Delivers TICKET:other:queue:v1-9001", "IN_FLIGHT"},
+		{"NOT_DELIVERED ticket:corvint:main:V1-9001", "MENTIONED"},
+		{"Delivers ticket:corvint:main:V1-90010", "CLEAR"},
+		{"Delivers ticket:corvint:main:prefix-V1-9001", "CLEAR"},
+		{"Delivers ticket:corvint:main:V1-9001:extra", "CLEAR"},
+	} {
+		t.Run(c.text, func(t *testing.T) {
+			prs := tdsExport(t, "prs.json", `[{"number":1,"state":"OPEN","title":"`+c.text+`","body":"","labels":[]}]`)
+			x := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001", "--unaudited", "--prs", prs)
+			if got := tdsVerdicts(t, x); got["V1-9001"] != c.verdict {
+				t.Fatalf("qualified PR: %v, want %s\n%s", got, c.verdict, x.stdout)
+			}
+		})
 	}
 }
 

@@ -8,8 +8,12 @@ set -uo pipefail
 export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)/lane-interrupted.sh
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-interrupted-test.XXXXXX") || exit 1
-tmp=$(cd "$tmp" && pwd)
 trap '/bin/rm -rf "$tmp"' EXIT
+# Always exercise a symlink ancestor, as in macOS's default /var -> /private/var.
+mkdir "$tmp/physical" && ln -s "$tmp/physical" "$tmp/alias" || exit 1
+tmp_root=$tmp
+trap '/bin/rm -rf "$tmp_root"' EXIT
+tmp=$(cd "$tmp/alias" && pwd -P)
 failed=0
 fail() {
   failed=1
