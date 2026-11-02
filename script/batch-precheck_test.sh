@@ -1587,4 +1587,82 @@ LANE=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(c
 row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
 
+# 17. ASD-V0-1923 (V1-4317): --static runs the static doc gates and go build/vet of the changed
+# packages first, one at a time; the first failure prints `FAIL static GATE`, its output and a
+# `fix:` line and nothing later runs, well inside 60 s. A full run starts with the same phase and
+# its later rows of those gates print REUSE instead of running again.
+strepo=$tmp/strepo stbin=$tmp/stbin
+mkdir -p "$strepo/.github/workflows" "$strepo/pkg" "$strepo/interop/cem01-go" "$stbin"
+git init -q "$strepo" || fail "static fixture git init"
+printf 'package pkg\n\nimport "testing"\n\nfunc TestDrift(t *testing.T) {}\n' > "$strepo/pkg/a_test.go"
+cat > "$strepo/.github/workflows/ci.yml" << 'EOF'
+jobs:
+  doc-gates:
+    steps:
+      - run: make -s spec-requirements-check flow-guide-check bash32-check
+  go-static:
+    steps:
+      - run: |
+          test -z "$(gofmt -l .)"
+  go-interop:
+    steps:
+      - run: |
+          test -z "$(gofmt -l .)"
+EOF
+cat > "$stbin/make" << EOF
+#!/bin/sh
+echo "make \$* untracked=\${BASH32_INCLUDE_UNTRACKED:-}" >> $tmp/stcalls
+[ "\$2" = "\${STATIC_STUB_FAIL:-}" ] && { echo "script/lane-x.sh:3: refusal x names no recovery"; exit 1; }
+exit 0
+EOF
+cat > "$stbin/go" << EOF
+#!/bin/sh
+echo "go \$*" >> $tmp/stcalls
+echo ok
+EOF
+printf '#!/bin/sh\nexit 0\n' > "$stbin/gofmt"
+printf '#!/bin/sh\nexit 0\n' > "$stbin/node"
+chmod +x "$stbin"/*
+git -C "$strepo" add -A && git -C "$strepo" commit -q -m fixture || fail "static fixture commit"
+stbase=$(git -C "$strepo" rev-parse HEAD)
+printf 'package pkg\n\nfunc Changed() {}\n' > "$strepo/pkg/b.go"
+strun() { (cd "$strepo" && PATH=$stbin:$PATH BATCH_PRECHECK_ROOT=$strepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER= BATCH_PRECHECK_DRIFT="./pkg TestDrift" CORVINT_GATE_LEDGER=off "$pre" "$@") > "$tmp/out" 2>&1; }
+: > "$tmp/stcalls"
+t0=$SECONDS
+STATIC_STUB_FAIL=flow-guide-check strun --static --base "$stbase"
+rc=$?
+secs=$((SECONDS - t0))
+[[ $rc == 1 ]] || fail "a failing static gate did not exit 1 (rc=$rc): $(cat "$tmp/out")"
+((secs < 60)) || fail "the static failure took ${secs}s, not under 60 s"
+grep -q '^batch-precheck: FAIL static flow-guide-check ' "$tmp/out" || fail "no FAIL static line: $(cat "$tmp/out")"
+grep -q '^  | script/lane-x.sh:3: refusal x names no recovery$' "$tmp/out" || fail "the failing gate's output is missing: $(cat "$tmp/out")"
+grep -q '^fix: give each refusal named above a `fix:` line' "$tmp/out" || fail "no fix: line: $(cat "$tmp/out")"
+grep -q 'nothing later ran (ASD-V0-1923)$' "$tmp/out" || fail "no fail-fast summary: $(cat "$tmp/out")"
+grep -q 'bash32-check\|^go ' "$tmp/stcalls" && fail "a step after the failure ran: $(cat "$tmp/stcalls")"
+grep -q 'spec-requirements-check' "$tmp/stcalls" && fail "a non-static doc gate ran in the static phase: $(cat "$tmp/stcalls")"
+# Passing: bash32-check scans untracked scripts, the changed package is built and vetted, and the
+# receipt is never touched.
+streceipt=$(git -C "$strepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+printf 'keep\n' > "$streceipt"
+: > "$tmp/stcalls"
+strun --static --base "$stbase" || fail "a passing static phase failed: $(cat "$tmp/out")"
+grep -qx 'make -s bash32-check untracked=1' "$tmp/stcalls" || fail "bash32-check was not untracked-aware: $(cat "$tmp/stcalls")"
+grep -qx 'go build ./pkg' "$tmp/stcalls" && grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "the changed package was not built and vetted: $(cat "$tmp/stcalls")"
+grep -q '^batch-precheck: static phase passed 3 steps in ' "$tmp/out" || fail "static pass summary: $(cat "$tmp/out")"
+[[ $(cat "$streceipt") == keep ]] || fail "--static touched the receipt"
+grep -q 'batch-drift\|sync-check' "$tmp/out" && fail "--static ran later steps: $(cat "$tmp/out")"
+# A full run: the static rows print REUSE and each static gate ran once.
+: > "$tmp/stcalls"
+strun --base "$stbase" || fail "full run after the static phase failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *0s | make flow-guide-check$' "$tmp/out" || fail "flow-guide-check row not reused: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | REUSE | *0s | make bash32-check$' "$tmp/out" || fail "bash32-check row not reused: $(cat "$tmp/out")"
+[[ $(grep -c 'make -s flow-guide-check' "$tmp/stcalls") == 1 ]] || fail "flow-guide-check ran more than once: $(cat "$tmp/stcalls")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | make spec-requirements-check$' "$tmp/out" || fail "a non-static row did not run: $(cat "$tmp/out")"
+# A full run whose static gate fails stops before the selection and the parallel steps.
+: > "$tmp/stcalls"
+STATIC_STUB_FAIL=bash32-check strun --base "$stbase"
+[[ $? == 1 ]] && grep -q '^batch-precheck: FAIL static bash32-check ' "$tmp/out" || fail "a full run did not stop at the static failure: $(cat "$tmp/out")"
+grep -q 'spec-requirements-check' "$tmp/stcalls" && fail "the full run went on after the static failure: $(cat "$tmp/stcalls")"
+strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base without REV was accepted"
+
 finish

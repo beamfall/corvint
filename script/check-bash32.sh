@@ -124,7 +124,16 @@ BEGIN {
   exit 0
 }'
 
+# ASD-V0-1923 (V1-4317): BASH32_INCLUDE_UNTRACKED=1 (the batch-precheck --static phase) also scans
+# untracked, unignored files, so a lane script not yet added fails before it is committed.
 all=$(git -c core.quotePath=false ls-files)
+if [[ ${BASH32_INCLUDE_UNTRACKED:-} == 1 ]]; then
+  untracked=$(git -c core.quotePath=false ls-files -o --exclude-standard) || {
+    echo "check-bash32: FAIL incomplete scan: git ls-files -o failed; refusing rather than reporting ok (ASD-V0-1923)" >&2
+    exit 2
+  }
+  all+=${untracked:+$'\n'$untracked}
+fi
 cands=()
 oldifs=$IFS
 IFS=$'\n'
