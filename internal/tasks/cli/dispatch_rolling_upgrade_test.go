@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
@@ -33,6 +34,7 @@ import (
 // dispatcher process ends mid-upgrade, and a restart reports the interrupted
 // upgrade with the live session, its lease and its record unchanged.
 func TestDSGV0012_RollingUpgradeWithRealExec(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	if testing.Short() {
 		t.Skip("builds three corvint-tasks executables")
 	}
@@ -78,16 +80,13 @@ func TestDSGV0012_RollingUpgradeWithRealExec(t *testing.T) {
 		t.Fatal(err)
 	}
 	host := filepath.Join(work, "session.sh")
-	fixture.Write(t, host, []byte(`#!/bin/sh
+	cli.WriteExecutable(t, host, []byte(`#!/bin/sh
 R=`+release+`
 "$CORVINT_TASKS_BIN" claim "$1" --holder "$2" --stage implement --request-id "claim-$3" > "$R/$3.claim" 2>&1
 echo "$CORVINT_TASKS_BIN" > "$R/$3.bin"
 while [ ! -e "$R/$3.go" ] && [ ! -e "$R/all" ]; do sleep 0.1; done
 exit 7
-`))
-	if err := os.Chmod(host, 0o700); err != nil {
-		t.Fatal(err)
-	}
+`), 0o700)
 	stateDir := filepath.Join(work, "state")
 	progDir := filepath.Join(stateDir, "prog")
 	cfg := map[string]any{
@@ -234,10 +233,7 @@ exit 7
 	w3 := nextLaunch(t3)
 	binOf(w3)
 	crash := filepath.Join(work, "crash", "corvint-tasks")
-	fixture.Write(t, crash, []byte("#!/bin/sh\nif [ \"$1 $2\" = \"dispatch status\" ]; then exec "+b+" \"$@\"; fi\nexit 3\n"))
-	if err := os.Chmod(crash, 0o700); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, crash, []byte("#!/bin/sh\nif [ \"$1 $2\" = \"dispatch status\" ]; then exec "+b+" \"$@\"; fi\nexit 3\n"), 0o700)
 	plan := func() string {
 		t.Helper()
 		r := atm(t, root, nil, "plan", "preview")

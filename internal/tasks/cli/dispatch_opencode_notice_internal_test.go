@@ -82,9 +82,7 @@ setInterval(() => {}, 1000)
 	}
 	host := filepath.Join(root, "host.sh")
 	script := "echo $$ > '" + pidFile + "'\nexec " + strconv.Quote(node) + " " + strconv.Quote(driver) + " '" + out + "' '" + done + "' '" + openCodeUsage(1500) + "' '" + openCodeUsage(2500) + "'"
-	if err := os.WriteFile(host, []byte("#!/bin/sh\n"+script+"\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	writeExecutable(t, host, []byte("#!/bin/sh\n"+script+"\n"), 0o700)
 	c := &dispatch.Config{Profile: dispatch.ConfigProfile, StateDir: filepath.Join(root, "state"), WorkRoot: root, TickSeconds: 1, GlobalCap: 1, KillGraceSeconds: 1,
 		Hosts: map[string]dispatch.Host{"opencode": {Argv: []string{host, "{prompt}"}, ContextNotices: dispatch.ContextNoticesPlugin}},
 		Roles: []dispatch.Role{{Name: "impl", Host: "opencode", Cap: 1, Match: &dispatch.Match{}, Prompt: "work on {ticketLocal}", IdleSeconds: 3600, WallSeconds: 7200,

@@ -5,7 +5,7 @@ Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
+Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186, V1-1058, V1-2186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
 amend the write rounds of the [agent lease contract](corvint-tasks-agent-leases-v0.md), whose
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 They change no lease semantics, stored state, wire format or receipt.
@@ -257,6 +257,155 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   released, supervised, or failed) ends the beating without failing the gate run. The beating MUST
   stop, and any beat in flight finish, before the gate result is recorded. Each beat holds the
   writer lock only for its own write; the gate program still runs outside the lock (CAL-V0-016).
+- `LGL-V0-802`: (proposed; V1-3186) The canonical encoder MUST copy each run of string bytes that
+  is neither `"`, `\\` nor a control below 0x20 to the output in one append, and the strict
+  parser MUST take a string that holds no such byte before its closing quote as those bytes in one
+  copy, checking hostile code points only when a byte of the run is 0x80 or above; the parser's
+  canonical re-encode MUST start from a buffer of the body's length. The encoded bytes, the parsed
+  values and every refusal (code, reason and byte position) MUST be exactly those of the
+  byte-at-a-time forms, for valid and invalid UTF-8. No audit, digest or canonical-form check is
+  skipped: the complete `receipt audit` still reads, parses, re-encodes and hashes every receipt
+  and post. Target: the complete audit's median wall time at 13,000 and 40,000 synthetic receipts
+  at least 15 % below the base binary's in interleaved fresh-process runs on one host, with
+  byte-identical output.
+- `LGL-V0-803`: (proposed; V1-1058) `queue status` and `doctor` MUST report, beside
+  `journalAudit`, `journalAuditCheckpoint`: `USED` when the shared journal audit resumed from the
+  retained read checkpoint; `ABSENT`, `UNREADABLE` or `MALFORMED` when it ran complete because no
+  readable, decodable checkpoint existed; `NOT_APPLIED` when one was read but did not bind the
+  store as it is; `NOT_OBSERVED` when the command needed no journal audit. The field is derived
+  from what the read already read and MUST NOT write anything (invariant 4). A command in which a
+  writer failed to create, write or rename a derived checkpoint or writer-checkpoint file (the
+  read checkpoint, the writer checkpoint, its base or its invalidation token) MUST carry the
+  warning `CHECKPOINT_RETENTION_FAILED: derived file NAME was not retained; ...` once per file,
+  and its outcome, codes, items and the store MUST be exactly what they would have been had the
+  retention succeeded (CAL-V0-060). A deliberate skip (a busy lock at deferred retention, a
+  changed invalidation token, a checkpoint below the minimum) is not a failure and is not reported.
+- `LGL-V0-804`: (proposed; V1-2186) The V1-1701 walk-cost harness `TestV11701_WalkCost` MUST
+  report, per run and as medians, the wall time split into process CPU (user plus system), the Go
+  runtime's mutator and GC CPU, the run-queue delay and the I/O wait, and the command, the test
+  binary's SHA-256, the CPU count and the host load before and after the runs. I/O wait MUST be
+  measured apart from CPU, not inferred from a CPU profile: a sampler reads each thread's state from
+  `/proc/self/task` every `CORVINT_TASKS_WALK_COST_IO_SAMPLE_MS` (default 2; 0 disables) and counts
+  threads in uninterruptible sleep; where that is unavailable the field is `NOT_OBSERVED`, never 0.
+  The A/B procedure that compares two binaries over one fixture is documented in
+  `docs/BENCHMARK-HOST.md`.
+- `LGL-V0-805`: (proposed; V1-4202) Decoding a receipt from bytes MUST keep each inline post
+  record's canonical file encoding on its post entry (`PostEntry.Raw`), computed once where the
+  decode bounds the entry's size, and the receipt's own digest, bound and content-address checks
+  and the journal walk's post checks MUST use that encoding instead of re-encoding the record.
+  Every check still runs on those bytes: the destination bound, the post digest and the
+  content-addressed name. An entry built in memory has no `Raw` and is encoded as before.
+- `LGL-V0-806`: (proposed; V1-4202) The journal walk MUST NOT parse an inline post's bytes again
+  when they are the receipt decode's own encoding of a record that is a member of a `wire.Parse`
+  result. It MUST use the decoded record as the parsed value instead. This is exact, not a
+  relaxation:
+  - The record re-encoded alone is shallower than `MaxJSONDepth` (it lies at depth 4 or more of
+    the receipt) and holds fewer than `MaxJSONNodes` nodes (the receipt's count includes them).
+  - Its arrays keep the ordinary `MaxJSONArrayElements` bound (no receipt parse widens a nested
+    array), and its strings and keys passed the same hostile-code-point and UTF-8 checks.
+  - It is canonical by construction.
+
+  So `wire.Parse` of those bytes cannot refuse them and returns a value equal to the record.
+  `decodeReceiptValue` MUST be given only such values. Every semantic validation of the post
+  (scope, path identity, ticket, request and descriptor decoding) MUST then run on that value and
+  refuse exactly as before.
+- `LGL-V0-807`: (proposed; V1-4203) A read's shared journal audit (`auditState`: `ticket show`,
+  `queue status`, `doctor` and the other reads that share it) MUST, when no read checkpoint serves
+  (absent, unreadable, malformed or not binding), resume from the retained writer checkpoint
+  before paying the complete audit:
+  - It uses only a writer checkpoint published under the current CAL-V0-117 invalidation token,
+    loaded once and only then.
+  - The walk is the CAL-V0-116 writer route with the read's own selection: it rebinds the
+    checkpoint to the retained receipt it names, validates every later receipt as the complete
+    audit does, and compares every latest afterimage with its projection.
+  - Any decline falls through to the complete audit, which derives every refusal itself.
+  - The read writes nothing (invariant 4). It reports `journalAudit` `WRITER_CHECKPOINT_PLUS_TAIL`
+    and `journalAuditCheckpoint` `WRITER_CHECKPOINT` (LGL-V0-803).
+  - Its items MUST equal the complete audit's for the same store.
+  - Target: `ticket show` on a 40,000-receipt store with a writer checkpoint and no read checkpoint
+    at least 2x faster than the complete audit.
+- `LGL-V0-808`: (proposed; V1-4203) The verification boundary of a resumed read is the same for
+  the read checkpoint (CAL-V0-059) and the writer checkpoint (LGL-V0-807):
+  - **Accepted as audited.** Receipts 1..S before the checkpoint's receipt S are accepted as the
+    complete writer audit that derived the checkpoint saw them, and are not read again.
+  - **Refused as the complete audit refuses.** A receipt S whose bytes differ from the
+    checkpoint's digest, any tampered, missing, extra or reordered receipt after S, and a
+    projection that differs from its latest afterimage are refused or declined, so the complete
+    audit decides them.
+  - **Explicit verification.** `receipt audit` never resumes (LGL-V0-800, CAL-V0-061): it reads
+    every receipt, post and blob. It is the explicit complete verification of the prefix.
+  - **Notes.** Operator-note reads keep ON-V0-008: bounded, immutable reads with explicit
+    evidence failures, whichever route served the audit.
+- `LGL-V0-809`: (proposed; V1-4217) Every administrative writer that drops the read checkpoint
+  MUST leave, before it releases the writer lock, the read checkpoint derived from a complete
+  settled audit of the store as it leaves it. The writers are `journal seal`, `journal unseal`,
+  `receipt compact` and `receipt unretire`. The audit is:
+  - compaction's closing complete audit, or its opening one when it rewrote nothing;
+  - the unretire's closing audit;
+  - for seal and unseal, one complete audit of the migrated journal.
+
+  The retention is the ordinary writer's (CAL-V0-060): best effort, derived state outside the
+  state directory. An audit that does not settle retains nothing and changes no outcome, and the
+  writer checkpoint is not retained by this rule. A read after these writers MUST resume from
+  that checkpoint and give items byte-identical to the complete audit. Tamper refusals are
+  unchanged: a receipt that differs from the checkpoint's binding makes the read refuse as the
+  complete audit refuses. Target: `ticket show` right after each, at 40,000 receipts, on the
+  binding read-checkpoint route (about 0.11 s).
+- `LGL-V0-811`: (proposed; V1-3275) `RequestIndex.Lookup` MUST, when given the bound writer
+  checkpoint (`store.RequestIndexOf`), first serve the lookup by the writer route a writer's own
+  replay uses (CAL-V0-116 `AuditForWriter`, then CAL-V0-190 `WriterReplay`):
+  - The route validates the tail.
+  - For a request recorded at most `MaxWriterTail` receipts before the checkpoint, it walks the
+    checkpoint's chain back to the receipt that posted the request and binds the afterimage,
+    outcome and codes to it.
+  - It answers absent only when neither the checkpoint nor the tail holds the request.
+
+  Any decline falls back to the complete lookup, which derives the entry, its absence or the
+  refusal itself. Only a failed close of the route's reads is terminal, as for the writer. Every
+  CLI and store caller MUST construct its index this way. The answer MUST equal the complete
+  lookup's. The verification boundary is LGL-V0-808's: a receipt before the checkpoint that the
+  route does not walk is accepted as audited. Non-goal: `mutation.IndexEntry` gains no operation
+  field, because the request afterimage records none and adding one is a store-format change.
+- `LGL-V0-813`: (proposed; V1-4243) The complete walk MUST read sealed receipts ahead from their
+  verified segment, so a segmented store's receipts are decoded and validated in parallel as an
+  unsealed store's are.
+  - A read-ahead window holds either sealed receipts of the one segment the walk is entering
+    (served from the bytes the segment view checked against the manifest) or active receipts
+    read from disk. It never holds both, so segments load in the order the sequential walk
+    loads them.
+  - The view's consumed-file accounting is applied when the walk reaches each receipt.
+  - A read-ahead that fails to load a segment MUST NOT retry. Its error is kept on that receipt
+    and reported through the sequential read path when the walk reaches it.
+  - A refused segment load MUST leave the view's sealed requests unchanged: every request is
+    checked before any is kept.
+  - Verdicts, records, consumed physical files and every refusal MUST equal the sequential sealed
+    walk's.
+  - Target: a complete audit of a sealed store takes at most 1.1× the unsealed audit of the same
+    receipts.
+- `LGL-V0-814`: (proposed; V1-4243) A seal MUST keep its per-segment protocol and order: a
+  marker, then the synced segment and manifest, the head replace, the unlink of the sealed
+  physical files, the directory syncs, and last the marker removal. Within one segment it MAY
+  run in parallel:
+  - the reads and decodes of the receipts to seal, and the reads and hashes of their request
+    afterimages;
+  - the unlinks;
+  - the directory syncs.
+
+  Every check still runs in sequence order on the results, so the first refusal is the
+  sequential one. Every touched directory is still synced, and the marker is removed only after
+  all of them returned without error. The segments, manifest and head written MUST be
+  byte-identical to the one-at-a-time seal's. Target: `journal seal` of a 40,000-receipt store
+  in at most 20 s.
+- `LGL-V0-815`: (proposed; V1-4243) A seal or unseal MUST retain (LGL-V0-809) the read
+  checkpoint its opening complete audit derives when the migrated head names the same sequence,
+  receipt digest, generation, queue, primary worktree and init digest. A read checkpoint is a
+  function of the chain and of those head fields, and a migration changes neither, so that
+  checkpoint MUST be byte-identical to the one a complete audit of the migrated journal derives.
+  Otherwise the seal or unseal runs that audit.
+- `LGL-V0-816`: (proposed; V1-4217) `receipt retire` MUST NOT retain a read checkpoint. A store
+  with a retired prefix supports none (`Result.Checkpoint`; retire drops both, JRT-V0-002), and both resumed read
+  routes decline it. Reads after a retire walk only from the retire anchor, so their cost is
+  bounded by the receipts since the anchor, not by the retired history.
 
 ## Non-goals
 
@@ -332,7 +481,94 @@ later step of the same receipt sees; every step only reads them, which
 one receipt is the whole boundary: a cached audit result across invocations would need its own
 input binding and is not part of this contract.
 
+With LGL-V0-802 a fast path that accepted a string the general path refuses, or wrote a byte the
+per-byte encoder escapes, would change canonical bytes and therefore every digest. The skipped
+bytes are exactly those the general loop appends unchanged: a valid multi-byte sequence never holds
+a byte below 0x80, and invalid UTF-8 is copied raw by both forms, which
+`TestLGLV0802_EncodeStringMatchesPerByte` checks over 20,000 random strings.
+
+With LGL-V0-803 a field that claimed `USED` for a complete audit would hide the cost it exists to
+show; it is read from the audit's own `Mode`. The retention warning is collected per process and
+taken by the command's result encoder, so an in-process caller running commands concurrently may
+see another command's warning; a command-line process runs one command. The warning text names
+the file, not the error, so it carries no path outside the store's siblings.
+
+With LGL-V0-806 a decoded record that was not a member of a canonical parse would skip a parse
+that could refuse it. The only `PostEntry.Raw` writer is the receipt decode, and every caller of
+`decodeReceiptValue` passes a `wire.Parse` result or a shallow copy of one (an elided receipt is
+restored to bytes and parsed again first). An entry built in memory has no `Raw`, and the walk
+takes the identity of the bytes (`parsedPost` compares the slices), not their equality. With
+LGL-V0-807 a writer checkpoint read outside the writer lock may be mid-replacement. A base and
+delta that do not bind, an older checkpoint, or a token that moved make the route decline, and
+the complete audit runs. A read never retains either checkpoint, so a store that has only
+writer-checkpoint reads keeps paying the tail walk until the next ordinary writer retains a read
+checkpoint.
+
 ## Acceptance evidence
+
+For `LGL-V0-805` and `LGL-V0-806`, the tests in `internal/tasks/journal/inline_post_reuse_test.go`
+show the following:
+- `TestLGLV0806_DecodedRecordIsItsOwnReparse`: every inline record of a 120-receipt history
+  carries its own encoding, and that encoding parses back to the record.
+- `TestLGLV0806_BoundsRefuseTheReceiptBeforeTheRecord`: a record one level, one array element or
+  one node past a bound, or holding a hostile code point, unsorted or duplicate keys or a number,
+  makes the receipt parse refuse with the same code. One just inside the bounds reparses to
+  itself.
+- `TestLGLV0806_ValidateRecordMatchesReparse`: valid records and every semantic refusal (foreign
+  queue, ticket filename, attempt and effect path identity, malformed ticket and request) give
+  identical results with and without the parsed value.
+- `TestLGLV0806_AuditWithReuseMatchesAuditWithout`: complete audits match with and without reuse,
+  including a refused filename identity and a tampered record.
+
+The 40,000-receipt walk-cost A/B (two rounds, five runs each) went from 3.52 s to 3.07 s, and its
+CPU from 13.8 s to 10.3 s. `receipt audit` went from 1.86-1.93 s to 1.74-1.76 s at 13k and from
+5.44-5.54 s to 5.11-5.42 s at 40k, CPU 21-23 % lower, with byte-identical items.
+
+For `LGL-V0-807` and `LGL-V0-808`, the tests in `internal/tasks/journal/writer_read_route_test.go`
+show the following:
+- The route returns the complete audit's verdicts and records, and reads 6 receipts at both 40
+  and 400 history receipts.
+- A serving read checkpoint wins, and the loader is never called.
+- Tampering is refused exactly as the complete audit refuses it, and a forged or foreign
+  checkpoint only falls back. The tampered cases are a tail receipt, the checkpoint's receipt and
+  a projection.
+- A tampered prefix receipt is accepted alike by the read-checkpoint and writer-checkpoint
+  routes and refused by the complete audit.
+
+`TestLGLV0807_TicketShowResumesFromTheWriterCheckpoint` (`internal/tasks/cli`) drives real
+writers over a padded journal and shows the following:
+- `queue status` reports `WRITER_CHECKPOINT`.
+- `queue status` and `ticket show` give items byte-identical to the complete audit's, and leave
+  the state tree untouched.
+- A tampered head receipt is refused with the complete audit's codes.
+
+On a 40,002-receipt store with a writer checkpoint and no read checkpoint, `ticket show` went from
+3.09-3.28 s to 0.16-0.19 s (Unraid Linux, load 2.5-2.8). The same read and the operator-note
+ticket give byte-identical items on all three routes. With no checkpoint of either kind it stays
+the complete audit (3.1-3.7 s, load up to 7.6).
+
+For `LGL-V0-802`, `TestLGLV0802_EncodeStringMatchesPerByte` and
+`TestLGLV0802_ParseStringFastPathMatchesGeneral` (`internal/tasks/wire/string_fastpath_test.go`)
+compare the run-copying forms with the byte-at-a-time encoder kept in the test, over random strings
+of escapes, controls, multi-byte and invalid UTF-8, and pin refusal texts and positions; the wire,
+journal, snapshot and ticket packages pass unchanged. Interleaved fresh-process runs (five per
+binary per size, Unraid Linux x86_64, 12 CPUs, load 0.5 to 2.8) gave `receipt audit` medians base
+to new of 0.66 to 0.54 s at 3,000 synthetic receipts, 2.44 to 1.86 s at 13,000 and 7.35 to 5.47 s
+at 40,000, byte-identical, and the walk-cost harness at 40,000 4.19-4.44 to 3.49-3.75 s; the
+build-log entry `docs/build-log/2026-11-01-tkp-u33.md` has every run.
+
+For `LGL-V0-803`, `TestLGLV0803_ReadsNameWhyTheAuditWasComplete`
+(`internal/tasks/cli/retention_report_test.go`) drives `queue status` and `doctor` through `USED`,
+`MALFORMED`, `NOT_APPLIED` and `ABSENT` and shows the state tree and the checkpoint bytes unchanged
+by each read; `TestLGLV0803_WriterReportsAFailedRetention` blocks the read checkpoint with a
+non-empty directory, shows a note write commits exactly one receipt and warns
+`CHECKPOINT_RETENTION_FAILED` for `taskman.checkpoint.json`, and that the next write, once the
+path is clear, retains the checkpoint and warns nothing.
+
+For `LGL-V0-804`, `TestLGLV0804_WalkSplitParsesStateAndKeepsUnobserved` pins the thread-state parse
+and that an unobserved run keeps the median `NOT_OBSERVED`; the 40,000-receipt A/B in the
+2026-11-01 tkp-u33 build log reports, per run, about 14-15 s CPU, 1.0 s system time and 0 ms
+sampled I/O wait over a 3.5 s wall walk: the walk is CPU-bound on a warm page cache.
 
 `TestLGLV0800_AttemptMemoMatchesFreshDecode` (`internal/tasks/transaction/ticket_posts_test.go`,
 V1-3186) shows the memo returns what a fresh read and decode return for a valid attempt, a
@@ -490,7 +726,65 @@ For `LGL-V0-810`, `TestLGLV0810_GateRunHeartbeatsItsHolder`
 a gate at minute 11 under the default 600 s TTL: a gate program that sleeps 1 s leaves the holder
 `FRESH_HOLDER`, while a gate that ends before the first beat leaves it `STALE_HOLDER`, and both
 gate results record `COMPLETED`.
+For `LGL-V0-809` and `LGL-V0-816`, the following tests pass:
+- `TestLGLV0809_SealAndUnsealLeaveAReadCheckpoint`;
+- `TestLGLV0809_CompactionLeavesAReadCheckpoint`, which covers eliding, nothing to elide and a
+  dry run;
+- `TestLGLV0809_RetireLeavesNoneUnretireLeavesOne`.
 
+Each shows the checkpoint at the head, and a resumed read equal to the complete audit. Where a
+checkpoint is left, a tampered head receipt is refused with the complete audit's error. `ticket
+show` on copies of a 40,002-receipt store (Unraid Linux; operation-run loads 1.6-4.4) was
+measured right after each operation:
+
+| Operation | Before | After |
+| --- | --- | --- |
+| seal | 5.17-5.88 s | 0.106-0.115 s |
+| compact | 3.14-3.28 s | 0.104-0.110 s |
+| retire (by design, LGL-V0-816) | 0.66-0.68 s | 0.66-0.68 s |
+
+After seal and compact the items are byte-identical with and without the retained checkpoint.
+
+For `LGL-V0-811`, `TestLGLV0811_RequestLookupFromTheWriterCheckpoint` shows the routed lookup
+equals the complete one for a request in the checkpoint, one in the tail and an absent one.
+Absent and tail requests read the same 2-4 receipts at 40 and 400 history receipts. A request 401
+receipts back falls back to the complete audit. `TestLGLV0811_TamperedRequestStillRefused` shows
+a tampered afterimage and a tampered tail receipt are refused with the complete lookup's error,
+and that a forged checkpoint only falls back. `ticket recur` with a fresh request ID on a
+40,002-receipt store with a current writer checkpoint went from 3.46-3.55 s to 0.49-0.55 s
+(Unraid Linux, load 3.9-4.9).
+
+For `LGL-V0-813` to `LGL-V0-815`:
+- `TestLGLV0813_SegmentPrefetchMatchesTheSequentialSealedWalk` shows the prefetched sealed walk
+  equals the sequential one: verdicts, records, consumed physical files, and the refusals of a
+  tampered segment and of a tampered active receipt.
+- `TestLGLV0814_ParallelSealWritesTheSameBytes` seals one store with 1 and with 32 workers, an
+  unseal between, and finds byte-identical receipts, requests, segments, manifest and head and
+  equal audit verdicts. The inventory digest hashes modification times, so it is not compared.
+- `TestLGLV0815_MigrationReusesTheOpeningCheckpoint` shows the reused checkpoint equals the
+  migrated journal's, byte for byte, after both a seal and an unseal.
+- `TestLGLV0813_TransientSegmentLoadErrorIsNotRetried` injects a one-time EIO into a segment load,
+  and `TestLGLV0813_MidSegmentDuplicateRefusedTheSameWay` seals a request a second time after a
+  segment's own request. In both, the prefetched walk's refusal is byte-identical to the
+  sequential walk's. Both fail against the read-ahead that dropped the error or kept requests as
+  it went.
+- The LGL-V0-814 fault tests replace one worker's directory sync or unlink:
+  - `TestLGLV0814_FailedDirectorySyncKeepsTheSealRecoverable`: the seal fails with the injected
+    EIO and keeps its marker, a read reports `REDO_PENDING`, and the next seal settles and
+    finishes clean.
+  - `TestLGLV0814_PartialParallelUnlinkRecovers`: one receipt is kept while others are removed,
+    the marker stays, and the next seal settles the partial drop and finishes clean.
+  - `TestLGLV0814_MarkerRemovedOnlyAfterEveryWorker`: deliberately slow workers still see the
+    marker when they return.
+- The process-wide test seams are atomic and their tests are not parallel. The journal package
+  and the seal tests pass under `-race`.
+- The JSG seal, settle and refusal tests pass unchanged.
+
+At 40,003 receipts on Unraid Linux, `journal seal` took 152 and 100.5 s on the base binary and
+14.2, 15.8 and 14.6 s after, interleaved, at loads 2.3-8.9. On a store sealed into 77 segments,
+the complete `receipt audit` went from 7.5-7.7 s to 4.6-4.8 s, against 5.4-5.6 s unsealed, and
+`ticket show` with no checkpoint went from 5.5-5.6 s to 2.56-2.58 s, against 3.3 s unsealed. Both
+outputs are byte-identical between the binaries.
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -517,3 +811,18 @@ decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes 
 workers and the post-run audit; with the knob unset the harness runs as before. Reverting LGL-V0-810
 (`gateHeartbeat` in `internal/tasks/store/gate_heartbeat.go`) stops gate run heartbeating; the
 beats it wrote are ordinary heartbeat receipts that every binary reads.
+Reverting LGL-V0-802 restores the byte-at-a-time encoder and parser loops; the bytes they produce are the
+same, so stores and digests are unchanged. Reverting LGL-V0-803 drops the
+`journalAuditCheckpoint` field and the retention warning; nothing is stored. Reverting LGL-V0-804
+removes the split from the walk-cost report; the runs and medians stay. Reverting LGL-V0-805 and
+LGL-V0-806 (or setting `inlinePostReuse` false) returns the walk to encoding and parsing each
+inline post again. The results are equal, and nothing is stored. Reverting LGL-V0-807 (dropping
+`WriterCheckpoint` from `auditState`) returns reads without a serving read checkpoint to the
+complete audit. Nothing is stored, and both checkpoint files keep their format. Reverting
+LGL-V0-809 returns seal, unseal, compaction and unretire to leaving no read checkpoint, so reads
+pay the complete audit until the next ordinary writer. A read checkpoint they left is still an
+ordinary one that any binary reads or ignores. Reverting LGL-V0-811 (constructing indexes without
+`WriterCheckpoint`) returns every lookup to the complete audit; nothing is stored. Reverting LGL-V0-813 (or
+`SetSegmentPrefetchForTest(false)`) returns a sealed walk to sequential reads with equal results.
+Reverting LGL-V0-814 (`sealWorkers` 1) returns the seal to one file at a time and writes the same
+bytes. Reverting LGL-V0-815 runs the closing audit again.

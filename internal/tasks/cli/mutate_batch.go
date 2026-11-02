@@ -54,7 +54,7 @@ func mutationBatchCommand(env Env, cmd []string, operation string, flags mutateF
 	if flags.template || flags.target != "" || flags.expected != "" {
 		return usage(cmd, "--batch takes each target and expected revision from its entries; --target, --expected-revision and --template are refused")
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -329,7 +329,8 @@ func batchRequestIndex(env Env, st *intent.Store) (*journal.RequestIndex, *inten
 	if absent, err := journalAbsent(repo.StateDir); err != nil || absent {
 		return nil, repo, err
 	}
-	return &journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}, repo, nil
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
+	return &idx, repo, nil
 }
 
 // entryValue is member key of a batch entry object, if present.

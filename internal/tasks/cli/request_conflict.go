@@ -24,7 +24,7 @@ func defaultedIssuedAtConflict(issued wire.Timestamp) string {
 }
 
 // recordedIssuedAt recovers the issuedAt of a recorded request whose retry
-// omitted --issued-at (TCL-V0-800, V1-3958): it rebuilds this invocation's
+// omitted --issued-at (TCL-V0-800, TCL-V0-735, V1-3958): it rebuilds this invocation's
 // envelope with the recordedAt of the receipt the request-index entry names
 // (ATR-V0-275), then the recorded ticket's createdAt and updatedAt, each
 // also up to two seconds earlier since the writer clock can tick past the CLI
@@ -36,7 +36,7 @@ func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation strin
 	if flags.requestID == "" {
 		return "", "", false
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	entry, ok, err := idx.Lookup(flags.requestID)
 	if err != nil || !ok || idx.TicketID == "" {
 		return "", "", false
@@ -102,7 +102,7 @@ func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, 
 	if err != nil {
 		return live
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
 	if r, ok, err := recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n); err == nil && ok {
 		return r
 	}

@@ -48,7 +48,7 @@ func gobDecoded(t *testing.T, receipt SnapshotReceipt, identity repositoryIdenti
 	case loadCompact:
 		index, err = decodeCompactEventSnapshot(file, identity, receipt.Engine)
 	case loadEvent:
-		index, err = decodeEventSnapshot(file, identity, receipt.Engine)
+		index, err = decodeEventSnapshot(file, identity, receipt.Engine, false)
 	default:
 		index, err = decodeSnapshot(file, identity, receipt.Engine)
 	}

@@ -365,5 +365,17 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 			packet["instruction_load_set"] = loadSet
 		}
 	}
+	// The LSP evidence and the instruction load set read bodies after
+	// TaskContext's own refusal check; a deferred body that failed there
+	// refuses the packet too, so runTaskContext reloads eagerly
+	// (IDX-SNAP-V0-814).
+	if err == nil {
+		err = index.SnapshotRefusal()
+	}
+	if errors.Is(err, contextindex.ErrSnapshotRefused) {
+		// The caller reloads eagerly; this read's mapping ends here
+		// (IDX-SNAP-V0-815).
+		index.Release()
+	}
 	return packet, hit, built, err
 }

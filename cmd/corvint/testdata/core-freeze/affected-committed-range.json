@@ -98,6 +98,7 @@
   },
   "revision": "<varies:string>",
   "summary": {
+    "committed": 5,
     "dirty": 5,
     "excluded": 0,
     "line": "scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3 UNOWNED_DIRTY_PATH=3",
@@ -106,7 +107,8 @@
     "unknown": 3,
     "unknownByReason": {
       "UNOWNED_DIRTY_PATH": 3
-    }
+    },
+    "worktree": 0
   },
   "tiers": {
     "counts": [

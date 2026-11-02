@@ -33,6 +33,7 @@ func repositoryCheckout(t *testing.T) string {
 // touchPaths; ambiguous or unusable repositories are refused before any
 // write, and a note without --repo is stored exactly as before.
 func TestKHNV0024_RepositoryKnowHowThroughTheCLI(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r := exclusionCLIRepo(t)
 	policyPath := filepath.Join(r.IntentDir, "policy.json")
 	raw, err := os.ReadFile(policyPath)
@@ -53,7 +54,7 @@ func TestKHNV0024_RepositoryKnowHowThroughTheCLI(t *testing.T) {
 	}
 	e2e := repositoryCheckout(t)
 	e2eRepo := "e2e=" + e2e
-	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
+	setActor(t, "agent")
 	home := planTicket(t, r.Root, "home", "P1", `["e2e/src/"]`)
 	other := planTicket(t, r.Root, "other", "P2", `["src/a.go"]`)
 	add := func(target, req, rev string, extra ...string) []string {

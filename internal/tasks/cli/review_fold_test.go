@@ -19,8 +19,8 @@ import (
 // whole-history fold after every real review transition (submission, RETURN,
 // resubmit, PASS), each a tail append to the carried prefix.
 func TestCALV0138_CarriedReviewFoldMatchesWholeHistory(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	repo, err := intent.Resolve(root)
 	if err != nil {
@@ -82,8 +82,8 @@ func TestCALV0138_CarriedReviewFoldMatchesWholeHistory(t *testing.T) {
 // CAL-V0-138: an in-place rewrite of an earlier receipt's content is not
 // re-hashed by the carried fold; receipt audit detects it.
 func TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	repo, err := intent.Resolve(root)
 	if err != nil {

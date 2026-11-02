@@ -98,7 +98,7 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 	}
 	var actor mutation.Binding
 	if err == nil {
-		actor, err = initActor(role)
+		actor, err = initActor(env, role)
 	}
 	now := wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
 	issued := now

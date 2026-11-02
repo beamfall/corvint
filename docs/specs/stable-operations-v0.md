@@ -178,10 +178,10 @@ Lifecycle steps are `install-a`, `first-index`, `upgrade-b`, `rollback-a`, `unin
 | Requirement | Evidence |
 |---|---|
 | SOP-V0-001 | wrapper case 1 (binary), case 2 (archive root `corvint_test_host`), case 3 (tampered `SHA256SUMS` fails at `install-a`, no `first-index` line, exit 1) |
-| SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:48@9ea4ec57` |
+| SOP-V0-002 | step `first-index` in cases 1 and 2; snapshot miss/hit semantics `internal/contextindex/snapshot_test.go:49@9ea4ec57` |
 | SOP-V0-003 | case 1 asserts `upgrade-b` ran `(build 2)`, `packet=identical` and no `same-bytes`; case 2 asserts `same-bytes`; case 5 (stubbed wire change passes with `packet=changed`, an unreproducible packet and an empty packet each fail at `upgrade-b` with exit 1); installer coexistence `internal/releasecandidate/install_test.go:16@90e57d5e`, `internal/releasecandidate/operations_test.go:46@5dca69d1` |
 | SOP-V0-004 | step `uninstall` in cases 1 and 2 |
-| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:215@4e378161` |
+| SOP-V0-005 | step `backup-restore` in cases 1 and 2; round trip `internal/contextindex/snapshot_test.go:231@4e378161` |
 | SOP-V0-006 | steps `corrupt-truncate` and `corrupt-overwrite`; unit-level miss `internal/contextindex/pack_test.go:206@b2b8420d` |
 | SOP-V0-007 | hostile wrapper case 2 (exact delegated argv, one `go` per row), case 3 (skipped test NOT_RUN, run passes), case 4 (row NOT_RUN), case 5 (`--- FAIL` names the test, exit 1) |
 | SOP-V0-008 | hostile wrapper case 1 (`git grep` of every listed `func Test...(` in tracked `_test.go`; every category listed) |
@@ -201,7 +201,7 @@ Hostile-regression matrix (`script/check-hostile-regressions.sh --list` prints t
 | paths | `internal/companionrelease` | `internal/companionrelease/companionrelease_test.go:694@5ef76c7b` |
 | paths | `internal/trace` | `internal/trace/migration_test.go:80@77e27ccc` |
 | paths | `internal/doccompiler` | `internal/doccompiler/compiler_test.go:211@b9d5a61d` |
-| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:478@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:600@22f1c7f2`, `internal/contextindex/snapshot_test.go:650@ee7924d9` |
+| symlinks | `internal/contextindex` | `internal/contextindex/index_test.go:237@6bb9aead`, `internal/contextindex/index_test.go:478@22de943f`, `internal/contextindex/blob_shards_open_test.go:91@9e01d46f`, `internal/contextindex/blob_shards_open_test.go:52@137ff6a7`, `internal/contextindex/snapshot_test.go:616@22f1c7f2`, `internal/contextindex/snapshot_test.go:666@ee7924d9` |
 | symlinks | `internal/trace` | `internal/trace/store_test.go:223@ee958993`, `internal/trace/store_test.go:938@69176005` |
 | symlinks | `internal/releasecandidate` | `internal/releasecandidate/operations_test.go:107@141529a4` |
 | symlinks | `internal/worktreeimpact` | `internal/worktreeimpact/hostile_unix_test.go:12@0eab7357` |

@@ -484,6 +484,25 @@ in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at t
 never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
 not a commit exits 2.
 
+An `ABSENT` path whose ticket body records `Source ref: BRANCH@SHA` (`TCL-V0-743`, V1-3696) names
+that ref: dispatch the ticket after the branch lands instead of against a base that lacks the code.
+
+Orphan lane heads (`TCL-V0-744`, V1-3856). A lane head that delivered a ticket but was never merged
+into a batch is invisible to dispatch, and the ticket gets rebuilt. Make the in-flight batch branches
+readable where the screen runs, then list the orphans and screen the batch against them:
+
+```sh
+git push <lane-host>:<repo> 'refs/heads/claude/batch-*:refs/heads/claude/batch-*'   # each lane host
+corvint-tasks ticket orphan-lanes > orphans.json
+make lane-dispatch-check BASE=<sha> ORPHANS=orphans.json LANES="..."
+```
+
+`ticket orphan-lanes` lists every lane commit that delivers an OPEN ticket and that neither the
+integration ref nor any `claude/batch-*` branch (`--batch GLOB`) contains; with no batch branch in
+the clone it warns that in-flight batches are `NOT_OBSERVED`. `ORPHAN` (never waived) names each
+assigned ticket so delivered: batch that head instead of rebuilding the ticket. A charter's
+pre-build screen (`git log --all --grep=<ID>`) sees batch work only where those branches were pushed.
+
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
 build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
@@ -977,6 +996,41 @@ are verified first, and every result names the snapshot's host, primary worktree
 journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
 naming the owning store and the command to run there.
 
+Store parity (TCL-V0-742, V1-3931). A lane host's store copy or snapshot can fall behind the owning
+store, and a lane that reads it reports tickets as absent that exist. Before claiming anything about
+store contents on a lane host, compare it with the staged authoritative snapshot:
+
+```sh
+corvint-tasks queue parity --against ~/lane-inputs/ticket-bodies-<lane>/queue-snapshot.json
+```
+
+It names both tree digests, ages and journal sequences and lists the tickets the host lacks
+(`missing`), holds at different content (`stale`) or holds that the authority lacks (`extra`); a
+host that is behind is refused `STALE_TICKET`. `script/agent-preflight.sh` prints the same check as
+its `tasks-store` row (`in sync`, `WARN behind`, `UNKNOWN` or no snapshot staged) and never fails
+on it. When the host is behind, read tickets with `CORVINT_TASKS_SNAPSHOT=` that file. Any claim
+that a ticket or field is absent from the store cites the store tree digest the read named (every
+snapshot read's warning names its tree and age).
+
+Carry the projection after every merge (ASD-V0-815, V1-4183). A lane host without a journal reads
+the `.taskman/` projection its lane branch tracks, so a fresh lane is only as current as
+origin/main's projection: on 2026-11-01 origin/main tracked 808 tickets while the Mac store held
+4,218, and parity on a clean origin/main clone refused `STALE_TICKET` with 3,410 missing and 465
+stale. After each batch merge, as part of the post-merge routine, the orchestrator carries the
+projection from the owning store into a clean worktree off the new origin/main and lands that
+commit in its own pull request (it touches only `.taskman/`, so it narrows like any data change):
+
+```sh
+git worktree add --detach ../carry origin/main
+script/tasks-carry-projection.sh --commit ../carry    # on the host that owns the store
+```
+
+It replaces `.taskman/queue.json`, `policy.json`, `tickets/` and `releases/` with the store's,
+requires every file to match a fresh `queue snapshot` (`DRIFT`, `MISSING` or `EXTRA` otherwise,
+exit 1) and prints `PASS QUEUE tickets BEFORE -> AFTER, N files changed`. Then stage the snapshot
+on each lane host with `script/lane-stage-inputs.sh` (section 14); a lane started from the carried
+main passes `queue parity` and its preflight `tasks-store` row reads `in sync`.
+
 ## 13. Lane flow guide and refusal recovery map (V1-3239)
 
 One lane runs this flow, in order; each step names the command and the section that owns it.
@@ -1069,7 +1123,8 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
 (V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
-  assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
+  assigned ticket, exported on the owning host, and `<ID>.txt`, the same ticket as readable text from
+  `corvint-tasks ticket show <ID> --format text` (TCL-V0-741, V1-3817). A lane host may instead read a queue snapshot
   (`CORVINT_TASKS_SNAPSHOT`, section 12); without either, `ticket show` there refuses
   `journal-absent` (V1-3262). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
   is not a ticket body.
@@ -1131,6 +1186,12 @@ script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
   commit after `BASE` that no `origin` ref holds but another local branch does
   (the worktree started on another lane's unpushed head, V1-3061). Each refusal names the
   `lane-setup.sh --base` command that recreates the worktree.
+
+Stage the ticket bodies with `script/lane-stage-inputs.sh --host HOST LANE ID...` on the Mac
+(ASD-V0-742, V1-3245). It exports both files per ticket and `queue-snapshot.json`, the authority
+`queue parity` compares against (section 12, TCL-V0-742), copies them to
+`~/lane-inputs/ticket-bodies-<lane>/` on HOST and lists that directory there. Start the lane session
+only after it prints `PASS`; an `EXPORT` or `MISSING` line names the ticket or file to fix first.
 
 Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
 format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id

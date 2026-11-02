@@ -167,6 +167,7 @@ func progressCLIFingerprints(t *testing.T, root, id string, refs ...string) []st
 // a hand-off without evidence is no progress, a repeated reference is no
 // progress, and only a new reference is, with or without loopDetection.
 func TestATRV0084_DispatchFingerprintCarriesLatestReference(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("ATR-V0-084 DispatchFingerprintCarriesLatestReference", func(t *testing.T) {
 		for _, loop := range []bool{false, true} {
 			for _, c := range []struct {

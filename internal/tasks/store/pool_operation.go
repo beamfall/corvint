@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
@@ -152,7 +151,7 @@ func recordedOperation(repo *intent.Repository, choice LeaseChoice) (*snapshot.P
 	if e != nil {
 		return nil, e
 	}
-	index := journal.RequestIndex{Reader: journalReader(repo, probe.Head)}
+	index := RequestIndexOf(repo, journalReader(repo, probe.Head))
 	entry, found, e := index.Lookup(poolChildID(choice.RequestID, "observe"))
 	if e != nil || !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ReceiptSeq == nil {
 		return nil, e

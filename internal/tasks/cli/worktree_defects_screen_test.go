@@ -52,12 +52,13 @@ func objectOf(t *testing.T, raw string) wire.Value {
 // nothing; PHONE, not opted in, is accepted; an unreadable values file
 // refuses the screened write.
 func TestKHNV0030_KHNV0031_ValueScreenRefusesWithoutEcho(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	const deny = "tok-7f3a9c2e1b"
 	r := policyCLIRepo(t, func(p wire.Value) {
 		p.Obj.Set("knowHow", objectOf(t, `{"workerAdd":false,"screen":{"denyValuesFile":"secrets/deny.env","classes":["EMAIL"]}}`))
 	})
 	fixture.Write(t, filepath.Join(r.Root, "secrets", "deny.env"), []byte("API_TOKEN="+deny+"\n"))
-	t.Setenv("CORVINT_TASKS_ACTOR", "owner")
+	setActor(t, "owner")
 	id := planTicket(t, r.Root, "screened", "P2", `["src/a.go"]`)
 	issued := "2026-10-17T12:00:00Z"
 	note := func(req, text string) run {
@@ -199,6 +200,7 @@ func TestTDRV0010_DefectsVerbsThroughTheCLI(t *testing.T) {
 // NOT_A_BUG id are findings, and a DEFECT obligation resting only on an
 // ENVIRONMENT defect is DEFECT_ENVIRONMENT, while a PRODUCT defect satisfies.
 func TestTDRV0007_TDRV0008_PreflightDefectFindings(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, strings.Replace(cleanSpec, "(BUG-17)", "(DEF-9)", 1), cleanSeed)
 	for _, args := range [][]string{
 		{"defects", "add", "--title", "proxy", "--location", "ci", "--evidence", "run 1", "--category", "ENVIRONMENT"},
