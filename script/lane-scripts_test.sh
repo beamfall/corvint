@@ -2323,9 +2323,66 @@ EOF
 chmod +x "$lw/gh"
 printf 'TestFlaky.*\n# comment\n' > "$lw/flakes"
 head40=0123456789abcdef0123456789abcdef01234567
-lwr() { GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
-printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
-[[ $(lwr 7) == MERGED ]] || fail "landing watch missed a merged PR"
+# The stub reconcile records RECONCILE_APPLY and exits LW_RECONCILE_RC (ASD-V0-1922).
+cat > "$lw/reconcile" << 'STUB'
+#!/usr/bin/env bash
+echo "apply=${RECONCILE_APPLY:-}" >> "$LW_SCENARIO/reconciles"
+echo "closeout-debt report"
+exit "${LW_RECONCILE_RC:-0}"
+STUB
+chmod +x "$lw/reconcile"
+# ASD-V0-1922: use a real, stale tracking ref and a disposable local origin.
+git init -q -b main "$lw/origin"
+printf 'before merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" add merged
+git -C "$lw/origin" commit -q -m before
+git clone -q "$lw/origin" "$lw/checkout"
+mkdir -p "$lw/checkout/script"
+cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
+printf 'merged\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am merged
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+# A failed fetch must not consume the once-only marker or invoke reconcile.
+git -C "$lw/checkout" remote set-url origin "$lw/missing-origin"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unfetched merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "failed fetch consumed reconciliation"
+git -C "$lw/checkout" remote set-url origin "$lw/origin"
+# Even after a successful fetch, an absent merge commit must remain retryable.
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$head40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unverified merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "missing merge consumed reconciliation"
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=0 '* && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "verified merge was not retried: $out"
+/bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
+# Move origin ahead again: the first successful pass must refresh origin/main.
+printf 'later merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am later
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+out=$(lwr 7)
+[[ $(git -C "$lw/checkout" rev-parse origin/main) == "$merge40" ]] || fail "reconciled against stale origin/main"
+[[ $out == "MERGED
+RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch missed a merged PR or its reconcile: $out"
+[[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "a merged PR was reconciled twice"
+[[ $(cat "$lw/s/reconciles") == apply= ]] || fail "a dry pass applied: $(cat "$lw/s/reconciles")"
+grep -q 'closeout-debt report' "$lw/state/reconcile-7.log" || fail "reconcile output not kept"
+[[ ! -e $lw/state/alerts.log ]] || fail "a clean reconcile alerted: $(cat "$lw/state/alerts.log")"
+# Debt alerts; --act passes RECONCILE_APPLY through; a refusal alerts as refused; --no-reconcile skips.
+out=$(LW_RECONCILE_RC=1 RECONCILE_APPLY=manual lwr --act 16); rc=$?
+[[ $rc == 0 && $out == "MERGED
+RECONCILE status=1 log=$lw/state/reconcile-16.log" ]] || fail "debt reconcile: rc=$rc $out"
+[[ $(tail -1 "$lw/s/reconciles") == apply=manual ]] || fail "--act did not pass RECONCILE_APPLY: $(cat "$lw/s/reconciles")"
+grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/state/alerts.log" || fail "debt not alerted"
+out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
+[[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
+grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
+[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles") == 3 ]] || fail "--no-reconcile still reconciled"
+/bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
 # A listed flake reruns three times under --act, then escalates rerun-cap once into the alerts file.
@@ -2837,6 +2894,50 @@ for lock in "$tmp"/slots/slot* "$pol"/slots/slot* "$off"/rhome/.cache/corvint-he
   busy "$lock" && fail "a heavy.sh fixture outlived the test holding $lock (pid $(cat "$lock"))"
 done
 [[ ! -s $heavy_escapes ]] || fail "a heavy.sh fixture ran with a lock dir outside the test directory"
+ok
+
+# DCW-V0-1925 (V1-1467): merge-regenerate-specs.sh merges a lane whose only conflict is the
+# generated REQUIREMENTS.tsv by regenerating it inside the merge with the real generator; any
+# other conflict is left in progress and named.
+mrs=$tmp/merge-regen
+mkdir -p "$mrs/script" "$mrs/docs/specs"
+cp "$script/gen-spec-requirements.sh" "$mrs/script/"
+mg() { GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid git -C "$mrs" "$@"; }
+mspec() { # mspec FILE TITLE LINES...
+  local f=$1 title=$2
+  shift 2
+  { printf '# %s\n\nIntent status: accepted\nDelivery status: implemented\n\n## Agent digest\n- Claim: fixture.\n\n## Requirements\n\n' "$title"
+    printf '%s\n' "$@"; } > "$mrs/docs/specs/$f"
+}
+mregen() { mg add -A && (cd "$mrs" && script/gen-spec-requirements.sh --write > /dev/null 2>&1); }
+mg init -q -b main
+mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.'
+mspec fixture-b-v0.md B 'No numbered requirement yet.'
+mspec fixture-c-v0.md C '- `FXC-V0-001`: One MUST hold.'
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n|---|---|---:|---:|---|\n' > "$mrs/docs/specs/README.md"
+mregen && mg commit -qm base || fail "merge-regen fixture base"
+mg checkout -qb lane-a && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-002`: Two MUST hold.' && mregen && mg commit -qm a
+mg checkout -q main && mg checkout -qb lane-c && mspec fixture-c-v0.md C '- `FXC-V0-000`: Zero MUST hold.' '- `FXC-V0-001`: One MUST hold.' && mregen && mg commit -qm c
+mg checkout -q main && mg merge -q --no-ff --no-edit lane-a
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-c 'Merge lane c' 2>&1) || fail "merge-regenerate-specs refused a REQUIREMENTS.tsv-only conflict: $out"
+[[ $out == *'was regenerated from the merged specs (DCW-V0-1925)'* ]] || fail "no regeneration line: $out"
+[[ $(mg rev-list --count --merges -1 HEAD) == 1 && $(mg log -1 --format=%P | wc -w | tr -d ' ') == 2 ]] || fail "HEAD is not the merge"
+mg log -1 --format=%B | grep -q '# Conflicts:' && fail "the merge message keeps a conflicts block"
+for id in FXA-V0-001 FXA-V0-002 FXC-V0-000 FXC-V0-001; do
+  mg show HEAD:docs/specs/REQUIREMENTS.tsv | grep -q "^$id"$'\t' || fail "the regenerated REQUIREMENTS.tsv lacks $id"
+done
+(cd "$mrs" && script/gen-spec-requirements.sh --check > /dev/null 2>&1) || fail "the merged generated files are not the generator's output"
+# A conflict in a spec stays for the operator: exit 1, the path named, the merge in progress.
+mg checkout -q -b lane-a2 "$(mg rev-list --max-parents=0 HEAD)" && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-009`: Nine MUST hold.' && mregen && mg commit -qm a2
+mg checkout -q main
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-a2 2>&1); rc=$?
+[[ $rc == 1 && $out == *'  docs/specs/fixture-a-v0.md'* && $out == *'fix: follow the merge-resolution-unbound recovery'* && -f $mrs/.git/MERGE_HEAD ]] ||
+  fail "a spec conflict was not left for the operator: rc=$rc $out"
+mg merge --abort
+out=$(cd "$mrs" && "$script/merge-regenerate-specs.sh" 2>&1); rc=$?
+[[ $rc == 2 ]] || fail "no REV was accepted: rc=$rc $out"
 ok
 
 summary

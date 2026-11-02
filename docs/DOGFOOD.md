@@ -845,6 +845,10 @@ line naming this path (`DCW-V0-040`, amended by decision 0584). Instead (`DCW-V0
    and do not use `-X ours` or `-X theirs`, which silently drop the other side's conflicting hunks:
    rebase that change's own work commits (not its old bind and seal commits) onto the batch head,
    resolve each conflict there, bind, check and seal it again with `BASE=<batch head>`, then merge it.
+   The one exception is a conflict only in the generated `docs/specs/REQUIREMENTS.tsv`, as when two
+   lanes each add requirement rows: merge with `script/merge-regenerate-specs.sh BRANCH`, which
+   regenerates that file inside the merge, and `dogfood-batch-check` derives the merge as
+   `regenerated-specs` (`DCW-V0-1924`, `DCW-V0-1925`).
    Commit any other edit to the batch, such as an orchestrator's index or decision update or a
    hand-merged file, as its own sealed change on a branch and merge that.
 3. From a clean worktree at the batch head, run `make dogfood-batch-check BASE=$BASE` (or

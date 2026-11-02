@@ -1271,7 +1271,7 @@ func (l *ledger) prune() error {
 		records = append(records, aged{name, info.ModTime()})
 	}
 	sort.Slice(records, func(i, j int) bool { return records[i].at.Before(records[j].at) })
-	for _, old := range records[:len(records)-maxRecords] {
+	for _, old := range overflow(records, maxRecords) {
 		os.Remove(old.name)
 	}
 	return nil
@@ -1333,6 +1333,16 @@ func sameFile(f *os.File, path string) bool {
 	}
 	named, err := os.Lstat(path)
 	return err == nil && os.SameFile(held, named)
+}
+
+// overflow is the head of oldest-first records beyond keep, or nothing when at most keep
+// remain. A concurrent prune may remove records between the glob and the stat, so fewer than
+// the glob's count can survive; that must never be a negative slice bound (GL-V0-1920, V1-4262).
+func overflow[T any](records []T, keep int) []T {
+	if len(records) <= keep {
+		return nil
+	}
+	return records[:len(records)-keep]
 }
 
 // lock serialises concurrent runs of one key so the step executes once and the

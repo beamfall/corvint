@@ -10,6 +10,12 @@
 #   script/batch-precheck.sh --base REV             as above, but rerun each failed step on a detached
 #                                                   worktree of REV and exit 1 only for failures REV
 #                                                   does not already show
+#   script/batch-precheck.sh --static [--base REV]  only the static fail-fast phase (ASD-V0-1923):
+#                                                   flow-guide, bash32 (untracked too), test-exec-writes
+#                                                   and host-package-versions checks, then go build and
+#                                                   vet of the packages changed since REV; the first
+#                                                   failure prints `FAIL static GATE` and `fix:`. A full
+#                                                   run starts with it and its later rows REUSE it
 #   script/batch-precheck.sh --sync-check           only verify the step list still mirrors CI
 #   script/batch-precheck.sh --list                 print the steps without running them
 #   script/batch-precheck.sh --list-print-only      print the listed steps that only print a reason
@@ -801,27 +807,7 @@ steps() {
   else
     printf 'make lane-scripts-test\t%senv CORVINT_GOCACHE=%q make -s lane-scripts-test\n' "$go_wrap" "$gocache"
   fi
-  while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
-  expanded=$(doc_gate_expansion)
-  if [[ $expanded == drift ]]; then
-    expanded=
-    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
-  fi
-  while IFS=$'\t' read -r kind value; do
-    case $kind in
-      make)
-        if [[ $value == selection-baseline-check && -n $sb_deferred ]]; then
-          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "NOT_RUN: $sb_deferred"
-        elif [[ $value == selection-baseline-check && -n $sb_skip ]]; then
-          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
-        else
-          printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
-        fi ;;
-      gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
-    esac
-  done < <(doc_gates | while IFS=$'\t' read -r kind value; do
-    if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
-  done)
+  doc_gate_rows "$go_wrap"
   for s in "${GOFMT_SETS[@]}"; do
     dir=${s%%|*}
     args=${s#*|}
@@ -837,7 +823,141 @@ steps() {
   # the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
 }
 
-base=${BATCH_PRECHECK_BASE:-}
+# doc_gate_rows GO_WRAP prints the doc-gate steps, one per make target and per go run, under the
+# doc-gates job env; steps() and the static phase share it, so a static row is the same command.
+doc_gate_rows() {
+  local go_wrap=$1 line kind value expanded envs=()
+  while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
+  expanded=$(doc_gate_expansion)
+  if [[ $expanded == drift ]]; then
+    expanded=
+    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
+  fi
+  while IFS=$'\t' read -r kind value; do
+    case $kind in
+      make)
+        if [[ $value == selection-baseline-check && -n ${sb_deferred-} ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "NOT_RUN: $sb_deferred"
+        elif [[ $value == selection-baseline-check && -n ${sb_skip-} ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
+        else
+          printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
+        fi ;;
+      gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
+    esac
+  done < <(doc_gates | while IFS=$'\t' read -r kind value; do
+    if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
+  done)
+}
+
+# ASD-V0-1923 (V1-4317): the static fail-fast phase. These doc gates read no Go test result, take
+# seconds, and catch what most often fails a lane late (an unhinted refusal, a Bash 4 construct, a
+# test that writes an executable with os.WriteFile, an unbumped host package); with go build and go
+# vet of the changed packages they run first, one at a time, and the first failure ends the run.
+STATIC_GATES=(flow-guide-check bash32-check test-exec-writes-check host-package-versions-check)
+
+# static_fix GATE prints the recovery printed after `FAIL static GATE`.
+static_fix() {
+  case $1 in
+    'make flow-guide-check') printf '%s' 'give each refusal named above a `fix:` line, a failRecoveries entry or a guide refusal-table row (tools/flow-guide-check/unhinted-refusals.tsv only shrinks), and name only real commands, flags and codes in docs/LANE-ORCHESTRATION.md section 13 and the corvint-lane-flow skill; then rerun script/batch-precheck.sh --static' ;;
+    'make bash32-check') printf '%s' 'rewrite each Bash 4+ construct named above for Bash 3.2, or end a deliberate fixture line with `# bash32: allow`; untracked scripts are scanned too; then rerun script/batch-precheck.sh --static' ;;
+    'make test-exec-writes-check') printf '%s' 'write each executable a test runs with execfile.WriteFile (Tasks: fixture.WriteExecutable), never os.WriteFile; then rerun script/batch-precheck.sh --static' ;;
+    'make host-package-versions-check') printf '%s' 'bump the named host package so every version location agrees (make host-package-version-bump), or restore the changed shipped file; then rerun script/batch-precheck.sh --static' ;;
+    go-build-vet*) printf '%s' 'fix the go build or go vet finding named above at its file:line; then rerun script/batch-precheck.sh --static' ;;
+    *) printf '%s' 'read the output above; then rerun script/batch-precheck.sh --static' ;;
+  esac
+}
+
+# static_packages BASE prints ./DIR for each directory of the root module that holds a .go file
+# changed since BASE or untracked, still holds a .go file, and is no testdata, `_` or `.` directory.
+static_packages() {
+  local f d
+  { git -c core.quotePath=false diff --name-only --no-renames "$1" -- '*.go' &&
+    git -c core.quotePath=false ls-files -o --exclude-standard -- '*.go'; } 2> /dev/null |
+    while IFS= read -r f; do
+      d=$(dirname "$f")
+      case /$d/ in */testdata/* | */_* | */.*) continue ;; esac
+      printf '%s\n' "$d"
+    done | sort -u | while IFS= read -r d; do
+      [[ -d $d ]] && compgen -G "$d/*.go" > /dev/null || continue
+      # A directory under another module (interop/cem01-go) is not built from the root module.
+      local up=$d nested=0
+      while [[ $up != . && $up != / ]]; do [[ -f $up/go.mod ]] && { nested=1; break; }; up=$(dirname "$up"); done
+      ((nested)) || printf './%s\n' "$d"
+    done
+}
+
+# static_steps prints the static phase's steps in the steps() format: each STATIC_GATES doc-gate row
+# exactly as the full run lists it (bash32-check also scanning untracked scripts), then go build and
+# vet of the changed packages, or a print-only row saying why none ran.
+static_steps() {
+  local go_wrap='' sbase=$1 pkgs=() builds=() p f line name selected
+  [[ -z $go_wrapper ]] || go_wrap="$(printf '%q' "$go_wrapper") "
+  while IFS= read -r line; do
+    name=${line%%$'\t'*}
+    contains "${name#make }" "${STATIC_GATES[@]}" || continue
+    [[ $name == 'make bash32-check' ]] && line=${line/ make -s / BASH32_INCLUDE_UNTRACKED=1 make -s }
+    printf '%s\n' "$line"
+  done < <(doc_gate_rows "$go_wrap")
+  if [[ -z $sbase ]]; then
+    printf 'go-build-vet (no base)\tprintf "%%s\\n" %q\n' "go-build-vet: no base (--base, BATCH_PRECHECK_BASE or a merge base with origin/main), so no changed package is built or vetted"
+    return 0
+  fi
+  # A process substitution loses static_packages' exit status, turning a bad base or Git error
+  # into a successful empty selection. Capture its status before consuming the package list.
+  selected=$(static_packages "$sbase") || return 1
+  while IFS= read -r p; do [[ -z $p ]] || pkgs+=("$p"); done <<< "$selected"
+  if ((${#pkgs[@]} == 0)); then
+    printf 'go-build-vet (0 packages)\tprintf "%%s\\n" %q\n' "go-build-vet: no Go package changed since $sbase"
+    return 0
+  fi
+  # go build rejects a package holding only _test.go files; go vet still checks those tests.
+  for p in "${pkgs[@]}"; do
+    for f in "$p"/*.go; do
+      case $f in *_test.go) continue ;; esac
+      builds+=("$p")
+      break
+    done
+  done
+  printf 'go-build-vet (%d packages)\t' "${#pkgs[@]}"
+  if ((${#builds[@]})); then
+    printf '%senv GOCACHE=%q GOTOOLCHAIN=local go build %s && ' "$go_wrap" "$gocache" "${builds[*]}"
+  fi
+  printf '%senv GOCACHE=%q GOTOOLCHAIN=local go vet %s\n' "$go_wrap" "$gocache" "${pkgs[*]}"
+}
+
+# static_phase runs the static steps in order through run_one (so through the ledger when reuse is
+# on) under $dir/static and stops at the first failure, printing `FAIL static NAME`, the last 40
+# output lines and a `fix:` line. On a pass it writes $dir/static.pass, the names a later row of
+# this run reuses.
+static_phase() {
+  local sdir=$dir/static i n name rc secs t0=$SECONDS sbase=${base:-$(git merge-base HEAD origin/main 2> /dev/null)}
+  mkdir -p "$sdir" || return 2
+  if ! static_steps "$sbase" > "$sdir/steps"; then
+    printf 'batch-precheck: FAIL static go-build-vet (package discovery)\n'
+    printf 'fix: verify --base %s names a commit and Git can list changed and untracked Go files; then rerun script/batch-precheck.sh --static\n' "$sbase"
+    return 1
+  fi
+  n=$(grep -c . "$sdir/steps")
+  : > "$dir/static.pass.tmp"
+  for ((i = 1; i <= n; i++)); do
+    name=$(sed -n "${i}p" "$sdir/steps" | cut -f1)
+    BATCH_PRECHECK_DIR=$sdir run_one "$i" | sed -E 's/^batch-precheck: (PASS|FAIL|REUSE) (make )?/batch-precheck: \1 static /'
+    read -r rc secs _ < "$sdir/$i.rc" 2> /dev/null || { rc=1 secs=0; }
+    if ((rc)); then
+      tail -n 40 "$sdir/$i.log" | sed 's/^/  | /'
+      printf 'fix: %s\n' "$(static_fix "$name")"
+      printf 'batch-precheck: static phase failed at %s after %ss; nothing later ran (ASD-V0-1923)\n' "$name" $((SECONDS - t0))
+      /bin/rm -f "$dir/static.pass.tmp"
+      return 1
+    fi
+    printf '%s\n' "$name" >> "$dir/static.pass.tmp"
+  done
+  /bin/mv -f "$dir/static.pass.tmp" "$dir/static.pass"
+  printf 'batch-precheck: static phase passed %d steps in %ss (ASD-V0-1923)\n' "$n" $((SECONDS - t0))
+}
+
+base=${BATCH_PRECHECK_BASE:-} static_only=0
 receipt_path() { git rev-parse --path-format=absolute --git-path batch-precheck-receipt; }
 
 # ASD-V0-1992: either indicator disqualifies a lane receipt as batch evidence.
@@ -934,8 +1054,15 @@ case ${1:-} in
   --list-print-only) need_gocache; steps | while IFS=$'\t' read -r name cmd; do [[ $cmd != 'printf "%s\n" '* ]] || printf '%s\n' "$name"; done; exit 0 ;;
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
+  # ASD-V0-1923 (V1-4317): only the static fail-fast phase; it never touches the receipt.
+  --static)
+    static_only=1
+    if [[ $# != 1 ]]; then
+      [[ $# == 3 && $2 == --base && -n $3 ]] || { printf 'usage: script/batch-precheck.sh --static [--base REV]\n' >&2; exit 2; }
+      base=$3
+    fi ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--static [--base REV]|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
@@ -1148,9 +1275,9 @@ since_receipt() {
   fi
 }
 since_base=
-[[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
+((static_only)) || [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-/bin/rm -f "$receipt" "$receipt.lane"
+((static_only)) || /bin/rm -f "$receipt" "$receipt.lane"
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -1196,7 +1323,7 @@ tree_clean && pristine_before=1
 
 # The mechanical repins run alone, before any check reads the files they write.
 repin_rc=0
-if [[ -n $regen ]]; then
+if [[ -n $regen ]] && ((!static_only)); then
   t0=$SECONDS
   # ASD-V0-787 (NEW-D4): the index before and after the repin, for unstage_repin.
   { git ls-files -s -z > "$dir/stage.before.tmp" 2> /dev/null && mv "$dir/stage.before.tmp" "$dir/stage.before"; } || repin_warn
@@ -1281,24 +1408,6 @@ else
   printf 'batch-precheck: ledger reuse off (%s); every step runs\n' "$ledger_off"
 fi
 
-# Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
-select_plan
-select_report
-lst_report
-lane_own_skip
-# ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
-# carries what the record still binds.
-prebind_ran=()
-if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
-  prebind=$(prebind_rec) && /bin/rm -f "$prebind"
-  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
-    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" && prebind_ran+=("${DRIFT_TESTS[i]}")
-  done
-else
-  prebind_carry
-fi
-steps > "$dir/steps"
-n=$(wc -l < "$dir/steps" | tr -d ' ')
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for
 # a reused pass, a third word `reuse`.
 run_one() {
@@ -1306,6 +1415,12 @@ run_one() {
   line=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/steps")
   name=${line%%$'\t'*}
   cmd=${line#*$'\t'}
+  # ASD-V0-1923 (V1-4317): a row the static phase of this run already passed is not run again.
+  if [[ -n ${BATCH_PRECHECK_STATIC_PASS:-} ]] && grep -qxF -- "$name" "$BATCH_PRECHECK_STATIC_PASS" 2> /dev/null; then
+    printf '0 0 reuse\n' > "$BATCH_PRECHECK_DIR/$1.rc"
+    printf 'batch-precheck: REUSE %s (0s): passed in the static phase of this run (ASD-V0-1923)\n' "$name"
+    return 0
+  fi
   # ASD-V0-892 (V1-3572): a print-only row (a skipped step's reason) never goes through the ledger,
   # whose per-step whole-tree key costs about 0.6 s on Linux and 3 s on a loaded Mac for a printf.
   if [[ -n ${BATCH_PRECHECK_LEDGER_BIN:-} && $cmd != 'printf "%s\n" '* ]]; then
@@ -1339,6 +1454,34 @@ run_one() {
 }
 export -f run_one
 export BATCH_PRECHECK_DIR=$dir BATCH_PRECHECK_LEDGER_BIN=$ledger
+
+# ASD-V0-1923 (V1-4317): the static fail-fast phase runs before the selection and every slow step.
+static_phase
+static_rc=$?
+if ((static_only || static_rc)); then
+  ((static_rc)) && exit 1
+  exit 0
+fi
+export BATCH_PRECHECK_STATIC_PASS=$dir/static.pass
+
+# Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
+select_plan
+select_report
+lst_report
+lane_own_skip
+# ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
+# carries what the record still binds.
+prebind_ran=()
+if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+  prebind=$(prebind_rec) && /bin/rm -f "$prebind"
+  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" && prebind_ran+=("${DRIFT_TESTS[i]}")
+  done
+else
+  prebind_carry
+fi
+steps > "$dir/steps"
+n=$(wc -l < "$dir/steps" | tr -d ' ')
 # ASD-V0-047 (V1-3142): a SERIAL_TARGETS step runs alone after the parallel ones, so its timing
 # bounds never compete with this run's own go test steps; its rerun (ASD-V0-046) is alone too.
 parallel=() serial=()

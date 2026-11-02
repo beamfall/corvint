@@ -53,6 +53,27 @@ settled-barrier contract, including its exclusion of hostile editors, is unchang
   from any branch, as the barrier command already is.
 - `PUR-V0-005`: The amendment adds no top-level recovery verb and no reader error code. Both stay
   owner-pending.
+- `PUR-V0-1920`: (experimental under the standing lane auto-accept, 2026-11-02; V1-4261) A Go test
+  binary (argv[0] named `PKG.test` or `PKG.test.exe` and at least one `-test.*` argument supplied
+  by `go test`) whose source path resolves to a Git checkout
+  MUST refuse the writer lock, and so `pause`, `unpause` and every other writer, on that checkout's
+  own common directory with `OUT_OF_SCOPE` before any lock file is opened. Before any test runs it
+  MUST export that directory as `CORVINT_TASKS_FORBID_COMMON_DIR` unless the variable is already
+  set. An ordinary `go build` binary MUST NOT be classified as a test or export the guard merely
+  because its executable has a `.test` or `.test.exe` suffix. A helper or a built `corvint-tasks`
+  child launched in the wrong working directory inherits
+  the refusal. Reads take no lock and are unaffected. Failure mode before the change: a lane test or
+  qualification child whose working directory was the live checkout paused the live store and the
+  barrier stayed until an operator noticed. Non-goals: a self-expiring barrier (the frozen
+  `barrier.json` and its administrative digest gain no field); a -trimpath test build or a child
+  given an environment without the variable is not guarded by this clause.
+- `PUR-V0-1921`: (experimental under the standing lane auto-accept, 2026-11-02; V1-4261) Any process
+  in whose environment `CORVINT_TASKS_FORBID_COMMON_DIR` names a directory MUST refuse the writer
+  lock on the store whose Git common directory is that directory (same path, or the same file by
+  `os.SameFile`) with `OUT_OF_SCOPE`, leaving the store byte-identical, and the refusal MUST name
+  the variable and the fix (run in a fixture repository). Unset or naming another directory, writers
+  behave exactly as before. A shell test or qualification harness can export it to fence the live
+  store. Rollback: remove `refuseForbiddenStore` from `acquireLock`; no stored format changes.
 
 ## Non-goals and simpler baseline
 
@@ -70,6 +91,8 @@ verb and a `WRITER_ACTIVE` reader code are not part of this amendment.
 | Barrier replaced after redo's observation, before the removal | The removal's identity and digest check refuses; `JOURNAL_FORKED`; nothing deleted (`PUR-V0-002`). |
 | Non-cooperating editor replaces the name after the last check | Not closed: the unlink is by name. The barrier contract excludes hostile editors (`PUR-V0-002`). |
 | Intent tree moves between the two pending UNPAUSE audits | `SNAPSHOT_MOVED`; nothing written (`PUR-V0-003`). |
+| A test binary, or its child, writes the checkout it was built from | `OUT_OF_SCOPE` before any lock file is opened; the live store is unchanged (`PUR-V0-1920`). |
+| `CORVINT_TASKS_FORBID_COMMON_DIR` names the store's common directory | Every writer refuses `OUT_OF_SCOPE`; the store is byte-identical (`PUR-V0-1921`). |
 | Primary off the intent branch | An UNPAUSE receipt settles; a receipt posting intent paths keeps `INTENT_BRANCH_MISMATCH` (`PUR-V0-004`). |
 
 Fail-closed choices: any doubt about the barrier value, the pending observation or the receipt
@@ -94,6 +117,8 @@ pending UNPAUSE returns to the prior unsupported state.
 | `PUR-V0-003` | `TestV10309_PendingUnpauseDivergentTicketsRecover` |
 | `PUR-V0-004` | `TestV10309_PendingUnpauseRecoversOffIntentBranch` |
 | `PUR-V0-005` | Design requirement; no runtime test. |
+| `PUR-V0-1920` | `refuseForbiddenStore`, `testSourceCommonDir`, `isTestBinary` in `internal/tasks/authority/live_store_guard.go`, called by `acquireLock`; `TestPURV01920_TestBinaryGuardsItsOwnCheckout`, `TestPURV01920_IsTestBinary` (test flags required; production `.test` and `.test.exe` names alone do not enable the guard) |
+| `PUR-V0-1921` | `TestPURV01921_ForbiddenStoreRefusesPause`: `pause` (OWNER and OPERATOR) and `unpause` refuse `OUT_OF_SCOPE` with state and intent untouched and no `barrier.json`; the same pause succeeds once the variable names another directory; it fails before the change (pause returned OK) |
 
 ## Unresolved decisions
 
