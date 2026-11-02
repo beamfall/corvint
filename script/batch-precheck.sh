@@ -1028,7 +1028,8 @@ run_one() {
     salt=$(sed -n "$1p" "$BATCH_PRECHECK_DIR/salts" 2> /dev/null)
     [[ -n $salt ]] || salt=$(salt_input "$name" "$cmd" | git hash-object --stdin) || salt=
     if [[ -n $salt ]]; then
-      "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
+      # ASD-V0-776 (V1-4242): the step name rides beside the record as its label, never in its key.
+      GATE_LEDGER_LABEL=$name "$BATCH_PRECHECK_LEDGER_BIN" run "$lname+$salt" -- bash -c "$cmd" > "$log" 2>&1 < /dev/null
       rc=$?
       [[ $rc == 0 ]] && grep -q '^gate-ledger: HIT ' "$log" && reused=reuse
     else

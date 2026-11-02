@@ -157,3 +157,19 @@ func forgetSince(dir, tree string, since int64) int {
 	}
 	return removed
 }
+
+// labelEnv names the human-readable step name a caller records beside a
+// pass (ASD-V0-776, V1-4242): batch-precheck keys every non-make step as
+// `batch-precheck+SALT`, so the label is what tells those records apart. It is
+// outside the salted prefixes and never enters a key, so a pass recorded
+// without a label still hits.
+const labelEnv = "GATE_LEDGER_LABEL"
+
+// stepLabel is GATE_LEDGER_LABEL as one line of at most 200 bytes.
+func stepLabel() string {
+	label := strings.Join(strings.Fields(os.Getenv(labelEnv)), " ")
+	if len(label) > 200 {
+		label = strings.ToValidUTF8(label[:200], "")
+	}
+	return label
+}

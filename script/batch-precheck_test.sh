@@ -523,6 +523,16 @@ grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" |
 grep -q "^batch-precheck: $rows passed, 0 failed in " "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
 # Only the repin row and the print-only rows run; every other listed step reuses.
 [[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a listed step did not reuse: $(cat "$tmp/out")"
+# ASD-V0-776 (V1-4242): every non-make record carries its step name as a label; a record written
+# before labels (the label stripped) still reuses, since the label is never part of the key.
+for rec in "$tmp"/ledger/*.json; do
+  jq -e 'if (.step | startswith("batch-precheck+")) then (.label | type) == "string" and .label != "" else true end' "$rec" > /dev/null ||
+    fail "a batch-precheck record has no label: $(cat "$rec")"
+done
+jq -r 'select(.step | startswith("batch-precheck+")) | .label' "$tmp"/ledger/*.json | grep -qx 'sync-check' || fail "no sync-check label: $(jq -c . "$tmp"/ledger/*.json)"
+for rec in "$tmp"/ledger/*.json; do jq -c 'del(.label)' "$rec" > "$rec.new" && /bin/mv -f "$rec.new" "$rec" || fail "strip label"; done
+lrun || fail "unlabelled-ledger run failed: $(cat "$tmp/out")"
+[[ $(grep -c '^batch-precheck: | PASS |' "$tmp/out") == $((1 + nprint)) ]] || fail "a pass recorded without a label did not reuse: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $((nsteps - nprint)) of $nsteps steps reused a ledger pass on identical inputs" "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
 grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx "passed $rows" "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"

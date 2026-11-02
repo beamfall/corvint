@@ -107,6 +107,7 @@ type record struct {
 	Packages   []string `json:"packages,omitempty"`
 	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
 	Scope      []string `json:"scope,omitempty"` // the --packages patterns of a scoped go-test (GL-V0-720)
+	Label      string   `json:"label,omitempty"` // the caller's step name, never part of the key (ASD-V0-776)
 }
 
 // packageKey is one resolved package's per-package content key, or the reason
@@ -298,7 +299,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	if code != 0 {
 		return code
 	}
-	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope}); err != nil {
+	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope, Label: stepLabel()}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}

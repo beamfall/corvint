@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -112,4 +113,47 @@ func mustRead(t *testing.T, name string) string {
 		t.Fatal(err)
 	}
 	return string(data)
+}
+
+// TestStepLabelIsRecordedOutsideTheKey_ASDV0776 replays V1-4242: a pass
+// recorded before labels existed (no GATE_LEDGER_LABEL) still hits when the
+// caller now names the step, a new record carries the label, and two labels of
+// one step share one key, so the label never changes what reuses.
+func TestStepLabelIsRecordedOutsideTheKey_ASDV0776(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	write(t, root, ".gitignore", "COUNT\n")
+	t.Setenv(sharedDigestEnv, "")
+	t.Setenv(labelEnv, "")
+	old := append([]string{"run", "batch-precheck+aaa"}, counting...)
+	if _, out := ledgerRun(t, old...); !strings.Contains(out, "RECORD batch-precheck+aaa") {
+		t.Fatalf("unlabelled record: %q", out)
+	}
+	t.Setenv(labelEnv, "sync-check")
+	if _, out := ledgerRun(t, old...); !strings.Contains(out, "HIT batch-precheck+aaa") {
+		t.Fatalf("an unlabelled pass missed once a label was given: %q", out)
+	}
+	t.Setenv(labelEnv, "  go run\n./conformance/use-cases-v0  ")
+	if _, out := ledgerRun(t, append([]string{"run", "batch-precheck+bbb"}, counting...)...); !strings.Contains(out, "RECORD batch-precheck+bbb") {
+		t.Fatalf("labelled record: %q", out)
+	}
+	labels := map[string]string{}
+	files, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	for _, f := range files {
+		var rec record
+		if err := json.Unmarshal([]byte(mustRead(t, f)), &rec); err != nil {
+			t.Fatal(err)
+		}
+		labels[rec.Step] = rec.Label
+	}
+	if labels["batch-precheck+aaa"] != "" || labels["batch-precheck+bbb"] != "go run ./conformance/use-cases-v0" {
+		t.Fatalf("labels %q", labels)
+	}
+	t.Setenv(labelEnv, "another name")
+	if _, out := ledgerRun(t, append([]string{"run", "batch-precheck+bbb"}, counting...)...); !strings.Contains(out, "HIT batch-precheck+bbb") {
+		t.Fatalf("a different label missed: %q", out)
+	}
+	if got := runs(t, root); got != 2 {
+		t.Fatalf("the steps ran %d times, want 2", got)
+	}
 }
