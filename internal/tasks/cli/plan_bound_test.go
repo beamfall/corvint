@@ -14,6 +14,7 @@ import (
 // under the per-entry node bound that refused it under the flat envelope
 // bound, and the bound still refuses entries far over their budget.
 func TestCALV0141_PlanNodeBoundScalesPerEntry(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	retries, err := wire.Parse([]byte(`{"byReason":{"EXPIRED":"0","FAILED":"0","RELEASED":"0","UNKNOWN":"0"},"charged":"0","exhausted":false,"limit":"3","reasonHistory":"COMPLETE","remaining":"3","remainingMeaning":"RETRY_CAPACITY","retryAdmissionReason":"RETRY_AVAILABLE"}` + "\n"))
 	if err != nil {
 		t.Fatal(err)

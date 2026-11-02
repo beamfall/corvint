@@ -63,6 +63,7 @@ func statusMirrors(t *testing.T, root string) []wire.Value {
 // pending item is a decided mirror the ticket is completable and the
 // dispatcher's plan defers it as MIRRORS_DECIDED_ELSEWHERE (TOL-V0-120..123).
 func TestTOLV0120_MirrorReadsAndAcceptance(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, a, b, head := mirrorRepo(t)
 	if v := obligationsShow(t, root, a); field(v, "mirrors").Kind != 0 {
 		t.Fatalf("a ledger without mirrors carries mirrors: %s", wire.Encode(v))

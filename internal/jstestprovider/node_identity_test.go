@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CCE-V0-140 (V1-2644): the receipt binds the version of the node executable that runs the runner
@@ -17,7 +19,7 @@ func TestNodeVersionBindsRunnerExecutable(t *testing.T) {
 			t.Fatal(err)
 		}
 		path := filepath.Join(bin, "node")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\necho "+version+"\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte("#!/bin/sh\necho "+version+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return path

@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestEmptyRootsRefuseBeforeExecution(t *testing.T) {
@@ -82,7 +84,7 @@ func TestLocalConsoleGateBuildsFromRepositoryRoot(t *testing.T) {
 	}
 	bin := t.TempDir()
 	record := filepath.Join(bin, "go-dir")
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte("#!/bin/sh\npwd -P > '"+record+"'\nexit 3\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte("#!/bin/sh\npwd -P > '"+record+"'\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command(filepath.Join(root, "script", "local-console-release-gate"))

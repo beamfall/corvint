@@ -12,7 +12,7 @@ Native tickets: V1-3459; V1-3473 (fixture mutations) and V1-3474 (index build to
 ## Agent digest
 - Claim: OPEN-path reads take closed tickets' digests and summaries from a derived stat-keyed index, so their cost barely grows with the closed set.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459); implemented and tested in tree.
-- Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and the development tool `internal/tasks/cmd/closed-index`.
+- Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`).
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Rollback.
 
@@ -72,10 +72,12 @@ byte-identical with and without it.
   `fixture.WriteState` alone still has no `staging` directory, so the fixture writer refuses a
   mutation on it with `MALFORMED` ("fixture filesystem identity, role or lifetime refused"); tests
   that need only a read keep using it.
-- `TCX-V0-988`: The development tool `go run ./internal/tasks/cmd/closed-index DIR` writes the index of
-  the repository at `DIR` whether or not its state directory exists, at the path the CLI would
-  use, so benchmarks can index journal-free copies of a store. It is not a shipped command. For
-  the same intent tree its entries equal those of the index the CLI writes on the journaled store.
+- `TCX-V0-988`: The shipped command `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`)
+  writes the index of the repository at the working directory whether or not its state directory
+  exists, at the path the CLI would use, so a journal-free copy of a store (a benchmark, a lane
+  host snapshot) can be indexed. For the same intent tree its entries equal those of the index the
+  CLI writes on the journaled store. It replaces the former development tool
+  `internal/tasks/cmd/closed-index`, which V1-3485 retired.
 
 ### Write-path summaries (V1-4229, V1-1148)
 
@@ -180,7 +182,7 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
 | Indexed file edited, resized or touched | Entry not trusted; file read and decoded (`TCX-V0-981`). |
 | Index of another queue or policy | No entry trusted (`TCX-V0-983`). |
 | Indexed file changes between probe and decode | `SNAPSHOT_MOVED` (`TCX-V0-982`). |
-| Tool run on a store without intent | Refused with the resolve error; nothing written (`TCX-V0-988`). |
+| Rebuild run on a store without intent, or whose tree does not load | Refused with the read's code; nothing written (`TCX-V0-988`). |
 | Index write fails or races a writer | Old or no index; readers stay correct (`TCX-V0-983`, `TCX-V0-984`). |
 
 ## Acceptance evidence
@@ -193,8 +195,9 @@ Focused `internal/tasks/intent`, `internal/tasks/ticket`, `internal/tasks/journa
 
 Delete `<git common dir>/taskman.closed-index`; every read falls back to a full scan. To remove
 the feature, revert the implementing commit; the index file is then ignored and can be deleted.
-`internal/tasks/cmd/closed-index` and `fixture.WriteWritableState` are test and benchmark aids; reverting
-their commit removes them with no effect on stores.
+`doctor --rebuild-closed-index` writes only the index file; reverting it leaves any written index,
+which readers validate. `fixture.WriteWritableState` is a test aid; reverting its commit removes it
+with no effect on stores.
 
 ## Traceability
 
@@ -208,7 +211,7 @@ their commit removes them with no effect on stores.
 | `TCX-V0-985` | `TestTCXV0_IndexedReadParity` (journaled store, `receipt audit`) |
 | `TCX-V0-986` | `TestTCXV0_ClosedRoadmapRowsMatchView`, `TestTCXV0_IndexedReadParity` (`roadmap`) |
 | `TCX-V0-987` | `TestTCXV0_RefreshAfterRealMutation`, `TestTCXV0_PlainFixtureStateRefusesWrites` |
-| `TCX-V0-988` | `TestTCXV0_ToolIndexMatchesJournaled`; live-store comparison in the build log |
+| `TCX-V0-988` | `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; live-store comparisons in `docs/build-log/2026-10-31-archive-speed-w1.md` and `docs/build-log/2026-11-01-tcl-w31.md` |
 | `TCX-V0-845` | `TestTCXV0845IndexAdmitsOnlyReencodedBytes`, `TestTCXV0845ReadsTrustOnlyClosedEntries` |
 | `TCX-V0-846` | `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets`, `TestTCXV0846ModelOutputMatchesFullDecode` |
 | `TCX-V0-847` | `TestTCXV0847PreloadMatchesFullLoad` |

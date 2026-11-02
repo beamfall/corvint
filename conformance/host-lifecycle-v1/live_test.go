@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestLiveVerdicts(t *testing.T) {
@@ -91,7 +93,7 @@ func TestLiveFixtureRun(t *testing.T) {
 	}
 	directory := t.TempDir()
 	host := filepath.Join(directory, "fakehost")
-	os.WriteFile(host, []byte(`#!/bin/sh
+	execfile.WriteFile(host, []byte(`#!/bin/sh
 if [ "$1" = "--version" ]; then echo "fakehost 9.8.7"; exit 0; fi
 w=$(sed -n 's/.*"corvintBinary": *"\([^"]*\)".*/\1/p' opencode.json)
 "$w" --root . harness event --event user-prompt --input - </dev/null
@@ -99,7 +101,7 @@ w=$(sed -n 's/.*"corvintBinary": *"\([^"]*\)".*/\1/p' opencode.json)
 exit 0
 `), 0o755)
 	corvint := filepath.Join(directory, "corvint")
-	os.WriteFile(corvint, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Corvint 0.0.0-fixture'; fi\nexit 0\n"), 0o755)
+	execfile.WriteFile(corvint, []byte("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'Corvint 0.0.0-fixture'; fi\nexit 0\n"), 0o755)
 	source := liveFixtureSource(t)
 	l := &liveRunner{host: "opencode", hold: 2 * time.Second, grace: time.Second, bound: 30 * time.Second, pids: map[int]int{}, corvint: corvint, source: source, work: t.TempDir()}
 	if err := l.prepare(host); err != nil {

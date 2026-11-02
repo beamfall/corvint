@@ -200,6 +200,10 @@ type snapshotWire struct {
 	ApproximateImports                                        int
 	ExtractionNotes                                           []ExtractionNote
 	Vocabulary                                                *TermTable
+	// symbolTerms is unexported, so gob never sees it: only the /3 body
+	// carries it, as a blob after the term table (IDX-SNAP-V0-807).
+	symbolTerms *symbolTermTable
+	testLinks   *testLinkTable
 }
 
 func snapshotWireOf(index *Index) *snapshotWire {
@@ -217,15 +221,7 @@ func snapshotWireOf(index *Index) *snapshotWire {
 }
 
 func (wire *snapshotWire) index() (*Index, error) {
-	event := eventSnapshot{
-		ObjectFormat: wire.ObjectFormat, CommitRevision: wire.CommitRevision, Revision: wire.Revision,
-		ProfileID: wire.ProfileID, Module: wire.Module, Sources: wire.Sources,
-		Exclusions: wire.Exclusions, UnsupportedSuffixCount: wire.UnsupportedSuffixCount,
-		Features: wire.Features, Scenarios: wire.Scenarios, Documents: wire.Documents,
-		Markers: wire.Markers, Symbols: wire.Symbols, Fields: wire.Fields, Imports: wire.Imports,
-		Unparsed: wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
-	}
-	index, err := event.index()
+	index, err := wire.eventSnapshot().index()
 	if err != nil {
 		return nil, err
 	}
@@ -236,6 +232,8 @@ func (wire *snapshotWire) index() (*Index, error) {
 		return nil, err
 	}
 	index.Vocabulary = wire.Vocabulary
+	index.symbolTerms = wire.symbolTerms
+	index.testLinks = wire.testLinks
 	return index, nil
 }
 
@@ -261,4 +259,19 @@ func warmGobTypes() {
 		_ = section.write(io.Discard)
 	}
 	_, _ = encodePackHeader(packHeader{Sections: []packSectionEntry{{}}})
+	// The /3 body's own types come last so the pack's type ids, and so its
+	// bytes, are unchanged (IDX-SNAP-V0-806).
+	_, _ = encodeSnapshotBody(encoder, snapshotWireOf(sample))
+}
+
+// eventSnapshot is the subset of wire an event load reads.
+func (wire *snapshotWire) eventSnapshot() *eventSnapshot {
+	return &eventSnapshot{
+		ObjectFormat: wire.ObjectFormat, CommitRevision: wire.CommitRevision, Revision: wire.Revision,
+		ProfileID: wire.ProfileID, Module: wire.Module, Sources: wire.Sources,
+		Exclusions: wire.Exclusions, UnsupportedSuffixCount: wire.UnsupportedSuffixCount,
+		Features: wire.Features, Scenarios: wire.Scenarios, Documents: wire.Documents,
+		Markers: wire.Markers, Symbols: wire.Symbols, Fields: wire.Fields, Imports: wire.Imports,
+		Unparsed: wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
+	}
 }

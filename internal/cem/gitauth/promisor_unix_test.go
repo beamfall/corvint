@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestPromisorObjectNeverFetchedByAGitThatDropsTheLazyFetchGuard: V1-0349. The cem, ocm and
@@ -80,7 +81,7 @@ func guardDroppingGit(t *testing.T) string {
 	}
 	shim := t.TempDir()
 	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return shim

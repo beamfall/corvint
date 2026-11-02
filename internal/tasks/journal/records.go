@@ -399,7 +399,7 @@ func (r Reader) step(o *observation, st *chain, result *Result, name string, seq
 		if post != nil {
 			if checked == nil {
 				checked = &checkedPost{raw: post}
-				if checked.coverage, checked.descriptor, checked.decoded, err = r.validateRecord(p.Path, post, rc); err != nil {
+				if checked.coverage, checked.descriptor, checked.decoded, err = r.validateRecord(p.Path, post, rc, parsedPost(p, post)); err != nil {
 					return err
 				}
 			}
@@ -603,7 +603,11 @@ func (r Reader) postBytes(p snapshot.PostEntry) ([]byte, error) {
 	}
 	var raw []byte
 	if p.Record != nil {
-		raw = wire.EncodeFile(*p.Record)
+		// The receipt decode's own encoding of the record (LGL-V0-805);
+		// the bound, digest and content-address checks below still run.
+		if raw = p.Raw; raw == nil || !inlinePostReuse {
+			raw = wire.EncodeFile(*p.Record)
+		}
 	} else {
 		raw, err = requiredRead(r.Source, "evidence/"+string(*p.BlobSha256), bound)
 		if err != nil {
@@ -635,7 +639,27 @@ type decodedPost struct {
 // witness; it is nil outside tests and may be called from prepare goroutines.
 var afterValidateRecord func()
 
-func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool, *snapshot.Init, decodedPost, error) {
+// inlinePostReuse lets the walk use a decoded receipt's own encoding and
+// parse of an inline record instead of a second encode and parse
+// (LGL-V0-805, LGL-V0-806); a test turns it off to compare the two.
+var inlinePostReuse = true
+
+// parsedPost is the value wire.Parse(raw) would return for post entry e,
+// when that is known without parsing: raw is the receipt decode's own
+// encoding of e.Record, and e.Record is a member of a canonical parse of
+// the receipt file. wire.Parse of a canonical encoding of such a member
+// cannot refuse it (it is shallower than MaxJSONDepth, has fewer than
+// MaxJSONNodes nodes, keeps the ordinary array bound, holds only strings
+// the receipt parse already checked, and is canonical by construction) and
+// returns a value equal to it (LGL-V0-806). Nil means parse raw.
+func parsedPost(e snapshot.PostEntry, raw []byte) *wire.Value {
+	if !inlinePostReuse || e.Record == nil || e.Raw == nil || len(raw) == 0 || &raw[0] != &e.Raw[0] || len(raw) != len(e.Raw) {
+		return nil
+	}
+	return e.Record
+}
+
+func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt, parsed *wire.Value) (bool, *snapshot.Init, decodedPost, error) {
 	if afterValidateRecord != nil {
 		afterValidateRecord()
 	}
@@ -651,9 +675,14 @@ func (r Reader) validateRecord(p string, raw []byte, rc *snapshot.Receipt) (bool
 	if strings.HasPrefix(p, "evidence/") {
 		return isOperatorNoteEvent(p, raw), nil, decodedPost{}, nil
 	}
-	v, err := wire.Parse(raw)
-	if err != nil {
-		return false, nil, decodedPost{}, err
+	var v wire.Value
+	if parsed != nil {
+		v = *parsed
+	} else {
+		var err error
+		if v, err = wire.Parse(raw); err != nil {
+			return false, nil, decodedPost{}, err
+		}
 	}
 	if v.Kind != wire.KindObject {
 		return false, nil, decodedPost{}, wire.Errorf(wire.CodeMalformed, p, "post JSON must be an object")

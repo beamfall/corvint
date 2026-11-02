@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -210,7 +211,7 @@ func TestProcessNetworkAndAmbientSpiesWithPositiveControls(t *testing.T) {
 	root := t.TempDir()
 	marker := filepath.Join(root, "process-marker")
 	trap := filepath.Join(root, "trap")
-	if err := os.WriteFile(trap, []byte("#!/bin/sh\nprintf trap > \"$1\"\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(trap, []byte("#!/bin/sh\nprintf trap > \"$1\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if output, err := exec.Command(trap, marker).CombinedOutput(); err != nil || !bytes.Equal(bytes.TrimSpace(output), []byte("")) {

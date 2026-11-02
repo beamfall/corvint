@@ -50,6 +50,46 @@
       ],
       "reason": "Every tracked file naming dogfood-bind-coverage.sh: dogfood-bind-range_test.sh runs it (DCW-V0-831) (TSP-V0-005; V1-3571)."
     },
+    "script/dogfood-bind-range.sh": {
+      "callers": [
+        "Makefile",
+        "script/batch-precheck_test.sh",
+        "script/dogfood-bind-range_test.sh",
+        "script/lane-scripts_test.sh",
+        "script/runtime-environment_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-bind-range.sh: make dogfood-bind runs it and three shell tests run or copy it into fixtures they run; the Go files name it only in comments (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
+      "mentions": [
+        "internal/dogfoodflow/bytes_span_test.go",
+        "internal/dogfoodflow/change.go",
+        "tools/dogfood-guard-hunks/main.go",
+        "tools/dogfood-inherit-citations/main.go"
+      ]
+    },
+    "script/dogfood-check.sh": {
+      "callers": [
+        "Makefile",
+        "cmd/corvint/local_completion_test.go",
+        "script/batch-precheck_test.sh",
+        "script/dogfood-bin-reuse_test.sh",
+        "script/dogfood-cache_test.sh",
+        "script/dogfood-change_test.sh",
+        "script/dogfood-seal.sh",
+        "script/lane-scripts_test.sh",
+        "script/runtime-environment_test.sh"
+      ],
+      "reason": "Every tracked file naming dogfood-check.sh: make dogfood-check and dogfood-seal.sh run it, and five shell tests and a cmd/corvint test run or copy it into fixtures; the others name it in comments, or match it as an argv string without running it (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
+      "mentions": [
+        "cmd/corvint/usecase_hostile_evidence_completion_test.go",
+        "internal/dogfoodflow/check.go",
+        "internal/dogfoodflow/check_timing.go",
+        "internal/dogfoodflow/flow.go",
+        "internal/localcompletion/storage.go",
+        "internal/localcompletion/storage_test.go",
+        "script/dogfood-finish.sh",
+        "script/review-head-check_test.sh"
+      ]
+    },
     "script/dogfood-seal.sh": {
       "callers": [
         "Makefile",
@@ -61,7 +101,8 @@
         "internal/console/chain_test.go",
         "internal/liveverify/affected/replay_v12941_test.go",
         "script/pre-push-dogfood-seal.sh",
-        "script/pre-push-dogfood-seal_test.sh"
+        "script/pre-push-dogfood-seal_test.sh",
+        "script/review-head-check_test.sh"
       ],
       "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
     },
@@ -83,18 +124,24 @@
         "cmd/corvint/test_whole_reason.go",
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
+        "internal/dogfoodflow/verify_run_match_test.go",
         "internal/sessiontest/declared.go",
         "internal/tasks/cli/command_help.go",
         "script/analyzer-schema_test.sh",
+        "script/check-bash32.sh",
+        "script/check-bash32_test.sh",
         "script/codex-review_test.sh",
+        "script/go-cache-trim.sh",
         "script/heavy-groups.sh",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
+        "script/test-run-pattern.sh",
+        "script/test-run-pattern_test.sh",
         "tools/flow-guide-check/main.go",
         "tools/flow-guide-check/main_test.go",
         "tools/test-shards/main.go"
       ],
-      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh (ASD-V0-930) run it by computed path; analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; codex-review_test.sh checks that default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh matches and names it; lane-transcript-metrics.py and flow-guide-check match it; test-shards and heavy-groups.sh name it in a comment (TSP-V0-005)."
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts, their test and codex-review.sh run it by computed path (ASD-V0-930); analyzer-schema.sh runs a golden test through it and its test stubs it (IDX-SNAP-V0-892); lane-scripts_test.sh tests it; codex-review_test.sh checks its default; golang_test.go plans over its text; cmd/corvint prints it; lane-guard.sh, lane-transcript-metrics.py, flow-guide-check, test-shards, heavy-groups.sh and go-cache-trim.sh match or name it (TSP-V0-005); dogfoodflow tests parse it."
     },
     "script/lane-guard.sh": {
       "callers": [
@@ -106,7 +153,10 @@
       "callers": [
         "script/lane-scripts_test.sh"
       ],
-      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data and check-bash32_test.sh names it only in a comment (TSP-V0-005; V1-3571).",
+      "mentions": [
+        "script/check-bash32_test.sh"
+      ]
     },
     "script/proof-tour.sh": {
       "callers": [

@@ -25,7 +25,8 @@ func mtRows(t *testing.T, x run) map[string]wire.Value {
 // row without blocking the others; the same request id and issuedAt replay;
 // a single target keeps its original item (TCD-V0-172).
 func TestTCDV0172_NoteSetSeveralTickets(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	aID, a := tcdTicket(t, root, "alpha", "")
 	_, b := tcdTicket(t, root, "bravo", "")
@@ -66,7 +67,8 @@ func TestTCDV0172_NoteSetSeveralTickets(t *testing.T) {
 // --expected-revision with several targets and several targets on another
 // verb are refused (TCD-V0-173).
 func TestTCDV0173_HoldSeveralTicketsReadsRevisions(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	aID, a := tcdTicket(t, root, "alpha", "")
 	bID, b := tcdTicket(t, root, "bravo", "")
@@ -113,7 +115,8 @@ func TestTCDV0173_HoldSeveralTicketsReadsRevisions(t *testing.T) {
 // long enough that every derived id takes the 64-byte digest form
 // (TCD-V0-967).
 func TestTCDV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, a := tcdTicket(t, root, "alpha", "")
 	_, b := tcdTicket(t, root, "bravo", "")
@@ -147,7 +150,8 @@ func TestTCDV0967_InterruptedMultiTargetWriteResumes(t *testing.T) {
 // with the same request id replays too, and a retry with another payload is
 // still refused (TCD-V0-967).
 func TestTCDV0967_InterruptedMultiTargetHoldResumes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, a := tcdTicket(t, root, "alpha", "")
 	_, b := tcdTicket(t, root, "bravo", "")

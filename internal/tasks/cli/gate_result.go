@@ -42,7 +42,7 @@ func gateResultValue(run *store.GateExecution) (wire.Value, string) {
 		o.Set("failingLine", wire.Null()).Set("tail", wire.Null())
 		return wire.ObjectValue(o), ""
 	}
-	tail, failing := obligation.FailureTail(string(run.Output), gateTailLines)
+	tail, failing := obligation.FailureTailMatching(string(run.Output), gateTailLines, run.FailurePattern)
 	o.Set("failingLine", stringOrNull(failing)).Set("tail", wire.Strings(tail))
 	exit := "no exit code"
 	if g.ExitCode != nil {

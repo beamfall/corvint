@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CCE-V0-117: a qualified runner whose headless shell is missing from the browsers path is
@@ -82,7 +84,7 @@ func writeExecutable(t *testing.T, p string) {
 	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(p, []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 }

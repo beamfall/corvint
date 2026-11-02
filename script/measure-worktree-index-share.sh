@@ -22,7 +22,7 @@ tree=$(git -C "$repo" rev-parse "$commit^{tree}") || exit 2
 worktrees=()
 
 cleanup() {
-  for wt in "${worktrees[@]}"; do
+  for wt in ${worktrees[@]+"${worktrees[@]}"}; do
     git -C "$wt" checkout -q -- "$dirty_path"
     git -C "$repo" worktree remove "$wt" || printf 'cleanup: cannot remove %s\n' "$wt" >&2
   done
@@ -76,7 +76,7 @@ for i in $(seq 1 "$count"); do
 done
 printf 'commit=%s common=%s engine-binary=%s\n' "$commit" "$common" "$corvint"
 printf 'worktree\tstep\tseconds\tresult\tworktree_fallback_snapshot_bytes\tstore_snapshot_bytes\tcommon_dir_gob_files\n'
-for wt in "${worktrees[@]}"; do
+for wt in ${worktrees[@]+"${worktrees[@]}"}; do
   query "$wt" cold-no-snapshot
   query "$wt" repeat-no-snapshot
   index_if_stale "$wt"
@@ -91,5 +91,5 @@ query "${worktrees[1]}" sibling-while-dirty
 git -C "$first" checkout -q -- "$dirty_path"
 query "$first" clean-after-dirty
 printf 'store snapshot oids: before-dirty=%s after-dirty=%s\n' "$before" "$(snapshot_oid "$store")"
-for wt in "${worktrees[@]}"; do printf '%s fallback snapshot oid: %s\n' "${wt##*/}" "$(snapshot_oid "$wt/.corvint/index")"; done
+for wt in ${worktrees[@]+"${worktrees[@]}"}; do printf '%s fallback snapshot oid: %s\n' "${wt##*/}" "$(snapshot_oid "$wt/.corvint/index")"; done
 command rm -f "$scratch/q.json" "$scratch/q.json.err" "$scratch/i.json" "$scratch/i.json.err"

@@ -9,6 +9,16 @@ trap 'rm -rf "$dir"' EXIT
 fail() { printf 'test-rg-fallback_test: FAIL %s\n' "$1" >&2; exit 1; }
 # shellcheck source=script/test-rg-fallback.sh
 source "$source_root/script/test-rg-fallback.sh"
+# ASD-V0-983 (V1-3786): a shell test that runs rg sources this fallback (or defines its own rg
+# function), so a host without ripgrep never stops it with a bare "rg: command not found".
+unguarded=
+for test_file in "$source_root"/script/*_test.sh; do
+  grep -v '^[[:space:]]*#' "$test_file" | grep -qE '(^|[^A-Za-z0-9_./-])rg( |$)' || continue
+  grep -q 'test-rg-fallback\.sh"\?$' "$test_file" && continue
+  grep -qE '^[[:space:]]*rg\(\)' "$test_file" && continue
+  unguarded="$unguarded ${test_file#"$source_root"/}"
+done
+[ -z "$unguarded" ] || fail "rg without the test-rg-fallback.sh guard:$unguarded"
 if ! printf 'x\n' | grep -qP '^x$' 2> /dev/null; then
   printf 'test-rg-fallback_test: SKIP grep has no -P on this host\n'
   exit 0

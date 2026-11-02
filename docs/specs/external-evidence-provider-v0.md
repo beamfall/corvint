@@ -275,6 +275,18 @@ each cited path still exists at that revision, and what was omitted or could not
   encoding or for an unadvertised method, or a summary without the four members. Rollback:
   restore the empty client capabilities and delete the four members.
 
+- `EEP-V0-805`: (experimental under the standing lane auto-accept, 2026-11-01; V1-0562) The legacy
+  file loader (`load`, used by `Selection` and `Section`) and the pinned-source open
+  (`openRegular`) MUST read a provider file through one descriptor opened without blocking on a
+  FIFO, MUST refuse an opened file that is not regular (a FIFO, device or directory, including one
+  swapped in after a pathname check) as `cannot read record: source must be a regular file`, and
+  MUST read at most `MaxRecordBytes`+1 bytes, so a file that is or grows larger is
+  `record exceeds 1048576 bytes`; the bytes read are the bytes digested and decoded. Before this a
+  FIFO passed `os.Stat` (size 0) and blocked `os.ReadFile`, and a symlink to `/dev/zero` was read
+  without bound. The V1-0536 captured-input route is unchanged and separate. Non-goal: detecting
+  a regular file whose contents are rewritten in place while it is read. Evidence:
+  `TestEEPV0805_LegacyLoaderRefusesSpecialFilesAndBoundsReads` (blocks for its 5 s deadline on the
+  base loader). Rollback: restore `os.Stat` and `os.ReadFile` in `load`.
 - `EEP-V0-770`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
   Every other product ancestry read below MUST consult the same `internal/gitancestry` guard
   (`Rewritten`, or `RewrittenAt` from a resolved common Git directory) before it answers, and a
@@ -462,6 +474,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 | `EEP-V0-028` | `Freshness` in `internal/extevidence/freshness.go`; `Rewritten` in `internal/gitancestry/gitancestry.go` | `TestFreshnessDistrustsRewrittenAncestry_EEPV0028`, `TestRewrittenNamesGraftsShallowAndUnreadable_EEPV0028` |
 | `EEP-V0-820` | `record` in `internal/lspprovider/provider.go` | `TestRecordExplainsOmissions_EEPV0820` |
 | `EEP-V0-821` | `negotiate`, `executableDigest`, `dialogue`, `walker.expand` in `internal/lspprovider/provider.go` | `TestExpandNegotiatesBeforeQuerying_EEPV0821`, `TestContextLSPRefusesNonRegularExecutable` |
+| `EEP-V0-805` | `load` in `internal/extevidence/section.go`; `openRegular`, `readRecordFile` in `internal/extevidence/pin.go` | `TestEEPV0805_LegacyLoaderRefusesSpecialFilesAndBoundsReads` |
 | `EEP-V0-770` | `internal/appflows/review.go`, `internal/appflows/selection.go`, `impactRangeAncestryRefusal` in `cmd/corvint/impact_range_ancestry.go`, `admit` in `internal/witness/witness.go`, `cmd/corvint/runs_baseline.go`, `internal/breakagemap/read.go`, `internal/dashboard/repository/trace.go`, `internal/upgradechanges/changes.go`; fixtures `internal/gitancestry/ancestrytest` | `TestRootAncestryRewrittenIsUnknown_EEPV0770`, `TestImpactRangeRefusesGraftedAncestry_EEPV0770`, `TestAdmitRefusesGraftedAncestry_EEPV0770`, `TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770`, `TestBreakageRefusesRewrittenAncestry_EEPV0770`, `TestQualifyTraceRefusesRewrittenAncestry_EEPV0770`, `TestCompileRefusesGraftedCheckout_EEPV0770` |
 | `EEP-V0-771` | comments at each read; `GIT_GRAFT_FILE` in `internal/sharedpath/sharedpath.go` and `internal/jstestprovider/application_attestation.go` | `TestBaseTreeShallowBoundaryRefuses_EEPV0771`, `TestBaseTreeIgnoresGraftedAncestry`, `TestProbeGitAncestorUnderRewrittenAncestry_EEPV0771`, `TestRefTipStateUnderRewrittenAncestry_EEPV0771`, `TestAncestryReadsIgnoreGraftsAndRefuseShallow_EEPV0771`, `TestObserveTestRepositoryIgnoresGrafts_EEPV0771`, `TestOpenGuidanceRefusesRewrittenAncestry_EEPV0771` |
 | `EEP-V0-772` | `requireTrustedAncestry` in `internal/dogfoodflow/flow.go` | `TestFlowsRefuseRewrittenAncestry_EEPV0772` |

@@ -33,10 +33,11 @@ var conflictDefaulted = regexp.MustCompile(`defaulted to [0-9]{4}-[0-9]{2}-[0-9]
 
 // TestLGLV0846ConflictOutputMatchesCompleteRoute: a retry whose request ID
 // lies more than MaxWriterTail receipts before the writer checkpoint and
-// whose bytes differ only in the defaulted issuedAt is refused with the same
+// whose bytes differ from the recorded request is refused with the same
 // result, codes and warnings, explanation included, from the writer route's
 // binding as from the complete route's audit. Only the defaulted second the
-// two runs name differs.
+// two runs name differs. The retry changes the title as well as the defaulted
+// issuedAt: one that differs only in issuedAt replays (TCL-V0-800, V1-3958).
 func TestLGLV0846ConflictOutputMatchesCompleteRoute(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.WriteWritableState(t, r)
@@ -60,14 +61,14 @@ func TestLGLV0846ConflictOutputMatchesCompleteRoute(t *testing.T) {
 	}
 	// The retry must default a later issuedAt than the original's.
 	time.Sleep(time.Until(original.Add(1100 * time.Millisecond)))
-	writer := conflictCreate(r, "orig", "original")
-	if !bytes.Contains(writer, []byte("REQUEST_ID_CONFLICT")) || !bytes.Contains(writer, []byte("differs from the recorded request only in issuedAt")) {
+	writer := conflictCreate(r, "orig", "changed")
+	if !bytes.Contains(writer, []byte("REQUEST_ID_CONFLICT")) || !bytes.Contains(writer, []byte("is recorded with different request bytes")) {
 		t.Fatalf("writer-route refusal: %s", writer)
 	}
 	if err := os.Remove(wcPath); err != nil {
 		t.Fatal(err)
 	}
-	complete := conflictCreate(r, "orig", "original")
+	complete := conflictCreate(r, "orig", "changed")
 	if a, b := conflictDefaulted.ReplaceAll(writer, nil), conflictDefaulted.ReplaceAll(complete, nil); !bytes.Equal(a, b) {
 		t.Fatalf("writer route:\n%s\ncomplete route:\n%s", writer, complete)
 	}

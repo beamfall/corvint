@@ -424,6 +424,9 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 		if p.Has("supersedes") {
 			work.Supersedes = copyTicket(p.Supersedes)
 		}
+		if p.Has("supersededBy") {
+			work.SupersededBy = copyTicket(p.SupersededBy)
+		}
 		// §3.2 DRAFT→OPEN by refine.
 		if work.Status == ticket.StatusDraft && opens(work) {
 			work.Status = ticket.StatusOpen
@@ -686,7 +689,10 @@ func (ctx *Context) checkRecord(pre, work *ticket.Record) *refusal {
 			}
 		}
 	}
-	if pre == nil && work.SupersededBy != nil {
+	if (pre == nil || fieldChanged(pre, work, "supersededBy")) && work.SupersededBy != nil {
+		if work.SupersededBy.Raw == work.TicketID.Raw {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "supersededBy names the ticket itself (TAW-V0-012)")
+		}
 		if _, ok := ctx.Inventory.Get(work.SupersededBy.Raw); !ok {
 			return refuse(OutcomeValidationFailed, wire.CodeDependencyMissing, "supersededBy names %s, which does not exist in the queue", work.SupersededBy.Raw)
 		}

@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
@@ -22,7 +23,7 @@ import (
 func TestContextCLIMatchesMCPReceipt(t *testing.T) {
 	root := evidenceSummaryRepository(t)
 	failing := filepath.Join(t.TempDir(), "gopls")
-	if err := os.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(failing, []byte("#!/bin/sh\nexit 3\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	completing := testsupport.FakeGoplsExecutable(t, "cache/join.go,cache/join.go,"+filepath.Join(t.TempDir(), "z.go"))

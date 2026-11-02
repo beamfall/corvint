@@ -101,8 +101,8 @@ func ergReceiptForge(t *testing.T, repo *intent.Repository, seq uint64, forge fu
 // under a policy that requires a reviewer lease: a lease-bound record is the
 // control, and stripping its lease to an operator attestation is a forgery.
 func TestERGV0009_ForgedReviewEventsRefuseAtRecovery(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	cases := []struct {
 		name  string
 		forge func(*snapshot.ExternalReviewEvent)

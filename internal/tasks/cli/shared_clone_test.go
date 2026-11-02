@@ -15,6 +15,10 @@ import (
 // UNSUPPORTED or UNSUPPORTED_FILESYSTEM refusal.
 func TestCTSV0013_SharedCloneIsSupported(t *testing.T) {
 	r := exclusionCLIRepo(t)
+	// The ticket's touch path exists at the clone's origin base (TCL-V0-743).
+	if err := os.WriteFile(filepath.Join(r.Root, "shared"), []byte("shared\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	git(t, r.Root, "add", "-A")
 	git(t, r.Root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "intent store")
 	clone := filepath.Join(filepath.Dir(r.Root), "shared-clone")

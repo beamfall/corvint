@@ -130,27 +130,14 @@ func lifecycleFlag(args []string) ([]string, *string, error) {
 }
 
 // releaseLifecycles adds the TLC-V0-011 lifecycle counts of the members of r
-// to members, and lifecycleMembers to o when state is given, from one
-// inventory read; a failed read counts every member UNKNOWN with a warning.
-func releaseLifecycles(env Env, r *release.Record, members wire.Value, state *string, o *wire.Object) []string {
+// to members, and lifecycleMembers to o when state is given, from the
+// caller's store read (TCL-V0-736).
+func releaseLifecycles(r *release.Record, members wire.Value, state *string, o *wire.Object, derive func([]string) (map[string]lifecycle.Lifecycle, []string)) []string {
 	ids := make([]string, 0, len(r.TicketIDs))
 	for _, id := range r.TicketIDs {
 		ids = append(ids, id.Raw)
 	}
-	var lcs map[string]lifecycle.Lifecycle
-	var warnings []string
-	env.lazyClosed = true
-	_, err := withInventoryStore(env, func(rc *readCtx) error {
-		lcs, warnings = lifecycles(rc, ids, nil)
-		return nil
-	})
-	if err != nil {
-		lcs, warnings = map[string]lifecycle.Lifecycle{}, []string{"lifecycle NOT_OBSERVED: " + err.Error()}
-		unknown := lifecycle.Derive(lifecycle.Input{})
-		for _, id := range ids {
-			lcs[id] = unknown
-		}
-	}
+	lcs, warnings := derive(ids)
 	present := ids[:0:0]
 	for _, id := range ids {
 		if _, ok := lcs[id]; ok {
