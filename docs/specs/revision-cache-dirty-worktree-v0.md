@@ -296,8 +296,8 @@ returned to `fresh` after the restore. V1-0212 (`DIRTY-CACHE-013`) since shares 
 the store is `corvint/index` under the Git common directory, or the worktree's own
 `.corvint/index` when that directory cannot be resolved, unless an operator names a scratch
 store with `CORVINT_INDEX_STORE` (`IDX-SNAP-V0-808`)
-(`internal/contextindex/snapshot.go:235-245@04b8c20f`), and each snapshot's file name is
-`internal/contextindex/snapshot.go:282-283@cd3a98c5`.
+(`internal/contextindex/snapshot.go:237-247@04b8c20f`), and each snapshot's file name is
+`internal/contextindex/snapshot.go:284-285@cd3a98c5`.
 
 ## Traceability
 

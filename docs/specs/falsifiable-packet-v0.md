@@ -843,8 +843,8 @@ above stands with that substitution.
   index path calls `contextindex.ProbeSnapshot` directly
   (`cmd/corvint/index_snapshot.go:141-142@9a7d60f2`); none passes through the `cmd/corvint`
   `loadSnapshot` variables. Internally, `LoadEventSnapshot` reaches the private `loadSnapshot`
-  (`internal/contextindex/snapshot.go:807-830@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
-  the snapshot (`internal/contextindex/snapshot.go:729-805@dec07644`). A checkpoint compile
+  (`internal/contextindex/snapshot.go:830-853@cd5ffb8c`), while `ProbeSnapshot` delegates to `SnapshotFreshness`, which opens and validates
+  the snapshot (`internal/contextindex/snapshot.go:750-828@6a82c80f`). A checkpoint compile
   function written to call either would therefore register zero calls on the dynamic seam. The
   load-bearing source guard scans every non-test Go file in `cmd/corvint`, rejects direct
   `LoadSnapshot`, `LoadSnapshotDeferred` or `LoadSnapshotObserved` references outside their seam bindings, and additionally rejects `LoadEventSnapshot`,
