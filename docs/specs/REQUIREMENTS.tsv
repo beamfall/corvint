@@ -1930,6 +1930,9 @@ CEP-V0-001	docs/specs/context-evolution-program-v0.md	ContextBench rows. `tools/
 CEP-V0-002	docs/specs/context-evolution-program-v0.md	ContextBench metrics. For every error-free arm answer on a ContextBench sample,	unrecorded	-
 CEP-V0-960	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2761)	standing	2026-10-11; V1-2761
 CEP-V0-961	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3453)	standing	2026-10-11; V1-3453
+CEP-V0-755	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)	standing	2026-10-11; V1-4085
+CEP-V0-756	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)	standing	2026-10-11; V1-4085
+CEP-V0-757	docs/specs/context-evolution-program-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-4085)	standing	2026-10-11; V1-4085
 CEP-V0-003	docs/specs/context-evolution-program-v0.md	Pinned offline runs. Every external run MUST be local and offline: rows and	unrecorded	-
 CEP-V0-004	docs/specs/context-evolution-program-v0.md	Already-fixed control. A `tools/cw-trial` task MAY carry `control:	unrecorded	-
 CEP-V0-005	docs/specs/context-evolution-program-v0.md	Control scoring. On an already-fixed control each arm record MUST carry	unrecorded	-
@@ -2113,6 +2116,9 @@ ASD-V0-070	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-071	docs/specs/corvint-self-development-v0.md	Retired by `ASD-V0-831` (V1-3337, 2026-10-31): `script/check-ai-trailers.sh`, it	unrecorded	-
 ASD-V0-072	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3230) A shallo	standing	2026-10-30; V1-3230
 ASD-V0-965	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3651) Linked l	standing	2026-11-01; V1-3651
+ASD-V0-755	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3761, V1-4044)	standing	2026-11-01; V1-3761; V1-4044
+ASD-V0-756	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3761, V1-4044)	standing	2026-11-01; V1-3761; V1-4044
+ASD-V0-757	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3761) `script/	standing	2026-11-01; V1-3761
 ASD-V0-073	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) `make ba	standing	2026-10-30; V1-3238
 ASD-V0-074	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3120; refines	standing	2026-10-30; V1-3120
 ASD-V0-075	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3232; refines	standing	2026-10-30; V1-3232
@@ -6109,6 +6115,7 @@ PTF-V0-007	docs/specs/playwright-per-test-freshness-v0.md	The only supported mut
 PTF-V0-008	docs/specs/playwright-per-test-freshness-v0.md	Join the control's observed semantic/runtime/source closure to EVERY baseline re	unrecorded	-
 PTF-V0-009	docs/specs/playwright-per-test-freshness-v0.md	Readiness failure, attestation failure, execution failure and cancellation all c	unrecorded	-
 PTF-V0-010	docs/specs/playwright-per-test-freshness-v0.md	Qualify the named consuming path on the exact tuple with actual stable positive/	unrecorded	-
+PTF-V0-755	docs/specs/playwright-per-test-freshness-v0.md	The dependency observation's ancestor walk (no symlinked or missing ancestor) en	unrecorded	-
 PWR-V0-001	docs/specs/playwright-run-evidence-v0.md	One shared reader MUST read an explicit Playwright json-reporter file read-only	unrecorded	-
 PWR-V0-002	docs/specs/playwright-run-evidence-v0.md	Runs pool only at identical identity inputs: the Playwright version plus the	unrecorded	-
 PWR-V0-003	docs/specs/playwright-run-evidence-v0.md	`Stability(runs, minRuns)` MUST classify each pool: `INTERMITTENT` when outcomes	unrecorded	-

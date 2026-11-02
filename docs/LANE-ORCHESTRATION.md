@@ -657,6 +657,14 @@ every gap above the threshold with the time the watchdog would have flagged it.
   lock after its commits landed: record HEAD before it, compare after a failure, and retry only when
   HEAD did not move. When HEAD moved, verify the landed commits (`git log --oneline BEFORE..HEAD`)
   instead of repeating the command, which would land them twice.
+- The installed `corvint` matches the lane base (ASD-V0-755..757, V1-3761, V1-4044). A stale one
+  reports `DEGRADED self-binary-stale` and can widen or skew `corvint affected` and `corvint test`
+  evidence. `lane-setup.sh` ends with `script/lane-binary-check.sh <lane>`, which prints `FRESH`,
+  `STALE` or `UNVERIFIED` with the installed and expected builds and commits, and exits 1 on a stale
+  binary (the lane is still created). After a merge, rebuild a lane host's binary with
+  `script/lane-binary-check.sh --rebuild <clean checkout at origin/main>` (or pass
+  `--rebuild-corvint` to `lane-setup.sh`); it installs through `install-local-bin.sh`, so
+  `install-local-bin.sh --rollback ~/.local/bin/corvint` restores the previous binary.
 - Never run `git stash` in a lane. The stash is one ref (`refs/stash`) in the clone's common
   directory, shared by every linked worktree, so one lane's `git stash pop` can apply another
   lane's stash (incident, 2026-10-21: the dogfood-flow lane's `git stash pop` applied the affected-selection lane's stash `723eec1`, V1-2161). Park work in a

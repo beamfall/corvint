@@ -5,6 +5,7 @@ import (
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -86,6 +87,9 @@ func TestMTPBindings(t *testing.T) {
 	}
 }
 func TestMTPBuild(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute fixture paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	for _, f := range []string{"nunit", "mstest", "xunit"} {
 		r := tr.Request{Runner: "dotnet-mtp-" + f, Executable: "/sdk/dotnet", ReportDir: "/reports", Project: "bin/Probe.dll", Selectors: []string{"MtpProbe.Probe.Pass"}, InputFiles: map[string]string{"bin/Probe.dll": "sha", "bin/Probe.runtimeconfig.json": "sha", "bin/Probe.deps.json": "sha"}}
 		v, e := Build(r)

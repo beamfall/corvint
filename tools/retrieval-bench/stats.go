@@ -341,15 +341,25 @@ type storedReport struct {
 	Skipped       map[string]int `json:"skipped"`
 	Corvint       map[string]any `json:"corvint"`
 	Budget        map[string]any `json:"budget"`
-	Details       []sampleReport `json:"details"`
+	// Jobs is the --jobs the report ran under (CEP-V0-756); a report
+	// written before the flag has none and ran serially.
+	Jobs    int            `json:"jobs"`
+	Details []sampleReport `json:"details"`
+}
+
+// jobs is the --jobs a stored report ran under, 1 for one written before
+// the flag.
+func (stored storedReport) jobs() int {
+	return max(stored.Jobs, 1)
 }
 
 // resummarize merges the details of every --summarize report by sample id
 // (a later report's arm replaces an earlier one's of the same name), keeps
 // the first report's samples digest, limit, and skips and the one Corvint
 // binary any report measured, and rebuilds every summary section. Reports
-// over different samples files, limits or budget blocks (CEP-V0-008), or
-// measuring different Corvint binaries, are refused, so a merged report never pairs arms across runs of
+// over different samples files, limits or budget blocks (CEP-V0-008), run
+// under different --jobs (CEP-V0-756: their wall times measured different
+// host loads), or measuring different Corvint binaries, are refused, so a merged report never pairs arms across runs of
 // different inputs or attributes one binary's results to another.
 func resummarize(configuration options) (map[string]any, error) {
 	merged := map[string]*sampleReport{}
@@ -374,6 +384,9 @@ func resummarize(configuration options) (map[string]any, error) {
 		}
 		if stored.Limit != first.Limit {
 			return nil, fmt.Errorf("%s ran at limit %d, not %s's limit %d", path, stored.Limit, configuration.summaries[0], first.Limit)
+		}
+		if stored.jobs() != first.jobs() {
+			return nil, fmt.Errorf("%s ran under --jobs %d, not %s's --jobs %d", path, stored.jobs(), configuration.summaries[0], first.jobs())
 		}
 		if !reflect.DeepEqual(stored.Budget, first.Budget) {
 			return nil, fmt.Errorf("%s ran under budget %v, not %s's budget %v", path, stored.Budget, configuration.summaries[0], first.Budget)
@@ -429,6 +442,7 @@ func resummarize(configuration options) (map[string]any, error) {
 		"arms":           summarize(reports, first.Limit),
 		"paired":         paired(reports),
 		"latency":        latency(reports),
+		"jobs":           first.jobs(),
 		"details":        reports,
 	}
 	if first.Budget != nil {

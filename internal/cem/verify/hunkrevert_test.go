@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -208,6 +209,9 @@ func TestCEMV1089ClassifyRevert(t *testing.T) {
 // the copy is restored afterwards, a per-run timeout is not-run, and only the
 // runner's own observation makes a row held.
 func TestCEMV1088JudgeRevertsOnlyInsideTheCopy(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("asserts POSIX file modes on the copy (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	t.Parallel()
 	tree := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(tree, "p"), 0o755); err != nil {
@@ -398,6 +402,9 @@ func TestCEMV1088CopyWritesNeverFollowSymlinks(t *testing.T) {
 // TestCEMV1088GoTestProfileMatchesNative pins the falsifier's fixed go test
 // profile to the native go-test runner so the two cannot drift.
 func TestCEMV1088GoTestProfileMatchesNative(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("compares a POSIX TMPDIR profile (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	names := []string{"TestA", "TestB.x"}
 	invocation, err := native.Build(tr.Request{Runner: "go-test", Executable: "go", ReportDir: "r", Project: ".", Selectors: []string{".::TestA", ".::TestB.x"}})
 	if err != nil {
@@ -429,6 +436,9 @@ func TestCEMV1088GoTestProfileMatchesNative(t *testing.T) {
 // TestCEMV1088ExportTreeReadsOnlyObjects pins the disposable copy: blobs and
 // modes from the target tree, and a symlink refused rather than dropped.
 func TestCEMV1088ExportTreeReadsOnlyObjects(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("asserts a POSIX executable mode on run.sh (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	t.Parallel()
 	repository := t.TempDir()
 	git := func(args ...string) string {

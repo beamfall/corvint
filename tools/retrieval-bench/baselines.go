@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
@@ -108,11 +109,17 @@ type corpusFile struct {
 	length int
 }
 
-var cachedCorpus *corpusIndex
+var (
+	cachedCorpusLock sync.Mutex
+	cachedCorpus     *corpusIndex
+)
 
 // corpusFor indexes root once and keeps the latest index: samples arrive
-// grouped by snapshot, so one cached copy serves a run.
+// grouped by snapshot, so one cached copy serves a run. The lock lets --jobs
+// workers share it; an index is never written after it is built.
 func corpusFor(root string) *corpusIndex {
+	cachedCorpusLock.Lock()
+	defer cachedCorpusLock.Unlock()
 	if cachedCorpus != nil && cachedCorpus.root == root {
 		return cachedCorpus
 	}

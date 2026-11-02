@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -635,6 +636,9 @@ func TestAggregateOverInventory(t *testing.T) {
 
 // LPCV-V0-067: atomic confined retention, merge and the writer lock.
 func TestRetentionMergeLockAndConfinement(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("asserts POSIX private file modes (0600/0700) (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	worktree := t.TempDir()
 	if document, err := Load(worktree, testKey); err != nil || document != nil {
 		t.Fatalf("Load on an empty worktree = %v, %v", document, err)

@@ -25,6 +25,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -57,6 +58,7 @@ var camelPattern = regexp.MustCompile(`([a-z])([A-Z])`)
 // objectIDPattern is a full SHA-1 or SHA-256 Git object id. A sample's
 // base_commit names a corpus file and a snapshot key, so nothing else is
 // accepted.
+var versionCommitPattern = regexp.MustCompile(`\bcommit ([0-9a-f]{40}|[0-9a-f]{64})\b`)
 var objectIDPattern = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
 // sample is one bench row. query, gold, and metadata keep the bench's own
@@ -90,6 +92,7 @@ type options struct {
 	budgetBytes      int
 	windowBytes      int
 	dataRoot         string
+	jobs             int
 }
 
 // arm is one retriever's answer for one sample: a ranked file list and
@@ -116,6 +119,11 @@ type arm struct {
 	// Ranked order, so the fused ordering can be studied from the report
 	// without the packets; empty for an arm without widening.
 	WideningRows []wideningRow `json:"widening_rows,omitempty"`
+	// SpanMode marks a context packet that carried a `spans` member
+	// (CORVINT_CONTEXT_SPANS); Spans are its rows, scored against the
+	// sample's gold spans (CEP-V0-755).
+	SpanMode bool      `json:"span_mode,omitempty"`
+	Spans    []spanRow `json:"spans,omitempty"`
 }
 
 // wideningRow is one widening row's `fusion` member as the query packet
@@ -276,6 +284,7 @@ func parseOptions(arguments []string) (options, error) {
 	flags.Var(&summaries, "summarize", "existing report to re-summarize, merging arms by sample id (repeatable; runs nothing)")
 	flags.IntVar(&configuration.budgetBytes, "budget-bytes", 0, "score every arm through identical text windows under this byte budget (0 = off)")
 	flags.IntVar(&configuration.windowBytes, "window-bytes", defaultWindowBytes, "text window per ranked file under --budget-bytes")
+	flags.IntVar(&configuration.jobs, "jobs", 1, "samples judged at once, 1.."+strconv.Itoa(maxJobs)+"; samples of one snapshot stay serial (CEP-V0-756)")
 	flags.StringVar(&configuration.dataRoot, "data-root", os.Getenv(dataRootEnv), "directory of extracted bench releases that a relative --samples or --corpus resolves under (default $"+dataRootEnv+")")
 	if err := flags.Parse(arguments); err != nil {
 		return options{}, err
@@ -285,6 +294,9 @@ func parseOptions(arguments []string) (options, error) {
 	}
 	if flags.NArg() != 0 {
 		return options{}, errors.New("unexpected positional arguments")
+	}
+	if err := validateJobs(configuration); err != nil {
+		return options{}, err
 	}
 	configuration.summaries = summaries
 	if len(summaries) > 0 && (configuration.samples != "" || configuration.corpus != "" || len(snapshots) > 0) {
@@ -374,47 +386,11 @@ func bench(ctx context.Context, configuration options, corvint retriever, contex
 	if capture != nil {
 		defer capture.file.Close()
 	}
-	workspaces := newWorkspaces()
-	defer workspaces.close()
-	reports := make([]sampleReport, 0, len(samples))
-	for ordinal, item := range samples {
-		sampleCtx := ctx
-		if capture != nil {
-			sampleCtx = context.WithValue(ctx, captureScopeKey{}, &captureScope{capture, ordinal})
-		}
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		root, err := workspaces.open(ctx, configuration, item)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", item.ID, err)
-		}
-		if err := cleanWorkspace(ctx, root); err != nil {
-			return nil, err
-		}
-		var cold arm
-		if configuration.snapshotLatency {
-			cold, err = prepareSnapshotSample(sampleCtx, configuration, item, root, contextPacket)
-			if err != nil {
-				return nil, fmt.Errorf("%s: %w", item.ID, err)
-			}
-		}
-		judged := judge(sampleCtx, configuration, corvint, contextPacket, impact, affected, item, root)
-		if capture != nil && capture.err != nil {
-			return nil, capture.err
-		}
-		if configuration.snapshotLatency {
-			warm := judged.Arms["context"]
-			if err := validateSnapshotPair(cold, warm); err != nil {
-				return nil, fmt.Errorf("%s: %w", item.ID, err)
-			}
-			warm.ColdMillis = cold.WallMillis
-			judged.Arms["context"] = warm
-		}
-		reports = append(reports, judged)
-		if err := cleanWorkspace(ctx, root); err != nil {
-			return nil, err
-		}
+	reports, err := judgeSamples(ctx, configuration, samples, func(ctx context.Context, workspaces *workspaces, ordinal int, item sample) (sampleReport, error) {
+		return benchSample(ctx, configuration, workspaces, capture, ordinal, item, corvint, contextPacket, impact, affected)
+	})
+	if err != nil {
+		return nil, err
 	}
 	if err := verifyRunIdentity(ctx, configuration, identity, registered); err != nil {
 		return nil, err
@@ -439,12 +415,55 @@ func bench(ctx context.Context, configuration options, corvint retriever, contex
 		"arms":           summarize(reports, configuration.limit),
 		"paired":         paired(reports),
 		"latency":        latency(reports),
+		"jobs":           configuration.jobs,
 		"details":        reports,
 	}
 	if budget := budgetBlock(configuration); budget != nil {
 		result["budget"] = budget
 	}
 	return result, nil
+}
+
+// benchSample judges one sample in its snapshot's workspace and leaves the
+// workspace clean.
+func benchSample(ctx context.Context, configuration options, workspaces *workspaces, capture *contextCapture, ordinal int, item sample, corvint retriever, contextPacket retriever, impact impactRetriever, affected affectedRetriever) (sampleReport, error) {
+	sampleCtx := ctx
+	if capture != nil {
+		sampleCtx = context.WithValue(ctx, captureScopeKey{}, &captureScope{capture, ordinal})
+	}
+	if err := ctx.Err(); err != nil {
+		return sampleReport{}, err
+	}
+	root, err := workspaces.open(ctx, configuration, item)
+	if err != nil {
+		return sampleReport{}, fmt.Errorf("%s: %w", item.ID, err)
+	}
+	if err := cleanWorkspace(ctx, root); err != nil {
+		return sampleReport{}, err
+	}
+	var cold arm
+	if configuration.snapshotLatency {
+		cold, err = prepareSnapshotSample(sampleCtx, configuration, item, root, contextPacket)
+		if err != nil {
+			return sampleReport{}, fmt.Errorf("%s: %w", item.ID, err)
+		}
+	}
+	judged := judge(sampleCtx, configuration, corvint, contextPacket, impact, affected, item, root)
+	if capture != nil && capture.err != nil {
+		return sampleReport{}, capture.err
+	}
+	if configuration.snapshotLatency {
+		warm := judged.Arms["context"]
+		if err := validateSnapshotPair(cold, warm); err != nil {
+			return sampleReport{}, fmt.Errorf("%s: %w", item.ID, err)
+		}
+		warm.ColdMillis = cold.WallMillis
+		judged.Arms["context"] = warm
+	}
+	if err := cleanWorkspace(ctx, root); err != nil {
+		return sampleReport{}, err
+	}
+	return judged, nil
 }
 
 // readSamples returns the kept samples, the file digest, and the count of
@@ -968,6 +987,9 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 		if item.TaskType == contextBenchTask && answer.Error == "" {
 			contextBenchMetrics(report.Metrics[name], answer, item, root, configuration.limit)
 		}
+		if answer.Error == "" {
+			spanMetrics(report.Metrics[name], answer, item)
+		}
 		if configuration.budgetBytes > 0 {
 			budgetMetrics(report.Metrics[name], answer, report.Gold, root, report.Stratum == "positive", configuration)
 		}
@@ -1325,8 +1347,12 @@ func parseContextPacket(data []byte) (arm, error) {
 	var envelope struct {
 		State   string `json:"state"`
 		Results []struct {
-			ID string `json:"id"`
+			ID   string `json:"id"`
+			Path string `json:"path"`
 		} `json:"results"`
+		Spans *struct {
+			Rows []spanRow `json:"rows"`
+		} `json:"spans"`
 		Coverage struct {
 			Answerability struct {
 				Verdict string `json:"verdict"`
@@ -1339,18 +1365,28 @@ func parseContextPacket(data []byte) (arm, error) {
 	seen := map[string]bool{}
 	ranked := make([]string, 0, len(envelope.Results))
 	for _, result := range envelope.Results {
-		if result.ID == "" || seen[result.ID] {
+		// A result row names its file in `id`; `path` is read when `id` is
+		// absent, the key span rows use (CEP-V0-755).
+		id := result.ID
+		if id == "" {
+			id = result.Path
+		}
+		if id == "" || seen[id] {
 			continue
 		}
-		seen[result.ID] = true
-		ranked = append(ranked, result.ID)
+		seen[id] = true
+		ranked = append(ranked, id)
 	}
 	state := envelope.State
 	withheld := envelope.Coverage.Answerability.Verdict == "unsupported-conjunction"
 	if withheld {
 		state = state + "/" + envelope.Coverage.Answerability.Verdict
 	}
-	return arm{Ranked: ranked, State: state, Abstained: state == "NO_CANDIDATES" || withheld || len(ranked) == 0, PacketBytes: len(data)}, nil
+	answer := arm{Ranked: ranked, State: state, Abstained: state == "NO_CANDIDATES" || withheld || len(ranked) == 0, PacketBytes: len(data)}
+	if envelope.Spans != nil {
+		answer.SpanMode, answer.Spans = true, envelope.Spans.Rows
+	}
+	return answer, nil
 }
 
 // tokenize replicates the bench's tokenizer: camelCase split, alphanumeric
@@ -1661,5 +1697,12 @@ func corvintIdentity(ctx context.Context, corvintGo string) (map[string]any, err
 	if err != nil {
 		return nil, fmt.Errorf("corvint --version: %w", err)
 	}
-	return map[string]any{"version": strings.TrimSpace(string(version)), "sha256": hex.EncodeToString(digest[:])}, nil
+	line := strings.TrimSpace(string(version))
+	// The commit the binary states it was built from (CEP-V0-757), or UNKNOWN
+	// for a binary whose --version carries none.
+	commit := "UNKNOWN"
+	if match := versionCommitPattern.FindStringSubmatch(line); match != nil {
+		commit = match[1]
+	}
+	return map[string]any{"version": line, "commit": commit, "sha256": hex.EncodeToString(digest[:])}, nil
 }

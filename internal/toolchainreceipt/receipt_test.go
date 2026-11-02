@@ -3,10 +3,14 @@ package toolchainreceipt
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestTreeIsDeterministicAndSensitiveToEveryEntryShape(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("needs POSIX executable and sticky mode bits (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "src", "a.go"), "package a\n", 0o644)
 	writeFile(t, filepath.Join(root, "pkg", "tool"), "tool", 0o755)

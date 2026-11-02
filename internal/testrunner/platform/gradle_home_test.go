@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +14,9 @@ import (
 // executor HOME, keeps the single-use daemon mode, never addresses ambient
 // daemons and retires escaped descendants. Maven is unchanged.
 func TestGradlePerRunUserHomeAndDaemonOwnership(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses POSIX absolute tool and root paths (V1-2491; decision 0559: native Windows is unsupported for 1.0)")
+	}
 	r := tr.Request{Root: "/source", Executable: "/tools/gradle/bin/gradle", ExecutableSha256: strings.Repeat("a", 64), ReportDir: "/fresh", Project: "app", Config: "/source/app/build.gradle", ConfigSha256: strings.Repeat("b", 64), Target: ":test", Runner: "gradle-junit", Tools: map[string]tr.Tool{"java": {Executable: "/jdk/bin/java", Sha256: strings.Repeat("c", 64)}}}
 	i, e := Build(r)
 	if e != nil {

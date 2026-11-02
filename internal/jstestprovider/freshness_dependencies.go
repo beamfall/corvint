@@ -92,7 +92,10 @@ func ObserveFreshDependencies(m *FreshDependencyManifest) *FreshDependencyObserv
 			out.Failures = append(out.Failures, "dependency-input-bound")
 			return
 		}
-		for parent := path; parent != "/"; parent = filepath.Dir(parent) {
+		// The walk ends below the filesystem root, whose Dir is itself: "/" on
+		// Unix, a volume such as `C:\` on Windows, where a test for "/" never
+		// ended (PTF-V0-755, V1-2492).
+		for parent := path; filepath.Dir(parent) != parent; parent = filepath.Dir(parent) {
 			info, e := os.Lstat(parent)
 			if e != nil || info.Mode()&os.ModeSymlink != 0 {
 				out.Failures = append(out.Failures, "dependency-input-unavailable")
