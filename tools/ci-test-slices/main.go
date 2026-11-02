@@ -4,9 +4,9 @@
 //
 // Inputs are the hosted `go test -json` streams of one complete, passing CI run,
 // one file per shard job, raw or as printed by `gh run view RUN --job JOB --log`.
-// Both modes refuse unless exactly --shards logs (default 8, the go-product-shard
-// matrix) are given and each holds a terminal package outcome, so a partial run
-// never sets the target or the sums.
+// Both modes refuse unless exactly --log-shards logs (default: --shards,
+// the go-product-shard matrix, currently 16) are given and each holds a terminal
+// package outcome, so a partial run never sets the target or the sums.
 // After the log prefix (the job and step columns, a byte-order mark, the runner
 // timestamp and an annotation such as ##[error]), a line whose content starts
 // with { must decode completely; one that opens with a `go test -json` key (Time,
@@ -21,8 +21,11 @@
 // after it. A log is refused when any test, subtest or package fails, or when a
 // package or test is missing, repeated or unterminated:
 //
-//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 8] [--target 0] LOG...
-//	ci-test-slices replay [--root DIR] [--shards 8] [--costs FILE] [--slices FILE] LOG...
+//	ci-test-slices generate --root DIR --revision SHA --run-url URL [--shards 16] [--log-shards N] [--target 0] LOG...
+//	ci-test-slices replay [--root DIR] [--shards 16] [--log-shards N] [--costs FILE] [--slices FILE] LOG...
+//
+// --shards sets the output partition; --log-shards declares the complete source
+// run, allowing eight measured logs to rebalance a sixteen-shard partition.
 //
 // A package that the allow-list and slice file of the tested tree (generate:
 // SHA; replay: DIR) split ran as test slices, so it ends once per slice, each in
@@ -110,7 +113,8 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	root := fs.String("root", ".", "repository root")
 	revision := fs.String("revision", "", "generate: full commit the root checks out and the slices were listed at")
 	runURL := fs.String("run-url", "", "generate: hosted run that produced the logs")
-	shards := fs.Int("shards", 8, "CI shard count (the go-product-shard matrix): one log per shard of one complete run")
+	shards := fs.Int("shards", 16, "output CI shard count (the go-product-shard matrix)")
+	logShards := fs.Int("log-shards", 0, "source run shard count: exactly one log per shard (default: --shards)")
 	target := fs.Duration("target", 0, "generate: split packages slower than this (0: the ideal shard share)")
 	costs := fs.String("costs", "", "replay: placement cost table (default: the observed run)")
 	slices := fs.String("slices", "", "replay: slice file (default: ROOT/"+slicesPath+")")
@@ -120,8 +124,14 @@ func run(ctx context.Context, mode string, args []string, out, notes io.Writer) 
 	if (mode != "generate" && mode != "replay") || fs.NArg() == 0 || *shards < 2 || *shards > cishards.MaxShards || *target < 0 {
 		return 2, errors.New("usage: ci-test-slices generate|replay [flags] LOG...")
 	}
-	if fs.NArg() != *shards {
-		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the suite", fs.NArg(), *shards)
+	if *logShards == 0 {
+		*logShards = *shards
+	}
+	if *logShards < 2 || *logShards > cishards.MaxShards {
+		return 2, errors.New("--log-shards must be between 2 and the maximum shard count")
+	}
+	if fs.NArg() != *logShards {
+		return 2, fmt.Errorf("%d of %d shard logs present; a partial run cannot measure the suite", fs.NArg(), *logShards)
 	}
 	obs, err := observe(fs.Args())
 	if err != nil {
@@ -506,7 +516,7 @@ func generate(ctx context.Context, obs *observation, root, revision, runURL stri
 	// The run tested this revision, so its slice file says which packages ran
 	// as slices; an absent one splits nothing.
 	runSlices, _ := os.ReadFile(filepath.Join(tree, slicesPath))
-	if err := obs.combine(shards, allowRaw, runSlices); err != nil {
+	if err := obs.combine(len(obs.files), allowRaw, runSlices); err != nil {
 		return 2, err
 	}
 	limit := target.Milliseconds()
@@ -742,7 +752,7 @@ func replay(obs *observation, root string, shards int, costsFile, slicesFile str
 	// packages ran as slices, whatever --slices places.
 	runAllow, _ := os.ReadFile(filepath.Join(root, allowPath))
 	runSlices, _ := os.ReadFile(filepath.Join(root, slicesPath))
-	if err := obs.combine(shards, runAllow, runSlices); err != nil {
+	if err := obs.combine(len(obs.files), runAllow, runSlices); err != nil {
 		return 2, err
 	}
 	if slicesFile == "" {

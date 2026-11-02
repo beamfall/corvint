@@ -403,10 +403,10 @@ func TestAFPV0041CommittedSlicesAreAdmitted(t *testing.T) {
 		}
 		universe = append(universe, p)
 	}
-	if got := SplitPackages(universe, 8, defaultAllow, defaultSlices); len(got) != len(universe) {
+	if got := SplitPackages(universe, 16, defaultAllow, defaultSlices); len(got) != len(universe) {
 		t.Fatalf("admitted %d of %d committed splits", len(got), len(universe))
 	}
-	if len(universe) != 0 && !Splits(universe, 8) {
+	if len(universe) != 0 && !Splits(universe, 16) {
 		t.Fatal("Splits disagrees with the committed slices")
 	}
 	if Splits(universe, 1) {
@@ -431,7 +431,7 @@ func TestAFPSourceGoVersionsAdmitted(t *testing.T) {
 	}
 }
 
-// AFP-V0-060 (V1-1096): the committed slice file splits both oversized allowed
+// AFP-V0-060 / AFP-V0-2180: the sixteen-shard plan splits oversized allowed
 // packages into slices of at most 400 s each, and over the committed cost
 // table's universe the plan places every package or slice exactly once, each
 // split package's slices in different shards. Every name the file records is
@@ -475,11 +475,11 @@ func TestAFPV0060CommittedSlicesBoundOversizedPackages(t *testing.T) {
 			t.Fatalf("%s costs %d ms, over %d, and is not split", p, costs[p], bound)
 		}
 	}
-	split := SplitPackages(universe, 8, defaultAllow, defaultSlices)
+	split := SplitPackages(universe, 16, defaultAllow, defaultSlices)
 	if len(split) != len(f.Packages) {
 		t.Fatalf("admitted %d of %d committed splits", len(split), len(f.Packages))
 	}
-	plan, err := Plan(universe, 8)
+	plan, err := Plan(universe, 16)
 	if err != nil {
 		t.Fatal(err)
 	}

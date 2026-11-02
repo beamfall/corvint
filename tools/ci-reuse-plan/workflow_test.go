@@ -47,10 +47,28 @@ func TestAFPV0024WorkflowShardCountsAgree(t *testing.T) {
 			t.Fatalf("matrix = %v, want 0..N-1", matrix)
 		}
 	}
+	// AFP-V0-2180: owner decision 2026-11-02 fixes the active matrix at sixteen.
+	if len(matrix) != 16 {
+		t.Fatalf("matrix has %d shards, want 16", len(matrix))
+	}
+	// Every shard must contribute its own FULL output to both record guards.
+	for i := range matrix {
+		output := fmt.Sprintf("      full%d: ${{ strategy.job-index == %d &&", i, i)
+		if strings.Count(ci, output) != 1 {
+			t.Errorf("missing or duplicate shard output %q", output)
+		}
+		guard := fmt.Sprintf("needs.go-product-shard.outputs.full%d == 'FULL'", i)
+		for _, job := range []string{"ci-tested-tree-record", "ci-narrowed-tree-record"} {
+			if strings.Count(jobBlock(t, ci, job), guard) != 1 {
+				t.Errorf("%s must guard shard %d exactly once", job, i)
+			}
+		}
+	}
 	want := strconv.Itoa(len(matrix))
 	for name, got := range map[string]string{
 		"REUSE_SHARDS":            one("REUSE_SHARDS", ci, `(?m)^          REUSE_SHARDS: "([0-9]+)"$`),
 		"ci-shard-cost-drift":     one("SHARDS", jobBlock(t, ci, "ci-shard-cost-drift"), `(?m)^      SHARDS: "([0-9]+)"$`),
+		"ci-narrowed-tree-record": one("SHARDS", jobBlock(t, ci, "ci-narrowed-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
 		"ci-tested-tree-record":   one("SHARDS", jobBlock(t, ci, "ci-tested-tree-record"), `(?m)^      SHARDS: "([0-9]+)"$`),
 		"go-product coverage":     one("SHARDS", jobBlock(t, ci, "go-product"), `(?m)^          SHARDS: "([0-9]+)"$`),
 		"qualification default":   one("qualification", qualification, `(?m)^      shards:\n(?:        .*\n)*?        default: "([0-9]+)"$`),

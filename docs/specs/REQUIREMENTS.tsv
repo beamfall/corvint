@@ -115,7 +115,7 @@ AFP-V0-019	docs/specs/affected-plan-v0.md	(proposed technical contract implement
 AFP-V0-020	docs/specs/affected-plan-v0.md	(proposed; tickets V1-0187, V1-0204) A changed unit (one that owns a changed pat	unrecorded	-
 AFP-V0-021	docs/specs/affected-plan-v0.md	(accepted, decision 0376; ticket V1-0126) Every dirty path, as in rule (c) wheth	owner	decision 0376; V1-0126
 AFP-V0-022	docs/specs/affected-plan-v0.md	(accepted (decision 0431); amended by decision 0431; owner-directed experimental	owner	decision 0431
-AFP-V0-041	docs/specs/affected-plan-v0.md	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full	owner	decision 0488; 2026-10-10; V1-1096
+AFP-V0-041	docs/specs/affected-plan-v0.md	(accepted by decision 0488, 2026-10-10; V1-1096; amended under the owner's stand	standing	decision 0488; 2026-10-10; V1-1096; 2026-11-02; V0-2180
 AFP-V0-023	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081; declaration-edit	unrecorded	-
 AFP-V0-025	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
 AFP-V0-192	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2075)) Every	standing	2026-10-11; V1-2075
@@ -147,8 +147,8 @@ AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-040	docs/specs/affected-plan-v0.md	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
 AFP-V0-043	docs/specs/affected-plan-v0.md	(accepted, decision 0505) Cost-table	owner	decision 0505
 AFP-V0-048	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
-AFP-V0-049	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
-AFP-V0-060	docs/specs/affected-plan-v0.md	(accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016	owner	2026-10-18
+AFP-V0-049	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371; amended	standing	2026-10-11; V1-1371; 2026-11-02; V0-2180
+AFP-V0-060	docs/specs/affected-plan-v0.md	(amended under the owner's standing approval (2026-11-02); AFP-V0-2180; accepted	standing	2026-11-02; V0-2180; 2026-10-18
 AFP-V0-042	docs/specs/affected-plan-v0.md	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
 AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
 AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
@@ -272,7 +272,7 @@ AFP-V0-560	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-580	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2896)	standing	2026-10-11; V1-2896
 AFP-V0-581	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2897)	standing	2026-10-11; V1-2897
 AFP-V0-582	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2782)	standing	2026-10-11; V1-2782
-AFP-V0-590	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942)	standing	2026-10-11; V1-2942
+AFP-V0-590	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942;	standing	2026-10-11; V1-2942; 2026-11-02; V0-2180
 AFP-V0-591	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2942)	standing	2026-10-11; V1-2942
 AFP-V0-600	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2941)	standing	2026-10-11; V1-2941
 AFP-V0-601	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2941)	standing	2026-10-11; V1-2941
@@ -347,6 +347,7 @@ AFP-V0-982	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-983	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3750;	standing	2026-10-11; V1-3750
 AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3751;	standing	2026-10-11; V1-3751
 AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
+AFP-V0-2180	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); owner direction 2	standing	2026-10-11; 2026-11-02
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
