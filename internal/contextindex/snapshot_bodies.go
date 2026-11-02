@@ -47,6 +47,9 @@ type snapshotBodies struct {
 	mapping      *snapshotMapping // non-nil when region aliases a mapping
 	deferred     bool
 	objectFormat string
+	// messageBytes is the length of the gob messages the decode reads, the
+	// bound of every count the spine declares (IDX-SNAP-V0-812).
+	messageBytes int64
 	lazy         *gobBodies     // set when the decode handed out lazy bodies
 	lease        *snapshotLease // the mapping's reference those bodies hold
 }
@@ -110,6 +113,19 @@ func copyRegionBody(region []byte, offset, length uint64, mapped bool) ([]byte, 
 		return nil
 	})
 	return data, err
+}
+
+// rawBytes is the verified bytes of a lazy gob body, the same bytes a full
+// read stores in Source.Data, for a reader that needs bytes rather than
+// valid text (IDX-SNAP-V0-813). A body that faults or fails its blob id is
+// recorded on the load's refusal and reported unavailable.
+func (body packBody) rawBytes(source Source) ([]byte, bool) {
+	data, err := body.gob.read(body.ordinal, body.offset, body.length, source.BlobHash)
+	if err != nil {
+		body.gob.sink.failure.CompareAndSwap(nil, &err)
+		return nil, false
+	}
+	return data, true
 }
 
 // gobText is Source.Text over a lazy body: a body that faults or fails its

@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/gob"
+	"errors"
+	"math"
 	"os"
 	"reflect"
 	"testing"
@@ -153,5 +155,50 @@ func TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806(t *testing.T) {
 				t.Fatalf("a %s snapshot event-loaded compact=%v: hit=%v err=%v", format, compact, hit, err)
 			}
 		}
+	}
+}
+
+// TestSnapshotChunkedBodyRefusesOversizedCounts_IDXSNAPV0812: a spine whose
+// symbol or field count, or a table or term-table blob length, exceeds the
+// message bytes is refused before anything is allocated for it: an error,
+// never a makeslice panic the fault guard would rethrow (IDX-SNAP-V0-812).
+func TestSnapshotChunkedBodyRefusesOversizedCounts_IDXSNAPV0812(t *testing.T) {
+	wire := snapshotWireOf(taskContextFixture(t))
+	wire.symbolTerms = buildSymbolTermTable(taskContextFixture(t))
+	for name, mutate := range map[string]func(*snapshotSpine, int){
+		"max symbols":           func(spine *snapshotSpine, _ int) { spine.SymbolCount = math.MaxInt },
+		"symbols past messages": func(spine *snapshotSpine, size int) { spine.SymbolCount = 2*size + 1 },
+		"max fields":            func(spine *snapshotSpine, _ int) { spine.FieldCount = math.MaxInt },
+		"fields past messages":  func(spine *snapshotSpine, size int) { spine.FieldCount = 2*size + 1 },
+		"max symbol terms":      func(spine *snapshotSpine, _ int) { spine.SymbolTermsLength = math.MaxInt },
+		"max test links":        func(spine *snapshotSpine, size int) { spine.TestLinksLength = 2*size + 1 },
+	} {
+		var plain bytes.Buffer
+		if _, err := encodeSnapshotBody(gob.NewEncoder(&plain), wire); err != nil {
+			t.Fatal(err)
+		}
+		spine := snapshotSpineOf(wire)
+		mutate(&spine, plain.Len())
+		var forged bytes.Buffer
+		encoder := gob.NewEncoder(&forged)
+		if err := encoder.Encode(&spine); err != nil {
+			t.Fatal(err)
+		}
+		region, err := encodeSnapshotChunks(encoder, wire)
+		if err != nil {
+			t.Fatal(err)
+		}
+		bodies := &snapshotBodies{region: bytes.Join(region, nil), objectFormat: wire.ObjectFormat, messageBytes: int64(forged.Len())}
+		var decodeErr error
+		panicked := guardMappedRead(func() error {
+			_, decodeErr = decodeSnapshotBody(gob.NewDecoder(&forged), snapshotBodyFull, bodies)
+			return nil
+		})
+		if panicked != nil || !errors.Is(decodeErr, errSnapshotChunks) {
+			t.Fatalf("%s: decode err=%v guard=%v, want the malformed-chunks refusal", name, decodeErr, panicked)
+		}
+	}
+	if _, err := decodeSnapshotBlob(nil, math.MaxInt, 1<<20); !errors.Is(err, errSnapshotChunks) {
+		t.Fatalf("an oversized term-table blob length was not refused: %v", err)
 	}
 }

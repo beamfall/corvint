@@ -1382,6 +1382,54 @@ only.
 
   Rollback: write every body inline and drop the region (format `/3`), and restore the whole-file
   trailer.
+- `IDX-SNAP-V0-812`: (experimental under the standing lane auto-accept, 2026-11-01; review fix of
+  `IDX-SNAP-V0-806`/`811`) Every count and byte length the spine declares MUST be refused as the
+  miss, before anything is allocated for it, when it is negative or exceeds the length of the gob
+  messages the decode reads. That covers the symbol and field counts, the symbol term and
+  test-link table lengths, and each term-table blob length. No count may size more than a 64 Ki
+  element preallocation. An oversized count is therefore an error, never a `makeslice` panic that
+  the fault guard rethrows before the trailer is checked.
+
+  Evidence: `TestSnapshotChunkedBodyRefusesOversizedCounts_IDXSNAPV0812` covers `math.MaxInt` and
+  past-the-messages counts and an oversized blob length. It panics on the unbounded decoder.
+
+  Rollback: drop the bound checks.
+- `IDX-SNAP-V0-813`: (experimental under the standing lane auto-accept, 2026-11-01; review fix of
+  `IDX-SNAP-V0-811`) A byte reader of a deferred gob body MUST receive the verified bytes a full
+  read stores in `Source.Data`, not `Source.Text`'s valid-text view. The instruction load set
+  reads a lazy body through `packBody.rawBytes`. So an intact `AGENTS.md` that is not valid UTF-8,
+  or holds a NUL, keeps its lossy decode instead of becoming unavailable (`UNKNOWN`).
+
+  Evidence: `TestInstructionLoadSetDeferredBodiesMatchFullRead_IDXSNAPV0813` writes an `AGENTS.md`
+  with `0xff 0xfe` and checks the deferred and full receipts are byte-identical. It fails without
+  the fix.
+
+  Rollback: read through `Text` again.
+- `IDX-SNAP-V0-814`: (experimental under the standing lane auto-accept, 2026-11-01; review fix of
+  `IDX-SNAP-V0-811`) The `context` verb MUST check `SnapshotRefusal` after the LSP evidence and
+  the instruction load set, which read bodies after `TaskContext`'s own check, and MUST return
+  `ErrSnapshotRefused` on a refusal so `runTaskContext` reloads eagerly. A corrupted body that
+  only the load set reads is never emitted as an unavailable row.
+
+  Evidence: `TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814` overwrites
+  `AGENTS.override.md` in place under a deferred load and expects the refusal, then the eager
+  reload's packet. It fails without the fix.
+
+  Rollback: drop the trailing check.
+- `IDX-SNAP-V0-815`: (experimental under the standing lane auto-accept, 2026-11-01; review fix of
+  `IDX-SNAP-V0-811`) A decoded index that is not returned MUST release its mapping lease. That
+  covers:
+  - the symbol-window and vocabulary check failures in `decodeSnapshotLoad`;
+  - `loadSnapshot`'s status error, identity error, HEAD-moved and compact-dirty re-read returns;
+  - `compileTaskContext`'s refused read before the eager reload.
+
+  A long-running reader such as the MCP server therefore holds no mapping for a discarded read.
+
+  Evidence: `TestDeferredGobLeaseLifecycle_IDXSNAPV0815` counts live mappings for a held and
+  released load, a vocabulary-refused load and a HEAD-moved load. It fails at the refused load
+  without the fix.
+
+  Rollback: drop the releases.
 - `IDX-SNAP-V0-810`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4236;
   serves the opt-in `TCP-V0-020` frame-relation experiment) `frameCandidates` MUST read, for each
   anchor, only:
@@ -1661,6 +1709,10 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-807 | `buildSymbolTermTable`, `evalPreparePrecomputed`, `symbolTermTable` binary codec (`symbol_terms.go`), `evalPrepareRanking` | `TestSymbolTermTableRankingEqualsFullPass_IDXSNAPV0807`, `TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807`, `TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807` |
 | IDX-SNAP-V0-809 | `buildTestLinkMaps`, `testLinkTable` (`test_links.go`), the `testLinker` lookups | `TestTestLinkTableEqualsMaps_IDXSNAPV0809`, `TestTestLinkTableRefusals_IDXSNAPV0809` |
 | IDX-SNAP-V0-811 | `snapshot_bodies.go` (`gobSourceMetas`, `sourcesFromMetas`, `gobBodies`), `encodeSnapshot`, `decodeMappedSnapshotValue`, `decodeStreamedSnapshotValue`, `ProbeSnapshot` | `TestDeferredGobBodiesEqualFullLoad_IDXSNAPV0811`, `TestDeferredGobBodyTruncatedInPlaceIsRefused_IDXSNAPV0811`, `TestGobBodiesInlineAndRegionRoundTrip_IDXSNAPV0811`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
+| IDX-SNAP-V0-812 | `countBound`, `preallocation`, `decodeSnapshotBlob` (`snapshot_chunks.go`) | `TestSnapshotChunkedBodyRefusesOversizedCounts_IDXSNAPV0812` |
+| IDX-SNAP-V0-813 | `packBody.rawBytes`, `instructionSourceBytes` | `TestInstructionLoadSetDeferredBodiesMatchFullRead_IDXSNAPV0813` |
+| IDX-SNAP-V0-814 | `compileTaskContext` (`cmd/corvint/taskcontext.go`) | `TestCompileTaskContextRefusesAfterInstructionReads_IDXSNAPV0814` |
+| IDX-SNAP-V0-815 | `decodeSnapshotLoad`, `loadSnapshot`, `compileTaskContext` releases | `TestDeferredGobLeaseLifecycle_IDXSNAPV0815` |
 | IDX-SNAP-V0-810 | `frameIndex`, `frameCandidates`, `importedBy` (`taskcontext_frame.go`) | `TestFrameIndexEqualsFullScan_IDXSNAPV0810`, `TestTestLinkTableEqualsMaps_IDXSNAPV0809` |
 | IDX-SNAP-V0-808 | `locateSnapshotStore` (`indexStoreSuffix`) | `TestIndexStoreOverride_IDXSNAPV0808` |
 | IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |

@@ -208,6 +208,25 @@ func encodeVocabularyChunks(encoder *gob.Encoder, table *TermTable) error {
 
 var errSnapshotChunks = errors.New("snapshot chunks are malformed")
 
+// unboundedMessageBytes stands in for the message length when a caller does
+// not know it (a test decoding a buffer it built).
+const unboundedMessageBytes = 1 << 31
+
+// countBound is the largest count or byte length a spine may declare: every
+// symbol, field or blob byte takes at least one byte of the messages, so a
+// count above the message length is malformed and refused before anything
+// is allocated for it (IDX-SNAP-V0-812).
+func (bodies *snapshotBodies) countBound() int {
+	if bodies == nil || bodies.messageBytes <= 0 {
+		return unboundedMessageBytes
+	}
+	return int(min(bodies.messageBytes, unboundedMessageBytes))
+}
+
+// preallocation caps a capacity taken from a bounded count, so even a
+// within-bound count reserves no more than a modest slice up front.
+func preallocation(count int) int { return min(count, 1<<16) }
+
 // decodeSnapshotBody reads the message sequence up to depth, with the
 // sources' bodies from bodies (nil for a body with no region). Malformed
 // counts or chunk lengths are an error, which is the IDX-SNAP-V0-003 miss.
@@ -216,7 +235,9 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 	if err := decoder.Decode(&spine); err != nil {
 		return nil, err
 	}
-	if spine.SymbolCount < 0 || spine.FieldCount < 0 || (!spine.SourcesPresent && len(spine.SourceKeys) != 0) {
+	bound := bodies.countBound()
+	if spine.SymbolCount < 0 || spine.FieldCount < 0 || (!spine.SourcesPresent && len(spine.SourceKeys) != 0) ||
+		spine.SymbolCount > bound || spine.FieldCount > bound || spine.SymbolTermsLength > bound || spine.TestLinksLength > bound {
 		return nil, errSnapshotChunks
 	}
 	wire := &snapshotWire{
@@ -262,7 +283,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 		if read.count == 0 {
 			continue
 		}
-		*read.target = make([]Symbol, 0, read.count)
+		*read.target = make([]Symbol, 0, preallocation(read.count))
 		for len(*read.target) < read.count {
 			var chunk []Symbol
 			if err := decoder.Decode(&chunk); err != nil {
@@ -278,7 +299,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 		return wire, nil
 	}
 	if spine.VocabularyPresent {
-		table, err := decodeVocabularyChunks(decoder)
+		table, err := decodeVocabularyChunks(decoder, bound)
 		if err != nil {
 			return nil, err
 		}
@@ -288,7 +309,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 		return nil, errSnapshotChunks
 	}
 	if spine.SymbolTermsLength > 0 {
-		data, err := decodeSnapshotBlob(decoder, spine.SymbolTermsLength)
+		data, err := decodeSnapshotBlob(decoder, spine.SymbolTermsLength, bound)
 		if err != nil {
 			return nil, err
 		}
@@ -301,7 +322,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 		return nil, errSnapshotChunks
 	}
 	if spine.TestLinksLength > 0 {
-		data, err := decodeSnapshotBlob(decoder, spine.TestLinksLength)
+		data, err := decodeSnapshotBlob(decoder, spine.TestLinksLength, bound)
 		if err != nil {
 			return nil, err
 		}
@@ -313,7 +334,7 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *s
 	return wire, nil
 }
 
-func decodeVocabularyChunks(decoder *gob.Decoder) (*TermTable, error) {
+func decodeVocabularyChunks(decoder *gob.Decoder, bound int) (*TermTable, error) {
 	var vocabulary snapshotVocabularySpine
 	if err := decoder.Decode(&vocabulary); err != nil {
 		return nil, err
@@ -331,7 +352,7 @@ func decodeVocabularyChunks(decoder *gob.Decoder) (*TermTable, error) {
 		if length < 0 {
 			return nil, errSnapshotChunks
 		}
-		data, err := decodeSnapshotBlob(decoder, length)
+		data, err := decodeSnapshotBlob(decoder, length, bound)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +371,10 @@ func decodeVocabularyChunks(decoder *gob.Decoder) (*TermTable, error) {
 // into a single buffer of exactly that length. Each chunk decodes in place
 // when gob can reuse the destination, so the blob is copied once out of the
 // message buffer.
-func decodeSnapshotBlob(decoder *gob.Decoder, length int) ([]byte, error) {
+func decodeSnapshotBlob(decoder *gob.Decoder, length, bound int) ([]byte, error) {
+	if length < 0 || length > bound {
+		return nil, errSnapshotChunks
+	}
 	data := make([]byte, length)
 	for low := 0; low < length; {
 		want := min(snapshotChunkBytes, length-low)

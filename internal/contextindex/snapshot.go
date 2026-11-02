@@ -890,7 +890,11 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 	compact := load.tables() == loadCompact
 	index, err := readSnapshotIndex(directory, identity, engineID, load)
 	<-statusReady
+	// Every return below that drops a decoded index releases it first, so a
+	// long-running reader does not keep a discarded read's mapping
+	// (IDX-SNAP-V0-815). Release is nil-safe and a no-op without a lease.
 	if observation.statusErr != nil {
+		index.Release()
 		return nil, false, nil, observation.statusErr
 	}
 	if err != nil {
@@ -901,13 +905,16 @@ func loadSnapshot(ctx context.Context, root string, load snapshotLoad, closing .
 	if len(closing) == 0 || closing[0] {
 		closingIdentity, identityErr := readIdentity(ctx, root)
 		if identityErr != nil {
+			index.Release()
 			return nil, false, nil, identityErr
 		}
 		if identity != closingIdentity {
+			index.Release()
 			return nil, false, nil, nil
 		}
 	}
 	if compact && len(observation.dirty) != 0 {
+		index.Release()
 		index, err = readSnapshotIndex(directory, identity, engineID, loadEvent|load&loadDeferredBodies)
 		if err != nil {
 			return nil, false, nil, nil
@@ -979,10 +986,14 @@ func decodeSnapshotLoad(file *os.File, identity repositoryIdentity, engineID str
 		return nil, err
 	}
 	bodies.attach(index)
+	// A decoded index refused here is never returned, so its mapping lease
+	// ends here (IDX-SNAP-V0-815).
 	if err := index.checkSymbolWindows(); err != nil {
+		index.Release()
 		return nil, err
 	}
 	if err := index.Vocabulary.check(); err != nil {
+		index.Release()
 		return nil, err
 	}
 	return index, nil
@@ -1162,7 +1173,7 @@ func decodeStreamedSnapshotValue(file *os.File, size int64, identity repositoryI
 	if _, err := file.ReadAt(bodies.region, regionStart); err != nil {
 		return err
 	}
-	bodies.mapping = nil
+	bodies.mapping, bodies.messageBytes = nil, messages
 	digest := sha256.New()
 	payload := io.TeeReader(io.NewSectionReader(file, 0, messages), digest)
 	decoder := gob.NewDecoder(payload)

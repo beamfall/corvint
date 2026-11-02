@@ -31,7 +31,7 @@ func decodeMappedSnapshotValue(mapping *snapshotMapping, identity repositoryIden
 	}); err != nil {
 		return err
 	}
-	bodies.region, bodies.mapping = data[regionStart:footerAt], mapping
+	bodies.region, bodies.mapping, bodies.messageBytes = data[regionStart:footerAt], mapping, messages
 	digests := make(chan bool, 1)
 	go func() {
 		matched := false
