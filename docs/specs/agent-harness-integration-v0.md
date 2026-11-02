@@ -864,17 +864,29 @@ separate exact extension tuple remains governed by AHI-024.
 - `AHI-632`: (experimental under the standing lane auto-accept (2026-11-01); V1-0878) For a
   plan-time event (`AHI-806`) the adapter MUST plan affected checks for the plan's named project
   files: each plan token that, stripped of quotes and trailing punctuation, is a valid relative path
-  naming a regular file inside the project (at most 16, sorted and duplicate-free) is a `--path` of
-  a working-tree affected plan, compiled concurrently with the plan's context. The answer appends
-  one framed `corvint-plan-affected/0` object (repository-data envelope) to the PreToolUse
-  `additionalContext`: `PRODUCED` with the summary line, at most 8 selected unit IDs and the omitted
-  count, or `NOT_PRODUCED` with `plan-affected-refused`, or `plan-affected-deadline` when it does
-  not finish 150 ms before the opt-in host kill. It carries no permission decision (`AHI-805`) and
-  is not an input to ranking or learning. A plan naming no project file gets no object. Failure
-  modes: under heavy load the plan degrades to `plan-affected-deadline` (WSL, load about 56: 1 of 3
-  replays PRODUCED; `docs/build-log/2026-11-01-hst-m27.md`). Evidence:
-  `TestAHI805PreToolReadNeverDecidesPermission` (`cmd/corvint`: the plan naming
-  `internal/parser/token.go` carries its object; absent, parent and absolute tokens are not paths).
+  naming a regular file inside the project through no symbolic link (a symlinked ancestor never
+  admits an outside file; at most 16, sorted and duplicate-free) is a `--path` of a working-tree
+  affected plan, compiled concurrently with the plan's context. The answer appends one framed
+  `corvint-plan-affected/0` object (repository-data envelope) to the PreToolUse
+  `additionalContext`: `PRODUCED` with the summary line, at most 8 selected unit IDs, the omitted
+  count, the observed HEAD `revision` and the receipt's `ACX-V0-851` worktree `warning` and
+  `degradations` (`worktree-path-plan`: not pinned evidence), or `NOT_PRODUCED` with
+  `plan-affected-refused`, or `plan-affected-deadline` when it does not finish 150 ms before the
+  opt-in host kill (the cutoff is fixed at launch and bounds the plan's own context, so a result
+  finished after it is never `PRODUCED`), or `plan-affected-over-budget` when the object does not
+  fit the room held back from the context packet's budget. The context packet is compiled against
+  the adapter bound less that room, and the object is appended only when the combined answer fits
+  the bound, otherwise it is dropped, so the object never displaces the packet. It carries no
+  permission decision (`AHI-805`) and is not an input to ranking or learning. A plan naming no
+  project file gets no object. Failure modes: under heavy load the plan degrades to
+  `plan-affected-deadline` (WSL, load about 56: 1 of 3 replays PRODUCED;
+  `docs/build-log/2026-11-01-hst-m27.md`). Evidence: `TestAHI805PreToolReadNeverDecidesPermission`
+  (`cmd/corvint`: the plan naming `internal/parser/token.go` carries its object; absent, parent and
+  absolute tokens are not paths) and `TestAHI632PlanAffectedOutcomes` (a dirty fixture edit is
+  `PRODUCED` selecting `go:example.com/fixture/core` with its revision, warning and
+  `worktree-path-plan`; a non-repository root is `plan-affected-refused`; a deadline inside the
+  reserve is `plan-affected-deadline`; the reserve covers the fallback object; a symlinked ancestor
+  is not a path).
   Rollback: drop the `ExitPlanMode` plan-affected branch of `runClaudePreToolRead` and
   `cmd/corvint/host_adapter_plan_affected.go`.
 - `AHI-633`: (experimental under the standing lane auto-accept (2026-11-01); V1-2929) Every
@@ -2904,7 +2916,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
 | `AHI-630` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `internal/observations/observations.go` (`admittedAdapterEvents`) | `TestAHI630OptInAbstentionReachesTheLedger` |
 | `AHI-631` (experimental under the standing lane auto-accept (2026-11-01); V1-3894) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI631ClaudePluginMCPLaunchHandshakes` |
-| `AHI-632` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_plan_affected.go` (`planAffectedPaths`, `startPlanAffected`); `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
+| `AHI-632` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_plan_affected.go` (`planAffectedPaths`, `startPlanAffected`, `planAffectedObject`, `planAffectedContextReserve`); `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`); `cmd/corvint/host_adapter.go` (`runClaudeAdapter` budget) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases); `TestAHI632PlanAffectedOutcomes` |
 | `AHI-633` (experimental under the standing lane auto-accept (2026-11-01); V1-2929) | `integrations/opencode/src/tui.tsx` (`SyntaxStyle.fromStyles` owner) | `integrations/opencode/ui-presentation.test.mjs` (AHI-633 case); live `qualify-opencode --inspector` on OpenCode 2.2.0 |
 | `AHI-807` (experimental under the standing lane auto-accept (2026-11-01); V1-2514) | `cmd/corvint/host_adapter_done_list.go` (`doneListOptedIn`); `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json` (`userConfig.stop_done_list`) | `TestAHI807StopDoneListPluginOptionAndPrecedence` |
 | `AHI-808` (experimental under the standing lane auto-accept (2026-11-01); V1-3543) | `cmd/corvint/host_adapter.go` (`unsupportedHookEvent`, `claudeCodeAdapterEvents`, `codexHookEvents`); `cmd/corvint/help.go` (`adapterHelp`) | `TestAHI808AdapterEventsAreDiscoverable` |
