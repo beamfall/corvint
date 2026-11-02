@@ -963,7 +963,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the `go env GOFLAGS` value, including persisted `go env -w` flags, for that build only), and MAY reuse an earlier build recorded under the
   same input key instead of building. The key is the Git object ID of a text naming the scheme
   (`corvint-dogfood-bin/1`), the build arguments, `go env` `GOVERSION GOOS GOARCH CGO_ENABLED
-  GOFLAGS GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM
+  GOFLAGS` (without any `-p=N` word, `DCW-V0-731`) `GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM
   GOFIPS140 CC CXX AR PKG_CONFIG CGO_CFLAGS CGO_CPPFLAGS CGO_CXXFLAGS CGO_FFLAGS CGO_LDFLAGS`, and
   the inputs: (a) for the base verifier, built from an
   archive of the base commit, that commit's root tree, so a recorded base verifier is reused
@@ -2594,16 +2594,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   heavy.sh admission, MUST run it with the cached tree build of HEAD's exact build key, or else
   the installed `corvint` on PATH, each only when its `inputs-check --help` lists `--static`; with
   neither it prints `static pre-check SKIP no-static-binary` and goes on, and
-  `DOGFOOD_STATIC_PRECHECK=0` skips it. A refusal from the installed binary adds one line naming it
+  `DOGFOOD_STATIC_PRECHECK=0` skips it. The `DCW-V0-074` build key MUST leave out a GOFLAGS
+  `-p=N` word, which sets parallelism only, so the build the admitted run recorded under heavy.sh's
+  exported `-p` is the one the next unadmitted phase finds. A refusal from the installed binary adds one line naming it
   and that escape. Target: an input defect is refused in under 1 s of wall time on the lane host
   instead of after the admission wait and the tree build (measured before and after in
   `docs/build-log/2026-11-02-hvy-u41.md`). Non-goals: running the prepare pass or OCM scope checks
   early; building the tree binary before admission. Failure mode: an installed binary older than
   a rule this tree relaxed refuses a valid input; the added line names `DOGFOOD_STATIC_PRECHECK=0`,
   and the admitted pre-flight always uses the tree's own build. Evidence:
-  `TestDCWV0731StaticPreCheck` (refusal without step, lock or plan rewrite; STATIC PASS), and the
+  `TestDCWV0731StaticPreCheck` (refusal without step, lock or plan rewrite; STATIC PASS), the
   `make lane-scripts-test` group `DCW-V0-731` (SKIP, installed-binary refusal before any build,
-  and the escape). Rollback: remove `--static`, `staticPass` and the inputs-only phase's pre-check
+  and the escape), and the `make dogfood-bin-reuse-test` `-p` cases. Rollback: remove `--static`, `staticPass` and the inputs-only phase's pre-check
   block; that phase then exits 0 after the missing-input refusal as before.
 - `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
   When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
@@ -3935,7 +3937,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-730` (experimental under the standing lane auto-accept; V1-3883, V1-3930) | `internal/dogfoodflow/finishlane_entry.go` `say`, `rerunCommand`, `ValidFinishLaneEntry`; `cmd/corvint/dogfood_flow.go` `--entry`; `script/dogfood-finish.sh` `--entry "$entry"`; `TestDCWV0730RerunHintNamesTheEntry`, `TestDCWV0403UnquotedRunAlternationRefusesInOneLine`, `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`, `TestDCWV0808DogfoodOptionRefusalNamesTheFault` | implemented; focused tests PASS |
-| `DCW-V0-731` (experimental under the standing lane auto-accept; NEW-B2) | `internal/dogfoodflow/finishlane_entry.go` `staticPass`; `finishlane.go` `run` static branch; `cmd/corvint/dogfood_flow.go` `--static`; `script/dogfood-finish.sh` inputs-only pre-check; `TestDCWV0731StaticPreCheck`; `make lane-scripts-test` group `DCW-V0-731` | implemented; focused and shell tests PASS |
+| `DCW-V0-731` (experimental under the standing lane auto-accept; NEW-B2) | `internal/dogfoodflow/finishlane_entry.go` `staticPass`; `finishlane.go` `run` static branch; `cmd/corvint/dogfood_flow.go` `--static`; `script/dogfood-finish.sh` inputs-only pre-check; `script/dogfood-build-corvint.sh` `dogfood_corvint_key` `-p` filter; `TestDCWV0731StaticPreCheck`; `make lane-scripts-test` group `DCW-V0-731`; `make dogfood-bin-reuse-test` `-p` cases | implemented; focused and shell tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |

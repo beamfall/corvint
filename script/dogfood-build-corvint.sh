@@ -45,6 +45,11 @@ dogfood_go() {
   GOCACHE="$go_cache" GOTOOLCHAIN=local GOFLAGS="$dogfood_goflags" go "$@"
 }
 
+# dogfood_key_go runs go as dogfood_go does, with the caller's GOFLAGS (the key's flags).
+dogfood_key_go() {
+  GOCACHE="$go_cache" GOTOOLCHAIN=local go "$@"
+}
+
 # dogfood_build DIR OUT builds ./cmd/corvint in DIR into OUT with the one flag set every dogfood
 # wrapper uses. A failed build keeps the full compiler output in a log file and prints its last
 # lines and the log's path on stderr (V1-1893); a successful build removes the log.
@@ -69,9 +74,15 @@ dogfood_build() {
 # VERSION and the directory of every main-module package `go list -deps ./cmd/corvint` reports;
 # the key names REV's objects at those paths and fails unless the paths are clean in SOURCE,
 # counting staged, untracked and ignored files.
+# DCW-V0-731 (NEW-B2): a GOFLAGS -p=N word sets build parallelism only, never the output bytes, so
+# the key leaves it out: a build heavy.sh admitted (it exports -p) is found outside the admission.
 dogfood_corvint_key() {
-  local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace
-  environment=$(cd "${source:-$repo}" && dogfood_go env GOVERSION GOOS GOARCH CGO_ENABLED GOFLAGS \
+  local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace word words=() flags=''
+  read -r -a words <<< "$dogfood_goflags"
+  for word in ${words[@]+"${words[@]}"}; do
+    [[ $word =~ ^-p=[0-9]+$ ]] || flags+="${flags:+ }$word"
+  done
+  environment=$(cd "${source:-$repo}" && GOFLAGS="$flags" dogfood_key_go env GOVERSION GOOS GOARCH CGO_ENABLED GOFLAGS \
     GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM GOFIPS140 \
     CC CXX AR PKG_CONFIG CGO_CFLAGS CGO_CPPFLAGS CGO_CXXFLAGS CGO_FFLAGS CGO_LDFLAGS 2> /dev/null) || return 1
   # A workspace file outside the keyed objects (an ancestor go.work or GOWORK) leaves no key.

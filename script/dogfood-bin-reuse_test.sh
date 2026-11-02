@@ -185,6 +185,10 @@ grep -q '^# go1.27.2$' "$tree_bin" || exit 1
 printf 'more\n' >> docs/notes.md
 git -c user.name=test -c user.email=test@example.invalid commit -qam docs
 expect_builds change 0 'doc-only commit'
+# DCW-V0-731 (NEW-B2): a GOFLAGS -p=N word sets parallelism only, so heavy.sh's exported -p keeps
+# the key; any other GOFLAGS word still changes it.
+expect_builds_with GOFLAGS=-p=3 change 0 'a -p parallelism flag'
+expect_builds_with GOFLAGS='-p=3 -tags=x' change 1 'another GOFLAGS word'
 
 # The C toolchain and its flags are key inputs.
 expect_builds_with TEST_CC=clang change 1 'new C compiler'
