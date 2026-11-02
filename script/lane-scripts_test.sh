@@ -2527,4 +2527,48 @@ done
 [[ ! -s $heavy_escapes ]] || fail "a heavy.sh fixture ran with a lock dir outside the test directory"
 ok
 
+# DCW-V0-1925 (V1-1467): merge-regenerate-specs.sh merges a lane whose only conflict is the
+# generated REQUIREMENTS.tsv by regenerating it inside the merge with the real generator; any
+# other conflict is left in progress and named.
+mrs=$tmp/merge-regen
+mkdir -p "$mrs/script" "$mrs/docs/specs"
+cp "$script/gen-spec-requirements.sh" "$mrs/script/"
+mg() { GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid git -C "$mrs" "$@"; }
+mspec() { # mspec FILE TITLE LINES...
+  local f=$1 title=$2
+  shift 2
+  { printf '# %s\n\nIntent status: accepted\nDelivery status: implemented\n\n## Agent digest\n- Claim: fixture.\n\n## Requirements\n\n' "$title"
+    printf '%s\n' "$@"; } > "$mrs/docs/specs/$f"
+}
+mregen() { mg add -A && (cd "$mrs" && script/gen-spec-requirements.sh --write > /dev/null 2>&1); }
+mg init -q -b main
+mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.'
+mspec fixture-b-v0.md B 'No numbered requirement yet.'
+mspec fixture-c-v0.md C '- `FXC-V0-001`: One MUST hold.'
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n|---|---|---:|---:|---|\n' > "$mrs/docs/specs/README.md"
+mregen && mg commit -qm base || fail "merge-regen fixture base"
+mg checkout -qb lane-a && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-002`: Two MUST hold.' && mregen && mg commit -qm a
+mg checkout -q main && mg checkout -qb lane-c && mspec fixture-c-v0.md C '- `FXC-V0-000`: Zero MUST hold.' '- `FXC-V0-001`: One MUST hold.' && mregen && mg commit -qm c
+mg checkout -q main && mg merge -q --no-ff --no-edit lane-a
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-c 'Merge lane c' 2>&1) || fail "merge-regenerate-specs refused a REQUIREMENTS.tsv-only conflict: $out"
+[[ $out == *'was regenerated from the merged specs (DCW-V0-1925)'* ]] || fail "no regeneration line: $out"
+[[ $(mg rev-list --count --merges -1 HEAD) == 1 && $(mg log -1 --format=%P | wc -w | tr -d ' ') == 2 ]] || fail "HEAD is not the merge"
+mg log -1 --format=%B | grep -q '# Conflicts:' && fail "the merge message keeps a conflicts block"
+for id in FXA-V0-001 FXA-V0-002 FXC-V0-000 FXC-V0-001; do
+  mg show HEAD:docs/specs/REQUIREMENTS.tsv | grep -q "^$id"$'\t' || fail "the regenerated REQUIREMENTS.tsv lacks $id"
+done
+(cd "$mrs" && script/gen-spec-requirements.sh --check > /dev/null 2>&1) || fail "the merged generated files are not the generator's output"
+# A conflict in a spec stays for the operator: exit 1, the path named, the merge in progress.
+mg checkout -q -b lane-a2 "$(mg rev-list --max-parents=0 HEAD)" && mspec fixture-a-v0.md A '- `FXA-V0-001`: One MUST hold.' '- `FXA-V0-009`: Nine MUST hold.' && mregen && mg commit -qm a2
+mg checkout -q main
+out=$(cd "$mrs" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  "$script/merge-regenerate-specs.sh" lane-a2 2>&1); rc=$?
+[[ $rc == 1 && $out == *'  docs/specs/fixture-a-v0.md'* && $out == *'fix: follow the merge-resolution-unbound recovery'* && -f $mrs/.git/MERGE_HEAD ]] ||
+  fail "a spec conflict was not left for the operator: rc=$rc $out"
+mg merge --abort
+out=$(cd "$mrs" && "$script/merge-regenerate-specs.sh" 2>&1); rc=$?
+[[ $rc == 2 ]] || fail "no REV was accepted: rc=$rc $out"
+ok
+
 summary
