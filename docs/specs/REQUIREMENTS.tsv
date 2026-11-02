@@ -4832,6 +4832,7 @@ GPK-V0-089	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-22,
 GPK-V0-090	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-25, standing auto-accept; V1-2716) The standalone `corvint que	standing	2026-10-25; V1-2716
 GPK-V0-091	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-25, standing auto-accept; V1-2716) When the `project-operation	standing	2026-10-25; V1-2716
 GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26, standing auto-accept; V1-2716) The `context.widening` rows	standing	2026-10-26; V1-2716
+GPK-V0-1950	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-11-02, standing auto-accept; V1-2716) The lexical identifier	standing	2026-11-02; V1-2716
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
