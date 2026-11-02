@@ -1520,19 +1520,76 @@ for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BA
     fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
 done
 printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
-# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too: with the only
-# slot held, its recipe waits for it (a stub admission wrapper stands in for the preflight build).
+# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too, and
+# ASD-V0-732 (NEW-B6): on the light pool, so with the only heavy slot held it is admitted at once
+# (a stub admission wrapper stands in for the preflight build); HEAVY_CLASS=heavy queues it as before.
 printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
+for cls in light heavy; do
+  extra=()
+  [[ $cls == heavy ]] && extra=(HEAVY_CLASS=heavy)
+  (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
+  holder=$!
+  sleep 0.5
+  s0=$SECONDS
+  (cd "$script/.." && env -u HEAVY_CLASS DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check \
+    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
+  rc=$?
+  t=$((SECONDS - s0))
+  wait "$holder"
+  if [[ $cls == light ]]; then
+    ((rc == 0 && t < 2)) && grep -Eq '^heavy.sh: light slot 1/2 after 0s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
+      fail "dogfood-inputs-check was not admitted on the light pool past the occupied heavy slot (rc=$rc, ${t}s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+  else
+    ((rc == 0 && t >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" ||
+      fail "HEAVY_CLASS=heavy make dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, ${t}s): $(cat "$to/admit.err")"
+  fi
+done
+# ASD-V0-731 (NEW-B6): HEAVY_CLASS=light admits on its own pool at once while every heavy slot is
+# held, queues only behind its own pool, passes the load gate, logs class=light, runs under a hard
+# cap (exit 124, cause=light-cap, one rerun-as-heavy line), nests on an enclosing heavy slot, is
+# never set by the config file, and refuses an invalid class, pool or cap.
 (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
 holder=$!
 sleep 0.5
 s0=$SECONDS
-(cd "$script/.." && DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
-  BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
-rc=$?
+HEAVY_CLASS=light tv --admit-only true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" &&
+  HEAVY_CLASS=light tv true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" && ((SECONDS - s0 < 2)) &&
+  grep -q ' cmd=true class=light script=[0-9a-f]\{12\}$' "$tmp/selection.log" ||
+  fail "a light run was not admitted at once with every heavy slot held ($((SECONDS - s0))s): $(cat "$to/err")"
+(HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 HEAVY_LOCK_DIR=$to/slots "$heavy" sleep 2 2> /dev/null) &
+lholder=$!
+sleep 0.5
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 tv true
+wait "$lholder"
 wait "$holder"
-((rc == 0 && SECONDS - s0 >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
-  fail "dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, $((SECONDS - s0))s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+((SECONDS - s0 >= 1)) && grep -q '^heavy.sh: queued for a light slot (1/1 held)' "$to/err" ||
+  fail "a full light pool did not queue the next light run: $(cat "$to/err")"
+STUB_LOAD=50.00 HEAVY_MAX_LOAD=1 HEAVY_LOAD_WAIT=1 HEAVY_CLASS=light pv true 2> "$pol/err" && grep -q '^heavy.sh: queued for host load' "$pol/err" &&
+  grep -q '^heavy.sh: light slot 1/2 ' "$pol/err" || fail "a light run skipped the load gate: $(cat "$pol/err")"
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sleep 30
+rc=$?
+((rc == 124 && SECONDS - s0 < 8)) && grep -qx 'heavy.sh: light run exceeded its 1s cap; stopping it' "$to/err" &&
+  grep -qx 'heavy.sh: exit rc=124 cause=light-cap cmd=sleep' "$to/err" &&
+  grep -Eq '^heavy.sh: rerun as heavy: cd [^ ]+ && HEAVY_CLASS=heavy /[^ ]*/heavy\.sh --admit-only sleep 30 \(a make target: HEAVY_CLASS=heavy make TARGET\)$' "$to/err" ||
+  fail "the light cap did not stop the run with its rerun line (rc=$rc, $((SECONDS - s0))s): $(cat "$to/err")"
+tv sh -c 'HEAVY_CLASS=light "$heavy" true 2> "$1/light-nested.err"' _ "$to"
+grep -qx 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot' "$to/light-nested.err" && grep -q '^heavy.sh: slot 1.inner/1 ' "$to/light-nested.err" ||
+  fail "a light run inside a heavy holder did not nest on it: $(cat "$to/light-nested.err")"
+printf 'HEAVY_CLASS=light\n' > "$to/class.env"
+HEAVY_CONFIG=$to/class.env tv true && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "the config file set HEAVY_CLASS: $(cat "$to/err")"
+for c in 'HEAVY_CLASS=medium|invalid-class' 'HEAVY_LIGHT_SLOTS=0|invalid-light-slots' 'HEAVY_LIGHT_SLOTS=17|invalid-light-slots' 'HEAVY_LIGHT_MAX_SECS=5m|invalid-light-max-secs'; do
+  IFS='|' read -r setting code <<< "$c"
+  out=$(env HEAVY_CLASS=light "$setting" bash -c 'cd "$1" && env PATH="$1/bin:$PATH" HEAVY_LOCK_DIR="$1/slots" HEAVY_SLOTS=1 "$2" true' _ "$to" "$heavy" 2> "$to/err")
+  [[ $? == 2 && $out == "heavy.sh: REFUSED $code (exit 2)" ]] || fail "heavy.sh accepted $setting: $out $(cat "$to/err")"
+done
+# ASD-V0-732: the light doc gates and dogfood-inputs-check name the light class, not under CI, and a
+# caller's HEAVY_CLASS=heavy wins.
+lmk() { (cd "$script/.." && env -u CI -u HEAVY_CLASS -u HEAVY_ADMIT "$@" make -n --no-print-directory shell-foreign-callers-check dogfood-inputs-check 2> /dev/null); }
+[[ $(lmk | grep -c 'HEAVY_CLASS=light script/heavy.sh') == 2 && $(lmk CI=true | grep -c 'HEAVY_CLASS=') == 0 &&
+  $(lmk HEAVY_CLASS=heavy | grep -c 'HEAVY_CLASS=heavy script/heavy.sh') == 2 ]] ||
+  fail "the light Makefile targets do not admit through the light class: $(lmk)"
 MAKEFLAGS='n --no-print-directory' tv --admit-only true && ! grep -q 'slot' "$to/err" || fail "a make dry run took a slot: $(cat "$to/err")"
 MAKEFLAGS=' --no-print-directory' tv --admit-only true && grep -q 'slot 1/1' "$to/err" || fail "a long make flag read as a dry run"
 TLOCK=$to/slots/ tv sh -c 'HEAVY_LOCK_DIR=$1 perl -e "alarm 10; exec @ARGV" "$heavy" true 2> "$1/../nested.err"' _ "$to/slots"

@@ -75,7 +75,7 @@ dogfood_build() {
 # the key names REV's objects at those paths and fails unless the paths are clean in SOURCE,
 # counting staged, untracked and ignored files.
 # DCW-V0-731 (NEW-B2): a GOFLAGS -p=N word sets build parallelism only, never the output bytes, so
-# the key leaves it out: a build heavy.sh admitted (it exports -p) is found outside the admission.
+# the key leaves it out: a build under the heavy admission (it exports -p) is found outside the admission.
 dogfood_corvint_key() {
   local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace word words=() flags=''
   read -r -a words <<< "$dogfood_goflags"

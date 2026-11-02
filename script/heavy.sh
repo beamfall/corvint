@@ -89,6 +89,14 @@
 #                        unreadable load average does not wait. Unset, the threshold is
 #                        floor(HEAVY_LOAD_PER_CPU x CPUs), HEAVY_LOAD_PER_CPU defaulting to 1.0
 #                        (ASD-V0-932). A nested admission does not wait (ASD-V0-931).
+#   HEAVY_CLASS          light admits a short, bounded command on its own pool of HEAVY_LIGHT_SLOTS
+#                        slots (default 2, 1..16) in LOCK_DIR/light, so it never queues behind the
+#                        heavy slots; it still passes the load gate. It runs under a hard cap of
+#                        HEAVY_LIGHT_MAX_SECS seconds (default 300): past it the command's process group
+#                        is stopped (TERM, then KILL 5 s later), the run exits 124 with cause=light-cap
+#                        and one `heavy.sh: rerun as heavy:` line. heavy (the default) is unchanged.
+#                        Only the environment sets it, never the config file; a nested admission takes
+#                        its holder's class; an offload is unchanged (ASD-V0-731, NEW-B6).
 #
 # Run telemetry (ASD-V0-037, V1-2905). This file is the one runner: its remote half is the same file,
 # shipped over ssh on every offload, so no copy lives on a remote host. Every run prints
@@ -349,6 +357,12 @@ my $tag = delete $ENV{HEAVY_RUN_TAG} // "";
 # ASD-V0-935: HEAVY_RUN_LOAD is the load-gate wait in seconds, logged beside the slot wait; the
 # load beside it is sampled once the slot is held, just before the command starts (ASD-V0-970).
 my $loadwait = delete $ENV{HEAVY_RUN_LOAD} // 0;
+# ASD-V0-731 (NEW-B6): HEAVY_RUN_CLASS names a light admission in its lines, HEAVY_RUN_CAP is its
+# hard run-time cap in seconds, and HEAVY_RUN_CAP_HINT the rerun line printed when the cap stops it.
+my $cls = delete $ENV{HEAVY_RUN_CLASS} // "";
+my $cap = delete $ENV{HEAVY_RUN_CAP} // 0;
+my $hint = delete $ENV{HEAVY_RUN_CAP_HINT} // "";
+my $pfx = length $cls ? "$cls " : "";
 my $t0 = time;
 my ($lock, $slot, $path, $held, $told);
 # ASD-V0-931: inside an admitted command (HEAVY_HELD names a slot file of this lock dir) the
@@ -378,7 +392,7 @@ until ($lock) {
         close $fh;
     }
     next if $lock;
-    printf STDERR "heavy.sh: queued for a slot (%d/%d held)\n", $n, $n unless $told++;
+    printf STDERR "heavy.sh: queued for a %sslot (%d/%d held)\n", $pfx, $n, $n unless $told++;
     select(undef, undef, undef, 1);
 }
 unless ($held) {
@@ -394,7 +408,7 @@ $ENV{HEAVY_HELD} = $path;
 if ($held) {
     printf STDERR "heavy.sh: slot %s/%d held by an enclosing heavy.sh\n", $slot, $n;
 } else {
-    printf STDERR "heavy.sh: slot %s/%d after %ds\n", $slot, $n, $t1 - $t0;
+    printf STDERR "heavy.sh: %sslot %s/%d after %ds\n", $pfx, $slot, $n, $t1 - $t0;
 }
 # The command inherits the locked descriptor, so the slot stays held until every process that
 # kept it has exited, even when the wrapper itself is killed.
@@ -412,18 +426,32 @@ if ($pid == 0) {
 setpgid($pid, $pid);
 # The command runs in its own process group; a forwarded signal reaches the whole group.
 $SIG{$_} = do { my $s = $_; sub { kill $s, -$pid } } for qw(INT TERM HUP);
+# ASD-V0-731: past the cap the whole group gets TERM, then KILL 5 s later, and the run exits 124.
+my $capped = 0;
+if ($cap) {
+    $SIG{ALRM} = sub {
+        if ($capped++) { kill "KILL", -$pid; return }
+        printf STDERR "heavy.sh: %srun exceeded its %ds cap; stopping it\n", $pfx, $cap;
+        kill "TERM", -$pid;
+        alarm 5;
+    };
+    alarm $cap;
+}
 my $got;
 do { $got = waitpid($pid, 0) } until $got == $pid || ($got == -1 && !$!{EINTR});
 my $status = $?;
-my $rc = $status & 127 ? 128 + ($status & 127) : $status >> 8;
+alarm 0 if $cap;
+my $rc = $capped ? 124 : $status & 127 ? 128 + ($status & 127) : $status >> 8;
 my $t2 = time;
 printf STDERR "heavy.sh: done queue=%.1fs (load=%ds slot=%.1fs) run=%.1fs rc=%d\n", $loadwait + $t1 - $t0, $loadwait, $t1 - $t0, $t2 - $t1, $rc;
 # ASD-V0-940 (V1-3247): a non-zero exit names its cause, so it never reads as a silent wrapper failure.
 if ($rc) {
     my $cause = "command";
-    if ($status & 127) { my @sig = split " ", $Config{sig_name}; $cause = "signal-" . ($sig[$status & 127] // $status & 127) }
+    if ($capped) { $cause = "light-cap" }
+    elsif ($status & 127) { my @sig = split " ", $Config{sig_name}; $cause = "signal-" . ($sig[$status & 127] // $status & 127) }
     elsif ($cmd[0] eq "timeout" && $rc == 124) { $cause = "timeout" }
     printf STDERR "heavy.sh: exit rc=%d cause=%s cmd=%s\n", $rc, $cause, $cmd[0] eq "timeout" ? $cmd[2] // "" : $cmd[0];
+    print STDERR "$hint\n" if $capped && length $hint;
 }
 if (length $log) {
     my $line = sprintf "%s local wait=%.1fs run=%.1fs rc=%d loadwait=%ds load=%s queue=%.1fs pwd=%s cmd=%s%s\n",
@@ -1375,6 +1403,9 @@ env_reasons() {
   done
 }
 
+# self_path: this script's absolute physical path.
+self_path() { printf '%s/%s\n' "$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd -P)" "${BASH_SOURCE[0]##*/}"; }
+
 # rerun_lines MISSING... -- COMMAND...: ASD-V0-730 (NEW-B3). After a reason refusal, the exact
 # commands that rerun COMMAND from any directory: with each missing reason as a leading NAME=VALUE
 # word and, for a missing HEAVY_WHOLE_REASON, Corvint's selection, whose manifest --plan prints each
@@ -1388,7 +1419,7 @@ rerun_lines() {
   shift
   [[ $missing != *whole-reason-missing* ]] || reasons+=("HEAVY_WHOLE_REASON='<reason>'")
   [[ $missing != *local-reason-missing* ]] || reasons+=("HEAVY_LOCAL_REASON='<why it needs this host>'")
-  self=$(cd "${BASH_SOURCE[0]%/*}" 2> /dev/null && pwd -P)/${BASH_SOURCE[0]##*/}
+  self=$(self_path)
   printf 'heavy.sh: rerun: cd %q && %s %q%s\n' "$PWD" "${reasons[*]}" "$self" "$(printf ' %q' "$@")" >&2
   [[ $missing == *whole-reason-missing* ]] || return 0
   base=$(git rev-parse --verify -q origin/main 2> /dev/null) || base='<origin/main sha>'
@@ -1734,6 +1765,8 @@ main() {
   # ASD-V0-933: an empty HEAVY_REMOTE_HOST in the environment keeps every command local.
   heavy_remote_off=
   [[ -n ${HEAVY_REMOTE_HOST+set} && -z $HEAVY_REMOTE_HOST ]] && heavy_remote_off=1
+  # ASD-V0-731 (NEW-B6): the class is the caller's explicit choice; a config file cannot set it.
+  local heavy_class=${HEAVY_CLASS:-heavy}
   load_config "$config_file"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
@@ -1754,6 +1787,7 @@ main() {
     printf '%s\n' "$lock_dir"
     return 0
   fi
+  local asked_cmd=("$@")
   # ASD-V0-830 (V1-3256): leading NAME=VALUE words are environment, as for env(1), so
   # `heavy.sh GOTOOLCHAIN=local go test ...` runs `env GOTOOLCHAIN=local go test ...` locally and
   # remotely instead of failing with `cannot run` after the load wait.
@@ -1765,6 +1799,31 @@ main() {
   mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
   # ASD-V0-931: one spelling of the lock dir, so a nested HEAVY_HELD always matches its holder.
   lock_dir=$(cd -P "$lock_dir" 2> /dev/null && pwd -P) || refuse "lock-dir-unavailable $lock_dir"
+  # ASD-V0-731 (NEW-B6): HEAVY_CLASS=light admits on its own small pool under a hard run-time cap;
+  # a nested admission takes its holder's class, so it never waits for a slot its holder keeps.
+  [[ $heavy_class == heavy || $heavy_class == light ]] || refuse "invalid-class HEAVY_CLASS=$heavy_class (want heavy or light)"
+  case ${HEAVY_HELD-} in
+    "$lock_dir"/light/slot*) heavy_class=light ;;
+    "$lock_dir"/slot*)
+      [[ $heavy_class == light ]] && printf 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot\n' >&2
+      heavy_class=heavy
+      ;;
+  esac
+  local slot_dir=$lock_dir pool=$slots light_cap=
+  if [[ $heavy_class == light ]]; then
+    pool=${HEAVY_LIGHT_SLOTS:-2} light_cap=${HEAVY_LIGHT_MAX_SECS:-300}
+    if ! [[ $pool =~ ^[1-9][0-9]?$ ]] || ((pool > 16)); then
+      refuse "invalid-light-slots HEAVY_LIGHT_SLOTS=$pool (want 1..16)"
+    fi
+    if ! [[ $light_cap =~ ^[1-9][0-9]{0,4}$ ]] || ((light_cap > 86400)); then
+      refuse "invalid-light-max-secs HEAVY_LIGHT_MAX_SECS=$light_cap (want 1..86400)"
+    fi
+    slot_dir=$lock_dir/light
+    mkdir -p "$slot_dir" 2> /dev/null || refuse "lock-dir-unavailable $slot_dir"
+    export HEAVY_CLASS=light
+  else
+    unset HEAVY_CLASS
+  fi
   disk_floor
   local remote_hosts=() h
   if [[ -n $heavy_admit_only ]]; then
@@ -1835,7 +1894,7 @@ main() {
   fi
   # ASD-V0-931: a nested admission skips the load gate its holder already passed.
   heavy_load_wait=0
-  [[ ${HEAVY_HELD-} == "$lock_dir"/slot* ]] || load_wait "$cpus"
+  [[ ${HEAVY_HELD-} == "$slot_dir"/slot* ]] || load_wait "$cpus"
   pin_go
   bound_parallelism "$par"
   [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }
@@ -1855,8 +1914,15 @@ main() {
   fi
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
-  HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" HEAVY_RUN_LOAD=$heavy_load_wait \
-    exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
+  local run_tag=" script=${heavy_script:0:12}"
+  if [[ $heavy_class == light ]]; then
+    run_tag=" class=light$run_tag"
+    export HEAVY_RUN_CLASS=light HEAVY_RUN_CAP=$light_cap
+    HEAVY_RUN_CAP_HINT="heavy.sh: rerun as heavy: cd $(printf %q "$PWD") && HEAVY_CLASS=heavy $(printf %q "$(self_path)")${heavy_admit_only:+ --admit-only}$(printf ' %q' ${asked_cmd[@]+"${asked_cmd[@]}"}) (a make target: HEAVY_CLASS=heavy make TARGET)"
+    export HEAVY_RUN_CAP_HINT
+  fi
+  HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=$run_tag HEAVY_RUN_LOAD=$heavy_load_wait \
+    exec perl -e "$slot_perl" "$slot_dir" "$pool" "$nice_level" "$@"
 }
 
 # host_choice COMMAND...: ASD-V0-920 (V1-3518). One stderr line names the host this command is
