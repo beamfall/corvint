@@ -175,7 +175,7 @@ func (r Reader) prepare(p *preparedReceipt) {
 			continue
 		}
 		c := &posts[j]
-		if c.coverage, c.descriptor, c.decoded, err = r.validateRecord(e.Path, raw, rc); err != nil {
+		if c.coverage, c.descriptor, c.decoded, err = r.validateRecord(e.Path, raw, rc, parsedPost(e, raw)); err != nil {
 			return
 		}
 	}

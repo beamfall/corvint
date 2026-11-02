@@ -144,7 +144,10 @@ func validateEntries(rc *Receipt) error {
 			continue
 		}
 		if p.Record != nil {
-			raw := wire.EncodeFile(*p.Record)
+			raw := p.Raw
+			if raw == nil {
+				raw = wire.EncodeFile(*p.Record)
+			}
 			if len(raw) > bound {
 				return wire.Errorf(wire.CodeLimitExceeded, p.Path, "post exceeds destination bound")
 			}
