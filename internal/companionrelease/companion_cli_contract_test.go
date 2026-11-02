@@ -117,8 +117,8 @@ func checkContractVersion(t *testing.T, binary, outside, name string) {
 }
 
 // CAP-V0-701: corvint-console refuses a positional argument before it reads a
-// repository or listens, and corvint-update refuses an unknown action with its
-// usage and exit 2; its usage names every action, --allow-network and
+// repository or listens, and corvint-update refuses an unknown action with a
+// coded UNKNOWN_COMMAND line, its usage and exit 2 (ACX-V0-664); its usage names every action, --allow-network and
 // --component (V1-3499).
 func TestCAPV0701CompanionsRefuseStrayArgumentsFirst(t *testing.T) {
 	bin := buildContractCompanions(t)
@@ -128,7 +128,7 @@ func TestCAPV0701CompanionsRefuseStrayArgumentsFirst(t *testing.T) {
 		t.Fatalf("console stray positional: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	code, stdout, stderr = runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "bogus")
-	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "usage: corvint-update") {
+	if code != 2 || stdout != "" || !strings.HasPrefix(stderr, "UNKNOWN_COMMAND: ") || !strings.Contains(stderr, "\nusage: corvint-update") {
 		t.Fatalf("update unknown action: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 	_, usage, _ := runContractCompanion(t, filepath.Join(bin, "corvint-update"), outside, "--help")
