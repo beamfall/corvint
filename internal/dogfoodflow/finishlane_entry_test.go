@@ -3,6 +3,7 @@ package dogfoodflow
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -98,5 +99,22 @@ func TestDCWV0731StaticPreCheck(t *testing.T) {
 	}
 	if _, err := os.Stat(root + "/.git/corvint"); !os.IsNotExist(err) {
 		t.Fatalf("the static pre-check wrote under the Git directory: %v", err)
+	}
+	// The plan's row grammar and RELATION are refused here, as the prepare
+	// pass's planShape would refuse them, rather than after the admission.
+	for _, tc := range []struct{ name, plan, refusal string }{
+		{"relation", "1\tpre.go\t3:3\ttests\n2\tpre.go\t20:20\timplementation\n", "REFUSE citation-plan-relation-unknown --citations %s row 1 relation=\"tests\"\n"},
+		{"grammar", "1\tpre.go\t3:3\n2\tpre.go\t20:20\timplementation\n", "REFUSE invalid-citation-plan --citations %s\n"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bad := writeInput(t, tc.plan)
+			run := options(sorted)
+			run.Change.Citations = bad
+			code, stdout, stderr, calls := entryRun(t, run)
+			if code != 2 || calls != 0 || stdout != "" || !strings.HasPrefix(stderr, "dogfood-inputs-check: "+fmt.Sprintf(tc.refusal, bad)) ||
+				!strings.Contains(stderr, "then rerun make dogfood-inputs-check BASE="+base) {
+				t.Fatalf("code=%d steps=%d stdout=%q stderr=\n%s", code, calls, stdout, stderr)
+			}
+		})
 	}
 }

@@ -68,6 +68,36 @@ dogfood_build() {
   return 1
 }
 
+# dogfood_key_goflags FLAGS prints FLAGS without each unquoted -p=N word and the one separator
+# before it (after it, for a first word); every other byte, quoted spaces and newlines included,
+# stays as given, so two GOFLAGS that differ in anything but -p never share a key.
+dogfood_key_goflags() {
+  local s=$1 out='' sep='' word='' quote='' c i drop=0
+  for ((i = 0; i <= ${#s}; i++)); do
+    c=${s:i:1}
+    if ((i < ${#s})) && { [[ -n $quote || $c != [[:space:]] ]]; }; then
+      if [[ -n $quote ]]; then
+        [[ $c != "$quote" ]] || quote=''
+      elif [[ $c == [\"\'] ]]; then
+        quote=$c
+      fi
+      word+=$c
+      continue
+    fi
+    if [[ -n $word ]]; then
+      if [[ $word =~ ^-p=[0-9]+$ ]]; then
+        [[ -n $out ]] || drop=1
+      else
+        ((drop)) && sep='' drop=0
+        out+=$sep$word
+      fi
+      sep='' word=''
+    fi
+    ((i < ${#s})) && sep+=$c
+  done
+  printf '%s' "$out$sep"
+}
+
 # dogfood_corvint_key REV [SOURCE] prints the key's object ID, or fails.
 # Without SOURCE the build source is an archive of REV, and REV's root tree names every input.
 # With SOURCE (the worktree, checked out at REV) the inputs are go.mod, go.sum, go.work, vendor,
@@ -77,11 +107,8 @@ dogfood_build() {
 # DCW-V0-731 (NEW-B2): a GOFLAGS -p=N word sets build parallelism only, never the output bytes, so
 # the key leaves it out: a build under the heavy admission (it exports -p) is found outside the admission.
 dogfood_corvint_key() {
-  local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace word words=() flags=''
-  read -r -a words <<< "$dogfood_goflags"
-  for word in ${words[@]+"${words[@]}"}; do
-    [[ $word =~ ^-p=[0-9]+$ ]] || flags+="${flags:+ }$word"
-  done
+  local rev=$1 source=${2-} environment listing line paths=() objects optional status workspace flags
+  flags=$(dogfood_key_goflags "$dogfood_goflags")
   environment=$(cd "${source:-$repo}" && GOFLAGS="$flags" dogfood_key_go env GOVERSION GOOS GOARCH CGO_ENABLED GOFLAGS \
     GOEXPERIMENT GOAMD64 GOARM64 GOARM GO386 GOMIPS GOMIPS64 GOPPC64 GORISCV64 GOWASM GOFIPS140 \
     CC CXX AR PKG_CONFIG CGO_CFLAGS CGO_CPPFLAGS CGO_CXXFLAGS CGO_FFLAGS CGO_LDFLAGS 2> /dev/null) || return 1

@@ -2590,12 +2590,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   yes` MUST run only the input checks that read no step output (plan rows, verify grammar and
   selection, intent manifest, outcome), take no operation lock, never refresh the plan and run no
   step, then print `inputs-check STATIC PASS ...` on stdout and exit 0, or the same refusal and
-  exit status as the full pre-flight. The wrapper's inputs-only phase, which runs before the
+  exit status as the full pre-flight. Its plan check MUST refuse the row grammar and an unregistered RELATION exactly as the prepare pass's `planShape` would (`invalid-citation-plan`, `citation-plan-relation-unknown`), leaving a plan over the row or byte bound to the staged route; on a seal HEAD it MUST print `inputs-check STATIC SKIP already-sealed; the full inputs-check reports the seal` and exit 0 without the outcome inputs, so a rerun with BASE and CITATIONS alone still reaches the full run's `seal SKIP`. The wrapper's inputs-only phase, which runs before the
   heavy.sh admission, MUST run it with the cached tree build of HEAD's exact build key, or else
   the installed `corvint` on PATH, each only when its `inputs-check --help` lists `--static`; with
   neither it prints `static pre-check SKIP no-static-binary` and goes on, and
   `DOGFOOD_STATIC_PRECHECK=0` skips it. The `DCW-V0-074` build key MUST leave out a GOFLAGS
-  `-p=N` word, which sets parallelism only, so the build the admitted run recorded under heavy.sh's
+  `-p=N` word (outside quotes, with one adjacent separator) and keep every other GOFLAGS byte, quoted spaces and newlines included, since that word sets parallelism only, so the build the admitted run recorded under heavy.sh's
   exported `-p` is the one the next unadmitted phase finds. A refusal from the installed binary adds one line naming it
   and that escape. Target: an input defect is refused in under 1 s of wall time on the lane host
   instead of after the admission wait and the tree build (measured before and after in

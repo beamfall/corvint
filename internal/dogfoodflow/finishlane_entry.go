@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"fmt"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -61,9 +62,50 @@ func (l *finishLane) rerunCommand(base string) string {
 
 // staticPass ends a static pre-check whose input checks all passed: it names
 // what it did not check, since the prepare pass and its OCM scopes still run
-// in the full inputs-check (DCW-V0-731).
+// in the full inputs-check (DCW-V0-731). A seal HEAD needs no outcome inputs
+// or plan rows, since the full run reports the seal before it reads them, so
+// the pre-check passes it on to that run.
 func (l *finishLane) staticPass() int {
+	if l.isSealCommit(l.target) {
+		l.line("inputs-check STATIC SKIP already-sealed; the full inputs-check reports the seal")
+		return 0
+	}
 	l.requireOutcomeInputs()
+	l.requireStaticPlanRows()
 	l.line("inputs-check STATIC PASS plan, verify, intents and outcome inputs; the full inputs-check still runs the prepare pass")
 	return 0
+}
+
+// requireStaticPlanRows refuses, in the static pre-check, a plan the prepare
+// pass would refuse for its row grammar or a RELATION outside the registered
+// basis relations: the same checks planShape runs first, which read no map.
+// A plan over the row or byte bound is left to the staged route (DCW-V0-446).
+func (l *finishLane) requireStaticPlanRows() {
+	path := l.options.Change.Citations
+	if !isRegular(path) || isSymlink(path) {
+		return
+	}
+	c := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: l.root, stderr: io.Discard, gitDir: l.gitDir, base: l.base, target: l.target}, options: l.options.Change}
+	plan, valid := c.validateCitationPlan()
+	reason, detail := "", ""
+	switch {
+	case !valid && (c.citationCount > 256 || oversizedPlan(path)):
+		return
+	case !valid:
+		reason = "invalid-citation-plan"
+	case c.unknownRelationRow(plan):
+		reason, detail = "citation-plan-relation-unknown", " "+c.relationDetail
+	default:
+		return
+	}
+	l.say("%s: REFUSE %s --citations %s%s\n", l.prefix, reason, path, detail)
+	l.say("  fix: %s; then rerun corvint dogfood finish-lane --base %s\n", c.fixHint(step{"cem-cite", "NOT_PRODUCED", reason}), l.options.Change.Base)
+	l.say("  nothing was prepared, bound or committed\n")
+	l.exit(2)
+}
+
+// oversizedPlan reports a plan file over the byte bound one plan may hold.
+func oversizedPlan(path string) bool {
+	data, err := readPrefix(path, maxPlanBytes+1)
+	return err != nil || len(data) > maxPlanBytes
 }
