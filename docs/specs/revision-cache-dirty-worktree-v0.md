@@ -294,9 +294,10 @@ worktree. A tracked edit gave that worktree's query `mixed-worktree` without a r
 snapshot bytes did not change, a sibling worktree's query stayed `fresh`, and the edited worktree
 returned to `fresh` after the restore. V1-0212 (`DIRTY-CACHE-013`) since shares one clean base:
 the store is `corvint/index` under the Git common directory, or the worktree's own
-`.corvint/index` when that directory cannot be resolved
-(`internal/contextindex/snapshot.go:228-233@e10b4d1c`), and each snapshot's file name is
-`internal/contextindex/snapshot.go:270-271@cd3a98c5`.
+`.corvint/index` when that directory cannot be resolved, unless an operator names a scratch
+store with `CORVINT_INDEX_STORE` (`IDX-SNAP-V0-808`)
+(`internal/contextindex/snapshot.go:237-247@04b8c20f`), and each snapshot's file name is
+`internal/contextindex/snapshot.go:284-285@cd3a98c5`.
 
 ## Traceability
 

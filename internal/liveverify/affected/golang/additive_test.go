@@ -130,15 +130,17 @@ func TestADNV0004ModifiedExportedFunctionSelectsEveryImporter(t *testing.T) {
 	head := map[string]string{"core/core.go": strings.Replace(additiveCore, "\"a\"", "\"b\"", 1) + "\nfunc Fresh() string { return Old() }\n"}
 	records, graph := additiveRun(t, nil, head, "core/core.go")
 	record := additiveRecordFor(t, records, "go:example.test/m/core")
-	if record.State != affected.GoAdditiveFallback || record.Reason != golang.AdditiveDeclarationEdited {
-		t.Fatalf("record %+v, want FALLBACK %s", record, golang.AdditiveDeclarationEdited)
+	// The edit to Old is decided at symbol level (ADN-V0-660): every
+	// importer names Old or Fresh, so each one references the change.
+	if record.State != affected.GoAdditiveNarrowed || record.Mode != golang.GoSymbolMode || strings.Join(record.Declarations, " ") != "Fresh Old" || len(record.Unreferenced) != 0 {
+		t.Fatalf("record %+v, want NARROWED SYMBOL for Fresh Old with no unreferenced importer", record)
 	}
 	plan := affected.Select(graph.WithGoAdditive(records), []string{"core/core.go"})
 	if got := trimGo(selectedIDs(plan)); got != "alias core leaf ref unref user" {
 		t.Fatalf("selection %q, want every importer", got)
 	}
 	if len(plan.GoAdditiveExcluded) != 0 {
-		t.Fatalf("fallback record excluded %+v", plan.GoAdditiveExcluded)
+		t.Fatalf("symbol record excluded %+v", plan.GoAdditiveExcluded)
 	}
 }
 

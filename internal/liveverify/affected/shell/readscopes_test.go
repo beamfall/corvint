@@ -3,6 +3,7 @@ package shell
 import (
 	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -46,7 +47,6 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 		{name: "no toolchain", declaration: declare("t/plain_test.sh", `["tool/"]`, "r"), invalid: true},
 		{name: "source script", declaration: declare("script/helper.sh", `["tool/"]`, "r"), invalid: true},
 		{name: "absent test", declaration: declare("t/gone_test.sh", `["tool/"]`, "r"), invalid: true},
-		{name: "one of two absent", declaration: `{"profile":"corvint-shell-read-scopes/0","tests":{"t/build_test.sh":{"reads":["tool/"],"reason":"r"},"t/gone_test.sh":{"reads":["tool/"],"reason":"r"}}}`, invalid: true},
 		{name: "unsorted reads", declaration: declare("t/build_test.sh", `["tool/","go.mod"]`, "r"), invalid: true},
 		{name: "empty reads", declaration: declare("t/build_test.sh", `[]`, "r"), invalid: true},
 		{name: "git entry", declaration: declare("t/build_test.sh", `[".git/"]`, "r"), invalid: true},
@@ -83,7 +83,7 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 			if dynamic := unitOf(t, result, "t/dynamic_test.sh"); dynamic.UnboundedReads != UnboundedRunsToolchain || dynamic.ReadScoped {
 				t.Errorf("a toolchain test that sources a dynamic path changed: %+v", dynamic)
 			}
-			if got := slices.Contains(result.Frontier, FrontierShellReadScopesInvalid); got != tc.invalid {
+			if got := slices.ContainsFunc(result.Frontier, func(reason string) bool { return strings.HasPrefix(reason, FrontierShellReadScopesInvalid) }); got != tc.invalid {
 				t.Errorf("invalid frontier %v, want %v (frontier %v)", got, tc.invalid, result.Frontier)
 			}
 
@@ -120,6 +120,69 @@ func TestShellReadScopeDeclaration_TSP_V0_950(t *testing.T) {
 			changed := affected.Select(graph, []string{affected.ShellReadScopesPath})
 			if changed.Scope != affected.ScopeUnknown || !hasUnknown(changed, affected.UnknownLanguageFrontier, affected.FrontierShellReadScopesChanged) {
 				t.Errorf("dirty declaration: scope %s, unknown %v; want the changed frontier", changed.Scope, changed.Unknown)
+			}
+		})
+	}
+}
+
+// TSP-V0-831 (V1-4254): an entry that names no read-scopable test declares
+// nothing for that test alone, the other entries still apply, and the frontier
+// names the entry and why; a declaration that does not parse still declares
+// nothing and names the bare frontier.
+func TestShellReadScopeEntryInvalidAlone_TSP_V0_831(t *testing.T) {
+	entry := `"%s":{"reads":["tool/"],"reason":"r"}`
+	declare := func(tests ...string) string {
+		var body []string
+		for _, test := range tests {
+			body = append(body, strings.Replace(entry, "%s", test, 1))
+		}
+		return `{"profile":"corvint-shell-read-scopes/0","tests":{` + strings.Join(body, ",") + `}}`
+	}
+	base := map[string]string{
+		"t/build_test.sh":  "go build ./tool\n",
+		"t/helped_test.sh": "go build ./tool\n. lib/dynamic.sh\n",
+		"t/plain_test.sh":  "echo plain\n",
+		"lib/dynamic.sh":   ". \"$DYNAMIC\"\n",
+		"tool/main.txt":    "what the toolchain reads\n",
+	}
+	for _, tc := range []struct {
+		name        string
+		declaration string
+		scoped      bool
+		frontier    []string
+	}{
+		{"absent beside a valid entry", declare("t/build_test.sh", "t/gone_test.sh"), true,
+			[]string{FrontierShellReadScopesInvalid + ":t/gone_test.sh is not an observed shell test"}},
+		{"no toolchain beside a valid entry", declare("t/build_test.sh", "t/plain_test.sh"), true,
+			[]string{FrontierShellReadScopesInvalid + ":t/plain_test.sh runs no toolchain"}},
+		{"unbounded reach beside a valid entry", declare("t/build_test.sh", "t/helped_test.sh"), true,
+			[]string{FrontierShellReadScopesInvalid + ":t/helped_test.sh reaches shell:lib/dynamic.sh, an unbounded reader"}},
+		{"unparsed", `{`, false, []string{FrontierShellReadScopesInvalid}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			files := maps.Clone(base)
+			files[affected.ShellReadScopesPath] = tc.declaration
+			root := t.TempDir()
+			for relative, content := range files {
+				write(t, root, relative, content)
+			}
+			result := units(t, root)
+			if build := unitOf(t, result, "t/build_test.sh"); build.ReadScoped != tc.scoped {
+				t.Errorf("t/build_test.sh read-scoped %v, want %v (%+v)", build.ReadScoped, tc.scoped, build)
+			}
+			for _, test := range []string{"t/helped_test.sh", "t/plain_test.sh"} {
+				if unit := unitOf(t, result, test); unit.ReadScoped {
+					t.Errorf("%s read-scoped: %+v", test, unit)
+				}
+			}
+			var invalid []string
+			for _, reason := range result.Frontier {
+				if strings.HasPrefix(reason, FrontierShellReadScopesInvalid) {
+					invalid = append(invalid, reason)
+				}
+			}
+			if !slices.Equal(invalid, tc.frontier) {
+				t.Errorf("invalid frontier %q, want %q", invalid, tc.frontier)
 			}
 		})
 	}

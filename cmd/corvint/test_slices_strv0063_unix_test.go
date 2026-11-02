@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -43,7 +44,7 @@ func sliceFixture(t *testing.T) (root, base string) {
 	}
 	base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -101,7 +102,7 @@ func TestSTRV0063DryRunSlicesTestOnlyChanges(t *testing.T) {
 		t.Fatalf("stderr %q", stderr)
 	}
 	got := unit(invocations, "go:example.test/m/b")
-	want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: "^(ExampleB|TestBMore)$", Reason: "selected: the tests of b/b_more_test.go", Slice: sessiontest.SliceSelected, Unit: "go:example.test/m/b"}
+	want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: "^(ExampleB|TestBMore)$", Reason: "selected: the tests of b/b_more_test.go", ReasonCode: sessiontest.ReasonSelectedChangedTests, Slice: sessiontest.SliceSelected, Unit: "go:example.test/m/b"}
 	if got != want {
 		t.Fatalf("sliced unit %+v, want %+v", got, want)
 	}

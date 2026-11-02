@@ -1,8 +1,10 @@
 package journal
 
 import (
+	"math"
 	"runtime"
 	"sync"
+	"sync/atomic"
 
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -41,7 +43,16 @@ type prefetchStats struct {
 // receipt and (only when every post is inline and was prepared without
 // error) each post's checked afterimage.
 type preparedReceipt struct {
-	source  *nativeRead
+	source *nativeRead
+	// view is set for a sealed receipt read ahead from its verified segment
+	// (LGL-V0-813): it has no file handle, and the view's consumed-file
+	// accounting is applied when step reaches it, as a sequential read
+	// applies it.
+	view *segmentView
+	// readErr is the error reading the sealed receipt ahead returned. The
+	// read is not retried: step reports it through requiredRead, as the
+	// sequential walk reports the same read failing (LGL-V0-813).
+	readErr error
 	path    string
 	raw     []byte
 	cleanup error
@@ -61,6 +72,11 @@ type checkedPost struct {
 // walkPrefetch is false only in the tests that compare the prefetched walk
 // with the sequential one.
 var walkPrefetch = true
+
+// segmentPrefetch lets the walk read ahead through a segment view
+// (LGL-V0-813); a non-parallel test turns it off to compare with the
+// sequential sealed walk. It is atomic so a walk never races that switch.
+var segmentPrefetch = func() *atomic.Bool { b := new(atomic.Bool); b.Store(true); return b }()
 
 func newReceiptPrefetch() *receiptPrefetch {
 	if !walkPrefetch {
@@ -101,14 +117,48 @@ func (r Reader) prefetchFrom(pf *receiptPrefetch, names []string, i int) {
 	}
 	pf.first, pf.ready = seq, pf.ready[:0]
 	native, ok := r.Source.(*nativeRead)
+	view, segmented := r.Source.(*segmentView)
+	if segmented && segmentPrefetch.Load() {
+		native, ok = view.inner.(*nativeRead)
+	}
 	if !ok {
 		return
 	}
 	end := min(i+1+(abortEvery-1-(i+1)%abortEvery), len(names))
+	// LGL-V0-813: on a segmented store a window is either sealed receipts
+	// of the one segment the walk is entering, served from its verified
+	// bytes, or active receipts read from disk; never both, so segments
+	// load in the order the sequential walk loads them.
+	sealedWindow := segmented && seq <= view.manifest.Through
+	if sealedWindow {
+		first := view.manifest.Segments[0].First
+		segEnd := first + ((seq-first)/snapshot.SegmentReceipts+1)*snapshot.SegmentReceipts - 1
+		if b := min(segEnd, view.manifest.Through); b <= math.MaxInt && int(b) < end {
+			end = int(b)
+		}
+	}
 	pf.stats.windows++
 	held := 0
 	for k := i; k < end && held < prefetchBytes; k++ {
 		p := "receipts/" + names[k]
+		if sealedWindow {
+			raw, err := view.receipt(uint64(k + 1))
+			if err != nil {
+				// A segment loads only at the window's first receipt, where
+				// the sequential walk loads it too; keep the failure there.
+				pf.stats.routed++
+				pf.ready = append(pf.ready, &preparedReceipt{view: view, path: p, readErr: err})
+				break
+			}
+			if len(raw) > min(wire.MaxReceiptFileBytes, prefetchBytes-held) {
+				pf.stats.routed++
+				break
+			}
+			pf.stats.read++
+			held += len(raw)
+			pf.ready = append(pf.ready, &preparedReceipt{view: view, path: p, raw: raw})
+			continue
+		}
 		raw, cleanup, err := native.readHeld(p, min(wire.MaxReceiptFileBytes, prefetchBytes-held))
 		if err != nil {
 			pf.stats.routed++
@@ -175,7 +225,7 @@ func (r Reader) prepare(p *preparedReceipt) {
 			continue
 		}
 		c := &posts[j]
-		if c.coverage, c.descriptor, c.decoded, err = r.validateRecord(e.Path, raw, rc); err != nil {
+		if c.coverage, c.descriptor, c.decoded, err = r.validateRecord(e.Path, raw, rc, parsedPost(e, raw)); err != nil {
 			return
 		}
 	}
@@ -203,7 +253,15 @@ func (p *preparedReceipt) receipt(r Reader, st *chain, name string) (*snapshot.R
 		}
 		return st.decode(name, raw)
 	}
-	if _, err := p.source.settle(p.path, p.raw, p.cleanup, nil); err != nil {
+	if p.view != nil && p.readErr != nil {
+		_, err := requiredRead(failedRead{p.readErr}, p.path, wire.MaxReceiptFileBytes)
+		return nil, nil, err
+	}
+	if p.view != nil {
+		if _, err := p.view.serve(p.path, p.raw, wire.MaxReceiptFileBytes, nil); err != nil {
+			return nil, nil, err
+		}
+	} else if _, err := p.source.settle(p.path, p.raw, p.cleanup, nil); err != nil {
 		return nil, nil, err
 	}
 	if p.raw == nil {
@@ -223,3 +281,10 @@ func (p *preparedReceipt) post(j int) *checkedPost {
 	}
 	return &p.posts[j]
 }
+
+// failedRead is a Source whose every read returns err, so a failed
+// read-ahead is reported by the sequential walk's own requiredRead.
+type failedRead struct{ err error }
+
+func (f failedRead) Read(string, int) ([]byte, error)  { return nil, f.err }
+func (f failedRead) List(string, int) (Listing, error) { return Listing{}, f.err }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/rubytestprovider"
 )
 
@@ -77,7 +78,7 @@ func rubyEvidenceFixture(t *testing.T) (*contextindex.Index, string, rubytestpro
 	}
 	rspec := filepath.Join(bin, "rspec")
 	script := "#!/bin/sh\nprevious=\nfor argument in \"$@\"; do\n  if [ \"$previous\" = --out ]; then cat '" + canned + "' > \"$argument\"; fi\n  previous=\"$argument\"\ndone\nexit 1\n"
-	if err := os.WriteFile(rspec, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(rspec, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	resolved, err := filepath.EvalSymlinks(root)

@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
@@ -103,7 +104,7 @@ func TestExecutorHelper(t *testing.T) {
 			time.Sleep(time.Second)
 		}
 	case "mutate":
-		if err := os.WriteFile(os.Getenv("CORVINT_EXEC_TARGET"), []byte("changed"), 0700); err != nil {
+		if err := execfile.WriteFile(os.Getenv("CORVINT_EXEC_TARGET"), []byte("changed"), 0700); err != nil {
 			os.Exit(9)
 		}
 	case "symlink":
@@ -310,7 +311,7 @@ func TestExecuteIndependentBindings(t *testing.T) {
 			r, inv := executorRequest(t)
 			path := filepath.Join(r.Root, target)
 			initial := []byte("source")
-			if err := os.WriteFile(path, initial, 0700); err != nil {
+			if err := execfile.WriteFile(path, initial, 0700); err != nil {
 				t.Fatal(err)
 			}
 			switch target {
@@ -349,7 +350,7 @@ func TestExecuteEnvironmentAndArtifactBounds(t *testing.T) {
 			t.Fatal(err)
 		}
 		helper := filepath.Join(dir, "java")
-		if err := os.WriteFile(helper, []byte("helper"), 0700); err != nil {
+		if err := execfile.WriteFile(helper, []byte("helper"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		r.Tools = map[string]Tool{"java": {helper, Digest([]byte("helper"))}}

@@ -2,6 +2,7 @@ package golang_test
 
 import (
 	"context"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"slices"
@@ -48,7 +49,9 @@ func TestIndependentNestedModuleIsARunnableModuleFrontier_AFPV0650(t *testing.T)
 		saved := affected.GraphCacheRacyWindow
 		affected.GraphCacheRacyWindow = 0
 		t.Cleanup(func() { affected.GraphCacheRacyWindow = saved })
-		cacheDir := t.TempDir()
+		// A directory BuildCached creates is 0700 under any umask; t.TempDir is
+		// 0777 &^ umask, group-writable under 0002, which the cache refuses (V1-3521).
+		cacheDir := filepath.Join(t.TempDir(), "graph-cache")
 		if _, outcome, err := affected.BuildCached(context.Background(), root, cacheDir, "test-identity", golang.New()); err != nil || !outcome.Stored {
 			t.Fatalf("first build: %+v %v", outcome, err)
 		}

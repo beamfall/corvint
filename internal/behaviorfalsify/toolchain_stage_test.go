@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestBBFV0214ToolchainRunsVerifiedBytes swaps the pinned Go driver after its digest check: the
@@ -23,7 +25,7 @@ func TestBBFV0214ToolchainRunsVerifiedBytes(t *testing.T) {
 	driver := filepath.Join(goroot, "bin", "go")
 	write := func(script string) {
 		t.Helper()
-		if err := os.WriteFile(driver+".new", []byte(script), 0o700); err != nil {
+		if err := execfile.WriteFile(driver+".new", []byte(script), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Rename(driver+".new", driver); err != nil {
@@ -76,7 +78,7 @@ func TestBBFV0820ToolsRunFromVerifiedCopies(t *testing.T) {
 	})
 	replace := func(path, script string) {
 		t.Helper()
-		if err := os.WriteFile(path+".new", []byte(script), 0o700); err != nil {
+		if err := execfile.WriteFile(path+".new", []byte(script), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		if err := os.Rename(path+".new", path); err != nil {
@@ -165,7 +167,7 @@ func TestBBFV0820StagingHonorsTheCommandBudget(t *testing.T) {
 			}
 		}
 		driver := filepath.Join(goroot, "bin", "go")
-		if err := os.WriteFile(driver, []byte(driverScript), 0o700); err != nil {
+		if err := execfile.WriteFile(driver, []byte(driverScript), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		return Plan{Request: Request{Provider: &ProviderSpec{Name: ProviderGoTest, Toolchain: Command{Path: driver, ExecutableSHA256: mustFileDigest(t, driver)}, Package: ".", Examples: []string{"TestX"}}}}

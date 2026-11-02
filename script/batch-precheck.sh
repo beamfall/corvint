@@ -81,6 +81,11 @@
 # that cannot be checked out and a failed mechanical repin, stays an introduced FAIL. A run with a
 # base-present WARN writes no receipt, since not every step passed.
 #
+# Missing node (ASD-V0-973, V1-3801, V1-3241): when BATCH_PRECHECK_NODE (default node) is not on
+# PATH, host-adapter-node-test does not run; its row prints NOT_AVAILABLE with the reason, it counts
+# as neither passed nor failed, and a receipt otherwise written records it as a trailing
+# `not-run TARGET REASON` line, which --verify-receipt accepts and prints. A host with node runs it.
+#
 # Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
 # the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
 # must name, as NAME, a full commit in HEAD's history; a seal made on another lineage (a pre-rewrite
@@ -94,6 +99,20 @@
 # before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
 # as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
 # sealed head runs them, once per closeout.
+# ICL-V0-020 (V1-1629): the pre-bind run still runs the @prebind drift entries, which read Go
+# source and fixtures and never the change evidence, so their failure stops the closeout before
+# any bind; a passing run on a pristine tree records them in <gitdir>/batch-precheck-prebind for
+# its head. ICL-V0-021: the precheck of the sealed head carries each recorded pass, as a printed
+# row, only while it still binds (the same salt, only change evidence changed since, and a
+# `corvint affected --path` plan of those paths that selects none of its packages and has no
+# unknown beyond the frontier); otherwise it prints why and runs the entry again.
+#
+# Lane closeout (ASD-V0-825, V1-4069): with LANE=1 (dogfood-closeout exports it), an `@own` entry
+# (the companion-release reproducible builds, about 170 s each) runs only when a COMPANION_INPUTS
+# path changed since the base; otherwise it is skipped with the reason printed, and the batch
+# precheck, which runs without LANE, runs it. With no readable diff it runs. A receipt written by
+# such a run gets a `.lane` sidecar naming its head, and a since-receipt run without LANE=1 does
+# not narrow from that receipt.
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
@@ -132,7 +151,12 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 # recipe itself, the CI shard costs and the fixed change set; it replays fixed historical commits,
 # so nothing else changes its result (ASD-V0-944, V1-3550).
 SELECTION_BASELINE_INPUTS=(@go @root .github/cishards/ benchmarks/selection-baseline/)
+# What the @own companion-release builds read beyond the Go module: their package, the Tasks
+# command they archive and its external-agent fixtures and guide (ASD-V0-825, V1-4069).
+COMPANION_INPUTS=(internal/companionrelease/ cmd/corvint-tasks/ internal/tasks/cli/testdata/external-agents/ docs/TASKS-EXTERNAL-AGENTS.md go.mod go.sum)
+lane_skipped=0
 planner=${BATCH_PRECHECK_PLANNER-corvint}
+node_tool=${BATCH_PRECHECK_NODE:-node}
 # Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
 # (ASD-V0-047, V1-3142).
 SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
@@ -164,13 +188,13 @@ else
     "./cmd/corvint TestAffectedReceiptMembersAreClosedAndByteStable @go"
     "./cmd/corvint TestMCPV0100HelpToolMatchesTheCLI @go"
     "./cmd/corvint TestMCPV0105CompanionHelpMatchesTheCLI @go"
-    "./tools/gate-ledger TestGoTestKeys"
+    "./tools/gate-ledger TestGoTestKeys @prebind"
     "./tools/capabilities-check TestCAPV0005RoutingPointersNameTheCatalog @go AGENTS.md README.md docs/README.md docs/AGENT-ROUTES.md integrations/ protocol/integrations/"
-    "./internal/lrfrepo Test[A-Za-z0-9]*Specs?Enumerat"
-    "./internal/tasks TestImportDirection @go"
-    "./internal/tasks/store TestCALV0070_"
-    "./internal/tasks/journal TestCALV0070_"
-    "./internal/tasks/safeopen TestCALV0070_"
+    "./internal/lrfrepo Test[A-Za-z0-9]*Specs?Enumerat @prebind"
+    "./internal/tasks TestImportDirection @go @prebind"
+    "./internal/tasks/store TestCALV0070_ @prebind"
+    "./internal/tasks/journal TestCALV0070_ @prebind"
+    "./internal/tasks/safeopen TestCALV0070_ @prebind"
     "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
     "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
@@ -288,7 +312,7 @@ golden_tests() {
 drift_names() {
   local line re
   local pkg prefix
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix _ <<< "$line"
     [[ $pkg == "$1" ]] || continue
     re="^$prefix"
@@ -318,7 +342,7 @@ sync_check() {
       }
     done < <(job_block "$job" | grep -oE 'gofmt -l [^)"]+' | sed -E 's/^gofmt -l //; s/[[:space:]]+$//')
   done
-  for line in "${DRIFT_TESTS[@]}"; do
+  for line in ${DRIFT_TESTS[@]+"${DRIFT_TESTS[@]}"}; do
     read -r pkg prefix inputs <<< "$line"
     found=$(grep -lE "^func ${prefix}[A-Za-z0-9_]*\(t \*testing\.T\)" "$pkg"/*_test.go 2> /dev/null | head -n 1)
     [[ -n $found ]] || {
@@ -328,8 +352,8 @@ sync_check() {
     # A declared input that names no tracked path would narrow the entry to nothing (ASD-V0-050).
     read -ra decl <<< "$inputs"
     for found in ${decl[@]+"${decl[@]}"}; do
-      case $found in @go | @root | @own) continue ;; @*) ;; *) [[ -n $(git ls-files -- "$found" 2> /dev/null | head -n 1) ]] && continue ;; esac
-      printf 'batch-precheck: drift test %s %s declares input %s, which is not @go, @root or a tracked path\n' "$pkg" "$prefix" "$found" >&2
+      case $found in @go | @root | @own | @prebind) continue ;; @*) ;; *) [[ -n $(git ls-files -- "$found" 2> /dev/null | head -n 1) ]] && continue ;; esac
+      printf 'batch-precheck: drift test %s %s declares input %s, which is not @go, @root, @own, @prebind or a tracked path\n' "$pkg" "$prefix" "$found" >&2
       bad=1
     done
   done
@@ -359,6 +383,11 @@ drift_on=() cat_skip='' sb_skip='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
+# ASD-V0-912 (V1-3804): the selection only decides Go drift tests and the Go catalog check, so a
+# frontier detail of a language no Go test is selected through (its `LANG:` prefix) cannot change
+# it; every plan of this checkout carries dozens of TypeScript ones. Go and shell details still
+# need FRONTIER_OK, and any other prefix runs everything.
+FRONTIER_OTHER_LANGS='["cfamily","dotnet","python","ruby","swift","typescript"]'
 
 # select_plan reads the batch diff and the affected plan into sel_changed, sel_go and sel_planned
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
@@ -396,7 +425,7 @@ select_plan() {
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }
-  reasons=$(jq -r --argjson ok "$FRONTIER_OK" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or ([.detail] - $ok | length) > 0) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
+  reasons=$(jq -r --argjson ok "$FRONTIER_OK" --argjson other "$FRONTIER_OTHER_LANGS" '[.plan.unknown[] | select(.reason != "LANGUAGE_FRONTIER" or (([.detail] - $ok | length) > 0 and ([(.detail | tostring | split(":")[0])] - $other | length) > 0)) | "\(.reason) \(.detail)"] | unique | .[]' <<< "$plan") ||
     { sel_why='the plan unknowns are unreadable'; return 0; }
   # ASD-V0-893 (V1-3260): a count, the first unknown and a retained file of all of them, never the
   # whole list on one line.
@@ -474,6 +503,94 @@ lst_report() {
   fi
 }
 
+# decl_inputs INPUTS sets decl to the declared input tokens of an entry, without its @own and
+# @prebind markers, which name how it runs, not what it reads.
+decl_inputs() {
+  local s=" $1 "
+  s=${s// @own / }
+  s=${s// @prebind / }
+  read -ra decl <<< "$s"
+}
+
+# ICL-V0-020 (V1-1629): an @prebind entry reads Go source and fixtures, never the change evidence a
+# bind or seal commits, so the closeout's first precheck (BATCH_PRECHECK_SKIP_DRIFT=1) runs it before
+# the bind, where a failure stops the closeout before any prepare, bind or seal work.
+is_prebind() { local pkg prefix inputs; read -r pkg prefix inputs <<< "${DRIFT_TESTS[$1]}"; [[ " $inputs " == *' @prebind '* ]]; }
+prebind_rec() { git rev-parse --path-format=absolute --git-path batch-precheck-prebind; }
+# The salt binds a pre-bind pass to the go command and the Go, cgo and Corvint environment it ran
+# under, as run_one's ledger salt does.
+prebind_salt() {
+  local go_bin
+  go_bin=$(command -v go 2> /dev/null) || go_bin=
+  { printf 'go %s\n' "$go_bin"; [[ -n $go_bin ]] && git hash-object --no-filters "$go_bin"
+    env | grep -E '^(GO[A-Z0-9_]*|CGO_[A-Z0-9_]*|CORVINT_[A-Z0-9_]*)=' | sort; } | git hash-object --stdin
+}
+# The paths a bind or seal commits: the bound CEM, a sealed CEM named by its commit, and the
+# deferral records.
+EVIDENCE_PATH_RE='^(\.corvint/change\.cem\.json|\.corvint/changes/[0-9a-f]{40}\.cem\.json|\.corvint/deferred-intents/.+)$'
+# Unknowns that cannot reach a Go drift test: the repository frontier and TypeScript runtime reach.
+CARRY_UNKNOWN_OK='startswith("typescript:")'
+
+# ICL-V0-021: prebind_carry sets carried[i]=1 for each @prebind entry whose pass the last pre-bind
+# precheck recorded, when that pass still binds HEAD: a pristine tree, the record's head an ancestor
+# of HEAD, every path changed since it change evidence, the same salt and entry, and an affected
+# plan of those paths that selects no package of the entry and has no unknown but the frontier.
+# Any other case carries nothing and prints why, so the entries run again; a carry is never silent.
+carried=() carry_from=''
+prebind_carry() {
+  local rec c paths bad plan reasons module planned i k=0 pkg prefix inputs args=() p
+  rec=$(prebind_rec) || return 0
+  [[ -f $rec ]] || return 0
+  no_carry() { printf 'batch-precheck: no pre-bind carry: %s; the pre-bind drift entries run again (ICL-V0-021)\n' "$1"; }
+  [[ $(sed -n 1p "$rec") == corvint-batch-precheck-prebind/1 ]] || { no_carry "$rec is not a corvint-batch-precheck-prebind/1 record"; return 0; }
+  c=$(sed -n '2s/^head \([0-9a-f]\{40\}\)$/\1/p' "$rec")
+  [[ -n $c ]] && git cat-file -e "$c^{commit}" 2> /dev/null || { no_carry 'the record names no commit'; return 0; }
+  ((pristine_before)) || { no_carry 'the checkout has uncommitted, untracked or ignored package-input files'; return 0; }
+  git merge-base --is-ancestor "$c" HEAD 2> /dev/null || { no_carry "the recorded head ${c:0:12} is not an ancestor of HEAD"; return 0; }
+  [[ $(sed -n '3s/^salt //p' "$rec") == "$(prebind_salt)" ]] || { no_carry 'the go command or the Go, cgo or Corvint environment changed'; return 0; }
+  paths=$(git -c core.quotePath=true diff --name-only --no-renames "$c" HEAD --) || { no_carry "git diff against ${c:0:12} failed"; return 0; }
+  bad=$(grep -vE "$EVIDENCE_PATH_RE" <<< "$paths" | sed '/^$/d' | head -n 1)
+  [[ -z $bad ]] || { no_carry "${c:0:12}..HEAD changes $bad, which is not change evidence"; return 0; }
+  planned=''
+  if [[ -n $paths ]]; then
+    [[ -n $planner ]] || { no_carry 'BATCH_PRECHECK_PLANNER is empty'; return 0; }
+    command -v jq > /dev/null 2>&1 || { no_carry 'jq is not installed'; return 0; }
+    module=$(awk '$1 == "module" { print $2; exit }' go.mod 2> /dev/null)
+    [[ $module == \"*\" || $module == \`*\` ]] && module=${module:1:${#module}-2}
+    [[ -n $module && $module != *[\"\`\\[:space:]]* ]] || { no_carry 'go.mod names no module that can be matched'; return 0; }
+    while IFS= read -r p; do [[ -n $p ]] && args+=(--path "$p"); done <<< "$paths"
+    plan=$("$planner" affected ${args[@]+"${args[@]}"} --format json 2> "$dir/carry-planner.err" < /dev/null) ||
+      { no_carry "$planner affected --path exited $? ($(head -c 200 "$dir/carry-planner.err" | tr '\n' ' '))"; return 0; }
+    jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
+      { no_carry 'the plan of the evidence paths is not a runnable affected-plan/1'; return 0; }
+    reasons=$(jq -r --argjson ok "$FRONTIER_OK" "[.plan.unknown[] | select(.reason != \"LANGUAGE_FRONTIER\" or ((([.detail] - \$ok | length) > 0) and ((.detail | tostring | $CARRY_UNKNOWN_OK) | not))) | \"\(.reason) \(.detail)\"] | unique | .[0] // empty" <<< "$plan") ||
+      { no_carry 'the plan unknowns are unreadable'; return 0; }
+    [[ -z $reasons ]] || { no_carry "the plan of the evidence paths has the unknown $(cut -c 1-160 <<< "$reasons")"; return 0; }
+    planned=$(jq -r --arg m "go:$module" '.plan.selected[] | if type == "object" and (.unitId | type) == "string" then .unitId else "unmapped" end | select(startswith("go:") or . == "unmapped") | if . == $m then "." elif . == "unmapped" then . else "./" + ltrimstr($m + "/") end' <<< "$plan") ||
+      { no_carry 'the plan selection is unreadable'; return 0; }
+    ! grep -qx unmapped <<< "$planned" || { no_carry 'the plan selection has an entry without a string unitId'; return 0; }
+  fi
+  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" || continue
+    grep -qxF -- "entry ${DRIFT_TESTS[i]}" "$rec" || continue
+    read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    if grep -qxF -- "$pkg" <<< "$planned"; then
+      printf 'batch-precheck:   runs again %s %s (the plan of the evidence paths selects %s)\n' "$pkg" "$prefix" "$pkg"
+      continue
+    fi
+    carried[i]=1
+    k=$((k + 1))
+  done
+  ((k)) || return 0
+  carry_from=$c
+  printf 'batch-precheck: carried %d pre-bind drift pass(es) from %s: %s..HEAD changes only change evidence (%d paths), and their plan selects no carried package (ICL-V0-021)\n' \
+    "$k" "${c:0:12}" "${c:0:12}" "$(grep -c . <<< "$paths")"
+  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
+    [[ ${carried[i]:-0} == 1 ]] && printf 'batch-precheck:   carried %s\n' "${DRIFT_TESTS[i]}"
+  done
+  return 0
+}
+
 # select_report decides drift_on and cat_skip from the selection and prints the outcome.
 select_report() {
   local i n=${#DRIFT_TESTS[@]} k=0 pkg prefix inputs decl=() skipped=() pkgs
@@ -483,9 +600,9 @@ select_report() {
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
     if ((!sel_on && sel_docs)) && [[ " $inputs " == *' @go '* ]]; then
       # A declared input that changed still runs the entry, as under the selection.
-      read -ra decl <<< "${inputs//@own/}"
+      decl_inputs "$inputs"
       decl=("${decl[@]/@go/}")
-      read -ra decl <<< "${decl[*]}"
+      read -ra decl <<< "${decl[*]-}"
       if ! ((${#decl[@]})) || ! wanted "" "${decl[@]}"; then
         drift_on[i]=0
         skipped+=("$pkg $prefix")
@@ -493,7 +610,7 @@ select_report() {
       fi
     fi
     ((sel_on)) || continue
-    read -ra decl <<< "${inputs//@own/}"
+    decl_inputs "$inputs"
     wanted "$pkg" ${decl[@]+"${decl[@]}"} && continue
     drift_on[i]=0
     skipped+=("$pkg $prefix ($why)")
@@ -517,6 +634,26 @@ select_report() {
     printf 'batch-precheck: capability-catalog-check skipped: %s\n' "$cat_skip"
   fi
   select_baseline
+}
+
+# lane_own_skip leaves out, under LANE=1, each @own entry no COMPANION_INPUTS path reaches
+# (ASD-V0-825, V1-4069); with no readable diff every entry stays.
+lane_own_skip() {
+  local i n=${#DRIFT_TESTS[@]} pkg prefix inputs
+  [[ ${LANE:-} == 1 ]] || return 0
+  if ((!sel_diff)); then
+    printf 'batch-precheck: lane closeout runs the @own companion builds (%s)\n' "$sel_why"
+    return 0
+  fi
+  for ((i = 0; i < n; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] || continue
+    read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    [[ " $inputs " == *" @own "* ]] || continue
+    wanted "" "${COMPANION_INPUTS[@]}" && continue
+    drift_on[i]=0
+    lane_skipped=1
+    printf 'batch-precheck:   skipped %s %s (lane closeout: no companion input changed since %s; the batch precheck runs it, ASD-V0-825)\n' "$pkg" "$prefix" "$sel_sha"
+  done
 }
 
 # select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
@@ -564,9 +701,12 @@ drift_step() {
 # doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
 # (the target line may carry a `## help` comment, V1-3734)
 # when the doc-gates recipe is exactly its two known lines, each optionally prefixed `$(HEAVY_ADMIT) `
-# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930) (`$(MAKE) --no-print-directory --keep-going
+# (the second as `$(HEAVY_ADMIT) env `, ASD-V0-930), the first also by `script/doc-gates-summary.sh `
+# (ASD-V0-782) (`$(MAKE) --no-print-directory --keep-going
 # $(DOC_GATE_TARGETS)` (DCW-V0-813) and that go run); anything else prints nothing, so `make doc-gates` stays one
-# step (V1-3232: as one step its targets ran one after another).
+# step (V1-3232: as one step its targets ran one after another). ASD-V0-911 (V1-3789): a doc-gates
+# recipe that exists but matches neither form prints one `drift` line, so the caller names this
+# function instead of silently running the gates serially.
 doc_gate_expansion() {
   awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; next }
     /^doc-gates:[[:space:]]*(##.*)?$/ { on = 1; next }
@@ -574,10 +714,13 @@ doc_gate_expansion() {
     on { on = 0 }
     END {
       # ASD-V0-930: either line may carry the host-queue admission prefix.
+      # ASD-V0-782: the first may also run through script/doc-gates-summary.sh.
+      sub(/^\t@script\/doc-gates-summary\.sh /, "\t@", recipe[1])
       for (i = 1; i <= n; i++) sub(/^\t@\$\(HEAVY_ADMIT\) (env )?/, "\t@", recipe[i])
-      if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") exit
+      if (n == 0) exit
+      if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") { print "drift"; exit }
       m = split(targets, t, /[[:space:]]+/)
-      for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) exit
+      for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) { print "drift"; exit }
       for (i = 1; i <= m; i++) if (t[i] != "") printf "make\t%s\n", t[i]
       print "gorun\t./conformance/use-cases-v0"
     }' Makefile 2> /dev/null
@@ -585,11 +728,15 @@ doc_gate_expansion() {
 
 # Steps as "name<TAB>command", longest first; each command runs under bash -c from the root.
 steps() {
-  local kind value t s dir args line pkg prefix inputs pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0 own=() expanded go_wrap=
+  local kind value t s dir args line pkg prefix inputs pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0 own=() expanded go_wrap='' held=0 kc=0 skip=0 label
+  [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]] && skip=1
   # Like BATCH_PRECHECK_HEAVY, the wrapper is one executable path quoted as one word (ASD-V0-941).
   [[ -z $go_wrapper ]] || go_wrap="$(printf '%q' "$go_wrapper") "
   for ((i = 0; i < n; i++)); do
     [[ ${drift_on[i]:-1} == 1 ]] || continue
+    # Before the bind only the @prebind entries run (ICL-V0-020); a carried pass is not rerun (ICL-V0-021).
+    if ((skip)) && ! is_prebind "$i"; then held=$((held + 1)); continue; fi
+    if [[ ${carried[i]:-0} == 1 ]]; then kc=$((kc + 1)); continue; fi
     k=$((k + 1))
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
     # An `@own` entry (the slow companion-release builds) runs as its own step beside the union, so
@@ -598,15 +745,18 @@ steps() {
     contains "$pkg" "${pkgs[@]+"${pkgs[@]}"}" || pkgs+=("$pkg")
     re+="${re:+|}$prefix"
   done
-  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
-    k=0 pkgs=() own=()
-    printf 'batch-drift (skipped before the bind)\tprintf "%%s\\n" %q\n' "batch-drift: BATCH_PRECHECK_SKIP_DRIFT=1; the precheck of the sealed head runs it (ASD-V0-837)"
+  if ((skip && held)); then
+    printf 'batch-drift (skipped before the bind)\tprintf "%%s\\n" %q\n' "batch-drift: BATCH_PRECHECK_SKIP_DRIFT=1 holds $held drift tests the bind can reach; the precheck of the sealed head runs them (ASD-V0-837, ICL-V0-020)"
   fi
-  local label="${#pkgs[@]} packages"
+  if ((kc)); then
+    printf 'batch-drift (%d pre-bind passes carried from %s)\tprintf "%%s\\n" %q\n' "$kc" "${carry_from:0:12}" "batch-drift: $kc pre-bind drift passes carried from ${carry_from:0:12}: only change evidence changed since, and its plan selects none of their packages (ICL-V0-021)"
+  fi
+  label="${#pkgs[@]} packages"
   ((k == n)) || label+=", $k of $n tests"
-  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
-    :
-  elif ((k == 0)); then
+  if ((skip)); then
+    # The pre-bind union and the @own steps of @prebind entries; nothing else runs before the bind.
+    ((${#pkgs[@]})) && drift_step "batch-drift (pre-bind, $label)" "$re" "${pkgs[@]}"
+  elif ((k == 0 && kc == 0)); then
     # Every entry was skipped under the selection (ASD-V0-050); no go test runs.
     printf 'batch-drift (0 of %d tests)\tprintf "%%s\\n" %q\n' "$n" "batch-drift: no drift test is reachable from the batch diff; every one is skipped"
   elif ((${#pkgs[@]})); then
@@ -620,6 +770,8 @@ steps() {
   for t in "${EXTRA_TARGETS[@]}"; do
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
       printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "skipped: $cat_skip"
+    elif [[ $t == host-adapter-node-test ]] && ! command -v "$node_tool" > /dev/null 2>&1; then
+      printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "NOT_AVAILABLE: $node_tool is not on PATH, so the node half of host-adapter-test did not run; install Node.js to run it"
     else
       printf 'make %s\t%senv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$go_wrap" "$gocache" "$t"
     fi
@@ -632,6 +784,10 @@ steps() {
   fi
   while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
   expanded=$(doc_gate_expansion)
+  if [[ $expanded == drift ]]; then
+    expanded=
+    printf '%s\n' "batch-precheck: the Makefile doc-gates recipe no longer matches doc_gate_expansion in script/batch-precheck.sh (expected \`@\$(MAKE) --no-print-directory --keep-going \$(DOC_GATE_TARGETS)\` then \`@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\`); make doc-gates runs as one serial step until both are updated in one commit (ASD-V0-911)" >&2
+  fi
   while IFS=$'\t' read -r kind value; do
     case $kind in
       make)
@@ -653,6 +809,7 @@ steps() {
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'test-script-refs\t%q\n' "${0%/*}/check-test-script-refs.sh" # ASD-V0-641, V1-3745
   printf 'dr-numbers\t%q\n' "${0%/*}/check-dr-numbers.sh" # ASD-V0-642, V1-3764
+  printf 'merge-conflict-comments (%s)\t%q --conflict-comments %q\n' "$(git rev-parse --short HEAD)" "$0" "$base" # ASD-V0-784, V1-3504
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
   # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
@@ -667,16 +824,19 @@ verify_receipt() {
   receipt=$(receipt_path) || return 2
   want=$(git rev-parse --verify --quiet "${1:-HEAD}^{commit}") || { printf 'batch-precheck: %s is not a commit\n' "${1:-HEAD}" >&2; return 2; }
   [[ -f $receipt ]] || { printf 'batch-precheck: refused: no precheck receipt; run make batch-precheck at %s first\n' "$want" >&2; return 1; }
-  # The whole receipt must be well formed: five lines in order, every step passed.
+  # The whole receipt must be well formed: five lines in order, then any `not-run TARGET REASON`
+  # lines (ASD-V0-973); every step passed or is one of those.
   awk 'NR == 1 && $0 != "corvint-batch-precheck-receipt/0" { bad = 1 }
     NR == 2 && !($1 == "head" && $2 ~ /^[0-9a-f]+$/ && NF == 2) { bad = 1 }
     NR == 3 && !($1 == "steps" && $2 ~ /^[1-9][0-9]*$/ && NF == 2) { bad = 1 } NR == 3 { steps = $2 }
-    NR == 4 && !($1 == "passed" && $2 == steps && NF == 2) { bad = 1 }
+    NR == 4 && !($1 == "passed" && $2 ~ /^[0-9]+$/ && NF == 2) { bad = 1 } NR == 4 { passed = $2 }
     NR == 5 && !($1 == "finished" && NF == 2) { bad = 1 }
-    END { exit (bad || NR != 5) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
+    NR > 5 && !($1 == "not-run" && $2 ~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/ && NF >= 3) { bad = 1 }
+    END { exit (bad || NR < 5 || passed + NR - 5 != steps) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
   head=$(awk '$1 == "head" { print $2 }' "$receipt")
   [[ $head == "$want" ]] || { printf 'batch-precheck: refused: the precheck receipt names %s, not %s; rerun make batch-precheck\n' "${head:-nothing}" "$want" >&2; return 1; }
   printf 'batch-precheck: receipt matches %s (%s)\n' "$want" "$(awk '$1 == "finished" { print $2 }' "$receipt")"
+  awk 'NR > 5 { $1 = ""; sub(/^ /, ""); print "batch-precheck: receipt records NOT_RUN " $0 }' "$receipt"
 }
 
 tracked_clean() { [[ -z $(git status --porcelain --untracked-files=no 2> /dev/null) ]]; }
@@ -713,8 +873,30 @@ ignored_inputs() {
 # generator may read.
 tree_clean() { local out; out=$(git status --porcelain 2> /dev/null) && [[ -z $out && -z $(ignored_inputs) ]]; }
 
+# conflict_comments [BASE] (ASD-V0-784, V1-3504): a commit in BASE..HEAD whose message keeps the
+# `# Conflicts:` block Git appends to a conflicted merge (a `git commit --no-edit` or `git merge
+# --no-edit` without strip cleanup) is refused, naming it and the reword. An empty BASE means
+# origin/main, and a checkout where that does not resolve skips, saying so.
+conflict_comments() {
+  local base=${1:-} bad
+  if [[ -z $base ]]; then
+    if ! git rev-parse --verify --quiet 'origin/main^{commit}' > /dev/null; then
+      printf 'merge-conflict-comments: skipped: no batch base was given and origin/main does not resolve here\n'
+      return 0
+    fi
+    base=origin/main
+  fi
+  git rev-parse --verify --quiet "$base^{commit}" > /dev/null || { printf 'merge-conflict-comments: base %s does not resolve\n' "$base" >&2; return 2; }
+  bad=$(git log --format='%x1e%H%n%B' "$base..HEAD" | awk 'BEGIN { RS = "\036" } /(^|\n)# Conflicts:/ { split($0, l, "\n"); print l[1] }') || return 2
+  [[ -z $bad ]] && return 0
+  printf 'merge-conflict-comments: %s keeps a "# Conflicts:" block in its message\n' $bad
+  printf 'merge-conflict-comments: recover: reword each without those lines (git commit --amend --cleanup=strip for HEAD, else git rebase -r with reword); conclude a conflicted merge with git commit --no-edit --cleanup=strip\n'
+  return 1
+}
+
 case ${1:-} in
   --sync-check) sync_check; exit $? ;;
+  --conflict-comments) conflict_comments "${2:-}"; exit $? ;;
   --list) need_gocache; steps | cut -f1; exit 0 ;;
   # ASD-V0-641 (V1-3745): the rows run_one runs directly, by the same test, so a fixture derives its
   # PASS and reuse counts instead of naming a print-only step.
@@ -722,7 +904,7 @@ case ${1:-} in
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
-  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]]\n' >&2; exit 2 ;;
+  *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--list-print-only|--verify-receipt [REV]|--conflict-comments [BASE]]\n' >&2; exit 2 ;;
 esac
 need_gocache
 # ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
@@ -846,6 +1028,8 @@ since_receipt() {
   head=$(git rev-parse HEAD)
   if [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
     printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
+  elif [[ ${LANE:-} != 1 && $(cat "$(receipt_path).lane" 2> /dev/null) == "$named" ]]; then
+    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)\n'
   elif [[ $named == "$head" ]] && tree_clean; then
     printf 'batch-precheck: SKIP receipt already names HEAD %s and the checkout is clean; no step reruns (ASD-V0-943)\n' "$head"
     exit 0
@@ -861,7 +1045,7 @@ since_receipt() {
 since_base=
 [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-/bin/rm -f "$receipt"
+/bin/rm -f "$receipt" "$receipt.lane"
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
@@ -882,6 +1066,11 @@ if [[ -n $step_tmp ]]; then
   (umask 077 && mkdir -p "$step_tmp") && step_tmp=$(cd "$step_tmp" && pwd) ||
     { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
   export TMPDIR=$step_tmp
+fi
+# ASD-V0-781 (V1-4016): an exported GOTMPDIR that does not exist fails every go step, so it is
+# created mode 0700 first.
+if [[ -n ${GOTMPDIR-} && ! -d $GOTMPDIR ]]; then
+  (umask 077 && mkdir -p "$GOTMPDIR") || { printf 'batch-precheck: cannot create GOTMPDIR %s\n' "$GOTMPDIR" >&2; exit 2; }
 fi
 # A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
 # compiler, test and sort spills there fail with no space left on device (ASD-V0-054).
@@ -985,6 +1174,18 @@ fi
 select_plan
 select_report
 lst_report
+lane_own_skip
+# ICL-V0-020/021: a pre-bind run replaces the carry record only when it passes; a later run
+# carries what the record still binds.
+prebind_ran=()
+if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+  prebind=$(prebind_rec) && /bin/rm -f "$prebind"
+  for ((i = 0; i < ${#DRIFT_TESTS[@]}; i++)); do
+    [[ ${drift_on[i]:-1} == 1 ]] && is_prebind "$i" && prebind_ran+=("${DRIFT_TESTS[i]}")
+  done
+else
+  prebind_carry
+fi
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for
@@ -1108,14 +1309,19 @@ if [[ -n $base ]]; then
   done
 fi
 
-pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0
-# row NAME RCFILE prints one table row; a step that left no rc file failed. A reused ledger pass
-# prints REUSE and counts as passed.
+pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0 notrun=()
+# row NAME RCFILE [CMD] prints one table row; a step that left no rc file failed. A reused ledger
+# pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_AVAILABLE
+# prints NOT_AVAILABLE and counts as not run (ASD-V0-973).
 row() {
-  local rc secs flag
+  local rc secs flag why=
   read -r rc secs flag < "$2" 2> /dev/null || { rc=1 secs=0 flag=; }
   summed=$((summed + secs))
-  if [[ $rc == 0 && $flag == flaky ]]; then
+  [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && why=$(sed -n '1s/^NOT_AVAILABLE: //p' "${2%.rc}.log" 2> /dev/null)
+  if [[ -n $why ]]; then
+    notrun+=("${1#make } $why")
+    printf 'batch-precheck: | NOT_AVAILABLE | %5ss | %s: %s\n' "$secs" "$1" "$why"
+  elif [[ $rc == 0 && $flag == flaky ]]; then
     pass=$((pass + 1))
     printf 'batch-precheck: | FLAKY | %5ss | %s\n' "$secs" "$1"
   elif [[ $rc == 0 && $flag == reuse ]]; then
@@ -1138,12 +1344,12 @@ row() {
 printf 'batch-precheck: | result | seconds | step\n'
 [[ -f $dir/repin.rc ]] && row 'repin (mechanical)' "$dir/repin.rc"
 [[ -f $dir/sealed.rc ]] && row 'sealed-cem-names' "$dir/sealed.rc"
-for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc"; done
-printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" "$fail" $((SECONDS - start)) "$summed"
-((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]}")"
+for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc" "$(sed -n "${i}p" "$dir/steps" | cut -f2-)"; done
+printf 'batch-precheck: %d passed, %d failed%s in %ss wall, %ss summed\n' "$pass" "$fail" "$( ((${#notrun[@]})) && printf ', %d not run' ${#notrun[@]})" $((SECONDS - start)) "$summed"
+((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]-}")"
 ((reused)) && printf 'batch-precheck: %d of %d steps reused a ledger pass on identical inputs (CORVINT_GATE_LEDGER=off reruns them)\n' "$reused" "$n"
 if ((warn)); then
-  printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]}")"
+  printf 'batch-precheck: WARNING %d base-present failure(s) at %s, not counted: %s\n' "$warn" "$base" "$(IFS=,; printf '%s' "${warned[*]-}")"
 fi
 if ((fail)); then
   if ((repin_rc)); then
@@ -1162,18 +1368,31 @@ if ((fail)); then
     [[ -z $again ]] || printf 'batch-precheck: failing tests: %s\n' "$again"
     tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
   done
-  printf 'batch-precheck: failed: %s\n' "$(IFS=,; printf '%s' "${failed[*]}")"
+  printf 'batch-precheck: failed: %s\n' "$(IFS=,; printf '%s' "${failed[*]-}")"
   exit 1
 fi
 if ((warn)); then
   printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
 elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
-  printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps\n'
+  printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps the bind can reach\n'
+  # ICL-V0-021: the passed pre-bind entries, bound to this head, for the precheck of the sealed head.
+  if ((${#prebind_ran[@]})) && ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]] && prebind=$(prebind_rec); then
+    if { printf 'corvint-batch-precheck-prebind/1\nhead %s\nsalt %s\n' "$head_before" "$(prebind_salt)"
+      printf 'entry %s\n' "${prebind_ran[@]}"; } > "$prebind.tmp" && /bin/mv -f "$prebind.tmp" "$prebind"; then
+      printf 'batch-precheck: %d pre-bind drift passes for %s recorded in %s\n' "${#prebind_ran[@]}" "$head_before" "$prebind"
+    else
+      /bin/rm -f "$prebind.tmp"
+      printf 'batch-precheck: could not record the pre-bind passes in %s; the precheck of the sealed head reruns them\n' "$prebind"
+    fi
+  fi
 elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]]; then
   # Written beside the receipt and renamed over it, so a failed write leaves no receipt.
-  if printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
-    "$head_before" "$((pass + fail))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
+  if { printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
+    "$head_before" "$((pass + fail + ${#notrun[@]}))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    for x in ${notrun[@]+"${notrun[@]}"}; do printf 'not-run %s\n' "$x"; done; } > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
+    # A lane closeout receipt that skipped @own entries is marked so no batch narrows from it.
+    ((!lane_skipped)) || printf '%s\n' "$head_before" > "$receipt.lane" || /bin/rm -f "$receipt"
   else
     /bin/rm -f "$receipt.tmp"
     printf 'batch-precheck: could not write the receipt %s\n' "$receipt" >&2

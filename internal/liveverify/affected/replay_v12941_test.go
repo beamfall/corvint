@@ -50,11 +50,11 @@ var batch1028aDeclared = []string{
 
 // batch1028aUnowned is the rest of that set, which must stay UNKNOWN: CI
 // driver inputs, which no declaration may cover, and the opencode package's
-// npm manifest and README, which no declaration covers.
+// npm manifest, which no declaration covers. Its README is declared
+// documentation since AFP-V0-830 and leaves the unowned set.
 var batch1028aUnowned = []string{
 	".github/forward-rows/narrow.jq",
 	".github/workflows/ci.yml",
-	"integrations/opencode/README.md",
 	"integrations/opencode/package.json",
 }
 

@@ -297,10 +297,6 @@ docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/main_test.go
 docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/main_test.go:554-636
 docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/main_test.go:67-79
 docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/main_test.go:78
-docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/qualification_test.go:19
-docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/qualification_test.go:24
-docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/qualification_test.go:27
-docs/specs/go-live-test-provider-v0.md	cmd/corvint-go-test-provider/qualification_test.go:38
 docs/specs/go-live-test-provider-v0.md	conformance/go-live-test-v0/event.go:571
 docs/specs/go-live-test-provider-v0.md	conformance/go-live-test-v0/event.go:571
 docs/specs/go-live-test-provider-v0.md	conformance/go-live-test-v0/event.go:631

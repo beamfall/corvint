@@ -103,6 +103,7 @@ func containsReaderCode(codes []string, want string) bool {
 // A released child changes the marker before result handling. Physical
 // containment is complete, but the CLI must still refuse an unsafe restart.
 func TestCALV0053_DispatchReaderCLIClearFailure(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, bound := range [][]string{{"--once"}, {"--ticks", "1"}} {
 		t.Run(strings.Join(bound, "-"), func(t *testing.T) {
 			root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))

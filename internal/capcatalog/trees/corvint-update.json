@@ -1,0 +1,102 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-update",
+  "helpJson": "corvint-update help --json",
+  "source": "cmd/corvint-update usageText",
+  "dispatchSources": [
+    "cmd/corvint-update"
+  ],
+  "globalFlags": [
+    "--version"
+  ],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "apply"
+      ],
+      "command": "corvint-update apply",
+      "summary": "Install the newer official release with an atomic switch and keep the previous binaries for rollback",
+      "usage": [
+        "corvint-update apply --component core|tasks [--allow-network] [--github-token-env NAME] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]"
+      ],
+      "flags": [
+        "--allow-network",
+        "--bin-dir",
+        "--component",
+        "--drain-timeout",
+        "--github-token-env",
+        "--hook-attempts",
+        "--hook-timeout",
+        "--post-switch",
+        "--refresh-index",
+        "--restart-service",
+        "--start-timeout",
+        "--state-dir"
+      ],
+      "required": [
+        "--component core|tasks"
+      ],
+      "example": "corvint-update apply --component tasks --allow-network",
+      "help": "corvint-update apply --help"
+    },
+    {
+      "path": [
+        "check"
+      ],
+      "command": "corvint-update check",
+      "summary": "Report whether a newer official release of the component exists; no request leaves the host without --allow-network",
+      "usage": [
+        "corvint-update check --component core|tasks [--allow-network] [--github-token-env NAME] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]"
+      ],
+      "flags": [
+        "--allow-network",
+        "--bin-dir",
+        "--component",
+        "--drain-timeout",
+        "--github-token-env",
+        "--hook-attempts",
+        "--hook-timeout",
+        "--post-switch",
+        "--refresh-index",
+        "--restart-service",
+        "--start-timeout",
+        "--state-dir"
+      ],
+      "required": [
+        "--component core|tasks"
+      ],
+      "example": "corvint-update check --component core --allow-network",
+      "help": "corvint-update check --help"
+    },
+    {
+      "path": [
+        "rollback"
+      ],
+      "command": "corvint-update rollback",
+      "summary": "Restore the previous binaries the last apply kept",
+      "usage": [
+        "corvint-update rollback --component core|tasks [--allow-network] [--github-token-env NAME] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]"
+      ],
+      "flags": [
+        "--allow-network",
+        "--bin-dir",
+        "--component",
+        "--drain-timeout",
+        "--github-token-env",
+        "--hook-attempts",
+        "--hook-timeout",
+        "--post-switch",
+        "--refresh-index",
+        "--restart-service",
+        "--start-timeout",
+        "--state-dir"
+      ],
+      "required": [
+        "--component core|tasks"
+      ],
+      "example": "corvint-update rollback --component core",
+      "help": "corvint-update rollback --help"
+    }
+  ]
+}

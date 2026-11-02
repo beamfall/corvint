@@ -12,6 +12,17 @@ repo=$(cd "$(dirname "$0")/.." && pwd)
 # base-independence fields of a declared output change for the PASS line.
 check_out=$(mktemp "${TMPDIR:-/tmp}/corvint-dogfood-seal.XXXXXX") || exit 2
 trap 'rm -f "$check_out"' EXIT
+# ASD-V0-1024 (V1-3668): review before seal. DOGFOOD_REVIEW names the saved review of the
+# bind-ready head; the seal refuses before any check when HEAD changed more than .corvint/ since it.
+if [[ -n ${DOGFOOD_REVIEW-} ]]; then
+  if ! (cd "$repo" && "$repo/script/review-head-check.sh" "$DOGFOOD_REVIEW"); then
+    printf 'dogfood-seal: REFUSE review-not-current DOGFOOD_REVIEW=%s\n' "$DOGFOOD_REVIEW" >&2
+    printf '  fix: review HEAD^ (the bind-ready head) through script/codex-review.sh, save the output, rerun with DOGFOOD_REVIEW set to it\n' >&2
+    exit 2
+  fi
+else
+  printf 'dogfood-seal: NOTE review-before-seal NOT_OBSERVED (set DOGFOOD_REVIEW to the saved script/codex-review.sh output for the bind-ready head)\n' >&2
+fi
 # DCW-V0-347: a passing check of this BASE, HEAD and inputs is replayed from its
 # receipt instead of rerunning the verifiers; any other state reruns them.
 DOGFOOD_CHECK_REUSE=1 "$repo/script/dogfood-check.sh" "$base_arg" | tee "$check_out"

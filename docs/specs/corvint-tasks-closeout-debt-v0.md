@@ -68,7 +68,7 @@ closeout step is missing.
 
 ## Requirements
 
-- `TCD-V0-001`: `corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a read
+- `TCD-V0-001`: `corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N]` is a read
   verb listed in `ReadVerbs` with a help entry. It takes no positional argument.
   - `--ref` defaults to `refs/remotes/origin/<intentBranch>` when that ref resolves to a commit, and to
     `refs/heads/<intentBranch>` when it does not resolve (a Git failure is refused, `TCD-V0-002`).
@@ -288,6 +288,18 @@ closeout step is missing.
   gate, state, class, exit, failing line and output path. A `PASSED` result has null `tail` and
   `failingLine` and no warning. A reuse, a CI-run record, a replay or a refusal reports
   `gateResult: null`, because no gate ran in that call.
+- `TCD-V0-800`: (experimental under the standing lane auto-accept; V1-3940) The `TCD-V0-165`
+  `failingLine` choice, and the same choice in `lastFailedGate` (`CAL-V0-322`), MUST skip a make
+  driver's own wrapper lines (`make: *** [...] Error N`, `make[N]: *** ...`, `make[N]: Entering
+  directory` and `Leaving directory`, `gmake` alike) when it picks the last line that names an
+  error; they name the target, never the failing step. When every such line is a wrapper line the
+  fallback stays the last tail line.
+- `TCD-V0-801`: (experimental under the standing lane auto-accept; V1-3940) A policy gate MAY carry
+  an optional `failurePattern`: an RE2 expression of 1..256 bytes, refused `MALFORMED` at policy
+  decode when empty, longer or not RE2. For a gate that has one, `failingLine` MUST be the last tail
+  line that matches it and is not withheld; when none matches, the `TCD-V0-800` choice applies. The
+  member is part of the gate's canonical entry, so it is covered by the gate's `definitionSha256`;
+  a policy without it decodes and hashes as before. An older binary refuses a policy that sets it.
 - `TCD-V0-166`: Every executed command gate result retains its full captured output, within the
   16 MiB gate output bound, as the evidence blob `evidence/<sha256>` that the result's `output`
   evidence entry names, whatever the gate definition's `evidence` labels say. `evidence: []` does
@@ -511,6 +523,62 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-680`: (experimental under the standing lane auto-accept (2026-11-01); V1-3716; refines
+  TCD-V0-190) the `receipt audit` item also adds `completionsByDay`, the VERIFIED and MANUAL
+  completions of COMPLETED tickets grouped by the UTC date of `completion.recordedAt`, as
+  `{day, verified, manual}` rows newest first, at most 31 rows and only days with a completion; and
+  `completionHealth` `{windowDays, windowEnd, verified, manual, state}` over the 7 days ending on the
+  newest completion day. `state` is `NO_COMPLETIONS` (and `windowEnd` null) with none, `NO_VERIFIED`
+  when the window holds manual completions and no verified one, and `OK` otherwise. `NO_VERIFIED`
+  adds one warning naming the counts, the window end and the gated-close route. The window is
+  anchored on the store, never on the clock, so one snapshot always reads the same. Neither member
+  nor the warning changes the outcome, `completions` or any other member. Design: on 2026-11-01 an
+  audit found 356 manual and 0 verified completions since the 10-30 barrier, which no read had
+  flagged. Non-goals: ticket age (it needs a recorded `statusChangedAt`) and receipt operation
+  names, both of which need a revision of a closed persisted profile and wait on the owner.
+  Failure modes: a completion whose `recordedAt` carries no date is not counted by day. Evidence:
+  `TestTCDV0680_ReceiptAuditReportsCompletionHealth`, `TestTCDV0680_CompletionHealthWindow`.
+  Rollback: drop `receipt_health.go` and its two lines in `receiptAudit`.
+- `TCD-V0-1101`: (experimental under the standing lane auto-accept (2026-11-01); V1-4266; amends
+  TCD-V0-185) the gated close derives each `CLOSE` row's claim scope before any write, from the
+  rename-free diff of CANDIDATE against BASE, and the claim is always bounded:
+  - an empty diff proves no scope, so the row is `UNRUNNABLE` `MALFORMED` before any write, with a
+    recovery naming `--seal` and `--manual`;
+  - with 1..256 changed paths, the claim is the TCD-V0-185 claim with `--scope-from-diff`,
+    unchanged;
+  - over 256 changed paths, a ticket that declares a PATH scope (QUALIFIED `touchPaths` or PATH
+    resources) claims with that DECLARED scope and no scope flag. A changed path the declaration
+    does not cover makes the row `UNRUNNABLE` `OUT_OF_SCOPE` before any write, with a recovery
+    naming `--seal` and `--manual`;
+  - over 256 changed paths, any other ticket claims with `--scope KEYS`, where KEYS is the diff
+    collapsed to directory keys. Each round replaces every entry at the deepest path depth by its
+    parent directory key, which ends in `/`, and drops every entry such a key covers. Rounds stop
+    at the first set of at most 256 entries. A top-level file stays an exact key.
+  When no bounded scope exists, because the top-level entries alone exceed 256, the row is
+  `UNRUNNABLE` `LIMIT_EXCEEDED` before any write, with a recovery naming `--seal` and `--manual`. A
+  diff this clone cannot read makes the row `UNRUNNABLE` `PREREQUISITE_UNSATISFIED`, with a recovery
+  naming `git fetch origin` and `--manual`. The gated path never claims `WHOLE_REPOSITORY`, and it never prints the
+  `claim --scope-from-diff` recovery, which batch-close cannot take. The collapsed keys are the
+  attempt's REQUESTED scope, so the claim request, its receipt and the claim result's `scope`
+  record them (ATR-V0-211). Submitting CANDIDATE's tree then passes the scope check, because each
+  changed path lies under a key. Design: PR #48 changed 712 paths, and every ticket of it failed
+  `LIMIT_EXCEEDED` at the claim. Non-goal: a collapsed scope reserves more than the diff, and so
+  serializes against more claims, for the length of the close. Rollback: revert; a diff over 256
+  paths fails the claim `LIMIT_EXCEEDED` again.
+- `TCD-V0-1102`: (experimental under the standing lane auto-accept (2026-11-01); V1-4266; refines
+  TCD-V0-189) each `taskman-batch-close/1` row adds `claimScope`, the scope the TCD-V0-1101 plan
+  derived, or null when the row was not planned. It holds `source` (`DIFF`, `DECLARED` or
+  `COLLAPSED`), `changedPaths` (the diff's path count) and `keys`. `keys` is the collapsed keys
+  for `COLLAPSED`, the declared paths for `DECLARED` and an empty list for `DIFF`, whose paths the
+  claim derives and records itself. `--manual` rows are unchanged.
+- `TCD-V0-1103`: (experimental under the standing lane auto-accept (2026-11-01); V1-4267; amends
+  TCD-V0-180) `ticket batch-delivered` and `ticket batch-close` refuse a batch PR record with an
+  absent or empty `state` as `MALFORMED`. The refusal names the missing `state` field and the full
+  field list the verbs read, as a ready command:
+  `gh pr list --state merged --json number,state,title,body,headRefName,headRefOid,mergeCommit,labels,mergedAt`.
+  A state that is not valid envelope prose is refused the same way. A refusal never reads
+  `message withheld` in place of the state, and a present non-`MERGED` state still refuses
+  `PREREQUISITE_UNSATISFIED` naming it. Rollback: revert.
 - `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
   (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
   is not yet a commit on the protected intent branch, the result adds a warning. The warning names
@@ -637,6 +705,30 @@ closeout step is missing.
   same ticket, so a batch merge does not repeat its lane merge's row; separate merges that each cite
   a ticket, and a merge commit that is the only citer, still list. Non-goal: no GitHub query for the PR's commits. Rollback: revert; the batch verbs read PR
   text only and closeout-debt lists merge commits again.
+- `TCD-V0-740`: (experimental under the standing lane auto-accept (2026-11-01); V1-3829; amends
+  TCD-V0-001 and TCD-V0-003) `ticket closeout-debt --skip N` (default 0, at most 10000000) MUST
+  start the commit scan after the newest N commits of the range (`git log --skip`). The item MUST
+  carry `skip` and `nextSkip`: on a scan cut at `--limit`, `nextSkip` is `skip + commitsScanned`
+  and the truncation warning names `--skip nextSkip`; otherwise it is null. Paging with
+  `--skip nextSkip` until `nextSkip` is null scans the whole range, so a full count needs no limit
+  above 10000. A negative, non-numeric or over-bound `--skip` refuses `MALFORMED`. Each page is
+  its own read: the TCD-V0-731 merge dedupe sees only the page's commits.
+- `TCD-V0-741`: (experimental under the standing lane auto-accept (2026-11-01); V1-3870; amends
+  TCD-V0-005) A cited OPEN ticket's citation by a commit MUST NOT make it a candidate when a line
+  of that commit's message, or a line the commit adds under `docs/build-log/`, names the ticket
+  together with `NOT DELIVERED`, `BLOCKED` or `PARTIAL` in capitals (reason
+  `MARKED_NOT_DELIVERED`), or when the commit changes at least one path and every path it changes
+  is under `docs/build-log/` (reason `BUILD_LOG_ONLY`). A ticket every citation of which is
+  excluded MUST be listed in `excludedCandidates` (`ticketId`, `local`, `reason`, the citing
+  `commits`), with `MARKED_NOT_DELIVERED` winning, and in a human line; a ticket with any other
+  citation or a progress-head row stays a candidate with those rows only. A merge commit has no
+  changed paths here, so only its message markers exclude it. Exclusion MUST apply before the
+  TCD-V0-731 merge dedupe: an excluded citation never makes a merge's citation of the same ticket
+  a repeat, so a build-log-only commit inside a merged lane cannot suppress the merge that
+  delivered the ticket. When the changed-path read fails
+  the command warns `build-log exclusion NOT_OBSERVED` and only message markers apply.
+  Non-goals: checking that a delivery claim matches the code, and the same exclusion in
+  `delivery-screen`. Rollback: revert; every citation is a candidate again.
 
 ## Failure modes
 
@@ -819,6 +911,8 @@ closeout step is missing.
 | TCD-V0-162 | V1-2251 | `internal/tasks/cli` (`emitDeliveryScreen`) | `TestTCDV0159_DeliveryScreenVerdicts` (exit 0 all CLEAR, 1 otherwise, 2 refused) | none |
 | TCD-V0-163 | V1-2254 criterion 1 (listing) | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (lanes from `#N`, rows with lane, batch, merge commit, green runs at merge commit and head only; NOT_OBSERVED without runs; open batch `PREREQUISITE_UNSATISFIED`; absent batch `MALFORMED`) | listing a real merged batch: NOT_RUN |
 | TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
+| TCD-V0-800 | V1-3940 criteria 1, 3 | `internal/tasks/obligation` (`FailureTailMatching`, `makeWrapperLine`) | `TestTCDV0800_FailingLineSkipsMakeWrapper` (nested make failure names the FAIL line; wrapper-only log falls back) | a failing live Beamfall core gate: NOT_RUN |
+| TCD-V0-801 | V1-3940 criterion 2 | `internal/tasks/intent` (`GateDefinition.FailurePattern`), `internal/tasks/store` (`GateExecution.FailurePattern`), `internal/tasks/cli` (`gateResultValue`, `failedGateValue`) | `TestTCDV0801_FailurePatternPicksTheLine`; `TestTCDV0801_PolicyGateFailurePattern` (absent, valid, empty, over-long, invalid); `TestTCDV0801_GateRunCarriesTheFailurePattern` | none |
 | TCD-V0-165 | V1-2196 criteria 2, 3 | `internal/tasks/store` (`GateRun`, `GateExecution`), `internal/tasks/obligation` (`FailureTail`), `internal/tasks/cli` (`gateResultValue`) | `TestTCDV0165_GateRunReportsFailingTail` (FAILED exit 2, failing `make` line, four-line tail with the secret line withheld and absent from stdout, warning with path; PASSED null tail and no warning; replay null; receipt audit passes); `TestTCDV0165_FailureTail` (order, bound, blank lines, escapes, last actionable line, secret past the excerpt bound withheld); `TestTCDV0165_FailureTailKeyBlockBeforeTail` (a terminated and an unterminated private-key block whose BEGIN line lies before the 20-line tail emit no key material) | a failing live `focused-docs` run: NOT_RUN |
 | TCD-V0-166 | V1-2196 criterion 1 | `internal/tasks/store` (`runGate`), `internal/tasks/transaction` (`LeaseGateRun` evidence post) | `TestTCDV0165_GateRunReportsFailingTail` (gate declared `evidence: []`; the full output, secret included, is at `output.path`); live store 2026-10-21: FAILED `focused-docs` record `b0248975` names output blob `c04e7d9e` (30377 bytes) ending in the `line-citations-check` failure | none |
 | TCD-V0-167 | V1-2303 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.commitReferences`, `subjectTickets`) | `TestTCDV0167_DeliveryScreenCitedAndTruncated` (a prose mention is CITED; a `Refs:` trailer, a leading ID, a `feat(ID):` scope and a final `(ID, ...)` deliver; fails on the pre-change every-line rule); `TestTCDV0159_DeliveryScreenVerdicts` (a vetoed commit line is CITED) | none |
@@ -845,6 +939,7 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-680 | V1-3716 | `internal/tasks/cli` (`completionDays`, `completionHealth`, `receiptAudit`) | `TestTCDV0680_ReceiptAuditReportsCompletionHealth` (no completion: `NO_COMPLETIONS`, no warning; one `complete-manual`: `NO_VERIFIED` with the warning, one day row, `completions` unchanged); `TestTCDV0680_CompletionHealthWindow` (a verified close 8 days back is outside the window, the seventh day back is inside, the 31-row cap) | none |
 | TCD-V0-806 | V1-3548 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `Report.GateReusePending`), `internal/tasks/cli` (`gate run` warning) | `TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass` (a joint gate fails the lower stacked attempt alone and the report names the upper attempt's PASS, tree and branch as pending; after a fast-forward integration the rerun reuses it without executing, `complete` records kind `VERIFIED` whose evidence names the descendant result in `reusedFrom`, and the receipt audit passes); `TestTCDV0151_DescendantPassCoversAMergedSeal` and `TestTCDV0152_DescendantReuseRefusals` unchanged | none |
 | TCD-V0-807 | V1-3541 | `internal/tasks/cli` (`requiredGatesWarning`, `createTemplateFields`) | `TestTCDV0807_CreateWithoutGatesNamesThePolicyGates` (a required and an optional policy gate: an empty-gates create warns naming both; a create naming the optional gate, a replay and a policy without gates warn nothing) | none |
 | TCD-V0-870 | V1-3496 | `internal/tasks/cli` (`closeoutIndex.prReferences`, `batchHits`) | `TestTCDV0870_DirectPRDeliversItsOwnTickets` (a direct PR's title parenthetical, `- **ID**:` lines and `Delivers` line deliver; a `Follow-up` prose line and a vetoed line only mention) | none |
@@ -858,6 +953,11 @@ closeout step is missing.
 | TCD-V0-967 | V1-3646 | `internal/tasks/cli` (`multiTargetSubmit`, `targetRequestID`, `landedRevision`) | `TestTCDV0967_InterruptedMultiTargetWriteResumes` (NOTE_SET), `TestTCDV0967_InterruptedMultiTargetHoldResumes` (HOLD: interrupted, resumed, converged; single-target retry; changed payload refused) | none |
 | TCD-V0-730 | V1-3713 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.idReferences`, `references`, `prReferences`, `commitReferences`) | `TestTCDV0730_ReferencesVetoPerID`, `TestTCDV0730_PRTitleMidLineDelivers` (mid-line Delivers, ALREADY-DELIVERED and BLOCKED IDs on one line, ID-led line and title scope overridden by a per-ID body veto, commit line-leading rule kept); `TestTCDV0731_BatchDeliveredPR25And38Shapes` | none |
 | TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeoutProposals`, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows` (a lane merge and the batch merge enclosing it as the only citers list once); `TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit` (batch-delivered and closeout-debt proposals over a batch of two lane merges); `TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit` | none |
+| TCD-V0-740 | V1-3829 criteria 1, 2 | `internal/tasks/cli` (`closeoutDebtCommand` `--skip`, `nextSkip`), `internal/tasks/store` (`ScanCommitsFrom`) | `TestTCDV0740_SkipContinuesATruncatedScan` (pages at `--limit 2` list every row of the full scan; refusals) | none |
+| TCD-V0-741 | V1-3870 criteria 1, 2 | `internal/tasks/cli` (`closeoutIndex.markedNotDelivered`, `setExcluded`), `internal/tasks/store` (`CommitChanges`, `CommitChange.BuildLogOnly`) | `TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery` (build-log-only NOT DELIVERED citation, unmarked build-log-only citation, PARTIAL code commit, code commit citation, mixed citers); `TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge` (an excluded build-log-only constituent leaves the delivering merge a candidate) | delivery-screen exclusion not in scope |
+| TCD-V0-1101 | V1-4266 | `internal/tasks/cli` (`gatedBatch.plan`, `planScope`, `collapseScope`, `runGated`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (a 712-path batch merge: an undeclared ticket claims a `COLLAPSED` REQUESTED scope of at most 256 directory keys recorded in the claim receipt and closes `VERIFIED`; a declared ticket the diff exceeds is `UNRUNNABLE` `OUT_OF_SCOPE` naming `--seal` and `--manual`, never claimed); `TestTCDV01101_CollapseScope` (deepest-level rounds, covered entries dropped, top-level overflow refused); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` unchanged | a live batch close of PR #48: NOT_RUN |
+| TCD-V0-1102 | V1-4266 | `internal/tasks/cli` (`gatedRowValue`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (`claimScope` `{source, changedPaths, keys}` on the dry run and the real run); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`DIFF` rows) | none |
+| TCD-V0-1103 | V1-4267 | `internal/tasks/cli` (`parseBatchInput`, `batchPRFields`) | `TestTCDV01103_MissingStateNamesTheField` (batch-delivered and batch-close refuse `MALFORMED` naming `state` and the field list, never `message withheld`; an OPEN state still `PREREQUISITE_UNSATISFIED`) | none |
 
 ## Rollout and rollback
 
@@ -913,6 +1013,10 @@ id under the older binary refuses `REQUEST_ID_CONFLICT`, so use a fresh request 
 
 TCD-V0-184 adds the same member to full `plan preview` entries, with no store, receipt, plan
 selection or `nextAction` change. To roll back, revert the change; plan entries lose the member.
+
+TCD-V0-1101..1103 change only how the gated close picks its claim scope, one additive `/1` row
+member and two refusal texts. There is no store format, receipt, wire codec or policy change; a
+collapsed claim is an ordinary REQUESTED-scope claim. To roll back, revert the change.
 
 TCD-V0-185..190 make the gated close the default. They add one output-only profile revision
 (`taskman-batch-close/1`), one digest profile (`taskman-batch-merge/0`), two flags (`--seal`,

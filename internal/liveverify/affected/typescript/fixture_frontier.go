@@ -34,7 +34,17 @@ func fixtureDirectory(relative string) string {
 // outside, such as a server stub the fixture suite drives. A site no unit owns, such as a file of
 // an unidentified runner, and a pinned site stay plugin-wide. A reason whose every site moved
 // leaves the plugin-wide set; a reason raised without a site is unchanged.
-func localizeFixtureFrontier(result *affected.Result, frontier frontierSet) {
+//
+// A located, unpinned FrontierE2ERuntimeDependency site of such a unit moves the same way, unless
+// an end-to-end runner config whose directory encloses the site's file lies outside the unit's
+// `testdata` directory, among e2eConfigs, the directories of every end-to-end runner config read
+// (AFP-V0-725): such a config could collect the file into a suite the repository runs itself. The
+// site stands for a server or binary the end-to-end run drives; below `testdata` that run is one
+// the enclosing package's tests start, so what it drives is the fixture's own bytes or a binary
+// those tests build or execute, edges the plugin of those tests models. The graph raises the
+// moved site back to the plugin-wide frontier where no Go unit hosts the directory
+// (promoteUnhostedFixtureFrontier), as for every localized site.
+func localizeFixtureFrontier(result *affected.Result, frontier frontierSet, e2eConfigs []string) {
 	owner := make(map[string]int, len(result.Units))
 	byID := make(map[string]int, len(result.Units))
 	for index, unit := range result.Units {
@@ -69,31 +79,47 @@ func localizeFixtureFrontier(result *affected.Result, frontier frontierSet) {
 		}
 	}
 	escaped := escapedFixtureUnits(result.Units, byID, fixtures)
-	reason := FrontierUnresolvedImport
-	sites := frontier[reason]
-	for site, token := range sites {
-		if strings.HasPrefix(token, pinnedSite) {
-			continue
+	move := func(reason string, eligible func(file, token, fixture string) bool) {
+		sites := frontier[reason]
+		for site, token := range sites {
+			if strings.HasPrefix(token, pinnedSite) {
+				continue
+			}
+			file := site
+			index, owned := owner[site]
+			if !owned {
+				file = siteFile(site)
+				index, owned = owner[file]
+			}
+			if !owned || fixtures[index] == "" || escaped[index] || !eligible(file, token, fixtures[index]) {
+				continue
+			}
+			unit := &result.Units[index]
+			unit.Frontier = append(unit.Frontier, reason+":"+siteWithToken(site, token))
+			delete(sites, site)
 		}
-		file := site
-		index, owned := owner[site]
-		if !owned {
-			file = siteFile(site)
-			index, owned = owner[file]
+		if sites != nil && len(sites) == 0 {
+			delete(frontier, reason)
 		}
-		if !owned || fixtures[index] == "" || escaped[index] || !insideFixture(file, token, fixtures[index]) {
-			continue
-		}
-		unit := &result.Units[index]
-		unit.Frontier = append(unit.Frontier, reason+":"+siteWithToken(site, token))
-		delete(sites, site)
 	}
-	if sites != nil && len(sites) == 0 {
-		delete(frontier, reason)
-	}
+	move(FrontierUnresolvedImport, insideFixture)
+	move(FrontierE2ERuntimeDependency, func(file, _, fixture string) bool {
+		return !collectedOutside(file, fixture, e2eConfigs)
+	})
 	for index := range result.Units {
 		sort.Strings(result.Units[index].Frontier)
 	}
+}
+
+// collectedOutside reports whether a config directory among directories encloses file but lies
+// outside fixture, so a runner started there could collect file (AFP-V0-725).
+func collectedOutside(file, fixture string, directories []string) bool {
+	for _, directory := range directories {
+		if inside(file, directory) && directory != fixture && !strings.HasPrefix(directory, fixture+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // insideFixture reports whether the specifier spelled at a site of file names a path inside
