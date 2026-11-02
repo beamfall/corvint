@@ -3,10 +3,12 @@
 package store
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -332,5 +334,42 @@ func TestTCXV0973_CheckpointedPreReadMatchesCompleteAudit(t *testing.T) {
 	a, err := snapshot.DecodeAttempt(fast.Records["attempts/"+s.claim.AttemptID+".json"].Raw)
 	if err != nil || a.Phase != "BUILT" {
 		t.Fatalf("attempt from the pre-read: %+v %v", a, err)
+	}
+}
+
+// TCX-V0-975: selecting know-how among the tickets whose canonical bytes
+// carry the key gives exactly the notes a selection over every ticket gives,
+// and materializes no other record.
+func TestTCXV0975_KnowHowSelectionAmongCandidatesMatchesFull(t *testing.T) {
+	s := newGatedStore(t)
+	tree, err := intent.TreeDigest(s.repo.IntentRoot())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st, err := intent.LoadSummarizedTree(s.repo.IntentRoot(), tree, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	candidates := map[string]bool{}
+	for _, f := range tree.Files {
+		if local, ok := strings.CutPrefix(f.Path, intent.TicketsDir+"/"); ok && bytes.Contains(f.Raw, knowHowKey) {
+			candidates[strings.TrimSuffix(local, ".json")] = true
+		}
+	}
+	full := SelectKnowHow(st.Inventory, nil, "")
+	among := SelectKnowHowAmong(st.Inventory, candidates, nil, "")
+	if !reflect.DeepEqual(full, among) {
+		t.Fatalf("selection differs: %d notes among candidates, %d over every ticket", len(among), len(full))
+	}
+	// A record without the key is never a candidate; with no candidate the
+	// selection is empty even though the full one is not.
+	if len(candidates) == 0 {
+		if len(full) != 0 {
+			t.Fatalf("%d notes with no key-bearing record", len(full))
+		}
+	}
+	none := SelectKnowHowAmong(st.Inventory, map[string]bool{}, nil, "")
+	if len(none) != 0 {
+		t.Fatalf("%d notes from no candidate", len(none))
 	}
 }

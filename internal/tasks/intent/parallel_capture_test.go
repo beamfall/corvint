@@ -3,7 +3,6 @@
 package intent_test
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -75,40 +74,29 @@ func TestTCXV0974_ParallelCaptureMatchesSerial(t *testing.T) {
 	}
 }
 
-// TCX-V0-975: LoadTreeSelecting decodes only the ticket records keep admits,
-// keeps the whole tree, and gives each selected record exactly as the full
-// load does.
-func TestTCXV0975_LoadTreeSelectingDecodesOnlySelected(t *testing.T) {
+// TCX-V0-975: LoadSummarizedTree over a captured tree is LoadSummarized.
+func TestTCXV0975_LoadSummarizedTreeMatchesLoadSummarized(t *testing.T) {
 	root := parallelStore(t, 120)
 	tree, err := intent.TreeDigest(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	key := []byte(`"knowHow":`)
-	claimed := intent.TicketsDir + "/T3.json"
-	selected, err := intent.LoadTreeSelecting(root, tree, func(path string, raw []byte) bool {
-		return path == claimed || bytes.Contains(raw, key)
-	})
+	fromTree, err := intent.LoadSummarizedTree(root, tree, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, err := intent.Load(root)
+	direct, err := intent.LoadSummarized(root, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// T3, T7, T57 and T107 are selected: the claimed one and the three
-	// with know-how.
-	if selected.Inventory.Len() != 4 || !reflect.DeepEqual(selected.Tree, tree) {
-		t.Fatalf("selected %d records (want 4), tree kept %v", selected.Inventory.Len(), reflect.DeepEqual(selected.Tree, tree))
+	if fromTree.Inventory.Len() != direct.Inventory.Len() || !reflect.DeepEqual(fromTree.Tree, direct.Tree) || !reflect.DeepEqual(fromTree.Digests, direct.Digests) {
+		t.Fatalf("loads differ: %d vs %d records", fromTree.Inventory.Len(), direct.Inventory.Len())
 	}
-	for _, local := range []string{"T3", "T7", "T57", "T107"} {
-		a, ok := selected.Inventory.Get(fixture.TicketID(local))
-		b, _ := full.Inventory.Get(fixture.TicketID(local))
-		if !ok || !reflect.DeepEqual(a, b) {
-			t.Fatalf("%s: selected %+v, full %+v", local, a, b)
+	for _, id := range direct.Inventory.IDs() {
+		a, _ := fromTree.Inventory.Get(id)
+		b, _ := direct.Inventory.Get(id)
+		if !reflect.DeepEqual(a, b) {
+			t.Fatalf("%s differs", id)
 		}
-	}
-	if _, ok := selected.Inventory.Get(fixture.TicketID("T9")); ok {
-		t.Fatal("an unselected record was decoded")
 	}
 }

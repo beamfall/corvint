@@ -224,11 +224,15 @@ Requirements section is at the OCM obligation bound (SRG-V0-740); `CAL-V0-116` i
   evidence that the modeled bytes are current. A liveness write captures nothing (`JSG-V0-001`).
   The route hands a committed claim's capture to the claim's know-how delivery read
   (`TCX-V0-975`), since a claim changes no touch path and no note.
-- `TCX-V0-975`: (proposed; V1-4315) The claim's know-how delivery read MUST decode only the
+- `TCX-V0-975`: (proposed; V1-4315) The claim's know-how delivery read MUST load the inventory as
+  the CLI preload loads it (`TCX-V0-847`: a record the index vouches for by digest and length is
+  held undecoded; every other record is decoded and checked as the full load checks it, so an
+  unreadable inventory still delivers `UNAVAILABLE` with the load's code, `KHN-V0-014`), over the
+  tree the writer route captured for the claim when it served it, and MUST materialize only the
   claimed ticket and the records whose canonical bytes carry the `knowHow` key: a canonical record
   with know-how always carries it, so the selection never drops a note, and a record selected by a
   look-alike byte sequence decodes as before. The notes delivered, their order and their freshness
-  resolution are those the full decode delivers.
+  resolution are those the selection over every record delivers.
 - `TCX-V0-976`: (proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends
   on the entry's path and size alone, MAY be memoized by them in the process; a refusal is never
   memoized and a full memo is dropped whole. The inventory's capacity measure and its refusals are
@@ -312,6 +316,6 @@ with no effect on stores.
 | `TCX-V0-972` | `TestTCXV0972_BatchCloseRefreshesIndexBeforeFirstRow` (`internal/tasks/cli`) |
 | `TCX-V0-973` | `TestTCXV0973_CheckpointedPreReadMatchesCompleteAudit` (`internal/tasks/store`) |
 | `TCX-V0-974` | `TestTCXV0974_ParallelCaptureMatchesSerial` (`internal/tasks/intent`); `TestTCXV0970_GateVerbsTakeWriterRoute`, `TestCALV0116_WriterRouteParity` (`internal/tasks/store`); the `intent` and `journal` packages whole |
-| `TCX-V0-975` | `TestTCXV0975_LoadTreeSelectingDecodesOnlySelected` (`internal/tasks/intent`); the know-how claim tests (`internal/tasks/store`) |
+| `TCX-V0-975` | `TestTCXV0975_KnowHowSelectionAmongCandidatesMatchesFull` (`internal/tasks/store`); `TestTCXV0975_LoadSummarizedTreeMatchesLoadSummarized` (`internal/tasks/intent`); `TestKHNV0014_UnreadableInventoryDeliversUnavailable` and the know-how claim tests (`internal/tasks/cli`, `internal/tasks/store`) |
 | `TCX-V0-976` | `TestTCXV0976_EntryCostMemoMatchesUncached` (`internal/tasks/archive`) |
 | V1-4315 measurement | `TestV14315_BatchCloseProfile` (opt-in, `internal/tasks/store`); paired numbers in `docs/build-log/2026-11-02-bcp-w40.md` |

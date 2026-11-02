@@ -606,31 +606,6 @@ func LoadTree(primaryWorktree string, tree Tree, want wire.Digest) (*Store, erro
 	return decodeTree(filepath.Join(primaryWorktree, Dir), tree)
 }
 
-// LoadTreeSelecting is LoadTree over tree with only the ticket records keep
-// admits, by path and canonical bytes, decoded and held: every other ticket
-// is absent from the store, so the inventory holds the selected records
-// alone and its structural checks run over them only. A read whose answer
-// depends on a key that only some records carry selects by the bytes and
-// decodes those records instead of the whole inventory (TCX-V0-975,
-// V1-4315). Tree is kept whole.
-func LoadTreeSelecting(primaryWorktree string, tree Tree, keep func(path string, raw []byte) bool) (*Store, error) {
-	files := make([]File, 0, len(tree.Files))
-	for _, f := range tree.Files {
-		if strings.HasPrefix(f.Path, TicketsDir+"/") && !keep(f.Path, f.Raw) {
-			continue
-		}
-		files = append(files, f)
-	}
-	selected := tree
-	selected.Files = files
-	st, err := decodeTree(filepath.Join(primaryWorktree, Dir), selected)
-	if err != nil {
-		return nil, err
-	}
-	st.Tree = tree
-	return st, nil
-}
-
 func decodeTree(root string, tree Tree) (*Store, error) {
 	return decodeTreeIndexed(root, tree, nil)
 }

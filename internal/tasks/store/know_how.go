@@ -141,10 +141,24 @@ func KnowHowPinAnchors(root, rev string, anchors []ticket.KnowHowAnchor) (string
 // path matches one anchor exactly (KHN-V0-006). Each note carries its
 // effective pins: those of its latest RECONFIRM, else its own (KHN-V0-018).
 func SelectKnowHow(inv *ticket.Inventory, paths []string, home string) []KnowHowNote {
+	return SelectKnowHowAmong(inv, nil, paths, home)
+}
+
+// SelectKnowHowAmong is SelectKnowHow that materializes only the tickets
+// whose local token locals holds (every ticket when locals is nil), so a
+// caller that knows from the canonical bytes which records carry know-how
+// decodes no other (TCX-V0-975). The notes selected are those SelectKnowHow
+// selects when locals holds every ticket with know-how.
+func SelectKnowHowAmong(inv *ticket.Inventory, locals map[string]bool, paths []string, home string) []KnowHowNote {
 	var out []KnowHowNote
 	for _, id := range inv.IDs() {
 		if home != "" && id != home {
 			continue
+		}
+		if locals != nil {
+			if s, ok := inv.Summary(id); !ok || !locals[s.TicketID.Local] {
+				continue
+			}
 		}
 		rec, ok := inv.Get(id)
 		if !ok || len(rec.KnowHow) == 0 {
@@ -449,17 +463,23 @@ func claimKnowHow(repo *intent.Repository, root string, repos map[string]string,
 	} else if tree, err = intent.TreeDigest(repo.IntentRoot()); err != nil {
 		return ClaimedKnowHow{Err: err}
 	}
-	// TCX-V0-975 (V1-4315): only the claimed ticket and the records whose
-	// canonical bytes carry a knowHow key are decoded; a canonical record
-	// with know-how always carries the key, so the selection never drops a
-	// note, and a record selected by a look-alike byte sequence only
-	// decodes as before.
-	claimed := intent.TicketsDir + "/" + id.Local + ".json"
-	st, err := intent.LoadTreeSelecting(repo.IntentRoot(), tree, func(path string, raw []byte) bool {
-		return path == claimed || bytes.Contains(raw, knowHowKey)
-	})
+	// TCX-V0-975 (V1-4315): the inventory loads as the CLI preload loads
+	// it (TCX-V0-847): a record the index vouches for is held undecoded, and
+	// every other record is decoded and checked as the full load checks it,
+	// so an unreadable inventory still delivers UNAVAILABLE (KHN-V0-014).
+	// Then only the claimed ticket and the records whose canonical bytes
+	// carry a knowHow key are materialized: a canonical record with know-how
+	// always carries the key, so the selection never drops a note, and a
+	// record selected by a look-alike byte sequence only decodes as before.
+	st, err := intent.LoadSummarizedTree(repo.IntentRoot(), tree, intent.ReadClosedIndex(repo.StateDir))
 	if err != nil {
 		return ClaimedKnowHow{Err: err}
+	}
+	candidates := map[string]bool{id.Local: true}
+	for _, f := range tree.Files {
+		if local, ok := strings.CutPrefix(f.Path, intent.TicketsDir+"/"); ok && (f.Raw == nil || bytes.Contains(f.Raw, knowHowKey)) {
+			candidates[strings.TrimSuffix(local, ".json")] = true
+		}
 	}
 	rec, ok := st.Inventory.Get(ticketID)
 	if !ok {
@@ -469,7 +489,7 @@ func claimKnowHow(repo *intent.Repository, root string, repos map[string]string,
 	if len(rec.Effects.TouchPaths) == 0 {
 		return c
 	}
-	c.Notes = SelectKnowHow(st.Inventory, rec.Effects.TouchPaths, "")
+	c.Notes = SelectKnowHowAmong(st.Inventory, candidates, rec.Effects.TouchPaths, "")
 	if len(c.Notes) > 0 {
 		c.Head = ResolveKnowHowRepositories(root, repos, c.Notes)
 		c.Warnings = KnowHowRepositoryWarnings(repos, c.Notes)
