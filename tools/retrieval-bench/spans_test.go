@@ -3,13 +3,14 @@ package main
 import (
 	"context"
 	"errors"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CEP-V0-755: a span-mode context packet is scored against gold spans; rows
@@ -126,7 +127,7 @@ func TestCEPV0757IdentityRecordsCommit(t *testing.T) {
 		"corvint dev": "UNKNOWN",
 	} {
 		fake := filepath.Join(t.TempDir(), "corvint")
-		if err := os.WriteFile(fake, []byte("#!/bin/sh\necho '"+version+"'\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(fake, []byte("#!/bin/sh\necho '"+version+"'\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		identity, err := corvintIdentity(context.Background(), fake)
