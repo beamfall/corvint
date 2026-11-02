@@ -16,8 +16,8 @@ import (
 // later passing gate does not hide it. Before a gate fails both report null
 // (V1-2359).
 func TestCALV0322_ShowReportsLastFailedGateTail(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	dir, err := os.MkdirTemp("", "failedgate")
 	if err == nil {

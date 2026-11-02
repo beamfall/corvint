@@ -18,8 +18,8 @@ import (
 // gate declares `evidence: []`, and the full output is still retained at the
 // reported path (TCD-V0-166).
 func TestTCDV0165_GateRunReportsFailingTail(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	dir, err := os.MkdirTemp("", "tail")
 	if err == nil {

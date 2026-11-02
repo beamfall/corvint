@@ -43,6 +43,10 @@ var (
 	stampEntryBound int64 = 250_000
 	// stampReadBatch is the number of entries one directory read returns.
 	stampReadBatch = 1024
+	// stampStatChunk is the number of entries one goroutine describes when a
+	// directory's entries are split across stamp slots (DCR-V1-847). Tests
+	// vary it.
+	stampStatChunk = 1024
 	// readStampDir reads the next batch of a directory's entries. Tests wrap it.
 	readStampDir = func(f *os.File, n int) ([]os.DirEntry, error) { return f.ReadDir(n) }
 )
@@ -54,6 +58,13 @@ var errStampUnavailable = errors.New("checkout stamp unavailable")
 // the stamp unchanged. Tests shorten it.
 var stampRacyWindow = 2 * time.Second
 
+// stampNow and stampTimes are the clock and the lstat time reader the stamp
+// uses. Tests replace them to model a coarse or skewed filesystem.
+var (
+	stampNow   = time.Now
+	stampTimes = fileTimes
+)
+
 // checkoutStamp returns one digest over the stamps of dirs, in order, or ""
 // when any checkout cannot be stamped. Directories are read in parallel; each
 // one's records are hashed in path order, so the digest does not depend on
@@ -62,7 +73,7 @@ var stampRacyWindow = 2 * time.Second
 func checkoutStamp(ctx context.Context, dirs []string) string {
 	s := &stamper{
 		ctx:     ctx,
-		horizon: time.Now().Add(-stampRacyWindow).UnixNano(),
+		horizon: stampNow().Add(-stampRacyWindow).UnixNano(),
 		slots:   make(chan struct{}, 2*runtime.GOMAXPROCS(0)),
 		records: map[string][]byte{},
 	}
@@ -88,8 +99,9 @@ func checkoutStamp(ctx context.Context, dirs []string) string {
 
 // artifactFileStamp is the stat record of the configured artifact file, by
 // mode, size, inode, change and modification times, or "" when the file
-// cannot be described or changed inside the racy window, so a later rewrite
-// within the same timestamp granule cannot keep the stamp (DCR-V1-417). The
+// cannot be described, changed inside the racy window, or carries
+// whole-second times, so a later rewrite within the same timestamp granule
+// cannot keep the stamp (DCR-V1-417, DCR-V1-845). The
 // file is reached through the artifact reader's own no-follow walk, so a
 // symlink in any path component, the leaf included, leaves no stamp and the
 // next call reads the file and is refused as a fresh read is.
@@ -98,9 +110,9 @@ func artifactFileStamp(root, path string) string {
 	if err != nil || !info.Mode().IsRegular() {
 		return ""
 	}
-	s := &stamper{horizon: time.Now().Add(-stampRacyWindow).UnixNano()}
-	line, err := s.line(nil, path, info)
-	if err != nil {
+	s := &stamper{horizon: stampNow().Add(-stampRacyWindow).UnixNano()}
+	line, coarse, err := s.line(nil, path, info)
+	if err != nil || coarse {
 		return ""
 	}
 	return string(line)
@@ -167,8 +179,11 @@ type policy func(rel, name string, dir bool) (skip, descend bool, err error)
 // directory reads one directory's entries in name order and records each
 // entry's name, mode, size, inode, change and modification times under key,
 // then visits each subdirectory the policy descends into. An entry the
-// platform cannot describe, one changed inside the racy window, or more
-// entries than the bound make the stamp unavailable.
+// platform cannot describe, one changed inside the racy window, more
+// entries than the bound, or entries that all carry whole-second times make
+// the stamp unavailable. A large directory's entries are described in
+// chunks on free stamp slots and assembled in name order, so the record does
+// not depend on scheduling (DCR-V1-847).
 func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	if s.failed.Load() {
 		return errStampUnavailable
@@ -177,29 +192,59 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	if err != nil {
 		return err
 	}
+	kept := entries[:0:0]
+	descend := []bool{}
+	for _, e := range entries {
+		skip, down, err := visit(rel, e.Name(), e.IsDir())
+		if err != nil {
+			return err
+		}
+		if !skip {
+			kept = append(kept, e)
+			descend = append(descend, down)
+		}
+	}
+	chunks := make([]stampChunk, (len(kept)+stampStatChunk-1)/stampStatChunk)
+	var wg sync.WaitGroup
+	for c := range chunks {
+		part := kept[c*stampStatChunk : min((c+1)*stampStatChunk, len(kept))]
+		describe := func() { chunks[c] = s.describe(part) }
+		if c == len(chunks)-1 {
+			describe()
+			continue
+		}
+		select {
+		case s.slots <- struct{}{}:
+			wg.Go(func() {
+				defer func() { <-s.slots }()
+				describe()
+			})
+		default:
+			describe()
+		}
+	}
+	wg.Wait()
 	var b []byte
-	for i, e := range entries {
-		if i%stampReadBatch == stampReadBatch-1 && s.ctx.Err() != nil {
-			return s.ctx.Err()
+	coarse := true
+	for _, c := range chunks {
+		if c.err != nil {
+			return c.err
+		}
+		b = append(b, c.b...)
+		coarse = coarse && c.coarse
+	}
+	// Whole-second times on every entry mark a coarse-timestamp filesystem.
+	// The racy window covers its granule only while the times come from this
+	// host's clock; on a share whose server clock runs behind, a same-size
+	// edit after the capture can keep the stamp, so none is made (DCR-V1-845).
+	if len(kept) > 0 && coarse {
+		return errStampUnavailable
+	}
+	for i, e := range kept {
+		if !descend[i] || !chunks[i/stampStatChunk].dirs[i%stampStatChunk] {
+			continue
 		}
 		name := e.Name()
-		skip, descend, err := visit(rel, name, e.IsDir())
-		if err != nil {
-			return err
-		}
-		if skip {
-			continue
-		}
-		info, err := e.Info()
-		if err != nil {
-			return errStampUnavailable
-		}
-		if b, err = s.line(b, name, info); err != nil {
-			return err
-		}
-		if !info.IsDir() || !descend {
-			continue
-		}
 		child := name
 		if rel != "" {
 			child = rel + "/" + name
@@ -213,6 +258,40 @@ func (s *stamper) directory(key, abs, rel string, visit policy) error {
 	s.records[key+rel] = b
 	s.mu.Unlock()
 	return nil
+}
+
+// stampChunk is the record of one run of a directory's entries: their lines
+// in order, which of them are directories, whether every one carries
+// whole-second times, and the refusal that stopped it.
+type stampChunk struct {
+	b      []byte
+	dirs   []bool
+	coarse bool
+	err    error
+}
+
+// describe lstats entries in order and appends each one's line, checking the
+// context once per read batch.
+func (s *stamper) describe(entries []os.DirEntry) stampChunk {
+	c := stampChunk{dirs: make([]bool, len(entries)), coarse: true}
+	for i, e := range entries {
+		if i%stampReadBatch == stampReadBatch-1 && s.ctx.Err() != nil {
+			c.err = s.ctx.Err()
+			return c
+		}
+		info, err := e.Info()
+		if err != nil {
+			c.err = errStampUnavailable
+			return c
+		}
+		var whole bool
+		if c.b, whole, c.err = s.line(c.b, e.Name(), info); c.err != nil {
+			return c
+		}
+		c.coarse = c.coarse && whole
+		c.dirs[i] = info.IsDir()
+	}
+	return c
 }
 
 // readDir reads the entries of one directory in batches and returns them in
@@ -246,10 +325,12 @@ func (s *stamper) readDir(abs string) ([]os.DirEntry, error) {
 	return entries, nil
 }
 
-func (s *stamper) line(b []byte, name string, info fs.FileInfo) ([]byte, error) {
-	ino, ctime, mtime, ok := fileTimes(info)
+// line appends one entry's record and reports whether both its times are
+// whole seconds.
+func (s *stamper) line(b []byte, name string, info fs.FileInfo) ([]byte, bool, error) {
+	ino, ctime, mtime, ok := stampTimes(info)
 	if !ok || ctime >= s.horizon || mtime >= s.horizon {
-		return b, errStampUnavailable
+		return b, false, errStampUnavailable
 	}
 	b = strconv.AppendInt(b, int64(len(name)), 10)
 	b = append(b, ':')
@@ -258,7 +339,8 @@ func (s *stamper) line(b []byte, name string, info fs.FileInfo) ([]byte, error) 
 		b = append(b, ' ')
 		b = strconv.AppendInt(b, v, 10)
 	}
-	return append(b, '\n'), nil
+	whole := ctime%int64(time.Second) == 0 && mtime%int64(time.Second) == 0
+	return append(b, '\n'), whole, nil
 }
 
 // checkout records the checkout root itself, its repository control state
@@ -270,7 +352,7 @@ func (s *stamper) checkout(prefix, dir string) error {
 	if err != nil || !info.IsDir() {
 		return errStampUnavailable
 	}
-	root, err := s.line(nil, "", info)
+	root, _, err := s.line(nil, "", info)
 	if err != nil {
 		return err
 	}
@@ -281,7 +363,7 @@ func (s *stamper) checkout(prefix, dir string) error {
 	if err != nil || !info.IsDir() {
 		return errStampUnavailable
 	}
-	if root, err = s.line(root, ".git", info); err != nil {
+	if root, _, err = s.line(root, ".git", info); err != nil {
 		return err
 	}
 	s.mu.Lock()

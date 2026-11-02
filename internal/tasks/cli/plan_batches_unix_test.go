@@ -23,9 +23,7 @@ func pbFakeGit(t *testing.T, sub, action string) {
 	}
 	bin := t.TempDir()
 	script := "#!/bin/sh\ncase \" $* \" in\n*\" " + sub + " \"*) " + action + " ;;\nesac\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	writeExecutable(t, filepath.Join(bin, "git"), []byte(script), 0o755)
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
 }
 

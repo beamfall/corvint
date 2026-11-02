@@ -17,9 +17,9 @@ import (
 // both roles' events, and the native observation and `gate state` expose the
 // full ERG-V0-009 field set.
 func TestERGV0001_ReviewerAndWorkerActors(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	as := func(actor string) {
-		t.Setenv("CORVINT_TASKS_ACTOR", actor)
-		t.Setenv("ATM_ACTOR", actor)
+		setActor(t, actor)
 	}
 	as("tester")
 	root, tree := ergStore(t)

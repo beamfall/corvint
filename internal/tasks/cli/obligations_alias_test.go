@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -55,6 +54,7 @@ func entryAliases(v wire.Value) map[string]string {
 // seed adds aliased entries; an alias outside the grammar refuses MALFORMED
 // and writes nothing.
 func TestTOLV0034_SeedWithAliases(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, aliasSpec, aliasSeed)
 	got := entryAliases(obligationsShow(t, r.Root, id))
 	want := map[string]string{"AC-1": "M001", "AC-2": "ABC-12.V4", "AC-3": "M002", "AC-4": "FLOW-7-register-auth", "AC-5": "-", "AC-8": "login_v2"}
@@ -87,6 +87,7 @@ func TestTOLV0034_SeedWithAliases(t *testing.T) {
 // and an alias that is or holds a native id of the ledger prefix refuses
 // DUPLICATE_ID OBLIGATION_ALIAS_COLLISION:; none writes.
 func TestTOLV0035_AliasDuplicateAndCollision(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := preflightRepo(t, aliasSpec, aliasSeed)
 	cases := []struct{ name, payload, detail string }{
 		{"in one seed", `{"prefix":"AC","obligations":[{"id":"AC-6","alias":"R1","title":"x","core":false},{"id":"AC-7","alias":"R1","title":"y","core":false}]}`, "OBLIGATION_ALIAS_DUPLICATE:"},
@@ -116,6 +117,7 @@ func TestTOLV0035_AliasDuplicateAndCollision(t *testing.T) {
 // its obligation in a test title, a test.step title and a contract
 // annotation, but never inside a longer token (M002-legacy, xM002, M002_x, M002.1).
 func TestTOLV0036_PreflightMatchesAliases(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := preflightRepo(t, aliasSpec, aliasSeed)
 	x := atm(t, r.Root, nil, "preflight", id, "--commit", head)
 	if len(x.res.Items) != 1 {
@@ -132,7 +134,8 @@ func TestTOLV0036_PreflightMatchesAliases(t *testing.T) {
 // longer token, and an alias shaped like a defect id is not read as a
 // defect inside an expected-failure test.
 func TestTOLV0036_WitnessCreditsByAliasKeyedToNativeID(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	r, id, head := preflightRepo(t, aliasSpec, aliasSeed)
 	spec := "e2e/checkout.spec.ts"
 	xfail := writeReport(t, t.TempDir(), r.Root, pwVersion,

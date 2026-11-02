@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -47,7 +48,7 @@ func TestGPKV0071DubiousOwnershipIsOneCodedRefusal(t *testing.T) {
 	t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
 	// The shim names the repository by a path baked into the script, because
 	// Corvint runs Git in another directory with -C and a sanitized environment.
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(strings.ReplaceAll(script, "@ROOT@", root)), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(strings.ReplaceAll(script, "@ROOT@", root)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for _, verb := range [][]string{{"index"}, {"query", "--task", "where is a"}, {"impact", "a.go"}, {"context", "a.go"}, {"feature", "a"}, {"affected", "--base", strings.TrimSpace(string(head))}, {"init"}, {"overview"}} {

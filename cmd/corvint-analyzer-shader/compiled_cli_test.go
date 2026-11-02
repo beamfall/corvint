@@ -16,6 +16,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const (
@@ -199,7 +201,7 @@ func TestBuiltCLIDeniesAmbientExecutionChannels(t *testing.T) {
 	defer descriptorWrite.Close()
 	marker := filepath.Join(root, "process-observed")
 	trap := filepath.Join(root, "command-trap")
-	if err := os.WriteFile(trap, []byte("#!/bin/sh\nprintf process > "+marker+"\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(trap, []byte("#!/bin/sh\nprintf process > "+marker+"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	commandContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)

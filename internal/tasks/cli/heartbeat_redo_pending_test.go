@@ -27,6 +27,7 @@ import (
 // so the redo also publishes an unpublished post. While another process holds
 // the store lock the heartbeat waits only for --lock-wait and settles nothing.
 func TestCALV0222_HeartbeatSettlesHeldPendingReceipt(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, repo, _, attempt, generation := lockWaitStore(t)
 	headPath := filepath.Join(repo.StateDir, "head.json")
 	attemptPath := filepath.Join(repo.StateDir, "attempts", attempt+".json")

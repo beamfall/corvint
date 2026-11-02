@@ -1,0 +1,8 @@
+{
+  "reason": "V1-2521: CEM-V1-084 (accepted by decision 0546) resolves a signed receipt's envelopeSha256 to a receipt-attestation artifact, which both consumers list at references.artifacts[] for the public receipt-authentication case and the sealed kind enum refused; decision 0589 has the schema follow the accepted requirement.",
+  "pointer": "/$defs/artifact/properties/kind",
+  "predecessorSha256": "3e3fb0af5739a4cf142c627951c401c3eb63921c312c49a5c173cd12fe55b3dc",
+  "add": [
+    "receipt-attestation"
+  ]
+}

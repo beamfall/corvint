@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // CCE-V0-102 (make cce-live): a SIGTERM while the workers run stops every worker and the
@@ -30,7 +32,7 @@ func TestCCELiveScriptReapsWorkersOnSignal_CCEV0102(t *testing.T) {
 		"# go test -c -o OUT .\n" +
 		"cat > \"$4\" <<'EOF'\n" + fakeTest + "EOF\n" +
 		"chmod +x \"$4\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("sh", "cce-live.sh", "2", "1m")
@@ -95,7 +97,7 @@ func TestCCELiveScriptRunsEveryListedTest_CCEV0102(t *testing.T) {
 		"name=$(echo \"$*\" | sed 's/.*\\^\\(TestCCEV[0-9]*Live\\).*/\\1/')\n" +
 		"echo \"--- PASS: $name (0.00s)\"\n"
 	fakeGo := "#!/bin/sh\ncat > \"$4\" <<'EOF'\n" + fakeTest + "EOF\nchmod +x \"$4\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(fakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	cmd := exec.Command("sh", "cce-live.sh", "2", "1m")

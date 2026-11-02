@@ -56,6 +56,7 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 		request = f.String("request", "", "closed assembly request")
 		output = f.String("out-dir", "", "new absolute bundle directory")
 	default:
+		fmt.Fprintf(errout, "UNKNOWN_COMMAND: unknown command %q; run `corvint-cem-candidate help`\n", args[0])
 		return 2
 	}
 	seen := map[string]bool{}

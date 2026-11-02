@@ -19,6 +19,7 @@ import (
 // key (TOL-V0-124); the doctor reports a parked key whose ticket still has
 // open obligation items as PARKED_WITH_OPEN_ITEMS (TOL-V0-125).
 func TestTOLV0124_UnblockObservedAndDoctorReportsParked(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	unblocks := func() int64 {

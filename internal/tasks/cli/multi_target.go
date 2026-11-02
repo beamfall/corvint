@@ -9,6 +9,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -79,7 +80,7 @@ func readTargetRevision(env Env, arg string) (string, error) {
 func landedRevision(env Env, requestID, current string) string {
 	expected := current
 	_, _ = withInventoryStore(env, func(rc *readCtx) error {
-		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+		idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 		entry, found, err := idx.Lookup(requestID)
 		if err != nil || !found || entry.Outcome.Outcome != mutation.OutcomeCompleted || entry.Outcome.ResultingRevision == nil {
 			return nil

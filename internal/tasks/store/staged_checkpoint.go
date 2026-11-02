@@ -67,6 +67,7 @@ func stageDerived(path string, raw []byte) *stagedFile {
 	sweepStaged(path)
 	f, err := stageCreate(filepath.Dir(path), filepath.Base(path)+stagedInfix+"*")
 	if err != nil {
+		noteRetentionFailure(path)
 		return nil
 	}
 	_, err = f.Write(raw)
@@ -76,6 +77,7 @@ func stageDerived(path string, raw []byte) *stagedFile {
 	}
 	if err != nil {
 		os.Remove(f.Name())
+		noteRetentionFailure(path)
 		return nil
 	}
 	return &stagedFile{path: path, tmp: f.Name()}
@@ -107,6 +109,7 @@ func (s *stagedFile) publish() bool {
 	err := os.Rename(s.tmp, s.path)
 	if err != nil {
 		os.Remove(s.tmp)
+		noteRetentionFailure(s.path)
 	}
 	s.tmp = ""
 	return err == nil
