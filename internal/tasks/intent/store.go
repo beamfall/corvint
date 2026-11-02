@@ -621,26 +621,9 @@ func decodeTreeHeld(root string, tree Tree, idx *ClosedIndex, held map[string][]
 			closed = append(closed, idx.entries[f.Path].Summary)
 			continue
 		}
-		rec, err := ticket.Decode(f.Raw)
+		rec, err := decodeTicketFile(f, q, gateIDs)
 		if err != nil {
-			return nil, prefix(err, f.Path)
-		}
-		want := TicketsDir + "/" + rec.TicketID.Local + ".json"
-		if f.Path != want {
-			return nil, wire.Errorf(wire.CodeMalformed, f.Path, "file name does not match ticketId local token %q", rec.TicketID.Local)
-		}
-		if rec.TicketID.QueueID() != q.QueueID.Raw {
-			return nil, wire.Errorf(wire.CodeMalformed, f.Path+"/ticketId", "ticket %s is outside queue %s", rec.TicketID.Raw, q.QueueID.Raw)
-		}
-		for i, g := range rec.RequiredGates {
-			if !gateIDs[g] {
-				return nil, wire.Errorf(wire.CodeGateUnknown, f.Path+"/requiredGates/"+string(wire.CountOf(int64(i))), "gate %q is not defined in policy", g)
-			}
-		}
-		for i, d := range rec.Dependencies {
-			if d.GateID != nil && !gateIDs[*d.GateID] {
-				return nil, wire.Errorf(wire.CodeGateUnknown, f.Path+"/dependencies/"+string(wire.CountOf(int64(i)))+"/gateId", "gate %q is not defined in policy", *d.GateID)
-			}
+			return nil, err
 		}
 		records = append(records, rec)
 	}
@@ -690,4 +673,32 @@ func prefix(err error, file string) error {
 	out := *e
 	out.Where = where
 	return &out
+}
+
+// decodeTicketFile decodes one ticket file of the tree with the checks a load
+// applies to every ticket it decodes: its file name, its queue and the
+// policy's gates.
+func decodeTicketFile(f File, q *Queue, gateIDs map[string]bool) (*ticket.Record, error) {
+	rec, err := ticket.Decode(f.Raw)
+	if err != nil {
+		return nil, prefix(err, f.Path)
+	}
+	want := TicketsDir + "/" + rec.TicketID.Local + ".json"
+	if f.Path != want {
+		return nil, wire.Errorf(wire.CodeMalformed, f.Path, "file name does not match ticketId local token %q", rec.TicketID.Local)
+	}
+	if rec.TicketID.QueueID() != q.QueueID.Raw {
+		return nil, wire.Errorf(wire.CodeMalformed, f.Path+"/ticketId", "ticket %s is outside queue %s", rec.TicketID.Raw, q.QueueID.Raw)
+	}
+	for i, g := range rec.RequiredGates {
+		if !gateIDs[g] {
+			return nil, wire.Errorf(wire.CodeGateUnknown, f.Path+"/requiredGates/"+string(wire.CountOf(int64(i))), "gate %q is not defined in policy", g)
+		}
+	}
+	for i, d := range rec.Dependencies {
+		if d.GateID != nil && !gateIDs[*d.GateID] {
+			return nil, wire.Errorf(wire.CodeGateUnknown, f.Path+"/dependencies/"+string(wire.CountOf(int64(i)))+"/gateId", "gate %q is not defined in policy", *d.GateID)
+		}
+	}
+	return rec, nil
 }

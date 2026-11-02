@@ -3,6 +3,7 @@
 package intent_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"slices"
@@ -107,5 +108,91 @@ func TestTCXV0845ReadsTrustOnlyClosedEntries(t *testing.T) {
 	}
 	if seen != len(writePathTickets) {
 		t.Fatalf("capture listed %d tickets, want %d", seen, len(writePathTickets))
+	}
+}
+
+func indexBody(t *testing.T, r *fixture.Repo) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(intent.ClosedIndexPath(r.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw[bytes.IndexByte(raw, '\n')+1:]
+}
+
+// TestTCXV0849IncrementalRewriteMatchesFullEncode: after one ticket changes,
+// the incremental rewrite's entry lines are byte-identical to those a full
+// rewrite with no previous index writes.
+func TestTCXV0849IncrementalRewriteMatchesFullEncode(t *testing.T) {
+	r := writePathRepo(t)
+	path := writePathTicket(r, "B")
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, bytes.Replace(raw, []byte(`"title":"`), []byte(`"title":"changed `), 1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	older := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(path, older, older); err != nil {
+		t.Fatal(err)
+	}
+	if err := intent.WriteClosedIndex(r.Root, r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	incremental := indexBody(t, r)
+	if err := os.Remove(intent.ClosedIndexPath(r.StateDir)); err != nil {
+		t.Fatal(err)
+	}
+	if err := intent.WriteClosedIndex(r.Root, r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	if full := indexBody(t, r); !bytes.Equal(incremental, full) || !bytes.Contains(full, []byte("changed ")) {
+		t.Fatalf("incremental body:\n%s\nfull body:\n%s", incremental, full)
+	}
+}
+
+// TestTCXV0849UnchangedIndexNotRewritten: a rewrite with no changed entry
+// leaves the file as it is.
+func TestTCXV0849UnchangedIndexNotRewritten(t *testing.T) {
+	r := writePathRepo(t)
+	before, err := os.Stat(intent.ClosedIndexPath(r.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := intent.WriteClosedIndex(r.Root, r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.Stat(intent.ClosedIndexPath(r.StateDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !os.SameFile(before, after) || !before.ModTime().Equal(after.ModTime()) {
+		t.Fatal("an unchanged index was rewritten")
+	}
+}
+
+// TestTCXV0849ParsedIndexReusedPerVersion: a second read of the same index
+// version reuses the parse; a rewritten index is parsed again.
+func TestTCXV0849ParsedIndexReusedPerVersion(t *testing.T) {
+	r := writePathRepo(t)
+	first := intent.ReadClosedIndex(r.StateDir)
+	if first == nil || intent.ReadClosedIndex(r.StateDir) != first {
+		t.Fatal("the same index version was parsed twice")
+	}
+	path := writePathTicket(r, "D")
+	older := time.Now().Add(-3 * time.Hour)
+	if err := os.Chtimes(path, older, older); err != nil {
+		t.Fatal(err)
+	}
+	if err := intent.WriteClosedIndex(r.Root, r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	second := intent.ReadClosedIndex(r.StateDir)
+	if second == nil || second == first {
+		t.Fatal("a rewritten index was not parsed again")
+	}
+	if got := intent.IndexedTicketPaths(second); !slices.Equal(got, writePathTickets) {
+		t.Fatalf("reparsed index holds %v", got)
 	}
 }

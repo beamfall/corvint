@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/safeopen"
@@ -54,6 +55,10 @@ type ClosedEntry struct {
 	mtime   int64
 	Sha     wire.Digest
 	Summary *ticket.Summary
+	// line is the entry's encoded index line, kept from the decode so a
+	// rewrite that keeps the entry writes it again byte for byte
+	// (TCX-V0-849).
+	line string
 }
 
 // ClosedIndex is a decoded closed-ticket index.
@@ -62,6 +67,9 @@ type ClosedIndex struct {
 	policySha wire.Digest
 	captured  int64
 	entries   map[string]*ClosedEntry // tickets/<local>.json
+	// body is the decoded file's entry lines, so a rewrite whose lines are
+	// unchanged leaves the file as it is (TCX-V0-849).
+	body []byte
 }
 
 // trusted returns the entry for rel when its stat key still matches and its
@@ -161,6 +169,9 @@ func ReadClosedIndex(stateDir string) *ClosedIndex {
 	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 || info.Size() > closedIndexMaxBytes {
 		return nil
 	}
+	if idx := parsedIndex(path, info); idx != nil {
+		return idx
+	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil
@@ -169,7 +180,51 @@ func ReadClosedIndex(stateDir string) *ClosedIndex {
 	if err != nil {
 		return nil
 	}
+	// The file read must still be the file stat saw, or the parse is not
+	// remembered for that version.
+	if after, err := os.Lstat(path); err == nil && sameIndexVersion(info, after) {
+		rememberIndex(path, info, idx)
+	}
 	return idx
+}
+
+// parsedIndexes holds, in process memory, the last parse of each index path
+// with the version it was parsed at (TCX-V0-849). A parsed index is never
+// changed after its decode, so callers share it.
+var (
+	parsedMu      sync.Mutex
+	parsedIndexes = map[string]parsedIndexEntry{}
+)
+
+type parsedIndexEntry struct {
+	info os.FileInfo
+	idx  *ClosedIndex
+}
+
+func parsedIndex(path string, info os.FileInfo) *ClosedIndex {
+	parsedMu.Lock()
+	defer parsedMu.Unlock()
+	if e, ok := parsedIndexes[path]; ok && sameIndexVersion(e.info, info) {
+		return e.idx
+	}
+	return nil
+}
+
+func rememberIndex(path string, info os.FileInfo, idx *ClosedIndex) {
+	parsedMu.Lock()
+	defer parsedMu.Unlock()
+	if len(parsedIndexes) >= 16 {
+		clear(parsedIndexes)
+	}
+	parsedIndexes[path] = parsedIndexEntry{info: info, idx: idx}
+}
+
+// sameIndexVersion reports one file at one version: the same device and
+// inode, size, modification time and change time.
+func sameIndexVersion(a, b os.FileInfo) bool {
+	ca, okA := changeTime(a)
+	cb, okB := changeTime(b)
+	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && okA && okB && ca == cb
 }
 
 const (
@@ -245,13 +300,17 @@ func encodeClosedIndex(idx *ClosedIndex) []byte {
 	sort.Strings(rels)
 	var body bytes.Buffer
 	for _, rel := range rels {
-		line, ok := encodeEntry(rel, idx.entries[rel])
-		if !ok {
-			continue
+		line := idx.entries[rel].line
+		if line == "" {
+			var ok bool
+			if line, ok = encodeEntry(rel, idx.entries[rel]); !ok {
+				continue
+			}
 		}
 		body.WriteString(line)
 		body.WriteByte('\n')
 	}
+	idx.body = body.Bytes()
 	sum := sha256.Sum256(body.Bytes())
 	var out bytes.Buffer
 	out.WriteString(strings.Join([]string{closedIndexMagic, idx.queueID, string(idx.policySha),
@@ -281,7 +340,7 @@ func decodeClosedIndex(raw []byte) (*ClosedIndex, error) {
 	if err != nil {
 		return nil, errClosedIndex
 	}
-	idx := &ClosedIndex{queueID: head[1], policySha: wire.Digest(head[2]), captured: captured, entries: map[string]*ClosedEntry{}}
+	idx := &ClosedIndex{queueID: head[1], policySha: wire.Digest(head[2]), captured: captured, entries: map[string]*ClosedEntry{}, body: body}
 	for len(body) > 0 {
 		nl := bytes.IndexByte(body, '\n')
 		if nl < 0 {
@@ -293,6 +352,7 @@ func decodeClosedIndex(raw []byte) (*ClosedIndex, error) {
 		if err != nil {
 			return nil, err
 		}
+		e.line = strings.Join(f, sepField)
 		if _, dup := idx.entries[f[0]]; dup {
 			return nil, errClosedIndex
 		}
@@ -419,35 +479,65 @@ func WriteClosedIndex(primaryWorktree, stateDir string) error {
 	if err != nil {
 		return err
 	}
-	st, err := LoadTreeIndexed(primaryWorktree, tree, "", old)
+	// Only the files read here are decoded and checked, as a full load checks
+	// them; a kept entry is not decoded, and no inventory is built
+	// (TCX-V0-849).
+	byPath := map[string]File{}
+	for _, f := range tree.Files {
+		byPath[f.Path] = f
+	}
+	queueFile, policyFile := byPath[QueueFile], byPath[PolicyFile]
+	if queueFile.Raw == nil || policyFile.Raw == nil {
+		return wire.Errorf(wire.CodeUninitialized, filepath.Join(primaryWorktree, Dir), "queue.json or policy.json is absent")
+	}
+	q, err := DecodeQueue(queueFile.Raw)
 	if err != nil {
-		return err
+		return prefix(err, QueueFile)
 	}
-	idx := &ClosedIndex{queueID: st.Queue.QueueID.Raw, policySha: st.Digests[PolicyFile], captured: captured, entries: map[string]*ClosedEntry{}}
-	read := map[string][]byte{}
-	for _, f := range st.Tree.Files {
-		if f.Raw != nil {
-			read[f.Path] = f.Raw
+	p, err := DecodePolicy(policyFile.Raw)
+	if err != nil {
+		return prefix(err, PolicyFile)
+	}
+	gateIDs := p.GateIDs()
+	idx := &ClosedIndex{queueID: q.QueueID.Raw, policySha: policyFile.Sha256, captured: captured, entries: map[string]*ClosedEntry{}}
+	for _, f := range tree.Files {
+		if !strings.HasPrefix(f.Path, TicketsDir+"/") {
+			continue
 		}
-	}
-	for _, id := range st.Inventory.IDs() {
-		s, _ := st.Inventory.Summary(id)
-		rel := TicketsDir + "/" + s.TicketID.Local + ".json"
-		key, ok := keys[rel]
+		key, ok := keys[f.Path]
 		if !ok || key.mtime >= captured-int64(closedIndexRacyWindow) {
 			continue
 		}
-		// A file read here was decoded by the load; it joins only when its
-		// record re-encodes to its bytes. A kept entry was admitted so.
-		if raw, fresh := read[rel]; fresh {
-			rec, _ := st.Inventory.Get(id)
-			if !bytes.Equal(reencode(rec), raw) {
+		if f.Raw == nil {
+			// Taken from the old index by its stat key: kept with its line.
+			if old == nil {
 				continue
 			}
+			if kept, ok := old.entries[f.Path]; ok && kept.Size == key.size && kept.mtime == key.mtime && kept.Sha == f.Sha256 {
+				idx.entries[f.Path] = kept
+			}
+			continue
 		}
-		idx.entries[rel] = &ClosedEntry{Size: key.size, mtime: key.mtime, Sha: st.Digests[rel], Summary: s}
+		if wire.Sum(f.Raw) != f.Sha256 {
+			return wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(primaryWorktree, Dir, f.Path), "captured bytes do not match the tree digest")
+		}
+		rec, err := decodeTicketFile(f, q, gateIDs)
+		if err != nil {
+			return err
+		}
+		// A read file joins only when its record re-encodes to its bytes.
+		if !bytes.Equal(reencode(rec), f.Raw) {
+			continue
+		}
+		idx.entries[f.Path] = &ClosedEntry{Size: key.size, mtime: key.mtime, Sha: f.Sha256, Summary: ticket.SummaryOf(rec)}
 	}
-	return writeFileAtomic(ClosedIndexPath(stateDir), encodeClosedIndex(idx))
+	encoded := encodeClosedIndex(idx)
+	// Unchanged lines for the same queue and policy leave the file as it is,
+	// with the capture time its entries were admitted under (TCX-V0-849).
+	if old != nil && old.queueID == idx.queueID && old.policySha == idx.policySha && bytes.Equal(old.body, idx.body) {
+		return nil
+	}
+	return writeFileAtomic(ClosedIndexPath(stateDir), encoded)
 }
 
 // reencode is the re-encoding an index entry's bytes must equal; tests
