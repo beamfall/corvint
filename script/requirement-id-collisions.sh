@@ -74,7 +74,7 @@ contains=()
 for root in $(git rev-list --max-parents=0 "$base_sha"); do contains+=("--contains=$root"); done
 git for-each-ref --format='%(objectname)' refs/heads > "$work/branches" &&
   git for-each-ref --format='%(objectname)' --no-merged="$base_sha" "${contains[@]}" refs/heads > "$work/open-branches" ||
-  refuse "refs-unreadable: git for-each-ref failed"
+  refuse "refs-unreadable: git for-each-ref failed: run git fsck and rerun"
 awk -v self="$self" '
   FILENAME == ARGV[1] { branch[$1] = 1; next }
   FILENAME == ARGV[2] { open[$1] = 1; next }
@@ -97,7 +97,7 @@ open=$(wc -l < "$work/open-refs" | tr -d ' ')
 : > "$work/missing"
 if (( open > 0 )); then
   awk '{ print $1 ":docs/specs/REQUIREMENTS.tsv" }' "$work/open-refs" | git cat-file --batch > "$work/batch" ||
-    refuse "batch-read-failed: git cat-file --batch could not read the open refs' indexes"
+    refuse "batch-read-failed: git cat-file --batch could not read the open refs' indexes: run git fsck and rerun"
   awk -F'\t' -v names="$work/open-refs" -v missing="$work/missing" '
     BEGIN { while ((getline line < names) > 0) { n++; sha[n] = substr(line, 1, index(line, " ") - 1); ref[n] = substr(line, index(line, " ") + 1) } }
     FILENAME == ARGV[1] { known[$1] = 1; next }
@@ -118,7 +118,7 @@ if (( open > 0 )); then
       if (left == 0) skip = 1
     }
     END { if (bad || i != n) exit 2 }' "$work/base.ids" "$work/batch" >> "$work/open" ||
-    refuse "batch-read-failed: the open refs' indexes could not be parsed"
+    refuse "batch-read-failed: the open refs' indexes could not be parsed: run git fsck and rerun"
 fi
 while read -r sha name; do
   # A ref whose tree has no index has nothing to compare; one whose index blob cannot be read is
