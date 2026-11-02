@@ -175,7 +175,8 @@ cat > "$tmp/regen-stub" <<'EOF'
 #!/bin/sh
 case $1 in
   --golden-tests) printf '%s\n' ${STUB_GOLDENS:-} | sed 's/:/ /' ;;
-  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt; exit 0 ;;
+  --mechanical) [ -n "${STUB_REPIN:-}" ] && printf repinned >> derived.txt
+    [ -n "${STUB_REPIN_STAGE:-}" ] && git add derived.txt; exit 0 ;;
 esac
 EOF
 chmod +x "$tmp/regen-stub"
@@ -341,6 +342,7 @@ echo "make \$* GOPROXY=\${GOPROXY-unset}" >> $tmp/calls
 mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
   test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
+  spec-requirements-check) [ -n "\${STUB_RESTAGE:-}" ] && { printf restaged >> derived.txt; git add derived.txt; } ;;
   slow-*) sleep 3 ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
       sleep 1; ls $tmp/running | grep -vx host-adapter-node-test >> $tmp/overlap; fi ;;
@@ -563,6 +565,18 @@ STUB_REPIN=1 run && fail "a repin that changed a file passed"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | repin (mechanical)$' "$tmp/out" || fail "repin fail row: $(cat "$tmp/out")"
 grep -q 'mechanical repins changed tracked files' "$tmp/out" || fail "repin message: $(cat "$tmp/out")"
 git -C "$repo" checkout -q -- derived.txt
+# ASD-V0-787 (NEW-D4): a repin that staged its rewrite is unstaged when the run ends, and the
+# rewrite stays in the worktree; an entry staged again after the repin is left alone.
+STUB_REPIN=1 STUB_REPIN_STAGE=1 run && fail "a staged repin that changed a file passed"
+grep -q '^batch-precheck: | FAIL | *[0-9]*s | repin (mechanical)$' "$tmp/out" || fail "staged repin fail row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: unstaged 1 path(s) the mechanical repin staged' "$tmp/out" || fail "unstage line: $(cat "$tmp/out")"
+git -C "$repo" diff --cached --quiet HEAD -- || fail "the failed run left the repin staged: $(git -C "$repo" status --porcelain)"
+[[ $(cat "$repo/derived.txt") == $'v0\nrepinned' ]] || fail "the repin rewrite left the worktree: $(cat "$repo/derived.txt")"
+git -C "$repo" checkout -q -- derived.txt
+STUB_REPIN=1 STUB_REPIN_STAGE=1 STUB_RESTAGE=1 run && fail "a restaged repin passed"
+grep -q 'unstaged [0-9]* path(s)' "$tmp/out" && fail "an entry staged after the repin was unstaged: $(cat "$tmp/out")"
+[[ $(git -C "$repo" show :derived.txt) == $'v0\nrepinnedrestaged' ]] || fail "the later staging was lost: $(git -C "$repo" show :derived.txt)"
+git -C "$repo" checkout -q HEAD -- derived.txt
 
 # 4b. Ledger reuse (ASD-V0-042, V1-2985): a rerun on identical inputs reuses every step's recorded
 # pass, reports it and still writes the receipt; a tree change reruns the whole-tree steps while
