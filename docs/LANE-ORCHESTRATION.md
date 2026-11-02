@@ -662,9 +662,11 @@ every gap above the threshold with the time the watchdog would have flagged it.
   lock after its commits landed: record HEAD before it, compare after a failure, and retry only when
   HEAD did not move. When HEAD moved, verify the landed commits (`git log --oneline BEFORE..HEAD`)
   instead of repeating the command, which would land them twice.
-- The installed `corvint` matches the lane base (ASD-V0-755..757, V1-3761, V1-4044). A stale one
+- The installed `corvint` matches fetched origin/main and the lane base (ASD-V0-755..757,
+  ASD-V0-2203, V1-3761, V1-4044). A stale one
   reports `DEGRADED self-binary-stale` and can widen or skew `corvint affected` and `corvint test`
-  evidence. `lane-setup.sh` ends with `script/lane-binary-check.sh <lane>`, which prints `FRESH`,
+  evidence. Before creating a lane, `lane-setup.sh` checks the host against origin/main and refuses
+  on a stale tool. It also ends with `script/lane-binary-check.sh <lane>`, which prints `FRESH`,
   `STALE` or `UNVERIFIED` with the installed and expected builds and commits, and exits 1 on a stale
   binary (the lane is still created). After a merge, rebuild a lane host's binary with
   `script/lane-binary-check.sh --rebuild <clean checkout at origin/main>` (or pass
@@ -1170,6 +1172,46 @@ Unraid both returned `headSeq` 17128 with head receipt `f11e165e...b83e8a1`, the
 while `ticket show` on WSL's local copy refused `journal-absent`. Rollback: turn off Remote Login
 on the Mac, or delete the two lane lines from `~/.ssh/authorized_keys`; lanes then fall back to
 staged ticket bodies.
+
+Dispatch screen and host refs (`ASD-V0-2200` through `ASD-V0-2203`; V1-3494, V1-3654,
+V1-3867, V1-3761). Before dispatch, fetch origin on each host and register every open charter in
+`.corvint/lane-charters/` or pass each with `--open-charter FILE`. Charters are JSON objects:
+
+```json
+{"tickets":["V1-3494"],"packages":["internal/lrfrepo"],
+ "pins":[{"path":"go.mod","commit":"5d1ed52b17d61147bd8c04b08afa6da39fa80afb"}],
+ "idBlocks":[{"prefix":"ASD-V0","start":2200,"end":2209}],
+ "branches":["claude/lane-example","batch-example"],
+ "hosts":[{"repo":"/path/to/host-clone"}]}
+```
+
+Host repositories can also be configured Git remote names or SSH URLs, supplied as
+`--host-repo PATH_OR_REMOTE`; paths resolve from the invocation directory. A host branch already
+checked out may refuse a push; use the host's shared clone with a different checked-out branch or a
+bare staging remote. Mark finished charters `"status":"closed"`. Markdown charters use the
+`Tickets:`, `Package:`, `Pin: PATH@SHA`, `ID-block: PREFIX START END`, `Branch:` and `Host-repo:`
+lines documented by `script/lane-dispatch.sh screen --help`.
+
+`script/lane-dispatch.sh screen --charter FILE --tickets TICKETS.json --base BASE` reads only
+Git and files. It reports all charter/branch claims, delivered commit-subject references, explicit
+duplicates, stale pins, missing Go packages and occupied/overlapping ID blocks. Ticket JSON is an
+array or an OK ticket-show result; the screen never calls Tasks. A delivered reference retains the
+subject and full commit, including partial AC labels; review that evidence before removing work.
+No record means unobserved delivery, and semantic duplicates without an explicit relationship are
+not inferred. Each `--override ID` retains its finding as `OVERRIDDEN`; resolve charter-wide stale
+packages and blocks by editing the charter. Exit 1 means findings, exit 2 unavailable/malformed
+inputs. Unfetched hosts and unregistered charters remain outside the observation boundary.
+
+`script/lane-dispatch.sh refs --charter FILE --publish` publishes every declared branch to every
+declared host with non-forced refspecs and verifies exact tips. Without `--publish` it only checks;
+missing and differing tips refuse. `inputs --charter FILE --publish-refs` runs the ticket screen,
+publishes and checks before writing `lane.env`; omitting `--publish-refs` requires refs already
+present. A failed publication can leave a subset updated; repair and rerun, without force pushes.
+Supply the charter for every dispatch that has in-flight branches. `lane-setup.sh` checks the
+installed binary against fetched `origin/main` before creating a lane, then against the pinned
+base; a stale tool refuses even when it matches an older base. Rebuild from a clean checkout at
+origin/main with `script/lane-binary-check.sh --rebuild --against origin/main DIR`, then retry.
+The post-merge wsl-lanes qualification remains an operator step.
 
 Dispatch kit (ASD-V0-065 to ASD-V0-067; V1-3816, V1-3817, V1-3061, V1-3262). The orchestrator stages
 those inputs with one command on the host that owns the Tasks journal, and the brief and the charter
