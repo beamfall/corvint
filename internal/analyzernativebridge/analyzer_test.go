@@ -1088,7 +1088,13 @@ func TestNormalHelperCompletionReleasesContainment(t *testing.T) {
 func TestBridgeInterruptionHelper(t *testing.T) {
 	if os.Getenv("CORVINT_NATIVE_BRIDGE_HELPER") == "descendant" {
 		if marker := os.Getenv("CORVINT_NATIVE_BRIDGE_HELPER_MARKER"); marker != "" {
-			if err := os.WriteFile(marker, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+			// Publish the PID atomically: the parent cancels as soon as the
+			// marker exists, so it must never observe an empty file.
+			staging := marker + ".tmp"
+			if err := os.WriteFile(staging, []byte(strconv.Itoa(os.Getpid())), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Rename(staging, marker); err != nil {
 				t.Fatal(err)
 			}
 		}
