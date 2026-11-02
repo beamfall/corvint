@@ -154,3 +154,38 @@ func TestAFPV0823GatedLocatorChecksAreRecalled(t *testing.T) {
 		t.Fatalf("index after a moved gate differs from the full scan: err %v", err)
 	}
 }
+
+// TestAFPV0823MovedDeclaredGateIsCheckedAgain: a declaration whose gate
+// literal changed while every source byte stayed the same is not answered
+// from the memo; the warm index checks the new literal and equals the uncached
+// scan, so `user` is a root-locator dependent again.
+func TestAFPV0823MovedDeclaredGateIsCheckedAgain(t *testing.T) {
+	declaration := func(gate string) string {
+		return `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"` + gate + `","reason":"locates only behind its gate"}}}`
+	}
+	root := writeFixture(t, map[string]string{
+		"go.mod":            "module " + fixtureModule + "\n\ngo 1.22\n",
+		"loc/loc.go":        "package loc\n\nimport \"os\"\n\nconst Gate = \"/gate/root\"\n\nfunc Bind() string { dir, _ := os.Getwd(); return dir }\n",
+		"user/user.go":      "package user\n\nimport _ \"" + fixtureModule + "/loc\"\n",
+		"user/user_test.go": "package user\n",
+		gatedLocatorsPath:   declaration("/gate/root"),
+	})
+	var body []byte
+	if _, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(gatedLocatorsPath)), []byte(declaration("/elsewhere")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	full, err := indexRepository(root, fixtureModule)
+	if err != nil {
+		t.Fatal(err)
+	}
+	warm, err := indexRepositoryMemo(root, fixtureModule, memoryScanMemo("program", &body))
+	if err != nil || !reflect.DeepEqual(full, warm) || !reflect.DeepEqual(sortedKeys(warm.unresolved()), []string{"loc", "user"}) {
+		t.Fatalf("warm index after a moved declared gate differs from the uncached scan: err %v", err)
+	}
+	if !bytes.Contains(body, []byte(`"literal":"\"/elsewhere\""`)) {
+		t.Fatalf("the memo kept the old gate check: %s", body)
+	}
+}
