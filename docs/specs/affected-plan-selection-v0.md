@@ -86,6 +86,19 @@ measure. None of them drops a unit the change can reach.
   `script/codex-review_test.sh` inherit `shell:dynamic-source` from `script/heavy.sh`, as
   `.corvint/unbounded-readers.json` records, and stay selected for an unrelated edit.
 
+- **AFP-V0-830:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3509,
+  amending `AFP-V0-160` (6) and `AFP-V0-465`) This repository's `.corvint/documentation-paths.json`
+  MUST also declare `integrations/README.md` and every tracked `integrations/HOST/README.md` one
+  directory down, and `script/gen-documentation-paths.sh` MUST generate them, so `--check` keeps
+  the list current. A host README describes a host package: no build or test reads it except by a
+  path literal or its enclosing directory, which `AFP-V0-160` (3) keeps selecting, and a package
+  `files` list ships it without running it. A README-only edit is then `DECLARED_DOCUMENTATION`,
+  not `UNOWNED_DIRTY_PATH`, and admits no language plugin. Target, measured on this repository
+  with `affected --path integrations/opencode/README.md`: no `UNOWNED_DIRTY_PATH` and no
+  `LANGUAGE_FRONTIER` entry (76 before), with `internal/opencodequalification`, which hashes that
+  README, still selected. Non-goal: any other file under `integrations/`, which stays a source or
+  unowned path.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -111,9 +124,12 @@ unit whole. A missing `python3` skips AFP-V0-552 rather than passing it.
 | AFP-V0-551 | `FixturePathMarker`, `fileScan.fixture`, `fixtureOnly`, `scannedLiteral`, `fixtureTokens`, `pathTokens` and `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestAFPV0551FixtureMarkedLiteralsNameNoRead` in `internal/liveverify/affected/golang/fixture_marker_test.go`; before/after counts in build log `2026-11-01-aff-w26` |
 | AFP-V0-552 | `astImports`, `differentialCorpus` in `internal/liveverify/affected/python/differential_test.go` | `TestScanImportsAgreesWithAst_V13322` |
 | AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/replay_v14170_test.go` |
+| AFP-V0-830 | the integrations README listing in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestIntegrationReadmesAreDocumentation_AFP_V0_830` in `internal/liveverify/affected/integration_readme_documentation_repo_test.go`; `script/gen-documentation-paths_test.sh` case 6 |
 
 ## Rollback
 
 Revert the lane's commits for the requirement and delete its row here. For AFP-V0-551, removing
-`fixtureTokens` makes marked literals read paths again; the markers are inert comments. Run
+`fixtureTokens` makes marked literals read paths again; the markers are inert comments. For
+AFP-V0-830, drop the integrations listing from `script/gen-documentation-paths.sh` and run
+`make documentation-paths`. Run
 `make spec-requirements` after deleting this file.
