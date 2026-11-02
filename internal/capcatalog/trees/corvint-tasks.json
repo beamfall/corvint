@@ -2953,7 +2953,7 @@
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE] [--reason-code ALREADY_DELIVERED|INTEGRATED|OWNER_DIRECTED|NO_CODE_CHANGE]",
         "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...] [--creates-paths]",
         "corvint-tasks ticket create --template [--skeleton]",
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]",
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--unaudited] [--json]",
         "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]",
         "corvint-tasks ticket effects-proposals",
         "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]",
@@ -3097,6 +3097,7 @@
         "--text",
         "--text-stdin",
         "--ticket",
+        "--unaudited",
         "--witnesses"
       ],
       "required": [],
@@ -3337,7 +3338,7 @@
       "command": "corvint-tasks ticket delivery-screen",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--json]"
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N] [--lane-refs] [--unaudited] [--json]"
       ],
       "flags": [
         "--json",
@@ -3345,7 +3346,8 @@
         "--limit",
         "--prs",
         "--ref",
-        "--since"
+        "--since",
+        "--unaudited"
       ],
       "required": [
         "<ticketId|local>..."
