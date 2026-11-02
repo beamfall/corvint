@@ -123,9 +123,11 @@ func wantLine(t *testing.T, name, block, line string) {
 }
 
 // statusJobRuns evaluates the if of status job JOB in ci-control-plane.yml for a completed CI
-// run of EVENT and CONCLUSION. It knows only &&-joined equality tests of those two payload
-// fields, so any other condition shape fails the test rather than being guessed at.
-func statusJobRuns(t *testing.T, w, job, event, conclusion string) bool {
+// run of EVENT and CONCLUSION; LISTED says whether the run's head is the head of a pull request
+// the payload lists (AFP-V0-855). It knows only equality tests of those two payload fields, that
+// one listed-head test, parentheses, && and ||, so any other condition shape fails the test
+// rather than being guessed at.
+func statusJobRuns(t *testing.T, w, job, event, conclusion string, listed bool) bool {
 	t.Helper()
 	b := jobBlock(t, w, job)
 	m := regexp.MustCompile(`(?m)^    if: (.+)$`).FindStringSubmatch(b)
@@ -133,16 +135,55 @@ func statusJobRuns(t *testing.T, w, job, event, conclusion string) bool {
 		t.Fatalf("%s has no single-line if", job)
 	}
 	clause := regexp.MustCompile(`^github\.event\.workflow_run\.(event|conclusion) (==|!=) '([a-z_]+)'$`)
+	const listedHead = "contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)"
 	payload := map[string]string{"event": event, "conclusion": conclusion}
-	runs := true
-	for _, c := range strings.Split(m[1], "&&") {
-		p := clause.FindStringSubmatch(strings.TrimSpace(c))
-		if p == nil {
-			t.Fatalf("%s: unrecognised if clause %q; extend statusJobRuns", job, c)
+	var eval func(expr string) bool
+	// split cuts EXPR at top-level occurrences of OP, outside parentheses.
+	split := func(expr, op string) []string {
+		var parts []string
+		depth, last := 0, 0
+		for i := 0; i < len(expr); i++ {
+			switch {
+			case expr[i] == '(':
+				depth++
+			case expr[i] == ')':
+				depth--
+			case depth == 0 && strings.HasPrefix(expr[i:], op):
+				parts = append(parts, expr[last:i])
+				last = i + len(op)
+			}
 		}
-		runs = runs && (payload[p[1]] == p[3]) == (p[2] == "==")
+		return append(parts, expr[last:])
 	}
-	return runs
+	eval = func(expr string) bool {
+		expr = strings.TrimSpace(expr)
+		if parts := split(expr, "||"); len(parts) > 1 {
+			anyTrue := false
+			for _, p := range parts {
+				anyTrue = eval(p) || anyTrue
+			}
+			return anyTrue
+		}
+		if parts := split(expr, "&&"); len(parts) > 1 {
+			allTrue := true
+			for _, p := range parts {
+				allTrue = eval(p) && allTrue
+			}
+			return allTrue
+		}
+		if strings.HasPrefix(expr, "(") && strings.HasSuffix(expr, ")") {
+			return eval(expr[1 : len(expr)-1])
+		}
+		if expr == listedHead {
+			return listed
+		}
+		p := clause.FindStringSubmatch(expr)
+		if p == nil {
+			t.Fatalf("%s: unrecognised if clause %q; extend statusJobRuns", job, expr)
+		}
+		return (payload[p[1]] == p[3]) == (p[2] == "==")
+	}
+	return eval(m[1])
 }
 
 // V1-1778 (AFP-V0-079): each status job runs for every completed CI run of its event, cancelled
@@ -158,13 +199,18 @@ func TestAFPV0079ControlPlaneReportsEveryCompletedRun(t *testing.T) {
 		wantLine(t, job, b, "      group: ci-control-plane-"+event+"-${{ github.event.workflow_run.head_sha }}")
 		wantLine(t, job, b, "      cancel-in-progress: true")
 		for _, conclusion := range []string{"success", "failure", "cancelled", "timed_out"} {
-			for other, otherJob := range jobs {
-				if got, want := statusJobRuns(t, w, otherJob, event, conclusion), other == event; got != want {
-					t.Errorf("%s for a %s run that concluded %s: runs=%v, want %v", otherJob, event, conclusion, got, want)
+			for _, listed := range []bool{true, false} {
+				for other, otherJob := range jobs {
+					// AFP-V0-855: only a cancelled pull-request run whose head no listed pull
+					// request has is left without a control-plane job.
+					want := other == event && !(otherJob == "control-plane" && conclusion == "cancelled" && !listed)
+					if got := statusJobRuns(t, w, otherJob, event, conclusion, listed); got != want {
+						t.Errorf("%s for a %s run that concluded %s (head listed %v): runs=%v, want %v", otherJob, event, conclusion, listed, got, want)
+					}
 				}
 			}
 		}
-		if statusJobRuns(t, w, job, "push", "success") {
+		if statusJobRuns(t, w, job, "push", "success", true) {
 			t.Errorf("%s must not run for a push run", job)
 		}
 	}
@@ -190,7 +236,7 @@ func TestAFPV0079CancelledRunStillPostsTheStatus(t *testing.T) {
 		{"control-plane", "pull_request", "claude/x", "state=success"},
 		{"merge-group", "merge_group", "gh-readonly-queue/main/pr-1144-" + head, "state=success"},
 	} {
-		if !statusJobRuns(t, w, tc.job, tc.event, "cancelled") {
+		if !statusJobRuns(t, w, tc.job, tc.event, "cancelled", true) {
 			t.Errorf("%s does not run for a cancelled %s run", tc.job, tc.event)
 			continue
 		}
@@ -234,6 +280,27 @@ esac
 			!strings.Contains(p, tc.want) || !strings.Contains(p, "context=ci-control-plane") {
 			t.Errorf("%s posted %q, want one ci-control-plane %s on %s", tc.job, p, tc.want, head)
 		}
+	}
+}
+
+// V1-1778 (AFP-V0-855): a pull-request run cancelled because a newer push superseded its head
+// starts no control-plane job, whichever way GitHub lists the pull request (by head SHA, so none
+// is listed, or by branch, so its newer head is). The clause names the run's own head, so a
+// listed pull request at that head still starts the job, and merge-group is untouched.
+func TestAFPV0855SupersededCancelledRunStartsNoJob(t *testing.T) {
+	w := readWorkflow(t, "ci-control-plane.yml")
+	if statusJobRuns(t, w, "control-plane", "pull_request", "cancelled", false) {
+		t.Error("control-plane starts for a superseded cancelled pull-request run")
+	}
+	if !statusJobRuns(t, w, "control-plane", "pull_request", "cancelled", true) {
+		t.Error("control-plane must still start for a cancelled run whose head is a listed pull request's head")
+	}
+	if !statusJobRuns(t, w, "merge-group", "merge_group", "cancelled", false) {
+		t.Error("merge-group must keep starting for a cancelled queue run")
+	}
+	b := jobBlock(t, w, "control-plane")
+	if !strings.Contains(b, "contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)") {
+		t.Error("control-plane must compare the listed pull requests' heads with the run's own head")
 	}
 }
 
