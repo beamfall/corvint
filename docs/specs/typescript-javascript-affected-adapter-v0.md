@@ -1594,6 +1594,40 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Non-goals: lookaround, back-references and the `u`, `v`, `g`, `y` flags stay unresolved.
   - Failure modes: the rule is conservative, so an unanchored regex that misses a path keeps the
     site even when no real checkout could match it (safe widening).
+- `TJAA-V0-725`: (experimental under the standing lane auto-accept (2026-10-11); V1-2583; GitHub
+  #1701; amending `AFP-V0-409` and `AFP-V0-425`) A `playwrightTagIndirection` name inside a proven
+  test or hook body MUST NOT stop the tag closure, since Playwright's runner collects tests and
+  matches `--grep` and tags without running a test or hook body. The rest of the per-file rules
+  still apply to the body (a computed key, an escaped string, the string `'tag'`).
+  - Binding provenance: a body is proven only when its callee is the local name of the `test`
+    export in a named `import { test } from '@playwright/test'` or `import { test as NAME } from
+    '@playwright/test'` of the same file (a `type` specifier binds no value). A name match is not
+    provenance: a `test` from any other module, a namespace or default import, a `require` and a
+    re-export prove nothing. The call is `NAME(...)`, or one member of `only`, `skip`, `fixme`,
+    `fail`, `beforeEach`, `afterEach`, `beforeAll` or `afterAll` called directly
+    (`NAME.only(...)`). Its last argument MUST be a function literal with a block body (an arrow
+    `=> {` or a `function (...) {` that `new` does not invoke), starting the argument directly
+    after `(` or `,`. Only that block is deferred. A `describe` callback runs while tests are
+    collected and is never deferred, nor is a fixture of `NAME.extend`.
+  - Monkeypatch guard: in every file of the closure, each value binding imported from
+    `@playwright/test` other than `expect`, `defineConfig` and `devices` MUST appear only as a
+    direct callee, `NAME(` or `NAME.member...(` with no `?.`, outside a `function`, `class`,
+    `const`, `let`, `var` or `new` and with no `{` or `:` after the call. An assignment such as
+    `NAME.only = ...`, a declaration, parameter or property named `NAME`, a value use that lets
+    `NAME` escape, and a load of `@playwright/test` other than by a named import break the guard.
+    A broken guard in the body's own file disables deferral there, so the reflective name stops
+    as before; a broken guard in another file of a closure that deferred a body stops the closure
+    at that file's line.
+  - Non-goals: a `test` reached through a fixture module (`base.extend`) is not proven; arrow
+    bodies without a block, typed `function (): T {` literals and member chains such as
+    `NAME.fail.only` are not deferred.
+  - Failure modes: Playwright workers re-collect a file after earlier bodies ran in the same
+    worker, but they run the test ids the runner assigned, so a body's effect on a worker's own
+    collection cannot change the selection; a Playwright release that re-filters tags in the
+    worker would break this assumption. A file outside the closure that rewrites `test` members
+    is outside the closure's model, as it already is for titles and tags.
+  - Rollback: drop the deferred-body skip in `playwrightTagTextLiteral` and the closure's
+    `patchStop`.
 - `TJAA-V0-960`: (experimental under the standing lane auto-accept (2026-10-11); V1-2533; amending
   `TJAA-V0-037` and `TJAA-V0-012`) The general adapter's alias path MUST read the alias config
   Playwright reads (AFP-V0-418): in each folder its `tsconfig.json`, or its `jsconfig.json` when no
@@ -2126,6 +2160,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-725` (V1-2583; GitHub #1701) | `TestPlaywrightTagClosureDefersProvenTestBody_TJAA725` and `TestPlaywrightTagClosureBodyGuardStops_TJAA725` in `playwright_test_body_defer_test.go` (proven test, aliased and hook bodies stay exact; a describe callback, an unproven module, a rebound, reassigned or escaping `test` and a guard break in an imported helper still stop) | experimental |
 | `TJAA-V0-601` (V1-3933) | `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in `playwright_shorthand_v13933_test.go` (unmodelled device plus literal browserName resolves; without one it stays unresolved and names the spread) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |

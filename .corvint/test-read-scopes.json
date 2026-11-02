@@ -134,9 +134,13 @@
     "cmd/corvint-test-runner": [],
     "cmd/corvint-test-validity-mcp": [],
     "cmd/corvint-tests-accept": [],
+    "cmd/corvint-update": [
+      "internal/capcatalog/trees/corvint-update.json"
+    ],
     "cmd/corvint-web-flows": [],
     "cmd/corvint-work-queue": [
-      ".corvint/work-queue-policy.json"
+      ".corvint/work-queue-policy.json",
+      "internal/capcatalog/trees/corvint-work-queue.json"
     ],
     "conformance/cli-errors-v0": [
       ".github/cishards/",

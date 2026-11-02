@@ -4730,6 +4730,16 @@
       "binary": "corvint-test",
       "command": "corvint-test help --json",
       "snapshot": "internal/capcatalog/trees/corvint-test.json"
+    },
+    {
+      "binary": "corvint-update",
+      "command": "corvint-update help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-update.json"
+    },
+    {
+      "binary": "corvint-work-queue",
+      "command": "corvint-work-queue help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-work-queue.json"
     }
   ]
 }

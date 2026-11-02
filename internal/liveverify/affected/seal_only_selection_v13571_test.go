@@ -18,6 +18,14 @@ import (
 // bind-coverage and install-lifecycle scripts were declared it carried
 // shell:foreign-invocation-unmodelled. This file must not spell those scripts'
 // file names: any candidate file naming one would have to be declared too.
+//
+// A real seal also deletes the checked CEM at .corvint/change.cem.json, which
+// the TypeScript core tests read by literal: the plan then reaches the
+// TypeScript plugin through a terminal selection, so AFP-V0-818 names every
+// end-to-end site no declared runtime edge holds. The Playwright fixtures under
+// Go testdata directories keep that site on their own unit (AFP-V0-725) and
+// .corvint/runtime-edges.json models the rest (AFP-V0-819), so that delta stays
+// BOUNDED too.
 func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 	graph, err := affected.Build(context.Background(), repositoryRoot(t), languages.All()...)
 	if err != nil {
@@ -29,7 +37,8 @@ func TestSealOnlyCEMDeltaStaysBounded_V13571(t *testing.T) {
 			sealed = append(sealed, name)
 		}
 	}
-	for _, dirty := range [][]string{sealed[:1], sealed} {
+	withChecked := append([]string{".corvint/change.cem.json"}, sealed[:1]...)
+	for _, dirty := range [][]string{sealed[:1], sealed, withChecked} {
 		plan := affected.Select(graph, dirty)
 		if plan.Scope != affected.ScopeBounded || len(plan.Unknown) != 0 {
 			t.Errorf("%d sealed CEMs: scope %s, unknown %v; want BOUNDED with none", len(dirty), plan.Scope, plan.Unknown)

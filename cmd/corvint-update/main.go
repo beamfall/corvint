@@ -24,6 +24,9 @@ without --allow-network.
 Example: corvint-update check --component core --allow-network`
 
 func main() {
+	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	if code, handled := companioncli.Answer(companioncli.Spec{Binary: "corvint-update", Version: companioncli.ExperimentalVersion, Usage: usage}, os.Args[1:], os.Stdout); handled {
 		os.Exit(code)
 	}

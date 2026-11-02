@@ -18,6 +18,9 @@ type workItem = worklistadapter.Item
 type producerScratch struct{ parent, root, commit string }
 
 func main() {
+	if code, handled := serveHelp(os.Args[1:], os.Stdout, os.Stderr); handled {
+		os.Exit(code)
+	}
 	if err := runProducer(os.Args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
