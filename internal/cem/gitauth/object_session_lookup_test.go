@@ -12,6 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -30,7 +31,7 @@ func TestDCRV1985SessionLookupsShareOneCatFile(t *testing.T) {
 	binary := filepath.Join(outside, "host-git")
 	quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
 	script := fmt.Sprintf("#!/bin/sh\nprintf '%%s\\n' \"$*\" >> %s\nexec %s \"$@\"\n", quote(log), quote(realGit))
-	if err := os.WriteFile(binary, []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(binary, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	paths := []string{"docs/rule.txt", "docs/none", "docs/none/deeper/x", "f.go", "f.go/x", "none"}

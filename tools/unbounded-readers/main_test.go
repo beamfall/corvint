@@ -304,7 +304,7 @@ func TestDynamicSourceRefusalNamesTheLine_ASD_V0_614(t *testing.T) {
 		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(file, []byte(body), 0o755); err != nil {
+		if err := execfile.WriteFile(file, []byte(body), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

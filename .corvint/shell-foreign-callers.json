@@ -86,7 +86,8 @@
         "internal/dogfoodflow/flow.go",
         "internal/localcompletion/storage.go",
         "internal/localcompletion/storage_test.go",
-        "script/dogfood-finish.sh"
+        "script/dogfood-finish.sh",
+        "script/review-head-check_test.sh"
       ]
     },
     "script/dogfood-seal.sh": {
@@ -100,7 +101,8 @@
         "internal/console/chain_test.go",
         "internal/liveverify/affected/replay_v12941_test.go",
         "script/pre-push-dogfood-seal.sh",
-        "script/pre-push-dogfood-seal_test.sh"
+        "script/pre-push-dogfood-seal_test.sh",
+        "script/review-head-check_test.sh"
       ],
       "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
     },
