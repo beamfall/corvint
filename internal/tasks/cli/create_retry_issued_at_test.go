@@ -11,13 +11,14 @@ import (
 )
 
 // TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference (name kept: the CI
-// shard slice pins it; it now proves TCL-V0-800) reproduces V1-3958 (and the
-// V1-1384 case CAL-V0-250 explained): `ticket create` without --issued-at
-// defaults issuedAt to the current second, and issuedAt is part of the
-// request digest. A byte-identical retry in a later second must replay the
-// original ticketId with replayed:true, name the reused issuedAt, and write no
-// second ticket; a different payload under the same request ID still refuses
-// REQUEST_ID_CONFLICT and is never attributed to issuedAt.
+// shard slice pins it; it now proves TCL-V0-800 and TCL-V0-735) reproduces
+// V1-1384 and V1-3958: `ticket create` without --issued-at defaults issuedAt
+// to the current second, and issuedAt is part of the request digest. A
+// byte-identical retry in a later second must replay the original ticketId
+// with replayed:true, name the reused issuedAt, and write no second ticket; a
+// retry at that named issuedAt replays too; a different payload under the same
+// request ID still refuses REQUEST_ID_CONFLICT and is never attributed to
+// issuedAt.
 func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
@@ -44,12 +45,27 @@ func TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference(t *testing.T) {
 	if w := strings.Join(again.res.Warnings, " "); !strings.Contains(w, "reused the recorded issuedAt") {
 		t.Fatalf("replay does not name the reused issuedAt: %s", again.stdout)
 	}
+	text := strings.Join(again.res.Warnings, " ")
+	const marker = "is recorded with issuedAt "
+	at := strings.Index(text, marker)
+	if at < 0 || !strings.Contains(text, "replayed the recorded result") {
+		t.Fatalf("replay does not name the recovered issuedAt: %s", text)
+	}
+	original := text[at+len(marker) : at+len(marker)+len("2006-01-02T15:04:05Z")]
+
+	replay := atm(t, r.Root, stdin, append(args, "--issued-at", original)...)
+	if replay.res.Outcome != wire.OutcomeOK || !field(replay.res.Items[0], "replayed").Bool || field(replay.res.Items[0], "ticketId").Str != id {
+		t.Fatalf("retry at the named issuedAt did not replay %s: %s", id, replay.stdout)
+	}
 	if listed := atm(t, r.Root, nil, "ticket", "list"); len(listed.res.Items) != 1 {
 		t.Fatalf("a retry wrote another ticket: %s", listed.stdout)
 	}
 
+	// A different payload under the same request ID is a real conflict: it is
+	// never attributed to issuedAt alone and never replayed.
 	changed := atm(t, r.Root, []byte(strings.Replace(createPayloadJSON, "Console ticket", "Other ticket", 1)), args...)
-	if w := strings.Join(changed.res.Warnings, " "); !hasCode(changed.res, wire.CodeRequestIDConflict) || strings.Contains(w, "reused the recorded issuedAt") || !strings.Contains(w, "a retry replays only with the original --issued-at") {
+	if w := strings.Join(changed.res.Warnings, " "); changed.res.Outcome != wire.OutcomeRefused || !hasCode(changed.res, wire.CodeRequestIDConflict) ||
+		strings.Contains(w, "only in issuedAt") || strings.Contains(w, "reused the recorded issuedAt") || !strings.Contains(w, "a retry replays only with the original --issued-at") {
 		t.Fatalf("changed payload replayed or attributed to issuedAt: %s", changed.stdout)
 	}
 }
@@ -116,7 +132,15 @@ func TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers(t *testing.T) {
 		t.Fatalf("later refine: %s", x.stdout)
 	}
 	again := atm(t, r.Root, nil, lost...)
-	if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool || !strings.Contains(strings.Join(again.res.Warnings, " "), "reused the recorded issuedAt") {
-		t.Fatalf("lost-output retry after a later update does not recover issuedAt and replay: %s", again.stdout)
+	text := strings.Join(again.res.Warnings, " ")
+	const marker = "is recorded with issuedAt "
+	at := strings.Index(text, marker)
+	if again.res.Outcome != wire.OutcomeOK || !field(again.res.Items[0], "replayed").Bool || at < 0 || !strings.Contains(text, "reused the recorded issuedAt") {
+		t.Fatalf("lost-output retry after a later update does not recover issuedAt and replay (TCL-V0-735): %s", again.stdout)
+	}
+	original := text[at+len(marker) : at+len(marker)+len("2006-01-02T15:04:05Z")]
+	replay := atm(t, r.Root, nil, append(lost, "--issued-at", original)...)
+	if replay.res.Outcome != wire.OutcomeOK || !field(replay.res.Items[0], "replayed").Bool {
+		t.Fatalf("retry with the recovered --issued-at %s did not replay: %s", original, replay.stdout)
 	}
 }

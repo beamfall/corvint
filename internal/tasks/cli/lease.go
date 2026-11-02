@@ -340,7 +340,7 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	if _, err = mutation.ParseRequestID("requestId", requestID); err != nil {
 		return fail(err)
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return fail(err)
 	}

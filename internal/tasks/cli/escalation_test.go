@@ -24,8 +24,9 @@ import (
 // resolve one question, and the reads page, filter and walk the chain
 // without writing anything.
 func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, claimed := leaseCLIStore(t, 2, time.Now().UTC().Truncate(time.Second).Add(-11*time.Minute))
-	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	setActor(t, "holder")
 	a, b := claimed[0], claimed[1]
 
 	ok := func(x run) wire.Value {
@@ -230,8 +231,9 @@ func TestIssue502_EscalationCLIWritesAndReads(t *testing.T) {
 // checked progress. A decision request is a hold, not an infrastructure
 // holder. Both requests carry their kind and OPEN time (ESC-V0-009).
 func TestIssue502_ObserveNamesInfrastructureHolders(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, claimed := leaseCLIStore(t, 2, time.Now().UTC().Truncate(time.Second).Add(-11*time.Minute))
-	t.Setenv("CORVINT_TASKS_ACTOR", "holder")
+	setActor(t, "holder")
 	a, b := claimed[0], claimed[1]
 	observe := func() map[string]dispatch.Ticket {
 		t.Helper()

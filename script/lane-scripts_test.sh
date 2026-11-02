@@ -8,8 +8,8 @@
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
-# lane-dispatch.sh (ASD-V0-065 to ASD-V0-067). No Go build runs. The Python operator tool
-# lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
+# lane-dispatch.sh (ASD-V0-065 to ASD-V0-067), lane-stage-inputs.sh (ASD-V0-742). No Go build
+# runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
 # script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name Python
 # (GOC-V0-008).
 set -uo pipefail
@@ -2127,8 +2127,8 @@ ok
 
 # ASD-V0-645 (V1-3768, V1-3770): lane-dispatch-check screens a batch's ticket files before lanes
 # start: an empty ticket fails unless waived, two lanes touching one file (or a directory key that
-# holds it) and one ticket in two lanes always fail, an absent path fails only under --base, and a
-# malformed file or usage error exits 2.
+# holds it) and one ticket in two lanes always fail, an absent path fails only under --base (naming
+# a recorded source ref, TCL-V0-743), and a malformed file or usage error exits 2.
 ldc=$tmp/ldc
 mkdir -p "$ldc/repo/pkg" && printf 'x\n' > "$ldc/repo/pkg/a.go" && printf 'y\n' > "$ldc/repo/README.md"
 git -C "$ldc/repo" init -q && git -C "$ldc/repo" add -A &&
@@ -2161,6 +2161,19 @@ out=$(ldcrun --base HEAD n="$ldc/new.json")
 [[ $? == 1 && $out == *'ABSENT lane=n ticket=T:V1-5 path=new/file.go is not at the lane base'* ]] || fail "lane-dispatch-check absent: $out"
 out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
 [[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
+# TCL-V0-743 (V1-3696): an absent path whose ticket body records a source ref names that ref.
+src=$(printf 'ab%.0s' {1..20})
+printf '[{"ticketId":"T:V1-7","record":{"body":"lane code\\nSource ref: lane-x@%s","effects":{"touchPaths":["new/file.go"]}}}]\n' "$src" > "$ldc/src.json"
+out=$(ldcrun --base HEAD s="$ldc/src.json")
+[[ $? == 1 && $out == *"ABSENT lane=s ticket=T:V1-7 path=new/file.go is not at the lane base"*"records source ref lane-x@$src: dispatch it after that branch lands"* ]] ||
+  fail "lane-dispatch-check absent with a source ref: $out"
+# TCL-V0-744 (V1-3856): an assigned ticket an orphan-lanes result lists is ORPHAN; a bad file exits 2.
+printf '{"items":[{"profile":"taskman-orphan-lanes/0","orphans":[{"local":"V1-2","ref":"refs/heads/claude/lane-w8","commit":"%s"}]}]}\n' "$src" > "$ldc/orphans.json"
+out=$(ldcrun --orphans "$ldc/orphans.json" a="$ldc/a.json" b="$ldc/b.json")
+[[ $? == 1 && $out == *"ORPHAN lane=b ticket=T:V1-2 is delivered on lane head refs/heads/claude/lane-w8 at $src"* && $out != *'ticket=T:V1-1 is delivered'* ]] ||
+  fail "lane-dispatch-check orphan: $out"
+out=$(ldcrun --orphans "$ldc/a.json" a="$ldc/a.json")
+[[ $? == 2 && $out == *'is not a taskman-orphan-lanes/0 result'* ]] || fail "lane-dispatch-check bad orphans file: $out"
 out=$(ldcrun a="$ldc/bad.json")
 [[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
 # A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
@@ -2178,6 +2191,47 @@ out=$(ldcrun --base nope a="$ldc/a.json")
 [[ $? == 2 && $out == *'base nope is not a commit'* ]] || fail "lane-dispatch-check bad base: $out"
 out=$(ldcrun)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-dispatch-check usage: $out"
+ok
+
+# ASD-V0-742 (V1-3245): lane-stage-inputs exports each ticket's show JSON and text and the queue
+# snapshot, copies them to ~/lane-inputs/ticket-bodies-LANE on the target and passes only when every
+# file is there and non-empty; a refused export copies nothing, a lost copy is MISSING, a bad
+# argument exits 2.
+lsi=$tmp/lsi
+mkdir -p "$lsi/bin" "$lsi/home"
+cat > "$lsi/bin/corvint-tasks" << 'STUB'
+#!/usr/bin/env bash
+if [[ $1 == queue && $2 == snapshot && $3 == --out ]]; then [[ -n ${FAKE_NO_SNAPSHOT:-} ]] || printf '{}\n' > "$4"; exit 0; fi
+[[ $1 == ticket && $2 == show && $3 != V1-BAD ]] || { printf '{"outcome":"REFUSED"}\n'; exit 1; }
+if [[ ${4:-} == --format ]]; then printf '%s  title\n' "$3"; else printf '{"outcome":"OK","items":[{"ticketId":"%s"}]}\n' "$3"; fi
+STUB
+cat > "$lsi/bin/ssh" << 'STUB'
+#!/usr/bin/env bash
+shift
+if [[ -n ${FAKE_LOSE:-} && $1 == *'tar -C'* ]]; then cat > /dev/null; exit 0; fi
+exec bash -c "$1"
+STUB
+chmod +x "$lsi/bin/corvint-tasks" "$lsi/bin/ssh"
+lsirun() { HOME=$lsi/home CORVINT_TASKS_BIN=$lsi/bin/corvint-tasks LANE_SSH=$lsi/bin/ssh "$script/lane-stage-inputs.sh" "$@" 2>&1; }
+out=$(lsirun --host wsl-lanes ln1 V1-1 V1-2)
+[[ $? == 0 && $out == 'lane-stage-inputs: PASS 2 tickets staged and verified at wsl-lanes:~/lane-inputs/ticket-bodies-ln1' ]] || fail "lane-stage-inputs pass: $out"
+[[ $(cat "$lsi/home/lane-inputs/ticket-bodies-ln1/V1-2.txt") == 'V1-2  title' && -s $lsi/home/lane-inputs/ticket-bodies-ln1/V1-1.json && -s $lsi/home/lane-inputs/ticket-bodies-ln1/queue-snapshot.json ]] || fail "lane-stage-inputs staged files"
+out=$(lsirun ln2 V1-3)
+[[ $? == 0 && $out == *'PASS 1 tickets staged and verified at this host:~/lane-inputs/ticket-bodies-ln2' ]] || fail "lane-stage-inputs local: $out"
+out=$(lsirun --host wsl-lanes ln3 V1-1 V1-BAD)
+[[ $? == 1 && $out == *'EXPORT ticket=V1-BAD:'* && $out == *'FAIL 1 exports refused; nothing was copied'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln3 ]] ||
+  fail "lane-stage-inputs export refusal: $out"
+out=$(FAKE_NO_SNAPSHOT=1 lsirun ln6 V1-1)
+[[ $? == 1 && $out == *'EXPORT queue-snapshot.json:'* && ! -e $lsi/home/lane-inputs/ticket-bodies-ln6 ]] || fail "lane-stage-inputs snapshot refusal: $out"
+out=$(FAKE_LOSE=1 lsirun --host wsl-lanes ln4 V1-1)
+[[ $? == 1 && $out == *'MISSING wsl-lanes:~/lane-inputs/ticket-bodies-ln4/V1-1.json is absent or empty'* && $out == *'V1-1.txt is absent'* && $out == *'queue-snapshot.json is absent'* && $out != *PASS* ]] ||
+  fail "lane-stage-inputs lost copy: $out"
+out=$(lsirun 'bad/lane' V1-1)
+[[ $? == 2 && $out == *"lane name 'bad/lane' is not valid"* ]] || fail "lane-stage-inputs bad lane: $out"
+out=$(lsirun ln5 'V1-1;x')
+[[ $? == 2 && $out == *"ticket 'V1-1;x' is not valid"* ]] || fail "lane-stage-inputs bad ticket: $out"
+out=$(lsirun ln5)
+[[ $? == 2 && $out == usage:* ]] || fail "lane-stage-inputs usage: $out"
 ok
 
 # ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the

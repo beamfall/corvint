@@ -1207,7 +1207,7 @@ dr-numbers-check:
 # make lane-dispatch-check BASE=$(git rev-parse origin/main) LANES="a=tickets-a.json b=tickets-b.json" WAIVE=V1-1
 .PHONY: lane-dispatch-check
 lane-dispatch-check:
-	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
+	@script/lane-dispatch-check.sh $(if $(BASE),--base "$(BASE)") $(if $(ORPHANS),--orphans "$(ORPHANS)") $(foreach w,$(WAIVE),--waive $(w)) $(LANES)
 
 # ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
 # shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.

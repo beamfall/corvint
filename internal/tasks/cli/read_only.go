@@ -19,11 +19,11 @@ const ReadOnlyEnv = "CORVINT_TASKS_READ_ONLY"
 // store lock and write nothing under the store (TM-V0-008).
 var readOnlyVerbs = map[string]bool{
 	"version": true, "--version": true, "roadmap": true, "critical-path": true, "pending": true, "doctor": true,
-	"queue status": true, "queue snapshot": true, "program show": true, "attempt show": true, "plan preview": true, "plan batches": true,
+	"queue status": true, "queue snapshot": true, "queue parity": true, "program show": true, "attempt show": true, "plan preview": true, "plan batches": true,
 	"policy show": true, "pool status": true, "dispatch status": true, "defects list": true, "source contains": true,
 	"receipt audit": true, "receipt get": true, "receipt path": true, "archive verify": true, "gate list": true, "gate show": true, "gate history": true,
 	"release list": true, "release show": true, "release readiness": true,
-	"ticket list": true, "ticket search": true, "ticket show": true, "ticket blockers": true, "ticket closeout-debt": true, "ticket effects-proposals": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
+	"ticket list": true, "ticket search": true, "ticket show": true, "ticket blockers": true, "ticket closeout-debt": true, "ticket effects-proposals": true, "ticket orphan-lanes": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 	"ticket note show": true, "ticket note history": true, "ticket know-how list": true,
 	"ticket escalation list": true, "ticket escalation show": true, "ticket escalation history": true,
 	"work start": true, "work deliver": true, "work block": true,
@@ -45,13 +45,14 @@ var dryRunVerbs = map[string]*workFlagSpec{"work close-merged": &closeMergedFlag
 // readOnlyRefusal refuses, before any store read or lock, every command
 // that is not a listed pure read while ReadOnlyEnv is set to a nonempty
 // value other than "0" (ATR-V0-212). doctor --refresh writes its cache and
-// is refused too.
+// doctor --rebuild-closed-index writes the closed-ticket index (TCL-V0-738),
+// so both are refused too.
 func readOnlyRefusal(args []string) *wire.Result {
 	if v := os.Getenv(ReadOnlyEnv); v == "" || v == "0" {
 		return nil
 	}
 	verb := verbPath(args)
-	if readOnlyVerbs[verb] && !(verb == "doctor" && hasArg(args, "--refresh")) {
+	if readOnlyVerbs[verb] && !(verb == "doctor" && (hasArg(args, "--refresh") || hasArg(args, "--rebuild-closed-index"))) {
 		return nil
 	}
 	if spec, ok := dryRunVerbs[verb]; ok && len(args) >= 2 {

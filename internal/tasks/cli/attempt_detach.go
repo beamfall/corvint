@@ -472,6 +472,7 @@ func (r *attemptRunner) launch(argv []string) int {
 		"--role", r.role, "--supervise", r.runID, "--")
 	c := exec.Command(program, append(args, argv...)...)
 	c.Dir = r.env.Cwd
+	c.Env = childActorEnv(r.env)
 	c.Stderr = logFile
 	c.ExtraFiles = []*os.File{readyW}
 	c.SysProcAttr = detachAttr()

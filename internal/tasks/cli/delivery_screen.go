@@ -408,6 +408,13 @@ type screenRow struct {
 	note  wire.Value
 }
 
+// deliveryScreenBools and deliveryScreenValues are the declared boolean and
+// value flags of delivery-screen; its usage names exactly these (TCL-V0-737).
+var (
+	deliveryScreenBools  = []string{"lane-refs", "json"}
+	deliveryScreenValues = []string{"prs", "ref", "since", "limit"}
+)
+
 // deliveryScreenCommand is `corvint-tasks ticket delivery-screen`. It takes
 // no lock and writes nothing (TCD-V0-159); exit 0 when every ticket is
 // CLEAR, 1 otherwise, 2 on a refusal (TCD-V0-162). A COMPLETED or HELD
@@ -416,8 +423,8 @@ type screenRow struct {
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
 	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
-	fl, pos, err := flagsWithBooleans(args, []string{"lane-refs", "json"}, "prs", "ref", "since", "limit")
-	laneRefs := fl["lane-refs"] == "true"
+	fl, set, pos, err := flagsBool(args, deliveryScreenBools, deliveryScreenValues...)
+	laneRefs := set["lane-refs"]
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}

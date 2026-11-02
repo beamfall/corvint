@@ -59,6 +59,7 @@ func observeFailed(t *testing.T, root, member, kind, file, request string) run {
 // count, and a claim that can only reach the stalled member is refused
 // POOL_MEMBER_RECOVERY_STALLED instead of a bare RESOURCE_COLLISION.
 func TestPSRV0260_PoolObserveStallsQuarantinedMember(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r, _, _ := poolStatusRepo(t)
 	b := poolStatusMembers(t, r.Root)["db/b"]
 	if _, err := time.Parse(time.RFC3339, field(field(b, "quarantine"), "since").Str); err != nil {
@@ -148,6 +149,7 @@ func TestPSRV0260_PoolObserveFlagsAndState(t *testing.T) {
 // stalled, pool status adds the pool-level summary naming them and a claim
 // on the pool is refused POOL_MEMBER_RECOVERY_STALLED.
 func TestPSRV0263_PoolSummaryWhenEveryMemberStalled(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r, held, _ := poolStatusRepo(t)
 	if x := atm(t, r.Root, nil, "release", "--attempt", held, "--generation", "1", "--request-id", "release-a"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("release a %s", x.stdout)

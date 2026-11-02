@@ -48,7 +48,7 @@ func refineBatchCommand(env Env, cmd []string, flags mutateFlags) *wire.Result {
 	if flags.template || flags.target != "" || flags.expected != "" {
 		return usage(cmd, "--batch takes each target and expected revision from its entries; --target, --expected-revision and --template are refused")
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

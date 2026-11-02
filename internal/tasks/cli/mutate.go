@@ -62,6 +62,9 @@ type mutateFlags struct {
 	// and archive; it leads the payload reason with [TAW-REASON:CODE]
 	// (TAW-V0-013).
 	reasonCode string
+	// createsPaths is --creates-paths, accepted only by ticket create: the
+	// ticket creates touch paths absent from the base (TCL-V0-743).
+	createsPaths bool
 	// others counts the flags passed besides --help and --template, so
 	// --template refuses any flag by presence, not by value.
 	others int
@@ -108,7 +111,7 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if len(flags.targets) > 1 && flags.expected != "" {
 		return usage(cmd, "--expected-revision names one revision: with several --target values hold reads each target's revision itself")
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -129,8 +132,13 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	var subjectWarnings []string
 	if operation == mutation.OpCreate {
 		if refused := createDuplicateGuard(env, cmd, flags, payload); refused != nil {
+			return refused
+		}
+		var refused *wire.Result
+		if subjectWarnings, refused = createSubjectGuard(env, cmd, flags, payload); refused != nil {
 			return refused
 		}
 	}
@@ -151,7 +159,11 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		}
 		flags.expected = landedRevision(env, flags.requestID, flags.expected)
 	}
-	return submitMutation(env, cmd, operation, actor, flags, payload)
+	sub := submitMutation(env, cmd, operation, actor, flags, payload)
+	if sub != nil && len(subjectWarnings) > 0 {
+		sub.Warnings = append(sub.Warnings, subjectWarnings...)
+	}
+	return sub
 }
 
 // valuelessTemplateFlag reports whether arg is --template or --skeleton,
@@ -218,6 +230,14 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			}
 			i++
 			f.reasonCode = args[i]
+			f.others++
+			continue
+		}
+		if args[i] == "--creates-paths" {
+			if cmd[len(cmd)-1] != "create" {
+				return f, usage(cmd, "unknown flag --creates-paths: only ticket create checks touch paths against the base")
+			}
+			f.createsPaths = true
 			f.others++
 			continue
 		}
@@ -340,7 +360,8 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		target = ""
 		o.Set("localToken", wire.String("Optional payload member localToken chooses the queue-local ID, e.g. \"localToken\":\"BT-002\". It uses the existing LocalToken grammar and refuses collisions (including case-fold collisions). Omit it for automatic allocation. CREATE forbids --target and --expected-revision."))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
-		o.Set("duplicateCheck", wire.String("CREATE first ranks the OPEN tickets against the payload (ticket similar). A match with similarity at least 0.60 over at least 3 distinct terms refuses DUPLICATE_ID naming each match and writes nothing: record a recurrence with ticket recur ID --context TEXT --request-id R, or pass --not-duplicate-of ID for each named ticket to file it anyway. A replayed --request-id skips the check (TCL-V0-004)."))
+		o.Set("subjectCheck", wire.String("CREATE then checks each effects.touchPaths entry at origin/HEAD, else origin/main, without fetching. A path absent there refuses MALFORMED and writes nothing unless the body records where the code lives with the line `Source ref: BRANCH@FULL_SHA` (checked at that commit when it is in this clone, recorded as NOT_OBSERVED when it is not) or --creates-paths declares that the ticket creates the paths. A repository without either ref warns NOT_OBSERVED; a replayed --request-id skips the check (TCL-V0-743)."))
+		o.Set("duplicateCheck", wire.String("CREATE first ranks the OPEN tickets against the payload (ticket similar). A match with similarity at least 0.60 over at least 3 distinct terms refuses DUPLICATE_ID naming each match and writes nothing: record a recurrence with ticket recur ID --context TEXT --request-id R, set the payload supersedes to the matched ticket id to record the duplicate as that typed link (search it with ticket search --supersedes ID, TCL-V0-739), or pass --not-duplicate-of ID for each named ticket to file it anyway. A replayed --request-id skips the check (TCL-V0-004)."))
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. --template --skeleton prints only the complete payload as items[0] (every key, nulls, empty arrays, the native source; title empty so an unedited submit refuses). A MALFORMED CREATE payload is refused with every missing, unknown and invalid key and its expected shape in one error. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpHold {
@@ -363,7 +384,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	}
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
-		usageText += " [--not-duplicate-of TICKET|LOCAL ...]; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
+		usageText += " [--not-duplicate-of TICKET|LOCAL ...] [--creates-paths]; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
 	}
 	if operation == mutation.OpCompleteManual || operation == mutation.OpArchive {
 		usageText += " [--reason-code " + strings.Join(reasonCodes(operation), "|") + "]"
@@ -492,7 +513,7 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		res.Warnings = append(res.Warnings, w)
 	}
 	if recoveredIssuedAt {
-		res.Warnings = append(res.Warnings, "request "+flags.requestID+" is recorded with the same request bytes except the defaulted issuedAt; this retry reused the recorded issuedAt "+string(issued)+" (TCL-V0-800)")
+		res.Warnings = append(res.Warnings, "request "+flags.requestID+" is recorded with issuedAt "+string(issued)+" and the same other request bytes; issuedAt defaulted because --issued-at was not given, so this retry reused the recorded issuedAt and replayed the recorded result (TCL-V0-800, TCL-V0-735)")
 	}
 	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" && !recoveredIssuedAt {
 		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(issued))

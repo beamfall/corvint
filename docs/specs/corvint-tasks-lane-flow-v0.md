@@ -131,6 +131,12 @@ done and number requirements that a peer branch already used.
   `COVERAGE_UNKNOWN` blocker names: every OPEN ticket whose effects coverage is short of `QUALIFIED`
   (`UNKNOWN` or `INCOMPLETE`). Each row MUST carry its `coverage`, and the human summary line MUST
   name that population (V1-3957).
+- `TLF-V0-742`: (experimental under the standing lane auto-accept (2026-11-01); V1-3957; refines
+  TLF-V0-888) The population `ticket effects-proposals` screens MUST be the one the
+  `COVERAGE_UNKNOWN` blocker names: every OPEN ticket whose effects coverage is not `QUALIFIED`
+  (`UNKNOWN` or `INCOMPLETE`). Each row MUST name its `coverage`, the item MUST count the screened
+  tickets per coverage in `screenedByCoverage`, and the human summary line MUST state that
+  population with both counts.
 - `TLF-V0-889`: A proposal MUST NOT change claimability, eligibility, blockers, planning or any
   record until an operator applies it with `ticket set-effects`; the proposal output is labelled
   `proposal: not authority` and carries no request id or payload that the writer accepts as-is.
@@ -181,6 +187,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
 | TLF-V0-800 | V1-3957 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0800_EffectsProposalsCoversTheBlockerPopulation` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
+| TLF-V0-742 | V1-3957 criteria 1-3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0742_ProposalsCoverTheBlockerPopulation` | none |
 
 ## Resolved decisions
 

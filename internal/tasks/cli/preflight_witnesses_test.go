@@ -35,6 +35,7 @@ func planWitnessView(t *testing.T, item wire.Value, planOnly string) (witnesses,
 // obligations plan --witnesses` on that plan; without --witnesses the
 // preflight report is unchanged (TOL-V0-940, V1-1961).
 func TestTOLV0940_PreflightPlanWitnessesMatchesPlan(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	const tests = `[{"test":"a","project":"api","obligations":["AC-1"]}]`
@@ -99,6 +100,7 @@ func TestTOLV0940_PreflightPlanWitnessesMatchesPlan(t *testing.T) {
 // TestTOLV0940_PreflightWitnessesUsage: --witnesses needs --plan and does
 // not combine with --cache (TOL-V0-940).
 func TestTOLV0940_PreflightWitnessesUsage(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, "preflight", id, "--witnesses"); x.res.Outcome != wire.OutcomeError || !warned(x, "--witnesses judges the plan's ledger witnesses") {
@@ -114,6 +116,7 @@ func TestTOLV0940_PreflightWitnessesUsage(t *testing.T) {
 // --refuse-repeat is exhausted on a stale witness, repairing the candidate
 // admits the next run, which judges the repaired witness (TOL-V0-940).
 func TestTOLV0940_PreflightWitnessSignatureKeysCandidate(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	const tests = `[{"test":"a","project":"api","obligations":["AC-1"]}]`

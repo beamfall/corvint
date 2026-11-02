@@ -64,6 +64,7 @@ func loopCLIPolicy(t *testing.T, root string) {
 // with the counted generations and reopen as the next action; the owner
 // reopen clears it. Without the policy the same history shows no hold (D8).
 func TestCALV0102_CLILoopHoldSurfaces(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-102 CAL-V0-103 CLILoopHoldSurfaces", func(t *testing.T) {
 		for _, opted := range []bool{true, false} {
 			root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))

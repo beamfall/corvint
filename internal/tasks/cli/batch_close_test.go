@@ -42,7 +42,8 @@ func bcShow(t *testing.T, root, id string) wire.Value {
 // --repo composes the run URL; the exit is 0 only when every delivered
 // ticket ends COMPLETED (TCD-V0-169).
 func TestTCDV0169_BatchCloseClosesDeliveredOpenTickets(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-11*time.Minute))
 	liveID := claimed[0].Ticket
 	live := liveID[strings.LastIndex(liveID, ":")+1:]

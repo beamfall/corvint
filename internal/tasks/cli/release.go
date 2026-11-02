@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/lifecycle"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -53,7 +54,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if f.requestID == "" || f.target == "" {
 		return usage(cmd, "--request-id and --target are required")
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -172,6 +173,16 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	var lifecycleState *string
+	if verb == "readiness" {
+		if args, lifecycleState, err = lifecycleFlag(args); err != nil {
+			return errorResult(cmd, err)
+		}
+		if len(args) != 1 {
+			return usage(cmd, "release id required")
+		}
+		return releaseReadiness(env, cmd, repo, args[0], lifecycleState)
+	}
 	st, err := intent.Load(repo.IntentRoot())
 	if err != nil {
 		return errorResult(cmd, err)
@@ -184,26 +195,59 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 		}
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: vs}
 	}
-	var lifecycleState *string
-	if verb == "readiness" {
-		if args, lifecycleState, err = lifecycleFlag(args); err != nil {
-			return errorResult(cmd, err)
-		}
-	}
 	if len(args) != 1 {
 		return usage(cmd, "release id required")
 	}
-	var target *release.Record
-	for _, r := range st.Releases {
-		if r.ReleaseID == args[0] {
-			target = r
-		}
-	}
+	target := releaseByID(st, args[0])
 	if target == nil {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "releaseId", "release absent"))
 	}
-	if verb == "show" {
-		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{releaseDetail(target)}}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{releaseDetail(target)}}
+}
+
+func releaseByID(st *intent.Store, id string) *release.Record {
+	for _, r := range st.Releases {
+		if r.ReleaseID == id {
+			return r
+		}
+	}
+	return nil
+}
+
+// releaseReadiness assesses one release and counts its members' lifecycles
+// from one store read (TCL-V0-736, V1-4148): the readiness inputs and the
+// lifecycle derivation share the read's intent store. Only when that read
+// fails does it fall back to a plain intent load, counting every member
+// UNKNOWN with a lifecycle NOT_OBSERVED warning as before.
+func releaseReadiness(env Env, cmd []string, repo *intent.Repository, id string, state *string) *wire.Result {
+	var res *wire.Result
+	_, err := withInventoryStore(env, func(rc *readCtx) error {
+		res = assessRelease(cmd, repo, rc.store, id, state, func(ids []string) (map[string]lifecycle.Lifecycle, []string) {
+			return lifecycles(rc, ids, nil)
+		})
+		return nil
+	})
+	if err == nil {
+		return res
+	}
+	st, lerr := intent.Load(repo.IntentRoot())
+	if lerr != nil {
+		return errorResult(cmd, lerr)
+	}
+	return assessRelease(cmd, repo, st, id, state, func(ids []string) (map[string]lifecycle.Lifecycle, []string) {
+		lcs := map[string]lifecycle.Lifecycle{}
+		unknown := lifecycle.Derive(lifecycle.Input{})
+		for _, id := range ids {
+			lcs[id] = unknown
+		}
+		return lcs, []string{"lifecycle NOT_OBSERVED: " + err.Error()}
+	})
+}
+
+func assessRelease(cmd []string, repo *intent.Repository, st *intent.Store, id string, state *string, lcs func([]string) (map[string]lifecycle.Lifecycle, []string)) *wire.Result {
+	target := releaseByID(st, id)
+	if target == nil {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "releaseId", "release absent"))
 	}
 	// Readiness without a candidate is BLOCKED on "candidate" before any
 	// source comparison, so the whole-tree source observation is skipped
@@ -211,6 +255,7 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	var head string
 	var source wire.Digest
 	if target.Candidate != nil {
+		var err error
 		head, _, source, err = store.ObserveSource(repo.IntentRoot(), false)
 		if err != nil {
 			return errorResult(cmd, err)
@@ -237,7 +282,7 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	o.Set("readiness", wire.String(ready.State)).Set("missing", wire.Strings(ready.Missing)).Set("nativeGateExecution", wire.String("NOT_RUN"))
 	members, drift := releaseMembership(target, st.Tickets)
 	o.Set("memberCounts", members).Set("milestoneDrift", drift)
-	warnings := releaseLifecycles(env, target, members, lifecycleState, o)
+	warnings := releaseLifecycles(target, members, state, o, lcs)
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}, Warnings: warnings}
 }
 
