@@ -117,7 +117,7 @@ type Source struct {
 // Text reports separately whether the source bytes were loaded and whether
 // those loaded bytes are valid text. An unloaded source is never an empty one.
 func (source Source) Text() (text string, valid, loaded bool) {
-	if source.body.section != nil {
+	if source.body.section != nil || source.body.gob != nil {
 		return source.body.text(source)
 	}
 	if !source.Checked {

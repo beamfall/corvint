@@ -28,11 +28,12 @@ func decodeSingleMessage(t *testing.T, wire *snapshotWire) *snapshotWire {
 func decodeChunked(t *testing.T, wire *snapshotWire, depth snapshotBodyDepth) (*snapshotWire, int) {
 	t.Helper()
 	var buffer bytes.Buffer
-	if err := encodeSnapshotBody(gob.NewEncoder(&buffer), wire); err != nil {
+	region, err := encodeSnapshotBody(gob.NewEncoder(&buffer), wire)
+	if err != nil {
 		t.Fatal(err)
 	}
 	decoder := gob.NewDecoder(&buffer)
-	decoded, err := decodeSnapshotBody(decoder, depth)
+	decoded, err := decodeSnapshotBody(decoder, depth, &snapshotBodies{region: bytes.Join(region, nil), objectFormat: wire.ObjectFormat})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,10 +108,11 @@ func TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806(t *testing.T) {
 		if err := encoder.Encode(&spine); err != nil {
 			t.Fatal(err)
 		}
-		if err := encodeSnapshotChunks(encoder, wire); err != nil {
+		region, err := encodeSnapshotChunks(encoder, wire)
+		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := decodeSnapshotBody(gob.NewDecoder(&forged), snapshotBodyFull); err == nil {
+		if _, err := decodeSnapshotBody(gob.NewDecoder(&forged), snapshotBodyFull, &snapshotBodies{region: bytes.Join(region, nil), objectFormat: wire.ObjectFormat}); err == nil {
 			t.Fatalf("%s: a spine that disagrees with its chunks decoded", name)
 		}
 	}
@@ -128,24 +130,28 @@ func TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806(t *testing.T) {
 	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || !hit {
 		t.Fatalf("the /3 snapshot did not load: hit=%v err=%v", hit, err)
 	}
-	var payload bytes.Buffer
-	encoder := gob.NewEncoder(&payload)
-	if err := encoder.Encode(snapshotHeader{Format: snapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: snapshotEngineID()}); err != nil {
-		t.Fatal(err)
-	}
-	if err := encoder.Encode(snapshotWireOf(index)); err != nil {
-		t.Fatal(err)
-	}
-	digest := sha256.Sum256(payload.Bytes())
-	if err := os.WriteFile(receipt.Path, append(payload.Bytes(), digest[:]...), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
-		t.Fatalf("a /2 snapshot loaded: hit=%v err=%v", hit, err)
-	}
-	for _, compact := range []bool{false, true} {
-		if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
-			t.Fatalf("a /2 snapshot event-loaded compact=%v: hit=%v err=%v", compact, hit, err)
+	// /2 is snapshotFormat's single message; a /3 header (IDX-SNAP-V0-811)
+	// over the same message is the same header-mismatch miss.
+	for _, format := range []string{snapshotFormat, "corvint-index-snapshot/3"} {
+		var payload bytes.Buffer
+		encoder := gob.NewEncoder(&payload)
+		if err := encoder.Encode(snapshotHeader{Format: format, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: snapshotEngineID()}); err != nil {
+			t.Fatal(err)
+		}
+		if err := encoder.Encode(snapshotWireOf(index)); err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(payload.Bytes())
+		if err := os.WriteFile(receipt.Path, append(payload.Bytes(), digest[:]...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
+			t.Fatalf("a %s snapshot loaded: hit=%v err=%v", format, hit, err)
+		}
+		for _, compact := range []bool{false, true} {
+			if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
+				t.Fatalf("a %s snapshot event-loaded compact=%v: hit=%v err=%v", format, compact, hit, err)
+			}
 		}
 	}
 }

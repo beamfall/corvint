@@ -261,7 +261,7 @@ func warmGobTypes() {
 	_, _ = encodePackHeader(packHeader{Sections: []packSectionEntry{{}}})
 	// The /3 body's own types come last so the pack's type ids, and so its
 	// bytes, are unchanged (IDX-SNAP-V0-806).
-	_ = encodeSnapshotBody(encoder, snapshotWireOf(sample))
+	_, _ = encodeSnapshotBody(encoder, snapshotWireOf(sample))
 }
 
 // eventSnapshot is the subset of wire an event load reads.

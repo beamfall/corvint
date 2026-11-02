@@ -1,9 +1,11 @@
 package contextindex
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/gob"
 	"encoding/hex"
 	"errors"
@@ -553,17 +555,36 @@ func writeSnapshotGitIgnore(directory string) error {
 
 func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error) {
 	digest := sha256.New()
-	encoder := gob.NewEncoder(io.MultiWriter(file, digest))
+	buffered := bufio.NewWriterSize(file, 1<<20)
+	encoder := gob.NewEncoder(io.MultiWriter(buffered, digest))
 	if err := encoder.Encode(snapshotHeader{Format: gobSnapshotFormat, ObjectFormat: index.ObjectFormat, Tree: index.Revision, Engine: engineID}); err != nil {
 		return 0, err
 	}
 	wire := snapshotWireOf(index)
 	wire.symbolTerms = buildSymbolTermTable(index)
 	wire.testLinks = buildTestLinkTable(index.Symbols)
-	if err := encodeSnapshotBody(encoder, wire); err != nil {
+	region, err := encodeSnapshotBody(encoder, wire)
+	if err != nil {
 		return 0, err
 	}
-	if _, err := file.Write(digest.Sum(nil)); err != nil {
+	// The body region follows the messages outside the trailer digest: each
+	// region body is verified by its own blob id (IDX-SNAP-V0-811).
+	var regionBytes int64
+	for _, part := range region {
+		if _, err := buffered.Write(part); err != nil {
+			return 0, err
+		}
+		regionBytes += int64(len(part))
+	}
+	footer := regionFooter(regionBytes)
+	digest.Write(footer)
+	if _, err := buffered.Write(footer); err != nil {
+		return 0, err
+	}
+	if _, err := buffered.Write(digest.Sum(nil)); err != nil {
+		return 0, err
+	}
+	if err := buffered.Flush(); err != nil {
 		return 0, err
 	}
 	info, err := file.Stat()
@@ -785,8 +806,10 @@ func SnapshotFreshness(ctx context.Context, root string) (SnapshotProbe, string,
 	}
 	defer file.Close()
 	// A header alone would call a torn body fresh, and `index --if-stale`
-	// would then never repair the file every loader misses on.
-	if _, err := decodeCompactEventSnapshot(file, identity, engineID); err != nil {
+	// would then never repair the file every loader misses on: the probe
+	// reads the sources too, each region body verified by its blob id
+	// (IDX-SNAP-V0-811).
+	if _, err := decodeSnapshotWire(file, identity, engineID, snapshotBodySources); err != nil {
 		return SnapshotProbe{}, "unreadable-or-unsupported-snapshot", nil
 	}
 	if sectionedEnabled() {
@@ -917,6 +940,7 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 			return index, nil
 		}
 	}
+	deferred := load.deferredBodies()
 	load = load.tables()
 	if sectionedEnabled() {
 		index, err := readSectionedSnapshot(sectionedPath(directory, identity.objectFormat, identity.treeRevision, engineID), identity, engineID, load)
@@ -933,20 +957,28 @@ func readSnapshotIndex(directory string, identity repositoryIdentity, engineID s
 	case loadCompact:
 		return decodeCompactEventSnapshot(file, identity, engineID)
 	case loadEvent:
-		return decodeEventSnapshot(file, identity, engineID)
+		return decodeEventSnapshot(file, identity, engineID, deferred)
 	}
-	return decodeSnapshot(file, identity, engineID)
+	return decodeSnapshotLoad(file, identity, engineID, deferred)
 }
 
 func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	wire, err := decodeSnapshotWire(file, identity, engineID, snapshotBodyFull)
+	return decodeSnapshotLoad(file, identity, engineID, false)
+}
+
+// decodeSnapshotLoad is decodeSnapshot whose deferred form hands out lazy
+// bodies over a leased mapping (IDX-SNAP-V0-811).
+func decodeSnapshotLoad(file *os.File, identity repositoryIdentity, engineID string, deferred bool) (*Index, error) {
+	wire, bodies, err := decodeSnapshotWireBodies(file, identity, engineID, snapshotBodyFull, deferred)
 	if err != nil {
 		return nil, err
 	}
 	index, err := wire.index()
 	if err != nil {
+		bodies.end()
 		return nil, err
 	}
+	bodies.attach(index)
 	if err := index.checkSymbolWindows(); err != nil {
 		return nil, err
 	}
@@ -956,12 +988,18 @@ func decodeSnapshot(file *os.File, identity repositoryIdentity, engineID string)
 	return index, nil
 }
 
-func decodeEventSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
-	wire, err := decodeSnapshotWire(file, identity, engineID, snapshotBodyEvents)
+func decodeEventSnapshot(file *os.File, identity repositoryIdentity, engineID string, deferred bool) (*Index, error) {
+	wire, bodies, err := decodeSnapshotWireBodies(file, identity, engineID, snapshotBodyEvents, deferred)
 	if err != nil {
 		return nil, err
 	}
-	return wire.eventSnapshot().index()
+	index, err := wire.eventSnapshot().index()
+	if err != nil {
+		bodies.end()
+		return nil, err
+	}
+	bodies.attach(index)
+	return index, nil
 }
 
 func decodeCompactEventSnapshot(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
@@ -991,7 +1029,9 @@ func LoadEventSnapshotObserved(root string, compact bool, observation Observatio
 		return nil, false, nil
 	}
 	identity := repositoryIdentity{objectFormat: observation.ObjectFormat, commitRevision: observation.CommitRevision, treeRevision: observation.Revision}
-	decode := decodeEventSnapshot
+	decode := func(file *os.File, identity repositoryIdentity, engineID string) (*Index, error) {
+		return decodeEventSnapshot(file, identity, engineID, false)
+	}
 	if compact && len(observation.DirtyPaths) == 0 {
 		decode = decodeCompactEventSnapshot
 	}
@@ -1053,39 +1093,78 @@ func LoadSnapshotObserved(root string, observation Observation) (*Index, bool, e
 // blob does not contain (IDX-SNAP-V0-003, decision 0398). Every loader and
 // ProbeSnapshot reads the whole message anyway, so the check adds a hash of
 // bytes already read, not another read of the file.
-// decodeSnapshotWire decodes the gob snapshot's body up to depth.
+// decodeSnapshotWire decodes the gob snapshot's body up to depth, every
+// source body copied and verified.
 func decodeSnapshotWire(file *os.File, identity repositoryIdentity, engineID string, depth snapshotBodyDepth) (*snapshotWire, error) {
+	wire, _, err := decodeSnapshotWireBodies(file, identity, engineID, depth, false)
+	return wire, err
+}
+
+// decodeSnapshotWireBodies is decodeSnapshotWire whose deferred form leaves
+// region bodies lazy over a leased mapping; the caller attaches or ends the
+// returned bodies.
+func decodeSnapshotWireBodies(file *os.File, identity repositoryIdentity, engineID string, depth snapshotBodyDepth, deferred bool) (*snapshotWire, *snapshotBodies, error) {
 	var wire *snapshotWire
-	err := decodeSnapshotValue(file, identity, engineID, func(decoder *gob.Decoder) (err error) {
-		wire, err = decodeSnapshotBody(decoder, depth)
+	bodies := &snapshotBodies{deferred: deferred, objectFormat: identity.objectFormat}
+	err := decodeSnapshotValue(file, identity, engineID, bodies, func(decoder *gob.Decoder) (err error) {
+		wire, err = decodeSnapshotBody(decoder, depth, bodies)
 		return err
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return wire, nil
+	return wire, bodies, nil
 }
 
-func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, decode func(*gob.Decoder) error) error {
+// decodeSnapshotValue checks the header and trailer of a gob snapshot and
+// runs decode over its messages, with bodies' region set to the file's body
+// region. bodies may be nil for a decode that reads no source.
+func decodeSnapshotValue(file *os.File, identity repositoryIdentity, engineID string, bodies *snapshotBodies, decode func(*gob.Decoder) error) error {
+	if bodies == nil {
+		bodies = &snapshotBodies{objectFormat: identity.objectFormat}
+	}
 	info, err := file.Stat()
 	if err != nil {
 		return err
 	}
-	payloadBytes := info.Size() - sha256.Size
-	if payloadBytes <= 0 {
+	if info.Size() < sha256.Size+snapshotFooterBytes {
 		return errors.New("snapshot shorter than its digest")
 	}
-	if mapping := mapReadOnly(file, info.Size()); mapping != nil {
-		return decodeMappedSnapshotValue(mapping, identity, engineID, decode)
+	if mapping := mapSnapshot(file, info.Size()); mapping != nil {
+		return decodeMappedSnapshotValue(mapping, identity, engineID, bodies, decode)
 	}
-	return decodeStreamedSnapshotValue(file, payloadBytes, identity, engineID, decode)
+	return decodeStreamedSnapshotValue(file, info.Size(), identity, engineID, bodies, decode)
+}
+
+// snapshotLayout splits a snapshot of size bytes into its message bytes, body
+// region and footer from the footer's region length.
+func snapshotLayout(size int64, footer []byte) (messages, regionStart int64, err error) {
+	region := int64(binary.LittleEndian.Uint64(footer))
+	end := size - sha256.Size - snapshotFooterBytes
+	if region < 0 || region > end {
+		return 0, 0, errors.New("snapshot body region lies outside the file")
+	}
+	return end - region, end - region, nil
 }
 
 // decodeStreamedSnapshotValue is decodeSnapshotValue through read(2), for a
-// host or file that cannot be mapped.
-func decodeStreamedSnapshotValue(file *os.File, payloadBytes int64, identity repositoryIdentity, engineID string, decode func(*gob.Decoder) error) error {
+// host or file that cannot be mapped; every body is read and verified.
+func decodeStreamedSnapshotValue(file *os.File, size int64, identity repositoryIdentity, engineID string, bodies *snapshotBodies, decode func(*gob.Decoder) error) error {
+	footer := make([]byte, snapshotFooterBytes)
+	if _, err := file.ReadAt(footer, size-sha256.Size-snapshotFooterBytes); err != nil {
+		return err
+	}
+	messages, regionStart, err := snapshotLayout(size, footer)
+	if err != nil {
+		return err
+	}
+	bodies.region = make([]byte, size-sha256.Size-snapshotFooterBytes-regionStart)
+	if _, err := file.ReadAt(bodies.region, regionStart); err != nil {
+		return err
+	}
+	bodies.mapping = nil
 	digest := sha256.New()
-	payload := io.TeeReader(io.NewSectionReader(file, 0, payloadBytes), digest)
+	payload := io.TeeReader(io.NewSectionReader(file, 0, messages), digest)
 	decoder := gob.NewDecoder(payload)
 	if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 		return err
@@ -1096,8 +1175,9 @@ func decodeStreamedSnapshotValue(file *os.File, payloadBytes int64, identity rep
 	if _, err := io.Copy(io.Discard, payload); err != nil {
 		return err
 	}
+	digest.Write(footer)
 	var trailer [sha256.Size]byte
-	if _, err := file.ReadAt(trailer[:], payloadBytes); err != nil {
+	if _, err := file.ReadAt(trailer[:], size-sha256.Size); err != nil {
 		return err
 	}
 	if !bytes.Equal(digest.Sum(nil), trailer[:]) {

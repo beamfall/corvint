@@ -4,7 +4,6 @@ package contextindex
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/gob"
 	"errors"
 	"os"
@@ -39,20 +38,22 @@ func TestMappedSnapshotDecodeMatchesStreamedDecode(t *testing.T) {
 	}
 	for _, depth := range []snapshotBodyDepth{snapshotBodySpine, snapshotBodyEvents, snapshotBodyFull} {
 		var mapped, streamed *snapshotWire
-		into := func(target **snapshotWire) func(*gob.Decoder) error {
+		mappedBodies := &snapshotBodies{objectFormat: identity.objectFormat}
+		streamedBodies := &snapshotBodies{objectFormat: identity.objectFormat}
+		into := func(target **snapshotWire, bodies *snapshotBodies) func(*gob.Decoder) error {
 			return func(decoder *gob.Decoder) (err error) {
-				*target, err = decodeSnapshotBody(decoder, depth)
+				*target, err = decodeSnapshotBody(decoder, depth, bodies)
 				return err
 			}
 		}
-		mapping := mapReadOnly(file, info.Size())
+		mapping := mapSnapshot(file, info.Size())
 		if mapping == nil {
 			t.Fatal("snapshot file did not map")
 		}
-		if err := decodeMappedSnapshotValue(mapping, identity, engineID, into(&mapped)); err != nil {
+		if err := decodeMappedSnapshotValue(mapping, identity, engineID, mappedBodies, into(&mapped, mappedBodies)); err != nil {
 			t.Fatalf("mapped decode: %v", err)
 		}
-		if err := decodeStreamedSnapshotValue(file, info.Size()-sha256.Size, identity, engineID, into(&streamed)); err != nil {
+		if err := decodeStreamedSnapshotValue(file, info.Size(), identity, engineID, streamedBodies, into(&streamed, streamedBodies)); err != nil {
 			t.Fatalf("streamed decode: %v", err)
 		}
 		// The mapping is released; comparing reads every decoded string.
@@ -90,8 +91,12 @@ func TestMappedSnapshotDecodeFaultIsAMiss(t *testing.T) {
 		t.Fatal(err)
 	}
 	identity := repositoryIdentity{objectFormat: "sha1"}
-	if err := decodeMappedSnapshotValue(mapping, identity, snapshotEngineID(), func(decoder *gob.Decoder) error {
-		_, err := decodeSnapshotBody(decoder, snapshotBodyFull)
+	faulting := &snapshotMapping{bytes: mapping}
+	faulting.refs.Store(1)
+	liveSnapshotMappings.Add(1)
+	bodies := &snapshotBodies{objectFormat: identity.objectFormat}
+	if err := decodeMappedSnapshotValue(faulting, identity, snapshotEngineID(), bodies, func(decoder *gob.Decoder) error {
+		_, err := decodeSnapshotBody(decoder, snapshotBodyFull, bodies)
 		return err
 	}); !errors.Is(err, errSnapshotFault) {
 		t.Fatalf("faulting mapping decoded: %v", err)

@@ -3,6 +3,7 @@ package contextindex
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/execfile"
 	"os"
@@ -119,10 +120,25 @@ func TestSnapshotSameLengthBodyOverwriteIsAMiss(t *testing.T) {
 	if _, hit, err := LoadSnapshot(context.Background(), index.Root); err != nil || hit {
 		t.Fatalf("IDX-SNAP-V0-003: overwritten body loaded: hit=%v err=%v", hit, err)
 	}
-	for _, compact := range []bool{false, true} {
-		if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, compact); err != nil || hit {
-			t.Fatalf("IDX-SNAP-V0-003: overwritten body event load compact=%v: hit=%v err=%v", compact, hit, err)
-		}
+	if _, hit, err := LoadEventSnapshot(context.Background(), index.Root, false); err != nil || hit {
+		t.Fatalf("IDX-SNAP-V0-003: overwritten body event load: hit=%v err=%v", hit, err)
+	}
+	// IDX-SNAP-V0-811: a compact load reads only the digest-covered spine; a
+	// body it never reads cannot reach its output, so it stays a hit.
+	if compact, hit, err := LoadEventSnapshot(context.Background(), index.Root, true); err != nil || !hit || compact.ProfileID != index.ProfileID {
+		t.Fatalf("IDX-SNAP-V0-811: compact load beside an overwritten body: hit=%v err=%v", hit, err)
+	}
+	// A deferred load hits and refuses the body when a read reaches it.
+	deferred, hit, err := LoadSnapshotDeferred(context.Background(), index.Root)
+	if err != nil || !hit {
+		t.Fatalf("IDX-SNAP-V0-811: deferred load: hit=%v err=%v", hit, err)
+	}
+	defer deferred.Release()
+	for _, source := range deferred.Sources {
+		source.Text()
+	}
+	if !errors.Is(deferred.SnapshotRefusal(), ErrSnapshotRefused) {
+		t.Fatalf("IDX-SNAP-V0-811: the overwritten body was read without a refusal: %v", deferred.SnapshotRefusal())
 	}
 }
 

@@ -22,7 +22,7 @@ import (
 
 // gobSnapshotFormat is the header format of the gob snapshot only; the
 // sectioned and pack encodings keep snapshotFormat.
-const gobSnapshotFormat = "corvint-index-snapshot/3"
+const gobSnapshotFormat = "corvint-index-snapshot/4"
 
 // snapshotChunkBytes bounds one chunk message's payload, well under gob's
 // 10 MiB single-allocation threshold even with its framing.
@@ -39,6 +39,9 @@ const (
 	snapshotBodySpine  snapshotBodyDepth = iota // ProfileID and the other small fields
 	snapshotBodyEvents                          // also sources, symbols and fields
 	snapshotBodyFull                            // also the term table
+	// snapshotBodySources reads the spine and the sources only, every body
+	// copied and verified: the IDX-SNAP-V0-011 probe (IDX-SNAP-V0-811).
+	snapshotBodySources
 )
 
 // snapshotSpine is every snapshotWire field except the chunked ones, with the
@@ -84,14 +87,16 @@ func vocabularyTargets(table *TermTable) []any {
 	return []any{&table.Terms, &table.Words, &table.PathTerms, &table.SymbolWindows, table.IdentGraph}
 }
 
-// encodeSnapshotBody writes wire as the /3 message sequence.
-func encodeSnapshotBody(encoder *gob.Encoder, wire *snapshotWire) error {
+// encodeSnapshotBody writes wire as the message sequence and returns the
+// body region's parts, in order, for the caller to write after the messages
+// (IDX-SNAP-V0-811).
+func encodeSnapshotBody(encoder *gob.Encoder, wire *snapshotWire) ([][]byte, error) {
 	if len(wire.Sources.Keys) != len(wire.Sources.Values) {
-		return errWirePairs
+		return nil, errWirePairs
 	}
 	spine := snapshotSpineOf(wire)
 	if err := encoder.Encode(&spine); err != nil {
-		return err
+		return nil, err
 	}
 	return encodeSnapshotChunks(encoder, wire)
 }
@@ -129,35 +134,37 @@ func symbolTermsBlob(wire *snapshotWire) []byte {
 	return data
 }
 
-// encodeSnapshotChunks writes the messages after the spine.
-func encodeSnapshotChunks(encoder *gob.Encoder, wire *snapshotWire) error {
-	for low := 0; low < len(wire.Sources.Values); {
+// encodeSnapshotChunks writes the messages after the spine and returns the
+// body region's parts.
+func encodeSnapshotChunks(encoder *gob.Encoder, wire *snapshotWire) ([][]byte, error) {
+	metas, region := gobSourceMetas(wire.Sources.Values, wire.ObjectFormat)
+	for low := 0; low < len(metas); {
 		high, size := low, 0
-		for high < len(wire.Sources.Values) && (high == low || size+len(wire.Sources.Values[high].Data) <= snapshotChunkBytes) {
-			size += len(wire.Sources.Values[high].Data)
+		for high < len(metas) && (high == low || high-low < snapshotSymbolChunk && size+len(metas[high].Inline) <= snapshotChunkBytes) {
+			size += len(metas[high].Inline)
 			high++
 		}
-		if err := encoder.Encode(wire.Sources.Values[low:high]); err != nil {
-			return err
+		if err := encoder.Encode(metas[low:high]); err != nil {
+			return nil, err
 		}
 		low = high
 	}
 	for _, symbols := range [][]Symbol{wire.Symbols, wire.Fields} {
 		for low := 0; low < len(symbols); low += snapshotSymbolChunk {
 			if err := encoder.Encode(symbols[low:min(low+snapshotSymbolChunk, len(symbols))]); err != nil {
-				return err
+				return nil, err
 			}
 		}
 	}
 	if wire.Vocabulary != nil {
 		if err := encodeVocabularyChunks(encoder, wire.Vocabulary); err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if err := encodeBlobChunks(encoder, symbolTermsBlob(wire)); err != nil {
-		return err
+		return nil, err
 	}
-	return encodeBlobChunks(encoder, testLinksBlob(wire))
+	return region, encodeBlobChunks(encoder, testLinksBlob(wire))
 }
 
 func encodeBlobChunks(encoder *gob.Encoder, data []byte) error {
@@ -201,9 +208,10 @@ func encodeVocabularyChunks(encoder *gob.Encoder, table *TermTable) error {
 
 var errSnapshotChunks = errors.New("snapshot chunks are malformed")
 
-// decodeSnapshotBody reads the /3 message sequence up to depth. Malformed
+// decodeSnapshotBody reads the message sequence up to depth, with the
+// sources' bodies from bodies (nil for a body with no region). Malformed
 // counts or chunk lengths are an error, which is the IDX-SNAP-V0-003 miss.
-func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth) (*snapshotWire, error) {
+func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth, bodies *snapshotBodies) (*snapshotWire, error) {
 	var spine snapshotSpine
 	if err := decoder.Decode(&spine); err != nil {
 		return nil, err
@@ -224,18 +232,28 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth) (*snapsho
 	if depth == snapshotBodySpine {
 		return wire, nil
 	}
-	if len(spine.SourceKeys) != 0 {
-		wire.Sources.Values = make([]Source, 0, len(spine.SourceKeys))
-	}
-	for len(wire.Sources.Values) < len(spine.SourceKeys) {
-		var chunk []Source
+	metas := make([]wireSourceMeta, 0, len(spine.SourceKeys))
+	for len(metas) < len(spine.SourceKeys) {
+		var chunk []wireSourceMeta
 		if err := decoder.Decode(&chunk); err != nil {
 			return nil, err
 		}
-		if len(chunk) == 0 || len(wire.Sources.Values)+len(chunk) > len(spine.SourceKeys) {
+		if len(chunk) == 0 || len(metas)+len(chunk) > len(spine.SourceKeys) {
 			return nil, errSnapshotChunks
 		}
-		wire.Sources.Values = append(wire.Sources.Values, chunk...)
+		metas = append(metas, chunk...)
+	}
+	if len(metas) != 0 {
+		values, err := sourcesFromMetas(metas, bodies)
+		if err != nil {
+			return nil, err
+		}
+		wire.Sources.Values = values
+	} else if bodies != nil && len(bodies.region) != 0 {
+		return nil, errSnapshotChunks
+	}
+	if depth == snapshotBodySources {
+		return wire, nil
 	}
 	for _, read := range []struct {
 		count  int
