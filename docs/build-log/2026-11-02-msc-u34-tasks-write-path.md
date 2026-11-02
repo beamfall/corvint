@@ -611,3 +611,30 @@ Tests after both fixes, all ok:
   finish inside the lane's 9-minute bound, and its wall time is `NOT_OBSERVED`.
 - V1-4263: PARTIAL. The refusal is byte-identical and 49% cheaper, but LGL-V0-846's 25% target is
   not met after the review fix.
+
+## Round 4: the three partials (owner: "you choose for all 3", 2026-11-02)
+
+- V1-1148:
+  - Built `TCX-V0-850`: `tasks-scale gen --pause-after/--max-seconds/--resume`, with `chunkSeconds`
+    in the manifest. Test: `TestTCXV0850PausedGenResumesToTheSameStore` (same manifest, statuses
+    and receipts as an unpaused gen).
+  - Measured a 2,000-ticket gen in two bounded commands, load 4.4 to 2.9 to 5.6: complete in 912.7
+    s, 4,459 receipts. Chunks of 500 tickets took 156.3, 227.0, 240.7 and 288.8 s.
+  - The last chunk is 1.85 times the first, so the 1.5 times target is **not met**. At BASE the
+    first two chunks were 187 and 332 s, about 1.8 times already between those two, and the full run
+    could not finish in a bound (`NOT_OBSERVED`).
+- V1-4229 (`TCX-V0-848`): decided **not** to make the CLI preload stat-trusted.
+  - Since `LGL-V0-845` the preload's byte read is the writer audit's read, which takes those bytes
+    from it. A stat-trusted preload would only move that read back into the audit.
+  - Each write keeps two byte-exact reads of every intent file: the audit's and the pre-effect
+    recheck's. Both are writer authority checks, so neither was weakened.
+  - The target is left unchanged and recorded as not met. Floor: those two reads (about 27 ms each
+    at 2,000 tickets).
+- V1-4263 (`LGL-V0-846`): decided to keep the BASE refusal precedence. Only the full audit
+    guarantees it (Codex r1).
+  - The target is left unchanged and recorded as not met: 51% of the base CPU. Floor: one full
+    `AuditForMutation`.
+
+The remaining O(n) work per write sits in the writer itself, outside these tickets' passes, and
+belongs to tkp-u33's area: the audit's read, the recheck, the journal audit (36 ms at 2,000) and
+the writer inventory listing (24 ms). Those are where any further linearity has to come from.
