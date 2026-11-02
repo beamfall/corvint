@@ -867,7 +867,17 @@ since_receipt() {
 since_base=
 [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
-/bin/rm -f "$receipt"
+# ASD-V0-775 (V1-4239): a well-formed passing receipt that names a strict ancestor of HEAD stays.
+# It states only that that commit passed every step, which no run at a later commit changes, and the
+# sealed-head precheck of a reseal selects against it (ASD-V0-943). Any other receipt, one naming
+# HEAD included, is removed before the steps run (ASD-V0-035), and a passing full run replaces it.
+kept=$(awk '$1 == "head" { print $2 }' "$receipt" 2> /dev/null) || kept=
+if [[ -n $kept && $kept != "$(git rev-parse HEAD)" ]] && verify_receipt "$kept" > /dev/null 2>&1 &&
+  git merge-base --is-ancestor "$kept" HEAD 2> /dev/null; then
+  printf 'batch-precheck: kept the passing receipt for ancestor %s, so a later sealed-head run can select against it (ASD-V0-775)\n' "$(git rev-parse --short "$kept")"
+else
+  /bin/rm -f "$receipt"
+fi
 # Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
 # is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
 # compile there, so a step fails with no space left on device and passes on its rerun.
