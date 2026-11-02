@@ -855,8 +855,10 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 // affectedWorktreeBaseRefusal refuses --worktree with --base (ACX-V0-752):
 // the committed range with the whole working tree is what --base alone
 // plans, and a named subset of it against the working tree is a --worktree
-// path list that also names the range's paths.
-const affectedWorktreeBaseRefusal = "--worktree cannot be combined with --base: without --worktree, --base BASE already plans the committed range BASE..HEAD together with every dirty worktree path; to plan only named paths against the working tree, drop --base and pass them with --worktree, adding the range's own paths (git diff --name-only BASE HEAD) to --path or --paths-from"
+// path list that also names the range's paths. --no-renames keeps a rename's
+// source, which Git's default rename detection would drop from the list
+// while --base still plans it.
+const affectedWorktreeBaseRefusal = "--worktree cannot be combined with --base: without --worktree, --base BASE already plans the committed range BASE..HEAD together with every dirty worktree path; to plan only named paths against the working tree, drop --base and pass them with --worktree, adding the range's own paths, each rename's source as well as its destination (git diff --no-renames --name-only BASE HEAD), to --path or --paths-from"
 
 // degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
 // affected-plan/1 receipt and prints it on stderr when this binary is stale

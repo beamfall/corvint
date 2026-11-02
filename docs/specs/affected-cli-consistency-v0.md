@@ -150,8 +150,10 @@ driving Corvint from scripts.
   `invalid-arguments` error, decided before the `--path` and `--base` refusal, and its message
   SHALL name the plans that exist: without `--worktree`, `--base BASE` already plans the committed
   range `BASE..HEAD` together with every dirty worktree path (AFP-V0-010), and a named subset
-  against the working tree is a `--worktree` path list that also names the range's own paths
-  (`git diff --name-only BASE HEAD`). The other `--worktree` refusals keep their message without
+  against the working tree is a `--worktree` path list that also names the range's own paths,
+  each rename's source as well as its destination (`git diff --no-renames --name-only BASE HEAD`):
+  Git's default rename detection lists only the destination, which would drop the readers of the
+  old path that `--base` plans. The other `--worktree` refusals keep their message without
   `--base`. Planning a worktree-derived path list against a base inside one invocation is a
   non-goal: `--base` alone already covers the range with the working tree, and a second change
   set beside `--path` stays refused (AFP-V0-764).
@@ -197,7 +199,7 @@ current source computes, so a stale binary still yields uncertainty, not invente
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
 | ACX-V0-750 | `selfBinaryNotice` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` in `cmd/corvint/affected.go`; `writeAffectedDegradations` in `cmd/corvint/affected_text.go`; the `DegradationDetails` members in `affected_compact.go`, `affected_verdict.go` and `affected_by_path.go`; the `corvint-test: DEGRADED` line in `cmd/corvint/test.go` | `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`; `TestAFPV0825StaleCheckReusesThePlanHEAD` |
 | ACX-V0-751 | `degradeStaleAffected` in `cmd/corvint/affected.go`; the stale check in `runTest` in `cmd/corvint/test.go` | `TestStaleBinaryNoticeOncePerInvocation_ACXV0751` |
-| ACX-V0-752 | `affectedWorktreeBaseRefusal` and its check in `parseAffectedOptions` in `cmd/corvint/affected.go`; the `--worktree` help in `cmd/corvint/help.go` | `TestWorktreeWithBaseNamesTheAlternative_ACXV0752`; `TestACXV0851WorktreePathPlan` |
+| ACX-V0-752 | `affectedWorktreeBaseRefusal` and its check in `parseAffectedOptions` in `cmd/corvint/affected.go`; the `--worktree` help in `cmd/corvint/help.go` | `TestWorktreeWithBaseNamesTheAlternative_ACXV0752`; `TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752`; `TestACXV0851WorktreePathPlan` |
 
 ## Rollback
 

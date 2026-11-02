@@ -72,7 +72,7 @@ func TestWorktreeWithBaseNamesTheAlternative_ACXV0752(t *testing.T) {
 		_, raw, stderr, code := runAffectedCLI(t, root, arguments...)
 		if code != 2 || len(raw) != 0 || !strings.Contains(stderr, "invalid-arguments") || !strings.Contains(stderr, "--worktree cannot be combined with --base") ||
 			!strings.Contains(stderr, "already plans the committed range BASE..HEAD together with every dirty worktree path") ||
-			!strings.Contains(stderr, "git diff --name-only BASE HEAD") || strings.Contains(stderr, "each names the change set") {
+			!strings.Contains(stderr, "git diff --no-renames --name-only BASE HEAD") || strings.Contains(stderr, "each names the change set") {
 			t.Fatalf("%q: exit=%d stdout=%s stderr=%s", arguments, code, raw, stderr)
 		}
 	}
@@ -84,6 +84,46 @@ func TestWorktreeWithBaseNamesTheAlternative_ACXV0752(t *testing.T) {
 	}
 	if !strings.Contains(affectedHelp, "(ACX-V0-752)") {
 		t.Fatal("affected help does not name the --worktree --base alternatives")
+	}
+}
+
+// TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752: ACX-V0-752. On a
+// committed range that renames a file, the path list the refusal tells the
+// user to derive names the rename source beside its destination, as the
+// --base plan does, and the --worktree plan built from it keeps the source.
+// Git's default rename detection, pinned on here whatever the host sets,
+// would list only the destination.
+func TestWorktreeWithBaseRecoveryKeepsRenameSources_ACXV0752(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	affectedGit(t, root, "mv", "README.md", "NOTES.md")
+	affectedGit(t, root, "commit", "-qm", "rename")
+	appendAffectedLine(t, root, "core/core.go", "// local edit")
+
+	_, _, stderr, code := runAffectedCLI(t, root, "--worktree", "--base", base, "--path", "core/core.go")
+	start := strings.Index(stderr, "(git diff ")
+	end := strings.Index(stderr[max(start, 0):], " BASE HEAD)")
+	if code != 2 || start < 0 || end < 0 {
+		t.Fatalf("refusal names no git diff recovery: exit=%d stderr=%s", code, stderr)
+	}
+	arguments := append([]string{"-c", "diff.renames=true"}, strings.Fields(stderr[start+len("(git "):start+end])...)
+	listed := strings.Fields(affectedGit(t, root, append(arguments, base, "HEAD")...))
+	if !slices.Contains(listed, "README.md") || !slices.Contains(listed, "NOTES.md") {
+		t.Fatalf("recovery %q lists %q, want the rename source and destination", arguments, listed)
+	}
+
+	receipt, raw, stderr, code := runAffectedCLI(t, root, "--base", base)
+	if code != 0 || !strings.Contains(fmt.Sprint(receipt["plan"]), "README.md") {
+		t.Fatalf("--base plan omits the rename source: exit=%d stderr=%s receipt=%s", code, stderr, raw)
+	}
+	options := []string{"--worktree", "--path", "core/core.go"}
+	for _, path := range listed {
+		options = append(options, "--path", path)
+	}
+	receipt, raw, stderr, code = runAffectedCLI(t, root, options...)
+	if paths := fmt.Sprint(receipt["path_list"]); code != 0 || !strings.Contains(paths, "README.md") || !strings.Contains(paths, "NOTES.md") {
+		t.Fatalf("--worktree recovery plan: exit=%d stderr=%s receipt=%s", code, stderr, raw)
 	}
 }
 
