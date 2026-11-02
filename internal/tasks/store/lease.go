@@ -586,21 +586,6 @@ func diffScopeWith(git gitRunner, root, base, rev, tree string) ([]string, wire.
 	return paths, DiffScopeDigest(base, headTree, paths), nil
 }
 
-// DiffScopePaths is the path set `claim --scope-from-diff REV` derives:
-// `git diff-tree` between base (HEAD when empty) and REV in root, under the
-// same bounds and refusals (TCD-V0-174). It reads Git only.
-func DiffScopePaths(root, base, rev string) ([]string, error) {
-	if base == "" {
-		base = "HEAD"
-	}
-	commit, err := resolveObjectWith(gitOutput, root, base, "commit")
-	if err != nil {
-		return nil, err
-	}
-	paths, _, err := diffScopeWith(gitOutput, root, commit, rev, "")
-	return paths, err
-}
-
 func scopeFromDiffUnresolved(rev, root string, err error) error {
 	return wire.Errorf(wire.CodeMalformed, "scopeFromDiff", "--scope-from-diff %s does not name a tree-ish in %s: %v", rev, root, err)
 }

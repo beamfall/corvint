@@ -586,7 +586,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks ticket create --template   (canonical CREATE payload with field types, enums and nullability; read-only)",
 		"corvint-tasks release create|update|candidate|record-gate|promote --request-id ID --target RELEASE [--expected-revision N] [--payload JSON] [--role ROLE]",
 		"corvint-tasks release list|show RELEASE|readiness RELEASE",
-		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV [--widen-to-diff]] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate]",
+		"corvint-tasks claim <ticketId|local> --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate]",
 		"corvint-tasks health --member ID [--stage STAGE] --request-id ID",
 		"corvint-tasks pool status [--pool ID] [--member ID]",
 		"corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role ROLE]",

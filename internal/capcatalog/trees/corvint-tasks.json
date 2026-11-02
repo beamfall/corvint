@@ -262,7 +262,7 @@
       "command": "corvint-tasks claim",
       "summary": "",
       "usage": [
-        "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV [--widen-to-diff]] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
+        "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
       ],
       "flags": [
         "--admit-under-barrier",
@@ -284,8 +284,7 @@
         "--share-allocation",
         "--stage",
         "--timing",
-        "--wait",
-        "--widen-to-diff"
+        "--wait"
       ],
       "required": [
         "--holder LABEL",

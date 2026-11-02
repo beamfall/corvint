@@ -428,13 +428,6 @@ func exactKeyHint(declared, rejected []string) string {
 // declared scope takes precedence, so such a path would be silently left
 // out of the reservation; the claim refuses naming it instead (ATR-V0-210,
 // V1-1321). Without a declared scope the requested paths are the scope.
-// OutsideDeclared is the subset of paths the ticket's declared PATH scope
-// does not cover, in the order given; nil when the ticket declares none
-// (TCD-V0-175, LGL-V0-812).
-func OutsideDeclared(rec *ticket.Record, paths []string) []string {
-	return requestedOutsideDeclared(rec, paths)
-}
-
 func requestedOutsideDeclared(rec *ticket.Record, requested []string) []string {
 	declared := Declared(rec)
 	if len(declared) == 0 {
