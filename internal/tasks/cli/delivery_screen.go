@@ -962,14 +962,15 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 // progressHits adds the tickets whose effective progress says this batch
 // delivered them (TLF-V0-1101): a review, merge-queue or merged phase whose
 // pr is the batch PR or one of its lane PRs, or a branch or merged phase
-// whose head the merge reaches and its first parent does not. A ticket the
-// text already delivered keeps that source; a mentioned one is promoted.
+// whose head the merge reaches and its first parent does not. Progress only
+// speaks for a ticket the batch text never names: a text delivery keeps its
+// source, and a mention, which may be a TCD-V0-730 veto such as BLOCKED or
+// ALREADY-DELIVERED, stays mentioned.
 func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit) ([]batchHit, []batchHit) {
 	seen := map[string]bool{}
-	for _, h := range delivered {
+	for _, h := range append(slices.Clone(delivered), mentioned...) {
 		seen[h.ticketID] = true
 	}
-	promoted := map[string]bool{}
 	for _, id := range rc.store.Inventory.Sorted() {
 		if seen[id] {
 			continue
@@ -981,19 +982,9 @@ func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit)
 		}
 		if lane, ok := in.progressDelivery(p); ok {
 			delivered = append(delivered, batchHit{ticketID: id, lane: lane, source: sourceProgress, phase: p.Phase})
-			promoted[id] = true
 		}
 	}
-	if len(promoted) == 0 {
-		return delivered, mentioned
-	}
-	kept := mentioned[:0:0]
-	for _, h := range mentioned {
-		if !promoted[h.ticketID] {
-			kept = append(kept, h)
-		}
-	}
-	return delivered, kept
+	return delivered, mentioned
 }
 
 // progressDelivery reports whether progress entry p delivers its ticket in

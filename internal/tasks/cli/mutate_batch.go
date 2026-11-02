@@ -144,6 +144,15 @@ func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Sto
 	for _, rec := range st.Tickets {
 		known[rec.TicketID.Raw] = string(rec.Revision)
 	}
+	// TLF-V0-1102: every entry's landed revision is read in one store load.
+	var landed map[string]string
+	if operation == mutation.OpProgressSet {
+		ids := make([]string, len(v.Arr))
+		for i := range v.Arr {
+			ids[i] = batchEntryRequestID(flags.requestID, i)
+		}
+		landed = landedRevisions(env, ids)
+	}
 	seen := map[string]int{}
 	envelopes := make([][]byte, len(v.Arr))
 	targets := make([]string, len(v.Arr))
@@ -182,7 +191,10 @@ func batchEnvelopes(env Env, operation string, flags mutateFlags, st *intent.Sto
 		if current {
 			// As a single-target hold does (TCD-V0-967), a request that
 			// already landed keeps the revision it named, so a retry replays.
-			f.expected = landedRevision(env, f.requestID, revision)
+			f.expected = revision
+			if r, ok := landed[f.requestID]; ok {
+				f.expected = r
+			}
 		}
 		envelope, err := buildEnvelope(operation, queueID, actor, f, payload, issued)
 		if err == nil {

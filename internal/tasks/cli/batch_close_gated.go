@@ -236,6 +236,11 @@ func (b *gatedBatch) planScope(r *closeRow, rec *ticket.Record, g *gatedRow) {
 		return
 	}
 	g.scope = &claimScope{source: scopeDiff, changed: len(paths), keys: []string{}}
+	if len(paths) == 0 {
+		r.unrunnable(wire.CodeMalformed, "candidate "+g.candidate+" changes no path against "+g.base+", so it proves no claim scope",
+			"pass --seal "+r.local+"=<sealed lane commit> whose diff is the ticket's change, or close it explicitly with --manual")
+		return
+	}
 	if len(paths) <= wire.MaxTouchPaths {
 		return
 	}

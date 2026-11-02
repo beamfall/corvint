@@ -62,29 +62,35 @@ func TestTLFV01101_BatchReadsRecordedProgress(t *testing.T) {
 	for _, r := range field(item, "delivered").Arr {
 		got[field(r, "local").Str] = field(r, "source").Str + "@" + field(r, "lanePr").Str
 	}
-	want := map[string]string{text: "PR_TEXT@20", review: "PROGRESS@20", merged: "PROGRESS@", promoted: "PROGRESS@"}
+	want := map[string]string{text: "PR_TEXT@20", review: "PROGRESS@20", merged: "PROGRESS@"}
 	if !sameRows(got, want) {
 		t.Fatalf("delivered %v: %s", got, x.stdout)
 	}
-	if weak := field(item, "mentioned").Arr; len(weak) != 0 {
-		t.Fatalf("a progress-delivered ticket is still mentioned: %s", x.stdout)
+	// A text mention, here a "blocked" veto, outranks progress naming the
+	// batch PR: the ticket stays mentioned and is never closed.
+	if weak := field(item, "mentioned").Arr; len(weak) != 1 || field(weak[0], "local").Str != promoted {
+		t.Fatalf("mentioned: %s", x.stdout)
 	}
 
 	dry := atm(t, root, nil, "ticket", "batch-close", "--pr", "30", "--prs", prs, "--runs", runs, "--dry-run")
 	rows := gbRows(t, dry)
-	if len(rows) != 4 || field(rows[review], "source").Str != "PROGRESS" || field(rows[review], "disposition").Str != "CLOSE" ||
+	if len(rows) != 4 || field(rows[promoted], "disposition").Str != "MENTIONED_ONLY" || field(rows[review], "source").Str != "PROGRESS" ||
+		// The fixture merge keeps its parent's tree: an empty diff proves no
+		// claim scope and is refused before any write (TCD-V0-1101).
+		field(rows[review], "disposition").Str != "UNRUNNABLE" || field(rows[review], "code").Str != wire.CodeMalformed ||
+		!strings.Contains(field(rows[review], "recovery").Str, "--manual") ||
 		field(rows[text], "source").Str != "PR_TEXT" {
 		t.Fatalf("gated dry run: %s", dry.stdout)
 	}
 	manual := atm(t, root, nil, "ticket", "batch-close", "--pr", "30", "--prs", prs, "--runs", runs, "--manual")
-	if got := bcRows(t, manual); manual.code != 0 || !sameRows(got, map[string]string{text: "CLOSED", review: "CLOSED", merged: "CLOSED", promoted: "CLOSED"}) {
+	if got := bcRows(t, manual); !sameRows(got, map[string]string{text: "CLOSED", review: "CLOSED", merged: "CLOSED", promoted: "MENTIONED_ONLY"}) {
 		t.Fatalf("--manual %v: %s", got, manual.stdout)
 	}
 	rec := field(bcShow(t, root, reviewID), "record")
 	if reason := field(field(rec, "completion"), "reason").Str; !strings.Contains(reason, "Delivered by lane PR #20") || !strings.Contains(reason, "recorded progress IN_REVIEW") {
 		t.Fatalf("progress close reason %q: %s", reason, wire.Encode(rec))
 	}
-	for _, id := range []string{busyID, deferredID, staleID} {
+	for _, id := range []string{promotedID, busyID, deferredID, staleID} {
 		if st := field(bcShow(t, root, id), "status").Str; st != "OPEN" {
 			t.Fatalf("%s (%s %s %s) is %s", id, busy, deferredT, stale, st)
 		}
