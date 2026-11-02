@@ -61,6 +61,9 @@ type snapshotSpine struct {
 	// SymbolTermsLength is the byte length of the symbol term table blob
 	// that follows the term table, 0 when there is none (IDX-SNAP-V0-807).
 	SymbolTermsLength int
+	// TestLinksLength is the byte length of the test-link table blob that
+	// follows the symbol term table, 0 when there is none (IDX-SNAP-V0-809).
+	TestLinksLength int
 }
 
 // snapshotVocabularySpine is a TermTable's Paths and the length of each of
@@ -102,10 +105,19 @@ func snapshotSpineOf(wire *snapshotWire) snapshotSpine {
 		UnsupportedSuffixCount: wire.UnsupportedSuffixCount,
 		Features:               wire.Features, Scenarios: wire.Scenarios, Documents: wire.Documents, Markers: wire.Markers,
 		SymbolCount: len(wire.Symbols), FieldCount: len(wire.Fields), Imports: wire.Imports,
-		SymbolTermsLength: len(symbolTermsBlob(wire)),
-		Unparsed:          wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
+		SymbolTermsLength: len(symbolTermsBlob(wire)), TestLinksLength: len(testLinksBlob(wire)),
+		Unparsed: wire.Unparsed, ApproximateImports: wire.ApproximateImports, ExtractionNotes: wire.ExtractionNotes,
 		VocabularyPresent: wire.Vocabulary != nil,
 	}
+}
+
+// testLinksBlob is the marshalled test-link table, nil without one.
+func testLinksBlob(wire *snapshotWire) []byte {
+	if wire.testLinks == nil {
+		return nil
+	}
+	data, _ := wire.testLinks.MarshalBinary()
+	return data
 }
 
 // symbolTermsBlob is the marshalled symbol term table, nil without one.
@@ -142,7 +154,10 @@ func encodeSnapshotChunks(encoder *gob.Encoder, wire *snapshotWire) error {
 			return err
 		}
 	}
-	return encodeBlobChunks(encoder, symbolTermsBlob(wire))
+	if err := encodeBlobChunks(encoder, symbolTermsBlob(wire)); err != nil {
+		return err
+	}
+	return encodeBlobChunks(encoder, testLinksBlob(wire))
 }
 
 func encodeBlobChunks(encoder *gob.Encoder, data []byte) error {
@@ -261,6 +276,19 @@ func decodeSnapshotBody(decoder *gob.Decoder, depth snapshotBodyDepth) (*snapsho
 		}
 		wire.symbolTerms = &symbolTermTable{}
 		if err := wire.symbolTerms.UnmarshalBinary(data); err != nil {
+			return nil, err
+		}
+	}
+	if spine.TestLinksLength < 0 {
+		return nil, errSnapshotChunks
+	}
+	if spine.TestLinksLength > 0 {
+		data, err := decodeSnapshotBlob(decoder, spine.TestLinksLength)
+		if err != nil {
+			return nil, err
+		}
+		wire.testLinks = &testLinkTable{}
+		if err := wire.testLinks.UnmarshalBinary(data); err != nil {
 			return nil, err
 		}
 	}

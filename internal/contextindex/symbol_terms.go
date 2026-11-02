@@ -95,6 +95,17 @@ func buildSymbolTermTable(index *Index) *symbolTermTable {
 			table.nameTermOffsets = append(table.nameTermOffsets, uint32(len(table.nameTermIDs)))
 		}
 	}
+	// An empty list is nil, as UnmarshalBinary reads it back.
+	for _, list := range []*[]string{&table.names, &table.terms} {
+		if len(*list) == 0 {
+			*list = nil
+		}
+	}
+	for _, values := range []*[]uint32{&table.nameCounts, &table.termCounts, &table.symbolName, &table.nameTermIDs} {
+		if len(*values) == 0 {
+			*values = nil
+		}
+	}
 	return table
 }
 
@@ -292,6 +303,10 @@ func (table *symbolTermTable) UnmarshalBinary(data []byte) error {
 		}
 		joined := string(data[:total])
 		data = data[total:]
+		if count == 0 {
+			*target = nil
+			continue
+		}
 		*target = make([]string, count)
 		offset := 0
 		for position, length := range lengths {
@@ -303,6 +318,10 @@ func (table *symbolTermTable) UnmarshalBinary(data []byte) error {
 		count, ok := next()
 		if !ok || count > len(data)/4 {
 			return errSymbolTermTable
+		}
+		if count == 0 {
+			*target = nil
+			continue
 		}
 		*target = make([]uint32, count)
 		for position := range *target {

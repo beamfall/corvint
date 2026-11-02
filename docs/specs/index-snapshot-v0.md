@@ -1283,6 +1283,23 @@ only.
   any of them changes the executable, and so the engine key, and so it rebuilds with the snapshot.
 
   Rollback: stop writing the table (`SymbolTermsLength` 0); every load then takes the full pass.
+- `IDX-SNAP-V0-809`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4198) The
+  gob snapshot MUST carry, as a blob after the symbol term table, a test-link table built at write
+  time by `buildTestLinkMaps`, the same builder a packet's test linker uses. It holds the declared
+  names (at least four bytes, at most `contextMaxDefiners` definers) with their definers in symbol
+  order, the names each path declares in ascending order, the names under each first camel-split
+  token, and the test names under each first token in symbol order, all flattened into sorted
+  string tables and id arrays. A test linker over an index that carries a table for its symbol
+  count MUST answer `declared`, `declaredBy`, `declaredTokens` (recomputed with `nameTokens`),
+  `declaredByToken` and the test-name lookups from that table by binary search, and build only the
+  tracked-path counterparts. Any other index builds the maps as before. Every lookup, the
+  candidates and frame candidates of every anchor, and the task-context packet MUST be identical
+  with and without the table. The one exception is the order of a `declaredByToken` list, sorted
+  in the table and in map order before, which reaches no output: that list is only searched for
+  definers to credit under one shared label. A table whose counts, offsets or ids do not fit is
+  refused on decode (the miss). On this repository the linker build fell from 16.8% of `context`
+  CPU (0.13 s per call) to 0.9%; the gate is in `IDX-SNAP-V0-810`. Rollback: stop writing the
+  table (`TestLinksLength` 0).
 - `IDX-SNAP-V0-808`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4200)
   `CORVINT_INDEX_STORE=DIR`, an operator env var that is off by default, MUST make DIR (made
   absolute against the working directory) the snapshot store that every write and read uses
@@ -1541,6 +1558,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-003 | `LoadSnapshot`, `decodeSnapshot`, `decodeSnapshotValue`, `TermTable.check` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotRefusesTermTableOffsetsOutsideTheirSlices`, `TestSnapshotSameLengthBodyOverwriteIsAMiss` |
 | IDX-SNAP-V0-806 | `encodeSnapshotBody`, `decodeSnapshotBody`, `decodeSnapshotWire` (`snapshot_chunks.go`), `gobSnapshotFormat` | `TestSnapshotChunkedBodyEqualsSingleMessage_IDXSNAPV0806`, `TestSnapshotChunkedBodyRefusesMalformedCounts_IDXSNAPV0806`, `TestSnapshotFormatTwoFileIsAMiss_IDXSNAPV0806`, `TestMappedSnapshotDecodeMatchesStreamedDecode`, `TestSnapshotBytesAreDeterministic` |
 | IDX-SNAP-V0-807 | `buildSymbolTermTable`, `evalPreparePrecomputed`, `symbolTermTable` binary codec (`symbol_terms.go`), `evalPrepareRanking` | `TestSymbolTermTableRankingEqualsFullPass_IDXSNAPV0807`, `TestSymbolTermTableUnusableFallsBack_IDXSNAPV0807`, `TestSnapshotCarriesSymbolTermTable_IDXSNAPV0807` |
+| IDX-SNAP-V0-809 | `buildTestLinkMaps`, `testLinkTable` (`test_links.go`), the `testLinker` lookups | `TestTestLinkTableEqualsMaps_IDXSNAPV0809`, `TestTestLinkTableRefusals_IDXSNAPV0809` |
 | IDX-SNAP-V0-808 | `locateSnapshotStore` (`indexStoreSuffix`) | `TestIndexStoreOverride_IDXSNAPV0808` |
 | IDX-SNAP-V0-805 | `snapshotRefreshEnv` (`cmd/corvint/index_refresh_unix.go`) | `TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805` |
 | IDX-SNAP-V0-004 | `buildEvidence`, `buildQueryAttempt`, `adoptStatus`, `LoadSnapshot` | `TestSnapshotRoundTripAppliesDirtyPathsAndMissesOnANewTree`, `TestSnapshotHitAndMissUseStatusDirtyPaths` |

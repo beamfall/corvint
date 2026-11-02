@@ -203,6 +203,7 @@ type snapshotWire struct {
 	// symbolTerms is unexported, so gob never sees it: only the /3 body
 	// carries it, as a blob after the term table (IDX-SNAP-V0-807).
 	symbolTerms *symbolTermTable
+	testLinks   *testLinkTable
 }
 
 func snapshotWireOf(index *Index) *snapshotWire {
@@ -232,6 +233,7 @@ func (wire *snapshotWire) index() (*Index, error) {
 	}
 	index.Vocabulary = wire.Vocabulary
 	index.symbolTerms = wire.symbolTerms
+	index.testLinks = wire.testLinks
 	return index, nil
 }
 

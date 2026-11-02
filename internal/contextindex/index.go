@@ -289,6 +289,9 @@ type Index struct {
 	// symbolTerms is the gob snapshot's precomputed symbol term table
 	// (IDX-SNAP-V0-807); nil on an index that was not read from one.
 	symbolTerms *symbolTermTable
+	// testLinks is the gob snapshot's precomputed test-link table
+	// (IDX-SNAP-V0-809); nil on an index that was not read from one.
+	testLinks *testLinkTable
 }
 
 // vocabulary returns the term table, building it once for an index compiled

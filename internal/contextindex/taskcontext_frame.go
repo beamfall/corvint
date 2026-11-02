@@ -113,7 +113,7 @@ func (linker *testLinker) creditFrameIdentifiers(anchor string, found map[string
 			continue
 		}
 		idf := math.Log(float64(len(linker.table.Paths)+1) / float64(high-low))
-		for _, definer := range linker.declared[word] {
+		for _, definer := range linker.declaredOf(word) {
 			if candidate := found[definer]; candidate != nil {
 				candidate.mention(word, idf)
 			}

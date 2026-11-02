@@ -559,6 +559,7 @@ func encodeSnapshot(file *os.File, index *Index, engineID string) (int64, error)
 	}
 	wire := snapshotWireOf(index)
 	wire.symbolTerms = buildSymbolTermTable(index)
+	wire.testLinks = buildTestLinkTable(index.Symbols)
 	if err := encodeSnapshotBody(encoder, wire); err != nil {
 		return 0, err
 	}
