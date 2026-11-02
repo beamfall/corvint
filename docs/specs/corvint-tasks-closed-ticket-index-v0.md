@@ -161,7 +161,8 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   finished resumed store has the same tickets, statuses and receipt count as an unpaused one.
   Target, set before the build: ticket creation is roughly linear, the last 500-ticket chunk of a
   2,000-ticket gen taking at most 1.5 times the first. Acceptance:
-  `TestTCXV0850PausedGenResumesToTheSameStore`; the chunk times are in the build log.
+  `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; the chunk
+  times are in the build log.
 
 ## Non-goals
 
