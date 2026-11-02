@@ -74,7 +74,8 @@ func TestCTSV0006_ReadVerbsWaitForWriterToApplyReceipt(t *testing.T) {
 // run repeatedly. Every read must succeed; none may report REDO_PENDING or
 // SNAPSHOT_MOVED, and the store must end exactly as the writer left it.
 func TestCTSV0006_ReadVerbsUnderConcurrentWriter(t *testing.T) {
-	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
+	// Not parallel: withReadPatience writes snapshot.DefaultPatience, which parallel
+	// tests read through snapshot.Reader.Read.
 	r := fixture.TempRepo(t)
 	fixture.WriteState(t, r)
 	fixture.WriteIntent(t, r, fixture.Ticket("A"), fixture.Ticket("B"))
