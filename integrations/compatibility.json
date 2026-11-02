@@ -62,7 +62,7 @@
       "validation": "native-static-plus-adapter-fixtures"
     },
     {
-      "adapterVersion": "0.7.36",
+      "adapterVersion": "0.7.37",
       "documentedAgainstHostVersion": "2.1.3",
       "fullSupport": "external-dependent",
       "host": "opencode",

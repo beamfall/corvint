@@ -2306,6 +2306,23 @@ isolated `CODEX_HOME`, branch-built binaries).
   prompt changes, so re-measure per host release.
   Rollback: restore the 0.7.25 single eager transform and eager skill registration and the
   three-sentence `corvint_context` description; restore the system/developer-only skill check.
+- `AHI-1962`: (experimental under the standing lane auto-accept (2026-11-02); V1-2717) Amendment to
+  `AHI-212`: the idle `corvint_context` description MUST say when to call the tool, not only what it
+  returns, because the bundled skill that carries the when-to-call guidance is registered only after
+  the first call. It MUST stay one sentence of at most 160 characters, name a code change as the
+  trigger, and ask for the call before `grep` or `read`. The 80-character bound of `AHI-212` is
+  replaced by this bound; nothing else in `AHI-212` changes. Acceptance evidence: the `AHI-212` case
+  in `integrations/host-adapters.test.mjs` (description matches the when-to-call prefix, one
+  sentence, at most 160 characters), run by `TestHostAdapterJavaScriptHosts`, and the live
+  OpenCode 2.2.5 runs with `claude-opus-5-5` on a disposable fixture in
+  `docs/build-log/2026-11-02-opc-m45.md` (first-step idle overhead +119 tokens against +99 for the
+  0.7.36 sentence, both under the 500-token bound of V1-2717; `corvint_context` called in 3 of 3
+  candidate sessions against 3 of 4 baseline sessions).
+  Non-goals: no claim that the wording improves resolve rate or cost per resolve, which needs the
+  held paired rerun; no change to the injected frame or the unlock.
+  Failure modes: a model that still greps first makes no call, which the paired rerun measures; the
+  longer description raises the idle prompt cost by about 20 tokens, re-measured per host release.
+  Rollback: restore the 0.7.36 sentence and the 80-character bound.
 - `AHI-213`: (experimental under the standing lane auto-accept, 2026-10-11; V1-2804; GitHub #1900)
   Exact expansion handle from a tool result, and named failure reasons. Since `AHI-210` the prompt
   hook no longer carries the full packet, so the scripted qualification provider found no `cv1`
@@ -2861,6 +2878,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
 | `AHI-1960` (experimental 2026-11-02; V1-2929) | `SyntaxStyle.fromStyles` owner argument in `integrations/opencode/src/tui.tsx` | live `qualify-opencode --inspector` on OpenCode 2.2.5 in `docs/build-log/2026-11-02-opc-m45.md` |
 | `AHI-1961` (experimental 2026-11-02; V1-2929) | `hostPluginFailure`, `frameWitnessCause` in `internal/opencodequalification/inspector.go` | `TestAHI620InspectorWitnessNamesPreciseCause` |
+| `AHI-1962` (experimental 2026-11-02; V1-2717) | `corvintContext.description` in `integrations/opencode/src/index.js` | `AHI-212` case in `integrations/host-adapters.test.mjs`, run by `TestHostAdapterJavaScriptHosts`; live OpenCode 2.2.5 runs in `docs/build-log/2026-11-02-opc-m45.md` |
 | `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
 | `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
 | `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
