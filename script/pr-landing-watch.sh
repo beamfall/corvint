@@ -104,7 +104,13 @@ reconcile_merged() {
   [[ -z $(get reconciled) ]] || return 0
   local log=$state/reconcile-$pr.log status=0 apply=${RECONCILE_APPLY:-} kind
   ((act)) || apply=''
-  RECONCILE_APPLY=$apply "${LANDING_RECONCILE:-$here/tasks-reconcile.sh}" < /dev/null > "$log" 2>&1 || status=$?
+  # The default is the literal script/tasks-reconcile.sh, run from this checkout's root, so the
+  # caller graph links it (TSP-V0-960); LANDING_RECONCILE (a test stub) replaces it.
+  if [[ -n ${LANDING_RECONCILE:-} ]]; then
+    RECONCILE_APPLY=$apply "$LANDING_RECONCILE" < /dev/null > "$log" 2>&1 || status=$?
+  else
+    (cd "$here/.." && RECONCILE_APPLY=$apply script/tasks-reconcile.sh) < /dev/null > "$log" 2>&1 || status=$?
+  fi
   put reconciled "$status"
   printf 'RECONCILE status=%s log=%s\n' "$status" "$log"
   case $status in 0) return 0 ;; 1) kind=closeout-debt ;; *) kind=refused ;; esac
