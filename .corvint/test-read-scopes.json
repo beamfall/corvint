@@ -521,14 +521,6 @@
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
     ],
-    "internal/opencodequalification": [
-      "go.mod",
-      "go.sum",
-      "integrations/fixtures/opencode-native-report.json",
-      "integrations/opencode/",
-      "internal/",
-      "tools/qualify-opencode/"
-    ],
     "internal/perfbudget": [
       ".github/cishards/",
       "cmd/",
@@ -775,19 +767,6 @@
       "script/"
     ],
     "tools/test-commands-run": [],
-    "tools/test-exec-writes-check": [
-      ".github/",
-      "benchmarks/",
-      "cmd/",
-      "conformance/",
-      "examples/",
-      "experimental/",
-      "internal/",
-      "interop/",
-      "protocol/",
-      "script/",
-      "tools/"
-    ],
     "tools/tiers-replay": [
       ".github/forward-rows/tiers.jq",
       ".github/forward-rows/tiers.sh"

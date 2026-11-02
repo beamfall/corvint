@@ -137,8 +137,10 @@ func TestContextOrderAdditive(t *testing.T) {
 // is, and the rule is off by default (CRK-V0-006).
 func TestContextOrderAcronymProse(t *testing.T) {
 	t.Run("CRK-V0-006", func(t *testing.T) {
-		on := &taskContextCompiler{acronymProse: true}
-		off := &taskContextCompiler{}
+		// An empty index: definitionSlotEligible (TCP-V0-961) reads its
+		// vocabulary, where no word is common.
+		on := &taskContextCompiler{index: &Index{}, acronymProse: true}
+		off := &taskContextCompiler{index: &Index{}}
 		for _, test := range []struct {
 			identifier taskIdentifier
 			on, off    bool
