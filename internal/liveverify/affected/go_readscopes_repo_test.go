@@ -11,9 +11,10 @@ import (
 )
 
 // TestRepositoryBuiltReaderDeclarations_AFPV0873 checks the AFP-V0-873
-// declarations that took internal/perfbudget and
-// internal/opencodequalification off the unbounded floor (V1-3763, V1-3587,
-// V1-3788). Each package's tests go build a repository binary, so they are
+// declaration that took internal/perfbudget off the unbounded floor (V1-3763,
+// V1-3587, V1-3788). internal/opencodequalification is back on the floor in
+// .corvint/unbounded-readers.json: its VCS-stamped build runs git, which
+// read-scope confinement forbids. Each package's tests go build a repository binary, so they are
 // real readers of that binary's whole import closure: every non-standard
 // directory the build compiles, and go.mod and go.sum, must lie in a declared
 // entry, so a change anywhere in the closure still selects the package. The
@@ -37,8 +38,7 @@ func TestRepositoryBuiltReaderDeclarations_AFPV0873(t *testing.T) {
 		t.Fatal(err)
 	}
 	for pkg, built := range map[string][]string{
-		"internal/perfbudget":            {"./cmd/corvint", "./cmd/corvint-corpus-mcp"},
-		"internal/opencodequalification": {"./tools/qualify-opencode"},
+		"internal/perfbudget": {"./cmd/corvint", "./cmd/corvint-corpus-mcp"},
 	} {
 		entries := declared.Packages[pkg]
 		if len(entries) == 0 {

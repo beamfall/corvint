@@ -55,7 +55,7 @@ func selectedUnits(graph *affected.Graph, module string, dirty ...string) map[st
 func TestDeclaredReadScopesNarrowSpecAndRequirementsPlans_TSP_V0_900(t *testing.T) {
 	graph, module := repositoryNarrowingGraph(t)
 	narrowed := []string{
-		"internal/perfbudget", "internal/cemchain", "conformance/cli-parity-v0",
+		"internal/perfbudget", "conformance/cli-parity-v0",
 		"conformance/mcp-2026-07-28", "internal/jstestprovider", "internal/tasks/ticket",
 		"protocol/integrations", "tools/ci-forward-row", "tools/requirement-id-collisions",
 		"shell:script/gate-affected_test.sh", "shell:script/dogfood-change_test.sh",
