@@ -194,16 +194,28 @@ therefore come from something keyed on content, not from Go's cache.
   Failure modes: two writers that both see an old stamp both scan; removals are idempotent, so
   the only cost is one extra scan. A stamp that cannot be written leaves the scan to the next write.
 - `GL-V0-912`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends
-  `GL-V0-008`) The holder of a per-key lock MUST remove `KEY.lock` before releasing it. After
-  `flock` succeeds, the acquirer MUST confirm that `KEY.lock` still names the file it locked
-  (same device and inode) and otherwise MUST close it and open the path again. So a waiter that
-  wakes on a removed file never runs beside a newer holder, GL-V0-008's single execution holds,
-  and no lock file outlives its run. Failure mode: a holder killed before removal leaves one
-  stale file, which GL-V0-913 reclaims.
+  `GL-V0-008`) The per-key lock MUST be the file `locks/KEY.lock` in a `locks` subdirectory of the
+  ledger directory, a plain directory the tool creates with mode `0700`; a `locks` entry that is not
+  a plain directory MUST make the lock unavailable. The holder MUST remove its lock file before
+  releasing it. After `flock` succeeds, the acquirer MUST confirm that the path still names the
+  file it locked (`lstat`, same device and inode) and otherwise MUST close it and open the path
+  again, at most 8 times; after that the lock is unavailable and the step runs without recording
+  (GL-V0-008). So a waiter that wakes on a removed file never runs beside a newer holder, a lock
+  file that is a symlink cannot loop forever, and no lock file outlives its run. Design: older
+  binaries (an older worktree's own `tools/gate-ledger`) still create `KEY.lock` at the top of the
+  directory and never re-check the inode, so the new protocol uses a name they never touch.
+  Failure modes: a holder killed before removal leaves one stale file, which GL-V0-913 reclaims.
+  While an older binary and a newer one run the same key at once, they take different lock files
+  and may both execute it; both write the same key by atomic rename, so the cost is one duplicate
+  run, never a wrong record.
 - `GL-V0-913`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune
-  scan MUST remove each `*.lock` file whose lock it can take without waiting, under the
-  GL-V0-912 protocol (remove while holding). A held lock MUST be left alone. This reclaims the
-  lock files earlier versions never removed (8,397 of 12,493 entries on the host of V1-4241).
+  scan MUST remove each `locks/*.lock` file whose lock it can take without waiting, under the
+  GL-V0-912 protocol (remove while holding, only when the path still names the locked file). A
+  held lock MUST be left alone. The scan MUST NOT remove a top-level `KEY.lock`: an older acquirer
+  that opened one before the scan locked it would flock the unlinked file while another older run
+  created a new one, and the key would run twice. The leaked top-level files (8,397 of 12,493
+  entries on the host of V1-4241) are removed once by the operator after no older binary can run:
+  `find "$DIR" -maxdepth 1 -name '*.lock' -delete`.
 - `GL-V0-914`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-910
   to GL-V0-913 MUST NOT change a key, a record's bytes, or how a record is looked up: `key`,
   `digestKey`, `lookup` and the record encoding stay as they are, so every HIT and RUN decision
@@ -289,8 +301,8 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection; `TestLockRemovesItsFileAndExcludesARacer` |
 | GL-V0-910 | `TestPruneKeepsTheNewestRecords`: a ledger over the bound keeps exactly the newest 32768 |
 | GL-V0-911 | `TestPruneScansOncePerInterval`: a fresh stamp skips the scan, an old or missing stamp scans and touches it; `BenchmarkRecordFullLedger` before and after in build log 2026-11-01-glc-w34 |
-| GL-V0-912 | `TestLockRemovesItsFileAndExcludesARacer`: no `.lock` after unlock, and a waiter that held the removed file reopens and excludes a newer acquirer |
-| GL-V0-913 | `TestPruneReclaimsOnlyFreeLockFiles`: free lock files go, a held one stays |
+| GL-V0-912 | `TestLockRemovesItsFileAndExcludesARacer`: a waiter provably holding the removed file's descriptor, with a newer holder forced in before it re-checks, reopens instead of running beside it, and no `.lock` remains; `TestLockGivesUpOnASymlink`: a symlinked lock file makes the lock unavailable after the bounded retries |
+| GL-V0-913 | `TestPruneReclaimsOnlyFreeLockFiles`: free `locks/` files go, a held one and every top-level legacy `KEY.lock` stay |
 | GL-V0-914 | `TestRecordBytesUnchanged`; the existing GL-V0-001 and GL-V0-009 hit tests |
 | GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (2026-09-22) |
 | GL-V0-050 | `TestGoTestKeysDeclaredPackagesByTheirScope`: a declared `os.Getwd` package records per package, hits after an edit outside its scope, reruns after an edit under a declared entry or to the declaration, and an invalid declaration keys nothing by scope; `TestDeclaredPackagesAreBoundByTheirScope`: `-unresolved` omits the declared locator and keeps the undeclared one, `-bounds` lists its `declared` paths, and an invalid declaration is an error in both; both fail before the change |
@@ -310,7 +322,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
 | GL-V0-910 | `maxRecords`, `prune` in `tools/gate-ledger/main.go` | `TestPruneKeepsTheNewestRecords` |
 | GL-V0-911 | `record`, `prune`, `pruneStamp`, `pruneInterval` | `TestPruneScansOncePerInterval`; `BenchmarkRecordFullLedger` |
-| GL-V0-912 | `lock`, `sameFile` | `TestLockRemovesItsFileAndExcludesARacer` |
+| GL-V0-912 | `lock`, `locksDir`, `sameFile`, `maxLockAttempts`, `lockHook` | `TestLockRemovesItsFileAndExcludesARacer`; `TestLockGivesUpOnASymlink` |
 | GL-V0-913 | `reclaimLocks` | `TestPruneReclaimsOnlyFreeLockFiles` |
 | GL-V0-914 | `key`, `digestKey`, `lookup`, `record` unchanged in encoding | `TestRecordBytesUnchanged` |
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
