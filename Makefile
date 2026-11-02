@@ -1081,6 +1081,8 @@ doc-gates-timed: ## Run each documentation gate separately and record its second
 # ending on a base-present "no receipt" line, then minutes of bind, check and seal, does not read as
 # a stop. DCW-V0-746 (V1-4072): the head before the bind is recorded, and when the sealed-head
 # precheck refuses, script/dogfood-closeout-unwind.sh drops the bind and seal commits again.
+# DCW-V0-758: the DONE line says whether the sealed head has a receipt, since a precheck whose only
+# failures are base-present exits 0 without one.
 dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
@@ -1092,7 +1094,7 @@ dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-finish
 	@printf 'dogfood-closeout: phase bind, check and seal PASS; continuing to the sealed-head precheck\n'
 	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck || { script/dogfood-closeout-unwind.sh "$$(cat "$$(git rev-parse --git-path dogfood-closeout-start)")"; exit 1; }
-	@printf 'dogfood-closeout: DONE sealed head %s has a precheck receipt\n' "$$(git rev-parse HEAD)"
+	@printf 'dogfood-closeout: DONE sealed head %s %s\n' "$$(git rev-parse HEAD)" "$$(script/batch-precheck.sh --verify-receipt HEAD > /dev/null 2>&1 && echo 'has a precheck receipt' || echo 'has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines')"
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:

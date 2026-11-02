@@ -294,6 +294,9 @@ recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t@(printf|git) / { 
   mkdir -p "$cr/script"
   /bin/cp -f "$source_root/Makefile" "$cr/"
   /bin/cp -f "$source_root/script/dogfood-closeout-unwind.sh" "$cr/script/"
+  # DCW-V0-758: the DONE line asks the receipt check; this stub answers TEST_RECEIPT_RC.
+  printf '#!/usr/bin/env bash\n[[ ${1-} == --verify-receipt ]] || exit 2\nexit "${TEST_RECEIPT_RC:-0}"\n' > "$cr/script/batch-precheck.sh"
+  chmod +x "$cr/script/batch-precheck.sh"
   cat > "$root/bin/fake-make" <<'EOF'
 #!/usr/bin/env bash
 set -eu
@@ -326,6 +329,11 @@ EOF
   done
   # The base-present-only line precedes the phase line that says the closeout continues.
   awk '/only base-present; exit 0, continuing$/ { w = NR } /phase precheck PASS/ { p = NR } END { exit !(w && p == w + 1) }' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  # DCW-V0-758: a sealed head whose precheck passed only with base-present failures has no receipt,
+  # and the DONE line says so.
+  /bin/cp -Rf "$cr" "$cr-noreceipt"
+  (cd "$cr-noreceipt" && TEST_RECEIPT_RC=1 make -s dogfood-closeout MAKE="$root/bin/fake-make" > "$root/output-noreceipt" 2>&1) || { cat "$root/output-noreceipt" >&2; exit 1; }
+  rg -q '^dogfood-closeout: DONE sealed head [0-9a-f]{40} has no precheck receipt: its precheck passed only with base-present failures, named in its WARN lines$' "$root/output-noreceipt" || { cat "$root/output-noreceipt" >&2; exit 1; }
   [[ $(git rev-list --count "$start..HEAD") == 2 ]] || exit 1
   sealed=$(git rev-parse HEAD)
   git reset -q --keep "$start"

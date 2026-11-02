@@ -3543,6 +3543,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `script/dogfood-cache_test.sh` (a second run skips the checks with the sidecar present; an
   untracked file runs them) and `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: drop the key,
   the stamp and the `static_reuse` guards.
+- `DCW-V0-758`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
+  `DCW-V0-745`) The last line of `make dogfood-closeout` MUST say whether the sealed head has a
+  precheck receipt (`script/batch-precheck.sh --verify-receipt HEAD`): `DONE sealed head SHA has a
+  precheck receipt`, or `DONE sealed head SHA has no precheck receipt: its precheck passed only with
+  base-present failures, named in its WARN lines`, since such a precheck exits 0 without one.
+  Found in the WSL closeout measurement of V1-3850, where `DCW-V0-745`'s fixed wording claimed a
+  receipt that was not there. Evidence: `script/dogfood-cache_test.sh` (a stub receipt check
+  answering 1 prints the second form). Rollback: restore the fixed wording.
 
 ## Code vocabulary
 
@@ -3910,6 +3918,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-755` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `wrapper_phase`, `wrapper_timing` | implemented; measured in the build log |
 | `DCW-V0-756` (experimental under the standing lane auto-accept; V1-4197) | `internal/dogfoodflow/change.go` `startImpact`, `prechangeImpact`; `flow.go` `Runner.Concurrent`; `TestChangeDCWV0756ImpactBesideQueryMatchesTheSequentialRun` | implemented; focused test PASS (also -race) |
 | `DCW-V0-757` (experimental under the standing lane auto-accept; V1-4197) | `script/dogfood-finish.sh` `static_input_key`, `dogfood-static-pass`; `script/dogfood-cache_test.sh` (`DCW-V0-757` case) | implemented; shell test PASS; measured in the build log |
+| `DCW-V0-758` (experimental under the standing lane auto-accept; V1-3850) | `Makefile` `dogfood-closeout` DONE line; `script/dogfood-cache_test.sh` | implemented; shell test PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
