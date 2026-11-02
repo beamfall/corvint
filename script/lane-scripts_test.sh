@@ -18,6 +18,9 @@ export LC_ALL=C
 # (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
 # point them at the caller's repository and its remote instead of the fixtures.
 unset $(git rev-parse --local-env-vars)
+# A closeout exports its entry to nested make targets. Fixtures choose their own entry and
+# preflight mode; inheriting the closeout entry would incorrectly require OUTCOME in inputs-check.
+unset DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_PREFLIGHT
 
 script=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1
@@ -1741,6 +1744,30 @@ git -C "$lb/repo" init -q && git -C "$lb/repo" add . && git -C "$lb/repo" -c use
 c1=$(git -C "$lb/repo" rev-parse HEAD)
 fake_corvint() { printf '#!/bin/sh\necho "Corvint 1.0.0 (build %s, commit %s)"\n' "$1" "$2" > "$lb/bin/corvint" && chmod 0755 "$lb/bin/corvint"; }
 fake_corvint 1 "$c1"
+# Refusals name an actionable recovery on a separate line and retain exit 2.
+binary_refusal() {
+  local reason=$1 out rc
+  shift
+  out=$("$script/lane-binary-check.sh" "$@" 2>&1)
+  rc=$?
+  [[ $rc == 2 && $out == *"REFUSE $reason"*$'\n''fix: '?* ]] || fail "lane-binary refusal $reason: rc=$rc $out"
+}
+binary_refusal --corvint --corvint
+binary_refusal unknown-option --unknown
+binary_refusal usage:
+binary_refusal usage: "$lb/repo" "$lb/repo"
+binary_refusal not-a-directory "$lb/absent"
+binary_refusal not-a-repository "$lb/bin"
+binary_refusal corvint-not-executable --corvint "$lb/absent" "$lb/repo"
+# Supply only shell utilities on PATH, so an installed host corvint cannot satisfy the fixture.
+mkdir "$lb/no-corvint"
+for utility in bash dirname sed head git; do
+  ln -s "$(command -v "$utility")" "$lb/no-corvint/$utility"
+done
+PATH=$lb/no-corvint binary_refusal corvint-not-found "$lb/repo"
+mkdir "$lb/unborn" && git -C "$lb/unborn" init -q
+printf 'module github.com/Beamfall/corvint\n' > "$lb/unborn/go.mod"
+binary_refusal no-head --corvint "$lb/bin/corvint" "$lb/unborn"
 out=$("$script/lane-binary-check.sh" --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 0 && $out == "lane-binary-check: FRESH corvint build 1 (commit ${c1:0:12}) for build 1 (commit ${c1:0:12})" ]] || fail "lane-binary fresh: $out"
 printf 'package main\n' > "$lb/repo/cmd/corvint/main_test.go"
@@ -1781,8 +1808,10 @@ chmod 0755 "$lb/go"
 fake_corvint 1 "$c1"
 touch "$lb/repo/untracked"
 out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
-[[ $? == 2 && $out == *'REFUSE dirty-checkout'* ]] || fail "lane-binary rebuild of a dirty checkout: $out"
+[[ $? == 2 && $out == *'REFUSE dirty-checkout'*$'\n''fix: commit or move aside'* ]] || fail "lane-binary rebuild of a dirty checkout: $out"
 rm -f "$lb/repo/untracked"
+TMPDIR=$lb/absent binary_refusal temp-dir-failed --rebuild --corvint "$lb/bin/corvint" "$lb/repo"
+GO=/bin/false binary_refusal build-failed --rebuild --corvint "$lb/bin/corvint" "$lb/repo"
 out=$(GO=$lb/go "$script/lane-binary-check.sh" --rebuild --corvint "$lb/bin/corvint" "$lb/repo" 2>&1)
 [[ $? == 0 && $out == *'STALE'*'INSTALLED'*"FRESH corvint build 3 (commit ${c3:0:12}) for build 3"* && -f $lb/bin/corvint.corvint-prev-1 ]] ||
   fail "lane-binary rebuild: $out"

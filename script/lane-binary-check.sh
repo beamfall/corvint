@@ -20,28 +20,29 @@
 # judges again. Bad arguments or a missing corvint exit 2. GO names the go command (default go).
 set -uo pipefail
 export LC_ALL=C
-refuse() { printf 'lane-binary-check: REFUSE %s\n' "$*" >&2; exit 2; }
+# Keep the recovery beside each reason for the flow-guide check, and print it on its own line.
+refuse() { printf 'lane-binary-check: REFUSE %s\nfix: %s\n' "${1%%; fix:*}" "${1#*; fix: }" >&2; exit 2; }
 rebuild=0 corvint='' dir=''
 while (($#)); do
   case $1 in
     --rebuild) rebuild=1; shift ;;
-    --corvint) [[ $# -ge 2 && -n $2 ]] || refuse "--corvint needs a value"; corvint=$2; shift 2 ;;
+    --corvint) [[ $# -ge 2 && -n $2 ]] || refuse "--corvint needs a value; fix: pass --corvint PATH with the path to an executable corvint"; corvint=$2; shift 2 ;;
     -h | --help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    -*) refuse "unknown-option $1" ;;
-    *) [[ -z $dir ]] || refuse "usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR"; dir=$1; shift ;;
+    -*) refuse "unknown-option $1; fix: use script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR" ;;
+    *) [[ -z $dir ]] || refuse "usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR; fix: pass exactly one checkout DIR and only the documented options"; dir=$1; shift ;;
   esac
 done
-[[ -n $dir ]] || refuse "usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR"
+[[ -n $dir ]] || refuse "usage: script/lane-binary-check.sh [--rebuild] [--corvint PATH] DIR; fix: pass exactly one checkout DIR and only the documented options"
 here=$(cd "$(dirname "$0")" && pwd) || exit 2
-dir=$(cd "$dir" 2> /dev/null && pwd) || refuse "not-a-directory $dir"
-git -C "$dir" rev-parse --git-dir > /dev/null 2>&1 || refuse "not-a-repository $dir"
+dir=$(cd "$dir" 2> /dev/null && pwd) || refuse "not-a-directory $dir; fix: pass an existing checkout directory as DIR"
+git -C "$dir" rev-parse --git-dir > /dev/null 2>&1 || refuse "not-a-repository $dir; fix: pass a Git checkout as DIR"
 module=$(sed -n 's/^module[[:space:]]\{1,\}\([^[:space:]]*\).*/\1/p' "$dir/go.mod" 2> /dev/null | head -1)
 [[ $module == github.com/Beamfall/corvint ]] || exit 0
 if [[ -z $corvint ]]; then
-  corvint=$(command -v corvint) || refuse "corvint-not-found on PATH (install it, or pass --corvint PATH)"
+  corvint=$(command -v corvint) || refuse "corvint-not-found on PATH; fix: install corvint on PATH or pass --corvint PATH to an installed executable"
 fi
-[[ -x $corvint ]] || refuse "corvint-not-executable $corvint"
-head=$(git -C "$dir" rev-parse --verify -q 'HEAD^{commit}') || refuse "no-head $dir"
+[[ -x $corvint ]] || refuse "corvint-not-executable $corvint; fix: pass --corvint PATH to an executable corvint, or correct its execute permission"
+head=$(git -C "$dir" rev-parse --verify -q 'HEAD^{commit}') || refuse "no-head $dir; fix: check out a commit in DIR before checking the installed binary"
 expected="build $(git -C "$dir" rev-list --first-parent --count HEAD) (commit ${head:0:12})"
 
 # judge prints the verdict line and returns 0 for FRESH, 1 otherwise.
@@ -84,10 +85,10 @@ judge() {
 
 judge && exit 0
 ((rebuild)) || exit 1
-[[ -z $(git -C "$dir" status --porcelain --untracked-files=normal) ]] || refuse "dirty-checkout $dir (commit or remove its changes; the build would record vcs.modified=true)"
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/lane-binary-check.XXXXXX") || refuse "temp-dir-failed"
+[[ -z $(git -C "$dir" status --porcelain --untracked-files=normal) ]] || refuse "dirty-checkout $dir (the build would record vcs.modified=true); fix: commit or move aside the checkout changes, then rerun with --rebuild"
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/lane-binary-check.XXXXXX") || refuse "temp-dir-failed; fix: set TMPDIR to a writable directory with free space, then rerun with --rebuild"
 trap '/bin/rm -rf "$tmp"' EXIT INT TERM
 build=$(git -C "$dir" rev-list --first-parent --count HEAD)
-(cd "$dir" && GOTOOLCHAIN=local "${GO:-go}" build -o "$tmp/corvint" -ldflags "-X main.build=$build" ./cmd/corvint) || refuse "build-failed in $dir"
+(cd "$dir" && GOTOOLCHAIN=local "${GO:-go}" build -o "$tmp/corvint" -ldflags "-X main.build=$build" ./cmd/corvint) || refuse "build-failed in $dir; fix: resolve the Go build error above (GO selects the toolchain), then rerun with --rebuild"
 "$here/install-local-bin.sh" "$tmp/corvint" "$corvint" || exit 2
 judge
