@@ -1,0 +1,25 @@
+{
+  "reason": "V1-2521: CEM-V1-084 (accepted by decision 0546) lets a runner receipt carry authentication {\"method\":\"dsse-ed25519\",\"keyid\":K,\"envelopeSha256\":E}, the form the public receipt-authentication case uses and both consumers echo at references.runnerReceipts[].authentication; decision 0589 has the schema follow the accepted requirement.",
+  "pointer": "/$defs/runnerReceipt/properties/authentication",
+  "predecessorSha256": "9a698c3f585beae42bbd06f3de40d908d200ac66d88c6cf27a4b8c34f7de0ac5",
+  "branch": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "method",
+      "keyid",
+      "envelopeSha256"
+    ],
+    "properties": {
+      "method": {
+        "const": "dsse-ed25519"
+      },
+      "keyid": {
+        "$ref": "#/$defs/sha256"
+      },
+      "envelopeSha256": {
+        "$ref": "#/$defs/sha256"
+      }
+    }
+  }
+}

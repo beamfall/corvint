@@ -12,7 +12,7 @@ Native tickets: V1-3459; V1-3473 (fixture mutations) and V1-3474 (index build to
 ## Agent digest
 - Claim: OPEN-path reads take closed tickets' digests and summaries from a derived stat-keyed index, so their cost barely grows with the closed set.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459); implemented and tested in tree.
-- Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and the development tool `internal/tasks/cmd/closed-index`.
+- Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`).
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Rollback.
 
@@ -72,10 +72,99 @@ byte-identical with and without it.
   `fixture.WriteState` alone still has no `staging` directory, so the fixture writer refuses a
   mutation on it with `MALFORMED` ("fixture filesystem identity, role or lifetime refused"); tests
   that need only a read keep using it.
-- `TCX-V0-988`: The development tool `go run ./internal/tasks/cmd/closed-index DIR` writes the index of
-  the repository at `DIR` whether or not its state directory exists, at the path the CLI would
-  use, so benchmarks can index journal-free copies of a store. It is not a shipped command. For
-  the same intent tree its entries equal those of the index the CLI writes on the journaled store.
+- `TCX-V0-988`: The shipped command `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`)
+  writes the index of the repository at the working directory whether or not its state directory
+  exists, at the path the CLI would use, so a journal-free copy of a store (a benchmark, a lane
+  host snapshot) can be indexed. For the same intent tree its entries equal those of the index the
+  CLI writes on the journaled store. It replaces the former development tool
+  `internal/tasks/cmd/closed-index`, which V1-3485 retired.
+
+### Write-path summaries (V1-4229, V1-1148)
+
+The owner lifted the V1-0910 cache hold on 2026-11-01 for this scope (recorded in
+`docs/build-log/2026-11-02-msc-u34-tasks-write-path.md`). Every write decoded every ticket in
+three of its passes: the CLI's pre-mutation load, the writer model's canonical inventory, and the
+index rewrite, which read and decoded every open ticket because only closed ones were indexed. At
+500 tickets those passes were 54% of a `ticket create`'s CPU. The blocks below let each pass skip
+the decode of a ticket whose bytes are exactly those an index entry was admitted for. The writer
+journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `TCX-V0-845` to
+`TCX-V0-848`: experimental under the standing lane auto-accept; V1-4229, V1-1148.
+
+- `TCX-V0-845`: The index format becomes `corvint-tasks-closed-index/3` and holds an entry for
+  every ticket file, open or closed. A rewrite admits a newly read file only after its decoded
+  record re-encodes to exactly the file's bytes (`Encode(Decode(b)) == b`), so every entry's
+  digest is the SHA-256 of a canonical encoding that the writer's re-encode check accepts. A
+  rewrite keeps any entry, open or closed, whose stat key still matches (`TCX-V0-984`) and reads,
+  decodes and checks every other ticket file. Reads trust only COMPLETED and ARCHIVED entries,
+  so `TCX-V0-981` to `TCX-V0-983` and `TCX-V0-986` are unchanged for them. A `/2` index is not
+  trusted and is replaced by the next rewrite.
+- `TCX-V0-846`: The native mutation writer gives the model the index's entries when the index
+  governs the proof's queue and policy (`TCX-V0-983`). For every canonical ticket other than the
+  request's target whose bytes' SHA-256 and length equal an entry's, the model holds the entry's
+  summary and decodes the record from those same in-memory canonical bytes only on its first
+  `Get`. The model's writer re-encode check is kept: in the base model a decoded unselected
+  ticket must have `FileDigest()`, the SHA-256 of its re-encoding, equal to its projection's
+  digest. For an indexed ticket, `TCX-V0-845` admission ran `Encode(Decode(b)) == b` on bytes
+  byte-identical (by SHA-256 and length) to the canonical bytes, so `FileDigest()` equals that
+  digest; the model still requires the projection's digest and length to equal it, and still
+  refuses a missing projection, a divergent unselected projection and an incomplete inventory
+  exactly as before. The target, every ticket without a matching entry, and every route other
+  than the native mutation writer decode as before. A lazy decode that fails is a `MALFORMED`
+  refusal of the request, never a panic.
+- `TCX-V0-847`: The CLI's pre-mutation load, which feeds only intent checks and warnings, reads
+  and digests every intent file as before and holds a ticket as its entry's summary when the
+  file's SHA-256 and length equal the entry's; its record is decoded from the bytes already read
+  on first `Get`. Every warning and refusal is byte-identical to the full load.
+- `TCX-V0-848`: Derived-state argument and measurement. The index is derived, rebuildable state
+  in the private state directory beside the journal (invariant 4: only writes rewrite it, reads
+  never do). It is not authority: it selects which decode to skip, never which bytes count, and a
+  summary is used only for bytes whose digest equals the one it was derived from. Its checksum
+  guards against corruption, not against an editor of the state directory, who could equally
+  rewrite the journal; summaries therefore carry the same trust as the journal they sit beside.
+  The journal and every command output are byte-identical with and without the index. Target, set
+  before the build: a `ticket create` at 2,000 tickets costs under 20% more than at 500 tickets
+  in these three passes, measured on the same host, interleaved, with load recorded, and
+  `tasks-scale gen --tickets 2000` runs to completion and is recorded. The writer journal audit's
+  share is recorded separately as owned by its lane. Non-goals: a change to the journal audit,
+  to any read's output or to which bytes are authority. Rollback: restore format `/2`, and the
+  writer model and the CLI preload decode every ticket again. Acceptance:
+  `TestTCXV0845IndexAdmitsOnlyReencodedBytes`, `TestTCXV0845ReadsTrustOnlyClosedEntries`,
+  `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets`, `TestTCXV0846ModelOutputMatchesFullDecode`,
+  `TestTCXV0847PreloadMatchesFullLoad`, `TestTCXV0848JournalByteIdenticalWithIndex`.
+- `TCX-V0-849`: (experimental under the standing lane auto-accept; V1-4229, round 3) The index
+  rewrite is incremental. It keeps, byte for byte, the encoded line of every entry whose stat key
+  still matches. It reads, decodes and checks only the other ticket files (file name, queue and
+  policy gates, as a full load checks them), without building the store's inventory, and admits
+  each one by `TCX-V0-845`. Lines are written in path order, so the file is byte-identical to a full
+  re-encode of the same entries. When no entry line changes, the file is left as it is. A process
+  parses one index content at most once: a read reads the file and reuses the earlier parse only
+  when the bytes' SHA-256 equals the bytes that parse decoded, so no timestamp, however coarse,
+  can serve a stale or invalid file. Amended after review (Codex r1 P2): the parse was first
+  reused by device, inode, size, modification and change time. The checksum and every
+  trust rule of `TCX-V0-981` to `TCX-V0-984` still apply. Target, set before the build: index
+  rewrite plus index reads at most 13 ms per create at 2,000 tickets, half of the round-2 26 ms.
+  The `TCX-V0-848` target is unchanged. Acceptance: `TestTCXV0849IncrementalRewriteMatchesFullEncode`,
+  `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`,
+  `TestTCXV0849SameStatRewriteReparsed`.
+- `TCX-V0-850`: (experimental under the standing lane auto-accept; V1-1148) `tasks-scale gen`
+  takes `--pause-after K` and `--max-seconds S`. Either makes a run stop cleanly after a whole
+  ticket, recording its place in `.git/scale-progress.json`, outside the store's commit. `gen
+  --resume` with the same `--root` and `--tickets` continues from that place through the same
+  product writers, so a store too large for one bounded command is built across several. Every
+  request ID gen sends is derived from the ticket number, and every mutation carries the one
+  `issuedAt` the gen recorded at its start, so a ticket redone after a kill replays byte for byte.
+  The first checkpoint is saved before the first mutation (init), and later ones every 50 tickets
+  and at each pause. Each save writes a temporary file in the same directory, syncs it and renames
+  it over the old one, so an interrupted save leaves the previous checkpoint. A resume whose
+  checkpoint still names init skips init when its receipt is present. The manifest's receipt count
+  is the journal head's sequence. Amended after review (Codex r4: replay timestamps, atomic save,
+  test coverage).
+  The manifest records `chunkSeconds`, the wall time of each 500 tickets across segments. A
+  finished resumed store has the same tickets, statuses and receipt count as an unpaused one.
+  Target, set before the build: ticket creation is roughly linear, the last 500-ticket chunk of a
+  2,000-ticket gen taking at most 1.5 times the first. Acceptance:
+  `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; the chunk
+  times are in the build log.
 
 ## Non-goals
 
@@ -93,7 +182,7 @@ byte-identical with and without it.
 | Indexed file edited, resized or touched | Entry not trusted; file read and decoded (`TCX-V0-981`). |
 | Index of another queue or policy | No entry trusted (`TCX-V0-983`). |
 | Indexed file changes between probe and decode | `SNAPSHOT_MOVED` (`TCX-V0-982`). |
-| Tool run on a store without intent | Refused with the resolve error; nothing written (`TCX-V0-988`). |
+| Rebuild run on a store without intent, or whose tree does not load | Refused with the read's code; nothing written (`TCX-V0-988`). |
 | Index write fails or races a writer | Old or no index; readers stay correct (`TCX-V0-983`, `TCX-V0-984`). |
 
 ## Acceptance evidence
@@ -106,8 +195,9 @@ Focused `internal/tasks/intent`, `internal/tasks/ticket`, `internal/tasks/journa
 
 Delete `<git common dir>/taskman.closed-index`; every read falls back to a full scan. To remove
 the feature, revert the implementing commit; the index file is then ignored and can be deleted.
-`internal/tasks/cmd/closed-index` and `fixture.WriteWritableState` are test and benchmark aids; reverting
-their commit removes them with no effect on stores.
+`doctor --rebuild-closed-index` writes only the index file; reverting it leaves any written index,
+which readers validate. `fixture.WriteWritableState` is a test aid; reverting its commit removes it
+with no effect on stores.
 
 ## Traceability
 
@@ -121,4 +211,10 @@ their commit removes them with no effect on stores.
 | `TCX-V0-985` | `TestTCXV0_IndexedReadParity` (journaled store, `receipt audit`) |
 | `TCX-V0-986` | `TestTCXV0_ClosedRoadmapRowsMatchView`, `TestTCXV0_IndexedReadParity` (`roadmap`) |
 | `TCX-V0-987` | `TestTCXV0_RefreshAfterRealMutation`, `TestTCXV0_PlainFixtureStateRefusesWrites` |
-| `TCX-V0-988` | `TestTCXV0_ToolIndexMatchesJournaled`; live-store comparison in the build log |
+| `TCX-V0-988` | `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; live-store comparisons in `docs/build-log/2026-10-31-archive-speed-w1.md` and `docs/build-log/2026-11-01-tcl-w31.md` |
+| `TCX-V0-845` | `TestTCXV0845IndexAdmitsOnlyReencodedBytes`, `TestTCXV0845ReadsTrustOnlyClosedEntries` |
+| `TCX-V0-846` | `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets`, `TestTCXV0846ModelOutputMatchesFullDecode` |
+| `TCX-V0-847` | `TestTCXV0847PreloadMatchesFullLoad` |
+| `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
+| `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`, `TestTCXV0849SameStatRewriteReparsed` |
+| `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; chunk times in the build log |

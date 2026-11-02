@@ -503,7 +503,7 @@ func TestAFPV0928AffectedFormatTextRestatesThePlan(t *testing.T) {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
-	if want := "affected " + receipt.Summary.Line + " revision=" + receipt.Revision; lines[0] != want {
+	if want := "affected " + receipt.Summary.Line + fmt.Sprintf(" worktree=%d", receipt.Summary.Worktree) + " revision=" + receipt.Revision; lines[0] != want {
 		t.Fatalf("first line %q, want %q", lines[0], want)
 	}
 	count := func(prefix string) int {

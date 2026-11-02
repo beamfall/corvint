@@ -424,6 +424,9 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 		if p.Has("supersedes") {
 			work.Supersedes = copyTicket(p.Supersedes)
 		}
+		if p.Has("supersededBy") {
+			work.SupersededBy = copyTicket(p.SupersededBy)
+		}
 		// §3.2 DRAFT→OPEN by refine.
 		if work.Status == ticket.StatusDraft && opens(work) {
 			work.Status = ticket.StatusOpen
@@ -686,7 +689,10 @@ func (ctx *Context) checkRecord(pre, work *ticket.Record) *refusal {
 			}
 		}
 	}
-	if pre == nil && work.SupersededBy != nil {
+	if (pre == nil || fieldChanged(pre, work, "supersededBy")) && work.SupersededBy != nil {
+		if work.SupersededBy.Raw == work.TicketID.Raw {
+			return refuse(OutcomeValidationFailed, wire.CodeMalformed, "supersededBy names the ticket itself (TAW-V0-012)")
+		}
 		if _, ok := ctx.Inventory.Get(work.SupersededBy.Raw); !ok {
 			return refuse(OutcomeValidationFailed, wire.CodeDependencyMissing, "supersededBy names %s, which does not exist in the queue", work.SupersededBy.Raw)
 		}
@@ -863,10 +869,12 @@ func (ctx *Context) create(plan *Plan, p *CreatePayload) *Plan {
 // successor would leave the Count range is refused LIMIT_EXCEEDED before any
 // overflow, leaving the manifest unchanged.
 func (ctx *Context) allocateSerial(q intent.Queue) (string, wire.Count, *refusal) {
+	// The summary carries the ticket ID, so a lazily held record is not
+	// decoded to learn its local token (TCX-V0-846).
 	occupied := make(map[string]bool, ctx.Inventory.Len())
 	for _, id := range ctx.Inventory.IDs() {
-		if rec, ok := ctx.Inventory.Get(id); ok {
-			occupied[wire.FoldToken(rec.TicketID.Local)] = true
+		if s, ok := ctx.Inventory.Summary(id); ok {
+			occupied[wire.FoldToken(s.TicketID.Local)] = true
 		}
 	}
 	n := q.NextSerial.Int()

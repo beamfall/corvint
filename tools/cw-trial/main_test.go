@@ -13,6 +13,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const goldReply = "I checked the tree.\n\n```json\n{\"claims\":[{\"kind\":\"test-file\",\"value\":\"tests/help_test.rs\",\"confidence\":\"certain\",\"evidence\":\"tests/help_test.rs\"}]}\n```\n"
@@ -76,7 +78,7 @@ func fakeAgent(t *testing.T, body, marker string) string {
 	}
 	script += "cat <<'EOF'\n" + body + "EOF\n"
 	path := filepath.Join(t.TempDir(), "agent.sh")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -240,7 +242,7 @@ func TestTrialWithScriptAgentScoresEveryArm(t *testing.T) {
 func TestTrialCountsANonZeroExitWithoutClaimsAsAnError(t *testing.T) {
 	snapshot := fixtureSnapshot(t)
 	agentPath := fakeAgent(t, "", "")
-	if err := os.WriteFile(agentPath, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(agentPath, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	configuration := options{tasks: writeManifest(t, snapshot), arms: []string{"none"}, agent: "script", agentCommand: agentPath, timeout: time.Minute, limit: 20}
@@ -395,7 +397,7 @@ func TestAccessNoneRemovesTheCopyBeforeDispatch(t *testing.T) {
 	snapshot := fixtureSnapshot(t)
 	script := filepath.Join(t.TempDir(), "agent.sh")
 	body := "#!/bin/sh\nprintf 'cwd=%s entries=%s\\n' \"$PWD\" \"$(ls -A | wc -l | tr -d ' ')\"\nprintf '%s' '```json\n{\"claims\":[]}\n```\n'\n"
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	configuration := options{tasks: writeManifest(t, snapshot), arms: []string{"none", "grep"}, agent: "script", agentCommand: script, timeout: time.Minute, limit: 20, access: "none"}
@@ -614,7 +616,7 @@ func TestAiderArmRunsTheProducerWithTheSameSeeds(t *testing.T) {
 		t.Skip("stub producer needs sh")
 	}
 	stub := filepath.Join(t.TempDir(), "map.sh")
-	if err := os.WriteFile(stub, []byte("#!/bin/sh\nprintf 'rank=1 tests/help_test.rs\\nrank=2 %s\\n' \"$*\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(stub, []byte("#!/bin/sh\nprintf 'rank=1 tests/help_test.rs\\nrank=2 %s\\n' \"$*\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	snapshot := fixtureSnapshot(t)

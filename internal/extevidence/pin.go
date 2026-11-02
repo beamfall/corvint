@@ -255,7 +255,7 @@ func openRegular(path string) (*os.File, error) {
 	if !info.Mode().IsRegular() {
 		return nil, errors.New("source must be a regular file")
 	}
-	file, err := os.Open(path)
+	file, err := openSource(path)
 	if err != nil {
 		return nil, err
 	}
@@ -269,4 +269,39 @@ func openRegular(path string) (*os.File, error) {
 		return nil, errors.New("source must be a regular file")
 	}
 	return file, nil
+}
+
+// errRecordTooLarge is a provider file over MaxRecordBytes.
+var errRecordTooLarge = fmt.Errorf("record exceeds %d bytes", MaxRecordBytes)
+
+// readRecordFile reads one provider file through a single descriptor: it
+// refuses an opened file that is not regular (a FIFO, device or directory,
+// including one swapped in after a pathname check) and reads at most
+// MaxRecordBytes+1 bytes, so a file that grows past the bound is refused
+// rather than read without limit; the bytes it returns are the bytes the
+// caller digests and decodes (EEP-V0-805, V1-0562).
+func readRecordFile(path string) ([]byte, error) {
+	file, err := openSource(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		return nil, errors.New("source must be a regular file")
+	}
+	if info.Size() > MaxRecordBytes {
+		return nil, errRecordTooLarge
+	}
+	data, err := io.ReadAll(io.LimitReader(file, MaxRecordBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > MaxRecordBytes {
+		return nil, errRecordTooLarge
+	}
+	return data, nil
 }

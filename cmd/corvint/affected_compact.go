@@ -57,6 +57,9 @@ type affectedCompactPlan struct {
 	// FrontierExcluded is the plan's frontier left out of unknown, with its
 	// reason (AFP-V0-560).
 	FrontierExcluded []affected.FrontierExclusion `json:"frontierExcluded,omitempty"`
+	// FrontierBearers is the plan's source of each bearing frontier entry
+	// (TSP-V0-942).
+	FrontierBearers []affected.FrontierBearer `json:"frontierBearers,omitempty"`
 	// GoAdditive is the plan's additive-change records (ADN-V0-001).
 	GoAdditive []affected.GoAdditive `json:"goAdditive,omitempty"`
 	// GoAdditiveExcluded is the plan's units left out by a narrowed
@@ -79,6 +82,7 @@ type affectedCompactAdvice struct {
 	TestSelection map[string]any          `json:"test_selection,omitempty"`
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	WholePackages []affectedWhole         `json:"whole_packages,omitempty"`
 }
 
 // affectedCompactCheck is an advice check. When Arguments is set, the
@@ -163,6 +167,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 			NonSource:          full.Plan.NonSource,
 			FrontierSites:      full.Plan.FrontierSites,
 			FrontierExcluded:   full.Plan.FrontierExcluded,
+			FrontierBearers:    full.Plan.FrontierBearers,
 			GoAdditive:         full.Plan.GoAdditive,
 			GoAdditiveExcluded: full.Plan.GoAdditiveExcluded,
 			ViaLinks:           links,
@@ -175,7 +180,7 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Warning:      full.Warning,
 		Degradations: full.Degradations,
 		Tiers:        tierAffectedSelections(full.Plan.Selected),
-		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count),
+		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
 	}, nil
 }
 
@@ -313,7 +318,7 @@ func compactAffectedAdvice(advice affectedAdvice, packages []string, planUnknown
 		}
 		checks = append(checks, compact)
 	}
-	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown)}
+	return affectedCompactAdvice{Checks: checks, Note: advice.Note, Status: advice.Status, TestSelection: advice.TestSelection, AppNavigation: advice.AppNavigation, Unknown: compactAdviceUnknown(advice.Unknown, planUnknown), WholePackages: advice.WholePackages}
 }
 
 func compactAdviceUnknown(unknown []string, planUnknown []affected.Unknown) []string {

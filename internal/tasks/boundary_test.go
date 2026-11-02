@@ -103,7 +103,9 @@ func importViolation(rel, path string) string {
 		return "cmd/corvint imports no Tasks package"
 	}
 	if path != tasksWire {
-		return "Core imports only the Tasks wire package"
+		// ASD-V0-783 (V1-3486): every module file outside internal/tasks/ and
+		// cmd/corvint-tasks/, tools/ and internal/*/cmd included, is Core.
+		return "Core imports only the Tasks wire package (decision 0397: tools/ and internal/*/cmd are Core; import " + tasksWire + " or move the code under internal/tasks/)"
 	}
 	return ""
 }
@@ -154,11 +156,17 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/similar/terms.go", modulePrefix + "internal/gitstatus"},
 		{"internal/tasks/obligation/report.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/gitstatus"},
+		{"tools/probe/main.go", tasksPrefix + "store"},
+		{"internal/probe/cmd/main.go", tasksPrefix + "ticket"},
 	}
 	for _, c := range cases {
 		if importViolation(c.rel, c.path) == "" {
 			t.Errorf("SPY_INEFFECTIVE %s importing %s", c.rel, c.path)
 		}
+	}
+	// ASD-V0-783: a tools/ main importing a Tasks package is told the rule and its fix.
+	if got := importViolation("tools/probe/main.go", tasksPrefix+"store"); !strings.Contains(got, "decision 0397: tools/ and internal/*/cmd are Core") || !strings.Contains(got, tasksWire) {
+		t.Errorf("tools/ violation names no rule or fix: %q", got)
 	}
 	if got := importViolation("internal/taskman/decode.go", tasksWire); got != "" {
 		t.Errorf("Core import of the wire package refused: %s", got)

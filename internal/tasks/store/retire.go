@@ -730,7 +730,14 @@ func closingAudit(repo *intent.Repository, anchor uint64) error {
 	if proof.RetiredThrough() != anchor || proof.Pending || proof.StagingPresent || proof.LastSeq != head.LastSeq {
 		return wire.Errorf(wire.CodeJournalForked, journal.RetiredPrefixFile, "closing audit does not start at the expected anchor")
 	}
-	return FoldReceiptBindings(repo, head.LastSeq.Uint64(), nil)
+	if err := FoldReceiptBindings(repo, head.LastSeq.Uint64(), nil); err != nil {
+		return err
+	}
+	// LGL-V0-809: the closing audit leaves the read checkpoint it supports.
+	// A store with a retired prefix supports none (Result.Checkpoint), so
+	// after a retire this retains nothing; after an unretire it does.
+	retainCheckpoint(repo, proof)
+	return nil
 }
 
 // sealBlob serves the seal's seed bytes by digest to a seeded fold, then

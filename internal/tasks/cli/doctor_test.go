@@ -129,6 +129,7 @@ func TestTQDV0005_NoProgressHandoff(t *testing.T) {
 // ticket whose current status is COMPLETED, HELD or ARCHIVED is not reported,
 // while an OPEN ticket still is.
 func TestTQDV0013_NoProgressSkipsCompletedHeldArchived(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	ids := map[string]string{}
 	for i, name := range []string{"open", "completed", "held", "archived"} {
@@ -178,6 +179,7 @@ func TestTQDV0013_NoProgressSkipsCompletedHeldArchived(t *testing.T) {
 
 // TQD-V0-006: the reviewer returns the same candidate tree three times.
 func TestTQDV0006_RepeatRefusal(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "refused", "P1", `["src/"]`)
 	treeRaw, err := exec.Command("git", "-C", root, "rev-parse", "HEAD^{tree}").Output()
@@ -218,6 +220,7 @@ func TestTQDV0006_RepeatRefusal(t *testing.T) {
 
 // TQD-V0-007: a member whose cleanup fails three times is a slow recovery.
 func TestTQDV0007_SlowLaneRecovery(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	cleanup := wire.ObjectValue(wire.NewObject().Set("argv", wire.Strings([]string{"/usr/bin/false"})).Set("cwd", wire.String("REPOSITORY")).Set("env", wire.Array()).Set("timeoutSeconds", wire.String("3")))
 	root, _ := leaseCLIStoreWith(t, 0, time.Now().UTC().Add(-time.Minute), func(p *wire.Object) {
 		pool := wire.NewObject().Set("id", wire.String("lanes")).Set("members", wire.Strings([]string{"m1", "m2"}))
@@ -253,6 +256,7 @@ func TestTQDV0007_SlowLaneRecovery(t *testing.T) {
 
 // TQD-V0-008: a completion whose ledger witnessed no core obligation.
 func TestTQDV0008_SetupOnlyProof(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-setup", obligationRevision(t, r.Root, id), head, "AC-3")...); x.res.Outcome != wire.OutcomeOK {
@@ -339,6 +343,10 @@ func TestTQDV0010_PluginFindings(t *testing.T) {
 	dir := t.TempDir()
 	write := func(name, body string, mode os.FileMode) {
 		t.Helper()
+		if mode&0o111 != 0 {
+			cli.WriteExecutable(t, filepath.Join(dir, name), []byte(body), mode)
+			return
+		}
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), mode); err != nil {
 			t.Fatal(err)
 		}
@@ -372,9 +380,7 @@ func TestTQDV0010_PluginFindings(t *testing.T) {
 		t.Fatalf("findings: %s", wire.Encode(item))
 	}
 	slow := t.TempDir()
-	if err := os.WriteFile(filepath.Join(slow, "e-slow"), []byte("#!/bin/sh\nexec /bin/sleep 600\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, filepath.Join(slow, "e-slow"), []byte("#!/bin/sh\nexec /bin/sleep 600\n"), 0o755)
 	restore := cli.SetDoctorPluginTimeout(200 * time.Millisecond)
 	_, item = doctorOK(t, root, "--plugins", slow)
 	restore()
@@ -533,9 +539,7 @@ func TestTQDV0010_PluginDescendantsAreKilled(t *testing.T) {
 	}
 	for name, spawn := range plugins {
 		body := "#!/bin/sh\n" + spawn + "\necho $! > '" + filepath.Join(pids, name) + "'\nprintf '[]'\n"
-		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o755); err != nil {
-			t.Fatal(err)
-		}
+		cli.WriteExecutable(t, filepath.Join(dir, name), []byte(body), 0o755)
 	}
 	doctorOK(t, root, "--plugins", dir)
 	for name := range plugins {
@@ -561,12 +565,11 @@ func TestTQDV0010_PluginDescendantsAreKilled(t *testing.T) {
 // TQD-V0-010: discovery reads at most 4096 directory entries; a larger
 // plugin directory runs no plugin and reports one PLUGIN_FAILED.
 func TestTQDV0010_PluginDiscoveryIsBounded(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	dir := t.TempDir()
 	good := "#!/bin/sh\nprintf '%s' '[{\"kind\":\"STALE_DOCS\",\"who\":\"docs/x.md\",\"detail\":\"old\"}]'\n"
-	if err := os.WriteFile(filepath.Join(dir, "a-good"), []byte(good), 0o755); err != nil {
-		t.Fatal(err)
-	}
+	cli.WriteExecutable(t, filepath.Join(dir, "a-good"), []byte(good), 0o755)
 	for i := 0; i < 4096; i++ {
 		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("n%04d", i)), nil, 0o644); err != nil {
 			t.Fatal(err)
@@ -588,6 +591,7 @@ func TestTQDV0010_PluginDiscoveryIsBounded(t *testing.T) {
 // TQD-V0-011: --refresh refuses a cache directory or file that is a symlink,
 // and writes and chmods nothing through it.
 func TestTQDV0011_RefreshRefusesSymlinkedCache(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	repo, err := intent.Resolve(root)
 	if err != nil {
@@ -610,7 +614,7 @@ func TestTQDV0011_RefreshRefusesSymlinkedCache(t *testing.T) {
 		t.Fatal("refresh wrote or chmodded the state dir through the link")
 	}
 	elsewhere := t.TempDir()
-	if err := os.Chmod(elsewhere, 0o755); err != nil {
+	if err := os.Chmod(elsewhere, 0o755); err != nil { // directory mode, not an executable
 		t.Fatal(err)
 	}
 	if err := os.Remove(dir); err != nil {
@@ -685,6 +689,7 @@ func TestTQDV0011_RefreshKeepsNewerCache(t *testing.T) {
 // refreshes into a cache --line can read; findings are cut by bytes in
 // order and the cut is reported.
 func TestTQDV0011_MaximalPluginOutputStaysReadable(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	dir, data := t.TempDir(), t.TempDir()
 	pad := func(p string) string { return p + strings.Repeat("x", 1024-len(p)) }
@@ -701,9 +706,7 @@ func TestTQDV0011_MaximalPluginOutputStaysReadable(t *testing.T) {
 		if err := os.WriteFile(file, []byte(out), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("p%02d", p)), []byte("#!/bin/sh\nexec /bin/cat '"+file+"'\n"), 0o755); err != nil {
-			t.Fatal(err)
-		}
+		cli.WriteExecutable(t, filepath.Join(dir, fmt.Sprintf("p%02d", p)), []byte("#!/bin/sh\nexec /bin/cat '"+file+"'\n"), 0o755)
 	}
 	_, item := doctorOK(t, root, "--refresh", "--plugins", dir)
 	if len(findingsOf(item, "PLUGIN_FAILED")) != 0 {

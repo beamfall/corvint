@@ -2,6 +2,7 @@ package cli
 
 import (
 	"path/filepath"
+	"regexp"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -46,7 +47,7 @@ func lastFailedGate(repo *intent.Repository, a *snapshot.Attempt) (g failedGate,
 
 // ticketLastFailedGate is lastFailedGate over every attempt of ticket id:
 // the result that ended last, ties broken by the later attempt ID.
-func ticketLastFailedGate(repo *intent.Repository, attempts map[string]*snapshot.Attempt, id string) wire.Value {
+func ticketLastFailedGate(repo *intent.Repository, pol *intent.Policy, attempts map[string]*snapshot.Attempt, id string) wire.Value {
 	ids := []string{}
 	for aid, a := range attempts {
 		if a.TicketID.Raw == id {
@@ -67,11 +68,11 @@ func ticketLastFailedGate(repo *intent.Repository, attempts map[string]*snapshot
 	if best == nil {
 		return wire.Null()
 	}
-	return failedGateValue(repo, *best)
+	return failedGateValue(repo, pol, *best)
 }
 
 // attemptLastFailedGate is `lastFailedGate` of `attempt show`.
-func attemptLastFailedGate(repo *intent.Repository, a *snapshot.Attempt) wire.Value {
+func attemptLastFailedGate(repo *intent.Repository, pol *intent.Policy, a *snapshot.Attempt) wire.Value {
 	g, found, ok := lastFailedGate(repo, a)
 	switch {
 	case !ok:
@@ -79,7 +80,7 @@ func attemptLastFailedGate(repo *intent.Repository, a *snapshot.Attempt) wire.Va
 	case !found:
 		return wire.Null()
 	}
-	return failedGateValue(repo, g)
+	return failedGateValue(repo, pol, g)
 }
 
 // failedGateValue renders a failed gate result with the TCD-V0-165 tail of
@@ -88,7 +89,7 @@ func attemptLastFailedGate(repo *intent.Repository, a *snapshot.Attempt) wire.Va
 // from its content-addressed evidence blob and used only when it still has
 // the recorded digest and size; otherwise tail and failingLine are null and
 // output.observed is NOT_OBSERVED, never a guess (CAL-V0-322).
-func failedGateValue(repo *intent.Repository, g failedGate) wire.Value {
+func failedGateValue(repo *intent.Repository, pol *intent.Policy, g failedGate) wire.Value {
 	r := g.result
 	o := wire.NewObject().
 		Set("attemptId", wire.String(g.attemptID)).
@@ -121,6 +122,12 @@ func failedGateValue(repo *intent.Repository, g failedGate) wire.Value {
 		return wire.ObjectValue(o.Set("output", wire.ObjectValue(output)).Set("failingLine", wire.Null()).Set("tail", wire.Null()))
 	}
 	output.Set("observed", wire.String("OBSERVED"))
-	tail, failing := obligation.FailureTail(string(raw), gateTailLines)
+	var pattern *regexp.Regexp
+	if pol != nil {
+		if def := pol.Gate(r.GateID); def != nil {
+			pattern = def.FailurePattern
+		}
+	}
+	tail, failing := obligation.FailureTailMatching(string(raw), gateTailLines, pattern)
 	return wire.ObjectValue(o.Set("output", wire.ObjectValue(output)).Set("failingLine", stringOrNull(failing)).Set("tail", wire.Strings(tail)))
 }

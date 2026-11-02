@@ -1,0 +1,10 @@
+{
+  "reason": "V1-2521: CEM-V1-084 (accepted by decision 0546) makes the authentication axis NOT_OBSERVED, UNTRUSTED_KEY, VERIFIED or FAILED, and both consumers emit all four for the public receipt-authentication case, which the sealed const NOT_OBSERVED refused at axes.authentication; decision 0589 has the schema follow the accepted requirement.",
+  "pointer": "/properties/axes/properties/authentication",
+  "predecessorSha256": "489bc408c369e15c814b81bd73593496564a76153ffe1cf43c744164af54ad1e",
+  "add": [
+    "UNTRUSTED_KEY",
+    "VERIFIED",
+    "FAILED"
+  ]
+}

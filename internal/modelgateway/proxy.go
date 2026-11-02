@@ -41,6 +41,7 @@ type Usage struct {
 	Folds               int    `json:"folds"`
 	DurationMs          int64  `json:"durationMs"`
 	SessionKey          string `json:"sessionKey,omitempty"`
+	ClaudeSessionKey    string `json:"claudeSessionKey,omitempty"`
 	SystemBytes         int    `json:"systemBytes,omitempty"`
 	SystemKey           string `json:"systemKey,omitempty"`
 	ToolsBytes          int    `json:"toolsBytes,omitempty"`
@@ -300,8 +301,45 @@ func requestFacts(body []byte, u *Usage) {
 		return
 	}
 	u.Stream, u.SessionKey = request.Stream, shortKey([]byte(request.Metadata.UserID))
+	u.ClaudeSessionKey = claudeSessionKey(request.Metadata.UserID)
 	u.SystemBytes, u.SystemKey = len(request.System), shortKey(request.System)
 	u.ToolsBytes, u.ToolsKey = len(request.Tools), shortKey(request.Tools)
+}
+
+// claudeSessionDomain separates the Claude Code session hash; it must match
+// claudeSessionHash in cmd/corvint/host_adapter.go, whose result names the
+// session's dogfood enrollment (`corvint dogfood status --session-key`).
+const claudeSessionDomain = "corvint-local-completion-session/claude-code/0"
+
+// claudeSessionKey returns the Corvint session key of a Claude Code request,
+// whose metadata.user_id is a JSON object carrying session_id, or "" for any
+// other user_id (LMG-V0-013).
+func claudeSessionKey(userID string) string {
+	var id struct {
+		SessionID string `json:"session_id"`
+	}
+	if json.Unmarshal([]byte(userID), &id) != nil || id.SessionID == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte(claudeSessionDomain + "\x00" + id.SessionID))
+	return hex.EncodeToString(sum[:])
+}
+
+// FilterSession returns the ledger lines whose claudeSessionKey equals key,
+// each with its newline, so Summarise and CacheBreaks can report one Claude
+// Code session (LMG-V0-014). Unreadable lines are dropped.
+func FilterSession(r io.Reader, key string) ([]byte, error) {
+	var out bytes.Buffer
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64<<10), 1<<20)
+	for scanner.Scan() {
+		var u Usage
+		if json.Unmarshal(scanner.Bytes(), &u) == nil && u.Profile == UsageProfile && u.ClaudeSessionKey == key {
+			out.Write(scanner.Bytes())
+			out.WriteByte('\n')
+		}
+	}
+	return out.Bytes(), scanner.Err()
 }
 
 // shortKey is the first 8 bytes of SHA-256 in hex, or "" for empty input.

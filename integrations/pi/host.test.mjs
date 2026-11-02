@@ -28,12 +28,12 @@ process.once('SIGTERM',()=>{cleanup();process.exit(143)});
 
 function run(command,args,options={}) {
  return new Promise((resolve,reject)=>{
-  const {signal,onSpawn,onStdout,stdin=false,...spawnOptions}=options;
+  const {signal,onSpawn,onStdout,stdin=false,timeoutMs=45000,...spawnOptions}=options;
   const child=spawn(command,args,{...spawnOptions,detached:true,stdio:[stdin?'pipe':'ignore','pipe','pipe']});
   active.add(child);
   let stdout='',stderr='',error;
   const abort=()=>{error=Error('interrupted');kill(child)};
-  const timer=setTimeout(()=>{error=Error('child timeout');kill(child)},45000);
+  const timer=setTimeout(()=>{error=Error('child timeout');kill(child)},timeoutMs);
   signal?.addEventListener('abort',abort,{once:true});
   if(signal?.aborted)abort();
   child.stdout.on('data',data=>{stdout+=data;onStdout?.(data,child);if(stdout.length>2**20)abort()});
@@ -258,19 +258,31 @@ test('AHI-024 interrupting the host check reaps its separately detached native g
  const scratch=mkdtempSync(join(tmpdir(),'pi-host-interrupt-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const witness=join(scratch,'witness');
  let spawned;const ready=new Promise(r=>{spawned=r});
- // Run the test file directly so the signal targets its registered cleanup boundary.
- const work=run(process.execPath,[fileURLToPath(import.meta.url)],{cwd:root,env:{...process.env,CORVINT_PI_INTERRUPT_WITNESS:witness},onSpawn:spawned});
+ // Run the test file directly so the signal targets its registered cleanup boundary. Without the
+ // runner's NODE_TEST_CONTEXT the child reports plain TAP, so its own failure is readable below.
+ const childEnv={...process.env,CORVINT_PI_INTERRUPT_WITNESS:witness};delete childEnv.NODE_TEST_CONTEXT;
+ // V1-3041: before it writes the witness the child runs the whole lifecycle test (a cmd/corvint
+ // build and every Pi step, each under its own 45 s child timeout), so the fixed 25 s wait and the
+ // default 45 s run bound failed it on a loaded host. Wait on observed progress instead: the
+ // witness appears or the child exits first. timeoutMs only detects a hung child.
+ const work=run(process.execPath,[fileURLToPath(import.meta.url)],{cwd:root,env:childEnv,onSpawn:spawned,timeoutMs:900000});
  const child=await ready;
- for(let i=0;i<2500&&!existsSync(witness);i++)await new Promise(r=>setTimeout(r,10));
- assert.ok(existsSync(witness),'native detached child reached');
+ let exited=false;work.then(()=>{exited=true},()=>{exited=true});
+ while(!exited&&!existsSync(witness))await new Promise(r=>setTimeout(r,10));
+ if(!existsSync(witness)){const ended=await work.catch(e=>({code:String(e),stdout:'',stderr:''}));const at=Math.max(0,ended.stdout.indexOf('not ok'));assert.fail('native detached child not reached; child exited '+ended.code+': '+ended.stdout.slice(at,at+6000)+ended.stderr.slice(-2000))}
  const {group,descendant}=JSON.parse(readFileSync(witness,'utf8'));
  const groupFile=join(scratch,'group');writeFileSync(groupFile,String(group));nativeGroups.add(groupFile);
  t.after(()=>{try{process.kill(-group,'SIGKILL')}catch{}nativeGroups.delete(groupFile)});
  child.kill('SIGTERM');
  const result=await work;assert.equal(result.code,143,result.stderr);
- for(let i=0;i<100;i++){try{process.kill(descendant,0)}catch{break}await new Promise(r=>setTimeout(r,10))}
+ // V1-3041: the child's cleanup SIGKILLs the group, but its leader stays a group member as a zombie
+ // until the reaper it was reparented to collects it; on a loaded host that lagged the descendant,
+ // so the group was asserted before it was reaped. Observe both gone; the bound only detects a hang.
+ const gone=pid=>{try{process.kill(pid,0);return false}catch(e){return e.code==='ESRCH'}};
+ for(let i=0;i<1000&&!(gone(descendant)&&gone(-group));i++)await new Promise(r=>setTimeout(r,10));
+ const members=()=>spawnSync('ps',['-o','pid=,ppid=,stat=,args=','-g',String(group)],{encoding:'utf8'}).stdout;
  assert.throws(()=>process.kill(descendant,0),{code:'ESRCH'});
- assert.throws(()=>process.kill(-group,0),{code:'ESRCH'});
+ if(!gone(-group))assert.fail('group '+group+' still has members:\n'+members());
 });
 
 test('AHI-025 native TUI fixture interruption reaps its PTY process group',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{

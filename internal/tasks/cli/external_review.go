@@ -198,7 +198,7 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 	if operation == mutation.OpReviewResubmit && f.author == "" {
 		return usage(cmd, "--author-attempt is required")
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -353,7 +353,7 @@ func retainedElsewhere(rc *readCtx, id string, f reviewFlags) error {
 	if _, err := os.Lstat(filepath.Join(rc.repo.StateDir, path)); errors.Is(err, fs.ErrNotExist) && rc.snap.Head.Segments == nil {
 		return nil
 	}
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+	idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 	entry, found, err := idx.Lookup(f.requestID)
 	if err != nil {
 		return err

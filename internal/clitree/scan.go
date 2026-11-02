@@ -253,7 +253,23 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 			return true
 		})
 	}
+	// CAP-V0-979 (V1-3679): a table whose name says it holds events (claudeContextEvents) maps
+	// hook event values, not subcommands, so its keys are values wherever an argument indexes the
+	// table or is compared with one of them (arguments[1] == "session-start").
+	events := map[string]bool{}
+	for table, values := range tables {
+		if eventTable(table) {
+			for _, value := range values {
+				for _, key := range compositeKeys(value) {
+					events[key.value] = true
+				}
+			}
+		}
+	}
 	for table := range looked {
+		if eventTable(table) {
+			continue
+		}
 		for _, value := range tables[table] {
 			for _, key := range compositeKeys(value) {
 				add(key.value, key.at, true)
@@ -265,7 +281,13 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 			}
 		}
 	}
+	for value := range events {
+		delete(words, value)
+	}
 }
+
+// eventTable reports whether a table's name says its keys are event values (CAP-V0-979).
+func eventTable(name string) bool { return strings.Contains(strings.ToLower(name), "event") }
 
 type keyAt struct {
 	value string

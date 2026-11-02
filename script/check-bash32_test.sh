@@ -68,7 +68,7 @@ done <<< "$cases"
 
 # 4. A file without .sh whose first line names bash is scanned; a non-bash script is not.
 printf '#!/usr/bin/env bash\n%s\n' "map""file x" > "$repo/script/tool"
-printf '#!/usr/bin/env python3\n%s\n' "map""file = 1" > "$repo/script/tool.py"
+printf '#!/usr/bin/env py%s\n%s\n' "thon3" "map""file = 1" > "$repo/script/tool.py"
 if run_gate; then fail "bash shebang file not scanned"; fi
 expect "FAIL map""file script/tool:2:" "$tmp/out"
 absent 'tool.py' "$tmp/out"
@@ -135,9 +135,74 @@ set -e
 expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
 /bin/rm -f "$repo/ok.sh"
 
+# 11. A scan whose inputs match the last passing scan is reused with a reason line; a changed
+# script, a new bash-shebang script and a changed checker each force a full scan, and
+# CORVINT_GATE_LEDGER=off always rescans (ASD-V0-601, V1-4100).
+printf '#!/bin/bash\necho ok\n' > "$repo/ok.sh"
+run_gate || { cat "$tmp/out" >&2; fail "clean script refused"; }
+absent '(reused:' "$tmp/out"
+run_gate || { cat "$tmp/out" >&2; fail "unchanged rerun refused"; }
+expect 'check-bash32: ok, 1 scripts (reused: ' "$tmp/out"
+printf '#!/bin/bash\n%s\n' "map""file x" > "$repo/ok.sh"
+if run_gate; then fail "a changed script reused the last pass"; fi
+expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
+printf '#!/bin/bash\necho ok\n' > "$repo/ok.sh"
+run_gate || { cat "$tmp/out" >&2; fail "restored script refused"; }
+printf '#!/usr/bin/env bash\n%s\n' "map""file y" > "$repo/script/tool2"
+if run_gate; then fail "a new bash-shebang script reused the last pass"; fi
+expect "check-bash32: FAIL map""file script/tool2:2:" "$tmp/out"
+/bin/rm -f "$repo/script/tool2"
+run_gate || { cat "$tmp/out" >&2; fail "tree without tool2 refused"; }
+run_gate || { cat "$tmp/out" >&2; fail "unchanged rerun refused"; }
+expect '(reused: ' "$tmp/out"
+echo '# a checker change' >> "$repo/script/check-bash32.sh"
+run_gate || { cat "$tmp/out" >&2; fail "changed checker refused"; }
+absent '(reused:' "$tmp/out"
+expect 'check-bash32: ok, 1 scripts' "$tmp/out"
+git -C "$repo" add -A
+set +e
+(cd "$repo" && CORVINT_GATE_LEDGER=off script/check-bash32.sh) > "$tmp/out" 2>&1
+rc=$?
+set -e
+[[ $rc == 0 ]] || { cat "$tmp/out" >&2; fail "CORVINT_GATE_LEDGER=off exited $rc"; }
+absent '(reused:' "$tmp/out"
+/bin/rm -f "$repo/ok.sh"
+
 # 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
 grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
 # GATE_STEPS lists one step per line (STR-V0-920), so read the whole assignment.
 awk '/^GATE_STEPS = /,/end of GATE_STEPS/' "$root/Makefile" | grep -qE '(^|[[:space:]])bash32-check([[:space:]]|$)' || fail "bash32-check is not in GATE_STEPS"
+
+# 11. ASD-V0-945 (V1-3632): under set -u, a plain expansion of an array initialized empty is
+# refused naming file:line and the array (the pr-landing-watch.sh repo_args repro); the guarded
+# idioms, a ${#a[@]} guard, a script without set -u, an allow marker and the exempt heavy.sh pair
+# pass.
+{
+  echo '#!/usr/bin/env bash'
+  echo 'set -euo pipefail'
+  echo 'repo_args=()'
+  echo 'gh pr view 1 "${repo_args[@]}" --json state'
+  echo 'echo "${repo_args[*]}"'
+  echo 'gh pr view 1 ${repo_args[@]+"${repo_args[@]}"}; echo "${repo_args[*]-}"'
+  echo 'seen=()'
+  echo '((${#seen[@]})) && printf "%s\n" "${seen[@]}"'
+  echo 'kept=()'
+  echo 'echo "${kept[@]}" # bash32: allow'
+  echo "echo '\${kept[@]}'"
+} > "$repo/bad.sh"
+printf '#!/bin/bash\nx=()\necho "${x[@]}"\n' > "$repo/loose.sh"
+mkdir -p "$repo/script"
+printf '#!/bin/bash\nset -u\nwords=()\necho "${words[*]}"\n' > "$repo/script/heavy.sh"
+if run_gate; then fail "empty array under set -u passed"; fi
+expect 'check-bash32: FAIL empty-array-nounset bad.sh:4: repo_args is expanded under set -u and may be empty' "$tmp/out"
+expect 'check-bash32: FAIL empty-array-nounset bad.sh:5: repo_args' "$tmp/out"
+expect '2 Bash 4+ construct(s) in 3 scripts' "$tmp/out"
+absent 'bad.sh:6:' "$tmp/out"
+absent 'bad.sh:8:' "$tmp/out"
+absent 'bad.sh:10:' "$tmp/out"
+absent 'bad.sh:11:' "$tmp/out"
+absent 'loose.sh' "$tmp/out"
+absent 'heavy.sh' "$tmp/out"
+/bin/rm -f "$repo/bad.sh" "$repo/loose.sh" "$repo/script/heavy.sh"
 
 echo 'check-bash32_test: PASS'

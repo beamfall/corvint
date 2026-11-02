@@ -13,8 +13,8 @@ import (
 // The executing `gate run` reports `reusedFrom: null`; the second reports
 // the source attempt and a result digest, and the receipt audit passes.
 func TestCALV0240_GateRunReportsReusedFrom(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	// A gate argv entry is at most 128 bytes, so the run counter and the
 	// clean worktree live under a short directory.

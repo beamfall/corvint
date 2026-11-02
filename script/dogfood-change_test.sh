@@ -108,7 +108,9 @@ trap 'exit 143' TERM
 mkdir -p "$test_root/repo/script" "$test_root/repo/docs/specs" "$test_root/bin"
 # The scripts are wrappers over `corvint dogfood change|check` (DCW-V0-020); every fake binary
 # hands that subverb to this real driver, which runs the flow with the fake as its steps.
-(cd "$source_root" && GOCACHE="${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}" GOTOOLCHAIN=local \
+# V1-3918: the caller's cache (CORVINT_GOCACHE, then GOCACHE) is honoured; the shared /tmp path is
+# only the default, so a lane whose /tmp is full keeps its build off it.
+(cd "$source_root" && GOCACHE="${CORVINT_GOCACHE:-${GOCACHE:-/tmp/corvint-go-build-cache}}" GOTOOLCHAIN=local \
   go build -o "$test_root/driver" ./cmd/corvint)
 export DOGFOOD_TEST_DRIVER="$test_root/driver"
 source "$source_root/script/dogfood-fixture-scripts.sh"

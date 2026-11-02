@@ -112,6 +112,7 @@ func TestPSRV0016_ShareBindsAndReads(t *testing.T) {
 // PSR-V0-018: whichever order the bound attempts end in, the member stays
 // ALLOCATED until the last one ends and is quarantined exactly once.
 func TestPSRV0018_ShareReleaseOrders(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, primaryFirst := range []bool{true, false} {
 		r := shareRepo(t)
 		one, two := planTicket(t, r.Root, "one", "P1", `["one"]`), planTicket(t, r.Root, "two", "P1", `["two"]`)
@@ -145,6 +146,7 @@ func TestPSRV0018_ShareReleaseOrders(t *testing.T) {
 
 // PSR-V0-017: every refusal is stable and writes no binding.
 func TestPSRV0017_ShareRefusals(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r := shareRepo(t)
 	tickets := []string{}
 	for _, name := range []string{"one", "two", "three", "four", "five", "six"} {

@@ -37,10 +37,25 @@ type traceRecord struct {
 	Snapshot *struct {
 		CallID       string `json:"callId"`
 		SnapshotName string `json:"snapshotName"`
+		Phase        string `json:"phase"`
 		FrameURL     string `json:"frameUrl"`
 		PageID       string `json:"pageId"`
 		IsMainFrame  bool   `json:"isMainFrame"`
 	} `json:"snapshot"`
+}
+
+// snapshotPhase names a frame snapshot's phase and call. Older traces encode
+// both as snapshotName "phase@call"; Playwright 1.63 and 1.64 write separate
+// phase and callId members and call the input-time snapshot "action"
+// (OUE-V0-685).
+func snapshotPhase(name, phase, callID string) (string, string) {
+	if p, call, ok := strings.Cut(name, "@"); ok && call != "" {
+		return p, call
+	}
+	if phase == "action" {
+		phase = "input"
+	}
+	return phase, callID
 }
 
 // LoadTraceZip derives playwright-navigation-events/0 documents from a trace zip, one per page
@@ -151,10 +166,7 @@ func LoadTraceZip(name, testKey string) ([]NavigationEvents, []byte, error) {
 					byPage[ctxID{ei, s.PageID}] = pe
 					pages = append(pages, pe)
 				}
-				phase, call, _ := strings.Cut(s.SnapshotName, "@")
-				if call == "" {
-					call = s.CallID
-				}
+				phase, call := snapshotPhase(s.SnapshotName, s.Phase, s.CallID)
 				at := pageCall{ei, s.PageID, call}
 				if phase == "before" {
 					beforeURL[at] = s.FrameURL

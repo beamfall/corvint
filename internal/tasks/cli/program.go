@@ -71,7 +71,7 @@ func programCommand(env Env, verb string, args []string) *wire.Result {
 	if e != nil {
 		return errorResult(cmd, e)
 	}
-	actor, e := initActor("OPERATOR")
+	actor, e := initActor(env, "OPERATOR")
 	if e != nil {
 		return errorResult(cmd, e)
 	}

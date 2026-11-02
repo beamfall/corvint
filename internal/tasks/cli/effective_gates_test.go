@@ -41,8 +41,8 @@ func TestV12038_ShowAndBlockersReportPolicyRequiredGates(t *testing.T) {
 // effective required gate, and complete refuses with MISSING_GATE for that
 // same gate, so the read outputs match what complete enforces (V1-2038).
 func TestV12038_CompleteRefusesTheGateShowAndBlockersReport(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	gate := commandGate("verify", "/bin/sh", "-c", "exit 0") // portable: macOS has no /bin/true
 	gate.Obj.Set("required", wire.Bool(true))

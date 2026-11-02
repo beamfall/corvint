@@ -11,8 +11,11 @@ it may narrow the rules here but never loosens them.
 Roles. The **orchestrator** owns the Tasks store (claims, heartbeats, gates, completion), lane
 admission, CI and merge-queue waits, the idle watchdog and checkout cleanup. A **builder lane** owns
 one branch: spec, implementation, focused checks, one dogfood finish, one push and one PR. A lane
-never runs `corvint-tasks`, never edits `.taskman/` or `.github/`, never starts background jobs or
-subagents, and never touches another lane's checkout.
+writes no Tasks store state: it reports ticket state as `Corvint-Ticket` commit trailers from
+`corvint-tasks work start|deliver|block` (read-only; [TASKS-EXTERNAL-AGENTS](TASKS-EXTERNAL-AGENTS.md)
+"Report lane work with commit trailers"), and the orchestrator ingests them with `work
+close-merged` after the merge (TAW-V0-017). A lane never edits `.taskman/` or `.github/`, never
+starts background jobs or subagents, and never touches another lane's checkout.
 
 ## 1. Admission: cap heavy lanes by host pressure (ASD-V0-013)
 
@@ -177,6 +180,11 @@ such as `internal/procgroup` selects about 200), `script/heavy.sh --plan M` prin
 `HEAVY_SELECTION=M script/heavy.sh go test ...` command per package, and `HEAVY_SELECTION=M` admits
 each package M selects whole without a typed `HEAVY_WHOLE_REASON` (ASD-V0-891). A run missing both
 `HEAVY_WHOLE_REASON` and `HEAVY_LOCAL_REASON` is refused once, naming both (ASD-V0-890).
+Before choosing a focused `-run` pattern for a selected package, run
+`corvint test --base SHA --dry-run --pins`: it prints one `pins go:PKG -run '^(...)$'` line per
+selected package naming the tests whose bodies or helpers name a changed declaration or quote a
+changed string literal (TSP-V0-944, V1-3808). Run those first; they are advice, so the dry-run
+selection still decides what must pass before the lane finishes.
 
 #### Several offload hosts (ASD-V0-933, V1-3626, V1-3518)
 
@@ -476,6 +484,25 @@ in `/`) that holds the other's path; and, with `BASE`, `ABSENT`, a path not at t
 never waived: serialize the tickets or dispatch them to one lane. A malformed file or a base that is
 not a commit exits 2.
 
+An `ABSENT` path whose ticket body records `Source ref: BRANCH@SHA` (`TCL-V0-743`, V1-3696) names
+that ref: dispatch the ticket after the branch lands instead of against a base that lacks the code.
+
+Orphan lane heads (`TCL-V0-744`, V1-3856). A lane head that delivered a ticket but was never merged
+into a batch is invisible to dispatch, and the ticket gets rebuilt. Make the in-flight batch branches
+readable where the screen runs, then list the orphans and screen the batch against them:
+
+```sh
+git push <lane-host>:<repo> 'refs/heads/claude/batch-*:refs/heads/claude/batch-*'   # each lane host
+corvint-tasks ticket orphan-lanes > orphans.json
+make lane-dispatch-check BASE=<sha> ORPHANS=orphans.json LANES="..."
+```
+
+`ticket orphan-lanes` lists every lane commit that delivers an OPEN ticket and that neither the
+integration ref nor any `claude/batch-*` branch (`--batch GLOB`) contains; with no batch branch in
+the clone it warns that in-flight batches are `NOT_OBSERVED`. `ORPHAN` (never waived) names each
+assigned ticket so delivered: batch that head instead of rebuilding the ticket. A charter's
+pre-build screen (`git log --all --grep=<ID>`) sees batch work only where those branches were pushed.
+
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
 build-log entry. A spec's header `Intent status:` and its Agent digest `- Status:` line are frozen,
@@ -512,6 +539,12 @@ Every dogfood make target requires an explicit BASE: the Makefile's `BASE ?= ori
   then `chmod +x` that file. Git runs it from the pushing checkout's top level, so each lane uses
   its own copy. It runs `make windows-vet` when the pushed commits change a `.go`, `go.mod` or
   `go.sum` file and refuses the push when it fails.
+- Windows main before vet (ASD-V0-974, V1-3782): a new untagged file (for example `help.go`) in a
+  package whose `main.go` carries `//go:build darwin || linux` builds on Windows with no `main`, and
+  `make windows-vet` reports it only as `function main is undeclared in the main package`. Give
+  the new file the same `//go:build` line, or add a windows main. `make windows-main-check` finds
+  it in seconds; run it when you add a file to a build-tagged main package. It is not a step of
+  `make windows-vet`, whose recipe the `AFP-V0-054` parity test pins to the CI vet commands.
 - Sealed evidence before push (DCW-V0-348, V1-2805, V1-1773): the batch-head checkout installs
   `script/pre-push-dogfood-seal.sh` the same way. It runs `script/dogfood-batch-check.sh` against
   the pushed branch's merge base with `origin/main` and refuses `dogfood-seal-missing` while any
@@ -655,14 +688,25 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
   and free disk before and after.
 - Go build caches (ASD-V0-021, ASD-V0-038, V1-0360, V1-2904): each host has one Go build cache for
   lanes and heavy runs. On a lane host it is the Makefile's `CORVINT_GOCACHE`
-  (`/tmp/corvint-go-build-cache`), which `script/heavy.sh` also gives a local run unless the caller
-  set `GOCACHE`; on an offload host it is the remote env file's `CORVINT_GOCACHE`
+  (`${TMPDIR:-/tmp}/corvint-go-build-cache`, ASD-V0-914), which `script/heavy.sh` also gives a local
+  run unless the caller set `GOCACHE`; on an offload host it is the remote env file's `CORVINT_GOCACHE`
   (`~/.cache/corvint-go-build-cache` on the reference box), which the remote half exports as
-  `GOCACHE`. After each batch merge, and whenever free disk falls below about 20%, run
+  `GOCACHE`. When the lane host's `/tmp` is a tmpfs (WSL: 16 GiB of RAM) and the caller set none of
+  `GOCACHE`, `CORVINT_GOCACHE` and `TMPDIR`, `script/heavy.sh` instead gives a local run the home-disk
+  cache `${XDG_CACHE_HOME:-~/.cache}/corvint-go-build-cache`, the same path the remote half uses, and
+  `TMPDIR=${XDG_CACHE_HOME:-~/.cache}/corvint-tmp`, and names both on one stderr line (ASD-V0-061,
+  V1-3824). A host that is both a lane host and an offload host then keeps one cache. Below
+  `HEAVY_MIN_FREE_GB` (3) GiB free in `TMPDIR` or the Go cache a local run warns; below
+  `HEAVY_REFUSE_FREE_GB` (1, `0` disables) it is refused, `heavy.sh: REFUSED low-disk (exit 2)`, before
+  the command starts, since a `go test` that fills a tmpfs fails as an unrelated `no space left on
+  device`. Both messages end with one cleanup hint naming the commands below (ASD-V0-062). Outside
+  `heavy.sh`, a lane on such a host sets `TMPDIR=$HOME/.cache/corvint-tmp` itself (`mkdir -p` it first).
+  After each batch merge, and whenever free disk falls below about 20%, run
   `make go-cache-trim` (dry run), review the `WOULD-TRIM` and `WOULD-REMOVE` lines, then
   `make go-cache-trim APPLY=1`. It trims each Go cache to 20 GiB, oldest entries first and never
   one used in the last 12 hours, and removes `go-build*` work directories older than 24 hours that
-  no running process names. A trimmed entry is only a later cache miss. When the free share of
+  no running process names, under `$TMPDIR`, `/tmp` and `~/.cache/corvint-tmp` (ASD-V0-063). A
+  trimmed entry is only a later cache miss. When the free share of
   `/tmp` stays under 20% after the trim it prints `WARN low-disk free-pct=N min-free-pct=20`: the
   caches are not what fills the disk, so look at checkouts and scratch next.
 - Closed-session scratch (ASD-V0-022, V1-1978): after each batch merge, run
@@ -684,7 +728,9 @@ the checkout, and a root that does not resolve (or is `/`) is refused. Worktrees
 
 ### Lane build-log entry shape
 
-One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>-<slug>.md`, with these sections in order:
+One entry per lane, `docs/build-log/YYYY-MM-DD-<lane>.md`: the `BUILD_LOG` that
+`script/lane-dispatch.sh inputs` writes into `lane.env`, so the brief and the charter quote one name
+(V1-3816; older entries carry a `-<slug>` suffix). It has these sections in order:
 problem, decisions, evidence, `NOT_RUN`, rollback, and **Outcome** (V1-2234). Outcome states the
 final disposition per ticket (delivered, already delivered with evidence, skipped with reason), the
 dogfood result and every `NOT_PRODUCED` reason. Fill it before the final commit; text in earlier
@@ -852,6 +898,22 @@ logged-out one prints one `codex-review: NOT_AVAILABLE` line with the fix (`code
 `codex login --with-api-key` on a headless host) and exits 3 without any review call; the lane
 records the review as `NOT_RUN` with that line instead of retrying.
 
+Before a review starts, the script prints its first line,
+`codex-review: reviewed-head=SHA tree=SHA dirty=yes|no` (ASD-V0-1020). Save the whole output to a
+file: it is the record of which head the findings are about. Before sending findings to a fix
+round, or after the lane head moved, compare the review with the head (ASD-V0-1021, V1-3959):
+
+```sh
+script/review-head-check.sh review.txt   # CURRENT (exit 0) or MOVED with one line per finding (exit 1)
+```
+
+`MOVED` marks each `[Pn]` finding POSSIBLY_FIXED (a cited path changed, at the cited lines when
+it names lines), OPEN or UNKNOWN (no cited path); send only OPEN and UNKNOWN findings back and
+review the new head again. `REFUSE reviewed-head-not-ancestor` means the findings are about a
+commit the lane head does not contain (on 2026-11-01 the cem-u11 P2s, made on a later commit,
+were sent against an earlier lane head); `REFUSE unpinned-review` means the review was not run
+through this script, and `--reviewed-head REV` names the commit by hand.
+
 ## 11. Friction goes up to the orchestrator (ASD-V0-076)
 
 Lane friction (stale binaries, missing logins, requirement ID collisions, parked background jobs)
@@ -934,6 +996,41 @@ are verified first, and every result names the snapshot's host, primary worktree
 journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
 naming the owning store and the command to run there.
 
+Store parity (TCL-V0-742, V1-3931). A lane host's store copy or snapshot can fall behind the owning
+store, and a lane that reads it reports tickets as absent that exist. Before claiming anything about
+store contents on a lane host, compare it with the staged authoritative snapshot:
+
+```sh
+corvint-tasks queue parity --against ~/lane-inputs/ticket-bodies-<lane>/queue-snapshot.json
+```
+
+It names both tree digests, ages and journal sequences and lists the tickets the host lacks
+(`missing`), holds at different content (`stale`) or holds that the authority lacks (`extra`); a
+host that is behind is refused `STALE_TICKET`. `script/agent-preflight.sh` prints the same check as
+its `tasks-store` row (`in sync`, `WARN behind`, `UNKNOWN` or no snapshot staged) and never fails
+on it. When the host is behind, read tickets with `CORVINT_TASKS_SNAPSHOT=` that file. Any claim
+that a ticket or field is absent from the store cites the store tree digest the read named (every
+snapshot read's warning names its tree and age).
+
+Carry the projection after every merge (ASD-V0-815, V1-4183). A lane host without a journal reads
+the `.taskman/` projection its lane branch tracks, so a fresh lane is only as current as
+origin/main's projection: on 2026-11-01 origin/main tracked 808 tickets while the Mac store held
+4,218, and parity on a clean origin/main clone refused `STALE_TICKET` with 3,410 missing and 465
+stale. After each batch merge, as part of the post-merge routine, the orchestrator carries the
+projection from the owning store into a clean worktree off the new origin/main and lands that
+commit in its own pull request (it touches only `.taskman/`, so it narrows like any data change):
+
+```sh
+git worktree add --detach ../carry origin/main
+script/tasks-carry-projection.sh --commit ../carry    # on the host that owns the store
+```
+
+It replaces `.taskman/queue.json`, `policy.json`, `tickets/` and `releases/` with the store's,
+requires every file to match a fresh `queue snapshot` (`DRIFT`, `MISSING` or `EXTRA` otherwise,
+exit 1) and prints `PASS QUEUE tickets BEFORE -> AFTER, N files changed`. Then stage the snapshot
+on each lane host with `script/lane-stage-inputs.sh` (section 14); a lane started from the carried
+main passes `queue parity` and its preflight `tasks-store` row reads `in sync`.
+
 ## 13. Lane flow guide and refusal recovery map (V1-3239)
 
 One lane runs this flow, in order; each step names the command and the section that owns it.
@@ -944,7 +1041,14 @@ One lane runs this flow, in order; each step names the command and the section t
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
 3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
-   (section 2).
+   (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
+   a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
+   line means that package runs whole.
+   A change to a `cmd/corvint` verb also runs the verb's use-case and help tests,
+   which a batch otherwise finds failing only after the lane sealed (V1-4138, ASD-V0-616):
+   `script/heavy.sh go test -count=1 -run '^(TestUseCase|Test[A-Za-z0-9]*Help|TestVERB[A-Za-z0-9]*CLI)' ./cmd/corvint`
+   with `VERB` spelled as the verb's test prefix (for example `TestChanges`), plus
+   `make capability-catalog-check`.
 4. Doc gates before the final commit: `make doc-gates`, `make line-citations-check`, `gofmt -l`.
    Repins are mechanical: `make repin` (line citations and the analyzer-schema pin) and
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
@@ -952,6 +1056,11 @@ One lane runs this flow, in order; each step names the command and the section t
    ticket's files, run `make line-citations-check`, and when it names a moved citation run
    `make repin BASE=<lane-base>` and commit the staged repins with that ticket. A later
    catch-up repin commit leaves every earlier commit red for anyone who checks it out or bisects.
+   The same holds for a new check (V1-4098, ASD-V0-616): commit the fixes a new rule needs before
+   or with the rule, never after, so `make bash32-check` and the other doc gates pass at every
+   commit. `make spec-requirements-check` also runs the internal/lrfrepo spec enumeration pins
+   (V1-3841, ASD-V0-615), and `make test-read-scopes-check` reports every unresolved go target
+   and undeclared read in one run (ASD-V0-612), so a lane sees these before batch-precheck does.
 5. Dogfood inputs: `corvint dogfood propose-citations BASE > draft.tsv`, review it into
    `CITATIONS`, write `INTENTS` and `VERIFY`, then `make dogfood-inputs-check BASE=.. CITATIONS=..
    INTENTS=.. VERIFY=.. OUTCOME=passed` (section 3). That target binds nothing.
@@ -959,6 +1068,13 @@ One lane runs this flow, in order; each step names the command and the section t
    INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
    finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
    passing `dogfood-inputs-check` and reports the input file paths.
+   Review before the seal, so a change seals once (ASD-V0-1023, V1-3668): review the bind-ready
+   head through `script/codex-review.sh` and save the output; run `script/review-head-check.sh`
+   on it before each fix round and send only OPEN and UNKNOWN findings; review the fixed head
+   again; then bind, check and seal once with `DOGFOOD_REVIEW=review.txt make dogfood-seal
+   BASE=..`. The bind commit changes only `.corvint/`, so a current review passes, and
+   `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
+   before its check runs (ASD-V0-1024).
 6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
 
 Common refusals and their recovery:
@@ -970,6 +1086,8 @@ Common refusals and their recovery:
 | `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
 | `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
+| `dogfood-seal: REFUSE review-not-current` | review HEAD^ (the bind-ready head) through `script/codex-review.sh`, save the output, rerun with `DOGFOOD_REVIEW` set to it |
+| `review-head-check: REFUSE unpinned-review` | run the review through `script/codex-review.sh`, or pass `--reviewed-head REV` with the commit the reviewer read |
 | `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
 | `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
 | `bootstrap-intent-not-unknown` | give the intent spec this change creates no row, or an `unknown` row |
@@ -1005,7 +1123,8 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
 (V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
-  assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
+  assigned ticket, exported on the owning host, and `<ID>.txt`, the same ticket as readable text from
+  `corvint-tasks ticket show <ID> --format text` (TCL-V0-741, V1-3817). A lane host may instead read a queue snapshot
   (`CORVINT_TASKS_SNAPSHOT`, section 12); without either, `ticket show` there refuses
   `journal-absent` (V1-3262). The `open-friction-*.txt` digest cuts titles at 120 characters, so it
   is not a ticket body.
@@ -1013,6 +1132,66 @@ and no route to the orchestrator session. SendMessage from there failed on 2026-
   (`gh issue view N --repo beamfall/corvint --json title,body`, run on the Mac) (V1-3252). The route
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
+
+Live store reads (V1-3931, V1-3262). Since 2026-11-01 both SSH lane hosts read the Mac's store
+itself, not a copy: `ssh mac corvint-tasks <verb>` from WSL (`lane@PC`) and Unraid
+(`lane@corvint-agent`) runs through the forced-command gate `~/.local/bin/corvint-tasks-ssh-gate` on
+the Mac (an allow-list of read verbs plus ticket create and note, claim, submit and complete; `execv`
+with no shell; no pty or forwarding). A lane uses only its charter's read verbs (`ticket show`,
+`ticket search`, `queue status`) there and never runs `corvint-tasks` against the host's own
+`.taskman/` copy: that copy is an old checkout's projection (808 tickets against 3713 on
+2026-11-01), and `ticket show` on it refuses `journal-absent`. The staged ticket bodies above stay
+the fallback when the gate is down. Check, before dispatch to a host and whenever a lane reports a
+ticket the orchestrator cannot match:
+
+```sh
+ssh HOST 'ssh -o BatchMode=yes mac corvint-tasks queue status </dev/null' | jq -r '.snapshot | "\(.headSeq) \(.headReceiptSha256)"'
+corvint-tasks queue status | jq -r '.snapshot | "\(.headSeq) \(.headReceiptSha256)"'   # on the Mac
+```
+
+The two lines must be identical (a write between the two reads advances both; rerun once). A
+mismatch, a refusal or an ssh failure means the host is not reading the live store: stage ticket
+bodies for its lanes and fix the gate before dispatching there. Recorded check 2026-11-01 17:37Z
+(lane tsk-w23): `ssh mac corvint-tasks ticket show V1-3931` from WSL and `queue status` from
+Unraid both returned `headSeq` 17128 with head receipt `f11e165e...b83e8a1`, the Mac's own values,
+while `ticket show` on WSL's local copy refused `journal-absent`. Rollback: turn off Remote Login
+on the Mac, or delete the two lane lines from `~/.ssh/authorized_keys`; lanes then fall back to
+staged ticket bodies.
+
+Dispatch kit (ASD-V0-065 to ASD-V0-067; V1-3816, V1-3817, V1-3061, V1-3262). The orchestrator stages
+those inputs with one command on the host that owns the Tasks journal, and the brief and the charter
+both quote what it writes:
+
+```sh
+script/lane-dispatch.sh inputs --lane <lane> --base origin/main --date YYYY-MM-DD \
+  --out <dir> [--host <ssh-host>] <ID>...
+script/lane-dispatch.sh check --env <dir>/lane.env <brief> <charter>
+```
+
+- `inputs` resolves `--base` once to a full commit and writes `lane.env` (`LANE`, `BASE`, `DATE`,
+  `BUILD_LOG=docs/build-log/DATE-LANE.md`, `TICKET_DIR`, `TICKETS`), `brief-header.md` (the lines
+  the brief and the charter paste), and per ticket `ticket-bodies-<lane>/<ID>.json` (`ticket show`)
+  plus `<ID>.txt`: title, status, labels, body, numbered acceptance criteria, dependencies and the
+  operator note under its advisory label, readable without `jq`. A refused or non-`OK` ticket read
+  refuses the dispatch (exit 2), so a lane never starts without its ticket bodies. `--host` copies
+  the directory to `HOST:~/lane-inputs/`.
+- `check` refuses (exit 2, one `MISMATCH base|build-log FILE:LINE` per finding) a brief or charter
+  that names a different `BASE` commit on a line mentioning `BASE`, or a different build-log path for
+  the dispatch date. The charter template therefore says "the BASE and build log in lane.env" or
+  pastes `brief-header.md`; it never computes either itself.
+- The lane creates its worktree with `script/lane-setup.sh --base <BASE from lane.env>`, never from
+  the host checkout's current `HEAD`, and runs
+  `script/lane-dispatch.sh base-check --base <BASE> --fresh` before its first commit. The check
+  refuses the host's primary checkout (a lane never works there), a worktree whose `HEAD` is not `BASE`, a `BASE` that is not an ancestor of `HEAD`, and any
+  commit after `BASE` that no `origin` ref holds but another local branch does
+  (the worktree started on another lane's unpushed head, V1-3061). Each refusal names the
+  `lane-setup.sh --base` command that recreates the worktree.
+
+Stage the ticket bodies with `script/lane-stage-inputs.sh --host HOST LANE ID...` on the Mac
+(ASD-V0-742, V1-3245). It exports both files per ticket and `queue-snapshot.json`, the authority
+`queue parity` compares against (section 12, TCL-V0-742), copies them to
+`~/lane-inputs/ticket-bodies-<lane>/` on HOST and lists that directory there. Start the lane session
+only after it prints `PASS`; an `EXPORT` or `MISSING` line names the ticket or file to fix first.
 
 Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
 format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
