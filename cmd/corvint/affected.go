@@ -1175,11 +1175,15 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
+	worktreeDirty := len(dirty)
 	documentationOnly := false
 	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
 		if documentationOnly = affectedDocumentationOnly(root, dirty); !documentationOnly {
 			return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 		}
+		// The tolerated set leaves the receipt a clean worktree gives, so its
+		// summary reads worktree=0 (AFP-V0-832, AFP-V0-820).
+		worktreeDirty = 0
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -1260,7 +1264,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
 
-		WorktreeDirty: len(dirty),
+		WorktreeDirty: worktreeDirty,
 	}
 	if invocation.Worktree {
 		receipt.Warning = affectedWorktreeWarning(revision, dirty)
@@ -1357,6 +1361,22 @@ func affectedPriorReadScopes(ctx context.Context, gitExecutable, root, base, rev
 	return scopes
 }
 
+// affectedSparseCheckout reports whether the worktree at root is a sparse
+// checkout, where a directory absent from disk may lie outside the cone
+// rather than be deleted (AFP-V0-821). Only an unset key (exit 1) reads as
+// not sparse; any other Git failure reads as sparse, which keeps the
+// path's unknown.
+func affectedSparseCheckout(ctx context.Context, gitExecutable, root string) bool {
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	output, err := hermeticGitCommand(deadline, gitExecutable, root, "config", "--type=bool", "--get", "core.sparseCheckout").Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return false
+	}
+	return err != nil || strings.TrimSpace(string(output)) == "true"
+}
+
 // affectedPlanInputs are what planAffectedGraph measures a change from: the
 // repository whose Git objects hold the base, the tree the graph was built
 // over (the worktree, or a review's materialized snapshot), and whether the
@@ -1373,6 +1393,9 @@ type affectedPlanInputs struct {
 // through it, so a plan member added here reaches review.affected too.
 func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affected.Graph, changed []string) (*affected.Graph, affected.Plan, affectedGoProvider, affectedAdvice) {
 	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, in.gitExecutable, in.repository, in.base, in.revision, changed))
+	if in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository) {
+		graph = graph.WithSparseCheckout()
+	}
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 	}

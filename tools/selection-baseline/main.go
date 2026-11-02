@@ -356,10 +356,11 @@ func replay(ctx context.Context, root string, set changeSet, changesFile, corvin
 	return r, nil
 }
 
-// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else max(1, CPUs/3), at
-// most 4 and at most n.
+// replayJobs is SELECTION_BASELINE_JOBS when it is a positive integer, else the CPU count, at
+// most 4 and at most n. A 4-CPU hosted runner needs all 4: one worker there overruns the
+// doc-gates job bound (ASD-V0-925).
 func replayJobs(n int) int {
-	jobs := max(1, runtime.NumCPU()/3)
+	jobs := max(1, runtime.NumCPU())
 	if v, err := strconv.Atoi(os.Getenv("SELECTION_BASELINE_JOBS")); err == nil && v > 0 {
 		jobs = v
 	} else {
