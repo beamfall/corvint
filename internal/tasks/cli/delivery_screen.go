@@ -437,6 +437,11 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	if err == nil {
 		limit, err = parseScanLimit(fl)
 	}
+	if _, given := fl["limit"]; unaudited && !given {
+		// No creation time bounds an unaudited window, so a cut scan leaves
+		// every undelivered ID TRUNCATED: read the deepest one (TCD-V0-773).
+		limit = maxCloseoutScanLimit
+	}
 	var prs []ghPR
 	file, observed := fl["prs"]
 	if err == nil && observed {

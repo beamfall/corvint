@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -416,8 +417,11 @@ func TestTCDV0773_UnauditedScreensRawIDsWithoutStore(t *testing.T) {
 			t.Fatalf("unaudited row: %s", wire.Encode(row))
 		}
 	}
-	if len(x.res.Warnings) == 0 || !strings.HasPrefix(x.res.Warnings[0], "unaudited:") {
+	if !slices.ContainsFunc(x.res.Warnings, func(w string) bool { return strings.HasPrefix(w, "unaudited:") }) {
 		t.Fatalf("unaudited warning: %v", x.res.Warnings)
+	}
+	if field(item, "commitsScanned").Str != "2" || field(item, "scanTruncated").Bool {
+		t.Fatalf("unaudited default limit: %s", x.stdout)
 	}
 	cut := tdsRun(t, root, "ticket", "delivery-screen", "V1-9001", "V1-9002", "V1-9003", "--unaudited", "--lane-refs", "--prs", prs, "--limit", "1")
 	if got := tdsVerdicts(t, cut); got["V1-9001"] != "DELIVERED" || got["V1-9002"] != "DELIVERED_ON_LANE" || got["V1-9003"] != "TRUNCATED" {

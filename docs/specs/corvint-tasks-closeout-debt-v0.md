@@ -624,7 +624,8 @@ closeout step is missing.
   `status`, `holds` and `operatorNote` state are `NOT_OBSERVED`, never absent, so no row is
   `COMPLETED`, `HELD` or progress-`IN_FLIGHT`. `--ref` defaults to `origin/main`, else local
   `main`. A ticket's creation time is not observed, so while the commit scan or the lane walk is
-  cut at `--limit`, every row not delivered is `TRUNCATED`. The first warning states that the
+  cut at `--limit`, every row not delivered is `TRUNCATED`; without `--limit` the screen reads up
+  to the closeout maximum of 10000 commits. A warning beginning `unaudited:` states that the
   result is unaudited. The audited screen on a journal-less host that lacks a ticket in its
   projection names `--unaudited` in its refusal. Rollback: revert.
 - `TCD-V0-774`: (experimental under the standing lane auto-accept (2026-11-02); NEW-D7; refines
