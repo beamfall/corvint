@@ -566,6 +566,7 @@
       "interop/cem01-go/",
       "protocol/cem-1.0/stable/neutral-criterion/results/accept.json",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-corpus/",
       "protocol/cem-1.0/structural-tuples/"
     ],
     "tools/cem-stable-regen": [
