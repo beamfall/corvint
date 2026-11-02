@@ -129,6 +129,18 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   `TestTCXV0845IndexAdmitsOnlyReencodedBytes`, `TestTCXV0845ReadsTrustOnlyClosedEntries`,
   `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets`, `TestTCXV0846ModelOutputMatchesFullDecode`,
   `TestTCXV0847PreloadMatchesFullLoad`, `TestTCXV0848JournalByteIdenticalWithIndex`.
+- `TCX-V0-849`: (experimental under the standing lane auto-accept; V1-4229, round 3) The index
+  rewrite is incremental. It keeps, byte for byte, the encoded line of every entry whose stat key
+  still matches. It reads, decodes and checks only the other ticket files (file name, queue and
+  policy gates, as a full load checks them), without building the store's inventory, and admits
+  each one by `TCX-V0-845`. Lines are written in path order, so the file is byte-identical to a full
+  re-encode of the same entries. When no entry line changes, the file is left as it is. A process
+  parses one index file at most once per version: a read whose device, inode, size, modification
+  and change times equal those of the file it last parsed reuses that parse. The checksum and every
+  trust rule of `TCX-V0-981` to `TCX-V0-984` still apply. Target, set before the build: index
+  rewrite plus index reads at most 13 ms per create at 2,000 tickets, half of the round-2 26 ms.
+  The `TCX-V0-848` target is unchanged. Acceptance: `TestTCXV0849IncrementalRewriteMatchesFullEncode`,
+  `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`.
 
 ## Non-goals
 
@@ -179,3 +191,4 @@ their commit removes them with no effect on stores.
 | `TCX-V0-846` | `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets`, `TestTCXV0846ModelOutputMatchesFullDecode` |
 | `TCX-V0-847` | `TestTCXV0847PreloadMatchesFullLoad` |
 | `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
+| `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion` |

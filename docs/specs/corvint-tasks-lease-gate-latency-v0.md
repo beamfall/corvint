@@ -235,6 +235,36 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
   checks; it sets no latency target and no production path reads the knob.
 
+### Mutation reads (V1-4229 round 3, V1-4263)
+
+Status for `LGL-V0-845` and `LGL-V0-846`: experimental under the standing lane auto-accept;
+V1-4229, V1-4263.
+
+- `LGL-V0-845`: A native mutation through the CLI hands the writer the intent tree its preload
+  captured, through the journal reader's existing `IntentTree` input. The writer audit takes a
+  file's bytes from that capture when the file still has the size the preload read, as the seam
+  already allows; it reads every other file. Every check the audit makes is unchanged. The
+  pre-effect recheck still reads and hashes every intent file under the writer lock, and refuses
+  `SNAPSHOT_MOVED` when the digest differs from the audit's. So bytes that changed after the
+  preload never reach an effect. A mutation therefore reads and hashes its intent bytes twice (the
+  preload and the recheck) instead of three times. Target, set before the build: the writer
+  audit's intent reads at 2,000 tickets fall by at least 80%. Acceptance:
+  `TestLGLV0845WriterTakesPreloadBytes`, `TestLGLV0845ChangedAfterPreloadRefused`,
+  `TestTCXV0848JournalByteIdenticalWithIndex`.
+- `LGL-V0-846`: A native mutation whose request ID is recorded with different request bytes is
+  refused on the writer route. When the writer checkpoint vouches for the request's afterimage,
+  the route binds it to its receipt by walking the checkpoint's receipt chain back to the
+  request's sequence. That walk makes the same checks as `CAL-V0-190`, without the tail bound that
+  route keeps for replays. When the recorded digest differs, the model refuses
+  `REQUEST_ID_CONFLICT` exactly as the complete route does, and the full audit does not run. The
+  CLI's defaulted-`issuedAt` explanation takes the bound entry and ticket from that refusal
+  instead of running a second full audit. A retained request with the same digest beyond the tail
+  still declines to the complete route. The preload still runs first, so a `complete-manual`
+  whose intent checks fail is still refused before the conflict, as at the base. The refusal, its
+  codes and its warnings are byte-identical. Target, set before the build: at 500 tickets the
+  refusal costs at most 25% of the base CPU (1,166 ms to at most 290 ms). Acceptance:
+  `TestLGLV0846ConflictRefusedFromCheckpoint`, `TestLGLV0846ConflictOutputMatchesCompleteRoute`.
+
 ## Non-goals
 
 no writer-route admission for the pool verbs (CAL-V0-264 stays declined); no sealed-base resume
