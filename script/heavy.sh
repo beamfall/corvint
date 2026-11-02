@@ -1551,7 +1551,7 @@ writable_paths() {
   path=$PWD/.lane-tmp
   printf 'fix: mkdir -p %q %q %q && export HEAVY_LOCK_DIR=%q HEAVY_SELECTION_LOG=%q HEAVY_FALLBACK_LOG=%q TMPDIR=%q GOTMPDIR=%q GOCACHE=%q CORVINT_GOCACHE=%q # rerun with the same overrides in any env arguments; coordinate HEAVY_LOCK_DIR with the host lanes\n' \
     "$path/locks" "$path/tmp" "$path/gocache" "$path/locks" "$path/selection.log" "$path/fallback.log" "$path/tmp" "$path/tmp" "$path/gocache" "$path/gocache" >&2
-  refuse "unwritable-paths ${bad[*]}"
+  refuse "unwritable-paths ${bad[*]}; set the overrides on the fix: line above"
 }
 
 # local_disk: before a local run, name a TMPDIR or GOCACHE file system below the warning floor (the
