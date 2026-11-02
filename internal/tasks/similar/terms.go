@@ -24,6 +24,12 @@ func (f fieldTerms) each(text string, fn func(term string, tf uint32)) {
 	})
 }
 
+// lexicalTermCounts and stopWord are the per-call counting the V1-3273 test
+// compares fieldTerms with; they live here so that test imports no Core package.
+func lexicalTermCounts(text string) map[string]uint32 { return contextindex.LexicalTermCounts(text) }
+
+func stopWord(term string) bool { return contextindex.LexicalStopWord(term) }
+
 func idf(corpus, postings int) float64 { return contextindex.LexicalIDF(corpus, postings) }
 
 func bodyScore(idf, tf, length, average float64) float64 {

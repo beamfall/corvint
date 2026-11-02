@@ -186,7 +186,7 @@ func TestSnapshotLifecycleHostileStatesHaveBoundedOutcomes(t *testing.T) {
 			t.Fatalf("IDX-SNAP-V0-023: binary admitted source loaded=%v valid=%v, want loaded and not text", loaded, valid)
 		}
 		loaded, hit, err := LoadSnapshot(context.Background(), root)
-		if err != nil || !hit || !reflect.DeepEqual(loaded, built) {
+		if err != nil || !hit || !equalIgnoringSymbolTerms(loaded, built) {
 			t.Fatalf("IDX-SNAP-V0-023: unsupported inputs did not round-trip: hit=%v err=%v", hit, err)
 		}
 	})

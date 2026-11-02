@@ -117,17 +117,33 @@ func ScanLaneCommits(root, merge string, limit int) (CommitScan, error) {
 	return scanLog(root, LaneLogArgs(f[1], f[2], limit), limit)
 }
 
-func scanLog(root string, argv []string, limit int) (CommitScan, error) {
+// ScanCommitsFrom is ScanCommits after the newest skip commits of the range,
+// so a scan cut at its limit continues with skip+limit (TCD-V0-740).
+func ScanCommitsFrom(root, ref, since string, skip, limit int) (CommitScan, error) {
+	args := CloseoutLogArgs(ref, since, limit)
+	if skip > 0 {
+		args = slices.Insert(args, slices.Index(args, "--end-of-options"), "--skip="+strconv.Itoa(skip))
+	}
+	return scanLog(root, args, limit)
+}
+
+// runScanGit runs one bounded closeout git read, with stdin as its input
+// when non-empty, through MaxCloseoutScanBytes; a larger output stops git
+// and is refused LIMIT_EXCEEDED.
+func runScanGit(root, stdin string, argv []string) ([]byte, error) {
 	c := exec.Command("git", argv...)
 	c.Dir, c.Env = root, gitEnvironment()
+	if stdin != "" {
+		c.Stdin = strings.NewReader(stdin)
+	}
 	var stderr bytes.Buffer
 	c.Stderr = &stderr
 	pipe, err := c.StdoutPipe()
 	if err != nil {
-		return CommitScan{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
+		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
 	}
 	if err = c.Start(); err != nil {
-		return CommitScan{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
+		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", err)
 	}
 	out, readErr := io.ReadAll(io.LimitReader(pipe, MaxCloseoutScanBytes+1))
 	over := int64(len(out)) > MaxCloseoutScanBytes
@@ -137,11 +153,83 @@ func scanLog(root string, argv []string, limit int) (CommitScan, error) {
 	waitErr := c.Wait()
 	switch {
 	case over:
-		return CommitScan{}, wire.Errorf(wire.CodeLimitExceeded, "git log", "the commit scan output exceeds %d bytes; lower --limit or pass --since", MaxCloseoutScanBytes)
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "git log", "the commit scan output exceeds %d bytes; lower --limit or pass --since", MaxCloseoutScanBytes)
 	case readErr != nil:
-		return CommitScan{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", readErr)
+		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", readErr)
 	case waitErr != nil:
-		return CommitScan{}, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", waitErr)
+		return nil, wire.Errorf(wire.CodeUnsupported, "git", "git observation failed: %v", waitErr)
+	}
+	return out, nil
+}
+
+// BuildLogDir is the build-log directory of TCD-V0-741.
+const BuildLogDir = "docs/build-log/"
+
+// CommitChange is what one non-merge commit changes (TCD-V0-741): every
+// path it changes against its parent, and the lines it adds under
+// BuildLogDir. A merge commit has neither.
+type CommitChange struct {
+	Paths, BuildLogAdded []string
+}
+
+// BuildLogOnly reports that the commit changes at least one path and every
+// path it changes is under BuildLogDir.
+func (c *CommitChange) BuildLogOnly() bool {
+	return c != nil && len(c.Paths) > 0 && !slices.ContainsFunc(c.Paths, func(p string) bool { return !strings.HasPrefix(p, BuildLogDir) })
+}
+
+// CommitChanges reads the CommitChange of each of commits in two bounded
+// `git log --no-walk --stdin` reads (TCD-V0-741). A quoted path never counts
+// as a build-log path.
+func CommitChanges(root string, commits []string) (map[string]*CommitChange, error) {
+	out := make(map[string]*CommitChange, len(commits))
+	if len(commits) == 0 {
+		return out, nil
+	}
+	stdin := strings.Join(commits, "\n") + "\n"
+	base := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "log", "--no-walk=unsorted", "--stdin",
+		"--no-show-signature", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--format=%x00%H")
+	records := func(raw []byte, each func(*CommitChange, string)) {
+		for _, rec := range strings.Split(string(raw), "\x00") {
+			commit, body, _ := strings.Cut(rec, "\n")
+			if commit = strings.TrimSpace(commit); commit == "" {
+				continue
+			}
+			ch := out[commit]
+			if ch == nil {
+				ch = &CommitChange{}
+				out[commit] = ch
+			}
+			for _, line := range strings.Split(body, "\n") {
+				each(ch, line)
+			}
+		}
+	}
+	names, err := runScanGit(root, stdin, append(slices.Clone(base), "--name-only"))
+	if err != nil {
+		return nil, err
+	}
+	records(names, func(ch *CommitChange, line string) {
+		if line != "" {
+			ch.Paths = append(ch.Paths, line)
+		}
+	})
+	patch, err := runScanGit(root, stdin, append(slices.Clone(base), "-p", "--unified=0", "--", BuildLogDir))
+	if err != nil {
+		return nil, err
+	}
+	records(patch, func(ch *CommitChange, line string) {
+		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++ ") {
+			ch.BuildLogAdded = append(ch.BuildLogAdded, line[1:])
+		}
+	})
+	return out, nil
+}
+
+func scanLog(root string, argv []string, limit int) (CommitScan, error) {
+	out, err := runScanGit(root, "", argv)
+	if err != nil {
+		return CommitScan{}, err
 	}
 	var scan CommitScan
 	for _, rec := range strings.Split(string(out), "\x00") {

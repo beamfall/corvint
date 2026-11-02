@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestParseRoadmapArgumentsRequiresCoreFlags(t *testing.T) {
@@ -88,11 +90,11 @@ func TestRoadmapCompatibilityRefusesBeforeTaskChild(t *testing.T) {
 	taskMarker := filepath.Join(markerDir, "task-ran")
 	gitMarker := filepath.Join(markerDir, "git-ran")
 	tasks := filepath.Join(t.TempDir(), "corvint-tasks")
-	if err := os.WriteFile(tasks, []byte("#!/bin/sh\n: > \""+taskMarker+"\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(tasks, []byte("#!/bin/sh\n: > \""+taskMarker+"\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	binDir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(binDir, "git"), []byte("#!/bin/sh\n: > \""+gitMarker+"\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(binDir, "git"), []byte("#!/bin/sh\n: > \""+gitMarker+"\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", binDir)
@@ -160,7 +162,7 @@ func TestRoadmapCancelledDuringCompileIsInterrupted(t *testing.T) {
 		t.Skip("the stub atm is a POSIX shell script")
 	}
 	atm := filepath.Join(t.TempDir(), "atm")
-	if err := os.WriteFile(atm, []byte("#!/bin/sh\nexec sleep 60\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(atm, []byte("#!/bin/sh\nexec sleep 60\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

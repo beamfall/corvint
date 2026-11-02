@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestApplicationAttestationRelocatedLauncherFailsClosed pins the documented
@@ -23,11 +25,11 @@ func TestApplicationAttestationRelocatedLauncherFailsClosed(t *testing.T) {
 	if err := os.Mkdir(bin, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(bin, "runtime"), []byte("#!/bin/sh\ncat \"$1\"\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "runtime"), []byte("#!/bin/sh\ncat \"$1\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	launcher := filepath.Join(bin, "launcher")
-	if err := os.WriteFile(launcher, []byte("#!/bin/sh\nexec \"$(dirname \"$0\")/runtime\" \"$@\"\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(launcher, []byte("#!/bin/sh\nexec \"$(dirname \"$0\")/runtime\" \"$@\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	configPath := filepath.Join(root, "config.json")

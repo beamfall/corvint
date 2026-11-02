@@ -423,3 +423,22 @@ func lowerHex64(value string) bool {
 	}
 	return true
 }
+
+// CAP-V0-121 (V1-3802): positional task text is refused with the --task form named.
+func TestCAPV0121QueryPositionalTextNamesTaskForm(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	candidate := exec.Command(os.Args[0], "-test.run=^TestCandidateHelperProcess$", "--",
+		"--root", root, "query", "where is EvalQuery defined")
+	candidate.Env = append(os.Environ(), "CORVINT_HELPER_PROCESS=1")
+	result := execute(t, candidate)
+	want := `unrecognized arguments: where is EvalQuery defined; pass the task text with --task, as in: corvint query --task \"where is EvalQuery defined\"`
+	if result.exit != 2 || !bytes.Contains(result.stderr, []byte(want)) {
+		t.Fatalf("exit=%d stderr=%q, want exit 2 and %q", result.exit, result.stderr, want)
+	}
+	// An unknown option keeps the plain refusal.
+	_, err := parseQueryArgumentsForPlatform(options{queryLimit: 10}, []string{"--nope"}, "darwin")
+	if err == nil || err.Error() != "unrecognized arguments: --nope" {
+		t.Fatalf("unknown option err=%v", err)
+	}
+}

@@ -31,7 +31,7 @@ func barrierCommand(env Env, verb string, args []string) *wire.Result {
 	if role != "OWNER" && role != "OPERATOR" {
 		return usage(cmd, "barrier changes require OWNER or OPERATOR")
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

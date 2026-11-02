@@ -64,9 +64,7 @@ hook; hook
 : > '` + done + `'
 exec sleep 300`
 	host := filepath.Join(root, "host.sh")
-	if err := os.WriteFile(host, []byte("#!/bin/sh\n"+script+"\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	writeExecutable(t, host, []byte("#!/bin/sh\n"+script+"\n"), 0o700)
 	c := &dispatch.Config{Profile: dispatch.ConfigProfile, StateDir: filepath.Join(root, "state"), WorkRoot: root, TickSeconds: 1, GlobalCap: 1, KillGraceSeconds: 1,
 		Hosts: map[string]dispatch.Host{"claude": {Argv: []string{host, "{contextHookSettings}", "{prompt}"}}},
 		Roles: []dispatch.Role{{Name: "impl", Host: "claude", Cap: 1, Match: &dispatch.Match{}, Prompt: "work on {ticketLocal}", IdleSeconds: 3600, WallSeconds: 7200,

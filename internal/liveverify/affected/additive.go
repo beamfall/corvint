@@ -52,11 +52,17 @@ const (
 // exported ones; Referencing are the importers the plan still follows. A
 // FALLBACK record states why the package is selected the ordinary way.
 type GoAdditive struct {
-	Unit         string   `json:"unit"`
-	State        string   `json:"state"`
+	Unit  string `json:"unit"`
+	State string `json:"state"`
+	// Mode is SYMBOL for a record of edited existing declarations
+	// (ADN-V0-660); empty for the additive rules.
+	Mode         string   `json:"mode,omitempty"`
 	Reason       string   `json:"reason,omitempty"`
 	Paths        []string `json:"paths"`
 	Declarations []string `json:"declarations,omitempty"`
+	// Exposed are the exported names a SYMBOL record found reaching the
+	// changed declarations: what an importer must name to be referencing.
+	Exposed      []string `json:"exposed,omitempty"`
 	Referencing  []string `json:"referencing,omitempty"`
 	Unreferenced []string `json:"unreferenced,omitempty"`
 }
@@ -70,6 +76,7 @@ func (graph *Graph) WithGoAdditive(records []GoAdditive) *Graph {
 	for _, record := range records {
 		record.Paths = slices.Clone(record.Paths)
 		record.Declarations = slices.Clone(record.Declarations)
+		record.Exposed = slices.Clone(record.Exposed)
 		record.Referencing = slices.Clone(record.Referencing)
 		record.Unreferenced = slices.Clone(record.Unreferenced)
 		copied.goAdditive = append(copied.goAdditive, record)

@@ -40,7 +40,7 @@ func poolSweepCommand(env Env, args []string) *wire.Result {
 	if role == "" {
 		role = "OPERATOR"
 	}
-	actor, e := initActor(role)
+	actor, e := initActor(env, role)
 	if e != nil {
 		return errorResult(cmd, e)
 	}

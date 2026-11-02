@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func init() { gitContainmentTestOverride = true }
@@ -815,7 +817,7 @@ func TestRunGitReapsProcessGroupOnCancellation(t *testing.T) {
 	directory := t.TempDir()
 	pidFile := filepath.Join(directory, "child.pid")
 	script := filepath.Join(directory, "git")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30 &\necho $! > \""+pidFile+"\"\nwait\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\nsleep 30 &\necho $! > \""+pidFile+"\"\nwait\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	scriptBytes, err := os.ReadFile(script)
@@ -872,7 +874,7 @@ func TestRunGitReapsProcessGroupAfterSuccessfulParent(t *testing.T) {
 	directory := t.TempDir()
 	pidFile := filepath.Join(directory, "child.pid")
 	script := filepath.Join(directory, "git")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nsleep 30 &\necho $! > \""+pidFile+"\"\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\nsleep 30 &\necho $! > \""+pidFile+"\"\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	scriptBytes, err := os.ReadFile(script)

@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // writeFakeAtm writes a tiny POSIX-shell stand-in for `atm` that this test
@@ -60,7 +62,7 @@ fi
 exit 1
 `
 	path := filepath.Join(t.TempDir(), "fake-atm.sh")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -203,7 +205,7 @@ func withFakeMode(t *testing.T, options Options, mode string) Options {
 	t.Helper()
 	wrapper := filepath.Join(t.TempDir(), "fake-atm-wrapper.sh")
 	content := "#!/bin/sh\nexport ATM_FAKE_MODE=" + mode + "\nexec \"" + options.AtmBinary + "\" \"$@\"\n"
-	if err := os.WriteFile(wrapper, []byte(content), 0o755); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	options.AtmBinary = wrapper

@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // gitHardeningRepository commits a.go twice and returns the root and the
@@ -56,7 +58,7 @@ func TestProveGitReadsNeverRunRepositoryFSMonitor(t *testing.T) {
 	outside := t.TempDir()
 	sentinel := filepath.Join(outside, "fsmonitor-ran")
 	script := filepath.Join(outside, "fsmonitor.sh")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\ntouch '"+sentinel+"'\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\ntouch '"+sentinel+"'\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	affectedGit(t, root, "config", "core.fsmonitor", script)

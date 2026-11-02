@@ -75,8 +75,8 @@ func ergBlobAttemptPost(t *testing.T, repo *intent.Repository, seq uint64) []byt
 // reads the older PASS as STALE, the writer refuses a verdict on the older
 // subject, and receipt audit resolves the blob (ERG-V0-006).
 func TestERGV0006_BlobBackedSubmissionSupersedes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	id := planTicket(t, root, "reviewed", "P1", `["src/"]`)
 	repo, err := intent.Resolve(root)
@@ -188,8 +188,8 @@ func ergRebuiltAt(t *testing.T, repo *intent.Repository, posts []snapshot.PostEn
 // definition (not only A's stage) or is posted blob-backed, and redoes it
 // when B's stage is not an author stage (ERG-V0-006/-009).
 func TestERGV0006_RecoveryChecksEveryAuthorStage(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	cases := []struct {
 		name   string
 		stage  string

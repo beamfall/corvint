@@ -101,7 +101,7 @@ func command(ctx context.Context, args []string, out, errout io.Writer) int {
 			result, err = ce.Verify(ctx, *repo, *plan, *receipt, args[0] == "gate", tasks)
 		}
 	default:
-		err = fmt.Errorf("unknown command")
+		err = fmt.Errorf("UNKNOWN_COMMAND: unknown command %q", args[0])
 	}
 	if err != nil {
 		fmt.Fprintln(errout, "experiment refused:", err)

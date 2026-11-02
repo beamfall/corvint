@@ -9,7 +9,10 @@
 #      `check-binary-blobs: FAIL binary-blob PATH mode=MODE: ...` with the fix;
 #   2. every `tools/NAME/` directory holding a `package main` Go file has its default
 #      `go build ./tools/NAME` output `/NAME` ignored at the repository root. Otherwise it prints
-#      `check-binary-blobs: FAIL tool-output-not-ignored NAME: ...` with the fix.
+#      `check-binary-blobs: FAIL tool-output-not-ignored NAME: ...` with the fix (the root .gitignore
+#      ignores every extension-less root file generically, ASD-V0-845, so a new tool passes unedited);
+#   3. no tracked path is matched by the ignore rules, so the generic root rule never hides a source
+#      file. Otherwise it prints `check-binary-blobs: FAIL tracked-path-ignored PATH: ...` with the fix.
 # It exits 1 on any failure, 2 when the index cannot be read, and 0 otherwise. It is a doc gate
 # (Makefile DOC_GATE_TARGETS), so CI and make batch-precheck both run it.
 set -uo pipefail
@@ -44,5 +47,12 @@ while IFS= read -r dir; do
   printf 'check-binary-blobs: FAIL tool-output-not-ignored %s: go build ./tools/%s writes ./%s at the repository root; add /%s to the root .gitignore\n' "$name" "$name" "$name" "$name"
   failed=1
 done < <(git ls-files -- 'tools/*.go' | sed -n 's|^\(tools/[^/]*\)/[^/]*\.go$|\1|p' | sort -u)
+
+ignored=$(git ls-files -ci --exclude-standard -z | tr '\0' '\n') || { printf 'check-binary-blobs: cannot read the index\n' >&2; exit 2; }
+while IFS= read -r path; do
+  [[ -n $path ]] || continue
+  printf 'check-binary-blobs: FAIL tracked-path-ignored %s: it is tracked but .gitignore ignores it, so a new copy is never added; re-include it in .gitignore (for an extension-less root file, add !/%s) or git rm --cached it\n' "$path" "$path"
+  failed=1
+done <<< "$ignored"
 
 exit "$failed"

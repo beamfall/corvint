@@ -115,7 +115,7 @@ test('PWV-V0-013 search and list refuse UNINITIALIZED in a repository without a 
  const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};
  const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
  await git(['init','-q','-b','main']);await git(['config','user.name','Fixture']);await git(['config','user.email','fixture@example.invalid']);
- await writeFile(join(cwd,'README.md'),'fixture\n');await git(['add','.']);await git(['commit','-qm','base']);
+ await writeFile(join(cwd,'README.md'),'fixture\n');await git(['add','.']);await git(['commit','-qm','base']); //corvint:fixture-path
  const runner=createCommandRunner({binary:process.env.CORVINT_TASKS_BIN??'corvint-tasks',env,timeoutMs:15000});t.after(()=>runner.close());
  const tasks=createTasksService({runner});t.after(()=>tasks.close());
  const ctx={cwd,isProjectTrusted:()=>true,sessionManager:{getSessionId:()=>'fixture-session'}};
@@ -139,9 +139,9 @@ test('PWV-V0-014 witness evidence is read only from inside the checkout, without
  const env={PATH:process.env.PATH,HOME:process.env.HOME,GIT_CONFIG_NOSYSTEM:'1'};
  const git=async args=>(await exec('git',args,{cwd,env,timeout:10000,maxBuffer:65536})).stdout.trim();
  await git(['init','-q','-b','main']);await git(['config','user.name','Fixture']);await git(['config','user.email','fixture@example.invalid']);
- await writeFile(join(cwd,'README.md'),'fixture\n');await git(['add','.']);await git(['commit','-qm','base']);
+ await writeFile(join(cwd,'README.md'),'fixture\n');await git(['add','.']);await git(['commit','-qm','base']); //corvint:fixture-path
  const base=await git(['rev-parse','HEAD']);
- await writeFile(join(cwd,'README.md'),'fixture, changed\n');await git(['commit','-qam','change']);
+ await writeFile(join(cwd,'README.md'),'fixture, changed\n');await git(['commit','-qam','change']); //corvint:fixture-path
  const head=await git(['rev-parse','HEAD']);
  await writeFile(join(cwd,'.git/info/exclude'),'.corvint/\n');
  await mkdir(join(cwd,'.corvint'));

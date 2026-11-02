@@ -43,7 +43,7 @@ func TestRepositoryShellReadScopes_TSP_V0_951(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Contains(result.Frontier, shell.FrontierShellReadScopesInvalid) {
+	if slices.ContainsFunc(result.Frontier, func(reason string) bool { return strings.HasPrefix(reason, shell.FrontierShellReadScopesInvalid) }) {
 		t.Fatalf("the plugin refused %s: frontier %v", affected.ShellReadScopesPath, result.Frontier)
 	}
 	for test := range declared.Tests {
