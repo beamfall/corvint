@@ -91,15 +91,16 @@ func gatedLocators(root string) (map[string]gatedLocator, error) {
 // applyGatedLocators clears locatesRoot on each declared package once every
 // declared directory is an indexed package whose non-test code locates the
 // root and whose non-test sources carry the gate as a string literal; any
-// failure declares nothing, the wider selection.
-func (index *repositoryIndex) applyGatedLocators(root string, files []indexedFile) {
+// failure declares nothing, the wider selection. The literal checks go through
+// the scan memo, so an unchanged source is not read again (AFP-V0-823).
+func (index *repositoryIndex) applyGatedLocators(root string, files []indexedFile, recall *scanRecall) {
 	declared, err := gatedLocators(root)
 	if err != nil || len(declared) == 0 {
 		return
 	}
 	for directory, entry := range declared {
 		pkg := index.packages[directory]
-		if pkg == nil || !pkg.locatesRoot || !carriesLiteral(root, directory, files, entry.Gate) {
+		if pkg == nil || !pkg.locatesRoot || !carriesLiteral(root, directory, files, entry.Gate, recall) {
 			return
 		}
 	}
@@ -111,19 +112,29 @@ func (index *repositoryIndex) applyGatedLocators(root string, files []indexedFil
 // carriesLiteral reports whether a non-test source of the package in
 // directory holds value as an interpreted string literal. An unreadable
 // source reports false.
-func carriesLiteral(root, directory string, files []indexedFile, value string) bool {
+func carriesLiteral(root, directory string, files []indexedFile, value string, recall *scanRecall) bool {
 	literal := []byte(strconv.Quote(value))
 	for _, file := range files {
 		if parentDirectory(file.relative) != directory || strings.HasSuffix(file.relative, "_test.go") {
 			continue
 		}
-		body, err := readBounded(filepath.Join(root, filepath.FromSlash(file.relative)), file.expected)
+		carries, err := recall.carries(root, file, literal)
 		if err != nil {
 			return false
 		}
-		if bytes.Contains(body, literal) {
+		if carries {
 			return true
 		}
 	}
 	return false
+}
+
+// readCarries reads one source within its walked identity and reports whether
+// it holds literal.
+func readCarries(root string, file indexedFile, literal []byte) (bool, error) {
+	body, err := readBounded(filepath.Join(root, filepath.FromSlash(file.relative)), file.expected)
+	if err != nil {
+		return false, err
+	}
+	return bytes.Contains(body, literal), nil
 }

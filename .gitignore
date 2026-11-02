@@ -93,3 +93,4 @@ node_modules/
 /test-shards
 /tiers-replay
 /unbounded-readers
+/tasks-profiles-check

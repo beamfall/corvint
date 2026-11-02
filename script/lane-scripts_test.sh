@@ -8,8 +8,9 @@
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
 # heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), dogfood-change-runs.sh
 # (ASD-V0-955), lane-dispatch-check.sh (ASD-V0-645), retained-data-digest.sh (ASD-V0-646),
-# lane-dispatch.sh (ASD-V0-065 to ASD-V0-067), lane-stage-inputs.sh (ASD-V0-742). No Go build
-# runs. The Python operator tool lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
+# lane-dispatch.sh (ASD-V0-065 to ASD-V0-067), lane-stage-inputs.sh (ASD-V0-742),
+# tasks-carry-projection.sh (ASD-V0-815). No Go build runs. The Python operator tool
+# lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836) is tested by
 # script/lane-transcript-metrics_test.py, not here: a script/*.sh test may not name Python
 # (GOC-V0-008).
 set -uo pipefail
@@ -2232,6 +2233,74 @@ out=$(lsirun ln5 'V1-1;x')
 [[ $? == 2 && $out == *"ticket 'V1-1;x' is not valid"* ]] || fail "lane-stage-inputs bad ticket: $out"
 out=$(lsirun ln5)
 [[ $? == 2 && $out == usage:* ]] || fail "lane-stage-inputs usage: $out"
+ok
+
+# ASD-V0-815 (V1-4183): tasks-carry-projection replaces a worktree's .taskman projection with the
+# store's, verifies every file against the store's queue snapshot and commits only with --commit;
+# a snapshot that disagrees is DRIFT, MISSING or EXTRA and commits nothing, and the store itself, a
+# dirty .taskman, another queue and a bad argument exit 2.
+tcp=$tmp/tcp
+mkdir -p "$tcp/bin"
+cat > "$tcp/bin/corvint-tasks" << 'STUB'
+#!/usr/bin/env bash
+[[ $1 == queue && $2 == snapshot && $3 == --out ]] || exit 1
+cd .taskman && find . -type f | sed 's#^\./##' | sort | while read -r p; do
+  sum=$(shasum -a 256 "$p" | cut -c1-64)
+  [[ $p == "${FAKE_DRIFT:-}" ]] && sum=$(printf x | shasum -a 256 | cut -c1-64)
+  [[ $p == "${FAKE_OMIT:-}" ]] || jq -n --arg p "$p" --arg s "$sum" '{path: $p, sha256: $s}'
+done | jq -s '{profile: "taskman-intent-snapshot/0", files: (. + (if env.FAKE_EXTRA then [{path: env.FAKE_EXTRA, sha256: "0"}] else [] end))}' > "$4"
+STUB
+chmod +x "$tcp/bin/corvint-tasks"
+g init -q "$tcp/store"
+mkdir -p "$tcp/store/.taskman/tickets" "$tcp/store/.taskman/releases"
+printf '{"queueId":"queue:t:main"}\n' > "$tcp/store/.taskman/queue.json"
+printf '{}\n' > "$tcp/store/.taskman/policy.json"
+printf '{"id":"V1-1"}\n' > "$tcp/store/.taskman/tickets/V1-1.json"
+printf '{"id":"V1-9"}\n' > "$tcp/store/.taskman/tickets/V1-9.json"
+g -C "$tcp/store" add -A && g -C "$tcp/store" commit -q -m base
+g -C "$tcp/store" worktree add -q --detach "$tcp/wt"
+/bin/rm -f "$tcp/store/.taskman/tickets/V1-9.json"
+printf '{"id":"V1-1","status":"DONE"}\n' > "$tcp/store/.taskman/tickets/V1-1.json"
+printf '{"id":"V1-2"}\n' > "$tcp/store/.taskman/tickets/V1-2.json"
+printf '{"id":"V1-3"}\n' > "$tcp/store/.taskman/tickets/V1-3.json"
+printf '{"r":1}\n' > "$tcp/store/.taskman/releases/r1.json"
+tcprun() { CORVINT_TASKS_BIN=$tcp/bin/corvint-tasks GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid \
+  GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid "$script/tasks-carry-projection.sh" "$@" 2>&1; }
+out=$(FAKE_DRIFT=tickets/V1-2.json FAKE_OMIT=releases/r1.json FAKE_EXTRA=tickets/V1-4.json tcprun --commit "$tcp/wt")
+[[ $? == 1 && $out == *'DRIFT tickets/V1-2.json differs'* && $out == *'EXTRA releases/r1.json is not in the snapshot'* &&
+  $out == *'MISSING tickets/V1-4.json is absent'* && $out == *'FAIL 3 findings'* && $(g -C "$tcp/wt" rev-list --count HEAD) == 1 ]] ||
+  fail "tasks-carry-projection findings: $out"
+g -C "$tcp/wt" checkout -q -- .taskman && g -C "$tcp/wt" clean -qfd -- .taskman
+out=$(tcprun --commit "$tcp/wt")
+[[ $? == 0 && $out == 'tasks-carry-projection: PASS queue:t:main tickets 2 -> 3, 5 files changed, committed '* &&
+  $(g -C "$tcp/wt" log -1 --format=%s) == 'chore(tasks): carry the queue:t:main projection to main' &&
+  -z $(diff -r "$tcp/store/.taskman" "$tcp/wt/.taskman") && -z $(g -C "$tcp/wt" status --porcelain) ]] ||
+  fail "tasks-carry-projection pass: $out"
+out=$(tcprun "$tcp/wt")
+[[ $? == 0 && $out == 'tasks-carry-projection: PASS queue:t:main tickets 3 -> 3, 0 files changed' ]] || fail "tasks-carry-projection no-op: $out"
+out=$(tcprun --store "$tcp/wt" "$tcp/wt")
+[[ $? == 2 && $out == *'WORKTREE is the store itself'* ]] || fail "tasks-carry-projection store itself: $out"
+printf 'x\n' > "$tcp/wt/.taskman/tickets/V1-5.json"
+out=$(tcprun "$tcp/wt")
+[[ $? == 2 && $out == *'has changes under .taskman/'* ]] || fail "tasks-carry-projection dirty: $out"
+/bin/rm -f "$tcp/wt/.taskman/tickets/V1-5.json"
+printf '{"queueId":"queue:other:main"}\n' > "$tcp/store/.taskman/queue.json"
+out=$(tcprun "$tcp/wt")
+[[ $? == 2 && $out == *'names another queue than queue:other:main'* ]] || fail "tasks-carry-projection other queue: $out"
+printf '{"queueId":"queue:t:main"}\n' > "$tcp/store/.taskman/queue.json"
+# A failing git status with empty stdout is refused, not read as a clean .taskman.
+mkdir -p "$tcp/gitshim"
+printf '#!/usr/bin/env bash\n[[ " $* " == *" status "* ]] && exit 128\nexec %q "$@"\n' "$(command -v git)" > "$tcp/gitshim/git"
+chmod +x "$tcp/gitshim/git"
+out=$(PATH=$tcp/gitshim:$PATH tcprun "$tcp/wt")
+[[ $? == 2 && $out == *'git status failed in'* ]] || fail "tasks-carry-projection status failure: $out"
+# A second carry into the same worktree is refused while the first holds the destination lock.
+lockfile=$(g -C "$tcp/wt" rev-parse --absolute-git-dir)/tasks-carry-projection.lock
+out=$(perl -MFcntl=:flock -e 'open(my $h, ">>", shift) or die; flock($h, LOCK_EX) or die; exit(system(@ARGV) >> 8)' "$lockfile" \
+  env CORVINT_TASKS_BIN=$tcp/bin/corvint-tasks "$script/tasks-carry-projection.sh" "$tcp/wt" 2>&1)
+[[ $? == 2 && $out == *'another carry into'*'holds'* ]] || fail "tasks-carry-projection held lock: $out"
+out=$(tcprun)
+[[ $? == 2 && $out == usage:* ]] || fail "tasks-carry-projection usage: $out"
 ok
 
 # ASD-V0-646 (V1-3754): the retained-data manifest validates, a malformed row is refused naming the
