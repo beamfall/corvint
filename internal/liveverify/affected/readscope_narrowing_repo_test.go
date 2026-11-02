@@ -109,3 +109,31 @@ func TestDeclaredReadScopesKeepTrueReaders_TSP_V0_901(t *testing.T) {
 		}
 	}
 }
+
+// TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830: the three shell tests
+// whose only toolchain is make over the Makefile leave a spec edit's and a
+// REQUIREMENTS.tsv edit's plans, stay selected for a Makefile edit, and the
+// test that runs git over the real checkout stays an unbounded reader.
+func TestMakefileOnlyShellTestsAreReadScoped_TSP_V0_830(t *testing.T) {
+	graph, module := repositoryNarrowingGraph(t)
+	declared := []string{
+		"shell:script/capability-catalog_test.sh", "shell:script/repin_test.sh", "shell:script/gate-receipt_test.sh",
+	}
+	for _, dirty := range []string{"docs/specs/test-selection-precision-v0.md", "docs/specs/REQUIREMENTS.tsv"} {
+		units := selectedUnits(graph, module, dirty)
+		for _, unit := range declared {
+			if kind, selected := units[unit]; selected {
+				t.Errorf("%s: %s selected as %s; its declared read scope is the Makefile", dirty, unit, kind)
+			}
+		}
+		if kind := units["shell:script/qualify-tasks-basic_test.sh"]; kind != "UNBOUNDED_READER" {
+			t.Errorf("%s: shell:script/qualify-tasks-basic_test.sh witness %q, want UNBOUNDED_READER", dirty, kind)
+		}
+	}
+	units := selectedUnits(graph, module, "Makefile")
+	for _, unit := range declared {
+		if _, selected := units[unit]; !selected {
+			t.Errorf("Makefile: declared reader %s not selected", unit)
+		}
+	}
+}

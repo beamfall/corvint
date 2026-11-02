@@ -869,10 +869,12 @@ func (ctx *Context) create(plan *Plan, p *CreatePayload) *Plan {
 // successor would leave the Count range is refused LIMIT_EXCEEDED before any
 // overflow, leaving the manifest unchanged.
 func (ctx *Context) allocateSerial(q intent.Queue) (string, wire.Count, *refusal) {
+	// The summary carries the ticket ID, so a lazily held record is not
+	// decoded to learn its local token (TCX-V0-846).
 	occupied := make(map[string]bool, ctx.Inventory.Len())
 	for _, id := range ctx.Inventory.IDs() {
-		if rec, ok := ctx.Inventory.Get(id); ok {
-			occupied[wire.FoldToken(rec.TicketID.Local)] = true
+		if s, ok := ctx.Inventory.Summary(id); ok {
+			occupied[wire.FoldToken(s.TicketID.Local)] = true
 		}
 	}
 	n := q.NextSerial.Int()

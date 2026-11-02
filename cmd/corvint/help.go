@@ -949,9 +949,11 @@ summary restates the plan in one object: scope, dirty, selected, excluded and
 unknown counts, unknownByReason {REASON: count}, and line, the same as one
 text line ("scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3
 UNOWNED_DIRTY_PATH=3"), so a reader needs neither the plan nor a JSON tool
-to learn what was decided; it never changes the selection.
+to learn what was decided; it never changes the selection. dirty counts
+plan.dirty, which with --base includes the committed range; worktree and
+committed split it, so a clean tree reads worktree=0 (AFP-V0-820).
 --format text (AFP-V0-928) writes the same affected-plan/1 plan as lines
-instead of JSON: "affected <summary.line> revision=SHA [base=SHA]", a
+instead of JSON: "affected <summary.line> worktree=N revision=SHA [base=SHA]", a
 "warning TEXT" line when the plan read unpinned worktree content, one
 "selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]" line per selection,
 one "unknown REASON DETAIL [hint TEXT]" line per plan unknown, the exclusion
@@ -1021,7 +1023,9 @@ deleted path. The receipt's path_list member echoes the sorted paths. A dirty
 worktree, or an ignored file HEAD does not track that the list names or the
 graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
 would not be HEAD's; one only a TypeScript unit lists, such as a gitignored
-playwright-report/ bundle, is instead excluded from the graph. One --path
+playwright-report/ bundle, is instead excluded from the graph. A worktree whose
+only dirty paths are declared documentation (.corvint/documentation-paths.json,
+itself clean) that no unit owns plans as a clean one would (AFP-V0-832). One --path
 takes every following value up to the next option, so --path a b c and
 --path a --path b --path c plan the same bytes. Write --path=VALUE for a name
 that begins with -. It does not combine with --base (invalid-arguments).

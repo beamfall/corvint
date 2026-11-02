@@ -394,7 +394,7 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 		"noise/n_test.go":         "package noise\n",
 		"joined/j.go":             "package joined\n\nvar rows = \"store/rows.txt\"\n",
 		"joined/j_test.go":        "package joined\n",
-		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n",
+		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n", //corvint:fixture-path
 		"named/n_test.go":         "package named\n",
 		"internal/store/s.go":     "package store\n",
 		"internal/store/rows.txt": "rows\n",
@@ -403,12 +403,12 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"})
+	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"}) //corvint:fixture-path
 	selected := make([]string, 0, len(plan.Selected))
 	for _, selection := range plan.Selected {
 		selected = append(selected, selection.UnitID+"<-"+selection.Witness.DirtyPath)
 	}
-	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]"
+	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]" //corvint:fixture-path
 	if got := fmt.Sprint(selected); got != want {
 		t.Fatalf("selected = %s, want %s", got, want)
 	}
@@ -796,6 +796,9 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 		"variant/variant_test.go": "package variant\n",
 		"core/core.go":            "package core\n",
 		"core/core_test.go":       "package core\n",
+		// other/ stays on disk, so its dirty model.go is not a deleted
+		// package (AFP-V0-821).
+		"other/notes.txt": "",
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -650,5 +651,20 @@ func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
 	}
 	if snapshotRefreshWallBound != 10*time.Minute || snapshotRefreshCPUBudget != 55*time.Second {
 		t.Fatalf("bounds %s wall, %s CPU", snapshotRefreshWallBound, snapshotRefreshCPUBudget)
+	}
+}
+
+// TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805: the refresh worker
+// inherits neither profile knob, so a profiled hook keeps its own profile; the
+// internal markers and GOMAXPROCS are replaced as before and every other entry
+// passes in order (IDX-SNAP-V0-805).
+func TestSnapshotRefreshEnvDropsProfileKnobs_IDXSNAPV0805(t *testing.T) {
+	got := snapshotRefreshEnv([]string{
+		"PATH=/usr/bin", "CORVINT_CPUPROFILE=/tmp/hook.prof", "CORVINT_MEMPROFILE=/tmp/hook.mem",
+		snapshotRefreshWorkerEnv + "=0", snapshotRefreshPriorityEnv + "=1", "GOMAXPROCS=8", "CORVINT_CPUPROFILE_NOT=kept", "HOME=/h",
+	})
+	want := []string{"PATH=/usr/bin", "CORVINT_CPUPROFILE_NOT=kept", "HOME=/h", snapshotRefreshWorkerEnv + "=1", "GOMAXPROCS=1"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("worker env %q, want %q", got, want)
 	}
 }

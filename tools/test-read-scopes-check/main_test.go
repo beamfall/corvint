@@ -22,7 +22,7 @@ func repository(t *testing.T, entries, literals string) string {
 	t.Helper()
 	files := map[string]string{
 		"go.mod":                                "module example.test/m\n\ngo 1.27\n",
-		"Makefile":                              "gate:\n",
+		"Makefile":                              "gate:\n", //corvint:fixture-path
 		"protocol/cem-1.0/stable/manifest.json": "{}\n",
 		"protocol/cem-1.0/stable/tamper-matrix/case.json": "{}\n",
 		"testdata/case.json":                              "{}\n",
@@ -101,7 +101,7 @@ func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing
 		// fixtures/f does not reach the root, the climb to internal/cem is the
 		// root lookup, a case-folded literal names no tracked path, and the
 		// change-evidence map is tracked only until its seal.
-		for _, never := range []string{"package fixtures/f", "names internal/cem,", "names Makefile", "names .corvint/change.cem.json"} {
+		for _, never := range []string{"package fixtures/f", "names internal/cem,", "names Makefile", "names .corvint/change.cem.json"} { //corvint:fixture-path
 			if strings.Contains(output, never) {
 				t.Errorf("%s: output %q reports %q", name, output, never)
 			}

@@ -53,7 +53,7 @@ func policyCommand(env Env, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

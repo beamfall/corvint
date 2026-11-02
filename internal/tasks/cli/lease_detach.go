@@ -421,6 +421,7 @@ func leaseDetachLaunch(env Env, name, dir string, want leaseDetachRecord, rest [
 	argv := append(append(append(append([]string{}, prefix...), cmd...), rest...), leaseDetachChildFlag)
 	c := exec.Command(program, argv...)
 	c.Dir = env.Cwd
+	c.Env = childActorEnv(env)
 	c.Stderr = logFile
 	c.SysProcAttr = detachAttr()
 	started := time.Now().UTC()

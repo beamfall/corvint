@@ -10,6 +10,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/similar"
+	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -121,7 +122,7 @@ func recordedRequest(env Env, requestID, title string) (ticketID string, found, 
 		if rc.journalAbsent {
 			return nil
 		}
-		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree}}
+		idx := store.RequestIndexOf(rc.repo, journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.PrimaryWorktree}, QueueID: rc.store.Queue.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree})
 		entry, ok, err := idx.Lookup(requestID)
 		if err != nil || !ok {
 			return err
@@ -281,7 +282,7 @@ func fileFinding(env Env, cmd []string, f findingFlags, requestID string, payloa
 			reason = "filed despite similar " + strings.Join(names, ", ")
 		}
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return wire.Value{}, errorResult(cmd, err)
 	}
@@ -426,7 +427,7 @@ func findingSupersede(env Env, cmd []string, f findingFlags) *wire.Result {
 	if dupRec.Status != ticket.StatusOpen && dupRec.Status != ticket.StatusHeld && dupRec.Status != ticket.StatusDraft {
 		return errorResult(cmd, wire.Errorf(wire.CodeTicketState, "--supersede", "ticket %s is %s; only unfinished work is archived as a duplicate", dup, dupRec.Status))
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

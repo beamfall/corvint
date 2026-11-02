@@ -1,6 +1,12 @@
 {
   "profile": "corvint-shell-read-scopes/0",
   "tests": {
+    "script/capability-catalog_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it runs make -f Makefile capability-catalog in a scratch directory with a stub generator standing in for go run; the Makefile includes no file (TSP-V0-830)."
+    },
     "script/check-install-lifecycle_test.sh": {
       "reads": [
         ".github/cishards/",
@@ -39,12 +45,6 @@
       ],
       "reason": "Outside script/, it runs go build ./cmd/corvint and ./tools/dogfood-guard-hunks, whose only non-standard packages are under internal/; the wrapper runs on a copy in a temporary repository (V1-3616)."
     },
-    "script/dogfood-cache_test.sh": {
-      "reads": [
-        "Makefile"
-      ],
-      "reason": "Outside script/, it copies the Makefile into a temporary repository and runs make there with stub tools; the Makefile includes nothing (V1-3788)."
-    },
     "script/dogfood-change_test.sh": {
       "reads": [
         ".github/cishards/",
@@ -77,6 +77,18 @@
         "tools/gate-affected-select/"
       ],
       "reason": "Outside script/, it runs go build ./cmd/corvint, copies internal/liveverify/affected/testdata/fixture, and script/gate-affected.sh runs go run ./tools/gate-affected-select, whose only non-standard packages are under internal/ (V1-3616)."
+    },
+    "script/gate-receipt_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it reads the Makefile gate recipe and runs make -pq gate and a make -j8 gate whose recipes it replaces with loggers; script/gate-receipt runs in a fixture repository (TSP-V0-830)."
+    },
+    "script/repin_test.sh": {
+      "reads": [
+        "Makefile"
+      ],
+      "reason": "Outside script/, it runs make -n repin, which parses only the Makefile; the Makefile includes no file (TSP-V0-830)."
     },
     "script/spec-requirements-conflict_test.sh": {
       "reads": [

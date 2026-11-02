@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: the 40 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, and the ten subcommand companions of CAP-V0-972 under that requirement); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: the 38 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, the ten subcommand companions of CAP-V0-972 under that requirement, and `corvint-update` and `corvint-work-queue` under CAP-V0-726); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -467,6 +467,25 @@ cannot silently go missing or outlive its command.
   Rollback: restore the ten ratchet rows and the ceiling of 50, and delete the ten snapshots, their
   `commandTreeRefs`, `llms.txt`, Makefile and Command trees entries, the ten `help.go` files,
   `clitree.Help` and `internal/clitree/clitreetest`.
+- `CAP-V0-726`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2685; amends
+  `CAP-V0-974`) A ratchet binary that dispatches subcommand words the CAP-V0-041 scan does not see
+  MUST still ship a command tree. `corvint-update` compares its first argument with `check`,
+  `apply` and `rollback`, and `corvint-work-queue` dispatches `snapshot`, `details` and `verify` in
+  `internal/worklistadapter`; each derives its tree from its usage text, answers the CAP-V0-973
+  help forms before its own dispatch, keeps its snapshot under `internal/capcatalog/trees/`, is
+  linked from `commandTrees`, `llms.txt`, the Makefile and the Command trees section, and leaves
+  `CLI-RATCHET.tsv`, whose `ratchetCeiling` falls from 40 to 38. `corvint-work-queue` names
+  `internal/worklistadapter` as a second dispatch source, so the drift check sees its operations.
+  `corvint-update` keeps its authored usage as the root help and takes only the `--version` forms
+  from the companion contract (CAP-V0-700). `corvint-work-queue` answers help before
+  `runProducer` and acquires no scratch or source, so its closed operation set (WQO-V0-007) is
+  unchanged. Each of the 14 other single-mode rows MUST say that its dispatch matches no
+  subcommand word. Non-goals: trees for single-mode tools, analyzer processes, folded shims and MCP
+  servers, whose options or tools are gated elsewhere or not at all; changing either binary's
+  refusals, flags or output. Failure modes: `corvint-update` parses one flag set for all three
+  actions, so its synopsis lists every flag on each. Rollback: restore the two ratchet rows, the
+  14 old reasons and the ceiling of 40, and delete the two snapshots, `help.go` and
+  `command_tree_test.go` files, their entries and the `treeCompanions` member.
 - `CAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines
   `CAP-V0-040`) `clitree.Synopses` MUST NOT read an indented line under an example header (an
   unindented line ending in `:` that contains `example`, such as `Example:`, `Examples:` or
@@ -678,6 +697,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
 | CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
+| CAP-V0-726 | `cmd/corvint-update/help.go`, `cmd/corvint-work-queue/help.go`, `internal/capcatalog/trees/corvint-update.json`, `internal/capcatalog/trees/corvint-work-queue.json` | `TestCAPV0726EveryNodeAnswersHelp` (both binaries), `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0700CompanionsAnswerTheSharedContract` |
 | CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |

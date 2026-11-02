@@ -328,3 +328,28 @@ func TestDynamicSourceRefusalNamesTheLine_ASD_V0_614(t *testing.T) {
 		t.Errorf("a literal source line is named:\n%s", stderr.String())
 	}
 }
+
+// TSP-V0-831 (V1-4254): a shell read-scope entry the plugin refuses fails the
+// check, naming the entry and why, while the record is otherwise complete.
+func TestInvalidShellReadScopeEntryRefused_TSP_V0_831(t *testing.T) {
+	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
+	for name, body := range map[string]string{
+		"script/plain_test.sh":            "#!/bin/sh\necho plain\n",
+		".corvint/shell-read-scopes.json": `{"profile":"corvint-shell-read-scopes/0","tests":{"script/plain_test.sh":{"reads":["Makefile"],"reason":"r"}}}`, //corvint:fixture-path
+	} {
+		file := filepath.Join(root, filepath.FromSlash(name))
+		if err := os.MkdirAll(filepath.Dir(file), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := execfile.WriteFile(file, []byte(body), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
+	}
+	if want := "shell:read-scopes-invalid:script/plain_test.sh runs no toolchain"; !strings.Contains(stderr.String(), want) {
+		t.Fatalf("refusal does not name the entry %q:\n%s", want, stderr.String())
+	}
+}

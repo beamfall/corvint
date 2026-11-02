@@ -54,6 +54,7 @@ func damageObject(t *testing.T, repo, oid, with string) {
 // none falls back to HEAD (TOL-V0-101, V1-1962). The object store is damaged
 // to reach them, since a commit's content is otherwise fixed by its id.
 func TestTOLV0101_SubjectAbsentUnreadableMismatchAtReview(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -109,6 +110,7 @@ func TestTOLV0101_SubjectAbsentUnreadableMismatchAtReview(t *testing.T) {
 // ENVIRONMENT_BASELINE_UNRESOLVED with no baseline commit
 // (TOL-V0-107..109, V1-1962).
 func TestTOLV0108_CapabilityBlobOverBoundAndUnlistableBaseline(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, _, _ := obligationRepoWith(t, func(p wire.Value) {
 		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(false)).
 			Set("environmentBaselines", wire.ObjectValue(wire.NewObject().Set(".", wire.String("refs/heads/env"))))))

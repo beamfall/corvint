@@ -57,6 +57,10 @@ type affectedReceipt struct {
 	// Degradations names conditions that make this receipt less trustworthy
 	// than current source would, such as self-binary-stale (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// WorktreeDirty is the size of the worktree status set alone, before the
+	// committed range is unioned into plan.dirty; the compact summary
+	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
+	WorktreeDirty int `json:"-"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -105,6 +109,10 @@ type affectedInvocation struct {
 	// receipt that is only ever compacted (AFP-V0-641); runAffected sets it
 	// for the default wire. Every other caller gets each chain in Via.
 	sharedVia bool
+	// observed is the HEAD and dirty set a caller already read for this
+	// plan, so the compile does not read them again; its closing recheck
+	// still compares both (AFP-V0-824). Only `corvint test` sets it.
+	observed *affectedObservation
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
@@ -188,6 +196,9 @@ type affectedAdvice struct {
 	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	// WholePackages names each selected Go unit a TestMain change makes
+	// whole, with the reason (AFP-V0-550); omitted when there is none.
+	WholePackages []affectedWhole `json:"whole_packages,omitempty"`
 }
 
 type affectedCheck struct {
@@ -1127,6 +1138,24 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	return receipt, err
 }
 
+// affectedObservation is one read of HEAD and then the dirty set.
+type affectedObservation struct {
+	revision string
+	dirty    []string
+}
+
+func affectedObserve(ctx context.Context, gitExecutable, root string) (*affectedObservation, error) {
+	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, err
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	return &affectedObservation{revision: revision, dirty: dirty}, nil
+}
+
 // compileAffectedGraph is compileAffected that also returns the graph the plan
 // was selected over, so `corvint test` reads the Go universe from the same
 // observation (STR-V0-001, STR-V0-007).
@@ -1136,19 +1165,25 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, affectedGitExecutableRefusal()
 	}
-	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, err
+	observed := invocation.observed
+	if observed == nil {
+		if observed, err = affectedObserve(ctx, gitExecutable, root); err != nil {
+			return affectedReceipt{}, nil, err
+		}
 	}
-	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
-	}
+	revision, dirty := observed.revision, observed.dirty
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
+	worktreeDirty := len(dirty)
+	documentationOnly := false
 	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
-		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		if documentationOnly = affectedDocumentationOnly(root, dirty); !documentationOnly {
+			return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		}
+		// The tolerated set leaves the receipt a clean worktree gives, so its
+		// summary reads worktree=0 (AFP-V0-832, AFP-V0-820).
+		worktreeDirty = 0
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -1157,6 +1192,9 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	graph, err := affectedBuildGraph(affectedGraphContext(ctx), invocation)
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
+	}
+	if documentationOnly && slices.ContainsFunc(dirty, func(path string) bool { _, owned := graph.OwnerOf(path); return owned }) {
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
 	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {
@@ -1225,6 +1263,8 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Revision: revision,
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
+
+		WorktreeDirty: worktreeDirty,
 	}
 	if invocation.Worktree {
 		receipt.Warning = affectedWorktreeWarning(revision, dirty)
@@ -1321,6 +1361,22 @@ func affectedPriorReadScopes(ctx context.Context, gitExecutable, root, base, rev
 	return scopes
 }
 
+// affectedSparseCheckout reports whether the worktree at root is a sparse
+// checkout, where a directory absent from disk may lie outside the cone
+// rather than be deleted (AFP-V0-821). Only an unset key (exit 1) reads as
+// not sparse; any other Git failure reads as sparse, which keeps the
+// path's unknown.
+func affectedSparseCheckout(ctx context.Context, gitExecutable, root string) bool {
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	output, err := hermeticGitCommand(deadline, gitExecutable, root, "config", "--type=bool", "--get", "core.sparseCheckout").Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return false
+	}
+	return err != nil || strings.TrimSpace(string(output)) == "true"
+}
+
 // affectedPlanInputs are what planAffectedGraph measures a change from: the
 // repository whose Git objects hold the base, the tree the graph was built
 // over (the worktree, or a review's materialized snapshot), and whether the
@@ -1337,12 +1393,16 @@ type affectedPlanInputs struct {
 // through it, so a plan member added here reaches review.affected too.
 func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affected.Graph, changed []string) (*affected.Graph, affected.Plan, affectedGoProvider, affectedAdvice) {
 	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, in.gitExecutable, in.repository, in.base, in.revision, changed))
+	if in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository) {
+		graph = graph.WithSparseCheckout()
+	}
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	provider := providerGoProjection(graph, plan)
 	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
+	advice = withWholePackages(ctx, advice, in.repository, in.tree, in.base, in.revision, plan)
 	return graph, plan, provider, advice
 }
 

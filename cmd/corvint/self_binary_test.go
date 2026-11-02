@@ -56,15 +56,15 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 	ctx := context.Background()
 	root, built := selfBinaryRepository(t)
 	own := selfBinaryInfo("example.test/self", built)
-	if freshness := binaryStaleAgainst(ctx, root, own); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, own, nil); freshness.Code != "" {
 		t.Fatalf("a binary built at HEAD is judged %+v", freshness)
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"self_test.go": "package self\n", "README.md": "docs\n", "testdata/x.go": "package x\n"})
-	if freshness := binaryStaleAgainst(ctx, root, own); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, own, nil); freshness.Code != "" {
 		t.Fatalf("a test, documentation or testdata change is judged %+v", freshness)
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"self.go": "package self\n\nfunc Self() int { return 2 }\n"})
-	freshness := binaryStaleAgainst(ctx, root, own)
+	freshness := binaryStaleAgainst(ctx, root, own, nil)
 	if freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, "1 Go source paths differ at HEAD: self.go;") || !strings.Contains(freshness.Detail, "go install ./cmd/corvint") {
 		t.Fatalf("a Go source change was not reported with its recovery: %+v", freshness)
 	}
@@ -72,12 +72,12 @@ func TestSelfBinaryStaleComparesStampedCommitWithHEAD(t *testing.T) {
 		"another module": selfBinaryInfo("example.test/other", built),
 		"no Git stamp":   {Main: debug.Module{Path: "example.test/self"}},
 	} {
-		if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+		if freshness := binaryStaleAgainst(ctx, root, info, nil); freshness.Code != "" {
 			t.Errorf("%s: judged %+v", name, freshness)
 		}
 	}
 	missing := selfBinaryInfo("example.test/self", strings.Repeat("ab", 20))
-	if freshness := binaryStaleAgainst(ctx, root, missing); freshness.Code != selfBinaryUnverifiedCode || !strings.Contains(freshness.Detail, "could not be compared with HEAD") {
+	if freshness := binaryStaleAgainst(ctx, root, missing, nil); freshness.Code != selfBinaryUnverifiedCode || !strings.Contains(freshness.Detail, "could not be compared with HEAD") {
 		t.Fatalf("a commit absent here was not reported unverified: %+v", freshness)
 	}
 }
@@ -103,23 +103,23 @@ func TestSelfBinaryStaleCountsOnlyTheMainBuildGraph(t *testing.T) {
 		"internal/up/up.go": "package up\n\nvar X = 1\n",
 		"self.go":           "package self\n\nfunc Self() int { return 3 }\n",
 	})
-	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, info, nil); freshness.Code != "" {
 		t.Fatalf("changes outside the main build graph are judged %+v", freshness)
 	}
 	for name, mainPath := range map[string]string{"main package absent": "example.test/self/cmd/gone", "main package unknown": ""} {
 		other := selfBinaryInfo("example.test/self", built)
 		other.Path = mainPath
-		if freshness := binaryStaleAgainst(ctx, root, other); freshness.Code != selfBinaryStaleCode {
+		if freshness := binaryStaleAgainst(ctx, root, other, nil); freshness.Code != selfBinaryStaleCode {
 			t.Errorf("%s: judged %+v, want every changed path counted", name, freshness)
 		}
 	}
 	commitSelfBinaryFiles(t, root, map[string]string{"go.work": "go 1.23\n\nuse .\n"})
-	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, "cmd/other/main.go") {
+	if freshness := binaryStaleAgainst(ctx, root, info, nil); freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, "cmd/other/main.go") {
 		t.Errorf("with go.work: judged %+v, want every changed path counted", freshness)
 	}
 	affectedGit(t, root, "rm", "-q", "go.work")
 	affectedGit(t, root, "commit", "-qm", "drop go.work")
-	if freshness := binaryStaleAgainst(ctx, root, info); freshness.Code != "" {
+	if freshness := binaryStaleAgainst(ctx, root, info, nil); freshness.Code != "" {
 		t.Fatalf("without go.work again: judged %+v", freshness)
 	}
 	for _, change := range []map[string]string{
@@ -129,7 +129,7 @@ func TestSelfBinaryStaleCountsOnlyTheMainBuildGraph(t *testing.T) {
 	} {
 		commitSelfBinaryFiles(t, root, change)
 		for changed := range change {
-			freshness := binaryStaleAgainst(ctx, root, info)
+			freshness := binaryStaleAgainst(ctx, root, info, nil)
 			if freshness.Code != selfBinaryStaleCode || !strings.Contains(freshness.Detail, changed) {
 				t.Fatalf("%s: judged %+v, want stale naming it", changed, freshness)
 			}

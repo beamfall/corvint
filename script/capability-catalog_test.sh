@@ -38,7 +38,9 @@ grep -qx 'generated help --json' "$w/internal/capcatalog/catalog.json" ||
   fail "catalog.json was not replaced: $(cat "$w/internal/capcatalog/catalog.json")"
 grep -qx 'generated help --tree' "$w/internal/capcatalog/trees/corvint.json" ||
   fail "trees/corvint.json was not replaced"
-[ "$(find "$w/internal/capcatalog/trees" -name '*.json' | wc -l)" -eq 15 ] ||
-  fail "not all 15 trees snapshots were written"
+# Every snapshot the recipe names, counted from the Makefile so a new tree line needs no edit here.
+want=$(grep -c 'capcatalog_write,.*,internal/capcatalog/trees/' "$repo/Makefile")
+[ "$(find "$w/internal/capcatalog/trees" -name '*.json' | wc -l)" -eq "$want" ] ||
+  fail "not all $want trees snapshots were written"
 [ -z "$(leftover)" ] || fail "a succeeding run left $(leftover)"
 echo "capability-catalog_test: PASS"

@@ -86,6 +86,10 @@ type Graph struct {
 	// by unit (ADN-V0-002). Like priorReadScopes it is a selection input,
 	// not part of the observed graph or its digest.
 	goAdditive []GoAdditive
+	// sparse records that the disk checkout is a sparse checkout, where an
+	// absent directory may lie outside the cone rather than be deleted
+	// (AFP-V0-821). Like priorReadScopes it is a selection input.
+	sparse bool
 	// root is the disk checkout the graph was observed from, empty for an
 	// fs.FS graph. Only AFP-V0-494's symlink hint reads it.
 	root string
@@ -99,6 +103,14 @@ type Graph struct {
 func (graph *Graph) WithReadScopeBase(prior map[string][]string) *Graph {
 	copied := *graph
 	copied.priorReadScopes = prior
+	return &copied
+}
+
+// WithSparseCheckout returns a copy of graph whose disk checkout is sparse,
+// so no absent directory reads as a deleted package (AFP-V0-821).
+func (graph *Graph) WithSparseCheckout() *Graph {
+	copied := *graph
+	copied.sparse = true
 	return &copied
 }
 

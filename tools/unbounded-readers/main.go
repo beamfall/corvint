@@ -201,7 +201,15 @@ func run(root string, stdout, stderr io.Writer) int {
 			unreasoned = append(unreasoned, directory)
 		}
 	}
-	out := report{Profile: profile, OK: len(unrecorded) == 0 && len(unreasoned) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Unreasoned: unreasoned, Stale: stale}
+	// TSP-V0-831 (V1-4254): a shell read-scope entry the plugin refused leaves its
+	// test unbounded; refuse it here so a merge that invalidates one is caught.
+	var invalidScopes []string
+	for _, reason := range graph.Frontier() {
+		if strings.HasPrefix(reason, shell.FrontierShellReadScopesInvalid) {
+			invalidScopes = append(invalidScopes, reason)
+		}
+	}
+	out := report{Profile: profile, OK: len(unrecorded) == 0 && len(unreasoned) == 0 && len(invalidScopes) == 0, Count: len(units), Units: units, Unrecorded: unrecorded, Unreasoned: unreasoned, Stale: stale}
 	encoded, err := json.Marshal(out, jsontext.WithIndent("  "))
 	if err != nil {
 		fmt.Fprintln(stderr, "unbounded-readers:", err)
@@ -238,6 +246,10 @@ func run(root string, stdout, stderr io.Writer) int {
 	if len(unreasoned) > 0 {
 		fmt.Fprintf(stderr, "unbounded-readers: %v in units of %s have no entry in reasons. Name the read that is unbounded and why %s cannot declare it (AFP-V0-033).\n",
 			unreasoned, recordPath, affected.ReadScopesPath)
+	}
+	for _, reason := range invalidScopes {
+		fmt.Fprintf(stderr, "unbounded-readers: %s refused: %s; remove or fix the entry (TSP-V0-831), and record the test in units of %s if it cannot be bounded.\n",
+			affected.ShellReadScopesPath, reason, recordPath)
 	}
 	if !out.OK {
 		return 1

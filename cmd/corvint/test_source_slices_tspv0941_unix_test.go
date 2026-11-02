@@ -88,7 +88,7 @@ func TestTSPV0941DryRunSeedsMovedDeclarations(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := plan(t, tc.edits)[lineID]
-			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, Slice: sessiontest.SliceSelected, Unit: lineID}
+			want := sessiontest.Unit{Adapter: sessiontest.AdapterGo, Flag: "-run", Pattern: tc.pattern, Reason: tc.reason, ReasonCode: sessiontest.ReasonCode(tc.reason), Slice: sessiontest.SliceSelected, Unit: lineID}
 			if got != want {
 				t.Fatalf("unit %+v, want %+v", got, want)
 			}

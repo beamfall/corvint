@@ -136,7 +136,7 @@ func escalationWriter(env Env, fl map[string]string) (mutation.Binding, *intent.
 	if _, err := mutation.ParseRequestID("requestId", fl["request-id"]); err != nil {
 		return mutation.Binding{}, nil, "", err
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return actor, nil, "", err
 	}

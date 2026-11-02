@@ -4639,6 +4639,94 @@ selected package unrun. The full fallback is unchanged.
   excludes. Rollback: drop the `deletedGoTest` check in `seed`; the path raises
   `UNINDEXED_SOURCE_PATH` again.
 
+- **AFP-V0-820:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-510 and AFP-V0-928) With `--base`, `plan.dirty` is the worktree status set unioned
+  with the committed range (AFP-V0-010), so `summary.dirty` alone cannot tell a clean lane tree from
+  a dirty one. The compact summary SHALL also carry `committed`, the number of committed range
+  paths, and `worktree`, the number of worktree status paths before the union; a clean tree reads
+  `worktree=0`, and so does a `--path` plan whose dirty set AFP-V0-832 tolerates, which leaves the
+  receipt a clean tree gives. `summary.line` is unchanged, and the text form's header SHALL read
+  `affected <summary.line> worktree=N revision=SHA [base=SHA]`. The two members are optional
+  additions to the frozen summary (CCF-V1-006). Failure mode: a path both committed and edited
+  counts once in `dirty` and in each of `committed` and `worktree`, so the two may sum to more than
+  `dirty`. Rollback: drop the two members and the header field.
+
+- **AFP-V0-821:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4185;
+  amends AFP-V0-620) A dirty non-test `.go` path that no unit lists drops its
+  `UNINDEXED_SOURCE_PATH` entry when only the Go plugin claims it, no directory the Go plugin reports
+  as unobserved encloses it, its directory is not a package the graph observes, and that directory
+  is absent from the disk checkout the graph was observed from: the whole package was deleted or
+  moved away since the base. Its importers, if any are left, import a package the graph no longer
+  observes, and rule (a) already selects every unit with an edge to an absent package; command edges
+  (AFP-V0-037) name only observed commands, so a deleted command has no remaining executor. A
+  directory that is still present (a package whose other files remain, or a file the graph cannot
+  see) keeps the entry, and so does every path of a sparse worktree (`core.sparseCheckout` set, or
+  unreadable), whose absent directory may only lie outside the cone; the language frontier still
+  applies. Example: the deletion of
+  `internal/tasks/cmd/closed-index/` (`46e9ee1fd`) no longer keeps a clean lane tree `UNKNOWN`.
+  A dirty `Makefile` still raises `UNOWNED_DIRTY_PATH` (AFP-V0-601), whose frontier entries each
+  name a language (AFP-V0-511); that is a driver input every gate consumer reads, not a defect of
+  this rule. Falsifier: a deleted package whose loss changes a test outcome in a unit the plan
+  excludes. Rollback: drop the `deletedGoPackage` check in `seed`.
+
+- **AFP-V0-822:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4192;
+  extends AFP-V0-436 to AFP-V0-439) `corvint test` SHALL plan from the default affected graph
+  cache that `corvint affected` reads, so an unchanged tree is not observed again. It SHALL also
+  keep a gateselect scan memo, `affected-graph-scan-<hash>.json`, in the same cache directory.
+  The memo holds the imports, root-locator calls, embed flag, tokenize outcome and path tokens
+  that each Go source contributed to the attribution index, keyed by root, module and program
+  identity and pinned per file by the graph-entry stat stamp. The indexing walk still runs in full.
+  A file whose stamp matches is recalled without a read. A file that the stamp cannot pin is read
+  again and is not stored: a platform without a change time, or a change inside the
+  `GraphCacheRacyWindow` of the index start. Rule: the memo is written and read under every
+  placement, privacy, checksum, size and eviction rule of a graph entry. A memo that fails any of
+  them, names another root, module or program, or does not decode, is ignored, and every file is
+  scanned. A scan error is never stored. The index is built while the graph compiles, and the
+  plan, manifest and stdout SHALL be byte-identical with and without either cache. Failure mode: a
+  same-stamp rewrite is trusted, as it is for a graph entry (AFP-V0-392). Acceptance: on an
+  unchanged tree `test --dry-run` runs within 1.5x of `corvint affected` on the same host.
+  Falsifier: a cached plan that differs from the uncached plan of the same tree. Rollback: drop
+  `testScanMemo` and `StartIndex` in `cmd/corvint/test.go` and plan with
+  `gateselect.SelectStructural` and an uncached graph again.
+
+- **AFP-V0-823:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4237;
+  extends AFP-V0-822 and TSP-V0-940) The gated root-locator literal check SHALL go through the
+  AFP-V0-822 scan memo. That check reads each non-test file of a declared root-locating package
+  for its gate literal. The memo stores, per file, the stat stamp, the literal checked and whether
+  the file carries it. A file whose stamp and literal both match is recalled without a read. Any
+  other file is read again, and so is a file the stamp cannot pin. A read error is never stored,
+  and the memo is rewritten only when a check changed. Failure mode: a same-stamp rewrite is
+  trusted, as in AFP-V0-822. Falsifier: an index through the memo whose rule (d) set differs from
+  the full scan of the same tree. Rollback: call `readCarries` directly in `carriesLiteral` and
+  drop the `gated` memo member.
+- **AFP-V0-824:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4237)
+  `corvint test` SHALL compile its plan from the HEAD revision and dirty set it read for its
+  source identity, so that it does not read them twice. The closing AFP-V0-150 drift recheck of
+  the dirty set and HEAD still runs after the last source read, so an observation that the
+  worktree has since left is refused as `unsupported-affected-drift`. `corvint affected` still
+  reads its own. Acceptance for AFP-V0-823 and AFP-V0-824 together: on an unchanged tree, a warm
+  `test --dry-run` runs within 1.15x of `corvint affected` on the same host, with byte-identical
+  output, measured interleaved with the host load recorded. Falsifier: a plan from the shared
+  observation that differs from the plan that reads its own. Rollback: pass no `observed` from
+  `testRunInput`.
+- **AFP-V0-825:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4246;
+  extends AFP-V0-846 and AFP-V0-824) `corvint test` SHALL resolve HEAD once and judge its own
+  binary (AFP-V0-846) against that revision, the same one its source identity and plan use, so
+  the stale-binary check spawns no `rev-parse` of its own. A binary built from another commit
+  still needs the one bounded diff of AFP-V0-846, because the plan's changed set covers BASE to
+  HEAD, not the stamped commit to HEAD; that diff names the resolved revision, never symbolic
+  `HEAD`, so a HEAD that moves after the read cannot change the verdict. The shared read's
+  elapsed time counts against the check's 2 s deadline: a read that fails or takes the whole
+  bound is `self-binary-unverified`, as the check's own failed or expired read was, and after a
+  failed read the source identity reads HEAD again as before (the saving is given up there).
+  For a fresh, a stale and an unverified binary, the verdict and its stderr line stay
+  byte-identical to the check that reads HEAD itself. `corvint affected` and the dogfood flows
+  still read their own. Falsifier: a verdict or stderr line that differs from the self-resolving
+  check, a stale binary judged fresh because HEAD moved back to its commit, a failed or slower
+  than 2 s read that is not unverified or stops the run, or a fresh binary whose `test --dry-run`
+  spawns more Git processes than an unstamped one. Rollback: call `selfBinaryStale` in `runTest`
+  and `testObserveSource` for the identity.
+
 - **AFP-V0-615:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)
   A package whose tests launch a sandbox of their own is never declared in
   `.corvint/test-read-scopes.json`: AFP-V0-023 runs a declared package under the Landlock wrapper,
@@ -4725,6 +4813,37 @@ selected package unrun. The full fallback is unchanged.
   with the base (`6c967b21c`) and the changed binary over the 20 newest merges of that base: 0
   selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
   names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
+- **AFP-V0-725:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571;
+  amending `AFP-V0-446` and `AFP-V0-818`) A located, unpinned TypeScript
+  `typescript:e2e-runtime-dependency` site whose file a unit under a `testdata` directory owns
+  SHALL be that unit's own frontier, under the same conditions (i) and (ii) of `AFP-V0-446` and
+  with the same promotion back to the plugin when no Go unit hosts the directory, unless an
+  end-to-end runner configuration (Playwright, Cypress, WebdriverIO, TestCafe, Nightwatch or Detox)
+  whose directory encloses the site file lies outside that `testdata` directory. The Go toolchain
+  runs nothing below `testdata`, so such a spec runs only when some harness drives it, and that
+  harness is either a test of the hosting package (selected by `AFP-V0-004` rule (b) whenever the
+  fixture changes) or a test elsewhere that a declared runtime edge (`AFP-V0-819`) names; a runner
+  configuration outside the fixture would collect the spec as part of the repository's own suite,
+  so its site stays plugin-wide. A localized site then bears on a plan only when the plan reaches
+  the fixture unit. This repository's `.corvint/runtime-edges.json` declares the remaining
+  cross-language edges outside `testdata` (the interactive-alpha conformance spec runs against
+  `cmd/corvint-console` and `cmd/corvint-dashboard-snapshot`, the web-flows fixture runs
+  `cmd/corvint-web-flows`, the obligation qualification spec is a manual fixture of
+  `internal/tasks/obligation`) and, for the three escaped `testdata` fixtures rule (ii) keeps
+  plugin-wide, an edge from their `tests/` directories to their own `server.cjs`. Non-goal: listing
+  every site behind the plugin's `+N` summary, which `AFP-V0-818` still never covers. Failure
+  modes: a harness outside the package that runs a localized spec without a declared edge is
+  missed when only the binary it drives changes; an e2e configuration added outside the fixture
+  later returns the site to the plugin. Rollback: drop the `FrontierE2ERuntimeDependency` pass in
+  `localizeFixtureFrontier` and the declaration's V1-3571 edges.
+  Acceptance: `TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725` (fails first on the base: the
+  fixture spec's site leaves the plugin frontier for its unit; a plan over an unrelated source is
+  `BOUNDED`; a plan over the spec names it) and `TestFixtureE2ESiteStaysPluginWide_AFPV0725` (a
+  root Playwright config and an escaped import keep it plugin-wide; an unhosted fixture is
+  promoted back, failing first on the base) in `internal/liveverify/affected/typescript`;
+  `TestSealOnlyCEMDeltaStaysBounded_V13571` (`internal/liveverify/affected`, real repository: the
+  seal-only dirty set with `.corvint/change.cem.json` is `BOUNDED`, 0 unknowns, where the base
+  named 18).
 - **AFP-V0-987:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3898;
   amending `AFP-V0-818`) The `AFP-V0-818` cross-language entries MUST NOT be named when every dirty
   path is declared data: a `TASK_STORE_PROJECTION` (`AFP-V0-088`), `DECLARED_DOCUMENTATION`
@@ -6269,12 +6388,19 @@ traceability table.
 | AFP-V0-601 | `goReadData`, `namedGoReadData`, `confinedReaders` and `driverInput` in `internal/liveverify/affected/select.go`, called from `seed` | `TestGoReadDataIsAttributedToItsReader_AFPV0601` (`ownership_test.go`: read-scope entry, declared subtree, read-scoped package subtree, hosted fixture, declared documentation, unattributed and root-scope paths), `TestEmbeddedDriverInputStaysUnowned_AFPV0601`, `TestUnconfinedReaderKeepsReadDataUnowned_AFPV0601` (`ownership_test.go`); `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`: unconfined then declared readers); `TestTestdataIsFixtureDataNotAPackage_AFPV0008` (`golang/golang_test.go`); measured counts in the build-log entry |
 | AFP-V0-602 | `readRuntimeReaders`, `validRuntimeReaderPath`, `runtimeReaderPaths` in `internal/liveverify/affected/runtime_readers.go`; `declarations`, `declarationsOf`, `digestBody.RuntimeReaders` in `graph.go`; `cacheEntry.RuntimeReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `declarationPath` in `documentation.go`; `selectPlan` in `select.go`; the repository declaration `.corvint/runtime-readers.json` | `TestDeclaredRuntimeReadersIsNonSourceNotUnknown_AFPV0602`, `TestDeclaredRuntimeReadersKeepsEveryReader_AFPV0602`, `TestRuntimeReadersDeclarationIsValidated_AFPV0602`, `TestRuntimeReadersDeclarationIsInTheDigest_AFPV0602`, `TestRuntimeReadersDeclarationIsCorvintDeclaration_AFPV0602`, `TestDeclaredRuntimeReadersLeavesDriversAndSelectionAlone_AFPV0602` (`runtime_readers_test.go`); the `runtime readers declaration appears at a path read as absent` row of `TestAFPV0392CacheFailsClosedOnAnyMismatch` (`graphcache_test.go`); `TestBatchReplayDeclaredRuntimeReaders_V12941` (`replay_v12941_test.go`, built over the repository with every plugin: batch 1028c and 1028a replays and a documentation-only plan); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-2941-runtime-readers-declaration.md` |
 | AFP-V0-603 | `Select` and `SelectStructural` in `internal/gateselect/select.go`; `plan` in `tools/corvint-pr-tests/main.go`; `CORVINT_TEST_SHADOW_SOURCE` in `.github/workflows/ci.yml` (rule (3)) | `TestDriverSelectionCoversTheShadow_V13067` (`internal/liveverify/affected/replay_v13067_test.go`: PR #1961 replay, `benchmarks/runner` pin; mutation-checked against `resolvedEvidence`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3067-driver-shadow-pin-skew.md` |
+| AFP-V0-725 | `localizeFixtureFrontier` (the `FrontierE2ERuntimeDependency` pass) and `collectedOutside` in `internal/liveverify/affected/typescript/fixture_frontier.go`, fed by the e2e configuration directories `observe` returns; the V1-3571 edges of `.corvint/runtime-edges.json` | `internal/liveverify/affected/typescript/fixture_e2e_frontier_test.go` TestFixtureE2ESiteIsTheFixtureUnitsOwn_AFPV0725, TestFixtureE2ESiteStaysPluginWide_AFPV0725; `internal/liveverify/affected/seal_only_selection_v13571_test.go` TestSealOnlyCEMDeltaStaysBounded_V13571 |
 | AFP-V0-604 | `shardLoads`, `staleShard`, `shardLoad` and the shard-balance lines of `report` in `tools/ci-shard-costs/main.go` | `TestAFPV0604ShardBalanceStaleTrigger`: a 500 s shard predicted at 100 s warns first and the summary lists both shards; a table refreshed from the same logs stays quiet; balanced shards never warn; `TestAFPV0040AdvisoryReportNeverFailsOnFindings` and `TestAFPV0041AdvisoryCombinesTestSlices` (an exact table over split packages does not warn); hosted run `NOT_OBSERVED` |
 | AFP-V0-987 | `changesCode` and its guard on the cross-language loop in `frontierUnknowns` (`internal/liveverify/affected/select.go`); the V1-3898 script entries in `.corvint/shell-foreign-callers.json` | `TestDeclaredDataAloneCarriesNoRuntimeEdge_AFP_V0_987`, `TestSealCommitPlanIsBounded_V13898` |
 | AFP-V0-818, AFP-V0-819 | `runtime_edges.go`, the cross-language loop in `frontierUnknowns`, `declarationsOf`, `applyRuntimeEdges` in `build` and the graph cache's declaration stamps in `internal/liveverify/affected`; `CrossLanguageFrontiers` in `internal/liveverify/affected/typescript/frontier_reach.go` | `TestCrossLanguageRuntimeFrontierIsNeverExcluded_AFP_V0_818`, `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819`, `TestRuntimeEdgesDeclarationRefusals_AFP_V0_819`, `TestGoServerChangeSelectsDeclaredE2ESpec_V12906`, `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`, `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819`, `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819`, `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819` |
 | AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
+| AFP-V0-820 | `WorktreeDirty` in `affectedReceipt` (`cmd/corvint/affected.go`); `Committed` and `Worktree` in `affectedSummary`, `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`); the text header in `cmd/corvint/affected_text.go` | `TestAFPV0820CleanTreeWithARangeReadsWorktreeZero` (a committed-only range reads `worktree=0` and `committed=dirty`; an edit reads `worktree=1`; the text header names it), `TestAFPV0510AffectedSummaryRestatesThePlan`, `TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions` and `TestAFPV0928AffectedFormatTextRestatesThePlan` and `TestPathListToleratesDirtyDocumentation_AFP_V0_832` (a tolerated documentation edit reads `worktree=0`) and the regenerated core-freeze goldens in `cmd/corvint` |
+| AFP-V0-821 | `deletedGoPackage` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go`; `WithSparseCheckout` in `graph.go`, set by `affectedSparseCheckout` in `cmd/corvint/affected.go` | `TestDeletedGoPackageIsAttributedToItsImporters_AFPV0821` in `internal/liveverify/affected/golang/deletedtests_test.go` (a deleted command package is `BOUNDED` with nothing selected; a deleted library package selects its importer's tests; a deleted file whose directory remains keeps `UNINDEXED_SOURCE_PATH`); `TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway` and `TestIndexedCoreVerbsCodeAPromisorObjectWithoutFetching` in `cmd/corvint/core_freeze_test.go` (a sparse clone keeps its out-of-cone paths `UNKNOWN`) |
+| AFP-V0-822 | `testRunInput` and `testScanMemo` in `cmd/corvint/test.go`; `StartIndex`, `SelectStructuralIndexed` in `internal/gateselect/select.go`; `ScanMemo` in `internal/gateselect/scanmemo.go`; `ScanMemoEntryPath`, `LoadScanMemo`, `StoreScanMemo`, `FileStamp` in `internal/liveverify/affected/scanmemo.go` | `TestAFPV0822DryRunCachedPlanMatchesUncached` in `cmd/corvint` (uncached, cold and warm plans byte-identical in stdout and manifest, before and after a source change; the warm run hits the graph cache and a memo is stored); `TestAFPV0822ScanMemoIndexMatchesTheFullScan` and `TestAFPV0822UnpinnedFilesAreNeverRecalled` in `internal/gateselect` |
+| AFP-V0-823 | `carries` and `gatedMemoEntry` in `internal/gateselect/scanmemo.go`; `carriesLiteral`, `readCarries` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go` | `TestAFPV0823GatedLocatorChecksAreRecalled` in `internal/gateselect` (cold and warm memo indexes equal the full scan, a warm index recalls an unreadable root-locating file and leaves the memo as it was, and a moved gate literal is read again; `TestAFPV0823MovedDeclaredGateIsCheckedAgain`: a declaration whose gate moved while every source byte stayed the same is checked again, and the warm index equals the uncached scan) |
+| AFP-V0-824 | `affectedObservation`, `affectedObserve` and `compileAffectedGraph` in `cmd/corvint/affected.go`; `testObserveSource` and `testRunInput` in `cmd/corvint/test.go` | `TestAFPV0824SharedObservationPlansAsItsOwnRead` in `cmd/corvint` (the shared observation plans the same receipt as the plan's own read, and a stale observation is refused as `unsupported-affected-drift`) |
+| AFP-V0-825 | `headRead`, `selfBinaryStaleAt` and `binaryStaleAgainst` in `cmd/corvint/self_binary.go`; `runTest` and `testObserveSourceAt` in `cmd/corvint/test.go` | `TestAFPV0825StaleCheckReusesThePlanHEAD` in `cmd/corvint` (fresh, stale and unverified verdicts and stderr lines equal the self-resolving check; a fresh binary spawns no Git process beyond an unstamped one, a stale or unverified one only its diff against the read revision); `TestAFPV0825StaleCheckJudgesTheReadRevision` (a stale binary stays stale after HEAD moves back to its commit; a failed read or one at or past the 2 s bound is unverified); `TestAFPV0825FailedOrSlowHEADReadIsUnverified` (a fail-once or 3 s shared read reports `self-binary-unverified` and the dry run still plans, exit 3); the last two fail before the codex fix |
 | AFP-V0-980 | `readExistenceReaders`, `manifestNames`, `existenceReaderUnits`, `existenceReadersOf`, `absent` in `internal/liveverify/affected/existence_readers.go`; `declarations`, `digestBody.ExistenceReaders` in `graph.go`; `cacheEntry.ExistenceReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `terminalWitness` in `select.go`; the repository declaration `.corvint/existence-readers.json` | `TestDeletedManifestNameSelectsExistenceReader_AFPV0980`, `TestExistenceReadersDeclarationIsValidated_AFPV0980` (`internal/liveverify/affected/golang/existence_readers_test.go`, the first fails before the change); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980` (`cmd/corvint/affected_existence_readers_unix_test.go`: `corvint affected`, the gate selector the CI driver runs on its receipt, and the shadow `corvint test --dry-run` all select the reader; fails before the change); build log 2026-11-01-rts-w9 |
 | AFP-V0-981 | `statReaders` and its call in `check`, `tools/test-read-scopes-check/main.go` | `TestStatOfDataDerivedPathFails_V1_3772` (`tools/test-read-scopes-check/main_test.go`); on this repository the check found `internal/observations` (`TestFixedFrontierDegradationIsReportedByDesign` stats the decision records `degradationByDesign` names), now declared |
 | AFP-V0-982 | `AllowedUnknown` and `UnobservedModule` in `internal/gateselect/allowlist.go`, called by `unknownNarrowing` in `select.go` and `allowedUnknown`/`moduleDirectory` in `internal/sessiontest/plan.go`; `make selection-baseline-check` keeps its floor of 12 | `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest/allowlist_afpv0982_test.go`: every planner unknown reason against every Go frontier detail and non-Go frontiers; five entries diverged before the change); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` unchanged |

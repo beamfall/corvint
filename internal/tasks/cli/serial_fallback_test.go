@@ -149,6 +149,7 @@ func TestCALV0192_UnboundedEffectsWarn(t *testing.T) {
 // exhausted, when a kept non-PATH resource collides, or when it waits behind a
 // WHOLE_REPOSITORY holder, since declaring a PATH scope would not admit it.
 func TestCALV0193_SerialFallbackDeferralIsReported(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	const scoped = `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":["src/"]}`
 	const empty = `{"coverage":"QUALIFIED","externalUnbounded":false,"resources":[],"touchPaths":[]}`
 	queueList := func(t *testing.T, root string, args ...string) []string {
@@ -279,6 +280,7 @@ func TestCALV0211_SetEffectsWarnsOnExactDirectoryKey(t *testing.T) {
 // warning on fresh CREATE and REFINE (including batch entries), without
 // rewriting effects or warning on replay (V1-1125).
 func TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	for _, tc := range []struct {
 		name, effects string
 		warn          bool
