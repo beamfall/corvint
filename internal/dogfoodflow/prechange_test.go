@@ -202,7 +202,8 @@ func TestDCWV0881ChangeVerifiesPrechangeBinding(t *testing.T) {
 			}
 		}, []string{"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-binding-mismatch"}},
 		{"other base", func() { editBinding(func(b *prechangeBinding) { b.Base = strings.Repeat("0", 40) }) },
-			[]string{"dogfood-change: NOTE prechange-query STALE agent-receipt-binding-other-base base=" + strings.Repeat("0", 40)}},
+			[]string{"dogfood-change: NOTE prechange-query STALE agent-receipt-binding-other-base base=" + strings.Repeat("0", 40),
+				"  fix: BASE " + base + " does not descend from the receipts' base " + strings.Repeat("0", 40) + "; rerun with the BASE this lane started from, or after a mid-lane merge see docs/DOGFOOD.md, Mid-lane base change"}},
 		{"other worktree", func() { editBinding(func(b *prechangeBinding) { b.GitDir = "/elsewhere/.git" }) },
 			[]string{"dogfood-change: NOTE prechange-impact NOT_OBSERVED agent-receipt-wrong-worktree"}},
 		{"malformed binding", func() {
@@ -229,5 +230,37 @@ func TestDCWV0881ChangeVerifiesPrechangeBinding(t *testing.T) {
 				t.Errorf("exit %d, report changed=%t; want exit %d and the same report", code, !bytes.Equal(report, wantReport), wantCode)
 			}
 		})
+	}
+}
+
+// DCW-V0-925 (V1-3779): after a mid-lane merge moves BASE to a descendant of
+// the base the pre-change receipts were bound to, dogfood change keeps each
+// receipt's STALE not-base-tree note and names the recovery once: the receipts describe the pre-edit
+// context at the old base and no rebind exists.
+func TestDCWV0925MidLaneMergeNamesTheReceiptRecovery(t *testing.T) {
+	root, base, baseTree, _ := prechangeRepo(t)
+	var commands [][]string
+	if code, err := Prechange(context.Background(), PrechangeOptions{Root: root, Base: base, Paths: []string{"a.txt"}, Steps: prechangeReads(baseTree, &commands)}, io.Discard, io.Discard); err != nil || code != 0 {
+		t.Fatalf("prechange = %d, %v", code, err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "b.txt"), []byte("mainline\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "b.txt")
+	testGit(t, root, "commit", "-q", "-m", "mainline moved")
+	moved := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("changed\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int { return 1 }}
+	var stderr bytes.Buffer
+	if _, err := Change(context.Background(), ChangeOptions{Root: root, Base: moved, Steps: steps}, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	out := stderr.String()
+	fix := "  fix: BASE " + moved + " descends from the receipts' base " + base + ", so the lane merged its mainline after its pre-change reads; keep BASE=" + moved + ": the receipts still describe the pre-edit context at " + base + ", no rebind exists, and this note changes no row or exit status (docs/DOGFOOD.md, Mid-lane base change)\n"
+	if !strings.Contains(out, "NOTE prechange-query STALE agent-receipt-not-base-tree tree="+baseTree+" ") || strings.Count(out, fix) != 1 {
+		t.Fatalf("mid-lane merge notes:\n%s", out)
 	}
 }

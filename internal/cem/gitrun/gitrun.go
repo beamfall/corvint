@@ -267,6 +267,17 @@ func RunReserved(ctx context.Context, perOp time.Duration, options Options, args
 	return runReservedStream(ctx, perOp, options, nil, args...)
 }
 
+// RunReservedStream is RunReserved with stdout sent to consumer, as
+// RunStream sends it: a Session answer that must replay a streamed one-shot
+// invocation charges its logical operation once.
+func RunReservedStream(ctx context.Context, perOp time.Duration, options Options, consumer io.Writer, args ...string) error {
+	if consumer == nil {
+		return cemcode.New(cemcode.InvalidArguments, "Git stdout consumer is required")
+	}
+	_, err := runReservedStream(ctx, perOp, options, consumer, args...)
+	return err
+}
+
 func runReservedStream(ctx context.Context, perOp time.Duration, options Options, consumer io.Writer, args ...string) ([]byte, error) {
 	operation := OperationBudgetFrom(ctx)
 	if operation != nil {
@@ -686,6 +697,15 @@ func (st *stableState) rewrite(ordinal int, replay bool, binary string, args []s
 // budget as a one-shot child. It charges nothing and keeps the deadline.
 func RunReservation(ctx context.Context, budget *Budget, reservation Reservation, options Options, args ...string) ([]byte, error) {
 	return runOwned(ctx, budget.stable, reservation, true, options, nil, args...)
+}
+
+// RunReservationStream is RunReservation with stdout sent to consumer.
+func RunReservationStream(ctx context.Context, budget *Budget, reservation Reservation, options Options, consumer io.Writer, args ...string) error {
+	if consumer == nil {
+		return cemcode.New(cemcode.InvalidArguments, "Git stdout consumer is required")
+	}
+	_, err := runOwned(ctx, budget.stable, reservation, true, options, consumer, args...)
+	return err
 }
 
 // runOwned runs one child under a groupreap.Owner. Every cause is latched and

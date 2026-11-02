@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // countFullVerifications counts the full stable verifications until the test
@@ -192,7 +193,7 @@ func TestOCMV0027ReuseMissesOnVerifierOrArtifactChange(t *testing.T) {
 // and disables reuse; Linux reads the running image itself instead.
 func TestOCMV0027ReplacedExecutableHasNoIdentity(t *testing.T) {
 	staged := filepath.Join(t.TempDir(), "staged")
-	if err := os.WriteFile(staged, []byte("verifier\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(staged, []byte("verifier\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	before := time.Now().Add(-time.Hour)

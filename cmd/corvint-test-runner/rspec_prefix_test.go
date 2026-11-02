@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/registry"
 )
@@ -66,7 +67,7 @@ func TestContainerisedRSpecPlanRunReceipt(t *testing.T) {
 	if e = os.MkdirAll(filepath.Dir(exe), 0700); e != nil {
 		t.Fatal(e)
 	}
-	if e = os.WriteFile(exe, script, 0700); e != nil {
+	if e = execfile.WriteFile(exe, script, 0700); e != nil {
 		t.Fatal(e)
 	}
 	root := filepath.Join(dir, "app")

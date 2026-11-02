@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/goplsclient"
 	"github.com/Beamfall/corvint/internal/lspsnapshot"
 	"io"
@@ -182,7 +183,7 @@ func semanticHarnessOptions(t *testing.T, mode string, guard bool) *semanticHarn
 		fixtureGit(t, root, "-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "commit", "--allow-empty", "-qm", "fixture")
 	}
 	binary := filepath.Join(scratch, "gopls")
-	if e = os.WriteFile(binary, []byte("#!/bin/sh\nexport CORVINT_SEMANTIC_FAKE="+mode+"\nexport CORVINT_SEMANTIC_SCRATCH='"+scratch+"'\nexec '"+exe+"' -test.run '^TestSemanticHost$' -- serve\n"), 0700); e != nil {
+	if e = execfile.WriteFile(binary, []byte("#!/bin/sh\nexport CORVINT_SEMANTIC_FAKE="+mode+"\nexport CORVINT_SEMANTIC_SCRATCH='"+scratch+"'\nexec '"+exe+"' -test.run '^TestSemanticHost$' -- serve\n"), 0700); e != nil {
 		t.Fatal(e)
 	}
 	if mode == "live" {

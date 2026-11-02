@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -121,6 +122,49 @@ func explain(graph *affected.Graph, id string) string {
 	return fmt.Sprintf("%s: import chain %s; %s is the unbounded reader (%s)", id, strings.Join(edges, ", "), chain[0], reads)
 }
 
+// sourceLine matches a shell `source`, `.` or bats `load` command and its
+// target word.
+var sourceLine = regexp.MustCompile(`^\s*(?:source|\.|load)\s+("[^"]*"|'[^']*'|\S+)`)
+
+// dynamicSources names, as file:line hints, each `source`, `.` or `load` line
+// of the unit whose own read is shell:dynamic-source, the unit's import chain
+// ends at, with a computed target (ASD-V0-614): the line and the literal path
+// that would bound it, or, for a script that sources itself through "$0", the
+// helper file that would.
+func dynamicSources(root string, graph *affected.Graph, id string) []string {
+	chain, _ := graph.UnboundedChain(id)
+	if len(chain) == 0 {
+		return nil
+	}
+	unit, ok := graph.Unit(chain[0])
+	if !ok || unit.UnboundedReads != shell.UnboundedDynamicSource {
+		return nil
+	}
+	var hints []string
+	for _, file := range unit.Tests {
+		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(file)))
+		if err != nil {
+			continue
+		}
+		for number, line := range strings.Split(string(body), "\n") {
+			match := sourceLine.FindStringSubmatch(line)
+			if match == nil || !strings.Contains(match[1], "$") {
+				continue
+			}
+			target := strings.Trim(match[1], `"'`)
+			hint := fmt.Sprintf("  %s:%d sources %s, a computed path (%s): spell it as a literal path, such as \"$(dirname \"$0\")/NAME.sh\" or a repository-relative path, or add %q to units in %s with a reasons entry naming the read",
+				file, number+1, match[1], shell.UnboundedDynamicSource, file, recordPath)
+			if target == "$0" || target == "${0}" || target == "${BASH_SOURCE[0]}" {
+				hint = fmt.Sprintf("  %s:%d sources itself through %s, a computed path (%s): move the functions it shares into a helper file beside it and source that by a literal path, such as \"$(dirname \"$0\")/NAME-lib.sh\", or add %q to units in %s with a reasons entry naming the read",
+					file, number+1, match[1], shell.UnboundedDynamicSource, file, recordPath)
+			}
+			// V1-4117: the shell declaration is no route for this read.
+			hints = append(hints, hint+fmt.Sprintf("; %s bounds only %s units (TSP-V0-950)", affected.ShellReadScopesPath, shell.UnboundedRunsToolchain))
+		}
+	}
+	return hints
+}
+
 func run(root string, stdout, stderr io.Writer) int {
 	root, err := filepath.Abs(root)
 	if err != nil {
@@ -173,8 +217,15 @@ func run(root string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unbounded-readers: %v are selected on every change and are not in units of %s. Declare each package's reads in %s (AFP-V0-023) or keep them inside its directory; add it to units only when neither is possible, as for a package whose tests launch a nested sandbox recorded in .corvint/test-nested-sandboxes.json (AFP-V0-615); a shell test is registered as described in docs/SHELL-TEST-REGISTRATION.md.\n",
 			unrecorded, recordPath, affected.ReadScopesPath)
 		for _, directory := range slices.Compact(slices.Clone(unrecorded)) {
+			// V1-3780, TSP-V0-723: name the record's entry shape, so the last-resort
+			// route needs no reading of the record's reader first.
+			fmt.Fprintf(stderr, "  %s: to record it, insert %q into units of %s in ascending order and add %q: \"<the unbounded read, and why %s cannot declare it>\" to its reasons\n",
+				directory, directory, recordPath, directory, affected.ReadScopesPath)
 			for _, id := range ids[directory] {
 				fmt.Fprintf(stderr, "  %s\n", explain(graph, id))
+				for _, hint := range dynamicSources(root, graph, id) {
+					fmt.Fprintln(stderr, hint)
+				}
 				if unit, ok := graph.Unit(id); ok && unit.UnboundedReads == shell.UnboundedRunsToolchain {
 					// V1-3320, TSP-V0-951: a toolchain-running shell unit is bounded by
 					// the shell read-scope declaration, else recorded in units.

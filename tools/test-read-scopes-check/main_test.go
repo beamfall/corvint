@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -509,6 +510,196 @@ func TestOwnPackageBuildNamesRemedies_V1_3658(t *testing.T) {
 		output := stdout.String() + stderr.String()
 		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
 			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
+		}
+	}
+}
+
+// TestASDV0982ParseFileAndGoListAreMemoizedPerRun pins ASD-V0-982: a test file
+// is parsed once per name and content, an edited body is parsed afresh, and the
+// next check run starts with empty memos.
+func TestASDV0982ParseFileAndGoListAreMemoizedPerRun(t *testing.T) {
+	clear(parsedFiles)
+	body := []byte("package p\n\nfunc f() {}\n")
+	_, first, err := parseFile("p_test.go", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, again, _ := parseFile("p_test.go", append([]byte(nil), body...)); again != first {
+		t.Fatal("the same name and content were parsed twice")
+	}
+	if _, edited, _ := parseFile("p_test.go", []byte("package p\n\nfunc g() {}\n")); edited == first {
+		t.Fatal("an edited body returned the earlier syntax tree")
+	}
+	listedDependencies["k"] = nil
+	root := repository(t, "", "")
+	if _, _, err := check(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := listedDependencies["k"]; ok {
+		t.Fatal("check kept the go list memo of an earlier run")
+	}
+	if _, ok := parsedFiles[parsedKey{"p_test.go", string(body)}]; ok {
+		t.Fatal("check kept the parse memo of an earlier run")
+	}
+}
+
+// ASD-V0-610, V1-4117 case 1: a package whose tests find the repository root
+// by walking up with filepath.Dir until go.mod exists, or by climbing from a
+// runtime.Caller path with nested Dir calls, reads its tokens from the root,
+// as a parent-only literal makes it, so filepath.Join(root, "docs/...") is
+// checked; the finding names the climb.
+func TestRootClimbMakesTokensRootRelative_ASD_V0_610(t *testing.T) {
+	walk := "package walk\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\n" +
+		"func moduleRoot() string {\n\tdirectory, _ := os.Getwd()\n\tfor {\n" +
+		"\t\tif _, err := os.Stat(filepath.Join(directory, \"go.mod\")); err == nil {\n\t\t\treturn directory\n\t\t}\n" +
+		"\t\tdirectory = filepath.Dir(directory)\n\t}\n}\n\n" +
+		"func TestRead(t *testing.T) {\n\t_, _ = os.ReadFile(filepath.Join(moduleRoot(), \"docs/fixture/spec.md\"))\n}\n"
+	caller := "package caller\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"runtime\"\n\t\"testing\"\n)\n\n" +
+		"func TestRead(t *testing.T) {\n\t_, file, _, _ := runtime.Caller(0)\n" +
+		"\troot := filepath.Dir(filepath.Dir(filepath.Dir(file)))\n" +
+		"\t_, _ = os.ReadFile(filepath.Join(root, \"docs/fixture/spec.md\"))\n}\n"
+	// Two Dir calls from internal/shallow stop at internal/, not the root.
+	shallow := strings.Replace(strings.ReplaceAll(caller, "caller", "shallow"), "filepath.Dir(filepath.Dir(filepath.Dir(file)))", "filepath.Dir(filepath.Dir(file))", 1)
+	for name, c := range map[string]struct {
+		pkg, test, entries string
+		code               int
+		want               string
+	}{
+		"walk undeclared":   {"internal/walk", walk, `"go.mod"`, 1, "package internal/walk: internal/walk/walk_test.go names docs/fixture/spec.md, outside its entries"},
+		"walk named":        {"internal/walk", walk, `"go.mod"`, 1, "internal/walk/walk_test.go:11 walks up with Dir until go.mod exists, which locates the root"},
+		"walk declared":     {"internal/walk", walk, `"docs/fixture/spec.md","go.mod"`, 0, "test-read-scopes-check: ok"},
+		"caller undeclared": {"internal/caller", caller, `"go.mod"`, 1, "internal/caller/caller_test.go:12 climbs 2 directories from a runtime.Caller path, which locates the root"},
+		"caller declared":   {"internal/caller", caller, `"docs/fixture/","go.mod"`, 0, "test-read-scopes-check: ok"},
+		"caller short":      {"internal/shallow", shallow, `"go.mod"`, 0, "test-read-scopes-check: ok"},
+	} {
+		base := path.Base(c.pkg)
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"docs/fixture/spec.md":           "# spec\n",
+			c.pkg + "/p.go":                  "package " + base + "\n",
+			c.pkg + "/" + base + "_test.go":  c.test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"` + c.pkg + `":[` + c.entries + `]}}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q", name, code, c.code, output, c.want)
+		}
+	}
+}
+
+// ASD-V0-611, V1-4117 case 2: a go build of "../../cmd/"+pkg inside a range
+// over a []string of literal names loads only those commands, the
+// internal/perfbudget shape, not every package under cmd/.
+func TestRangeConcatenationNarrowsBuildTargets_ASD_V0_611(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package trial\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestBuilds(t *testing.T) {\n\tfor _, pkg := range []string{\"a\"} {\n" +
+		"\t\t_ = exec.Command(\"go\", \"build\", \"-o\", \"bin\", \"" + up + up + "cmd/\"+pkg)\n\t}\n}\n"
+	for name, c := range map[string]struct {
+		entries     string
+		code        int
+		want, never string
+	}{
+		"named only": {`"cmd/a/","go.mod","internal/dep/"`, 0, "test-read-scopes-check: ok", "internal/other"},
+		"undeclared": {`"cmd/a/","go.mod"`, 1, "builds repository source with go, which reads internal/dep, outside", "internal/other"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/dep/d.go":              "package dep\n",
+			"internal/other/o.go":            "package other\n",
+			"cmd/a/main.go":                  "package main\n\nimport _ \"example.test/m/internal/dep\"\n\nfunc main() {}\n",
+			"cmd/b/main.go":                  "package main\n\nimport _ \"example.test/m/internal/other\"\n\nfunc main() {}\n",
+			"tools/trial/t.go":               "package trial\n",
+			"tools/trial/trial_test.go":      test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"tools/trial":[` + c.entries + `]}}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
+		}
+	}
+}
+
+// ASD-V0-612, V1-4117 case 3: a go command target that names no repository
+// directory is a finding of its package, not an abort, so one run reports it
+// for every package and still reports the other findings.
+func TestUnresolvedGoTargetsAreAllReported_ASD_V0_612(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	build := func(pkg string) string {
+		return "package " + pkg + "\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+			"func TestBuilds(t *testing.T) {\n\t_ = exec.Command(\"go\", \"build\", \"./absent\")\n}\n"
+	}
+	files := map[string]string{
+		"go.mod":               "module example.test/m\n\ngo 1.27\n",
+		"internal/x/x.go":      "package x\n",
+		"internal/x/x_test.go": build("x"),
+		"internal/y/y.go":      "package y\n",
+		"internal/y/y_test.go": build("y"),
+		"internal/z/z.go":      "package z\n",
+		"internal/z/z_test.go": "package z\n\nimport (\n\t\"os\"\n\t\"testing\"\n)\n\n" +
+			"func TestRead(t *testing.T) {\n\t_, _ = os.ReadFile(\"" + up + up + "docs/fixture/spec.md\")\n}\n",
+		"docs/fixture/spec.md":           "# spec\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"internal/x":["go.mod"],"internal/y":["go.mod"],"internal/z":["go.mod"]}}`,
+	}
+	var stdout, stderr bytes.Buffer
+	code := run(writeRepository(t, files), &stdout, &stderr)
+	output := stdout.String() + stderr.String()
+	if code != 1 {
+		t.Fatalf("code=%d want 1: %s", code, output)
+	}
+	for _, want := range []string{
+		"package internal/x: internal/x/x_test.go runs a go command on ./absent, which names no repository directory; spell the target as a literal package path",
+		"package internal/y: internal/y/y_test.go runs a go command on ./absent, which names no repository directory",
+		"package internal/z: internal/z/z_test.go names docs/fixture/spec.md, outside",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output lacks %q:\n%s", want, output)
+		}
+	}
+}
+
+// ASD-V0-613, V1-4152: in a package whose tests locate the root, a path that
+// is expected text, an argument of t.Errorf, the searched-for argument of
+// strings.Contains, or an operand of ==, names no read; the same path passed
+// to os.ReadFile, even inside an assertion, or in any other literal of the
+// file is still refused.
+func TestAssertionLiteralNamesNoRead_ASD_V0_613(t *testing.T) {
+	files := func(test string) map[string]string {
+		return map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"docs/specs/a.md":                "# a\n",
+			"p/p.go":                         "package p\n",
+			"p/root_test.go":                 "package p\n\nvar top = \"" + up + "\"\n",
+			"p/p_test.go":                    test,
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"p":[]}}`,
+		}
+	}
+	head := "package p\n\nimport (\n\t\"os\"\n\t\"strings\"\n\t\"testing\"\n)\n\nfunc TestT(t *testing.T) {\n\tout := \"\"\n\t_ = os.Args\n"
+	for name, c := range map[string]struct {
+		body string
+		code int
+	}{
+		"errorf":       {"\tt.Errorf(\"want docs/specs/a.md, got %s\", out)\n\tt.Error(\"docs/specs/a.md\")\n", 0},
+		"contains":     {"\tif !strings.Contains(out, \"docs/specs/a.md\") {\n\t\tt.Fail()\n\t}\n", 0},
+		"bytes":        {"\t_ = strings.HasSuffix(out, string([]byte(\"docs/specs/a.md\")))\n", 0},
+		"equal":        {"\tif out != \"docs/specs/a.md\" {\n\t\tt.Fail()\n\t}\n", 0},
+		"read in call": {"\t_, err := os.ReadFile(\"docs/specs/a.md\")\n\tt.Log(err)\n", 1},
+		"read inside":  {"\tt.Log(os.ReadFile(\"docs/specs/a.md\"))\n", 1},
+		"first arg":    {"\t_ = strings.Contains(\"docs/specs/a.md\", out)\n", 1},
+		"also read":    {"\tt.Errorf(\"docs/specs/a.md\")\n\t_, _ = os.ReadFile(\"docs/specs/a.md\")\n", 1},
+	} {
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files(head+c.body+"}\n")), &stdout, &stderr)
+		if code != c.code {
+			t.Errorf("%s: code=%d want %d; stderr %q", name, code, c.code, stderr.String())
 		}
 	}
 }

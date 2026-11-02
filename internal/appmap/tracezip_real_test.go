@@ -2,6 +2,7 @@ package appmap
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -48,5 +49,39 @@ func TestOUEV0058RealPlaywright164Traces(t *testing.T) {
 	}
 	if visits != 3 {
 		t.Fatalf("multi visits %d: %+v", visits, docs)
+	}
+}
+
+// OUE-V0-685 (V1-2723): a real Playwright 1.63.0 chromium trace carries the ARIA YAML only as
+// the after.result.snapshot of a Frame.ariaSnapshot call; it yields one scrubbed structure
+// digest for the screen, and a trace without such a call yields none.
+func TestOUEV0685RealPlaywrightAriaSnapshotResult(t *testing.T) {
+	raw, err := ObserveUIRecords(uiTestMap(), nil, "", []UITraceInput{{TestKey: "aria", File: "testdata/pw163-aria/aria.zip"}}, uiTestRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rec UIRecords
+	if err = json.Unmarshal(raw, &rec); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.Traces) != 1 || rec.Traces[0].AriaSnapshots != 1 || rec.Traces[0].AriaOversized != 0 {
+		t.Fatalf("traces: %+v", rec.Traces)
+	}
+	if len(rec.Structures) != 1 || rec.Structures[0].Screen == "" || strings.HasPrefix(rec.Structures[0].Screen, "unknown:") {
+		t.Fatalf("structures: %+v", rec.Structures)
+	}
+	if strings.Contains(string(raw), "Members") || strings.Contains(string(raw), "Save") {
+		t.Fatalf("ARIA text leaked: %s", raw)
+	}
+	raw, err = ObserveUIRecords(uiTestMap(), nil, "", []UITraceInput{{TestKey: "single", File: "testdata/pw164/single-context.zip"}}, uiTestRevision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec = UIRecords{}
+	if err = json.Unmarshal(raw, &rec); err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.Structures) != 0 || rec.Traces[0].AriaSnapshots != 0 {
+		t.Fatalf("pw164 single has no ariaSnapshot call: %+v", rec.Structures)
 	}
 }

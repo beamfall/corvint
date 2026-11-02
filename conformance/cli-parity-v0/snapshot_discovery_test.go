@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const snapshotCombinedCall = "rev-parse --path-format=absolute --git-dir --git-common-dir"
@@ -316,7 +318,7 @@ func snapshotLoggedGit(t *testing.T, git sanitizedGit, body string) (sanitizedGi
 	directory := t.TempDir()
 	script := "#!/bin/sh\ndiscovery=" + snapshotShellQuote(directory) + "\nprintf '%s\\n' \"$*\" >> \"$discovery/calls\"\n" + body
 	path := filepath.Join(directory, "git")
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	git.executable = path

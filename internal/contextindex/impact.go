@@ -108,6 +108,9 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	// Ruby autoload-convention constants (NGI-V0-016 to NGI-V0-021, NGI-V0-033
 	// to NGI-V0-039) are indexed once, under the syntax profile a Ruby path selects.
 	var rubyConstants *rubyAutoload
+	// Swift, Kotlin and C# module-membership reverse references
+	// (NGI-V0-980 to NGI-V0-987) are read once per request, on first use.
+	var modules *moduleReading
 	typeOnlyKinds := make(map[string]map[string]bool)
 	for _, changedPath := range cleaned {
 		source := index.Sources[changedPath]
@@ -173,6 +176,12 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 			rows, unknowns := rubyConstants.impact(index, changedPath)
 			ranked = append(ranked, rows...)
 			registryUnknowns[changedPath] = append(registryUnknowns[changedPath], unknowns...)
+		}
+		if ModuleRuleLanguage(changedPath) != "" {
+			if modules == nil {
+				modules = newModuleReading(index)
+			}
+			ranked = append(ranked, modules.impact(changedPath)...)
 		}
 		for _, reference := range packageReferences {
 			if index.isTest(reference.path) {
@@ -382,6 +391,10 @@ func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[s
 	// A mapped Ruby path has a named reverse-reference rule (NGI-V0-036), so
 	// the coverage it is compiled under withholds the profile gap for it.
 	index = index.withRubyMapped(cleaned, rubyConstants)
+	// A path a module reading resolves likewise has a named rule
+	// (NGI-V0-984); its precision limits are disclosed instead (NGI-V0-985).
+	disclosures = append(disclosures, modules.disclosures()...)
+	index = index.withModuleMapped(modules)
 	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
 	if err == nil && syntaxFrontier {
 		// The Ruby reading (nil when no Ruby path was requested) supplies the

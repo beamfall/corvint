@@ -212,6 +212,31 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `UNINITIALIZED`. The `DIR` tree is digested again after the snapshot is built, as an inventory
   read is: a changed tree is read afresh, and after four changed reads the command is refused
   `SNAPSHOT_MOVED` with nothing written.
+- `TCL-V0-800`: (V1-3958; supersedes the "MUST NOT synthesize" clause of `CAL-V0-250`) A
+  `submitMutation` verb run without `--issued-at` under a recorded `--request-id` MUST, before it
+  writes, rebuild its envelope with the candidate seconds `CAL-V0-250` and `ATR-V0-275` name (the
+  recordedAt of the receipt the request-index entry names, then the recorded ticket's createdAt
+  and updatedAt, each also up to two seconds earlier). When one rebuilt envelope has exactly the
+  recorded mutation digest, the write MUST use that `issuedAt`, so the retry replays (`replayed:
+  true`, the original ticket) and adds one warning naming the reused `issuedAt`. A request that
+  differs in payload, actor, role, target or revision never matches and still refuses
+  `REQUEST_ID_CONFLICT` with the `CAL-V0-250` digest-inputs warning. No wire code, result field or
+  journal format changes. `--batch`, multi-target and other verbs that take one shared `issuedAt`
+  already print it for the retry and are unchanged.
+- `TCL-V0-801`: (V1-3606) The CLI's shared flag parser MUST accept declared boolean flags: a
+  declared boolean takes no value and reads as set when present, and `--name=VALUE` on one is
+  refused `MALFORMED` naming the flag. A verb with a boolean flag MUST declare it to the parser
+  instead of removing it from argv by hand; `ticket delivery-screen` declares `--lane-refs` and
+  the no-op `--json`. Value flags parse unchanged.
+- `TCL-V0-802`: (V1-3948) The `taskman-policy/0` fields `reviewLane.required`,
+  `docsLane.required`, `cemRequired`, `ocmRequired` and `capacity.classes` are RESERVED: the
+  store parses and validates them, but no claim, submit, gate, review or completion path reads
+  them, so a value changes no outcome. `policy show`, and `policy update` when it commits, MUST add
+  one warning naming each reserved field the policy sets to a non-default value (`true`, or a
+  non-empty class list); a policy that sets none adds no warning. Values stay accepted, so
+  existing stores (including ones that set `reviewLane.required: true`) keep loading. Enforcing
+  any of these fields is an owner policy decision outside this requirement; until a spec defines
+  its enforcement, the field stays reserved.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -321,6 +346,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/similar_test.go`: `TestTCLV0001_SimilarRanksWithEvidence`,
   `TestTCLV0004_CreateGuard`, `TestTCLV0005_DigestAndOfflineMatch`,
   `TestTCLV0007_RecurAppendsOneLine`.
+- `internal/tasks/cli/create_retry_issued_at_test.go`: `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`
+  (create retry replays; a changed payload still conflicts), `TestTCLV0800_RefineRetryReplays`,
+  `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-800).
+- `internal/tasks/cli/flags_boolean_internal_test.go`: `TestTCLV0801_DeclaredBooleanFlags`;
+  `internal/tasks/cli/delivery_screen_test.go` keeps `--lane-refs` green (TCL-V0-801).
+- `internal/tasks/intent/reserved_policy_test.go`: `TestTCLV0802_ReservedPolicyFields`;
+  `internal/tasks/cli/reserved_policy_cli_test.go`:
+  `TestTCLV0802_PolicyShowAndUpdateWarnReservedFields` (TCL-V0-802).
 - `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
 - `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
   (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).

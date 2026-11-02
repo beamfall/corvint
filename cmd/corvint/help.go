@@ -897,7 +897,7 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
@@ -905,7 +905,7 @@ Usage:
   corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -938,7 +938,8 @@ degradations, present only when it applies, names self-binary-stale: inside
 its own repository this binary was built from a commit whose Go source differs
 from HEAD, so the plan may not be the one current source gives, or
 self-binary-unverified when that comparison could not complete; stderr repeats
-it with the rebuild command (AFP-V0-846).
+it with the rebuild command (AFP-V0-846), except when stdout and stderr are
+one pipe or file (2>&1), so the document still parses (AFP-V0-871).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
@@ -958,6 +959,13 @@ count and digest, and one "check KIND COMMAND" line per advice check with the
 advisory packages appended. It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
+the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
+tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
+degradations and warning; --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
+It never changes the selection.
+Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
@@ -1128,6 +1136,20 @@ A dirty path that .corvint/runtime-readers.json declares (AFP-V0-602) is listed
 in plan.nonSource as DECLARED_RUNTIME_READERS with the entry's own reason, not
 as UNOWNED_DIRTY_PATH; the units that embed, enclose, name or read it are still
 selected.
+.corvint/playwright-unreached-paths.json (TJAA-V0-106, AFP-V0-874) lists the
+source paths the Playwright suite cannot reach, even through the application
+under test. Without it, a dirty TypeScript or JavaScript path that reaches no
+Playwright test by a static edge raises playwright:out-of-suite-source and the
+plan runs the full suite. Schema: a closed JSON object of at most 64 KiB,
+{"profile":"corvint-playwright-unreached-paths/0","paths":[...]}, at most 256
+strictly ascending repository-relative files or /-ended directories, none under
+.corvint/. Example:
+  {"profile":"corvint-playwright-unreached-paths/0","paths":["scripts/","tools/seed.ts"]}
+Effect: a matched dirty path is excluded, and recorded in plan.declaration, only
+when the Playwright closure provably leaves it out; a matched path the closure
+may load (its unit is in the closure, it is the config, or membership is
+incomplete) refuses the record and raises a second playwright:out-of-suite-source
+unknown naming the path. An invalid file is an error, never an empty list.
 --playwright-env (repeatable, requires --playwright-config, not with --snapshot)
 records one environment variable in plan.environment with its value and SHA-256:
 NAME=VALUE is a value the caller supplies, and NAME reads only that variable from
@@ -1888,6 +1910,14 @@ Language capabilities (syntax evidence, never complete runtime impact):
                                           advisory autoload constant references, two hops.
   JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
   TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
+  Swift       .swift                      path; SwiftPM target-module imports and
+                                          same-target references (one hop).
+  Kotlin      .kt                         path; package imports of declared names and
+                                          same-package references; .kts NOT_SUPPORTED.
+  C#          .cs                         path; using/static/alias directives and
+                                          enclosing-namespace references; .csproj NOT_SUPPORTED.
+  Swift, Kotlin and C# rows carry their precision limits as coverage uncertainty;
+  range impact and the historical packet budget do not use them.
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
@@ -1958,9 +1988,11 @@ Options:
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
   --capabilities             Print the corvint-impact-capabilities/0 listing and
                              exit: suffixes with a reverse-import rule, suffixes
-                             admitted without one, the per-call limits, derived
-                             from the admission tables, and the reverse-import
-                             closure depth. Takes no other argument.
+                             admitted without one, those of them with a
+                             Swift/Kotlin/C# module reference rule, the
+                             per-call limits, derived from the admission
+                             tables, and the reverse-import closure depth.
+                             Takes no other argument.
   --producer                 Add one "producer" member (version, build, commit,
                              commitState) to the receipt; an unknown member reads
                              "unknown" and an unstamped build reads "unstamped".
@@ -2065,7 +2097,9 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN | --from-cem CEM] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM] BASE
+  corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
+    [--draft DRAFT] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
@@ -2180,6 +2214,17 @@ For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > pla
 hunks becomes a cite row per basis, its byte span read as BASE lines at the CEM's
 base, or an unknown row with the CEM's reason. It cannot be combined with --refresh
 (refresh-source-conflict), and an unreadable CEM is refused from-cem-unreadable.
+
+record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed
+claims in --claims FILE, the only file it writes: each row is kept with its hunk's
+path, content and BASE range and the hash of the BASE text it cites. A cite row of
+--draft DRAFT, or of the earlier claims file, that the plan dropped is kept as a
+tombstone and never drafted again (CKC-V0-003, CKC-V0-007). --refresh FILE given
+a claims file compiles each claim onto the one current hunk with the same path,
+content and BASE range, relocated by its unique BASE text when BASE moved, and
+prints an ordinary hunk-ID plan; a duplicate, split, merged, changed or unlocated
+edit is drafted afresh with a REASSESS note naming its earlier rows (CKC-V0-004,
+CKC-V0-005).
 
 prechange records the agent pre-change receipts before the first edit, while
 HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context

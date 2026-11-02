@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	"github.com/Beamfall/corvint/internal/testplatform"
 	"github.com/Beamfall/corvint/internal/testsupport"
@@ -290,7 +291,7 @@ func TestRunReportsUnsupportedWithoutPytest(t *testing.T) {
 		t.Skip("python3 is not available")
 	}
 	wrapper := filepath.Join(t.TempDir(), "python3")
-	if err := os.WriteFile(wrapper, []byte("#!/bin/sh\nexec "+python+" -S \"$@\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte("#!/bin/sh\nexec "+python+" -S \"$@\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	root, revision := standardFixture(t, git, fixtureCalcTest)

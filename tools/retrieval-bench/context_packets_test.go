@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const capturePacket = " {\"state\":\"READY\",\"results\":[],\"coverage\":{\"answerability\":{\"verdict\":\"unsupported-conjunction\",\"nearest_claims\":[{\"id\":\"tests/help_test.rs\",\"supports\":[\"quote\"],\"lacks\":[\"default\"]}]}}}\n"
@@ -19,7 +21,7 @@ const capturePacket = " {\"state\":\"READY\",\"results\":[],\"coverage\":{\"answ
 func TestContextPacketsCLIExactUnsupported(t *testing.T) {
 	configuration := fixtureOptions(t, fixtureSnapshot(t))
 	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\ncat <<'PACKET'\n" + capturePacket + "PACKET\n"
-	if err := os.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	parent, err := filepath.EvalSymlinks(t.TempDir())
@@ -69,7 +71,7 @@ func captureFixture(t *testing.T, body string) options {
 	configuration.registrationPath = filepath.Join(parent, "registration.json")
 	configuration.contextPackets = filepath.Join(parent, "packets.jsonl")
 	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\n" + body
-	if err := os.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return configuration
@@ -434,7 +436,7 @@ func testRBDV0007IncompleteOnFailureAndCancellation(t *testing.T) {
 				}
 				result, err := runContext(ctx, binary, root, task, limit)
 				if kind == "identity" {
-					if err := os.WriteFile(binary, []byte("#!/bin/sh\necho changed\n"), 0o755); err != nil {
+					if err := execfile.WriteFile(binary, []byte("#!/bin/sh\necho changed\n"), 0o755); err != nil {
 						t.Fatal(err)
 					}
 				}
@@ -591,7 +593,7 @@ func TestRBDV0002LateReportHardlinkPreservesCapture(t *testing.T) {
 		output := filepath.Join(filepath.Dir(configuration.contextPackets), "report.json")
 		shellQuote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }
 		script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\nln " + shellQuote(configuration.contextPackets) + " " + shellQuote(output) + "\n" + packetScript(capturePacket)
-		if err := os.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		snapshot := configuration.snapshots["clap-rs/clap@68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6"]

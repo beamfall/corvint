@@ -29,6 +29,11 @@ type rawState struct {
 	nameFrom, parentFrom []Anchor
 	// parentDetail names why an `X.Y` parent did not resolve (AMAP-V0-202).
 	parentDetail string
+	// tree numbers the React route tree that declared the state, and element is the canonical
+	// token text of a JSX route's `element` attribute; both stay empty in other dialects and for
+	// object-form React routes (AMAP-V0-882).
+	tree    int
+	element string
 }
 
 // constLookup resolves a member expression `X.Y`, read at token index tok, to the string literal a
@@ -437,6 +442,11 @@ type screenIndex struct {
 	byKey      map[string][]string
 	bySegments map[int][]routable
 	splats     []routable
+	// ranked names the screens whose recorded dialect is react-router/0; a URL matching only such
+	// screens takes the single best React Router rank (AMAP-V0-600). It is read from the screens
+	// themselves, so every index built over a map ranks as the builder does (AMAP-V0-881).
+	ranked map[string]bool
+	score  map[string]int
 }
 
 type routable struct {
@@ -446,13 +456,17 @@ type routable struct {
 }
 
 func newScreenIndex(hashPrefix, basePath string, screens []Screen) *screenIndex {
-	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}}
+	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, ranked: map[string]bool{}, score: map[string]int{}}
 	for _, s := range screens {
 		if s.Status != StatusResolved || s.Abstract {
 			continue
 		}
 		x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
+		if s.Dialect == DialectReact {
+			x.ranked[s.ID] = true
+		}
 		segs := splitSegments(s.Key)
+		x.score[s.ID] = reactRouteScore(segs)
 		if len(segs) > 0 && segs[len(segs)-1] == "{*}" {
 			x.splats = append(x.splats, routable{id: s.ID, segments: segs[:len(segs)-1], nonempty: s.SplatNonEmpty})
 		} else {
@@ -511,6 +525,76 @@ func pick(ids []string, reason string) (string, string) {
 // cannot be placed and is UNKNOWN.
 func (x *screenIndex) byURL(raw string) (string, string) {
 	return pick(x.urlMatches(raw))
+}
+
+// rank keeps the single best-scoring candidate when every candidate is a ranked react-router/0
+// screen, as React Router's own matcher does; otherwise, or on a tie, it returns ids unchanged
+// (AMAP-V0-600).
+func (x *screenIndex) rank(ids []string) []string {
+	if len(ids) < 2 || len(x.ranked) == 0 {
+		return ids
+	}
+	best, top, tied := "", 0, false
+	for _, id := range ids {
+		if !x.ranked[id] {
+			return ids
+		}
+		switch score := x.score[id]; {
+		case best == "" || score > top:
+			best, top, tied = id, score, false
+		case score == top:
+			tied = true
+		}
+	}
+	if tied {
+		return ids
+	}
+	return []string{best}
+}
+
+// reactRouteScore is React Router's computeScore over a shared template key: one per segment of
+// the path split on `/` (the leading empty segment included), 10 per static segment, 3 per
+// parameter, 1 for each empty segment and -2 for a trailing splat (AMAP-V0-600).
+func reactRouteScore(segs []string) int {
+	score := len(segs) + 1
+	if len(segs) == 0 {
+		return score + 2 // "/" splits into two empty segments
+	}
+	score++ // the leading empty segment
+	for _, s := range segs {
+		switch {
+		case s == "{*}":
+			score -= 2
+		case strings.Contains(s, "{}"):
+			score += 3
+		default:
+			score += 10
+		}
+	}
+	return score
+}
+
+// markDialects records on each screen the dialect of the router file that declared its state, from
+// each router file's span of raw states; a state that files of more than one dialect declared
+// records none (AMAP-V0-881).
+func markDialects(app string, routers []RouterFile, raws []rawState, spans [][2]int, screens []Screen) {
+	dialects := map[string]map[string]bool{}
+	for i, span := range spans {
+		for _, raw := range raws[span[0]:span[1]] {
+			id := screenID(app, raw.name)
+			if dialects[id] == nil {
+				dialects[id] = map[string]bool{}
+			}
+			dialects[id][routers[i].Dialect] = true
+		}
+	}
+	for i := range screens {
+		if set := dialects[screens[i].ID]; len(set) == 1 {
+			for d := range set {
+				screens[i].Dialect = d
+			}
+		}
+	}
 }
 
 var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)
@@ -591,7 +675,7 @@ func (x *screenIndex) urlMatches(raw string) ([]string, string) {
 		}
 	}
 	sort.Strings(matches)
-	return matches, ""
+	return x.rank(matches), ""
 }
 
 func segmentsMatch(template, concrete []string) bool {

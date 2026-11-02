@@ -29,7 +29,11 @@ type Check struct {
 	ID                       string   `json:"id"`
 	Argv                     []string `json:"argv"`
 	TimeoutSeconds           int      `json:"timeoutSeconds"`
-	AllowCemSidecarOnlyReuse bool     `json:"allowCemSidecarOnlyReuse"`
+	AllowCemSidecarOnlyReuse bool     `json:"allowCemSidecarOnlyReuse" localcompletion:"optional"`
+	// AllowSealArchiveReuse declares the check independent of where the CEM
+	// is archived, so an observation at the evidence target qualifies at its
+	// exact seal (LCP-V0-920). Omitted when false, so older plan digests hold.
+	AllowSealArchiveReuse bool `json:"allowSealArchiveReuse,omitempty" localcompletion:"optional"`
 }
 
 type Plan struct {
@@ -127,8 +131,8 @@ type terminal struct {
 }
 
 type state struct {
-	Sealed           *sealedContinuation `json:"sealedContinuation,omitempty"`
-	AggregateOutcome *aggregateState     `json:"aggregateOutcome,omitempty"`
+	Sealed           *sealedContinuation `json:"sealedContinuation,omitempty" localcompletion:"optional"`
+	AggregateOutcome *aggregateState     `json:"aggregateOutcome,omitempty" localcompletion:"optional"`
 	Session          string              `json:"session"`
 	Lifecycle        string              `json:"lifecycle"`
 	Plan             Plan                `json:"plan"`

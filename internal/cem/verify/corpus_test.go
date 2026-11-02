@@ -20,6 +20,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func repoRoot(t *testing.T) string {
@@ -268,7 +269,7 @@ func TestCheckEvidenceAcceptsExecutableBlob(t *testing.T) {
 	gitAt(t, root, author, email, date, "init", "-q")
 	content := []byte("#!/bin/sh\necho hi\n")
 	path := filepath.Join(root, "run.sh")
-	if err := os.WriteFile(path, content, 0o755); err != nil {
+	if err := execfile.WriteFile(path, content, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	gitAt(t, root, author, email, date, "add", ".")

@@ -2284,7 +2284,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `finish-lane` and `inputs-check` refusal MUST print, after the `REFUSE` line, one `fix:` line
   naming the file, the line and that quoted form instead of the grammar remediation, and the
   `dogfood-change` `local-outcome` hint MUST name the same form. Every other refused line keeps
-  the `DCW-V0-170` remediation. The fix line MUST be built from one read of the verify file, so
+  the `DCW-V0-170` remediation. The fix and hint end `(DCW-V0-403; quoting rule: docs/DOGFOOD.md
+  Inputs, DOGFOOD_VERIFY_FILE)`, naming the Inputs row that states the rule with an example
+  (amended under the standing lane auto-accept (2026-11-01); V1-3395). The fix line MUST be built from one read of the verify file, so
   a file replaced or truncated meanwhile yields no hint rather than a panic. Non-goals: admitting the unquoted form, which a shell would read
   as a pipe. Evidence: `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` (exact two-line
   stderr, the hint, the quoted form reaching prepare, a grouped regex keeping the grammar hint),
@@ -2782,6 +2784,20 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `cem cite --bytes START:END`; any other value stays a `--lines` range. Evidence:
   `script/dogfood-bind-range_test.sh` DCW-V0-827 case (both forms, and a malformed `bytes:0` falls
   back to `--lines` for the cite pre-flight to refuse). Rollback: drop the `bytes:` branch.
+- `DCW-V0-980`: (experimental under the standing lane auto-accept, 2026-11-01; lane cit-u18 friction;
+  refines `DCW-V0-840`) When the `DCW-V0-840` vet refuses a `START:END` cite row because its BASE
+  lines overlap lines a hunk removes or because its text is not stable after the change,
+  `corvint dogfood propose-citations` MUST first try to move the row to the nearest span the vet
+  admits: the longest part of the span no hunk removes, then single lines outward from it up to 8
+  lines away, nearest first and the earlier line on a tie, skipping a span another printed row
+  already cites. A moved row keeps its relation, its note names the refused and the new span with
+  `DCW-V0-980`, and a drafted proposal's reason asks the author to confirm the new span still
+  supports the hunk. A row with no admissible span within reach stays the `DCW-V0-840` unknown row.
+  A `bytes:` row and other refusals are never moved. Non-goals: judging whether the moved span is
+  the right evidence. Evidence: `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`
+  (a deleted test line re-pinned to its nearest line, a deleted file's row kept unknown, and the
+  draft passing the real `cem cite` precheck), `TestProposeCitationsDCWV0840VetsCarriedRows` and
+  `TestSurvivingPartsDCWV0980`. Rollback: drop `nearestSurvivingSpan` from `vetRows`.
 - `DCW-V0-990`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends
   `DCW-V0-827`) `corvint dogfood change`, `inputs-check` and `finish-lane` MUST accept the same
   `bytes:START:END` span field: every cite, cite probe and cite pre-check passes it as
@@ -2848,8 +2864,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   path the change modifies, its patch group is not binary, and the BASE lines either belong to a
   file the change leaves unchanged or occur exactly once in the file as the patch leaves it. A row
   whose BASE lines overlap the lines a hunk of the same file edits (its removed lines, not its
-  context) is refused as well, naming the overlapped hunk. A refused row MUST be printed as an
-  `unknown insufficient-evidence` row whose note names the refusal and the row it replaces, so no
+  context) is refused as well, naming the overlapped hunk. A refused row that `DCW-V0-980` cannot
+  move to a surviving span MUST be printed as an `unknown insufficient-evidence` row whose note names the refusal and the row it replaces, so no
   printed span is later refused `cite-span-not-stable`. Design: replay of the 2026-10-31 gate9 lane
   showed fresh drafts already passing, and the refused spans came from carried or hand-kept rows,
   one inside the change's own edited lines. Evidence: `internal/dogfoodflow` tests drive a refresh
@@ -2909,9 +2925,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Rollback: restore the outcome check in preflight.
 - `DCW-V0-849`: (experimental under the standing lane auto-accept; V1-3680) `corvint dogfood
   change` (outside a `finish-lane` pass) and `propose-citations`, `--refresh` included, MUST refuse
-  `base-not-ancestor` (the `DCW-V0-946` refusal, which names the merge-base), exit 2 and write
-  nothing when BASE is not an ancestor of HEAD, since BASE..HEAD would then bind a revert of the
-  mainline commits HEAD lacks; `finish-lane` keeps its `head-not-ahead-of-base` refusal. Evidence: `internal/dogfoodflow` tests. Rollback: remove the
+  with the `DCW-V0-946` `base-not-ancestor` refusal, exit 2 and write nothing when BASE is not an
+  ancestor of HEAD, since
+  BASE..HEAD would then bind a revert of the mainline commits HEAD lacks; `finish-lane` keeps its
+  `head-not-ahead-of-base` refusal. Evidence: `internal/dogfoodflow` tests. Rollback: remove the
   check.
 - `DCW-V0-880`: (experimental under the standing lane auto-accept; V1-3183; refines `DCW-V0-031`)
   `corvint dogfood prechange [--task TEXT] BASE [PATH...]` is the supported recorder for the agent
@@ -3200,6 +3217,31 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   file ignored, the matching one prepended), `script/dogfood-bin-reuse_test.sh` (the wrapper's
   build file), and the measured seal in `docs/build-log/2026-10-31-sealreuse-sp1.md`. Rollback:
   drop the clock and the two files; the check prints what it printed before.
+- `DCW-V0-984`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3810; refines
+  `DCW-V0-942` and `DCW-V0-165`) The `DCW-V0-942` `binding` phase MUST be split into named rows:
+  `binding ocm` (the OCM aggregate verification and comparison, its verifier command keeping its
+  own `verifier-tree` row), `binding coverage` (the declared-requirement coverage), `binding record`
+  (each report record write), `binding tiers` (the `CEM-V1-081` tier lines with their
+  `DCW-V0-165` anchor search) and `binding seal-head` (a seal's HEAD binding and clean-change
+  check); `binding -` keeps the rest. A `DCW-V0-907` concurrent cem status pair MUST have its own
+  `verifier-pair` row per command label, its wall time, instead of falling into `binding`. The
+  check's `DCW-V0-165` anchor search MUST read BASE in two passes instead of one `git grep -o`: a
+  `git grep -l` with the same patterns and pathspecs lists the matching files, one
+  `git cat-file --batch` reads them, and every occurrence of each pattern yields one candidate
+  record in the `-o` record form. Every `-o` candidate is still produced, so the warnings can only
+  gain an anchor `-o` skipped inside an earlier overlapping match, which `verify.SpanAnchors`
+  re-checks as before; a draft (`dogfood propose-citations`) keeps its `-o` read byte for byte. A
+  record set or a blob over the flow's Git output bound, or a failed read, is an incomplete read as
+  an oversized `-o` read was. Motivation: on the spd-u20 seal replay (59 hunks, 28 below anchored,
+  492 patterns) the `-o` read took 41.6 s of a 45.3 s binding phase, while `-l` takes 1.0 s and the
+  blob read 0.24 s, because `-o` re-searches the rest of each matching line for every pattern after
+  every match. Non-goals: changing a verdict, exit or output line; changing drafting. Failure
+  modes: a check whose matching files exceed the bound reports the search incomplete, as before.
+  Evidence: `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate` (every `-o` candidate kept, the
+  overlap `-o` skips found, binary and excluded paths left out, the draft read unchanged, the
+  bound and the no-match status kept), `TestDCWV0984BindingSubphaseRows`, and the before/after rows
+  in `docs/build-log/2026-11-01-dck-u24.md`. Rollback: call `boundedGit` again in `prepareAnchors`
+  and drop the sub-phase `enter` calls.
 - `DCW-V0-943`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3627; refines
   `DCW-V0-074`) The verifier build reuse cache (`CORVINT_DOGFOOD_BIN_CACHE`, default
   `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-dogfood-bin`) is per user and host and outside every
@@ -3219,7 +3261,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   prune; the cache grows as before.
 - `DCW-V0-944`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3550; refines
   `DCW-V0-349` and `DCW-V0-900`) The second `batch-precheck` of `make dogfood-closeout`, the one for
-  the sealed head, MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
+  the sealed head (its own `make dogfood-closeout-precheck` since `DCW-V0-923`), MUST run with `BATCH_PRECHECK_SINCE_RECEIPT=1` (`ASD-V0-943`), so it selects
   against the head the first run's passing receipt names instead of BASE and does not rerun a step
   the bind and seal commits cannot reach. Non-goals: dropping either run. Evidence:
   `script/batch-precheck_test.sh` (the closeout recipe; the second run's selection) and the
@@ -3238,6 +3280,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   deriving is left to the steps, as before. Evidence: `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`
   (each bad intent: the precheck code equals `PrepareOCM`'s code, and no step ran) and
   `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945`. Rollback: restore the bound-only precheck.
+- `DCW-V0-948`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633; refines
+  `DCW-V0-945`) The `intent-invalid` refusal MUST end with one fix line that states the
+  `DOGFOOD_INTENTS_FILE` format: each line is the repository-relative path of a spec committed at
+  HEAD, not prose, in UTF-8 Markdown with exactly one `## Requirements` heading, and a build-log
+  entry or README without that heading is not an intent unless the change is a record change
+  (`DCW-V0-058`). The reported repro, a build-log entry and `docs/specs/README.md` listed as intents,
+  MUST be refused before any step with `code=invalid-requirements-section` for each, the code
+  `ocm-prepare` prints at bind. Non-goals: accepting a build-log or README intent; changing the
+  manifest grammar. Failure modes: a prose line is refused with the derivation's own code, not a
+  grammar refusal. Evidence: `TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents`. Rollback:
+  restore the previous fix line.
 - `DCW-V0-946`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3633 acceptance,
   from the vt-w3 friction; refines `DCW-V0-150` and `DCW-V0-442`) `dogfood propose-citations`
   (with or without `--refresh`), `dogfood finish-lane` and `dogfood inputs-check` MUST refuse a BASE
@@ -3268,6 +3321,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a current plan is untouched; the previous refresh output passed back as CITATIONS after HEAD
   moved again is refreshed into the other file and left byte-identical). Rollback: drop the refresh; the stale row is refused at the bind as
   before (`DCW-V0-441`).
+- `DCW-V0-982`: (experimental under the standing lane auto-accept, 2026-11-01; lane dck-u24
+  friction; refines `DCW-V0-947`) The `REFUSE citations-refresh-incomplete` refusal MUST also name
+  the refreshed plan as the install candidate and print the command that installs it over the
+  caller's CITATIONS file, `install: after that review, cp -f -- CANDIDATE CITATIONS ...`, each path
+  shell-quoted, so a lane whose inputs live at a fixed path (such as `$(git rev-parse
+  --git-dir)/citations.tsv`) reruns the same command after review. Non-goal: the run still never
+  rewrites the caller's file itself. Evidence: `TestDCWV0947FinishRefreshesAMovedPlan`. Rollback:
+  drop the install line.
 - `DCW-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines
   `DCW-V0-380` and `DCW-V0-800`) `make dogfood-closeout` MUST run its `dogfood-inputs-check` and
   `dogfood-finish` steps with `LANE=1`, so one closeout without `INTENTS`, `VERIFY` or `OUTCOME`
@@ -3389,6 +3450,62 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   writing the receipts itself (`DCW-V0-026`: they stay the agent's). Evidence:
   `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` (absent receipts are named with their
   commands; a present one is not). Rollback: drop the lines.
+- `DCW-V0-922`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3928; refines
+  `DCW-V0-170`) Before any step runs, `dogfood finish-lane` and its preflight (`make
+  dogfood-inputs-check`) MUST refuse a verify input line, file or inline, that is a `go test`
+  command whose single `-run` pattern selects no top-level `Test`, `Example` or `Fuzz` function in
+  the `_test.go` files of the `./` package directories it names (`./dir`, or `./dir/...` for the
+  tree below it, skipping `testdata`, `vendor`, `.` and `_` directories), since `go test` then exits
+  0 with `no tests to run` and the CEM would record verification that ran nothing. The pattern's
+  element before its first slash outside brackets and parentheses is matched, unanchored, as Go
+  does. The refusal is `REFUSE verify-run-matches-no-test` with `input: --verify FILE line N: TEXT`
+  (or `inline verify line N`), a `refused:` line naming the pattern and packages, a `fix:` line, and
+  exit 2. A line is checked only when every fact is known: a line without `go test`, `go -C` or
+  another flag before `test`, an import-path package argument, an unknown flag between packages,
+  more than one `-run`, a pattern that does not compile, a directory that is missing, unreadable or
+  outside the worktree, or more than 4096 test files is left to the run. Non-goals: subtest
+  selection, build tags, `-skip`, and functions defined outside `func Name(` at line start. Failure
+  modes: a test generated at build time is invisible to the scan, so its line is refused; name it
+  through a script line instead. Evidence: `TestDCWV0922VerifyRunMatchingNoTestIsRefused`. Rollback:
+  remove `requireVerifyRunSelectsTest` and `internal/dogfoodflow/verify_run_match.go`.
+- `DCW-V0-925`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3779; refines
+  `DCW-V0-881`) When a `dogfood change` pass notes a pre-change receipt `STALE` as
+  `agent-receipt-binding-other-base` or as `agent-receipt-not-base-tree` while the recorder's
+  binding names another BASE, it MUST print, once per run, a `fix:` line naming the recovery. When
+  the binding's base is a full commit ID and an ancestor of BASE (a mid-lane merge), the line says
+  to keep the new BASE, that the receipts still describe the pre-edit context at the old base, that
+  no rebind exists, and that the note changes no row or exit status, and it names `docs/DOGFOOD.md`
+  Mid-lane base change. Otherwise it says BASE does not descend from the receipts' base and to rerun
+  with the BASE the lane started from. `docs/DOGFOOD.md` §1 MUST document the mid-lane base change
+  rule. Non-goals: rebinding receipts to a new BASE, which would assert a pre-edit read that never
+  happened; making any note blocking. Failure modes: a binding base that is not a full lowercase
+  commit ID is never passed to git and gets the not-a-descendant line. Evidence:
+  `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, the other-base case of
+  `TestDCWV0881ChangeVerifiesPrechangeBinding`. Rollback: remove `noteOtherBaseRecovery` and its two
+  calls.
+- `DCW-V0-923`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3850; amends
+  `DCW-V0-944` and refines `DCW-V0-349` and `DCW-V0-900`) `make dogfood-closeout` MUST end after
+  `dogfood-finish` and print `make dogfood-closeout-precheck` as the next command, and the
+  sealed-head `batch-precheck` MUST run as that separate target with
+  `BATCH_PRECHECK_SINCE_RECEIPT=1` and `LANE=1`, so the closeout fits one lane command budget and a
+  post-seal drift run that times out cannot make a passed seal look failed; a rerun reuses the gate
+  ledger (`ASD-V0-042`) and a receipt naming the clean HEAD runs nothing (`ASD-V0-943`). Non-goals:
+  dropping the sealed-head run, the incremental closeout of V1-1629, a closeout duration claim.
+  Failure mode: a caller that stops after `dogfood-closeout` skips the sealed-head precheck; the
+  printed next command names it. Evidence: `script/dogfood-cache_test.sh` (both recipes) and
+  `script/batch-precheck_test.sh` (case 15). Rollback: restore the fourth closeout step and drop the
+  target.
+- `DCW-V0-924`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3792; refines
+  `DCW-V0-165`; CEM-V1-081 unchanged) The documented route by which a new file that implements a
+  requirement reaches the anchored tier is the ID anchor: the file names the requirement ID it
+  implements and its citation is the BASE line that defines that ID (- `ID`:), since no BASE line
+  can name a path that does not exist yet. The `dogfood-check: NOTE
+  tier-below-anchored-unanchorable` line MUST name that route in a `fix=` field, and such a new file
+  MUST be warned as anchorable rather than counted unanchorable. Non-goals: anchoring a new file
+  through a traceability row that names only its directory, which would let any file under a cited
+  directory anchor; changing CEM-V1-081. Failure mode: a new file that names no ID stays below
+  anchored and in the NOTE count. Evidence:
+  `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames`. Rollback: drop the fix field.
 
 ## Code vocabulary
 
@@ -3681,6 +3798,10 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-907` (V1-1629, V1-3361, V1-3475) | `internal/dogfoodflow/check.go` `verifyPair`; `TestDCWV0907CheckRunsTheVerifierPairConcurrently` | unit; live wall time in the dogfood-w5 build log |
 | `DCW-V0-908` (V1-3188) | `internal/dogfoodflow/finishlane.go` `reportReview`; `TestFinishLaneDCWV0908NamesTheReportToReview` | unit |
 | `DCW-V0-921` (scripts-w5 friction) | `reportNoDiffYet` and `absentReceiptHints` in `internal/dogfoodflow/change.go` | `TestChangeDCWV0383ReportsNoDiffYetAtChangeStart` |
+| `DCW-V0-922` (V1-3928) | `internal/dogfoodflow/verify_run_match.go` `emptyRunLineOf`, `goTestRun`, `runSelectsTest`, `topRunElement`; `requireVerifyRunSelectsTest` in `internal/dogfoodflow/finishlane.go` | `TestDCWV0922VerifyRunMatchingNoTestIsRefused` |
+| `DCW-V0-925` (V1-3779) | `internal/dogfoodflow/prechange.go` `noteOtherBaseRecovery`, `fullCommitID`; `noteBoundReceipt`; the not-base-tree case in `internal/dogfoodflow/change.go`; `docs/DOGFOOD.md` §1 Mid-lane base change | `TestDCWV0925MidLaneMergeNamesTheReceiptRecovery`, `TestDCWV0881ChangeVerifiesPrechangeBinding` |
+| `DCW-V0-923` (V1-3850) | `Makefile` `dogfood-closeout`, `dogfood-closeout-precheck` | `script/dogfood-cache_test.sh`; `script/batch-precheck_test.sh` (case 15) |
+| `DCW-V0-924` (V1-3792) | `internal/dogfoodflow/check_tiers.go` `tierBelowAnchoredUnavailable` | `TestDCWV0924NewFileAnchorsThroughTheRequirementItNames` |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
@@ -3733,7 +3854,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-943` (experimental under the standing lane auto-accept; V1-3627) | `script/dogfood-build-corvint.sh` `dogfood_corvint_prune`, `dogfood_bin_outcome`; `script/dogfood-bin-reuse_test.sh` | implemented; focused test PASS |
 | `DCW-V0-944` (experimental under the standing lane auto-accept; V1-3550) | `Makefile` `dogfood-closeout`; `script/batch-precheck_test.sh` | implemented; focused test PASS |
 | `DCW-V0-945` (experimental under the standing lane auto-accept; V1-3633) | `internal/lrfrepo` `DeriveIntentAt`, used by `beginOCM` and `IntentObligationCounts`; `internal/dogfoodflow/obligation_precheck.go` `refuseInvalidIntents`; `TestDCWV0945InputsCheckRefusesWhatOCMPrepareRefuses`, `TestDeriveIntentAtMatchesPrepareOCM_DCW_V0_945` | implemented; focused tests PASS |
+| `DCW-V0-948` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/obligation_precheck.go` `intentFormatFix`; `TestDCWV0948InputsCheckRefusesBuildLogAndREADMEIntents` | implemented; focused tests PASS |
 | `DCW-V0-946` (experimental under the standing lane auto-accept; V1-3633) | `internal/dogfoodflow/flow.go` `requireBaseAncestor`, called by `propose` and `finishLane.run`; `TestDCWV0946ProposeRefusesNonAncestorBase`, `TestDCWV0946FinishLaneRefusesNonAncestorBase` | implemented; focused tests PASS |
+| `DCW-V0-982` (experimental under the standing lane auto-accept; lane dck-u24 friction) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-947` (experimental under the standing lane auto-accept; V1-3638) | `internal/dogfoodflow/finishlane_refresh.go` `refreshMovedPlan`; `TestDCWV0947FinishRefreshesAMovedPlan` | implemented; focused test PASS |
 | `DCW-V0-960` (experimental under the standing lane auto-accept; V1-3047) | `Makefile` `dogfood-closeout` target-specific `LANE`; `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestDCWV0960InputsCheckRefusesAbsentIntentManifest`, `script/dogfood-cache_test.sh` | implemented; focused tests PASS |
 | `DCW-V0-961` (experimental under the standing lane auto-accept; V1-3047) | `internal/dogfoodflow/obligation_precheck.go` `refuseOverBoundIntents`, `overMapBound`; `TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep` | implemented; focused test PASS |
@@ -3760,6 +3883,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
+| `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
+| `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |

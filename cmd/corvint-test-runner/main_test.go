@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testrunner/registry"
 	"os"
 	"os/exec"
@@ -282,7 +283,7 @@ func TestHistoricalPlanAndReceiptBytesSurviveSelectionContract(t *testing.T) {
 func TestNightwatchSelectionPreAdmittedAcrossFreshSessions(t *testing.T) {
 	bin := filepath.Join(t.TempDir(), "nightwatch")
 	script := "#!/bin/sh\nprintf '{\"name\":\"sample\",\"systemerr\":\"\",\"report\":{\"modulePath\":\"tests/sample.js\",\"sessionId\":\"wd-%s\",\"testEnv\":\"default\",\"testsCount\":1,\"errorsCount\":0,\"completed\":{\"pass\":{\"status\":\"pass\"}},\"skipped\":[\"skip\"]}}' \"$$\" > \"$3/sample.json\"\n"
-	if e := os.WriteFile(bin, []byte(script), 0700); e != nil {
+	if e := execfile.WriteFile(bin, []byte(script), 0700); e != nil {
 		t.Fatal(e)
 	}
 	identity := []string{"--executable", bin, "--executable-sha256", tr.Digest([]byte(script))}

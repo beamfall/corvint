@@ -1237,7 +1237,8 @@ mutates Ruby and TS/JS application code and runs the caller's own suite.
   (the head commit `--app-dir` was verified at, before and after) and `testRevision` (the
   `--tests-dir` Git `HEAD`, tracked-clean state and `changesDigest`, the SHA-256 of its tracked
   changes against `HEAD` when dirty or `unavailable` when that diff cannot be read, at start;
-  `unchanged` compares all three at the end and is false for an `unavailable` digest), the operator set, both argv, the verdict and every bound. Each run (baseline and mutant)
+  `unchanged` compares all three at the end and is false for an `unavailable` digest; untracked files
+  and non-Git directories: CCE-V0-684), the operator set, both argv, the verdict and every bound. Each run (baseline and mutant)
   records its rebuild result, exit status, the SHA-256 of its stdout as `receiptDigest`, its
   infrastructure reason and its per-test states. Each mutant records its hunk, path, line,
   column, operator, original and replacement text and its per-test result. `records` folds each
@@ -1286,6 +1287,23 @@ mutates Ruby and TS/JS application code and runs the caller's own suite.
   `cemMap` pins the map's SHA-256, base and patch digest (`null` without `--map`). The document
   does not write a CEM discrimination witness: a CEM witness names the tests a hunk's basis cites,
   and an external suite is not such a basis.
+- `CCE-V0-684`: (standing lane auto-accept, 2026-11-01; V1-2882) The test side of
+  `testRevision` MUST bind untracked files and MUST NOT read as unchanged when it has no
+  revision. (1) `changesDigest` is the SHA-256 over the tracked diff against `HEAD` (when not
+  tracked-clean) followed by one `path NUL sha256 NUL` entry per untracked, non-ignored file of
+  the worktree holding `--tests-dir` (`git ls-files --others --exclude-standard`; a symbolic link
+  hashes its target text and is not followed); it is empty only when the worktree is
+  tracked-clean with no such file, and `unavailable` when a file cannot be read or the set
+  exceeds 10,000 files or 256 MiB. Adding, editing or removing an untracked test file between
+  start and end therefore makes `unchanged` false and turns every kill and survival into
+  `not-run` `test-revision-drift`. (2) A `--tests-dir` that is not a Git worktree records
+  `notEstablished: not-a-git-worktree`, an empty revision and `unchanged: false`, and every kill
+  and survival becomes `not-run` `test-revision-not-established` (invariant 2), so such a run is
+  always `partial`. Decision (V1-2882): both cases downgrade rather than hash a non-Git tree,
+  because no revision names what the suite was. Failure modes: an unignored build output the
+  rebuild hook writes into the tests worktree reads as drift (the safe direction; ignore it or
+  use a separate tests directory); ignored files are not bound. Rollback: restore the
+  tracked-only digest and drop `notEstablished`.
 
 Non-goals: no Go, Python or other language; no AST or type-aware mutation, no equivalent-mutant
 detection, no mutation of test files, no starting or stopping of the application beyond the
@@ -1449,6 +1467,7 @@ owner question V1-2678. No window was registered, and no hosted test was deleted
 | CCE-V0-015 | core baseline comparison before and after: `cmd/corvint` commands, flags and transitive imports unchanged and no CCE package in its import graph; no `init` side effect in any package both binaries import; every CCE-V0 command reachable as `corvint-test e2e <sub>`; a subprocess check that the companion never executes `corvint` | PASS: `TestCCEV0015SubcommandsReachable`, `TestCCEV0015CoreBoundary`, `TestCCEV0015NeverExecutesCorvint`; core tree byte-identical to the claim base outside docs, `go list -deps ./cmd/corvint` has no CCE package |
 | CCE-V0-170..176 | Git fixtures with shell suites and recorded JS/Ruby provider documents | PASS (lane external-e2e-1027, V1-2845; live Ruby/Node NOT_RUN): `TestCCEV0170ApplicationLanguage`, `TestCCEV0171OperatorSites`, `TestCCEV0172ExitVerdictKillsSurvivesAndRestores`, `TestCCEV0172BoundsAreVisible`, `TestCCEV0172WallTimeBoundsRunningCommands`, `TestCCEV0173RebuildAndBaselineFailuresAreNotRun`, `TestCCEV0173JSProviderVerdictSeparatesInfrastructure`, `TestCCEV0173RubyProviderVerdict`, `TestCCEV0174TestRevisionDriftDowngrades`, `TestCCEV0174DirtyTestDriftDowngrades`, `TestCCEV0175Refusals`, `TestCCEV0176DiscriminateCommand` |
 | CCE-V0-236..238 | Git fixtures with excluded, deleted and deletion-only files and a prepared cem/1.0 map | PASS (lane iss-e2e-js-1028, V1-2920): `TestCCEV0236ExcludedFilesAreListed` (including spaced and quoted names), `TestCCEV0237DirectoryExclusionIsAdjustable`, `TestCCEV0238CEMHunkJoin`, `TestCCEV0176DiscriminateCommand` |
+| CCE-V0-684 | Git and non-Git tests directories with an untracked test file edited between the baseline and mutant runs | PASS (lane cmd-w26, V1-2882): `TestCCEV0684UntrackedTestDriftDowngrades`, `TestCCEV0684NonGitTestsDirIsNotEstablished` (`internal/extmutate`) |
 
 Panel amendment (2026-10-17). The planned evidence is the acceptance of the named ticket; each
 row's status says what is delivered.

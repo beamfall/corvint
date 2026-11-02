@@ -13,6 +13,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/execfile"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testrunner/native"
 )
@@ -214,7 +215,7 @@ func TestCEMV1088JudgeRevertsOnlyInsideTheCopy(t *testing.T) {
 	}
 	file := filepath.Join(tree, "p", "f.go")
 	target := "a\nB\nc\n"
-	if err := os.WriteFile(file, []byte(target), 0o755); err != nil {
+	if err := execfile.WriteFile(file, []byte(target), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	hunk := revertTestHunk("p/f.go", 1, 1, " a", "-b", "+B", " c")
@@ -443,7 +444,7 @@ func TestCEMV1088ExportTreeReadsOnlyObjects(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(repository, "d"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(repository, "d", "run.sh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(repository, "d", "run.sh"), []byte("#!/bin/sh\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(repository, "a.go"), []byte("package a\n"), 0o644); err != nil {

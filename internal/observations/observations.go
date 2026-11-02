@@ -242,14 +242,47 @@ func AdapterDegradationEvent(host, event, reason, corvintVersion string, now tim
 
 func adapterDegradationCode(reason string) string {
 	base, code, qualified := strings.Cut(reason, ":")
-	if !qualified || base != "corvint-event-rejected" || admittedAdapterRejection(code) {
+	if !qualified || base != "corvint-event-rejected" {
 		return reason
+	}
+	if admittedAdapterRejection(code) {
+		return base + ":" + harnessEventCode(code)
 	}
 	return base
 }
 
+// legacyEventPrefix and harnessEventPrefix name the `dogfood event` runtime degradation codes:
+// a hook rejection reaches the ledger of every adopter, most of which never run dogfood, so a
+// new row spells `dogfood-event-X` as `harness-event-X`, and the reader maps an old row's code
+// to the same spelling (SOL-V0-120, V1-3729). Hook output keeps the host-facing reason.
+const (
+	legacyEventPrefix  = "dogfood-event-"
+	harnessEventPrefix = "harness-event-"
+)
+
+// harnessEventCode is the ledger spelling of an admitted rejection code.
+func harnessEventCode(code string) string {
+	if rest, ok := strings.CutPrefix(code, legacyEventPrefix); ok && admittedAdapterRejections[code] {
+		return harnessEventPrefix + rest
+	}
+	return code
+}
+
 func admittedAdapterRejection(code string) bool {
+	if rest, ok := strings.CutPrefix(code, harnessEventPrefix); ok {
+		return admittedAdapterRejections[legacyEventPrefix+rest]
+	}
 	return admittedAdapterRejections[code] || admittedDogfoodErrorCodes[code] || admittedUnsupportedCodes[code]
+}
+
+// canonicalAdapterCode maps a retained row's code to its current ledger spelling, so old
+// `dogfood-event-*` rows and new `harness-event-*` rows tally under one key (SOL-V0-120).
+func canonicalAdapterCode(code string) string {
+	base, rejection, qualified := strings.Cut(code, ":")
+	if !qualified || base != "corvint-event-rejected" {
+		return code
+	}
+	return base + ":" + harnessEventCode(rejection)
 }
 
 func TaskHash(task string) string {
@@ -989,7 +1022,7 @@ func strictJSONValue(decoder *json.Decoder, objectOnly bool) bool {
 
 func addAdapterDegradation(result *Digest, event Event) {
 	for _, code := range event.AdapterCodes {
-		key := event.Host + "/" + event.Event + "/" + code
+		key := event.Host + "/" + event.Event + "/" + canonicalAdapterCode(code)
 		result.Adapter[key]++
 		if event.Window > result.AdapterLatest[key] {
 			result.AdapterLatest[key] = event.Window
@@ -1187,7 +1220,7 @@ var degradationByDesign = map[string]string{
 
 // snapshotStaleCode is the adapter rejection whose remedy is a setup step, not a
 // code change: no index snapshot matches the tree (AHI-031).
-const snapshotStaleCode = "corvint-event-rejected:dogfood-event-index-snapshot-stale"
+const snapshotStaleCode = "corvint-event-rejected:harness-event-index-snapshot-stale"
 
 // setupLines is SOL-V0-013's setup diagnosis: one SETUP line naming the refresh
 // command when any retained adapter row carries the stale-snapshot rejection.

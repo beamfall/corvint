@@ -702,8 +702,14 @@ in the full run only, or flaky there, is a suspected flake; a verified known fai
 new and flaky failures block; missing, changed and passing evidence and an own file un-excuse a known
 failure; report errors block; passing entries are fixed; a malformed baseline, a revision-declaring
 report at another revision and an unresolved revision refuse; staleness is `FRESH` at 3 of 3 commits,
-`STALE` past `--max-age 2` and `NOT_OBSERVED` without `--base`. Running real Playwright suites for
-the full and isolated runs is `NOT_RUN`. For PWR-V0-058..063 (synthetic reports and temporary Git
+`STALE` past `--max-age 2` and `NOT_OBSERVED` without `--base`. Live (lane cmd-w26, 2026-11-01,
+V1-1624): real Playwright 1.63.0 json-reporter full and isolated runs of a three-test suite
+recorded one known and one suspected-flake entry; candidate runs then gave `PASS` with the known
+failure `KNOWN_VERIFIED` and the flake `fixed`, and exit 1 `BLOCKED` for a returning flake
+(`SUSPECTED_FLAKE`), a new failure (`NOT_IN_BASELINE`, staleness `FRESH` at 1 commit), `--own` on
+the known file (`OWN_FILE`) and a re-run isolated report (`EVIDENCE_CHANGED`); the commands and
+digests are in `docs/build-log/2026-11-01-cmd-w26.md`. A real suite larger than three tests stays
+`NOT_RUN`. For PWR-V0-058..063 (synthetic reports and temporary Git
 repositories): an interrupted observation folds into the pooled row as excluded; an interrupted full
 run refuses `FULL_RUN_INCOMPLETE`, records the test as unobserved with `--allow-unobserved`, and a
 candidate failure of it blocks as `UNOBSERVED_AT_BASELINE`; a side-branch baseline names the fork

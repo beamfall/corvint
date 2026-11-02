@@ -393,7 +393,7 @@ under-report and never over-report.
   `FILE`, a repository-relative path, from `HEAD` and writes `flows-run-stability/0` (Run-registry
   wire contract). A refusal exits 2 with its code and writes nothing.
 - `corvint [--root PATH] flows ingest --format playwright-json|junit-xml|go-test-json --from FILE`
-  takes the run header as `--run-id`, `--runner-version`, `--source-commit`, `--source-tree`,
+  takes the required run header (AFU-V1-904) as `--run-id`, `--runner-version`, `--source-commit`, `--source-tree`,
   `--source-clean`, `--build-artifact-digest`, `--environment-id`, `--environment-digest`,
   `--fixture-id`, `--fixture-digest`, `--cleanup` (default `not-declared`) and repeatable
   `--control "SUBJECT<TAB>CONTROL<TAB>EXPECTED"`. It writes the `test-run-evidence/0` JSONL to stdout
@@ -1753,3 +1753,35 @@ names its path and line, and that a single-file flow's diagram has no path in it
 Non-goals: ordering calls or joining them across files; a path in single-file diagrams.
 
 Rollback: revert the render change; manifests and bindings are unchanged.
+
+## Run header flag refusal (V1-3937)
+
+Human-owned intent: an operator ingesting a plain Playwright JSON report learns from `flows ingest`
+help, and from one failed run, every run-header flag the ingest needs and the value each accepts.
+Accepted under the owner's standing lane auto-accept (2026-11-01).
+
+- **AFU-V1-904**: `corvint flows ingest` MUST treat `--run-id`, `--runner-version`,
+  `--source-commit`, `--source-tree`, `--build-artifact-digest`, `--environment-id`,
+  `--environment-digest`, `--fixture-id` and `--fixture-digest` as required for every `--format`,
+  and `--cleanup` as required to be `done`, `failed` or `not-declared` (its default). Its usage
+  line MUST show them unbracketed and its help MUST state each one's value format: an ID of 1-128
+  letters, digits, `.`, `_` or `-` starting with a letter or digit; printable runner-version text;
+  a full lowercase hex object ID; a bare 64-hex sha256 digest with no `sha256:` prefix. Before it
+  reads the report, one invocation with any of them missing or invalid MUST exit 2 with
+  `invalid-arguments`, write nothing to stdout, and name every such flag in header order as
+  `--FLAG missing|invalid (FORMAT)`, never the value. The checks are `appflows.CheckRunHeader`,
+  the same patterns the record validator applies, so a header it passes is never refused by
+  `validateRunHeader`. Decision: the header stays required rather than defaulting to a
+  `NOT_DECLARED` value, because test-run-evidence/0 has no undeclared form for these members;
+  an empty report now needs the header too. Non-goals: a new wire member; the coverage-artifact
+  and control flags, which keep their own parse errors. Failure mode (V1-3937, VanillaTwisted on
+  rc.3 build 38): each run refused the next missing flag with its wire-field name and no format,
+  six runs in all, and a `sha256:`-prefixed digest was refused without a hint. Rollback: drop
+  `CheckRunHeader` and its call in `runFlowsIngest`, and restore the bracketed usage.
+
+Acceptance: `TestAFUV1904PlainPlaywrightReportNamesEveryHeaderFlag` ingests a plain Playwright
+JSON report with no header flags and checks the one refusal names all nine required flags as
+missing; with a `sha256:`-prefixed `--build-artifact-digest` and a bad `--cleanup` it names only
+those two as invalid with their formats; and with the full header it ingests. `TestAFUV1904Help`
+checks the unbracketed usage and the stated formats. `TestAFUV1904CheckRunHeaderAgreesWithValidator`
+checks that a header `CheckRunHeader` passes yields records that encode.

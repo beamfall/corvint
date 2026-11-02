@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"os"
 	"os/exec"
@@ -116,7 +117,7 @@ func portableDogfoodRunner(t *testing.T) portableRun {
 	binary := filepath.Join(t.TempDir(), "bin", name)
 	workCopyExecutable(t, portableDogfoodBuild.path, binary)
 	impostor := t.TempDir()
-	if err := os.WriteFile(filepath.Join(impostor, "corvint"), []byte("#!/bin/sh\nexit 99\n"), 0755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(impostor, "corvint"), []byte("#!/bin/sh\nexit 99\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	env := append(os.Environ(), "PATH="+impostor+string(os.PathListSeparator)+os.Getenv("PATH"), "CORVINT_BIN="+filepath.Join(impostor, "missing"))
@@ -148,7 +149,7 @@ func (run portableRun) exec(t *testing.T, root string, extra []string, args ...s
 
 // TestPortableRunRetriesTextFileBusy holds the copied binary open for writing, as a concurrent
 // fork briefly can, so its first start fails with ETXTBSY on Linux; the runner must retry the
-// start and run it once the descriptor closes (ASD-V0-106, V1-3175).
+// start and run it once the descriptor closes (ASD-V0-106, V1-3175, ASD-V0-927).
 func TestPortableRunRetriesTextFileBusy(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("ETXTBSY on an open-for-write executable is Linux behavior")
@@ -163,9 +164,14 @@ func TestPortableRunRetriesTextFileBusy(t *testing.T) {
 		held.Close()
 		t.Skipf("this host does not report ETXTBSY for a held executable: %v", err)
 	}
+	// Hold past the adapter's whole retry schedule, as a slow fork on a loaded host can (ASD-V0-927, V1-3619).
+	hold := 300 * time.Millisecond
+	for _, delay := range workTextBusyRetries {
+		hold += delay
+	}
 	released := make(chan struct{})
 	go func() {
-		time.Sleep(30 * time.Millisecond)
+		time.Sleep(hold)
 		held.Close()
 		close(released)
 	}()
@@ -858,7 +864,7 @@ func TestAggregateQualificationPublicWriterRaces(t *testing.T) {
 			script := "#!/bin/sh\nif [ -d \"$QUAL_LOCK\" ] && [ ! -f \"$QUAL_READY\" ]; then printf '%s' \"$$\" > \"$QUAL_READY\"; while [ ! -f \"$QUAL_RELEASE\" ]; do /bin/sleep 0.02; done; fi\nexec \"$QUAL_REAL_GIT\" \"$@\"\n"
 			quote := func(v string) string { return "'" + strings.ReplaceAll(v, "'", "'\\''") + "'" }
 			script = strings.NewReplacer("\"$QUAL_LOCK\"", quote(filepath.Join(root, ".git/corvint/local-completion/operation.lock")), "\"$QUAL_READY\"", quote(ready), "\"$QUAL_RELEASE\"", quote(release), "\"$QUAL_REAL_GIT\"", quote(realGit)).Replace(script)
-			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 				t.Fatal(err)
 			}
 			first := exec.Command(binary, "dogfood", "change", base)

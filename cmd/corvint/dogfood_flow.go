@@ -31,6 +31,9 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// --refresh carries an earlier plan's rows forward (DCW-V0-442), and
 	// --from-cem a sealed CEM's (DCW-V0-843).
 	"propose-citations": {"--base": true, "--refresh": true, "--from-cem": true},
+	// record-claims writes only its --claims file: the reviewed plan's rows
+	// keyed by edit content, which --refresh compiles (CKC-V0-002).
+	"record-claims": {"--base": true, "--plan": true, "--claims": true, "--draft": true},
 	// prechange records the agent pre-change receipts at BASE and binds them
 	// (DCW-V0-880); every positional after BASE is an impact path, and every
 	// positional is one when BASE is --base.
@@ -38,11 +41,67 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// finish-lane runs change, check and seal in turn, so it takes both
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
-		"--corvint-bin": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
+		"--corvint-bin": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true, "--sealed": true},
 	// inputs-check is finish-lane's input checks and prepare pass alone: it
 	// binds, commits and seals nothing, so it takes no verifier (DCW-V0-380).
+	// --sealed skip keeps a seal head a SKIP for the wrappers (ASD-V0-842).
 	"inputs-check": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
-		"--corvint-bin": true},
+		"--corvint-bin": true, "--sealed": true},
+}
+
+// dogfoodFlowOptionHelp describes each option of dogfoodFlowOptions, so every daily-path
+// subverb's --help lists its options with a description (CAP-V0-120); a test keeps the two
+// tables equal.
+var dogfoodFlowOptionHelp = map[string]string{
+	"--corvint-bin":       "corvint executable that runs the change steps (default: this binary)",
+	"--base-verifier":     "executable that runs the base cem status check (default: this binary)",
+	"--tree-verifier":     "executable that runs the current-tree cem status check (default: this binary)",
+	"--override-verifier": "optional third verifier the check also replays and records",
+	"--verifier":          "executable that verifies each sealed CEM (default: this binary)",
+	"--refresh":           "earlier plan whose current rows are kept and whose re-hunked rows are re-keyed",
+	"--task":              "task text for the prechange context and query receipts (default: DOGFOOD_TASK)",
+	"--base":              "full commit ID of the change's base (the BASE other subverbs take positionally)",
+	"--citations":         "citation plan file (TSV; format below; default: DOGFOOD_CITATIONS)",
+	"--intents":           "file of intent spec paths, one per line (default: DOGFOOD_INTENTS_FILE)",
+	"--verify":            "file of verification commands, one per line (default: DOGFOOD_VERIFY_FILE)",
+	"--outcome":           "passed, failed or blocked (default: DOGFOOD_OUTCOME)",
+}
+
+// dogfoodCitationPlanFormat is the citation plan row format the plan-taking subverbs print
+// in their --help (CAP-V0-120); docs/DOGFOOD.md DOGFOOD_CITATIONS has the full rules.
+const dogfoodCitationPlanFormat = `Plan file: LF-terminated TSV, at most 256 rows, one row per hunk and cited base:
+  HUNK<TAB>PATH<TAB>START:END<TAB>RELATION   HUNK is a hunk ordinal (from 1) or full
+                                             hunk ID; START:END a BASE line span
+  HUNK<TAB>unknown<TAB>REASON<TAB>NOTE       REASON insufficient-evidence or
+                                             conflicting-evidence
+  deferred<TAB>PATH<TAB>REASON               an intent left for later
+See docs/DOGFOOD.md (DOGFOOD_CITATIONS) for every rule.
+`
+
+// dogfoodFlowOptionsText is the Options block of a daily-path subverb's node help, or "" for
+// any other node.
+func dogfoodFlowOptionsText(path []string) string {
+	if len(path) != 2 || path[0] != "dogfood" {
+		return ""
+	}
+	options, ok := dogfoodFlowOptions[path[1]]
+	if !ok {
+		return ""
+	}
+	names := make([]string, 0, len(options))
+	for name := range options {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	var text strings.Builder
+	text.WriteString("\nOptions:\n")
+	for _, name := range names {
+		fmt.Fprintf(&text, "  %-20s %s\n", name, dogfoodFlowOptionHelp[name])
+	}
+	if options["--refresh"] || options["--citations"] {
+		text.WriteString("\n" + dogfoodCitationPlanFormat)
+	}
+	return text.String()
 }
 
 // dogfoodFlagError is a dogfood option refusal whose detail names the option
@@ -107,6 +166,9 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		flags[name] = value
 	}
 	if action == "finish-lane" || action == "inputs-check" {
+		if value, ok := flags["--sealed"]; ok && value != "skip" {
+			return nil, "", dogfoodFlagError{"invalid-dogfood-sealed-value", "dogfood " + action + " takes --sealed skip and no other value"}
+		}
 		if len(positional) != 0 || flags["--base"] == "" {
 			return nil, "", dogfoodFlagError{"dogfood-base-required", "dogfood " + action + " takes the base as --base BASE, never as a positional argument"}
 		}
@@ -156,7 +218,7 @@ func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, std
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, "dogfood-executable-unavailable")
 	}
-	if args[0] != "propose-citations" {
+	if args[0] != "propose-citations" && args[0] != "record-claims" {
 		refusal, notes := dogfoodStaleBinary(ctx, root, self, flags)
 		for _, note := range notes {
 			_, _ = fmt.Fprintf(stderr, "dogfood-%s: NOTE %s\n", args[0], note)
@@ -230,6 +292,9 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	if action == "propose-citations" {
 		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"], FromCEM: flags["--from-cem"]}, stdout, stderr)
 	}
+	if action == "record-claims" {
+		return dogfoodflow.RecordClaims(ctx, dogfoodflow.RecordClaimsOptions{Root: root, Base: base, Plan: flags["--plan"], Claims: flags["--claims"], Draft: flags["--draft"]}, stdout, stderr)
+	}
 	if action == "prechange" {
 		var paths []string
 		if joined := flags[prechangePathsFlag]; joined != "" {
@@ -242,7 +307,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Prechange(ctx, dogfoodflow.PrechangeOptions{Root: root, Base: base, Task: task, Paths: paths, Steps: runner("--corvint-bin")}, stdout, stderr)
 	}
 	if action == "inputs-check" {
-		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true}, stdout, stderr)
+		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true, SealedSkip: flags["--sealed"] == "skip"}, stdout, stderr)
 	}
 	if action == "batch-check" {
 		return dogfoodflow.BatchCheck(ctx, dogfoodflow.BatchCheckOptions{Root: root, Base: base, Verifier: runner("--verifier")}, stdout, stderr)

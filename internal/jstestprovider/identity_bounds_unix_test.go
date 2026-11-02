@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // V1-3020: identity collection runs under the operation context. A node
@@ -24,7 +26,7 @@ func TestIdentityCollectionIsBoundedByTheOperation(t *testing.T) {
 			t.Fatal(err)
 		}
 		path := filepath.Join(bin, "node")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"+script+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return path

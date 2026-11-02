@@ -12,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestLPCVV0260_ParseBunJUnitLiveReport parses a report bun 1.3.11 wrote for a describe block with
@@ -91,7 +93,7 @@ cp %q "$out"
 exit %d
 `, version, argsFile, report, exit)
 	path := filepath.Join(dir, "bun")
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path, argsFile

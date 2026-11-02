@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestCloneTrustChildTransport(t *testing.T) {
@@ -39,7 +41,7 @@ func TestCloneTrustChildTransport(t *testing.T) {
 		wrapper := filepath.Join(dir, "upload-pack")
 		quote := func(s string) string { return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'" }
 		script := "#!/bin/sh\ngit config --get-all safe.directory > " + quote(record) + "\nexec git upload-pack \"$@\"\n"
-		if err := os.WriteFile(wrapper, []byte(script), 0700); err != nil {
+		if err := execfile.WriteFile(wrapper, []byte(script), 0700); err != nil {
 			t.Fatal(err)
 		}
 		clone := func(e []string, name string, trust ...string) {

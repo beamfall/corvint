@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"hash"
+	"io"
 	"strconv"
 	"strings"
 
@@ -177,6 +178,14 @@ func (s *commitStream) finish() error {
 }
 
 func (r *Repository) streamCommitBatch(ctx context.Context, prefixes, trees []string) (*commitStream, error) {
+	return r.runCommitBatch(prefixes, trees, func(options gitrun.Options, consumer io.Writer, args []string) error {
+		return gitrun.RunStream(ctx, r.budget, options, consumer, args...)
+	})
+}
+
+// runCommitBatch streams one `cat-file --batch -z` of prefixes then trees
+// through run, which charges or reuses the operation.
+func (r *Repository) runCommitBatch(prefixes, trees []string, run batchReplay) (*commitStream, error) {
 	requests := append(append([]string{}, prefixes...), trees...)
 	stdin := []byte(strings.Join(requests, "\x00") + "\x00")
 	stream := &commitStream{count: len(prefixes), requests: prefixes}
@@ -188,7 +197,7 @@ func (r *Repository) streamCommitBatch(ctx context.Context, prefixes, trees []st
 	}
 	options := r.gitOptions(0, stdin)
 	args := append(r.pinnedArgs(), "cat-file", "--batch", "-z")
-	if err := gitrun.RunStream(ctx, r.budget, options, stream, args...); err != nil {
+	if err := run(options, stream, args); err != nil {
 		return nil, err
 	}
 	if err := stream.finish(); err != nil {

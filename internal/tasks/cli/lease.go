@@ -645,7 +645,7 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 			addHolderObservation(item.Obj, a, observedAt, rc.store.Policy.HeartbeatTTLSeconds())
 			addHistoryObservation(item.Obj)
 			// CAL-V0-322: the newest failed gate's retained output tail.
-			item.Obj.Set("lastFailedGate", attemptLastFailedGate(rc.repo, a))
+			item.Obj.Set("lastFailedGate", attemptLastFailedGate(rc.repo, rc.store.Policy, a))
 			if a.PoolAllocation != nil {
 				binding, e := poolBindingValue(proof.Records["pools.json"].Raw, a)
 				if e != nil {

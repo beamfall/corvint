@@ -316,12 +316,14 @@ func (c *check) run() int {
 	code := c.verifyBinding(report)
 	if code == 0 {
 		if c.sealed {
+			sealHead := c.clock.enter("binding", "seal-head")
 			current := c.gitValue("rev-parse", "HEAD^{commit}")
 			binding, err := ResolveSealBinding(c.ctx, c.root, current)
 			if err != nil || current != c.sealedTarget || binding.EvidenceTarget != c.target || binding.MapPath != c.cemPath {
 				c.refuse("sealed-binding-drift")
 			}
 			c.requireCleanChange()
+			sealHead()
 		}
 		passed()
 	}
@@ -613,6 +615,8 @@ func (c *check) verifyPair(status bool, args ...string) (verification, verificat
 	if !status || !c.options.ConcurrentVerifiers || c.aggregate != nil {
 		return c.verify(c.options.BaseVerifier, args...), c.verify(c.options.TreeVerifier, args...)
 	}
+	// The pair has one row of its own, its wall time (DCW-V0-984).
+	defer c.clock.enter("verifier-pair", commandLabel(args))()
 	var base verification
 	var wait sync.WaitGroup
 	wait.Add(1)
@@ -888,7 +892,9 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	var coverage *changeCoverage
 	if !noIntent {
+		covered := c.clock.enter("binding", "coverage")
 		coverage = c.changeCoverage(c.root+"/"+c.cemPath, intents)
+		covered()
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
 	if note := coverage.unlinkedNote(); note != "" {
@@ -992,6 +998,7 @@ func summaryInt(value *int) string {
 // comparison with the aggregate `dogfood change` published, which the change's
 // own executable computed, stays the second computation of it.
 func (c *check) verifyOCM(aggregate string) []byte {
+	defer c.clock.enter("binding", "ocm")()
 	var ocm verification
 	if c.sealed {
 		result, err := dogfoodocm.Status(c.ctx, dogfoodocm.Options{Root: c.root, CEMPath: c.cemPath, ExpectedBase: c.base, Target: c.target})
@@ -1024,6 +1031,7 @@ func (c *check) verifyOCM(aggregate string) []byte {
 // record replaces the report's single dogfoodCheck line with the verifier
 // identities and their agreement.
 func (c *check) record(agreed bool, bootstrap int) error {
+	defer c.clock.enter("binding", "record")()
 	if c.sealed {
 		// The parent report remains immutable provenance. A continuation records
 		// this actual verifier comparison separately at the current seal.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -89,7 +90,7 @@ func TestContextLSPPinAndDrift(t *testing.T) {
 					mutation = "'" + git + "' -c core.hooksPath=/dev/null commit -q --allow-empty -m drift\n"
 				}
 				body := "#!/bin/sh\nprintf ran > '" + marker + "'\n" + mutation + "exit 3\n"
-				if err := os.WriteFile(filepath.Join(dir, "gopls"), []byte(body), 0755); err != nil {
+				if err := execfile.WriteFile(filepath.Join(dir, "gopls"), []byte(body), 0755); err != nil {
 					t.Fatal(err)
 				}
 				oldPath := os.Getenv("PATH")
@@ -101,7 +102,7 @@ func TestContextLSPPinAndDrift(t *testing.T) {
 				hostile := t.TempDir()
 				bad := filepath.Join(hostile, "executed")
 				for _, name := range []string{"git", "gopls"} {
-					if err := os.WriteFile(filepath.Join(hostile, name), []byte("#!/bin/sh\nprintf bad > '"+bad+"'\nexit 1\n"), 0755); err != nil {
+					if err := execfile.WriteFile(filepath.Join(hostile, name), []byte("#!/bin/sh\nprintf bad > '"+bad+"'\nexit 1\n"), 0755); err != nil {
 						t.Fatal(err)
 					}
 				}

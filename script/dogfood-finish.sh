@@ -53,6 +53,15 @@ case $outcome in '' | passed | failed | blocked) ;; *) missing+=(OUTCOME:invalid
 if ((${#missing[@]} > 0)); then
   printf '%s: REFUSE missing-inputs %s\n' "$prefix" "${missing[*]}" >&2
   printf 'fix: make %s BASE=<full sha> CITATIONS=<plan.tsv> INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked\n' "$entry" >&2
+  # ASD-V0-120 (V1-3765): a BASE that is not a full SHA names the commit it resolves to, or how to
+  # resolve it; the refusal still stands, so the pinned BASE is always the one the operator typed.
+  if [[ " ${missing[*]} " == *' BASE:not-full-sha '* ]]; then
+    if resolved=$(git -C "$(cd "$(dirname "$0")/.." && pwd)" rev-parse --verify --quiet "$base_arg^{commit}" 2>/dev/null) && [[ -n $resolved ]]; then
+      printf 'fix: BASE %s resolves to %s; rerun with BASE=%s\n' "$base_arg" "$resolved" "$resolved" >&2
+    else
+      printf 'fix: BASE %s names no unique commit; resolve one with git rev-parse --verify %q and pass the full 40-hex SHA\n' "$base_arg" "$base_arg^{commit}" >&2
+    fi
+  fi
   # ASD-V0-045 (V1-3119): a missing or unreadable plan names how to draft and pre-check one; this
   # refusal ran no build, prepare or bind, so it does not use up a closeout try.
   if [[ " ${missing[*]} " == *' CITATIONS '* || " ${missing[*]} " == *' CITATIONS:unreadable '* || " ${missing[*]} " == *' CITATIONS:empty '* ]]; then
@@ -64,6 +73,9 @@ if ((${#missing[@]} > 0)); then
   printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
   exit 2
 fi
+# ICL-V0-030 (V1-1629): the Makefile runs this refusal alone first, before the host admission, so a
+# missing input is named before the admitted run queues on host load.
+[[ ${DOGFOOD_FINISH_INPUTS_ONLY-} != 1 ]] || exit 0
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
@@ -182,6 +194,9 @@ for pair in "--citations=$citations" "--intents=$intents" "--verify=$verify" "--
   [[ $name == --outcome || $value == /* ]] || value="$PWD/$value"
   inputs+=("$name" "$value")
 done
+# ASD-V0-842 (V1-3960): the finish and closeout entries keep a seal head a SKIP that exits 0;
+# a direct make dogfood-inputs-check on a seal head reports NOT_CHECKED and exits 3.
+[[ $entry == dogfood-inputs-check ]] || inputs+=(--sealed skip)
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"
@@ -212,9 +227,9 @@ build_step=inputs-check
 if [[ ${DOGFOOD_FINISH_PREFLIGHT-} == 1 ]]; then
   trap - INT TERM
   cd "$repo" || exit 2
-  exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin"
+  exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin"
 fi
-(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin") || exit $?
+(cd "$repo" && exec "$tree_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin") || exit $?
 base_status=0
 build_step=build-base
 dogfood_build_base_corvint "$base_bin" "$base" || base_status=$?
@@ -228,5 +243,5 @@ elif ((base_status != 0)); then
 fi
 trap - INT TERM
 cd "$repo" || exit 2
-exec "$tree_bin" dogfood finish-lane --base "$base_arg" "${inputs[@]}" --corvint-bin "$steps_bin" \
+exec "$tree_bin" dogfood finish-lane --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --corvint-bin "$steps_bin" \
   --base-verifier "$base_bin" --tree-verifier "$tree_bin" ${override[@]+"${override[@]}"}

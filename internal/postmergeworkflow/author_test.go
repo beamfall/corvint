@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	connector "github.com/Beamfall/corvint/internal/postmergeconnector"
 )
 
@@ -101,7 +102,7 @@ func TestAuthorCommitsPreservesExecutableMode(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(root, "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "scripts", "check_test.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(root, "scripts", "check_test.sh"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	git(t, root, "add", ".")

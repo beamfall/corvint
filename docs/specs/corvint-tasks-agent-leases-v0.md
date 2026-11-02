@@ -6726,8 +6726,9 @@ receipt-audit ancestry check are defined there. No CAL ID is added.
 - `CAL-V0-250`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI
   ticket mutation (`ticket create` and the other `submitMutation` verbs) that runs without
   `--issued-at` defaults `issuedAt` to the current second, and `issuedAt` is part of the TM-V0-006
-  request digest, so a byte-identical retry in a later second is still `REQUEST_ID_CONFLICT`; this is
-  unchanged, and the CLI MUST NOT synthesize the original `issuedAt` into a write. Its refusal MUST add
+  request digest, so a byte-identical retry in a later second would conflict. Superseded in part by
+  `TCL-V0-800` (V1-3958): such a retry now reuses the recovered original `issuedAt` and replays, so
+  only a request that differs in more than `issuedAt` reaches this refusal. Its refusal MUST add
   one warning. When the request index names the recorded ticket and an envelope rebuilt from this
   invocation with that ticket's `createdAt` or `updatedAt`, or a second up to two seconds before
   either, has exactly the recorded mutation digest, the warning MUST name the request, the ticket,
@@ -7675,7 +7676,8 @@ The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are am
   coverage is admissible under such a scope regardless of the policy's `serialFallback`, because
   the scope is enforced at submit (CAL-V0-024).
 - A13: S5 for `external-agent` attempts. A `gate run` supports `COMMAND` gates with an expected
-  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource`, no declared `inputs` and no
+  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource` (amended by LGL-V0-885: such a gate
+  runs, one run per resource at a time), no declared `inputs` and no
   evidence label beyond the captured output; any other gate refuses `UNSUPPORTED` before it runs.
   The gate runs in the caller's worktree (`executedCwd` `WORKTREE`) with only the environment
   names the gate's `env` declares, taken from the caller, so a gate whose commands need `PATH`
@@ -8430,7 +8432,7 @@ after this restore.
 | --- | --- |
 | CAL-V0-300 | `TestCALV0300_ElisionScopeAndTamper`, `TestCALV0300_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
 | CAL-V0-301 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0300_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
-| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`), `TestCALV0302_CompactedStepsKeepTheirPostState` (`internal/tasks/cli`, V1-3669: replays and attempt show read the same post-state after compaction) |
 | CAL-V0-303 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing` |
 | CAL-V0-304 | `TestCALV0304_CompactLivenessIssueShape` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |
 | CAL-V0-311 | `TestCALV0311_KeepLeaseConfigIsClosedAndBounded`, `TestCALV0311_AbsentOptionChangesNothing` (`internal/tasks/dispatch`) |

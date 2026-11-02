@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestInvalidHostInvalidatesQualification(t *testing.T) {
@@ -21,7 +23,7 @@ func TestInvalidHostInvalidatesQualification(t *testing.T) {
 				}
 				host := filepath.Join(source, "host")
 				if kind == "launcher" {
-					if e := os.WriteFile(host, []byte("#!/bin/sh\nexit 0\n"), 0700); e != nil {
+					if e := execfile.WriteFile(host, []byte("#!/bin/sh\nexit 0\n"), 0700); e != nil {
 						t.Fatal(e)
 					}
 				}

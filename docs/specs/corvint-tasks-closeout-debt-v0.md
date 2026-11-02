@@ -288,6 +288,18 @@ closeout step is missing.
   gate, state, class, exit, failing line and output path. A `PASSED` result has null `tail` and
   `failingLine` and no warning. A reuse, a CI-run record, a replay or a refusal reports
   `gateResult: null`, because no gate ran in that call.
+- `TCD-V0-800`: (experimental under the standing lane auto-accept; V1-3940) The `TCD-V0-165`
+  `failingLine` choice, and the same choice in `lastFailedGate` (`CAL-V0-322`), MUST skip a make
+  driver's own wrapper lines (`make: *** [...] Error N`, `make[N]: *** ...`, `make[N]: Entering
+  directory` and `Leaving directory`, `gmake` alike) when it picks the last line that names an
+  error; they name the target, never the failing step. When every such line is a wrapper line the
+  fallback stays the last tail line.
+- `TCD-V0-801`: (experimental under the standing lane auto-accept; V1-3940) A policy gate MAY carry
+  an optional `failurePattern`: an RE2 expression of 1..256 bytes, refused `MALFORMED` at policy
+  decode when empty, longer or not RE2. For a gate that has one, `failingLine` MUST be the last tail
+  line that matches it and is not withheld; when none matches, the `TCD-V0-800` choice applies. The
+  member is part of the gate's canonical entry, so it is covered by the gate's `definitionSha256`;
+  a policy without it decodes and hashes as before. An older binary refuses a policy that sets it.
 - `TCD-V0-166`: Every executed command gate result retains its full captured output, within the
   16 MiB gate output bound, as the evidence blob `evidence/<sha256>` that the result's `output`
   evidence entry names, whatever the gate definition's `evidence` labels say. `evidence: []` does
@@ -511,6 +523,22 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-680`: (experimental under the standing lane auto-accept (2026-11-01); V1-3716; refines
+  TCD-V0-190) the `receipt audit` item also adds `completionsByDay`, the VERIFIED and MANUAL
+  completions of COMPLETED tickets grouped by the UTC date of `completion.recordedAt`, as
+  `{day, verified, manual}` rows newest first, at most 31 rows and only days with a completion; and
+  `completionHealth` `{windowDays, windowEnd, verified, manual, state}` over the 7 days ending on the
+  newest completion day. `state` is `NO_COMPLETIONS` (and `windowEnd` null) with none, `NO_VERIFIED`
+  when the window holds manual completions and no verified one, and `OK` otherwise. `NO_VERIFIED`
+  adds one warning naming the counts, the window end and the gated-close route. The window is
+  anchored on the store, never on the clock, so one snapshot always reads the same. Neither member
+  nor the warning changes the outcome, `completions` or any other member. Design: on 2026-11-01 an
+  audit found 356 manual and 0 verified completions since the 10-30 barrier, which no read had
+  flagged. Non-goals: ticket age (it needs a recorded `statusChangedAt`) and receipt operation
+  names, both of which need a revision of a closed persisted profile and wait on the owner.
+  Failure modes: a completion whose `recordedAt` carries no date is not counted by day. Evidence:
+  `TestTCDV0680_ReceiptAuditReportsCompletionHealth`, `TestTCDV0680_CompletionHealthWindow`.
+  Rollback: drop `receipt_health.go` and its two lines in `receiptAudit`.
 - `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
   (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
   is not yet a commit on the protected intent branch, the result adds a warning. The warning names
@@ -819,6 +847,8 @@ closeout step is missing.
 | TCD-V0-162 | V1-2251 | `internal/tasks/cli` (`emitDeliveryScreen`) | `TestTCDV0159_DeliveryScreenVerdicts` (exit 0 all CLEAR, 1 otherwise, 2 refused) | none |
 | TCD-V0-163 | V1-2254 criterion 1 (listing) | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (lanes from `#N`, rows with lane, batch, merge commit, green runs at merge commit and head only; NOT_OBSERVED without runs; open batch `PREREQUISITE_UNSATISFIED`; absent batch `MALFORMED`) | listing a real merged batch: NOT_RUN |
 | TCD-V0-164 | V1-2254 criterion 3 | `internal/tasks/cli` (`batchDeliveredCommand`) | `TestTCDV0163_BatchDeliveredListsLaneTicketsWithGreenRuns` (residual ticket under `mentioned`; unnamed PR's ticket absent) | none |
+| TCD-V0-800 | V1-3940 criteria 1, 3 | `internal/tasks/obligation` (`FailureTailMatching`, `makeWrapperLine`) | `TestTCDV0800_FailingLineSkipsMakeWrapper` (nested make failure names the FAIL line; wrapper-only log falls back) | a failing live Beamfall core gate: NOT_RUN |
+| TCD-V0-801 | V1-3940 criterion 2 | `internal/tasks/intent` (`GateDefinition.FailurePattern`), `internal/tasks/store` (`GateExecution.FailurePattern`), `internal/tasks/cli` (`gateResultValue`, `failedGateValue`) | `TestTCDV0801_FailurePatternPicksTheLine`; `TestTCDV0801_PolicyGateFailurePattern` (absent, valid, empty, over-long, invalid); `TestTCDV0801_GateRunCarriesTheFailurePattern` | none |
 | TCD-V0-165 | V1-2196 criteria 2, 3 | `internal/tasks/store` (`GateRun`, `GateExecution`), `internal/tasks/obligation` (`FailureTail`), `internal/tasks/cli` (`gateResultValue`) | `TestTCDV0165_GateRunReportsFailingTail` (FAILED exit 2, failing `make` line, four-line tail with the secret line withheld and absent from stdout, warning with path; PASSED null tail and no warning; replay null; receipt audit passes); `TestTCDV0165_FailureTail` (order, bound, blank lines, escapes, last actionable line, secret past the excerpt bound withheld); `TestTCDV0165_FailureTailKeyBlockBeforeTail` (a terminated and an unterminated private-key block whose BEGIN line lies before the 20-line tail emit no key material) | a failing live `focused-docs` run: NOT_RUN |
 | TCD-V0-166 | V1-2196 criterion 1 | `internal/tasks/store` (`runGate`), `internal/tasks/transaction` (`LeaseGateRun` evidence post) | `TestTCDV0165_GateRunReportsFailingTail` (gate declared `evidence: []`; the full output, secret included, is at `output.path`); live store 2026-10-21: FAILED `focused-docs` record `b0248975` names output blob `c04e7d9e` (30377 bytes) ending in the `line-citations-check` failure | none |
 | TCD-V0-167 | V1-2303 criteria 1, 3 | `internal/tasks/cli` (`closeoutIndex.commitReferences`, `subjectTickets`) | `TestTCDV0167_DeliveryScreenCitedAndTruncated` (a prose mention is CITED; a `Refs:` trailer, a leading ID, a `feat(ID):` scope and a final `(ID, ...)` deliver; fails on the pre-change every-line rule); `TestTCDV0159_DeliveryScreenVerdicts` (a vetoed commit line is CITED) | none |
@@ -845,6 +875,7 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-680 | V1-3716 | `internal/tasks/cli` (`completionDays`, `completionHealth`, `receiptAudit`) | `TestTCDV0680_ReceiptAuditReportsCompletionHealth` (no completion: `NO_COMPLETIONS`, no warning; one `complete-manual`: `NO_VERIFIED` with the warning, one day row, `completions` unchanged); `TestTCDV0680_CompletionHealthWindow` (a verified close 8 days back is outside the window, the seventh day back is inside, the 31-row cap) | none |
 | TCD-V0-806 | V1-3548 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `Report.GateReusePending`), `internal/tasks/cli` (`gate run` warning) | `TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass` (a joint gate fails the lower stacked attempt alone and the report names the upper attempt's PASS, tree and branch as pending; after a fast-forward integration the rerun reuses it without executing, `complete` records kind `VERIFIED` whose evidence names the descendant result in `reusedFrom`, and the receipt audit passes); `TestTCDV0151_DescendantPassCoversAMergedSeal` and `TestTCDV0152_DescendantReuseRefusals` unchanged | none |
 | TCD-V0-807 | V1-3541 | `internal/tasks/cli` (`requiredGatesWarning`, `createTemplateFields`) | `TestTCDV0807_CreateWithoutGatesNamesThePolicyGates` (a required and an optional policy gate: an empty-gates create warns naming both; a create naming the optional gate, a replay and a policy without gates warn nothing) | none |
 | TCD-V0-870 | V1-3496 | `internal/tasks/cli` (`closeoutIndex.prReferences`, `batchHits`) | `TestTCDV0870_DirectPRDeliversItsOwnTickets` (a direct PR's title parenthetical, `- **ID**:` lines and `Delivers` line deliver; a `Follow-up` prose line and a vetoed line only mention) | none |

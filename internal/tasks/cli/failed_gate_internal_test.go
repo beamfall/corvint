@@ -61,7 +61,7 @@ func TestCALV0322_LastFailedGateUnknowns(t *testing.T) {
 		for _, d := range results {
 			a.GateResults = append(a.GateResults, string(d))
 		}
-		return attemptLastFailedGate(repo, a)
+		return attemptLastFailedGate(repo, nil, a)
 	}
 	if v := show(passed); v.Kind != wire.KindNull {
 		t.Fatalf("a PASSED result is reported as failed: %s", wire.EncodeFile(v))

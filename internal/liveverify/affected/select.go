@@ -170,7 +170,45 @@ type Plan struct {
 	// (CCF-V1-007 (d)), so the narrowing is carried in this optional member
 	// instead (CCF-V1-006). It is omitted when no unit is left out this way.
 	GoAdditiveExcluded []GoAdditiveExclusion `json:"goAdditiveExcluded,omitempty"`
+	// FrontierBearers names, for each LANGUAGE_FRONTIER entry of Unknown,
+	// what made it bear: the participating plugin, the reached or narrowed
+	// unit with the witness that reached it, the plugin raised by a dirty
+	// path no plugin owns, or the plugin left out only by the terminal rule
+	// (TSP-V0-942). It restates Unknown and never changes selection or
+	// scope; it is omitted when no frontier bears.
+	FrontierBearers []FrontierBearer `json:"frontierBearers,omitempty"`
 }
+
+// FrontierBearer is one source that made the frontier entry Detail bear on a
+// plan (TSP-V0-942). Via is one of the FrontierBearer* constants. Language
+// names the plugin for a plugin-level source and Unit the unit for a
+// unit-level one; Witness and DirtyPath are the reaching witness's kind and
+// dirty path for a reached unit, and DirtyPath the first unowned path for an
+// unowned-path source. An OMITTED entry closes a detail whose unit sources
+// exceed MaxFrontierBearerUnits, with Count the number left out.
+type FrontierBearer struct {
+	Detail    string `json:"detail"`
+	Via       string `json:"via"`
+	Language  string `json:"language,omitempty"`
+	Unit      string `json:"unit,omitempty"`
+	Witness   string `json:"witness,omitempty"`
+	DirtyPath string `json:"dirtyPath,omitempty"`
+	Count     int    `json:"count,omitempty"`
+}
+
+// The FrontierBearer.Via values (TSP-V0-942).
+const (
+	FrontierBearerParticipating = "PARTICIPATING_PLUGIN"
+	FrontierBearerReachedUnit   = "REACHED_UNIT"
+	FrontierBearerNarrowedUnit  = "NARROWED_READER"
+	FrontierBearerUnownedPath   = "UNOWNED_DIRTY_PATH"
+	FrontierBearerTerminal      = "CROSS_LANGUAGE_ENTRY"
+	FrontierBearerOmitted       = "OMITTED"
+)
+
+// MaxFrontierBearerUnits bounds the unit sources FrontierBearers lists per
+// frontier entry; the rest are counted in one OMITTED entry (TSP-V0-942).
+const MaxFrontierBearerUnits = 16
 
 // FrontierExclusion records one plugin whose graph frontier a plan does not
 // name: no dirty path is that plugin's or unowned, and every reached unit of it
@@ -247,9 +285,10 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.NonSource = append(plan.NonSource, runtimeReaders...)
 	declaration, unknown := graph.declarationPath(unknown)
 	plan.NonSource = append(plan.NonSource, declaration...)
-	frontier, excluded := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
+	frontier, excluded, bearers := graph.frontierUnknowns(reached, narrowed, reads, carried, followed, normalized, plan.NonSource)
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
+	plan.FrontierBearers = bearers
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
 	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
@@ -518,21 +557,28 @@ func (graph *Graph) testOnlyGoUnits(seeds map[string]Witness, dirty []string, ch
 // nothing of them but terminal units, with the graph frontier reasons no other
 // source names (AFP-V0-560); a plan with a dirty path no plugin owns leaves no
 // plugin out that way, and a unit the plan follows the dependents of
-// (AFP-V0-581) is no terminal selection.
-func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion) {
+// (AFP-V0-581) is no terminal selection. It last returns, for each named
+// entry, the sources that made it bear (TSP-V0-942).
+func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads, carried, followed map[string]bool, dirty []string, nonSource []NonSource) ([]Unknown, []FrontierExclusion, []FrontierBearer) {
 	reasons := make(map[string]bool)
+	sources := make(map[string][]FrontierBearer)
+	bear := func(source FrontierBearer) {
+		sources[source.Detail] = append(sources[source.Detail], source)
+	}
 	involved, unowned, terminal := graph.participants(reached, carried, followed, dirty, nonSource)
 	participating := make(map[string]bool, len(involved))
 	for _, name := range involved {
 		participating[name] = true
 		for _, reason := range graph.frontierBy[name] {
 			reasons[reason] = true
+			bear(FrontierBearer{Detail: reason, Via: FrontierBearerParticipating, Language: name})
 		}
 	}
 	for id, witness := range reached {
 		if graph.frontierBears(id, witness, followed, reads) && graph.ownFilesBear(id, dirty) {
 			for _, reason := range graph.units[id].Frontier {
 				reasons[reason] = true
+				bear(FrontierBearer{Detail: reason, Via: FrontierBearerReachedUnit, Unit: id, Witness: witness.Kind, DirtyPath: witness.DirtyPath})
 			}
 		}
 	}
@@ -546,6 +592,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		}
 		for _, reason := range graph.units[id].Frontier {
 			reasons[reason] = true
+			bear(FrontierBearer{Detail: reason, Via: FrontierBearerNarrowedUnit, Unit: id})
 		}
 	}
 	// An entry of a plugin that owns no dirty path and reaches no changed
@@ -565,9 +612,12 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 			steered := graph.readsResolutionInput(name, unowned)
 			for _, entry := range graph.frontierBy[name] {
-				if (steered || graph.bearsOnUnowned(name, entry, closed)) && !reasons[entry] {
-					reasons[entry] = true
-					hints[entry] = hint
+				if steered || graph.bearsOnUnowned(name, entry, closed) {
+					bear(FrontierBearer{Detail: entry, Via: FrontierBearerUnownedPath, Language: name, DirtyPath: unowned[0]})
+					if !reasons[entry] {
+						reasons[entry] = true
+						hints[entry] = hint
+					}
 				}
 			}
 		}
@@ -575,10 +625,14 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	// A plugin left out only by the terminal rule still names the entries
 	// that stand for a runtime edge from another plugin's code into its units,
 	// which no traversal can see, unless a declared runtime edge models the
-	// entry's site (AFP-V0-818, AFP-V0-819).
-	for name := range terminal {
-		for _, entry := range graph.crossLanguageEntries(name) {
-			reasons[entry] = true
+	// entry's site (AFP-V0-818, AFP-V0-819). A dirty set of declared data
+	// alone changes no plugin's code, so no such edge carries it (AFP-V0-987).
+	if changesCode(dirty, nonSource) {
+		for name := range terminal {
+			for _, entry := range graph.crossLanguageEntries(name) {
+				reasons[entry] = true
+				bear(FrontierBearer{Detail: entry, Via: FrontierBearerTerminal, Language: name})
+			}
 		}
 	}
 	for _, name := range graph.languages {
@@ -617,7 +671,57 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		sort.Strings(units)
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
 	}
-	return unknown, excluded
+	return unknown, excluded, frontierBearerList(sources)
+}
+
+// frontierBearerList orders each entry's sources (by Via, Language, Unit,
+// Witness, DirtyPath), drops duplicates and keeps at most
+// MaxFrontierBearerUnits unit sources per entry, counting the rest in one
+// OMITTED entry (TSP-V0-942).
+func frontierBearerList(sources map[string][]FrontierBearer) []FrontierBearer {
+	var list []FrontierBearer
+	details := make([]string, 0, len(sources))
+	for detail := range sources {
+		details = append(details, detail)
+	}
+	sort.Strings(details)
+	for _, detail := range details {
+		entries := sources[detail]
+		sort.Slice(entries, func(i, j int) bool {
+			a, b := entries[i], entries[j]
+			if a.Via != b.Via {
+				return a.Via < b.Via
+			}
+			if a.Language != b.Language {
+				return a.Language < b.Language
+			}
+			if a.Unit != b.Unit {
+				return a.Unit < b.Unit
+			}
+			if a.Witness != b.Witness {
+				return a.Witness < b.Witness
+			}
+			return a.DirtyPath < b.DirtyPath
+		})
+		units, omitted := 0, 0
+		for index, entry := range entries {
+			if index > 0 && entry == entries[index-1] {
+				continue
+			}
+			if entry.Unit != "" {
+				if units == MaxFrontierBearerUnits {
+					omitted++
+					continue
+				}
+				units++
+			}
+			list = append(list, entry)
+		}
+		if omitted != 0 {
+			list = append(list, FrontierBearer{Detail: detail, Via: FrontierBearerOmitted, Count: omitted})
+		}
+	}
+	return list
 }
 
 // unownedFrontierHint is the Hint of a frontier entry that bears only
@@ -629,6 +733,33 @@ func unownedFrontierHint(unowned []string) string {
 		more = fmt.Sprintf(" (and %d more UNOWNED_DIRTY_PATH)", len(unowned)-1)
 	}
 	return "bears only because no plugin owns the dirty path " + strconv.Quote(unowned[0]) + more + ": this plugin owns no dirty path and reaches no changed unit"
+}
+
+// changesCode reports whether a dirty path is not declared data: every path
+// outside the TASK_STORE_PROJECTION, DECLARED_DOCUMENTATION and
+// DECLARED_RUNTIME_READERS groups may be another plugin's code, which an
+// end-to-end runtime edge could carry into a terminal unit (AFP-V0-818). A
+// declared runtime-readers path is read only by the units the reader rules
+// select, by the repository's declaration (AFP-V0-602), and a task-state or
+// documentation path by no test, so a dirty set of such paths alone reaches
+// no runtime edge (AFP-V0-987). A Corvint declaration still changes what
+// the plugins model, so it counts as code here.
+func changesCode(dirty []string, nonSource []NonSource) bool {
+	data := make(map[string]bool)
+	for _, group := range nonSource {
+		switch group.Class {
+		case ClassTaskStoreProjection, ClassDeclaredDocumentation, ClassDeclaredRuntimeReaders:
+			for _, path := range group.Paths {
+				data[path] = true
+			}
+		}
+	}
+	for _, path := range dirty {
+		if !data[path] {
+			return true
+		}
+	}
+	return false
 }
 
 // frontierBears reports whether unit id's Frontier bears on a plan that

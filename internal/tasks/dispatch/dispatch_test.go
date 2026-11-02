@@ -16,15 +16,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 )
 
 func testConfig(t *testing.T, script string) *Config {
 	t.Helper()
 	root := t.TempDir()
+	failOnStrays(t, root)
 	reapOnCleanup(t)
 	host := filepath.Join(root, "host.sh")
-	if err := os.WriteFile(host, []byte("#!/bin/sh\n"+script+"\n"), 0o700); err != nil {
+	if err := fixture.WriteExecutable(host, []byte("#!/bin/sh\n"+script+"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return &Config{
@@ -171,12 +173,12 @@ func TestCALV0053_WorkStateReaders(t *testing.T) {
 		t.Fatalf("states %q %q %q alerts %v", ts[0].State, ts[1].State, ts[2].State, alerts)
 	}
 	script := filepath.Join(dir, "states.sh")
-	os.WriteFile(script, []byte("#!/bin/sh\necho '{\"t1\":\"review\",\"ticket:a:q:t2\":\"done\"}'\n"), 0o700)
+	fixture.WriteExecutable(script, []byte("#!/bin/sh\necho '{\"t1\":\"review\",\"ticket:a:q:t2\":\"done\"}'\n"), 0o700)
 	c.WorkState = &WorkState{Kind: "command", Argv: []string{script}}
 	if alerts := ReadStates(context.Background(), c, ts); len(alerts) != 0 || ts[0].State != "review" || ts[1].State != "done" || ts[2].State != StateNone {
 		t.Fatalf("command states %+v alerts %v", ts, alerts)
 	}
-	os.WriteFile(script, []byte("#!/bin/sh\nexit 3\n"), 0o700)
+	fixture.WriteExecutable(script, []byte("#!/bin/sh\nexit 3\n"), 0o700)
 	if alerts := ReadStates(context.Background(), c, ts); len(alerts) != 1 || ts[0].State != StateUnknown {
 		t.Fatalf("failed command states %+v alerts %v", ts, alerts)
 	}

@@ -912,7 +912,7 @@ func Test03GitDirectChildControls(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
 			tool := filepath.Join(root, "git")
-			if e := os.WriteFile(tool, []byte(tc.script), 0700); e != nil {
+			if e := writeExecutable(tool, []byte(tc.script), 0700); e != nil {
 				t.Fatal(e)
 			}
 			t.Setenv("PATH", root)
@@ -944,7 +944,7 @@ func Test03DiffFailureBoundary(t *testing.T) {
 		t.Skip("proposal refuses Windows process scope")
 	}
 	root := t.TempDir()
-	if e := os.WriteFile(filepath.Join(root, "git"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
+	if e := writeExecutable(filepath.Join(root, "git"), []byte("#!/bin/sh\nexit 1\n"), 0700); e != nil {
 		t.Fatal(e)
 	}
 	t.Setenv("PATH", root)
@@ -1222,7 +1222,7 @@ func TestCandidateGitDirectChildOutputLimits(t *testing.T) {
 			root := t.TempDir()
 			// Shell builtins only: one direct child, no background processes/descendants.
 			script := fmt.Sprintf("#!/bin/sh\nprintf '%%s' '%s'\nprintf '%%s' '%s' >&2\nexit %d\n", strings.Repeat("o", tc.stdout), strings.Repeat("e", tc.stderr), tc.exit)
-			if err := os.WriteFile(filepath.Join(root, "git"), []byte(script), 0700); err != nil {
+			if err := writeExecutable(filepath.Join(root, "git"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", root)

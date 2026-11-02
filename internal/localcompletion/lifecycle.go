@@ -375,8 +375,14 @@ func (repo *repository) checkQualification(ctx context.Context, saved *state, ch
 	if !repo.artifactsCurrent([]artifact{observed.Stdout, observed.Stderr}) {
 		return false, ""
 	}
-	if observed.Target == snap.target || !check.AllowCemSidecarOnlyReuse {
-		return observed.Target == snap.target && observed.Tree == snap.tree, ""
+	if observed.Target == snap.target {
+		return observed.Tree == snap.tree, ""
+	}
+	if check.AllowSealArchiveReuse && repo.sealArchiveEquivalent(ctx, saved, observed, snap) {
+		return true, ""
+	}
+	if !check.AllowCemSidecarOnlyReuse {
+		return false, ""
 	}
 	// Another target reruns (CEM-V1-150, CEM-V1-208) unless the plan allows
 	// sidecar-only reuse and the stable verifier accepts the sidecar (CEM-V1-205).

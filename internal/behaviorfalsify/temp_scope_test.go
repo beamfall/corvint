@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // BBF-V0-014: actual staged hook observes safe transport; arbitrary standalone
@@ -21,7 +23,7 @@ func TestBBFV0014TempRootTransport(t *testing.T) {
 		t.Fatal(err)
 	}
 	hook := filepath.Join(root, "hook")
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\n[ -z \"$GITHUB_TOKEN\" ] && [ -z \"$NODE_OPTIONS\" ] || exit 7\nprintf '%s\\n%s\\n' \"$TMPDIR\" \"$0\"\n"), 0700); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\n[ -z \"$GITHUB_TOKEN\" ] && [ -z \"$NODE_OPTIONS\" ] || exit 7\nprintf '%s\\n%s\\n' \"$TMPDIR\" \"$0\"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(hook)
@@ -72,7 +74,7 @@ func TestBBFV0014TempRootInterruptedStaging(t *testing.T) {
 	}
 	hook := filepath.Join(root, "hook")
 	script := "#!/bin/sh\nprintf '%s' \"$0\" > \"$TMPDIR/started\"\ntrap '' TERM\nsleep 30\n"
-	if err := os.WriteFile(hook, []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(hook, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	saved := os.Environ()

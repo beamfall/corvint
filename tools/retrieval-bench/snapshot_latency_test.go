@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval(t *testing.T) {
@@ -24,7 +25,7 @@ func testSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval(t *testing.T) {
 	configuration.snapshotLatency = true
 	configuration.registrationPath = filepath.Join(t.TempDir(), "registration.json")
 	script := "#!/bin/sh\nif [ \"$1\" = --version ]; then echo test; exit; fi\nmkdir -p \"$2/.corvint\" \"$2/.git/corvint/index\"\nprintf '*\\n' > \"$2/.corvint/.gitignore\"\n"
-	if err := os.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(configuration.corvintGo, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	roots := map[string]bool{}

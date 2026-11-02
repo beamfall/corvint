@@ -75,6 +75,9 @@ type Env struct {
 	// ScopeDeriver derives a claim scope for a ticket that declares none
 	// (CAL-V0-022); nil uses the explicitly enabled pack deriver.
 	ScopeDeriver store.ScopeDeriver
+	// Role is the session principal class (TAW-V0-001): AGENT, OPERATOR or
+	// OWNER; empty reads CORVINT_TASKS_ROLE, and unset keeps today's behavior.
+	Role string
 }
 
 // ReadVerbs are the verb paths this binary implements. The reads are pure
@@ -105,6 +108,7 @@ var ReadVerbs = []string{
 	"worktree ensure",
 	"source contains",
 	"defects add", "defects update", "defects list",
+	"work start", "work deliver", "work block", "work finding", "work close-merged", "work release-sync",
 	"run-batch",
 	"qualify",
 	"gate record", "gate resubmit", "gate history", "gate packet", "gate state",
@@ -160,6 +164,9 @@ func Run(env Env) int {
 	if result := readOnlyRefusal(args); result != nil {
 		return emit(env.Stdout, result)
 	}
+	if result := classRefusal(env, args); result != nil {
+		return emit(env.Stdout, result)
+	}
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}
@@ -209,6 +216,9 @@ func Run(env Env) int {
 	case "defects":
 		// TDR-V0-010: the defect register.
 		return emit(env.Stdout, defectsCommand(env, args[1:]))
+	case "work":
+		// TAW-V0-003..014: the role-scoped agent workflow verbs.
+		return emit(env.Stdout, workCommand(env, args[1:]))
 	case "run-batch":
 		return emit(env.Stdout, runBatch(env, []string{"run-batch"}, args[1:]))
 	case "qualify":
@@ -826,6 +836,13 @@ func projectionStale(rc *readCtx) string {
 // flags parses `--name value` / `--name=value` pairs; positional arguments
 // are returned in order. Unknown flags are reported.
 func flags(args []string, known ...string) (map[string]string, []string, error) {
+	return flagsWithBooleans(args, nil, known...)
+}
+
+// flagsWithBooleans is flags with declared boolean flags (TCL-V0-801): a
+// boolean flag takes no value, a present one maps to "true", and
+// `--name=VALUE` on one is refused MALFORMED naming the flag.
+func flagsWithBooleans(args []string, booleans []string, known ...string) (map[string]string, []string, error) {
 	out := map[string]string{}
 	var pos []string
 	isKnown := func(n string) bool {
@@ -843,6 +860,13 @@ func flags(args []string, known ...string) (map[string]string, []string, error) 
 			continue
 		}
 		name, val, hasVal := strings.Cut(a[2:], "=")
+		if slices.Contains(booleans, name) {
+			if hasVal {
+				return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "flag --%s takes no value", name)
+			}
+			out[name] = "true"
+			continue
+		}
 		if !isKnown(name) {
 			return nil, nil, wire.Errorf(wire.CodeMalformed, "argv", "unknown flag --%s", prose(name))
 		}
@@ -1997,7 +2021,7 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 	if rc.journalAbsent {
 		val.Obj.Set("lastFailedGate", wire.String("NOT_OBSERVED"))
 	} else {
-		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, attempts, id))
+		val.Obj.Set("lastFailedGate", ticketLastFailedGate(rc.repo, rc.store.Policy, attempts, id))
 	}
 	// V1-2038: the gate set complete enforces, policy-required gates included.
 	val.Obj.Set("effectiveRequiredGates", wire.Strings(transaction.RequiredGates(rc.store.Policy, v.Record)))

@@ -16,6 +16,8 @@
 # host-wide counting semaphore, so concurrent lanes queue instead of thrashing the host
 # (ASD-V0-014, docs/LANE-ORCHESTRATION.md). A `go test`, `go vet` or `make windows-vet` command may
 # instead run on a configured remote Linux host (ASD-V0-028).
+# A go test may name several packages; they run as one command, and its failure ends with the
+# ASD-V0-940 cause line like any other (ASD-V0-980).
 #
 #   HEAVY_SLOTS     concurrent heavy commands admitted host-wide; default max(1, CPUs/4)
 #   HEAVY_P         Go build/test parallelism (-p) exported through GOFLAGS unless GOFLAGS already
@@ -35,6 +37,9 @@
 #   HEAVY_WHOLE_REASON   a `go test` without `-run` (a whole package) is refused with exit 2 unless
 #                        this names why, for example "corvint selected the package whole" or Corvint's
 #                        FALLBACK/UNKNOWN reason. Select units with `corvint test --base SHA --dry-run`.
+#                        It (and HEAVY_LOCAL_REASON) may also be a leading NAME=VALUE word or an
+#                        `env NAME=VALUE` word before the command; `go test -c` runs no test and
+#                        needs no reason (ASD-V0-910).
 #   HEAVY_SMALL_TEST_BYTES  a whole-package `go test` whose every package is a plain local directory
 #                        under tools/ or conformance/ (no `...`) and whose *_test.go files total at
 #                        most this many bytes runs without HEAVY_WHOLE_REASON, logged as
@@ -45,6 +50,9 @@
 #                        whole-package go test whose every ./REL package M selects whole needs no
 #                        HEAVY_WHOLE_REASON, logged `whole reason=corvint-selection:HEX12` (ASD-V0-891).
 #                        `script/heavy.sh --plan M` prints one such command per unit of M, runs none.
+#                        A relative .git/REL resolves to Git's path (linked worktrees); when M
+#                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
+#                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
 #   HEAVY_GO_TEST_TIMEOUT  a go test naming no -timeout (argument, -test.timeout or GOFLAGS) gets
 #                        `-timeout VALUE` after `test`, before any offload; default 30m, off adds none
 #                        (ASD-V0-938, V1-3630).
@@ -55,10 +63,23 @@
 #   HEAVY_MIN_FREE_GB    whole GiB a scratch or Go-cache file system must have free, default 3, 0
 #                        off (ASD-V0-937): a remote below it is unavailable (exit 97, so the next host
 #                        or the fallback runs it) and is ordered last by the probe; a local run below
-#                        it warns and logs `lowdisk-local` but still runs.
-#                        A relative .git/REL resolves to Git's path (linked worktrees); when M
-#                        admits nothing, one `HEAVY_SELECTION=M not admitted: REASON` line says why
-#                        (ASD-V0-722). A `go test -c` only compiles and needs no reason (ASD-V0-721).
+#                        it warns and logs `lowdisk-local` but still runs. Every low-disk line is
+#                        followed by one `heavy.sh: to free space: ...` hint (ASD-V0-062).
+#   HEAVY_REFUSE_FREE_GB whole GiB below which a local run is refused instead (ASD-V0-062, V1-3824):
+#                        default 1, 0 off. It prints `heavy.sh: REFUSED low-disk (exit 2)`, logs
+#                        `lowdisk-refused`, and runs nothing, so a full /tmp the agent harness shares
+#                        keeps its last space for command output.
+#   HEAVY_TMP_FSTYPE     the file-system type of /tmp, read on Linux with `stat -f -c %T /tmp` when
+#                        unset. When it is `tmpfs` (a RAM-backed /tmp, 16 GiB on WSL), a local run
+#                        whose caller set neither GOCACHE nor CORVINT_GOCACHE uses
+#                        ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache, the remote half's
+#                        default, and one whose caller set no TMPDIR uses .../corvint-tmp, naming both
+#                        on one stderr line (ASD-V0-061, V1-3824, V1-2904). `disk` keeps the /tmp paths.
+#   HEAVY_CACHE_TRIM_HOURS  hours between automatic Go cache trims, default 6, 0 off (ASD-V0-104,
+#                        V1-3787): a local run whose HEAVY_LOCK_DIR/cache-trim.stamp is missing or
+#                        older runs `go-cache-trim.sh --apply` on its GOCACHE and TMPDIR first, with
+#                        that script's bounds (entries over 12 h old, down to 20 GiB or 40% of the
+#                        file system); a failed trim warns and the run still goes ahead.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -228,6 +249,11 @@
 # The whole script is function definitions followed by one `main` line, so the remote bash parses
 # it completely before main reads the offload payload that follows it on the same stdin.
 set -uo pipefail
+
+# git ARG...: ASD-V0-909 (V1-3684). heavy.sh's own Git calls ignore a caller's GIT_CONFIG_GLOBAL
+# (a lane that points it at a directory or a scratch file made every rev-parse fail, so the run lost
+# its tested-tree line and its offload); the wrapped command still inherits it unchanged.
+git() { env -u GIT_CONFIG_GLOBAL git "$@"; }
 
 refuse() {
   printf 'heavy.sh: REFUSE %s\n' "$*" >&2
@@ -450,10 +476,15 @@ upstream() {
 # tree objects to the object store.
 tree_identity() {
   local top=$1 index=$2 real
-  heavy_tree= heavy_dirty=
+  heavy_tree= heavy_dirty= heavy_copy_err=
   real=$(git -C "$top" rev-parse --path-format=absolute --git-path index 2> /dev/null) || return 1
   /bin/rm -f "$index"
-  if [[ -f $real ]]; then /bin/cp -f "$real" "$index" || return 1; fi
+  if [[ -f $real ]] && ! heavy_copy_err=$(/bin/cp -f "$real" "$index" 2>&1); then
+    heavy_copy_err=${heavy_copy_err:-cp exited non-zero}
+    /bin/rm -f "$index"
+    return 1
+  fi
+  heavy_copy_err=
   GIT_INDEX_FILE=$index git -C "$top" add -A > /dev/null 2>&1 || return 1
   heavy_tree=$(GIT_INDEX_FILE=$index git -C "$top" write-tree 2> /dev/null) || return 1
   heavy_dirty=$(git -C "$top" diff-tree -r --name-only -z HEAD "$heavy_tree" 2> /dev/null | tr -cd '\0' | wc -c | tr -d ' ')
@@ -594,6 +625,11 @@ copy_back() {
   local dst
   while IFS= read -r -d '' p; do
     dst=$(build_dest "$top" "$p") || return 96
+    # A file the run rewrote with the same content and mode here is not a change: it is neither
+    # installed nor listed (V1-4063, ASD-V0-824).
+    if [[ -f $dst && ! -L $dst ]] && cmp -s "$d/files/$p" "$dst"; then
+      { [[ -x $d/files/$p ]] && [[ -x $dst ]]; } || { [[ ! -x $d/files/$p ]] && [[ ! -x $dst ]]; } && continue
+    fi
     # A fresh mktemp sibling, never a predictable name an existing file or symlink could occupy.
     if ! { mkdir -p "$(dirname "$dst")" && tmp=$(mktemp "$dst.heavy-new.XXXXXX") &&
       /bin/cp -p "$d/files/$p" "$tmp" && /bin/mv -f "$tmp" "$dst"; }; then
@@ -846,6 +882,14 @@ store_back() {
   rc=95
 }
 
+# index_copy_refuse DIR ERROR: the ASD-V0-908 refusal, naming DIR's file system (mount point and free
+# KiB, as df -Pk reports them) and the copy's own error line.
+index_copy_refuse() {
+  local vol
+  vol=$(df -Pk "$1" 2> /dev/null | awk 'NR == 2 { printf "%s (%s KiB free)", $6, $4 }')
+  refuse "index-copy-failed cannot copy the Git index to a scratch file in $1 on volume ${vol:-unknown}: ${2//$'\n'/ }; free space there or set TMPDIR to a writable directory with space"
+}
+
 # local_identity COMMAND...: for an offloadable command run here inside a Git checkout, one stderr
 # line naming the tested tree (tree_identity), or tree=unknown when it cannot be computed. It is
 # taken before slot admission, so an edit made while waiting is not reflected.
@@ -854,7 +898,18 @@ local_identity() {
   offloadable "$@" || return 0
   top=$(git rev-parse --show-toplevel 2> /dev/null) || return 0
   head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || head=unknown
-  idx=$(mktemp "${TMPDIR:-/tmp}/heavy-index.XXXXXX") && tree_identity "$top" "$idx" || heavy_tree=unknown heavy_dirty=unknown
+  # ASD-V0-908 (V1-3523): a scratch index that cannot be created or copied (a full or read-only
+  # temp volume) refuses before the command runs, naming the volume, instead of a missed cp error.
+  local tdir=${TMPDIR:-/tmp} err
+  tdir=${tdir%/}
+  if ! idx=$(mktemp "$tdir/heavy-index.XXXXXX" 2>&1); then
+    err=$idx idx=
+    index_copy_refuse "$tdir" "${err:-mktemp failed}"
+  fi
+  if ! tree_identity "$top" "$idx"; then
+    [[ -n ${heavy_copy_err-} ]] && { /bin/rm -f "$idx"; index_copy_refuse "$tdir" "$heavy_copy_err"; }
+    heavy_tree=unknown heavy_dirty=unknown
+  fi
   [[ -n ${idx-} ]] && /bin/rm -f "$idx"
   printf 'heavy.sh: running locally at %s tree=%s dirty=%s\n' "$head" "$heavy_tree" "$heavy_dirty" >&2
 }
@@ -1210,11 +1265,12 @@ selection_manifest() {
 }
 
 # compile_only COMMAND...: succeeds when the go test arguments (up to -args) include -c, which
-# builds the test binary and runs no test (ASD-V0-721).
+# builds the test binary and runs no test (ASD-V0-721); the go word may be path-qualified
+# (ASD-V0-910, V1-3739).
 compile_only() {
   local seen=0 prev_go=0 c=0 skip=0 arg
   for arg in "$@"; do
-    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
     case ${arg#-} in
       -args | args) break ;;
@@ -1269,9 +1325,10 @@ print_plan() {
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
 # that matches every test) without HEAVY_WHOLE_REASON (ASD-V0-030, ASD-V0-860). Returns 1 on refusal.
 selection_policy() {
-  local now
+  local now cause='it names no -run, so every test in the package runs'
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  # ASD-V0-721 (V1-3845) and ASD-V0-910 (V1-3739): `go test -c` only compiles the test binary and runs no test.
   if compile_only "$@"; then
     selection_log "$now whole reason=compile-only pwd=$PWD cmd=$*"
     return 0
@@ -1282,6 +1339,7 @@ selection_policy() {
         selection_log "$now selected pwd=$PWD cmd=$*"
         return 0
       fi
+      cause='its -run pattern matches every test name, such as ., .*, Test or an empty pattern (ASD-V0-860)'
       ;;
   esac
   local small digest
@@ -1294,11 +1352,27 @@ selection_policy() {
     return 0
   fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON: $cause (V1-4064, ASD-V0-822). Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run --manifest M, then script/heavy.sh --plan M prints one command per package, each with HEAVY_SELECTION=M, which admits a package the manifest selected whole (ASD-V0-891). If Corvint reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>' in heavy.sh's own environment or as a leading NAME=VALUE word (HEAVY_WHOLE_REASON=R script/heavy.sh go test ..., or script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...). A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason; an internal/ or cmd/ package always needs a selection or a reason." >&2
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
   selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON") pwd=$PWD cmd=$*"
+}
+
+# env_reasons COMMAND...: ASD-V0-910 (V1-3739). The lane reasons given as leading NAME=VALUE words
+# of an `env` command (`script/heavy.sh env HEAVY_WHOLE_REASON=R go test ...`, also the form a
+# leading NAME=VALUE word becomes) count as set in heavy.sh's environment.
+env_reasons() {
+  local a
+  [[ ${1-} == env ]] || return 0
+  shift
+  for a; do
+    [[ $a =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || return 0
+    case $a in
+      HEAVY_WHOLE_REASON=*) HEAVY_WHOLE_REASON=${a#*=} ;;
+      HEAVY_LOCAL_REASON=*) HEAVY_LOCAL_REASON=${a#*=} ;;
+    esac
+  done
 }
 
 # local_policy COMMAND...: refuse an offloadable command under HEAVY_REMOTE=0 without
@@ -1358,24 +1432,89 @@ free_gb() {
   df -Pk "${d:-/}" 2> /dev/null | awk 'NR == 2 && $4 ~ /^[0-9]+$/ { printf "%d", $4 / 1048576 }'
 }
 
-# disk_floor: HEAVY_MIN_FREE_GB, validated, into heavy_min_free (ASD-V0-937).
+# disk_floor: HEAVY_MIN_FREE_GB and HEAVY_REFUSE_FREE_GB, validated, into heavy_min_free and
+# heavy_refuse_free (ASD-V0-937, ASD-V0-062).
 disk_floor() {
   heavy_min_free=${HEAVY_MIN_FREE_GB:-3}
   [[ $heavy_min_free =~ ^[0-9]{1,6}$ ]] || refuse "invalid-min-free HEAVY_MIN_FREE_GB=$heavy_min_free (want whole GiB, 0 disables)"
   heavy_min_free=$((10#$heavy_min_free))
+  heavy_refuse_free=${HEAVY_REFUSE_FREE_GB:-1}
+  [[ $heavy_refuse_free =~ ^[0-9]{1,6}$ ]] || refuse "invalid-refuse-free HEAVY_REFUSE_FREE_GB=$heavy_refuse_free (want whole GiB, 0 disables)"
+  heavy_refuse_free=$((10#$heavy_refuse_free))
 }
 
-# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the floor; the run
-# still goes ahead (ASD-V0-937).
+# tmp_fstype: the file-system type of /tmp, HEAVY_TMP_FSTYPE when set; empty off Linux or when stat
+# cannot say (macOS `stat -f` means something else).
+tmp_fstype() {
+  if [[ -n ${HEAVY_TMP_FSTYPE-} ]]; then
+    printf '%s' "$HEAVY_TMP_FSTYPE"
+  elif [[ $(uname -s 2> /dev/null) == Linux ]]; then
+    stat -f -c %T /tmp 2> /dev/null
+  fi
+}
+
+# tmpfs_defaults: ASD-V0-061 (V1-3824, V1-2904). On a tmpfs /tmp, a local run's Go cache and
+# temporary files default to the home disk, where the remote half keeps them, so a host that is
+# both a lane host and an offload host has one Go cache and RAM is not filled by builds.
+tmpfs_defaults() {
+  [[ $(tmp_fstype) == tmpfs ]] || return 0
+  local base=${XDG_CACHE_HOME:-$HOME/.cache} moved=''
+  if [[ -z ${GOCACHE-} && -z ${CORVINT_GOCACHE-} ]]; then
+    CORVINT_GOCACHE=$base/corvint-go-build-cache
+    export CORVINT_GOCACHE
+    moved="GOCACHE=$CORVINT_GOCACHE"
+  fi
+  if [[ -z ${TMPDIR-} ]] && mkdir -p "$base/corvint-tmp" 2> /dev/null; then
+    TMPDIR=$base/corvint-tmp
+    export TMPDIR
+    moved="${moved:+$moved }TMPDIR=$TMPDIR"
+  fi
+  [[ -z $moved ]] || printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
+  return 0
+}
+
+# local_disk: before a local run, name a TMPDIR or GOCACHE file system below the warning floor (the
+# run still goes ahead, ASD-V0-937) or below the refusal floor (status 1, ASD-V0-062), each followed
+# by one cleanup hint.
 local_disk() {
-  local p g
-  ((heavy_min_free > 0)) || return 0
+  local p g low='' refused=''
   for p in "${TMPDIR:-/tmp}" "$GOCACHE"; do
     g=$(free_gb "$p")
-    [[ $g =~ ^[0-9]+$ ]] && ((g < heavy_min_free)) || continue
-    printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
-    selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
+    [[ $g =~ ^[0-9]+$ ]] || continue
+    if ((heavy_refuse_free > 0 && g < heavy_refuse_free)); then
+      printf 'heavy.sh: low disk here: %s free=%sG refuse-floor=%sG\n' "$p" "$g" "$heavy_refuse_free" >&2
+      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-refused path=$p free=${g}G floor=${heavy_refuse_free}G pwd=$PWD"
+      refused=1
+    elif ((heavy_min_free > 0 && g < heavy_min_free)); then
+      printf 'heavy.sh: low disk here: %s free=%sG floor=%sG\n' "$p" "$g" "$heavy_min_free" >&2
+      selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) lowdisk-local path=$p free=${g}G floor=${heavy_min_free}G pwd=$PWD"
+    else
+      continue
+    fi
+    low=1
   done
+  [[ -z $low ]] || printf 'heavy.sh: to free space: make go-cache-trim (dry run, then APPLY=1) and make scratch-sweep (docs/LANE-ORCHESTRATION.md section 6); on a tmpfs /tmp point TMPDIR and CORVINT_GOCACHE at %s\n' "${XDG_CACHE_HOME:-$HOME/.cache}" >&2
+  [[ -z $refused ]]
+}
+
+# cache_trim: at most once per HEAVY_CACHE_TRIM_HOURS per lock dir, bound the local run's Go cache
+# with go-cache-trim.sh before the run (ASD-V0-104, V1-3787). Nothing trimmed the shared caches
+# automatically, so they grew to tens of GiB per host between manual trims. The stamp is touched
+# before the trim, so concurrent runs do not all scan; a missing tool or failed trim only warns.
+cache_trim() {
+  local hours=${HEAVY_CACHE_TRIM_HOURS:-6} stamp=$lock_dir/cache-trim.stamp tool=${BASH_SOURCE[0]%/*}/go-cache-trim.sh out rc line
+  [[ $hours =~ ^[0-9]{1,4}$ ]] || refuse "invalid-cache-trim HEAVY_CACHE_TRIM_HOURS=$hours (want whole hours, 0 disables)"
+  hours=$((10#$hours))
+  ((hours > 0)) || return 0
+  [[ -e $stamp && -z $(find "$stamp" -mmin +$((hours * 60)) 2> /dev/null) ]] && return 0
+  touch "$stamp" 2> /dev/null || return 0
+  [[ -x $tool ]] || { printf 'heavy.sh: cache trim skipped: %s missing\n' "$tool" >&2; return 0; }
+  out=$("$tool" --apply --cache "$GOCACHE" --temp-root "${TMPDIR:-/tmp}" 2>&1)
+  rc=$?
+  while IFS= read -r line; do
+    case $line in TRIMMED\ * | SUMMARY\ * | WARN\ *) printf 'heavy.sh: cache trim: %s\n' "$line" >&2 ;; esac
+  done <<< "$out"
+  ((rc == 0)) || printf 'heavy.sh: cache trim failed (exit %s); the run goes ahead\n' "$rc" >&2
 }
 
 # unwrap_perl STRING: the words of a simple shell command, NUL-terminated; exit 3 for anything a
@@ -1416,7 +1555,7 @@ unwrap_shell() {
   fi
   while IFS= read -r -d '' w; do words+=("$w"); done < <(perl -e "$unwrap_perl" "$3")
   [[ ${words[0]-} =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && words=(env ${words[@]+"${words[@]}"})
-  printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]}" >&2
+  printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]-}" >&2
   heavy_argv=(${words[@]+"${words[@]}"})
 }
 
@@ -1505,6 +1644,19 @@ darwin_local() {
   printf 'heavy.sh: %s darwin-only file(s), first %s: running on this darwin host, not offloading\n' "$n" "$first" >&2
   fallback_log "darwin-local n=$n first=$first" "$@"
   selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) darwin-local n=$n first=$first pwd=$PWD cmd=$*"
+}
+
+# foreign_notice COMMAND...: on a host that is not Darwin, before a local run, name the darwin-only
+# files under the command's packages, which this run neither builds nor runs, so its pass is never
+# read as darwin evidence (V1-4063, ASD-V0-823).
+foreign_notice() {
+  local files os
+  os=$(uname -s 2> /dev/null) || os=unknown
+  [[ $os != Darwin ]] || return 0
+  files=$(darwin_only "$@")
+  [[ -n $files ]] || return 0
+  printf 'heavy.sh: this %s host neither builds nor runs %s darwin-only file(s), first %s; this run is no darwin evidence (run it on a darwin host)\n' \
+    "$os" "$(grep -c . <<< "$files")" "$(head -n 1 <<< "$files")" >&2
 }
 
 # script_hash FILE: FILE's SHA-256 in hex, or unknown.
@@ -1601,6 +1753,7 @@ main() {
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
     # ASD-V0-890 (V1-3506): evaluate both reason rules, then refuse once naming every missing reason.
     local missing=()
+    env_reasons "$@"
     selection_policy "$@" || missing+=(whole-reason-missing)
     go_test_timeout "$@"
     set -- ${heavy_argv[@]+"${heavy_argv[@]}"}
@@ -1661,13 +1814,21 @@ main() {
   [[ ${HEAVY_HELD-} == "$lock_dir"/slot* ]] || load_wait "$cpus"
   pin_go
   bound_parallelism "$par"
-  [[ -n $heavy_admit_only ]] || local_identity "$@"
+  [[ -n $heavy_admit_only ]] || { foreign_notice "$@"; local_identity "$@"; }
   # ASD-V0-038 (V1-2904): one Go build cache per host. Unless the caller sets GOCACHE, a local run
-  # uses the cache the Makefile uses (CORVINT_GOCACHE, default /tmp/corvint-go-build-cache), so a
-  # plain go test and a make target do not fill two caches.
-  : "${GOCACHE:=${CORVINT_GOCACHE:-/tmp/corvint-go-build-cache}}"
+  # uses the cache the Makefile uses (CORVINT_GOCACHE, default ${TMPDIR:-/tmp}/corvint-go-build-cache
+  # with TMPDIR's trailing slash dropped, ASD-V0-914), so a plain go test and a make target do not
+  # fill two caches. ASD-V0-061: on a tmpfs /tmp both move to the home disk first.
+  tmpfs_defaults
+  local cache_tmp=${TMPDIR:-/tmp}
+  : "${GOCACHE:=${CORVINT_GOCACHE:-${cache_tmp%/}/corvint-go-build-cache}}"
   export GOCACHE
-  local_disk
+  cache_trim
+  if ! local_disk; then
+    printf 'heavy.sh: REFUSED low-disk (exit 2)\n' # stdout marker (V1-3213)
+    heavy_cause=refused-low-disk
+    return 2
+  fi
   # exec, as before: killing the wrapper kills the semaphore holder while the workload keeps the
   # inherited slot (ASD-V0-014). The holder appends the run's status line (ASD-V0-037).
   HEAVY_RUN_LOG=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} HEAVY_RUN_TAG=" script=${heavy_script:0:12}" HEAVY_RUN_LOAD=$heavy_load_wait \

@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/gorunner"
 	"github.com/Beamfall/corvint/internal/testvalidity"
 )
@@ -204,7 +205,7 @@ func TestPassWithoutRunAbstains(t *testing.T) {
 	modPath, testPath := writeModule(t, dir, "package fixture\n\nimport \"testing\"\n\nfunc TestReal(t *testing.T) {}\n")
 	goStub := filepath.Join(dir, "go-stub")
 	stub := "#!/bin/sh\nprintf '%s\\n' '{\"Action\":\"pass\",\"Package\":\"fixture\",\"Test\":\"TestGhost\",\"Elapsed\":0}' '{\"Action\":\"pass\",\"Package\":\"fixture\",\"Elapsed\":0}'\n"
-	if err := os.WriteFile(goStub, []byte(stub), 0o755); err != nil {
+	if err := execfile.WriteFile(goStub, []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -369,7 +370,7 @@ func TestCancellationLeavesNoDescendants(t *testing.T) {
 	pidfile := filepath.Join(dir, "child.pid")
 	script := filepath.Join(dir, "spawn.sh")
 	body := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nchild=$!\necho $child > '%s'\nwait \"$child\"\n", pidfile)
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	testBody := fmt.Sprintf("package fixture\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\nfunc TestSpawn(t *testing.T) {\n\tcmd := exec.Command(%q)\n\t_ = cmd.Run()\n}\n", script)

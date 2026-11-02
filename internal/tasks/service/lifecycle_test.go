@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -111,13 +112,18 @@ func newServiceHome(t *testing.T) *serviceHome {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// V1-3686: t.TempDir makes its directory 0777 &^ umask, so a 0002 umask (WSL, Unraid) leaves
+	// it group-writable and observeFile refuses every file under it.
+	if err := os.Chmod(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	s := &serviceHome{home: home, work: filepath.Join(home, "project"), exe: filepath.Join(home, "bin", "corvint-tasks"), config: filepath.Join(home, "config", "dispatch.json"), profile: filepath.Join(home, "config", "service.json")}
 	for _, d := range []string{s.work, filepath.Dir(s.exe), filepath.Dir(s.config)} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(s.exe, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := fixture.WriteExecutable(s.exe, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	s.cfg = dispatch.Config{Profile: dispatch.ConfigProfile, StateDir: filepath.Join(home, "dispatch-state"), WorkRoot: s.work, TickSeconds: 1, GlobalCap: 1, KillGraceSeconds: 1, Hosts: map[string]dispatch.Host{"sh": {Argv: []string{s.exe, "{prompt}"}}}, Roles: []dispatch.Role{{Name: "impl", Host: "sh", Cap: 1, Match: &dispatch.Match{}, Prompt: "work on {ticketLocal} as {holder}", IdleSeconds: 30, WallSeconds: 60}}, Backoff: dispatch.Backoff{ParkAfter: 2}}

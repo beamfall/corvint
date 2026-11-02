@@ -1,7 +1,9 @@
 # BASE defaults to origin/main, the base every branch is cut from (ACX-V0-857, V1-3734).
 BASE ?= origin/main
 DOGFOOD_GOCACHE := $(or $(CORVINT_GOCACHE),$(GOCACHE),$(or $(XDG_CACHE_HOME),$(HOME)/.cache)/corvint-go-build-cache)
-CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache
+# ASD-V0-914 (V1-3796): the default cache sits under TMPDIR (trailing slash dropped), else /tmp, so a
+# lane that points TMPDIR at a roomy scratch volume does not fill a small /tmp.
+CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache
 CORVINT_BIN ?= corvint
 # A bare `make` only lists the documented targets; `make gate` stays explicit (ACX-V0-857).
 .DEFAULT_GOAL := help
@@ -69,6 +71,7 @@ GATE_STEPS = \
   bash32-test \
   batch-precheck-test \
   binary-blobs-check \
+  capability-catalog-test \
   cem-base-retention-check \
   cem-base-retention-test \
   ci-least-privilege-check \
@@ -114,13 +117,16 @@ GATE_STEPS = \
   repin-test \
   requirement-definitions-check \
   requirement-definitions-test \
+  review-head-check-test \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
   spec-requirements-check \
   spec-requirements-test \
   test-commands-check \
+  test-exec-writes-check \
   test-read-scopes-check \
+  test-run-pattern-test \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
@@ -348,12 +354,14 @@ repin: ## Apply the mechanical repins an output-neutral edit needs
 	@script/repin.sh --base "$(REPIN_BASE)"
 
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
+# ASD-V0-615 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
+# gates, not only batch-precheck's drift tests, catch a requirement edit that drifts a pin.
 .PHONY: spec-requirements-check
 spec-requirements-check:
 	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
-	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
+	$(DOC_GATE_GO_TEST) -run '^(TestSpecsStayWithinTheOCMObligationBound$$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -367,6 +375,7 @@ spec-requirements-test:
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
 	@script/requirement-id-collisions_test.sh
+	@script/requirement-next-id_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
@@ -565,6 +574,8 @@ test-commands-check:
 # capabilities-check fails when docs/CAPABILITIES.md or the README capability table drifts from the
 # commands, cmd/ binaries and MCP tools in the code (CAP-V0-003, docs/specs/capability-catalog-v0.md).
 # go test ./tools/capabilities-check runs the same check, so it is not a separate GATE_STEPS step.
+# It is a doc gate (ASD-V0-846, V1-2432), so a new command, binary or MCP tool without a catalog row
+# fails make doc-gates and batch-precheck before push, not only the full go test sweep in CI.
 .PHONY: capabilities-check
 capabilities-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/capabilities-check
@@ -575,24 +586,34 @@ capabilities-check:
 # shipped agent guide or any node's help drifts from the code (CAP-V0-019, CAP-V0-040 to CAP-V0-048,
 # docs/specs/capability-catalog-v0.md).
 .PHONY: capability-catalog
+# Each snapshot is generated into <file>.tmp and renamed onto <file> only when the generator
+# succeeded, so a failed go run (ENOSPC, a compile error) leaves the committed snapshot
+# byte-identical and the target exits nonzero (ASD-V0-918). CAPCATALOG_RUN is overridable so
+# script/capability-catalog_test.sh can stand in a failing generator.
+CAPCATALOG_RUN ?= GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run
+capcatalog_write = $(CAPCATALOG_RUN) $(1) > $(2).tmp || { rm -f $(2).tmp; exit 1; }; mv -f $(2).tmp $(2)
 capability-catalog: ## Regenerate the capability catalog after help usage changes
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --tree > internal/capcatalog/trees/corvint.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-candidate help --json > internal/capcatalog/trees/corvint-cem-candidate.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-cem-experiments help --json > internal/capcatalog/trees/corvint-cem-experiments.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-corpus-republish help --json > internal/capcatalog/trees/corvint-corpus-republish.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-dashboard-snapshot help --json > internal/capcatalog/trees/corvint-dashboard-snapshot.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-gateway help --json > internal/capcatalog/trees/corvint-gateway.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-go-test-provider help --json > internal/capcatalog/trees/corvint-go-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-intake help --json > internal/capcatalog/trees/corvint-intake.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-js-test-provider help --json > internal/capcatalog/trees/corvint-js-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-connect help --json > internal/capcatalog/trees/corvint-postmerge-connect.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-metrics help --json > internal/capcatalog/trees/corvint-postmerge-metrics.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-postmerge-workflow help --json > internal/capcatalog/trees/corvint-postmerge-workflow.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-pulse help --json > internal/capcatalog/trees/corvint-pulse.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-ruby-test-provider help --json > internal/capcatalog/trees/corvint-ruby-test-provider.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
+	$(call capcatalog_write,./cmd/corvint help --json,internal/capcatalog/catalog.json)
+	$(call capcatalog_write,./cmd/corvint help --tree,internal/capcatalog/trees/corvint.json)
+	$(call capcatalog_write,./cmd/corvint-cem-candidate help --json,internal/capcatalog/trees/corvint-cem-candidate.json)
+	$(call capcatalog_write,./cmd/corvint-cem-experiments help --json,internal/capcatalog/trees/corvint-cem-experiments.json)
+	$(call capcatalog_write,./cmd/corvint-corpus-republish help --json,internal/capcatalog/trees/corvint-corpus-republish.json)
+	$(call capcatalog_write,./cmd/corvint-dashboard-snapshot help --json,internal/capcatalog/trees/corvint-dashboard-snapshot.json)
+	$(call capcatalog_write,./cmd/corvint-gateway help --json,internal/capcatalog/trees/corvint-gateway.json)
+	$(call capcatalog_write,./cmd/corvint-go-test-provider help --json,internal/capcatalog/trees/corvint-go-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-intake help --json,internal/capcatalog/trees/corvint-intake.json)
+	$(call capcatalog_write,./cmd/corvint-js-test-provider help --json,internal/capcatalog/trees/corvint-js-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-connect help --json,internal/capcatalog/trees/corvint-postmerge-connect.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-metrics help --json,internal/capcatalog/trees/corvint-postmerge-metrics.json)
+	$(call capcatalog_write,./cmd/corvint-postmerge-workflow help --json,internal/capcatalog/trees/corvint-postmerge-workflow.json)
+	$(call capcatalog_write,./cmd/corvint-pulse help --json,internal/capcatalog/trees/corvint-pulse.json)
+	$(call capcatalog_write,./cmd/corvint-ruby-test-provider help --json,internal/capcatalog/trees/corvint-ruby-test-provider.json)
+	$(call capcatalog_write,./cmd/corvint-tasks help --json,internal/capcatalog/trees/corvint-tasks.json)
+	$(call capcatalog_write,./cmd/corvint-test help --json,internal/capcatalog/trees/corvint-test.json)
+
+.PHONY: capability-catalog-test
+capability-catalog-test:
+	@script/capability-catalog_test.sh
 
 .PHONY: capability-catalog-check
 capability-catalog-check:
@@ -667,6 +688,12 @@ mkfifo-build-tags-check:
 .PHONY: fixed-tmp-paths-check
 fixed-tmp-paths-check:
 	@script/check-fixed-tmp-paths.sh
+
+# ASD-V0-929 (V1-2587): a test file must write an executable it runs through execfile.WriteFile
+# (Tasks: fixture.WriteExecutable), never os.WriteFile, which a forking parallel test can hold open.
+.PHONY: test-exec-writes-check
+test-exec-writes-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-exec-writes-check
 
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
@@ -755,6 +782,16 @@ goos-filenames-check:
 .PHONY: goos-filenames-test
 goos-filenames-test:
 	@script/check-goos-filenames_test.sh
+
+# windows-main-check fails, in seconds and before `make windows-vet`, when a package main builds
+# for GOOS=windows but no file selected there declares func main, as an untagged help.go beside
+# a `//go:build darwin || linux` main.go does (ASD-V0-974, V1-3782). It lists packages only.
+.PHONY: windows-main-check windows-main-test
+windows-main-check:
+	@script/check-windows-main.sh . && script/check-windows-main.sh interop/cem01-go
+
+windows-main-test:
+	@script/check-windows-main_test.sh
 
 # go-cache-trim bounds the Go build caches and removes stale go-build* work directories; it is a
 # dry run unless APPLY=1 (ASD-V0-021, V1-0360). Extra options go in GO_CACHE_TRIM_ARGS.
@@ -1003,9 +1040,14 @@ dogfood-seal: ## Seal the checked CEM (needs BASE=<full sha>)
 dogfood_finish_quote = '$(subst ','\'',$(1))'
 
 # script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
-# VERIFY and OUTCOME (ASD-V0-015).
+# VERIFY and OUTCOME (ASD-V0-015). The first, unadmitted line runs that refusal alone
+# (DOGFOOD_FINISH_INPUTS_ONLY=1), so a missing input is named before heavy.sh queues on host load
+# (ICL-V0-030).
 .PHONY: dogfood-finish
 dogfood-finish:
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
+		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
@@ -1014,9 +1056,19 @@ dogfood-finish:
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
+	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
+		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
+		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) $(HEAVY_ADMIT) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
+
+# import-direction-check runs decision 0397's import-direction tests alone, so a tools/ or other
+# Core package importing a Tasks package other than the wire package fails in doc-gates, before
+# batch-precheck runs the whole internal/tasks package (ASD-V0-783, V1-3486).
+.PHONY: import-direction-check
+import-direction-check:
+	$(DOC_GATE_GO_TEST) -run '^(TestImportDirection|TestImportViolationControls)$$' ./internal/tasks
 
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
@@ -1041,22 +1093,28 @@ go-version-pins-check:
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
 # ASD-V0-925 (V1-3469): the fast checks lanes most often fail (line citations, the spec index) run
 # first, so with --keep-going their failure prints within seconds, before the Go-test doc gates.
-DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check flow-guide-check fixed-tmp-paths-check
-# --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
+DOC_GATE_TARGETS := line-citations-check spec-requirements-check decision-numbers-check requirement-definitions-check host-package-versions-check host-package-versions-test import-direction-check shell-foreign-callers-check shell-test-registration-check go-version-pins-check traceability-tests-check traceability-tests-test error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check bash32-check license-headers-check legal-file-pins-check mkfifo-build-tags-check test-exec-writes-check selection-baseline-check flow-guide-check fixed-tmp-paths-check capabilities-check
+# --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813);
+# script/doc-gates-summary.sh ends a failing run with the failed gates' names (ASD-V0-782).
 .PHONY: doc-gates
 doc-gates: ## Run the documentation gates
-	@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
+	@script/doc-gates-summary.sh $(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
-# before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
-# receipt of the sealed head, selecting against the head the first run's receipt names, so a step the
-# bind and seal commits cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
+# before any bind or seal; and dogfood-finish with the same variables. The batch-precheck for the
+# receipt of the sealed head is its own command, dogfood-closeout-precheck, so the closeout fits one
+# lane command budget and a post-seal timeout no longer reads as a failed seal (DCW-V0-923, V1-3850);
+# it selects against the head the last passing receipt names, so a step the bind and seal commits
+# cannot reach does not run twice (DCW-V0-944, ASD-V0-943, V1-3550).
 # batch-precheck-test checks the ci.yml connection; it stops at the first failing step. The first
 # precheck leaves out the batch-drift go tests, which read the CEM the seal adds, so each runs once,
-# on the sealed head (ASD-V0-837, V1-3550).
+# on the sealed head (ASD-V0-837, V1-3550); it runs only the @prebind ones, which cannot read it, so
+# their failure stops the closeout before the bind, and the second precheck carries their passes
+# while the evidence plan still binds them (ICL-V0-020, ICL-V0-021).
+# dogfood-finish reuses the pre-flight's prepare, so cem prepare runs once (ICL-V0-010).
 .PHONY: dogfood-closeout
 # DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
 # refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
@@ -1067,6 +1125,14 @@ dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
+	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
+
+# DCW-V0-923 (V1-3850): the sealed-head batch-precheck, run after dogfood-closeout as its own command.
+# A rerun after a timeout reuses the gate ledger's per-step results (ASD-V0-042), and a receipt that
+# already names the clean HEAD runs nothing (ASD-V0-943).
+.PHONY: dogfood-closeout-precheck
+dogfood-closeout-precheck: export LANE = 1
+dogfood-closeout-precheck:
 	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
 
 .PHONY: dogfood-batch-check
@@ -1103,6 +1169,12 @@ requirement-ids-free:
 	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
 	@$(if $(RANGE),script/requirement-id-collisions.sh --block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),--base "$(REF)"),true)
+
+# SRG-V0-764 (V1-3389): the next free ID of PREFIX from the staged specs, and every definition that
+# is out of order in its spec, for example make requirement-next-id PREFIX=ASD-V0.
+.PHONY: requirement-next-id
+requirement-next-id:
+	@script/requirement-next-id.sh "$(PREFIX)"
 
 # ASD-V0-950 (V1-2909, V1-1009): names each requirement ID this checkout's staged specs and another
 # local branch or worktree not yet in origin/main (REF= names another base) define differently.
@@ -1146,6 +1218,14 @@ agent-preflight-test:
 .PHONY: codex-review-test
 codex-review-test:
 	@script/codex-review_test.sh
+
+.PHONY: review-head-check-test
+review-head-check-test:
+	@script/review-head-check_test.sh
+
+.PHONY: test-run-pattern-test
+test-run-pattern-test:
+	@script/test-run-pattern_test.sh
 
 .PHONY: companion-release-gate-test
 companion-release-gate-test:
@@ -1221,6 +1301,7 @@ shell-test: \
   analyzer-schema-test \
   bash32-test \
   batch-precheck-test \
+  capability-catalog-test \
   cem-base-retention-test \
   ci-least-privilege-test \
   codex-review-test \
@@ -1249,10 +1330,12 @@ shell-test: \
   release-checklist-test \
   repin-test \
   requirement-definitions-test \
+  review-head-check-test \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
   spec-requirements-test \
+  test-run-pattern-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 

@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // deadlineOnCancel reports an expired deadline once cancelled, so the test
@@ -39,7 +41,7 @@ func TestActivationFallsBackToABoundedReceiptWhenGitHangs(t *testing.T) {
 	marker := filepath.Join(bin, "hanging")
 	// Repository open answers; every later Git read marks that it hangs, then hangs.
 	script := "#!/bin/sh\ncase \" $* \" in *\" rev-parse \"*) exec " + git + " \"$@\" ;; esac\n: > '" + marker + "'\nexec sleep 60\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -87,7 +89,7 @@ func TestActivationNamesGitTimeoutWhenGitHangsDuringOpen(t *testing.T) {
 	bin := t.TempDir()
 	marker := filepath.Join(bin, "hanging")
 	script := "#!/bin/sh\n: > '" + marker + "'\nexec sleep 60\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

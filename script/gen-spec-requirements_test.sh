@@ -29,7 +29,9 @@ write_spec() {
   printf '# %s\n\n- `%s`: %s\n' "$1" "$2" "$3" > "$test_root/docs/specs/$1.md"
 }
 
-run() { (cd "$test_root" && script/gen-spec-requirements.sh); }
+# run [MODE ...] runs the generator in the fixture (run_root, by default test_root) with the given
+# mode arguments, none for the default tsv mode (ASD-V0-984, V1-3835).
+run() { (cd "${run_root:-$test_root}" && script/gen-spec-requirements.sh "$@"); }
 
 fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 
@@ -261,7 +263,7 @@ Prose stays.
 | One scope | [`one.md`](one.md) ONE-V0-001 | accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) | implemented | One does the first thing. Tail stays. |
 | One section | [`one.md`](one.md#requirements) | anchored | kept | Anchored rows stay. |
 | Outside | [`notes`](../notes.md) | n/a | n/a | Non-spec rows stay. |
-| Two spec | [`two.md`](two.md) | proposed | not-started | Two does the second thing. |
+| Two spec | [`two.md`](two.md) TWO-V0-001..002 | proposed | not-started | Two does the second thing. |
 
 Trailing prose stays.
 MD
@@ -418,12 +420,12 @@ long_claim="Two $(printf 'x%.0s' $(seq 1 160))."
 sed -i.bak "s/^- Claim: Two does. The second thing\.$/- Claim: $long_claim/" "$project/docs/specs/two.md"
 git -C "$project" add -- docs/specs/two.md
 long_err=$(gen --all "$refused_dir" 2>&1 > /dev/null) && fail "a 165-character claim was accepted"
-case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "the long-claim refusal did not name the path and length: $long_err" ;; esac
+case $long_err in *"docs/specs/two.md:8: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "the long-claim refusal did not name the path and length: $long_err" ;; esac
 test -z "$(ls -A "$refused_dir")" || fail "a refused long claim wrote into DIR"
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
   long_err=$(gen $mode 2>&1 > /dev/null) && fail "mode '${mode:-tsv}' accepted a 165-character claim"
-  case $long_err in *"docs/specs/two.md: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
+  case $long_err in *"docs/specs/two.md:8: the Agent digest Claim is 165 characters; the limit is 160"*) ;; *) fail "mode '${mode:-tsv}' did not name the long claim: $long_err" ;; esac
 done
 if gen --bogus > /dev/null 2>&1; then fail "an unknown mode was accepted"; else test $? = 2 || fail "an unknown mode did not exit 2"; fi
 
@@ -481,7 +483,7 @@ stage docs/specs/dupa.md
 stage docs/specs/dupb.md
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
-  dup_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+  dup_err=$(run $mode 2>&1 > /dev/null) &&
     fail "mode '${mode:-tsv}' accepted a duplicate definition"
   for want in \
     'DUP-V0-001: defined more than once: docs/specs/dupa.md:1 docs/specs/dupb.md:1' \
@@ -565,6 +567,15 @@ test -z "$(ls -A "$frz_dir")" || fail "a refused header wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/INTENT-STATUS-FROZEN.tsv
 write_frozen 'proposed'
 run > /dev/null || fail "a short ID-free header without a frozen row was refused"
+# ASD-V0-844 (V1-3875): a new spec (no frozen row) that names an ID in its header is refused with a
+# reason that says it has no frozen row, never that the ID is missing from frozen header text.
+write_frozen 'FRZ-V0-001 accepted' 'accepted'
+frz_err=$(run 2>&1 > /dev/null) && fail "a header ID without a frozen row was accepted"
+case $frz_err in
+  *'docs/specs/frozen.md:3: its Intent status names FRZ-V0-001, and it has no docs/specs/INTENT-STATUS-FROZEN.tsv row, so, as for every new spec, this line holds the current status only and names no requirement ID, so FRZ-V0-001 belongs on '*) ;;
+  *) fail "the unfrozen-ID refusal does not name the missing row: $frz_err" ;;
+esac
+case $frz_err in *'its frozen header text does not'*) fail "the unfrozen-ID refusal names frozen header text: $frz_err" ;; esac
 write_frozen "accepted $(printf '%0170d' 0)"
 frz_err=$(run 2>&1 > /dev/null) && fail "a header over 160 characters without a frozen row was accepted"
 case $frz_err in
@@ -627,7 +638,7 @@ for mode in '' --lines --index --readme; do
     'docs/specs/multi.md:10: MUL-V0-001: the acceptance note is not parenthesized' \
     'docs/specs/multi.md:11: MUL-V0-002: the acceptance note is not parenthesized' \
     'MUL-V0-003: defined more than once: docs/specs/multi.md:12 docs/specs/multi.md:13' \
-    'docs/specs/multi.md: the Agent digest Claim is 171 characters; the limit is 160' \
+    'docs/specs/multi.md:7: the Agent digest Claim is 171 characters; the limit is 160' \
     '(SRG-V0-547)' '(SRG-V0-042)'; do
     case $multi_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' did not report '$want' in one run: $multi_err" ;; esac
   done
@@ -730,6 +741,14 @@ git -C "$w16" add -- docs/specs/alpha.md docs/specs/gamma.md
 grep -q '^GAMMA-V0-001	' "$w16/docs/specs/REQUIREMENTS.tsv" || fail "--write did not regenerate the index"
 (cd "$w16" && script/gen-spec-requirements.sh --check 2>&1 | grep -q STALE) &&
   fail "--check named a file stale right after --write"
+# SRG-V0-820 (V1-4068): --write stages the files it regenerated and says so.
+git -C "$w16" diff --quiet -- docs/specs || fail "--write left regenerated files unstaged: $(git -C "$w16" diff --name-only)"
+git -C "$w16" diff --cached --name-only | grep -qx docs/specs/REQUIREMENTS.tsv || fail "--write did not stage REQUIREMENTS.tsv"
+spec16 alpha ALPHA-V0-001 'a second staged edit'
+git -C "$w16" add -- docs/specs/alpha.md
+staged_out=$( (cd "$w16" && script/gen-spec-requirements.sh --write) 2>&1) || fail "--write refused a staged edit: $staged_out"
+case $staged_out in *'spec-requirements: staged docs/specs/REQUIREMENTS.tsv'*) ;; *) fail "--write did not name the staged files: $staged_out" ;; esac
+git -C "$w16" diff --quiet -- docs/specs || fail "a second --write left regenerated files unstaged"
 usage_err=$( (cd "$w16" && script/gen-spec-requirements.sh --check extra) 2>&1) && fail "--check accepted an argument"
 case $usage_err in *'--check compares them with a fresh generation (make spec-requirements-check)'*) ;; *) fail "the usage text lacks --check: $usage_err" ;; esac
 
@@ -763,6 +782,101 @@ for want in 'spec-requirements: no changes' 'spec-requirements: updated' 'TestSp
   case $recipe in *"$want"*) ;; *) fail "the spec-requirements recipe lacks '$want'" ;; esac
 done
 
+# 60. SRG-V0-760 (V1-4000): a `- `ID` (note):` line inside ## Requirements whose id has no
+# definition is refused in every mode, naming the line, instead of the id being dropped; a restated
+# defined id and a fenced line are not refused.
+cat > "$test_root/docs/specs/kept.md" <<'SPEC'
+## Requirements
+
+- `KPT-V0-001` (KEEP): the noted line defines nothing.
+- `KPT-V0-002`: defined.
+- `KPT-V0-002` (V1-0001): restated after its definition.
+
+```text
+- `KPT-V0-003` (fenced): an example.
+```
+SPEC
+stage docs/specs/kept.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  kpt_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' dropped a noted id silently"
+  case $kpt_err in
+    *'docs/specs/kept.md:3: KPT-V0-001: the note sits before the colon'*'(SRG-V0-760)'*) ;;
+    *) fail "mode '${mode:-tsv}' noted-id refusal lacks the line or rule: $kpt_err" ;;
+  esac
+  case $kpt_err in *KPT-V0-002*|*KPT-V0-003*) fail "mode '${mode:-tsv}' refused a defined or fenced id: $kpt_err" ;; esac
+done
+git -C "$test_root" rm -q --cached -- docs/specs/kept.md
+
+# 61. SRG-V0-761 (V1-4001) and SRG-V0-762 (V1-2310): --readme replaces only the projected claim (the
+# current Claim or the INDEX.json one) and refuses a hand-edited first sentence naming the row; a
+# Contract cell that is the bare link gains the spec's range, before a `;` too, and is then stable.
+p61=$test_root/p61
+mkdir -p "$p61/script" "$p61/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$p61/script/"
+git -C "$p61" init -q -b main
+for name in sa sb; do
+  upper=$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')
+  printf '# %s\n\nIntent status: proposed\nDelivery status: experimental\n\n## Agent digest\n- Claim: %s does the new thing.\n- Status: proposed / experimental\n\n## Requirements\n\n- `%s-V0-001`: one.\n- `%s-V0-003`: three.\n' \
+    "$name" "$upper" "$upper" "$upper" > "$p61/docs/specs/$name.md"
+done
+cat > "$p61/docs/specs/INDEX.json" <<'JSON'
+[
+  {
+    "path": "docs/specs/sa.md",
+    "title": "sa",
+    "reqPrefix": "SA-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "SA did the old thing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/sb.md",
+    "title": "sb",
+    "reqPrefix": "",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "SB does the new thing.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  }
+]
+JSON
+cat > "$p61/docs/specs/README.md" <<'MD'
+| Scope | Contract | Intent | Delivery | Binding evidence or next gate |
+| --- | --- | --- | --- | --- |
+| A | [`sa.md`](sa.md) | proposed | experimental | SA did the old thing. Tail stays. |
+| B | [`sb.md`](sb.md); companion notes | proposed | experimental | SB does the new thing. Tail e.g. stays. |
+MD
+git -C "$p61" add -- docs/specs
+g61() { (cd "$p61" && script/gen-spec-requirements.sh "$@"); }
+cat > "$test_root/want61" <<'MD'
+| Scope | Contract | Intent | Delivery | Binding evidence or next gate |
+| --- | --- | --- | --- | --- |
+| A | [`sa.md`](sa.md) SA-V0-001..003 | proposed | experimental | SA does the new thing. Tail stays. |
+| B | [`sb.md`](sb.md) SB-V0-001..003; companion notes | proposed | experimental | SB does the new thing. Tail e.g. stays. |
+MD
+g61 --readme > "$test_root/got61" || fail "--readme refused the projected rows"
+cmp "$test_root/want61" "$test_root/got61" || fail "--readme did not project the claim and range: $(cat "$test_root/got61")"
+cp "$test_root/got61" "$p61/docs/specs/README.md"
+git -C "$p61" add -- docs/specs/README.md
+g61 --readme | cmp - "$p61/docs/specs/README.md" || fail "the inserted range is not a fixed point"
+sed 's/| SA does the new thing\. Tail stays\. |/| A hand-written sentence. Tail stays. |/' "$test_root/got61" > "$p61/docs/specs/README.md"
+git -C "$p61" add -- docs/specs/README.md
+hand_err=$(g61 --readme 2>&1 > /dev/null) && fail "--readme rewrote a hand-edited first sentence"
+case $hand_err in
+  *'docs/specs/README.md:3: the docs/specs/sa.md row'*'(SRG-V0-761)'*) ;;
+  *) fail "the hand-edit refusal lacks the row or rule: $hand_err" ;;
+esac
+
+
 # 19. SRG-V0-968 (V1-3661): a spec whose Agent digest has no Claim is refused in every mode, naming
 # it, so no live spec's README summary is hand-maintained; a superseded digest (Successor and
 # Why) and a spec with no digest at all are unaffected.
@@ -771,7 +885,7 @@ printf '# Claimless\n\n## Agent digest\n- Status: proposed\n\n## Requirements\n\
 stage docs/specs/claimless.md
 for mode in '' --lines --index --readme; do
   # shellcheck disable=SC2086
-  clm_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+  clm_err=$(run $mode 2>&1 > /dev/null) &&
     fail "mode '${mode:-tsv}' accepted a digest without a Claim"
   case $clm_err in
     *'docs/specs/claimless.md: its ## Agent digest has no `- Claim:` line'*'(SRG-V0-968)'*) ;;
@@ -846,5 +960,87 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
   case $long_readme in *'| [`long.md`](long.md) CIN-V0-0001..1010 |'*) ;;
     *) fail "the README range of equal-valued IDs is not CIN-V0-0001..1010: $long_readme" ;; esac
 done
+# 50. SRG-V0-740 (V1-3769): the OCM obligation limit is refused here, not first at the Go test:
+# 241 section definitions warn naming the count and the companion-spec route and still print, 257
+# are refused in the TSV and --all modes and --all writes nothing.
+obligation_spec() {
+  { printf '# Big\n\n## Requirements\n\n'
+    i=1
+    # shellcheck disable=SC2016
+    while [ "$i" -le "$1" ]; do printf -- '- `BIG-V0-%03d`: (proposed) Clause.\n' "$i"; i=$((i + 1)); done
+  } > "$test_root/docs/specs/big.md"
+  stage docs/specs/big.md
+}
+obligation_spec 241
+big_err=$(run 2>&1 > /dev/null) || fail "241 section definitions were refused: $big_err"
+case $big_err in
+  *'docs/specs/big.md: warning: its ## Requirements section holds 241 of the 256 obligations'*'companion spec with its own requirement prefix'*'(SRG-V0-740)'*) ;;
+  *) fail "241 section definitions gave no budget warning: $big_err" ;;
+esac
+obligation_spec 257
+big_err=$(run 2>&1 > /dev/null) && fail "257 section definitions were accepted"
+case $big_err in
+  *'docs/specs/big.md: its ## Requirements section holds 257 obligations; the limit is 256'*'(SRG-V0-740)'*) ;;
+  *) fail "the over-limit refusal lacks the spec, count or ID: $big_err" ;;
+esac
+big_dir="$test_root/big-out"
+mkdir "$big_dir"
+(cd "$test_root" && script/gen-spec-requirements.sh --all "$big_dir") > /dev/null 2>&1 && fail "--all accepted 257 obligations"
+test -z "$(ls -A "$big_dir")" || fail "a refused over-limit spec wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/big.md
+
+# 51. SRG-V0-743 (V1-3388): a fixture with specs but no docs/specs/README.md prints the TSV and is
+# refused in --readme naming the layout comment.
+lay_root="$test_root/layout"
+mkdir -p "$lay_root/script" "$lay_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$lay_root/script/"
+git -C "$lay_root" init -q -b main
+# shellcheck disable=SC2016
+printf '# Lay\n\nIntent status: proposed\nDelivery status: planned\n\n- `LAY-V0-001`: (proposed) Clause.\n' \
+  > "$lay_root/docs/specs/lay.md"
+git -C "$lay_root" add -- docs/specs/lay.md
+(cd "$lay_root" && script/gen-spec-requirements.sh) > /dev/null || fail "the TSV mode needed more than the specs"
+lay_err=$( (cd "$lay_root" && script/gen-spec-requirements.sh --readme) 2>&1 > /dev/null) &&
+  fail "--readme accepted a fixture without docs/specs/README.md"
+case $lay_err in
+  *'docs/specs/README.md is not in the Git index'*'minimal fixture layout is the comment at the top of script/gen-spec-requirements.sh, SRG-V0-743'*) ;;
+  *) fail "the missing README refusal does not name the layout: $lay_err" ;;
+esac
+
+# ASD-V0-984 (V1-3835): run passes its mode through. The strict --check mode passes on files --write
+# just made and fails once a staged spec changes under them; --lines, like any read-only mode,
+# prints the staged definitions without writing a file. --write refuses the fixture specs earlier
+# cases leave unstaged, so the case runs in a clean fixture of one complete spec.
+run_root=$test_root/modes
+mkdir -p "$run_root/script" "$run_root/docs/specs"
+cp "$source_root/script/gen-spec-requirements.sh" "$run_root/script/"
+git -C "$run_root" init -q -b main
+cat > "$run_root/docs/specs/mode.md" <<'SPEC'
+# Mode spec
+
+Intent status: proposed
+Delivery status: not-started
+
+## Agent digest
+- Claim: Mode exercises the generator modes.
+
+- MODE-V0-001: The first clause.
+SPEC
+printf '[]\n' > "$run_root/docs/specs/INDEX.json"
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n' > "$run_root/docs/specs/README.md"
+git -C "$run_root" add -- docs/specs
+run --write > /dev/null || fail "run --write failed"
+# The generator reads the index, so the written files are staged and the next write is a fixed point.
+git -C "$run_root" add -- docs/specs
+run --write > /dev/null || fail "run --write failed"
+run --check > /dev/null 2>&1 || fail "run --check failed on the files --write made"
+printf -- '- MODE-V0-002: A clause added after the write.\n' >> "$run_root/docs/specs/mode.md"
+git -C "$run_root" add -- docs/specs/mode.md
+stale=$(run --check 2>&1) && fail "run --check passed on stale generated files"
+case $stale in *REQUIREMENTS.tsv*) ;; *) fail "run --check did not name the stale file: $stale" ;; esac
+before=$(git -C "$run_root" status --porcelain)
+run --lines | grep -q 'MODE-V0-002' || fail "run --lines did not print the staged definition"
+test "$(git -C "$run_root" status --porcelain)" = "$before" || fail "run --lines changed the worktree"
+run_root=
 
 printf 'ok\n'

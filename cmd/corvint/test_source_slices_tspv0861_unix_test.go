@@ -79,7 +79,7 @@ func TestTSPV0861DryRunSlicesSourceAndTestChanges(t *testing.T) {
 				"r/s_test.go": "package r\n\nimport \"testing\"\n\nfunc TestS(t *testing.T) { _ = S() }\n"}},
 		{"a string and prose naming the linkname directive", "go:example.test/m/p", "^(TestExternal|TestUpper)$",
 			"selected: the tests reaching Upper changed in p/p.go",
-			map[string]string{"p/p.go": edit("{ return strings.ToUpper(s) +", "{\n\t// The slicer refuses a go:linkname directive.\n\t_ = \"//go:linkname\"\n\treturn strings.ToTitle(s) +")}},
+			map[string]string{"p/p.go": edit("{ return strings.ToUpper(s) +", "{ /* The slicer refuses a go:linkname directive. */ _ = \"//go:linkname\"; return strings.ToTitle(s) +")}},
 	}
 	for _, tc := range sliced {
 		t.Run(tc.name, func(t *testing.T) {
@@ -175,7 +175,7 @@ func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 		edits                 map[string]string
 	}{
 		{"a file comment", "^$", "selected: no test reaches comments outside declarations changed in r/r.go; build and vet only",
-			map[string]string{"r/r.go": "// Package r holds R and S.\n" + r}},
+			map[string]string{"r/r.go": r + "\n// R and S are the fixture functions.\n"}},
 		{"a new const no test names", "^$", "selected: no test reaches Limit changed in r/r.go; build and vet only",
 			map[string]string{"r/r.go": r + "\nconst Limit = 3\n"}},
 		{"a new const and a function using it", "^$", "selected: no test reaches Limit, S changed in r/r.go; build and vet only",

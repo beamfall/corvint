@@ -45,6 +45,8 @@ const (
 	prefixOut   = "gate-ledger: "
 	treeScope   = "tree"
 	neverScope  = "never"
+	goScope     = "@go"
+	rootScope   = "@root"
 	unresolved  = "go-test-unresolved"
 	packageStep = "go-test-package"
 	toolingPath = "Makefile"
@@ -58,9 +60,13 @@ const listFields = "ImportPath,Dir,Module,Deps,GoFiles,CgoFiles,IgnoredGoFiles,T
 var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
 
 // scopes declares what each `make gate` step reads, as repository-relative
-// directory prefixes (trailing slash), exact paths, or `*.ext` suffix globs over
-// the whole tree. `tree` keys on the whole worktree; `never` always runs. A step
-// absent here always runs and is never recorded (GL-V0-003).
+// directory prefixes (trailing slash), exact paths, `*.ext` suffix globs over
+// the whole tree, `DIR/*.ext` globs whose `*` stays within one path component,
+// `@root` (every root-level path) or `@go` (every Go build input: a *.go,
+// go.mod, go.sum or go.work file, and every path under a directory that holds a
+// .go file, so embedded files and testdata count; GL-V0-600). `tree` keys on
+// the whole worktree; `never` always runs. A step absent here always runs and is
+// never recorded (GL-V0-003).
 var scopes = map[string][]string{
 	"host-adapter-test":             {treeScope},
 	"go-version":                    {},
@@ -92,6 +98,11 @@ var scopes = map[string][]string{
 	"host-package-versions-check":   {treeScope},
 	"host-package-versions-test":    {},
 	"diagnostic-coverage-check":     {treeScope},
+	// GL-V0-601 (V1-3580, V1-4099): the batch-precheck steps whose inputs
+	// corvint-self-development-v0.md ASD-V0-944 and ASD-V0-051 declare, so a
+	// post-seal precheck whose only new path is a CEM or a build log hits.
+	"selection-baseline-check": {goScope, rootScope, ".github/cishards/", "benchmarks/selection-baseline/"},
+	"capability-catalog-check": {goScope, rootScope, "docs/*.md"},
 }
 
 type record struct {
@@ -928,28 +939,76 @@ func (l *ledger) inputs(scope []string) string {
 			return "tree " + l.tree
 		}
 	}
+	var goDirs map[string]bool
+	for _, s := range scope {
+		if s == goScope {
+			goDirs = goDirectories(l.entries)
+		}
+	}
 	h := sha256.New()
 	for _, entry := range l.entries {
-		if inScope(entry.path, scope) || inScope(entry.path, tooling) {
+		if inScope(entry.path, scope) || inScope(entry.path, tooling) || (goDirs != nil && goInput(entry.path, goDirs)) {
 			fmt.Fprintf(h, "%s\n", entry.line)
 		}
 	}
 	return "entries " + hex.EncodeToString(h.Sum(nil))
 }
 
-func inScope(path string, scope []string) bool {
+// goDirectories is every directory ("." for the root) that holds a .go entry.
+func goDirectories(entries []treeEntry) map[string]bool {
+	dirs := map[string]bool{}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.path, ".go") {
+			dirs[path.Dir(entry.path)] = true
+		}
+	}
+	return dirs
+}
+
+// goInput reports whether p is a Go build input under `@go` (GL-V0-600): a Go
+// source or module file anywhere, or any path below a directory that holds a
+// .go file, which covers every file a //go:embed pattern can name.
+func goInput(p string, goDirs map[string]bool) bool {
+	switch path.Base(p) {
+	case "go.mod", "go.sum", "go.work", "go.work.sum":
+		return true
+	}
+	if strings.HasSuffix(p, ".go") {
+		return true
+	}
+	for d := path.Dir(p); ; d = path.Dir(d) {
+		if goDirs[d] {
+			return true
+		}
+		if d == "." || d == "/" {
+			return false
+		}
+	}
+}
+
+func inScope(p string, scope []string) bool {
 	for _, s := range scope {
 		switch {
+		case s == goScope:
+			// Matched by goInput, which needs the whole tree.
+		case s == rootScope:
+			if !strings.Contains(p, "/") {
+				return true
+			}
 		case strings.HasPrefix(s, "*."):
-			if strings.HasSuffix(path, s[1:]) {
+			if strings.HasSuffix(p, s[1:]) {
+				return true
+			}
+		case strings.Contains(s, "*"):
+			if ok, err := path.Match(s, p); err == nil && ok {
 				return true
 			}
 		case strings.HasSuffix(s, "/"):
-			if strings.HasPrefix(path, s) {
+			if strings.HasPrefix(p, s) {
 				return true
 			}
 		default:
-			if path == s {
+			if p == s {
 				return true
 			}
 		}

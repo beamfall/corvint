@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testacceptance"
 )
 
@@ -67,7 +68,7 @@ func foldFixture(t *testing.T, g foldGolden, dir string) []byte {
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(text), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(text), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		sum := sha256.Sum256([]byte(text))

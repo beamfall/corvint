@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestInstalledQualificationRefusesOutputBeforeScratchWrite(t *testing.T) {
 	root := t.TempDir()
 	executable := filepath.Join(root, "tool")
-	if err := os.WriteFile(executable, []byte("tool"), 0o700); err != nil {
+	if err := execfile.WriteFile(executable, []byte("tool"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	output := filepath.Join(root, "result.json")
@@ -53,7 +55,7 @@ func TestCopyBoundedTreePreservesOnlyInternalBrowserSymlink(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(source, "Versions"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(source, "Versions", "browser"), []byte("browser"), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(source, "Versions", "browser"), []byte("browser"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Symlink("Versions/browser", filepath.Join(source, "Current")); err != nil {
@@ -139,7 +141,7 @@ func TestWriteExclusiveAtomicNeverOverwrites(t *testing.T) {
 func TestInstalledAdmissionRejectsInputOutputOverlap(t *testing.T) {
 	root := t.TempDir()
 	tool := filepath.Join(root, "tool")
-	if err := os.WriteFile(tool, []byte("tool"), 0o700); err != nil {
+	if err := execfile.WriteFile(tool, []byte("tool"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	base := InstalledOptions{SourceRoot: root, BundleDirectory: root, NPMCache: root, BrowserCache: root, NodePath: tool, PythonPath: tool, ExpectedPythonSHA256: hex64, ExpectedCommit: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", ExpectedTree: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}

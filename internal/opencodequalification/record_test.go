@@ -4,11 +4,12 @@ import (
 	"context"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
 func recordFixture(t *testing.T) (Object, Object, Identity) {
@@ -228,11 +229,8 @@ func TestProducerConsumer(t *testing.T) {
 		if e := os.CopyFS(pkg, os.DirFS("../../integrations/opencode")); e != nil {
 			t.Fatal(e)
 		}
-		node, e := exec.LookPath("node")
-		if e != nil {
-			t.Fatal(e)
-		}
-		node, e = filepath.EvalSymlinks(node)
+		onPath := testsupport.NodeOrSkip(t, "the Go producer to Node consumer check")
+		node, e := filepath.EvalSymlinks(onPath)
 		if e != nil {
 			t.Fatal(e)
 		}

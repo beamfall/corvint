@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // AFU-V1-036: inputs are Lstat-checked before open and never block on a FIFO.
@@ -159,7 +161,7 @@ func TestAFUV1ManifestRegularBeforeOpen(t *testing.T) {
 func TestAFUV1034FlowGitRunsSanitized(t *testing.T) {
 	bin := t.TempDir()
 	script := "#!/bin/sh\nprintf '%s\\n' \"$GIT_NO_LAZY_FETCH\" \"$GIT_NO_REPLACE_OBJECTS\" \"$GIT_CONFIG_NOSYSTEM\" \"$GIT_CONFIG_SYSTEM\" \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin)

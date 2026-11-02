@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -438,7 +439,7 @@ func TestAFPV0428SelfHostedSeedRefreshSwapsAndRestoreCopies(t *testing.T) {
 	}
 	// A go spy: `go env GOCACHE` prints the job cache; `go clean -testcache` marks it.
 	spy := "#!/bin/sh\ncase \"$1\" in env) printf '%s\\n' \"$GOCACHE\" ;; clean) : > \"$GOCACHE/testexpire.txt\" ;; esac\n"
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(spy), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(spy), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	root := filepath.Join(dir, "ci-cache")

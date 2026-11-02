@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 	"unsafe"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // V1-1047: the terminal harness sends every group signal (and SIGWINCH)
@@ -50,7 +52,7 @@ func runRecordedTerminal(t *testing.T) (sent, afterReap []syscall.Signal) {
 	t.Helper()
 	dir := t.TempDir()
 	host := filepath.Join(dir, "host")
-	if err := os.WriteFile(host, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(host, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	config := filepath.Join(dir, "terminal.json")

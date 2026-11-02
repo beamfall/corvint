@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -68,7 +69,7 @@ func sourceSliceFixture(t *testing.T) (root, base string) {
 	}
 	base = strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(sessionFakeGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -140,7 +141,7 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			map[string]string{"p/p.go": pSource + "\nfunc Extra() int { return 1 }\n"}},
 		// TSP-V0-864: a comment outside functions is observed by no test.
 		{"a comment outside functions", "go:example.test/m/p", "^$", "selected: no test reaches comments outside declarations changed in p/p.go; build and vet only",
-			map[string]string{"p/p.go": edit("type T struct", "// T holds n.\ntype T struct")}},
+			map[string]string{"p/p.go": edit("type T struct{ n int }", "type T struct{ n int } // T holds n.")}},
 		{"no test reaches it", "go:example.test/m/r", "^$", "selected: no test reaches S changed in r/r.go; build and vet only",
 			map[string]string{"r/r.go": "package r\n\nfunc R() int { return 1 }\n\nfunc S() int { return 3 }\n"}},
 	}

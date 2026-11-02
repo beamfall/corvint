@@ -141,6 +141,32 @@ func TestCAPV0003SyntheticOmissionAndStaleRowFail(t *testing.T) {
 	}
 }
 
+// TestCAPV0780NewCommandNamesEveryArtifact: a stub top-level command with no catalog row gets
+// one finding that names all three artifacts a new command updates and each update command,
+// while a missing binary keeps the plain detail (V1-3886).
+func TestCAPV0780NewCommandNamesEveryArtifact(t *testing.T) {
+	inv, catalog, _ := load(t)
+	inv.Commands = append(append([]string(nil), inv.Commands...), "stubverb")
+	inv.Binaries = append(append([]string(nil), inv.Binaries...), "corvint-stub-companion")
+	var cmd, bin string
+	for _, f := range Check(catalog, nil, inv, linkBase) {
+		switch {
+		case f.Kind == "missing" && f.Name == "stubverb":
+			cmd = f.String()
+		case f.Kind == "missing" && f.Name == "corvint-stub-companion":
+			bin = f.String()
+		}
+	}
+	for _, want := range []string{"docs/CAPABILITIES.md", "README", "make capability-catalog", "script/repin-use-case-receipts.sh"} { //corvint:fixture-path
+		if !strings.Contains(cmd, want) {
+			t.Errorf("missing-command finding does not name %q: %q", want, cmd)
+		}
+	}
+	if !strings.HasSuffix(bin, ": no catalog row") {
+		t.Errorf("missing-binary finding changed: %q", bin)
+	}
+}
+
 // TestCAPV0002ToolNamesWithDigitsAndHyphens proves a tool name with a digit or a hyphen is
 // collected, so a catalog that omits it fails.
 func TestCAPV0002ToolNamesWithDigitsAndHyphens(t *testing.T) {

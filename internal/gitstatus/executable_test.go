@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestExecutableFollowsPathChanges(t *testing.T) {
 	fake := t.TempDir()
 	script := filepath.Join(fake, gitFixtureName())
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fake)
@@ -45,7 +47,7 @@ func TestPinFixesExecutableAgainstLaterPathChanges(t *testing.T) {
 	t.Cleanup(unpin)
 	first, second := t.TempDir(), t.TempDir()
 	for _, directory := range []string{first, second} {
-		if err := os.WriteFile(filepath.Join(directory, gitFixtureName()), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(directory, gitFixtureName()), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 	}

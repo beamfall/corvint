@@ -350,6 +350,39 @@ func (s *Source) LinkedEntries(directory string, accept func(name string) bool) 
 	return linksOut, nil
 }
 
+// LinkTarget resolves the symbolic link relative, following every link, to the
+// repository-relative slash path of the regular file it names (TSP-V0-721). The
+// link is recorded followed, so a retargeted link or an edited target
+// invalidates a graph cache entry. A target outside the root's real path, one
+// that is not a regular file and any resolution failure answer ok false, as does
+// an immutable tree source, which has no on-disk links.
+func (s *Source) LinkTarget(relative string) (target string, ok bool) {
+	if s == nil || s.fsys != nil || s.stopped() != nil || !fs.ValidPath(relative) || relative == "." {
+		return "", false
+	}
+	s.record.path(s.root, relative, true)
+	realRoot, err := filepath.EvalSymlinks(s.root)
+	if err != nil {
+		return "", false
+	}
+	resolved, err := filepath.EvalSymlinks(filepath.Join(s.root, filepath.FromSlash(relative)))
+	if err != nil {
+		return "", false
+	}
+	if info, err := os.Stat(resolved); err != nil || !info.Mode().IsRegular() {
+		return "", false
+	}
+	inside, err := filepath.Rel(realRoot, resolved)
+	if err != nil {
+		return "", false
+	}
+	inside = filepath.ToSlash(inside)
+	if inside == "." || inside == ".." || strings.HasPrefix(inside, "../") || !fs.ValidPath(inside) {
+		return "", false
+	}
+	return inside, true
+}
+
 // ResolvesToDependency reports whether the existing path relative resolves on disk, following
 // every symlink, outside the root's real path or inside a node_modules directory below it: a
 // dependency location rather than repository source (TJAA-V0-122). A path that resolves to
