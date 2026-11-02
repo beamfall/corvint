@@ -198,6 +198,14 @@ confidently-wrong rate at non-inferior success. Here that is `selective_success`
 beside `hit@k` on positives, both against the grep arm and both with intervals. A first run is
 first-observation evidence under `benchmarks/README.md` and is preserved unrepaired.
 
+The governing reports for the rc.3 ranker are `benchmarks/results/agent-retrieval-bench-<task>-rc3.json`
+for `abstention`, `code2test`, `comment2context`, `edit2ripple` and `trace2code`. Each measured
+every arm at k 20 with `Corvint 1.0.0-rc.3.dev (build 43, commit
+55f5a9fd74a4e0e0d3fcc72d5837a2a90fba1520)` (binary SHA-256 in each report's `corvint` member) and
+was merged from one Corvint-arm run and one lexical-only run with `--summarize`. The older
+`agent-retrieval-bench-<task>.json` and `-development.json` reports measured `Corvint 0.4.0a0`;
+they are kept as first-observation evidence and must not be cited for the current ranker.
+
 The impact arm is read beside its `errors` count: an errored sample scores zero on every
 metric, and most impact errors are structural (no `changed_file` in the query, a changed file
 with no reverse-import rule, a repository without a Go module), so its means understate what
