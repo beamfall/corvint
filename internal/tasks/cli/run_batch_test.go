@@ -594,7 +594,6 @@ func laneRepo(t *testing.T) (*fixture.Repo, string, []string) {
 // job: run-batch witnesses nothing and returns the release refusal, and
 // qualify is NOT_QUALIFIED with LANE_FAILED.
 func TestTOLV0030_RefusedReleaseFailsTheJob(t *testing.T) {
-	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setQualifiedVersions(t, []string{pwVersion})
 	defer cli.FailJobPoolRelease(wire.CodeResourceCollision)()
 	r, id, lane := laneRepo(t)
