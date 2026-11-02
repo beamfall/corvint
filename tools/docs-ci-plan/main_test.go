@@ -282,6 +282,25 @@ func TestQualificationIgnoresUnrelatedDrift(t *testing.T) {
 	}
 }
 
+// DCI-V0-857: the capability table's two region markers are admitted; any other comment is not.
+func TestCapabilityMarkerComments(t *testing.T) {
+	table := "<!-- capability-gate:readme -->\n| Capability | Try it |\n|---|---|\n| Init | `corvint init` |\n<!-- /capability-gate:readme -->\n"
+	for _, tc := range []struct{ name, body, mode string }{
+		{"markers", fixtureREADME + "\n" + table, "DOCS"},
+		{"other-comment", fixtureREADME + "\n<!-- hidden -->\n", "FULL"},
+		{"marker-suffix", fixtureREADME + "\n<!-- capability-gate:readme --x -->\n", "FULL"},
+		{"unclosed", fixtureREADME + "\n<!-- capability-gate:readme\n", "FULL"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.change(t, func(r string) { put(t, r, readme, tc.body) })
+			if p := f.plan(); p.Mode != tc.mode {
+				t.Fatalf("%+v", p)
+			}
+		})
+	}
+}
+
 func TestCodeFenceAndCitationBounds(t *testing.T) {
 	for _, body := range []string{"```go\nx\n```\n", "~~~go\nx\n~~~\n", "  ````go\n```\nx\n  ````\n"} {
 		b, e := executableBlocks([]byte(body))

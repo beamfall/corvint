@@ -35,7 +35,8 @@ const qualificationProfile = "corvint-docs-ci-qualification/1"
 const profile = "corvint-docs-ci/0"
 const maxOutput = 8 << 20
 
-var checks = []string{"immutable-local-links", "unchanged-executable-blocks", "identical-citation-spans", "doc-gates", "docs-ci-plan-tests", "specindex-tests", "full-static-build-interop-archive", "merge-queue-full-race"}
+var checks = []string{"immutable-local-links", "unchanged-executable-blocks", "identical-citation-spans", "doc-gates", "docs-ci-plan-tests", "specindex-tests", "full-static-build-interop-archive", "merge-queue-full-race", "capabilities-check-tests"}
+var markerComments = map[string]bool{"<!-- capability-gate:readme -->": true, "<!-- /capability-gate:readme -->": true}
 var oidPattern = regexp.MustCompile(`^[0-9a-f]{40}$`)
 var citation = regexp.MustCompile(`README\.md:([0-9]+)-([0-9]+)@([0-9a-f]{8})`)
 var markdownLink = regexp.MustCompile(`\]\(\s*([^\s)]+)(?:\s+"[^"]*")?\s*\)`)
@@ -340,6 +341,16 @@ func htmlLinks(b []byte) ([]string, error) {
 	space := func(c byte) bool { return c == ' ' || c == '\n' || c == '\t' }
 	for i := 0; i < len(b); i++ {
 		if b[i] != '<' {
+			continue
+		}
+		// DCI-V0-857: the capability table's two region markers are the only admitted comments;
+		// tools/capabilities-check reads that region and runs under DOCS.
+		if bytes.HasPrefix(b[i:], []byte("<!--")) {
+			end := bytes.Index(b[i:], []byte("-->"))
+			if end < 0 || !markerComments[string(b[i:i+end+3])] {
+				return bad()
+			}
+			i += end + 2
 			continue
 		}
 		i++

@@ -1021,4 +1021,6 @@ func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
 	}
 	plan := jobBlock(t, w, "docs-plan")
 	wantLine(t, "docs-plan", plan, `          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then`)
+	// DCI-V0-857: the README capability table's reader runs on every DOCS run.
+	wantLine(t, "docs-plan", plan, `            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)`)
 }
