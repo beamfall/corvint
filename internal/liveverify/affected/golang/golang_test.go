@@ -796,6 +796,9 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 		"variant/variant_test.go": "package variant\n",
 		"core/core.go":            "package core\n",
 		"core/core_test.go":       "package core\n",
+		// other/ stays on disk, so its dirty model.go is not a deleted
+		// package (AFP-V0-821).
+		"other/notes.txt": "",
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {

@@ -44,6 +44,8 @@ var contracts = map[string]contract{
 	"corvint-ruby-test-provider": {"./cmd/corvint-ruby-test-provider", 2, "stderr", text(`UNKNOWN_COMMAND: unknown subcommand "` + unknownVerb + `"`)},
 	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
 	"corvint-test":               {"./cmd/corvint-test", 1, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-update":             {"./cmd/corvint-update", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
 }
 
 // TestCLIErrorContracts_ACXV0859 (ACX-V0-859, TCL-V0-859; V1-3736) builds

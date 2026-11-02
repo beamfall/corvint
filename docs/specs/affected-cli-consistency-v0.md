@@ -115,9 +115,12 @@ driving Corvint from scripts.
   typed word, on the stream and with the exit code its row already records. Binaries whose refusal
   had no code (`corvint-cem-candidate`, `corvint-cem-experiments`, `corvint-corpus-republish`,
   `corvint-gateway`, `corvint-js-test-provider`, `corvint-ruby-test-provider`,
-  `corvint-postmerge-workflow`, `corvint-test`) SHALL print `UNKNOWN_COMMAND`;
+  `corvint-postmerge-workflow`, `corvint-test`, and the later catalog binary `corvint-update`) SHALL
+  print `UNKNOWN_COMMAND`;
   `corvint-postmerge-connect` SHALL refuse an unknown operation as `unknown-operation` before it
-  reads any input. The conformance test SHALL fail when a row is silent or unchecked.
+  reads any input. The conformance test SHALL fail when a row is silent or unchecked. The
+  `corvint-work-queue` row is the one exception: WQO-V0-007 and WQO-V0-030 pin its refusal to the
+  exact text `unsupported operation`, so its row checks that text until those requirements change.
 
 ## Non-goals
 
