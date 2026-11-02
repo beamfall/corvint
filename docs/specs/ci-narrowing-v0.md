@@ -182,22 +182,28 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   merge's two parents, the second equal to the PR head, the first descending from the declared
   PR base and belonging to main. Both PR-head and tested-merge comparisons SHALL exclude
   `.github/` changes (including renames) and change sets of 300 or more files. Only same-repository
-  PRs based on main with retained outcomes qualify; DOCS, REUSE, skipped, fork, queue and push runs
-  stay outside this alarm. A proven different epoch SHALL take no window place and never count
+  PRs based on main with retained outcomes and a `success` or `failure` conclusion (the only
+  conclusions the `forward-rows` collector runs on) qualify; DOCS, REUSE, skipped, fork, queue and
+  push runs, and cancelled, timed-out or otherwise concluded runs that retain outcomes, stay
+  outside this alarm. A proven different epoch SHALL take no window place and never count
   as absence, including an epoch-1 run with no selection document. Missing or ambiguous workflow
   epoch is uncertainty, not proof of current-epoch absence.
 - `CIN-V0-2142`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3332)
   Only unexpired forward artifacts uploaded by same-repository runs on main SHALL discharge
   absence. A matching name SHALL name the candidate's PR, tested commit and epoch, have creation
   time at or after completion, and its downloaded `row.json` SHALL bind profile, kind, class,
-  PR, SHA, epoch, run ID, selection run ID and outcomes run ID to that candidate. Another run's
-  delayed row SHALL NOT discharge absence. Because the current forward-row wire has no attempt,
+  PR, SHA, epoch, run ID, selection run ID and outcomes run ID to that candidate. Every matching
+  body SHALL first be validated (profile, kind `pr`, integer PR, epoch and run IDs, and class, PR,
+  SHA and epoch equal to its own artifact name); a malformed or self-contradicting body is
+  UNKNOWN, not absence. A well-formed row of another run (a delayed row) SHALL NOT discharge absence. Because the current forward-row wire has no attempt,
   an eligible current-epoch rerun SHALL report UNKNOWN rather than claim a row covers its attempt.
   Unreadable or malformed evidence, failed GitHub calls (60-second timeout per call), more than
   20 artifact pages of 100 without reaching the oldest sampled completion, a full 100-run sample without 20 eligible runs, a full per-run artifact
   page of 100, or excessive downloads SHALL report UNKNOWN, an error annotation and exit 2.
-  Downloads SHALL be temporary, at most 32 documents per pattern and 4 MiB per document, with no
-  execution of downloaded content. Hosted activation requires a trusted caller to schedule this
+  Before any transfer, listing metadata SHALL bound each download set to at most 32 artifacts and
+  each archive to 4 MiB plus 64 KiB; the transfer SHALL stop past that size. Each archive SHALL be
+  read in memory, never extracted, and hold exactly one entry, the expected document, of at most
+  4 MiB checked before and during decompression, with no execution of downloaded content. Hosted activation requires a trusted caller to schedule this
   alarm and surface its nonzero exit; this lane SHALL document that wiring without editing
   `.github/`. A local replay does not claim hosted activation or ticket completion.
 
@@ -261,8 +267,8 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
 | CIN-V0-2140 | `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay` runs the Python GitHub-boundary replay: absent selection, active narrowing, threshold, latest-20 window, duplicate run, grace |
-| CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions |
-| CIN-V0-2142 | `trusted_rows`, `download`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, stale rows, uncertain reruns, failed reads and bounded pagination |
+| CIN-V0-2141 | `candidate` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: epoch-1 absent selection exclusion, workflow trust, intentional exclusions, uncollected conclusions |
+| CIN-V0-2142 | `trusted_rows`, `gh`, `download`, `document`, `row_binds`, `evaluate`, `main` in `tools/ci-forward-row/absence-alarm.py` | `TestCINV02140AbsenceAlarmReplay`: row provenance/body/run binding, malformed bodies UNKNOWN, stale rows, uncertain reruns, failed reads, bounded pagination, pre-transfer count/size bounds, bounded archive entries and transfer |
 
 ## Rollback
 

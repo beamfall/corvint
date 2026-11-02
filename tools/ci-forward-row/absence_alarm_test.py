@@ -7,7 +7,9 @@ import io
 import json
 import pathlib
 import subprocess
+import sys
 import unittest
+import zipfile
 from unittest.mock import patch
 
 spec = importlib.util.spec_from_file_location("absence_alarm", pathlib.Path(__file__).with_name("absence-alarm.py"))
@@ -21,16 +23,18 @@ class Replay:
         self.rows = []
         self.epochs = {}
         self.names = {}
-        self.modes = {}
         self.changed = []
         self.calls = []
         self.fail = None
         self.bad_doc = False
+        self.row_body = None  # Replaces every downloaded row.json body when set.
+        self.size = 512
+        self.archives = {}  # Artifact ID -> raw archive bytes overriding the generated zip.
 
     @staticmethod
     def run(n):
         repo = {"id": 1}
-        return {"id": n, "run_attempt": 1, "status": "completed", "event": "pull_request",
+        return {"id": n, "run_attempt": 1, "status": "completed", "conclusion": "success", "event": "pull_request",
                 "head_sha": f"{n:040x}", "updated_at": f"2020-01-01T00:{n % 60:02d}:00Z",
                 "pull_requests": [{"number": n, "base": {"ref": "main", "sha": "a" * 40, "repo": repo},
                                    "head": {"repo": repo}}]}
@@ -40,34 +44,54 @@ class Replay:
         return f"{n + 1000:040x}"
 
     def row(self, n, epoch="2", created="2020-01-02T00:00:00Z", branch="main", owner=1, kind="CLEAN"):
-        self.rows.append({"name": f"ci-forward-{kind}-pr{n}-{self.target(n)}-e{epoch}-f0",
+        self.rows.append({"id": 50000 + len(self.rows), "size_in_bytes": self.size,
+                          "name": f"ci-forward-{kind}-pr{n}-{self.target(n)}-e{epoch}-f0",
                           "expired": False, "created_at": created,
                           "workflow_run": {"head_branch": branch, "repository_id": 1, "head_repository_id": owner, "id": n + 2000}})
 
-    def gh(self, *args):
+    @staticmethod
+    def archive(entries):
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, data in entries:
+                archive.writestr(name, data)
+        return buffer.getvalue()
+
+    def outcome_id(self, n, index):
+        return 100000 + n * 100 + index
+
+    def download(self, artifact_id):
+        if artifact_id in self.archives:
+            return self.archives[artifact_id]
+        if artifact_id >= 100000:
+            n = (artifact_id - 100000) // 100
+            filename = "outcomes.json"
+            doc = {"profile": "corvint-ci-outcomes/0", "event": "pull_request", "runId": n,
+                   "runAttempt": 1, "target": self.target(n), "head": f"{n:040x}"}
+        else:
+            artifact = next(a for a in self.rows if a["id"] == artifact_id)
+            filename = "row.json"
+            n = artifact["workflow_run"]["id"] - 2000
+            name = artifact["name"]
+            doc = {"profile": "corvint-pr-forward-row/0", "kind": "pr", "class": name.split("-")[2],
+                   "runId": n, "selectionRunId": n, "outcomesRunId": n,
+                   "pr": int(name.split("-")[3].removeprefix("pr")), "sha": name.split("-")[4], "epoch": 2}
+            if self.row_body is not None:
+                doc = self.row_body
+        return self.archive([(filename, json.dumps([] if self.bad_doc else doc))])
+
+    def gh(self, *args, limit=None):
         self.calls.append(args)
         if self.fail and self.fail in " ".join(args):
             raise alarm.Unavailable("fixture unreadable API")
         if args[0] == "run":
-            n = int(args[2])
-            directory = pathlib.Path(args[args.index("--dir") + 1]) / "artifact"
-            directory.mkdir(parents=True)
-            if "ci-narrowing-*" in args:
-                filename = "narrowing.json"
-                doc = {"mode": self.modes.get(n, "FULL")}
-            elif any(arg.startswith("ci-forward-") for arg in args):
-                filename = "row.json"
-                n -= 2000
-                name = args[args.index("--pattern") + 1]
-                doc = {"profile": "corvint-pr-forward-row/0", "kind": "pr", "class": name.split("-")[2],
-                       "runId": n, "selectionRunId": n, "outcomesRunId": n, "pr": n,
-                       "sha": self.target(n), "epoch": 2}
-            else:
-                filename = "outcomes.json"
-                doc = {"profile": "corvint-ci-outcomes/0", "event": "pull_request", "runId": n,
-                       "runAttempt": 1, "target": self.target(n), "head": f"{n:040x}"}
-            (directory / filename).write_text(json.dumps([] if self.bad_doc else doc))
-            return b""
+            raise AssertionError("gh run download extracts before bounds apply")
+        if args[1].endswith("/zip"):
+            assert limit is not None, "artifact transfer must be bounded"
+            blob = self.download(int(args[1].split("/")[-2]))
+            if len(blob) > limit:
+                raise alarm.Unavailable("fixture transfer limit")
+            return blob
         path = args[1].removeprefix("repos/owner/repo/")
         if path.startswith("actions/workflows/"):
             result = {"workflow_runs": self.runs}
@@ -75,8 +99,9 @@ class Replay:
             result = {"artifacts": self.rows}
         elif path.startswith("actions/runs/"):
             n = int(path.split("/")[2])
-            result = {"artifacts": [{"name": name, "expired": False} for name in
-                      self.names.get(n, ["ci-outcomes-pull_request-0"])]}
+            result = {"artifacts": [{"id": self.outcome_id(n, i), "name": name, "expired": False,
+                                     "size_in_bytes": self.size} for i, name in
+                      enumerate(self.names.get(n, ["ci-outcomes-pull_request-0"]))]}
         elif path.startswith("commits/"):
             n = int(path.split("/")[1], 16) - 1000
             result = {"parents": [{"sha": "b" * 40}, {"sha": f"{n:040x}"}]}
@@ -113,7 +138,6 @@ class AbsenceAlarmTest(unittest.TestCase):
     def test_CIN_V0_2140_outage_while_narrowing_is_on(self):
         replay = Replay()
         replay.names = {n: ["ci-outcomes-pull_request-0", "ci-narrowing-0"] for n in range(1, 4)}
-        replay.modes = {n: "NARROWED" for n in range(1, 4)}
         self.assertEqual(self.execute(replay)[0], 1)
         for n in range(1, 4):
             replay.row(n, kind="NARROWED")
@@ -181,7 +205,7 @@ class AbsenceAlarmTest(unittest.TestCase):
             for n in range(1, 4):
                 replay.row(n, branch=branch, owner=owner)
             self.assertEqual(self.execute(replay)[0], 1)
-        for failure in ("actions/artifacts", "contents/", "run download", "commits/", "compare/"):
+        for failure in ("actions/artifacts", "contents/", "/zip", "commits/", "compare/"):
             with self.subTest(failure=failure):
                 replay = Replay()
                 replay.fail = failure
@@ -220,6 +244,95 @@ class AbsenceAlarmTest(unittest.TestCase):
         with patch.object(alarm.subprocess, "run", side_effect=subprocess.TimeoutExpired("gh", 60)):
             with self.assertRaises(alarm.Unavailable):
                 alarm.gh("api", "x")
+
+    def test_CIN_V0_2141_uncollected_conclusions_are_not_candidates(self):
+        # Review P2: outcomes upload under always(), but the collector runs only on success or
+        # failure, so a cancelled or timed-out run with outcomes is an intentional non-row.
+        for conclusion in ("cancelled", "timed_out", "skipped", "neutral", "action_required", "stale", None):
+            with self.subTest(conclusion=conclusion):
+                replay = Replay()
+                for run in replay.runs:
+                    run["conclusion"] = conclusion
+                code, result, _ = self.execute(replay)
+                self.assertEqual((code, result["alarm"], result["window"]), (0, "clear", 0))
+                self.assertFalse(any(c[1].endswith("/zip") for c in replay.calls))
+        replay = Replay()
+        replay.runs[0]["conclusion"] = "failure"
+        self.assertEqual(self.execute(replay)[1]["absentRunIds"], [3, 2, 1])
+
+    def test_CIN_V0_2142_malformed_row_bodies_are_unknown(self):
+        # Review P2: a matching artifact whose body cannot be validated is uncertainty, not absence.
+        for body in ({}, {"profile": "corvint-pr-forward-row/0", "class": "INCOMPLETE",
+                          "incomplete": ["row classification failed"], "truncated": False},
+                     {"profile": "corvint-pr-forward-row/0", "kind": "pr", "class": "CLEAN", "pr": 1,
+                      "sha": Replay.target(1), "epoch": "2", "runId": 1, "selectionRunId": 1,
+                      "outcomesRunId": 1},
+                     {"profile": "corvint-pr-forward-row/0", "kind": "pr", "class": "FLAKY", "pr": 1,
+                      "sha": Replay.target(1), "epoch": 2, "runId": 1, "selectionRunId": 1,
+                      "outcomesRunId": True}):
+            with self.subTest(body=body):
+                replay = Replay()
+                for n in range(1, 4):
+                    replay.row(n)
+                replay.row_body = body
+                code, result, stderr = self.execute(replay)
+                self.assertEqual((code, result["alarm"]), (2, "UNKNOWN"))
+                self.assertIn("malformed", result["limit"])
+                self.assertIn("::error::", stderr)
+        # A well-formed row naming another CI run still does not discharge absence.
+        replay = Replay()
+        for n in range(1, 4):
+            replay.row(n)
+            replay.rows[-1]["workflow_run"]["id"] += 10
+        code, result, _ = self.execute(replay)
+        self.assertEqual((code, result["alarm"], result["absentRunIds"]), (1, "TRIPPED", [3, 2, 1]))
+
+    def test_CIN_V0_2142_download_bounds_apply_before_transfer_and_extraction(self):
+        # Review P2: count and size come from listing metadata before any transfer.
+        replay = Replay()
+        replay.size = alarm.DOC_LIMIT + alarm.ZIP_OVERHEAD + 1
+        code, result, _ = self.execute(replay)
+        self.assertEqual((code, result["limit"]), (2, "artifact exceeds its transfer limit"))
+        self.assertFalse(any(c[1].endswith("/zip") for c in replay.calls))
+        replay = Replay()
+        replay.names = {n: [f"ci-outcomes-pull_request-{i}" for i in range(33)] for n in range(1, 4)}
+        code, result, _ = self.execute(replay)
+        self.assertEqual((code, result["limit"]), (2, "missing or excessive matching artifacts"))
+        self.assertFalse(any(c[1].endswith("/zip") for c in replay.calls))
+        replay = Replay()
+        for n in range(1, 4):
+            for _ in range(33):
+                replay.row(n)
+        self.assertEqual(self.execute(replay)[1]["limit"], "missing or excessive matching artifacts")
+        self.assertFalse(any("/artifacts/5" in c[1] for c in replay.calls))
+        # Archive entries are bounded before decompression; nothing is extracted to disk.
+        doc = json.dumps({"profile": "corvint-ci-outcomes/0"})
+        for name, archive in (
+                ("extra entry", Replay.archive([("outcomes.json", doc), ("unrelated.bin", "x")])),
+                ("wrong entry", Replay.archive([("nested/outcomes.json", doc)])),
+                ("empty archive", Replay.archive([])),
+                ("not a zip", b"not a zip"),
+                ("oversized entry", Replay.archive([("outcomes.json", " " * (alarm.DOC_LIMIT + 1))]))):
+            with self.subTest(archive=name):
+                replay = Replay()
+                replay.archives = {replay.outcome_id(n, 0): archive for n in range(1, 4)}
+                code, result, _ = self.execute(replay)
+                self.assertEqual((code, result["alarm"]), (2, "UNKNOWN"))
+
+    def test_CIN_V0_2142_bounded_transfer_stops_the_reader(self):
+        write = "import sys; sys.stdout.buffer.write(b'x' * int(sys.argv[1]))"
+        with patch.object(alarm, "GH", (sys.executable, "-I", "-c", write)):
+            self.assertEqual(alarm.gh("64", limit=64), b"x" * 64)
+            with self.assertRaisesRegex(alarm.Unavailable, "transfer exceeds"):
+                alarm.gh(str(64 * 1024 * 1024), limit=1024)
+        fail = "import sys; sys.exit(3)"
+        with patch.object(alarm, "GH", (sys.executable, "-I", "-c", fail)):
+            with self.assertRaisesRegex(alarm.Unavailable, "read failed"):
+                alarm.gh("api", limit=1024)
+        hang = "import time; time.sleep(30)"
+        with patch.object(alarm, "GH", (sys.executable, "-I", "-c", hang)), patch.object(alarm, "TIMEOUT", 0.5):
+            with self.assertRaisesRegex(alarm.Unavailable, "read failed"):
+                alarm.gh("api", limit=1024)
 
 
 if __name__ == "__main__":

@@ -7,22 +7,33 @@ Requires gh authentication with actions:read and contents:read. Checks the lates
 20 eligible completed PR CI runs among at most 100 completed PR runs. Allows
 one hour for the asynchronous collector. Prints JSON and a GitHub error annotation
 on alarm; exits 1 on absence, 2 on unavailable evidence, 0 on clear. No writes to
-GitHub, repository state, or narrowing configuration. Temporary downloads only.
+GitHub, repository state, or narrowing configuration. Artifacts are bounded before
+transfer and read in memory, never extracted to disk.
 Example: python3 tools/ci-forward-row/absence-alarm.py beamfall/corvint 2
 """
 
 import base64
 import datetime as dt
+import io
 import json
-import pathlib
 import re
 import subprocess
 import sys
-import tempfile
+import threading
+import zipfile
+import zlib
 
 WINDOW = 20
 THRESHOLD = 3
 GRACE = dt.timedelta(hours=1)
+GH = ("gh",)
+TIMEOUT = 60
+MAX_DOCS = 32
+DOC_LIMIT = 4 * 1024 * 1024
+ZIP_OVERHEAD = 64 * 1024
+# ci-control-plane.yml forward-rows collects only these CI conclusions.
+COLLECTED = ("success", "failure")
+ROW_PROFILE = "corvint-pr-forward-row/0"
 SHA = re.compile(r"[0-9a-f]{40}\Z")
 ROW = re.compile(r"ci-forward-(CLEAN|FLAKY|MISS|INCOMPLETE|INFRA|NARROWED)-pr([0-9]+)-([0-9a-f]{40})-e([0-9]+)-f[01]\Z")
 
@@ -31,13 +42,35 @@ class Unavailable(Exception):
     pass
 
 
-def gh(*args):
+def gh(*args, limit=None):
+    """Run one read; with limit, stop the transfer once it exceeds limit bytes."""
+    if limit is None:
+        try:
+            return subprocess.run([*GH, *args], check=True, stdout=subprocess.PIPE,
+                                  stderr=subprocess.PIPE, timeout=TIMEOUT).stdout
+        except (OSError, subprocess.SubprocessError) as exc:
+            # Do not echo CLI stderr, which may contain credentials or downloaded bytes.
+            raise Unavailable("GitHub read failed: " + args[0]) from exc
     try:
-        return subprocess.run(["gh", *args], check=True, stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE, timeout=60).stdout
-    except (OSError, subprocess.SubprocessError) as exc:
-        # Do not echo CLI stderr, which may contain credentials or downloaded bytes.
+        proc = subprocess.Popen([*GH, *args], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    except OSError as exc:
         raise Unavailable("GitHub read failed: " + args[0]) from exc
+    timer = threading.Timer(TIMEOUT, proc.kill)
+    timer.start()
+    try:
+        data = proc.stdout.read(limit + 1)
+        if len(data) > limit:
+            raise Unavailable("artifact transfer exceeds its limit")
+        code = proc.wait()
+    finally:
+        timer.cancel()
+        if proc.poll() is None:
+            proc.kill()
+        proc.stdout.close()
+        proc.wait()
+    if code != 0:  # Includes a transfer the timer killed.
+        raise Unavailable("GitHub read failed: " + args[0])
+    return data
 
 
 def api(repo, path):
@@ -63,8 +96,7 @@ def trusted_rows(repo, since):
                     and run.get("head_repository_id") == run["repository_id"]):
                 match = ROW.fullmatch(artifact["name"])
                 if match:
-                    rows.append((match.groups(), timestamp(artifact["created_at"]),
-                                 run["id"], artifact["name"]))
+                    rows.append((match.groups(), timestamp(artifact["created_at"]), artifact))
         # GitHub lists newest first. Older artifacts cannot cover any sampled
         # run, because a row must be created after that run completed.
         if len(artifacts) < 100 or any(timestamp(a["created_at"]) < since for a in artifacts):
@@ -72,34 +104,75 @@ def trusted_rows(repo, since):
     raise Unavailable("artifact listing exceeds 20 pages")
 
 
-def download(repo, run_id, pattern, directory, filename):
-    gh("run", "download", str(run_id), "--repo", repo, "--pattern", pattern,
-       "--dir", str(directory))
-    paths = list(directory.rglob(filename))
-    if not paths or len(paths) > 32:
-        raise Unavailable("missing or excessive downloaded documents")
-    docs = []
-    for path in paths:
-        if path.is_symlink() or path.stat().st_size > 4 * 1024 * 1024:
-            raise Unavailable("unbounded downloaded document")
-        doc = json.loads(path.read_text())
-        if not isinstance(doc, dict):
-            raise Unavailable("downloaded document is not an object")
-        docs.append(doc)
-    return docs
+def is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
-def candidate(repo, run, scratch):
+def download(repo, artifacts, filename):
+    """Bound count and archive size from listing metadata before any transfer."""
+    if not artifacts or len(artifacts) > MAX_DOCS:
+        raise Unavailable("missing or excessive matching artifacts")
+    limit = DOC_LIMIT + ZIP_OVERHEAD
+    for artifact in artifacts:
+        size = artifact["size_in_bytes"]
+        if not is_int(artifact["id"]) or not is_int(size) or not 0 < size <= limit:
+            raise Unavailable("artifact exceeds its transfer limit")
+    return [document(gh("api", f"repos/{repo}/actions/artifacts/{a['id']}/zip", limit=limit),
+                     filename) for a in artifacts]
+
+
+def document(blob, filename):
+    """Read the archive's single expected entry in memory, bounded before decompression."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(blob)) as archive:
+            entries = archive.infolist()
+            if len(entries) != 1 or entries[0].filename != filename or entries[0].is_dir():
+                raise Unavailable("unexpected artifact archive entries")
+            if entries[0].file_size > DOC_LIMIT:
+                raise Unavailable("unbounded downloaded document")
+            with archive.open(entries[0]) as handle:
+                data = handle.read(DOC_LIMIT + 1)
+    except (zipfile.BadZipFile, zipfile.LargeZipFile, RuntimeError, NotImplementedError,
+            EOFError, OSError, ValueError, zlib.error) as exc:
+        raise Unavailable("unreadable artifact archive") from exc
+    if len(data) > DOC_LIMIT:
+        raise Unavailable("unbounded downloaded document")
+    try:
+        doc = json.loads(data)
+    except ValueError as exc:
+        raise Unavailable("downloaded document is not JSON") from exc
+    if not isinstance(doc, dict):
+        raise Unavailable("downloaded document is not an object")
+    return doc
+
+
+def row_binds(doc, groups, run_id):
+    """Validate a row body against its own name, then report whether it binds run_id.
+
+    A malformed body, or one contradicting its artifact name, is uncertainty; a well-formed
+    row from another CI run is not this run's row.
+    """
+    kind, pr, sha, epoch = groups
+    ids = ("runId", "selectionRunId", "outcomesRunId")
+    if (doc.get("profile") != ROW_PROFILE or doc.get("kind") != "pr"
+            or not all(is_int(doc.get(k)) for k in ("pr", "epoch", *ids))
+            or (doc.get("class"), doc["pr"], doc.get("sha"), doc["epoch"]) != (kind, int(pr), sha, int(epoch))):
+        raise Unavailable("forward row body is malformed or contradicts its name")
+    return all(doc[k] == run_id for k in ids)
+
+
+def candidate(repo, run):
     """Return (PR, tested commit, epoch), or None for a run outside the alarm.
 
     Eligibility uses outcome artifacts, never the shadow selection. Narrowed PR
     runs are included: a shadow outage must still alarm while narrowing is on. GitHub
     proves the target's parents and ancestry before its workflow supplies epoch.
     Only PR runs with outcomes are covered; queue and push runs remain outside this alarm.
+    A cancelled or timed-out run may retain outcomes, but the collector never runs for it.
     """
     prs = run["pull_requests"]
-    if (run["status"] != "completed" or run["event"] != "pull_request"
-            or len(prs) != 1 or prs[0]["base"]["ref"] != "main"):
+    if (run["status"] != "completed" or run.get("conclusion") not in COLLECTED
+            or run["event"] != "pull_request" or len(prs) != 1 or prs[0]["base"]["ref"] != "main"):
         return None
     pr = prs[0]
     # Forks and PRs with an unprovable repository binding are outside this alarm.
@@ -108,11 +181,10 @@ def candidate(repo, run, scratch):
     artifacts = api(repo, f'actions/runs/{run["id"]}/artifacts?per_page=100')["artifacts"]
     if len(artifacts) >= 100:
         raise Unavailable("run artifact listing truncated")
-    names = [a["name"] for a in artifacts if not a["expired"]]
-    if not any(n.startswith("ci-outcomes-pull_request-") for n in names):
+    live = [a for a in artifacts if not a["expired"]]
+    if not any(a["name"].startswith("ci-outcomes-pull_request-") for a in live):
         return None  # DOCS, REUSE, skipped or infrastructure-only run.
-    run_dir = scratch / str(run["id"])
-    docs = download(repo, run["id"], "ci-outcomes-*", run_dir / "outcomes", "outcomes.json")
+    docs = download(repo, [a for a in live if a["name"].startswith("ci-outcomes-")], "outcomes.json")
     targets = {d.get("target") for d in docs}
     if (len(targets) != 1 or any(d.get("profile") != "corvint-ci-outcomes/0"
             or d.get("event") != "pull_request" or d.get("runId") != run["id"]
@@ -156,43 +228,35 @@ def evaluate(repo, epoch, now):
     rows = trusted_rows(repo, since)
     absent, checked = [], []
     seen = set()
-    with tempfile.TemporaryDirectory(prefix="corvint-row-absence-") as tmp:
-        for run in runs:
-            if now - timestamp(run["updated_at"]) < GRACE:
-                continue
-            key = (run["id"], run["run_attempt"])
-            if key in seen:
-                continue
-            seen.add(key)
-            entry = candidate(repo, run, pathlib.Path(tmp))
-            if entry is None or entry[2] != epoch:
-                continue
-            pr, target, _ = entry
-            # The current row wire has no runAttempt. Do not pretend its body
-            # distinguishes two attempts of the same CI run.
-            if run["run_attempt"] != 1:
-                raise Unavailable("forward row wire cannot bind a rerun attempt")
-            matching = [(r, collector, name) for r, created, collector, name in rows
-                        if r[1:] == (str(pr), target, epoch)
-                        and created >= timestamp(run["updated_at"])]
-            checked.append(run["id"])
-            present = False
-            if len(matching) > 32:
-                raise Unavailable("too many matching forward artifacts")
-            for r, collector, name in matching:
-                docs = download(repo, collector, name,
-                                pathlib.Path(tmp) / "rows" / str(run["id"]) / name, "row.json")
-                if any(d.get("profile") == "corvint-pr-forward-row/0" and d.get("kind") == "pr"
-                       and d.get("runId") == run["id"] and d.get("selectionRunId") == run["id"]
-                       and d.get("outcomesRunId") == run["id"] and d.get("pr") == pr
-                       and d.get("sha") == target and str(d.get("epoch")) == epoch
-                       and d.get("class") == r[0] for d in docs):
-                    present = True
-                    break
-            if not present:
-                absent.append(run["id"])
-            if len(checked) == WINDOW:
-                break
+    for run in runs:
+        if now - timestamp(run["updated_at"]) < GRACE:
+            continue
+        key = (run["id"], run["run_attempt"])
+        if key in seen:
+            continue
+        seen.add(key)
+        entry = candidate(repo, run)
+        if entry is None or entry[2] != epoch:
+            continue
+        pr, target, _ = entry
+        # The current row wire has no runAttempt. Do not pretend its body
+        # distinguishes two attempts of the same CI run.
+        if run["run_attempt"] != 1:
+            raise Unavailable("forward row wire cannot bind a rerun attempt")
+        matching = [(r, artifact) for r, created, artifact in rows
+                    if r[1:] == (str(pr), target, epoch)
+                    and created >= timestamp(run["updated_at"])]
+        checked.append(run["id"])
+        present = False
+        if matching:
+            docs = download(repo, [artifact for _, artifact in matching], "row.json")
+            # Validate every body before any binding counts.
+            bound = [row_binds(doc, r, run["id"]) for (r, _), doc in zip(matching, docs)]
+            present = any(bound)
+        if not present:
+            absent.append(run["id"])
+        if len(checked) == WINDOW:
+            break
     if len(runs) == 100 and len(checked) < WINDOW:
         raise Unavailable("run listing exceeds 100 candidates before covering window")
     return {"alarm": "TRIPPED" if len(absent) >= THRESHOLD else "clear", "epoch": epoch,
