@@ -119,7 +119,11 @@ func TestPruneKeepsTheNewestRecords(t *testing.T) {
 func TestPruneScansOncePerInterval(t *testing.T) {
 	needLocks(t)
 	l := fillLedger(t, 3)
-	free := filepath.Join(l.dir, fmt.Sprintf("%064x.lock", 99))
+	dir, err := l.locksDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	free := filepath.Join(dir, fmt.Sprintf("%064x.lock", 99))
 	put := func() {
 		if err := os.WriteFile(free, nil, 0o600); err != nil {
 			t.Fatal(err)
@@ -159,21 +163,49 @@ func TestPruneScansOncePerInterval(t *testing.T) {
 	}
 }
 
-// GL-V0-912: the holder removes its lock file, and a waiter that wakes on the removed file
-// reopens the path, so it never holds a lock beside a newer acquirer.
+// GL-V0-912: the holder removes its lock file, and a waiter that locked the removed file re-checks
+// the path and reopens it instead of running beside a newer holder. lockHook pins the order: the
+// waiter provably holds the original descriptor, locks it once the first holder releases, and a
+// replacement holder takes the path before the waiter re-checks. Without the re-check the waiter
+// would return while the replacement holds; with it, it reopens. Exactly one of the two happens.
 func TestLockRemovesItsFileAndExcludesARacer(t *testing.T) {
 	needLocks(t)
 	l := fillLedger(t, 0)
 	key := fmt.Sprintf("%064x", 7)
-	path := filepath.Join(l.dir, key+".lock")
-	release, err := l.lock(key, "first")
+	first, err := l.lock(key, "first")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Lstat(path); err != nil {
+	dir, err := l.locksDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(dir, key+".lock")
+	original, err := os.Lstat(path)
+	if err != nil {
 		t.Fatalf("a held lock has a file: %v", err)
 	}
-	acquired := make(chan func())
+	opened := make(chan struct{}, maxLockAttempts)
+	flocked := make(chan struct{})
+	resume := make(chan struct{})
+	flocks := 0
+	lockHook = func(step, event string) {
+		if step != "waiter" {
+			return
+		}
+		switch event {
+		case "open":
+			opened <- struct{}{}
+		case "flock":
+			flocks++
+			if flocks == 1 {
+				flocked <- struct{}{}
+				<-resume
+			}
+		}
+	}
+	t.Cleanup(func() { lockHook = nil })
+	acquired := make(chan func(), 1)
 	go func() {
 		release, err := l.lock(key, "waiter")
 		if err != nil {
@@ -183,9 +215,23 @@ func TestLockRemovesItsFileAndExcludesARacer(t *testing.T) {
 		}
 		acquired <- release
 	}()
-	// The waiter is blocked on the first file; release it, which removes that file.
-	time.Sleep(100 * time.Millisecond)
-	release()
+	<-opened // the waiter holds a descriptor of the first holder's file
+	first()  // removes that file and releases it
+	<-flocked
+	replacement, err := l.lock(key, "replacement")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if now, err := os.Lstat(path); err != nil || os.SameFile(now, original) {
+		t.Fatalf("the replacement holder must hold a new file: %v", err)
+	}
+	close(resume)
+	select {
+	case <-acquired:
+		t.Fatal("the waiter ran beside the replacement holder: no inode re-check")
+	case <-opened:
+	}
+	replacement()
 	waiter, ok := <-acquired
 	if !ok {
 		t.Fatal("the waiter never acquired the lock")
@@ -200,17 +246,59 @@ func TestLockRemovesItsFileAndExcludesARacer(t *testing.T) {
 	}
 	f.Close()
 	waiter()
-	if got := countSuffix(t, l.dir, ".lock"); got != 0 {
+	if got := countSuffix(t, dir, ".lock"); got != 0 {
 		t.Fatalf("%d lock files outlive their runs", got)
 	}
 }
 
-// GL-V0-913: a scan reclaims free lock files and leaves a held one alone.
+// GL-V0-912: a lock file that is a symlink never matches the re-check, so the lock becomes
+// unavailable after the bounded attempts instead of looping, and runStep runs unrecorded.
+func TestLockGivesUpOnASymlink(t *testing.T) {
+	needLocks(t)
+	l := fillLedger(t, 0)
+	dir, err := l.locksDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := fmt.Sprintf("%064x", 8)
+	target := filepath.Join(t.TempDir(), "target")
+	if err := os.WriteFile(target, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, filepath.Join(dir, key+".lock")); err != nil {
+		t.Fatal(err)
+	}
+	opens := 0
+	lockHook = func(step, event string) {
+		if event == "open" {
+			opens++
+		}
+	}
+	t.Cleanup(func() { lockHook = nil })
+	release, err := l.lock(key, "symlink")
+	if err == nil {
+		release()
+		t.Fatal("a symlinked lock file was accepted")
+	}
+	if opens != maxLockAttempts {
+		t.Fatalf("%d attempts, want %d", opens, maxLockAttempts)
+	}
+}
+
+// GL-V0-913: a scan reclaims free lock files of the namespace, leaves a held one alone, and never
+// unlinks a top-level KEY.lock, which an older acquirer may hold.
 func TestPruneReclaimsOnlyFreeLockFiles(t *testing.T) {
 	needLocks(t)
 	l := fillLedger(t, 1)
+	dir, err := l.locksDir()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i := 0; i < 3; i++ {
-		if err := os.WriteFile(filepath.Join(l.dir, fmt.Sprintf("%064x.lock", 100+i)), nil, 0o600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%064x.lock", 100+i)), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(l.dir, fmt.Sprintf("%064x.lock", 300+i)), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -223,11 +311,14 @@ func TestPruneReclaimsOnlyFreeLockFiles(t *testing.T) {
 	if err := l.prune(); err != nil {
 		t.Fatal(err)
 	}
-	if got := countSuffix(t, l.dir, ".lock"); got != 1 {
-		t.Fatalf("%d lock files after the scan, want only the held one", got)
+	if got := countSuffix(t, dir, ".lock"); got != 1 {
+		t.Fatalf("%d namespace lock files after the scan, want only the held one", got)
 	}
-	if _, err := os.Lstat(filepath.Join(l.dir, held+".lock")); err != nil {
+	if _, err := os.Lstat(filepath.Join(dir, held+".lock")); err != nil {
 		t.Fatalf("the held lock file was removed: %v", err)
+	}
+	if got := countSuffix(t, l.dir, ".lock"); got != 3 {
+		t.Fatalf("%d top-level legacy lock files after the scan, want all 3 kept", got)
 	}
 }
 
