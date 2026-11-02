@@ -698,3 +698,47 @@ BASE: the same class of deviation as the Codex finding.
 Floor: about 48% of base CPU, one full journal audit. The 25% target needs the journal audit itself
 (tkp-u33's area, for example V1-4243's segmented parallel decode) to run about twice as fast.
 **Not met.**
+
+## Codex r4 fixes (resumable gen, `TCX-V0-850`)
+
+All three findings were checked against the code and confirmed; none was rejected.
+
+1. P1, replay timestamps: confirmed. `gen`'s create, prioritize and complete-manual calls passed no
+   `--issued-at`, so `submitMutationContext` defaulted it to the current second (`mutate.go` near
+   line 450). A ticket redone after a kill digested different bytes and was refused
+   `REQUEST_ID_CONFLICT`. There was also no checkpoint before the first pause.
+   - Fix: one `issuedAt`, recorded at gen start in the progress file, goes on every mutation. Claim
+     and release take no client timestamp and replay as-is.
+   - The first checkpoint is saved before init (`next` 0), then every 50 tickets and at each pause.
+   - A resume at `next` 0 skips init when `head.json` exists: init does not replay (`TICKET_STATE`),
+     so its receipt is the evidence it ran.
+   - Found while fixing: a redone ticket replays without a receipt, so the manifest's receipt count
+     now comes from the journal head instead of the call counter.
+2. P2, atomic save: confirmed (`writeJSONFile` is `os.WriteFile`). `saveProgress` writes a
+   temporary file in the same directory, syncs it, renames it over the checkpoint and syncs the
+   directory. No fault-injection test was added: an interrupted write cannot be produced without a
+   fault seam in `os`, and the atomicity comes from the rename.
+3. P2, test strength: confirmed. `TestTCXV0850PausedGenResumesToTheSameStore` now runs 120 tickets
+   with `genChunk` 20:
+   - `--max-seconds` pauses after the first ticket: next 2, 1 ticket file.
+   - `--pause-after 59` pauses at 60: next 61, 60 tickets, 3 chunk timings, the seed commit done,
+     and the first claim and release (ticket 55) reached.
+   - A kill after tickets 61 to 66 are written, ticket 65's claim and release included, rolls the
+     checkpoint back to 61, and the resume runs in a later second.
+   - The final store must match an unpaused gen: tickets, statuses, the manifest with its receipt
+     count equal to the receipt files and the head sequence, and 6 positive chunk timings.
+
+   New `TestTCXV0850ResumeAfterInitSkipsInit` covers a checkpoint still at init after init committed.
+
+   Mutation checks, each failing as required:
+   - with the time-limit condition removed: no pause, so no progress file;
+   - with `--issued-at` removed from create: `c61` is refused after the kill.
+
+Tests, all ok: `script/heavy.sh go test -count=1 -run
+'TestTCXV0850|TestCopiedStore|TestRelativeGenRoot' ./internal/tasks/scale` (82 s).
+
+Friction 19: `init` does not replay on an initialized store.
+- Repro: run `corvint-tasks init --request-id scale-init` again on a store that init created under
+  that request ID.
+- Expected: a replay, like every other request ID.
+- Actual: `TICKET_STATE`.
