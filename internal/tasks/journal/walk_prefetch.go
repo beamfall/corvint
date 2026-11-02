@@ -41,7 +41,12 @@ type prefetchStats struct {
 // receipt and (only when every post is inline and was prepared without
 // error) each post's checked afterimage.
 type preparedReceipt struct {
-	source  *nativeRead
+	source *nativeRead
+	// view is set for a sealed receipt read ahead from its verified segment
+	// (LGL-V0-813): it has no file handle, and the view's consumed-file
+	// accounting is applied when step reaches it, as a sequential read
+	// applies it.
+	view    *segmentView
 	path    string
 	raw     []byte
 	cleanup error
@@ -61,6 +66,11 @@ type checkedPost struct {
 // walkPrefetch is false only in the tests that compare the prefetched walk
 // with the sequential one.
 var walkPrefetch = true
+
+// segmentPrefetch lets the walk read ahead through a segment view
+// (LGL-V0-813); a test turns it off to compare with the sequential sealed
+// walk.
+var segmentPrefetch = true
 
 func newReceiptPrefetch() *receiptPrefetch {
 	if !walkPrefetch {
@@ -101,14 +111,39 @@ func (r Reader) prefetchFrom(pf *receiptPrefetch, names []string, i int) {
 	}
 	pf.first, pf.ready = seq, pf.ready[:0]
 	native, ok := r.Source.(*nativeRead)
+	view, segmented := r.Source.(*segmentView)
+	if segmented && segmentPrefetch {
+		native, ok = view.inner.(*nativeRead)
+	}
 	if !ok {
 		return
 	}
 	end := min(i+1+(abortEvery-1-(i+1)%abortEvery), len(names))
+	// LGL-V0-813: on a segmented store a window is either sealed receipts
+	// of the one segment the walk is entering, served from its verified
+	// bytes, or active receipts read from disk; never both, so segments
+	// load in the order the sequential walk loads them.
+	sealedWindow := segmented && seq <= view.manifest.Through
+	if sealedWindow {
+		first := view.manifest.Segments[0].First
+		segEnd := first + ((seq-first)/snapshot.SegmentReceipts+1)*snapshot.SegmentReceipts - 1
+		end = min(end, int(min(segEnd, view.manifest.Through)))
+	}
 	pf.stats.windows++
 	held := 0
 	for k := i; k < end && held < prefetchBytes; k++ {
 		p := "receipts/" + names[k]
+		if sealedWindow {
+			raw, err := view.receipt(uint64(k + 1))
+			if err != nil || len(raw) > min(wire.MaxReceiptFileBytes, prefetchBytes-held) {
+				pf.stats.routed++
+				break
+			}
+			pf.stats.read++
+			held += len(raw)
+			pf.ready = append(pf.ready, &preparedReceipt{view: view, path: p, raw: raw})
+			continue
+		}
 		raw, cleanup, err := native.readHeld(p, min(wire.MaxReceiptFileBytes, prefetchBytes-held))
 		if err != nil {
 			pf.stats.routed++
@@ -203,7 +238,11 @@ func (p *preparedReceipt) receipt(r Reader, st *chain, name string) (*snapshot.R
 		}
 		return st.decode(name, raw)
 	}
-	if _, err := p.source.settle(p.path, p.raw, p.cleanup, nil); err != nil {
+	if p.view != nil {
+		if _, err := p.view.serve(p.path, p.raw, wire.MaxReceiptFileBytes, nil); err != nil {
+			return nil, nil, err
+		}
+	} else if _, err := p.source.settle(p.path, p.raw, p.cleanup, nil); err != nil {
 		return nil, nil, err
 	}
 	if p.raw == nil {
