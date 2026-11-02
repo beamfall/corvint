@@ -881,7 +881,9 @@ func observeDependentModule(root *affected.Source, directory, modulePath string,
 			reads = relative + " calls " + scan.calls[0]
 		}
 		for _, name := range scan.tokens {
-			names[name] = true
+			if !scan.fixtureOnly(name, strings.HasSuffix(relative, "_test.go")) {
+				names[name] = true
+			}
 			edge(name)
 			if reason := escapesPackage(path.Dir(relative), name, strings.HasSuffix(relative, "_test.go")); reason != "" && reads == "" {
 				reads = relative + " " + reason

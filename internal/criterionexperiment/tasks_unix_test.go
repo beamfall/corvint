@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestTasksTransportBoundsAndCancellation(t *testing.T) {
@@ -18,7 +20,7 @@ func TestTasksTransportBoundsAndCancellation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			p := filepath.Join(t.TempDir(), "verifier")
 			raw := []byte("#!/bin/sh\n" + body + "\n")
-			if e := os.WriteFile(p, raw, 0700); e != nil {
+			if e := execfile.WriteFile(p, raw, 0700); e != nil {
 				t.Fatal(e)
 			}
 			cfg := TasksVerifierConfig{p, Digest(raw)}
@@ -37,7 +39,7 @@ func TestTasksTransportBoundsAndCancellation(t *testing.T) {
 func TestTasksExecutableIndependentPin(t *testing.T) {
 	p := filepath.Join(t.TempDir(), "tasks")
 	raw := []byte("#!/bin/sh\nexit 0\n")
-	_ = os.WriteFile(p, raw, 0700)
+	_ = execfile.WriteFile(p, raw, 0700)
 	for _, c := range []TasksVerifierConfig{{p, strings.Repeat("a", 64)}, {"relative", Digest(raw)}, {p, ""}} {
 		if e := c.check(); e == nil {
 			t.Fatal("invalid pin admitted")
@@ -55,7 +57,7 @@ func TestTasksCancellationRetiresDescendant(t *testing.T) {
 	pidPath := filepath.Join(dir, "child.pid")
 	exe := filepath.Join(dir, "tasks")
 	raw := []byte("#!/bin/sh\nsleep 30 &\necho $! > '" + pidPath + "'\nwait\n")
-	if e := os.WriteFile(exe, raw, 0700); e != nil {
+	if e := execfile.WriteFile(exe, raw, 0700); e != nil {
 		t.Fatal(e)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

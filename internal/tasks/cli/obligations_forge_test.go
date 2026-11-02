@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
@@ -128,7 +127,8 @@ func readFile(t *testing.T, path string) []byte {
 // JOURNAL_FORKED; the same rewrite to the true generation (the control)
 // stays consistent, so the refusal is the replayed provenance alone.
 func TestTOLV0013_TamperedWorkerGenerationInconsistent(t *testing.T) {
-	defer cli.SetObligationQualifiedVersions([]string{pwVersion})()
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setQualifiedVersions(t, []string{pwVersion})
 	for _, forge := range []bool{false, true} {
 		r, id, head, attempt, gen := workerObligationRepo(t)
 		x := atm(t, r.Root, nil, witnessArgs(id, "w-ok", obligationRevision(t, r.Root, id), head, "--role", "WORKER",
@@ -152,6 +152,7 @@ func TestTOLV0013_TamperedWorkerGenerationInconsistent(t *testing.T) {
 // every byte rehashed, to name a commit the repository lacks fails receipt
 // audit; the shape and grant still replay, so only the commit check refuses.
 func TestTOLV0013_DeclaredCommitAudited(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1")...); x.res.Outcome != wire.OutcomeOK {

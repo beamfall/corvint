@@ -27,7 +27,9 @@
 #
 # The full run's line-citation step (ASD-V0-922, V1-3342) also re-anchors a changed span the diff
 # from the batch base (BATCH_REGEN_BASE, default origin/main) maps to its new lines
-# (`--repin --changed --base`), and lists each one for the integrator to read; --mechanical still
+# (`--repin --changed --base`), and lists each one for the integrator to read: the run prints each
+# re-anchor as a `batch-regen: REVIEW` line and records it in the regen commit's body, so review reads
+# every anchor whose cited content changed (ASD-V0-928, V1-3747); --mechanical still
 # rewrites only citations whose cited lines moved unchanged. The documentation-paths step
 # regenerates .corvint/documentation-paths.json (ASD-V0-105) after the spec index. Not regenerated: tests that pin their expectation in Go source
 # (TestAffectedReceiptMembersAreClosedAndByteStable, the spec enumeration tests): batch-precheck
@@ -59,7 +61,7 @@ goldens() {
   done
   [[ -n $gocache ]] || { printf 'batch-regen: REFUSE home-unset: HOME, XDG_CACHE_HOME and CORVINT_GOCACHE are all unset; set HOME (or CORVINT_GOCACHE) and rerun\n' >&2; exit 3; }
   env CORVINT_UPDATE_GOLDEN=1 HEAVY_REMOTE=0 HEAVY_LOCAL_REASON=golden-regen $heavy \
-    env GOCACHE="$gocache" GOTOOLCHAIN=local go test -count=1 -run "^($names)\$" "${pkgs[@]}"
+    env GOCACHE="$gocache" GOTOOLCHAIN=local go test -count=1 -run "^($names)\$" ${pkgs[@]+"${pkgs[@]}"}
 }
 
 analyzer() {
@@ -89,6 +91,10 @@ changed_citations() { script/check-line-citations.sh --repin --changed --base "$
 
 receipts() { script/repin-use-case-receipts.sh; }
 
+# merged_receipts: ASD-V0-985 (V1-3936). The full run follows lane merges, so it also adopts a
+# receipt the merge left off its ledger pin; --mechanical keeps the plain repin.
+merged_receipts() { script/repin-use-case-receipts.sh --merged; }
+
 # Steps as "name<TAB>command"; BATCH_REGEN_STEPS replaces them (tests).
 STEPS=(
   "spec-requirements	make -s spec-requirements"
@@ -98,7 +104,7 @@ STEPS=(
   "goldens	goldens"
   "host-package-versions	host_packages"
   "line-citations	changed_citations"
-  "use-case-receipts	receipts"
+  "use-case-receipts	merged_receipts"
 )
 MECHANICAL=(
   "host-package-versions	host_packages"
@@ -108,7 +114,7 @@ MECHANICAL=(
 if [[ -n ${BATCH_REGEN_STEPS:-} ]]; then
   STEPS=()
   while IFS= read -r line; do [[ -n $line ]] && STEPS+=("$line"); done <<< "$BATCH_REGEN_STEPS"
-  MECHANICAL=("${STEPS[@]}")
+  MECHANICAL=(${STEPS[@]+"${STEPS[@]}"})
 fi
 
 # stage adds every tracked change and every untracked file that was not there before the run.
@@ -134,7 +140,7 @@ run_step() {
 mode=full commit=1
 case ${1:-} in
   --golden-tests) printf '%s\n' "${GOLDEN_TESTS[@]}"; exit 0 ;;
-  --list) printf '%s\n' "${STEPS[@]}"; exit 0 ;;
+  --list) printf '%s\n' ${STEPS[@]+"${STEPS[@]}"}; exit 0 ;;
   --mechanical) mode=mechanical ;;
   --no-commit) commit=0 ;;
   '') ;;
@@ -153,20 +159,28 @@ if ! git diff --quiet HEAD -- || ! git diff --cached --quiet HEAD --; then
   exit 2
 fi
 untracked_before=$(mktemp "${TMPDIR:-/tmp}/batch-regen.XXXXXX") || exit 2
-trap '/bin/rm -f "$untracked_before"' EXIT
+runlog=$(mktemp "${TMPDIR:-/tmp}/batch-regen-log.XXXXXX") || exit 2
+trap '/bin/rm -f "$untracked_before" "$runlog"' EXIT
 git ls-files --others --exclude-standard > "$untracked_before"
 start=$SECONDS
-for step in "${STEPS[@]}"; do
-  run_step "${step%%	*}" "${step#*	}" < /dev/null || { stage; printf 'batch-regen: stopped; changes so far are staged, nothing committed\n' >&2; exit 1; }
+for step in ${STEPS[@]+"${STEPS[@]}"}; do
+  run_step "${step%%	*}" "${step#*	}" < /dev/null | tee -a "$runlog"
+  ((PIPESTATUS[0] == 0)) || { stage; printf 'batch-regen: stopped; changes so far are staged, nothing committed\n' >&2; exit 1; }
   stage || exit 1
 done
+# ASD-V0-928 (V1-3747): a --changed re-anchor asserts content nobody has read yet, so each one is
+# named for review here and in the commit body.
+reanchored=$(grep -F -- '--changed re-anchored it as' "$runlog" | sort -u)
+[[ -z $reanchored ]] || printf '%s\n' "$reanchored" | sed 's/^/batch-regen: REVIEW /'
 if git diff --cached --quiet HEAD --; then
   printf 'batch-regen: nothing to regenerate (%ss)\n' $((SECONDS - start))
   exit 0
 fi
 git diff --cached --name-only | sed 's/^/batch-regen: regenerated /'
 if ((commit)); then
-  git commit -q -m 'chore(batch): regenerate derived files (make batch-regen, ASD-V0-033)' || exit 1
+  message=('chore(batch): regenerate derived files (make batch-regen, ASD-V0-033)')
+  [[ -z $reanchored ]] || message+=("Re-anchored citations (read each; ASD-V0-928):" "$reanchored")
+  git commit -q "${message[@]/#/--message=}" || exit 1
   printf 'batch-regen: committed %s (%ss)\n' "$(git rev-parse --short HEAD)" $((SECONDS - start))
 else
   printf 'batch-regen: staged, not committed (%ss)\n' $((SECONDS - start))

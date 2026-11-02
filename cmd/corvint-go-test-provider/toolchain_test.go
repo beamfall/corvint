@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/provider"
 )
 
@@ -48,7 +49,7 @@ func TestProviderFixtureRejectsUnpinnedToolchain(t *testing.T) {
 	}
 	executable := filepath.Join(root, "bin", executableName(runtime.GOOS))
 	body := fmt.Sprintf("#!/bin/sh\nprintf 'go version go0.0.0 %s/%s\\n'\n", runtime.GOOS, runtime.GOARCH)
-	if err := os.WriteFile(executable, []byte(body), 0700); err != nil {
+	if err := execfile.WriteFile(executable, []byte(body), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CORVINT_GO_LIVE_TEST_GOROOT", root)

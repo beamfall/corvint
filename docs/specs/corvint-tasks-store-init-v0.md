@@ -373,6 +373,13 @@ on a fixture queue remain non-goals.
   warning as it is. Non-goals: serving a ticket from a
   ref, fetching, and writing the projection. Rollback: revert; the CTS-V0-010 wording returns.
 
+- `CTS-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-3562) A
+  sorted-set refusal from `wire.CheckSortedUnique` (the import map's sorted arrays among them)
+  MUST name the order it expects (canonical JSON bytes; for objects, members in key byte order,
+  so first by the smallest key) and the two out-of-order elements by index and clipped canonical
+  text, so the operator can repair the file without reading the decoder. Rollback: restore the
+  terse message; the accepted order is unchanged.
+
 ## Import export and batching
 
 The export (profile `corvint-tasks-import/0`, at most `MaxIntentTreeBytes`) is JSON lines, each
@@ -668,3 +675,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
 | CTS-V0-820 | Superseded (CTS-V0-990) | Its behavior is tested by TestCTSV0990_InitNamesMissingQueueAndPolicy |
 | CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep, TestCTSV0821_UnreadableTreeLeavesWarningUncertain |
+| CTS-V0-780 | `internal/tasks/wire/value.go` (`CheckSortedUnique`, `clip`) | TestCTSV0780UnsortedSetNamesTheOrderAndTheEntry |

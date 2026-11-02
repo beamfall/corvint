@@ -29,21 +29,23 @@ type contract struct {
 // input (AFP-V0-037).
 var contracts = map[string]contract{
 	"corvint":                    {"./cmd/corvint", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "argument command: invalid choice: '"+unknownVerb+"'")},
-	"corvint-cem-candidate":      {"./cmd/corvint-cem-candidate", 2, "", nil},
-	"corvint-cem-experiments":    {"./cmd/corvint-cem-experiments", 1, "stderr", text("experiment refused: unknown command")},
-	"corvint-corpus-republish":   {"./cmd/corvint-corpus-republish", 1, "stderr", text("republish command unavailable")},
+	"corvint-cem-candidate":      {"./cmd/corvint-cem-candidate", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-cem-experiments":    {"./cmd/corvint-cem-experiments", 1, "stderr", text(`experiment refused: UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-corpus-republish":   {"./cmd/corvint-corpus-republish", 1, "stderr", text(`UNKNOWN_COMMAND: republish command unavailable: "` + unknownVerb + `"`)},
 	"corvint-dashboard-snapshot": {"./cmd/corvint-dashboard-snapshot", 2, "stderr", jsonFields(map[string]any{"code": "DASHBOARD_INVALID_ARGUMENT", "profile": "corvint-dashboard-error/0"}, "")},
-	"corvint-gateway":            {"./cmd/corvint-gateway", 2, "stderr", text(`unknown command "` + unknownVerb + `"`)},
+	"corvint-gateway":            {"./cmd/corvint-gateway", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
 	"corvint-go-test-provider":   {"./cmd/corvint-go-test-provider", 2, "stdout", jsonFields(map[string]any{"code": "IDENTITY_MISMATCH", "profile": "go-live-error/0"}, "")},
 	"corvint-intake":             {"./cmd/corvint-intake", 2, "stderr", text("INTAKE_ARGUMENTS")},
-	"corvint-js-test-provider":   {"./cmd/corvint-js-test-provider", 2, "stderr", text(`unknown subcommand "` + unknownVerb + `"`)},
-	"corvint-postmerge-connect":  {"./cmd/corvint-postmerge-connect", 1, "stderr", text("experimental-and-absolute-root-required")},
+	"corvint-js-test-provider":   {"./cmd/corvint-js-test-provider", 2, "stderr", text(`UNKNOWN_COMMAND: unknown subcommand "` + unknownVerb + `"`)},
+	"corvint-postmerge-connect":  {"./cmd/corvint-postmerge-connect", 1, "stderr", text(`unknown-operation: "` + unknownVerb + `"`)},
 	"corvint-postmerge-metrics":  {"./cmd/corvint-postmerge-metrics", 1, "stderr", jsonFields(map[string]any{"error": "invalid-input"}, "")},
-	"corvint-postmerge-workflow": {"./cmd/corvint-postmerge-workflow", 2, "stderr", text("usage: corvint-postmerge-workflow")},
+	"corvint-postmerge-workflow": {"./cmd/corvint-postmerge-workflow", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
 	"corvint-pulse":              {"./cmd/corvint-pulse", 2, "stderr", jsonFields(map[string]any{"code": "invalid-arguments", "ok": false}, "")},
-	"corvint-ruby-test-provider": {"./cmd/corvint-ruby-test-provider", 2, "stderr", text(`unknown subcommand "` + unknownVerb + `"`)},
+	"corvint-ruby-test-provider": {"./cmd/corvint-ruby-test-provider", 2, "stderr", text(`UNKNOWN_COMMAND: unknown subcommand "` + unknownVerb + `"`)},
 	"corvint-tasks":              {"./cmd/corvint-tasks", 1, "stdout", tasksResult("MALFORMED", "unknown verb")},
-	"corvint-test":               {"./cmd/corvint-test", 1, "stderr", text("usage: corvint-test")},
+	"corvint-test":               {"./cmd/corvint-test", 1, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-update":             {"./cmd/corvint-update", 2, "stderr", text(`UNKNOWN_COMMAND: unknown command "` + unknownVerb + `"`)},
+	"corvint-work-queue":         {"./cmd/corvint-work-queue", 2, "stderr", text("unsupported operation")},
 }
 
 // TestCLIErrorContracts_ACXV0859 (ACX-V0-859, TCL-V0-859; V1-3736) builds
@@ -69,6 +71,13 @@ func TestCLIErrorContracts_ACXV0859(t *testing.T) {
 	slices.Sort(declared)
 	if !slices.Equal(catalog, declared) {
 		t.Fatalf("catalog binaries %v, declared rows %v", catalog, declared)
+	}
+	// ACX-V0-664: every unknown-verb refusal carries a code, so no row may be
+	// silent or unchecked.
+	for _, name := range declared {
+		if row := contracts[name]; row.stream == "" || row.check == nil {
+			t.Errorf("%s: unknown-verb refusal has no checked, coded envelope", name)
+		}
 	}
 	bin := t.TempDir()
 	build := exec.Command("go", "build", "-trimpath", "-o", bin+string(filepath.Separator))

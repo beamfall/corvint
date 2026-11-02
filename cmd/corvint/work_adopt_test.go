@@ -15,6 +15,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/worklistadapter"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
@@ -110,7 +111,7 @@ func workCopyExecutable(t *testing.T, source, destination string) {
 	if err := workMkdirAll(filepath.Dir(destination)); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(destination, raw, 0755); err != nil {
+	if err := execfile.WriteFile(destination, raw, 0755); err != nil {
 		t.Fatal(err)
 	}
 	// WriteFile applies the umask only when it creates the file (V1-3220).

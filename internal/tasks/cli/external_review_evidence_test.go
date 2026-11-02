@@ -42,8 +42,8 @@ func commandGate(gateID string, argv ...string) wire.Value {
 // only in the CLI. The workState exposes the EVIDENCE candidate, and the
 // receipt audit replays every event against its link.
 func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	// A gate argv entry is at most 128 bytes, which this test's TempDir path
 	// under the default macOS TMPDIR exceeds.
@@ -199,8 +199,8 @@ func TestERGV0002_EvidenceCandidatesNeedAnArtifactLink(t *testing.T) {
 // dispatcher's gates unobserved. The receipt fold, not only the writer,
 // enforces the link and the issue 394 mapping.
 func TestERGV0002_ForgedArtifactEventsRefuseAtRecovery(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	// The unlinked artifact is retained under evidence/, so only the missing
 	// link, not missing bytes, refuses it.
 	unlinkedRaw := []byte("never produced by a gate run")

@@ -14,7 +14,7 @@ import (
 
 // TCD-V0-159: PR identifiers, ordering and read-only behavior survive wide inputs.
 func TestV13179_DeliveryScreenPRIdentityPreserved(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, local := tcdTicket(t, root, "numeric-pr", "")
 	numbers := []int64{9223372036854775807, 2147483648, 1, 4294967297}
@@ -51,7 +51,7 @@ func TestV13179_DeliveryScreenPRIdentityPreserved(t *testing.T) {
 
 // TCD-V0-163: the public command preserves identity in the envelope and rows.
 func TestV13179_BatchDeliveredPRIdentityPreserved(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, local := tcdTicket(t, root, "numeric-batch", "")
 	base := revParse(t, root, "HEAD")

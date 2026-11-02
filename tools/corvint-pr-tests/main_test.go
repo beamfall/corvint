@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func fixture(t *testing.T) (options, identity) {
@@ -197,7 +198,7 @@ func TestToolIdentityRequiresCurrentGoVersion(t *testing.T) {
 		t.Run(version, func(t *testing.T) {
 			bin := t.TempDir()
 			script := "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' '" + version + "' ;;\nenv:CC) printf '%s\\n' '/usr/bin/cc' ;;\n*) exit 1 ;;\nesac\n"
-			if err := os.WriteFile(filepath.Join(bin, "go"), []byte(script), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
@@ -262,7 +263,7 @@ func selectedFailureAndFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile(o.selector, append(original, 0), 0700); err != nil {
+	if err = execfile.WriteFile(o.selector, append(original, 0), 0700); err != nil {
 		t.Fatal(err)
 	}
 	driftCode, driftErr := execute(ctx, o, s)
@@ -276,7 +277,7 @@ func selectedFailureAndFallback(t *testing.T) {
 	if !strings.Contains(drift.Reason, "drift") || !equal(drift.Packages, []string{"./..."}) {
 		t.Fatalf("tool drift was narrowed: %+v", drift)
 	}
-	if err = os.WriteFile(o.selector, original, 0700); err != nil {
+	if err = execfile.WriteFile(o.selector, original, 0700); err != nil {
 		t.Fatal(err)
 	}
 	wrong := s
@@ -579,7 +580,7 @@ func TestExecuteRequiresGitIdentity(t *testing.T) {
 			"go":  "#!/bin/sh\ncase \"$1:$2\" in\nenv:GOVERSION) printf '%s\\n' go1.27.3 ;;\nenv:CC) printf '%s\\n' /usr/bin/cc ;;\n*) exit 1 ;;\nesac\n",
 			"git": "#!/bin/sh\nexit 1\n",
 		} {
-			if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -714,7 +715,7 @@ func TestDockerCLIInterruption(t *testing.T) {
 	t.Run("AFP-V0-015", func(t *testing.T) {
 		dir := t.TempDir()
 		pidPath := filepath.Join(dir, "pid")
-		if err := os.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\nsleep 60 &\necho $! > \"$CORVINT_FIXTURE_PID\"\nwait\n"), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(dir, "docker"), []byte("#!/bin/sh\nsleep 60 &\necho $! > \"$CORVINT_FIXTURE_PID\"\nwait\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -759,7 +760,7 @@ func TestDockerCLIInterruption(t *testing.T) {
 func TestContainerCleanupRefusal(t *testing.T) {
 	t.Run("AFP-V0-015", func(t *testing.T) {
 		bin := t.TempDir()
-		if err := os.WriteFile(filepath.Join(bin, "docker"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, "docker"), []byte("#!/bin/sh\nexit 1\n"), 0700); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -769,7 +770,7 @@ func TestContainerCleanupRefusal(t *testing.T) {
 		}
 		trusted := t.TempDir()
 		for _, name := range trustedNames {
-			if err := os.WriteFile(filepath.Join(trusted, name), []byte(name), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(trusted, name), []byte(name), 0700); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -816,7 +817,7 @@ func TestDockerCaptureBoundAndTimeout(t *testing.T) {
 	t.Run("AFP-V0-015", func(t *testing.T) {
 		dir := t.TempDir()
 		script := []byte("#!/bin/sh\nif [ \"$3\" = overflow ]; then head -c 9437184 /dev/zero; else sleep 60; fi\n")
-		if err := os.WriteFile(filepath.Join(dir, "docker"), script, 0700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(dir, "docker"), script, 0700); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -929,7 +930,7 @@ func TestShardedSourceDrift_AFPV0022(t *testing.T) {
 		// initial enumeration check. Add a new package there, without changing HEAD.
 		gitProxy := "#!/bin/sh\ncase \"$*\" in *'HEAD^{tree}'*)\nif [ -f " + quote(marker) + " ]; then\nn=$(cat " + quote(marker) + ")\nn=$((n+1))\nprintf '%s' \"$n\" > " + quote(marker) + "\nif [ \"$n\" = 2 ]; then\nmkdir -p " + quote(filepath.Join(o.root, "new")) + "\nprintf 'package new\\n' > " + quote(filepath.Join(o.root, "new/new.go")) + "\nfi\nfi;; esac\nexec /usr/bin/git \"$@\"\n"
 		for name, body := range map[string]string{"go": proxy, "git": gitProxy} {
-			if err := os.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, name), []byte(body), 0700); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -980,11 +981,11 @@ func TestGitIdentityResolvesDarwinShim(t *testing.T) {
 		t.Fatal(err)
 	}
 	target := filepath.Join(dir, "git")
-	if err := os.WriteFile(target, []byte("real git"), 0700); err != nil {
+	if err := execfile.WriteFile(target, []byte("real git"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	other := filepath.Join(dir, "other-git")
-	if err := os.WriteFile(other, []byte("another git"), 0700); err != nil {
+	if err := execfile.WriteFile(other, []byte("another git"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	unexpected := func() (string, error) { t.Fatal("resolver called for a non-shim Git"); return "", nil }

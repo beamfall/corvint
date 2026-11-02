@@ -38,7 +38,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		return false, nil, nil
 	}
 	start := time.Now()
-	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, false, nil, nil)
+	w, decline, terminal := observeWriter(repo, headState, env.RequestID, true, false, nil, nil, preloadTreeOf(ctx))
 	if terminal != nil {
 		out, err = guardFailure(report, env.RequestID, terminal)
 		return true, out, err
@@ -98,6 +98,10 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return declined(err.Error())
 	}
+	// TCX-V0-846: the derived ticket index lets the model hold an unselected
+	// ticket as its summary when the canonical bytes equal an admitted
+	// entry's; it governs only this queue and policy, and is never authority.
+	index := intent.ReadClosedIndex(repo.StateDir).WriterSummaries(q.QueueID.Raw, wire.Sum(w.proof.Records["intent/policy.json"].Raw))
 	result := transaction.Model(request, transaction.Input{
 		Inventory:         w.inv,
 		Head:              w.head,
@@ -115,6 +119,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		RecordedAt:        now,
 		PriorNoteEvent:    priorNote,
 		ValueScreen:       screen,
+		TicketIndex:       index,
 	})
 	at = writerStage(ctx, "model", at)
 	if w.inv.Incomplete() {
@@ -254,7 +259,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	// Only the audit attempts the resumed route ran are resumed walks: a
 	// decline before its audit charges none (PSR-V0-151).
 	var walks journal.WalkStats
-	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks)
+	w, decline, terminal := observeWriter(repo, headState, request.RequestID, false, transaction.LivenessLease(request), resume, &walks, nil)
 	timing.SnapshotRead += time.Since(read)
 	timing.walked(walks)
 	if terminal != nil {
@@ -380,4 +385,19 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	refresh = advanceWriterCheckpoint(ctx, repo, w)
 	writerStage(ctx, "lease.commit", checkpointed)
 	return true, refresh, w.proof, nil
+}
+
+type preloadTreeKey struct{}
+
+// WithPreloadTree hands Mutate's writer route the intent tree the caller
+// captured, bytes included, before the writer lock. The writer audit takes a
+// file's bytes from it when the file still has that size, and the pre-effect
+// recheck reads and hashes every intent file again (LGL-V0-845).
+func WithPreloadTree(ctx context.Context, tree *intent.Tree) context.Context {
+	return context.WithValue(ctx, preloadTreeKey{}, tree)
+}
+
+func preloadTreeOf(ctx context.Context) *intent.Tree {
+	tree, _ := ctx.Value(preloadTreeKey{}).(*intent.Tree)
+	return tree
 }

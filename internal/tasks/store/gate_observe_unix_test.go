@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -24,7 +25,7 @@ func observedCheckout(t *testing.T) (root, hang, pidFile string) {
 	root, dir := t.TempDir(), t.TempDir()
 	pidFile = filepath.Join(dir, "pid")
 	hang = filepath.Join(dir, "hang.sh")
-	if err := os.WriteFile(hang, []byte("#!/bin/sh\necho $$ > "+pidFile+"\nexec sleep 600\n"), 0o755); err != nil {
+	if err := fixture.WriteExecutable(hang, []byte("#!/bin/sh\necho $$ > "+pidFile+"\nexec sleep 600\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	git := func(args ...string) {

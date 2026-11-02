@@ -176,7 +176,7 @@ func TestImpactProfileGapWordingIsLanguageNeutral(t *testing.T) {
 	}{
 		{"swift", map[string]string{"Package.swift": "// swift-tools-version:5.9\n", "Sources/App/App.swift": "struct App {}\n", "AGENTS.md": "# Agents\n\nSwift app instructions.\n"}, "Sources/App/App.swift", true},
 		{"swift-docs", map[string]string{"Package.swift": "// swift-tools-version:5.9\n", "Sources/App/App.swift": "struct App {}\n", "AGENTS.md": "# Agents\n\nSwift app instructions.\n"}, "AGENTS.md", true},
-		{"kotlin", map[string]string{"build.gradle.kts": "plugins {}\n", "app/src/main/kotlin/App.kt": "class App\n", "AGENTS.md": "# Agents\n\nKotlin app instructions.\n"}, "app/src/main/kotlin/App.kt", true},
+		{"kotlin", map[string]string{"build.gradle.kts": "plugins {}\n", "app/src/main/kotlin/App.kt": "class App\n", "AGENTS.md": "# Agents\n\nKotlin app instructions.\n"}, "app/src/main/kotlin/App.kt", false},
 		{"typescript-docs", map[string]string{"package.json": "{\"name\":\"web\"}\n", "src/app.ts": "export const app = 1\n", "AGENTS.md": "# Agents\n\nWeb app instructions.\n"}, "AGENTS.md", true},
 		{"typescript", map[string]string{"package.json": "{\"name\":\"web\"}\n", "src/app.ts": "export const app = 1\n", "src/main.ts": "import { app } from './app'\n", "AGENTS.md": "# Agents\n\nWeb app instructions.\n"}, "src/app.ts", false},
 	} {

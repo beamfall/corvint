@@ -56,6 +56,11 @@ type playwrightTagFile struct {
 	// builderStop once any file imports a key module (AFP-V0-960).
 	keyModule   bool
 	builderStop string
+	// deferred records that the file skipped a playwrightTagIndirection name inside a proven test
+	// or hook body, and patchStop, when not empty, names its first monkeypatch guard break; the
+	// closure stops on patchStop once any file deferred a body (TJAA-V0-725).
+	deferred  bool
+	patchStop string
 }
 
 func newPlaywrightTagSources(root, configPath string) *playwrightTagSources {
@@ -129,6 +134,7 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	fresh, freshStop := false, ""
 	objectWrite, objectSink, selfStop, sinkStop := false, false, "", ""
 	keyModule, builderStop := false, ""
+	deferred, patchStop := false, ""
 	queue := slices.Clone(entries)
 	for len(queue) != 0 {
 		file := queue[0]
@@ -166,6 +172,10 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 		if builderStop == "" {
 			builderStop = checked.builderStop
 		}
+		deferred = deferred || checked.deferred
+		if patchStop == "" {
+			patchStop = checked.patchStop
+		}
 		queue = append(queue, checked.imports...)
 	}
 	if fresh && freshStop != "" {
@@ -179,6 +189,9 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	}
 	if keyModule && builderStop != "" {
 		return nil, builderStop
+	}
+	if deferred && patchStop != "" {
+		return nil, patchStop
 	}
 	return tags, ""
 }
@@ -301,6 +314,10 @@ func playwrightTagFileExact(root, relative string, alias func(owner, ref string)
 	if literal.builder >= 0 {
 		result.builderStop = stop(literal.builder, "`"+literal.builderName+"` builds an object from text, so a `tag` key can exist without its name")
 	}
+	result.deferred = literal.deferred
+	if literal.patchWhy != "" {
+		result.patchStop = stop(literal.patchAt, literal.patchWhy)
+	}
 	return result
 }
 
@@ -357,6 +374,12 @@ type playwrightTagLiteral struct {
 	// code, or -1 (AFP-V0-960).
 	builder     int
 	builderName string
+	// deferred records a playwrightTagIndirection name skipped inside a proven test or hook body,
+	// and patchAt and patchWhy the module's first monkeypatch guard break, when patchWhy is not
+	// empty (TJAA-V0-725).
+	deferred bool
+	patchAt  int
+	patchWhy string
 }
 
 // playwrightFreshMethods are the methods whose direct call returns a new array that no tag key
@@ -420,9 +443,20 @@ func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
 			objectSink = objectSink || objects[declaration][1]
 		}
 	}
+	// A name inside a proven test or hook body cannot run while tests are collected, unless the
+	// module breaks the monkeypatch guard (TJAA-V0-725).
+	bodies, patchAt, patchWhy := playwrightTestBodies(clean, lexed)
+	deferred := false
 	for _, candidate := range playwrightTagIndirection {
+	offsets:
 		for _, offset := range playwrightTokenOffsets(clean, candidate) {
 			if lexed.code[offset] && !enumerated[offset] && !parsed[offset] && (first < 0 || offset < first) && (candidate != "JSON" || !playwrightPlainStringify(clean, lexed, offset)) {
+				for _, body := range bodies {
+					if patchWhy == "" && offset > body[0] && offset < body[1] {
+						deferred = true
+						continue offsets
+					}
+				}
 				first, name = offset, candidate
 			}
 		}
@@ -532,7 +566,7 @@ func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
 			}
 		}
 	}
-	return playwrightTagLiteral{tags: tags, fresh: fresh, defines: defines, defined: defined, objectWrite: objectWrite, objectSink: objectSink, self: self, selfName: selfName, sinks: sinks, builder: builder, builderName: builderName}
+	return playwrightTagLiteral{tags: tags, fresh: fresh, defines: defines, defined: defined, objectWrite: objectWrite, objectSink: objectSink, self: self, selfName: selfName, sinks: sinks, builder: builder, builderName: builderName, deferred: deferred, patchAt: patchAt, patchWhy: patchWhy}
 }
 
 // playwrightComputedReceiverAt returns the start of the plain identifier that ends at previous,

@@ -32,6 +32,7 @@ func commitTree(t *testing.T, dir, msg string) {
 // repository that lacks that commit is REVIEWED_COMMIT_UNAVAILABLE and one
 // that no longer resolves is TEST_REPOSITORY_UNRESOLVED (TOL-V0-101).
 func TestTOLV0101_ReviewedSubjectAtReviewedCommit(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -104,6 +105,7 @@ func TestTOLV0101_ReviewedSubjectAtReviewedCommit(t *testing.T) {
 // and store-own (null repository) cites are admitted; an explicit false
 // opts out to the TOL-V0-079 behavior that admits it (TOL-V0-102).
 func TestTOLV0102_DeclaredCitesRequired(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	infra := infraRepo(t)
 	bad := `[{"id":"AC-2","state":null,"core":null,"reason":"typo","cites":[{"repository":"infar","path":"deploy"}]}]`
 	good := `[{"id":"AC-1","state":null,"core":null,"reason":"primary","cites":[{"repository":null,"path":"e2e/login.spec.ts"}]},` +
@@ -148,6 +150,7 @@ func TestTOLV0102_DeclaredCitesRequired(t *testing.T) {
 // such a file is TESTABLE and its inventory names the declared count
 // (TOL-V0-103).
 func TestTOLV0103_DeclaredTestFilePatterns(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	infra := infraRepo(t)
 	pattern := wire.Array(wire.ObjectValue(wire.NewObject().Set("kind", wire.String("sql")).Set("pattern", wire.String("deploy/*.sql"))))
 	r, id, _ := obligationRepoWith(t, withObligations(testRepoPolicy(map[string]string{"infra": infra}), func(o *wire.Object) {
@@ -188,6 +191,7 @@ func planRun(t *testing.T, root, id, plan string, extra ...string) run {
 // its type and revision, and omits the new members without the switch
 // (TOL-V0-104, GitHub #1202).
 func TestTOLV0104_PlanCountsLedgerWitnesses(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	credit := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "asserts the login redirect"))
@@ -222,6 +226,7 @@ func TestTOLV0104_PlanCountsLedgerWitnesses(t *testing.T) {
 // changed at HEAD is a STALE_REVIEW finding that refuses the plan
 // (TOL-V0-105).
 func TestTOLV0105_PlanStaleReviewedWitness(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	credit := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "asserts the login redirect"))
@@ -248,6 +253,7 @@ func TestTOLV0105_PlanStaleReviewedWitness(t *testing.T) {
 // TestTOLV0106_UnassignedNamesConsideredWitness: an UNASSIGNED row names the
 // witness considered and why it was insufficient (TOL-V0-106).
 func TestTOLV0106_UnassignedNamesConsideredWitness(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	plan := planFile(t, id, `[{"test":"a","project":"api","obligations":["AC-1"]}]`)
@@ -292,6 +298,7 @@ func capabilityRead(t *testing.T, root string, args ...string) wire.Value {
 // revision, and abstains UNKNOWN when the baseline is undeclared or does
 // not resolve (TOL-V0-107..109).
 func TestTOLV0107_CapabilityAtEnvironmentBaseline(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, _ := separateTestRepo(t)
 	r, _, head := obligationRepoWith(t, withObligations(testRepoPolicy(map[string]string{"app": app}), func(o *wire.Object) {
 		o.Set("environmentBaselines", wire.ObjectValue(wire.NewObject().Set(".", wire.String("refs/heads/env")).Set("app", wire.String("refs/heads/missing"))))
@@ -336,6 +343,7 @@ func TestTOLV0107_CapabilityAtEnvironmentBaseline(t *testing.T) {
 // primary repository abstains too, so HEAD never stands in for an
 // environment (TOL-V0-107).
 func TestTOLV0107_CapabilityUndeclaredPrimary(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, _, _ := obligationRepo(t)
 	v := capabilityRead(t, r.Root, "--path", "e2e")
 	if field(v, "status").Str != "UNKNOWN" || field(v, "reason").Str != "ENVIRONMENT_BASELINE_UNDECLARED" || len(field(v, "matches").Arr) != 0 {
@@ -348,6 +356,7 @@ func TestTOLV0107_CapabilityUndeclaredPrimary(t *testing.T) {
 // abstains SEARCH_BOUND_EXCEEDED without one, and the read writes nothing
 // (TOL-V0-108, TOL-V0-109).
 func TestTOLV0108_CapabilityBoundsAndReadOnly(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, _, _ := obligationRepoWith(t, func(p wire.Value) {
 		p.Obj.Set("obligations", wire.ObjectValue(wire.NewObject().Set("workerWitness", wire.Bool(false)).
 			Set("environmentBaselines", wire.ObjectValue(wire.NewObject().Set(".", wire.String("refs/heads/env"))))))
@@ -393,6 +402,7 @@ func TestTOLV0108_CapabilityBoundsAndReadOnly(t *testing.T) {
 // a later change's cites replace the entry's, and an entry without the
 // member keeps its exact bytes (TOL-V0-079).
 func TestTOLV0079_CitesBoundsReplaceAndDefault(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	// An undeclared label is admitted only under an explicit
 	// requireDeclaredCites false (TOL-V0-102, V1-1963).
 	r, id, _ := obligationRepoWith(t, func(p wire.Value) {
@@ -443,6 +453,7 @@ func TestTOLV0079_CitesBoundsReplaceAndDefault(t *testing.T) {
 // TestTOLV0080_ScopeShape: scope needs a null core and a 1..512-byte
 // non-blank evidence for PROPOSE (TOL-V0-080).
 func TestTOLV0080_ScopeShape(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	before := fixture.TreeSnapshot(t, r.StateDir)
@@ -470,6 +481,7 @@ func TestTOLV0080_ScopeShape(t *testing.T) {
 // range, is recorded with its issue time, and an entry without one keeps
 // its exact bytes (TOL-V0-084).
 func TestTOLV0084_CandidateShapeAndClear(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	for i, bad := range []string{`{"path":"e2e/login.spec.ts","startLine":"0","endLine":"1"}`, `{"path":"e2e/login.spec.ts","startLine":"3","endLine":"2"}`, `{"path":"e2e/login.spec.ts","startLine":"1"}`} {

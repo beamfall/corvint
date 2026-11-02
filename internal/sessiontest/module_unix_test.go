@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fakeModuleGo is a `go` that answers from the directory it runs in: the
@@ -39,7 +41,7 @@ echo '{"Action":"skip","Package":"example.test/nested/deep"}'
 func moduleRunnerFixture(t *testing.T, mode string) (*Runner, Manifest, string, string) {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "go"), []byte(fakeModuleGo), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "go"), []byte(fakeModuleGo), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(dir, "sub", "mod"), 0o755); err != nil {

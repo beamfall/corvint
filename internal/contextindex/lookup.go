@@ -445,14 +445,7 @@ func spansOverlap(spans [][]int, start, end int) bool {
 }
 
 func lineTokens(line string, wanted map[string]struct{}) []string {
-	matched := make([]string, 0)
-	for term := range countTerms(line) {
-		if _, ok := wanted[term]; ok {
-			matched = append(matched, term)
-		}
-	}
-	sort.Strings(matched)
-	return matched
+	return matchTerms(line, wanted)
 }
 
 func stringsAny(values []string) []any {

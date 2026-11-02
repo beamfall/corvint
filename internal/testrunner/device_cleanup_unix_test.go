@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // scriptRequest pins a shell script as the primary tool, so a test can stand
@@ -24,7 +26,7 @@ func scriptRequest(t *testing.T, script string) Request {
 		t.Fatal(err)
 	}
 	exe := filepath.Join(root, "bin", "adb")
-	if err := os.WriteFile(exe, []byte(script), 0700); err != nil {
+	if err := execfile.WriteFile(exe, []byte(script), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(root, "source"), []byte("source"), 0600); err != nil {

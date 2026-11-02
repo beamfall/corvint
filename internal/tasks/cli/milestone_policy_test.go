@@ -42,6 +42,7 @@ func withMilestone(m string) string {
 // earlier policy still audits CONSISTENT; the create template marks
 // milestone required.
 func TestCALV0195_MilestoneRequiredPolicy(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
