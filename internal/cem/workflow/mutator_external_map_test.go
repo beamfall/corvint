@@ -72,3 +72,27 @@ func TestCEMV1647MutatorsReadAnOutOfTreeMapIntoARelativeOutput(t *testing.T) {
 		t.Fatalf("the out-of-tree map changed: %v", err)
 	}
 }
+
+// TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm pins CEM-V1-900: an
+// absolute or scratch --output is refused invalid-arguments with text that
+// names the repository-relative form and why (CEM-V1-647).
+func TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm(t *testing.T) {
+	t.Parallel()
+	root, base, target := makeCalcRepo(t)
+	if _, err := openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	scratch := filepath.Join(t.TempDir(), "out.cem.json")
+	_, err := openSession(t, root).Mark(ctx(), MarkOptions{MapPath: wire.ExcludedCEMPath, Hunk: "1", Disposition: "unknown", Reason: "insufficient-evidence", Output: scratch})
+	if err == nil {
+		t.Fatal("an absolute --output was accepted")
+	}
+	for _, want := range []string{"--output must be a repository-relative path", "for example", "repository's lock", "scratch"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q lacks %q", err, want)
+		}
+	}
+	if _, statErr := os.Stat(scratch); statErr == nil {
+		t.Error("the scratch output was written")
+	}
+}

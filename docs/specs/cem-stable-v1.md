@@ -658,6 +658,11 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   write the result only to that output under the repository's lock. An absolute `--map` without
   `--output` MUST be refused `invalid-arguments` with the reason, never written in place, and an
   absolute `--output` stays refused.
+- `CEM-V1-900`: (experimental under the standing lane auto-accept (V1-3997)) The `invalid-arguments`
+  refusal of an absolute `--output` by `cem begin` and the mutators MUST name the repository-relative
+  form with an example and say why: Core publishes a map only under the repository's lock, so an
+  absolute or out-of-repository scratch path is refused and the caller writes inside the repository
+  and copies the file out. No out-of-repository write is added.
 - `CEM-V1-648`: (experimental under the standing lane auto-accept (GitHub #1941)) Every `cem`
   action parsed by the shared `cem` argument parser MUST refuse `--range`, `--range-root` and
   `--paired-from` (spaced or `=` form) with `invalid-arguments` naming the flag and the reason,
@@ -5618,6 +5623,7 @@ depends on either change.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-647 | `TestCEMV1647MutatorsReadAnOutOfTreeMapIntoARelativeOutput` (`internal/cem/workflow`); `TestCEMV1316OutOfTreeMapRefusals` (`internal/cem/cli`); `TestCEMV1317HelpDocumentsMapPaths` (`cmd/corvint`) | mark over an absolute out-of-tree map writes the relative output; in-place mark and discriminate refuse naming `--output`; an in-repository absolute path refuses; the external bytes are unchanged; help names the rule |
+| CEM-V1-900 | `TestCEMV1647AbsoluteOutputRefusalNamesTheRelativeForm` (`internal/cem/workflow`) | the refusal text names the relative form, an example and the lock reason; nothing is written outside the repository |
 | CEM-V1-648 | `TestCEMV1648CEMRefusesAPairedChange` (`internal/cem/cli`); `TestCEMV1648ProveCEMRefusesAPairedChange` and `TestCEMV1317HelpDocumentsMapPaths` (`cmd/corvint`) | prepare, begin, status and report refuse each paired flag in both forms with the reason; `prove --cem` (with and without `--attest-cem-v2`) and `prove --verify-cem-attestation --cem` give the same text as `cem prepare`; `TestCEMV1648MapReadingSurfacesRefuseAPairedChange` shows `verify-stable` (fix line beside its `invalid-arguments` result), `bundle` (refusal error) and `gate-verdict` (after its code) give it too; a prefix-sharing flag stays unrecognized; help names the refusal |
 
 ## Non-regular paths in a prepared range (GitHub #1950)
