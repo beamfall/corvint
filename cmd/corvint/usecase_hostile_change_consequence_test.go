@@ -29,9 +29,11 @@ func TestUseCaseHostileChangeConsequence(t *testing.T) {
 			root := consequenceRepository(t)
 			consequenceRefusal(t, root, "unsupported-affected-revision", "--base", strings.Repeat("0123456789", 4))
 		}},
-		{"negative", "missing-anchors", "abbreviated base is refused", func(t *testing.T) {
+		{"negative", "missing-anchors", "unresolvable base revision is refused", func(t *testing.T) {
+			// HEAD resolves to its full commit id since ACX-V0-854 (V1-3727); a revision naming
+			// no commit is still refused.
 			root := consequenceRepository(t)
-			consequenceRefusal(t, root, "invalid-arguments", "--base", "HEAD")
+			consequenceRefusal(t, root, "invalid-arguments", "--base", "no-such-revision")
 		}},
 		{"negative", "missing-anchors", "repository without a HEAD commit is refused", func(t *testing.T) {
 			root := t.TempDir()

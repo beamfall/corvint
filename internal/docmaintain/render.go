@@ -31,10 +31,20 @@ var beginLine = regexp.MustCompile(
 // repository) without changing what any given selector actually cites; only
 // this digest, not a hash of the rendered Markdown, can tell eligible
 // changes apart from unrelated churn.
-func sourceDigest(entries []doccompiler.DraftEntry) string {
+//
+// A paged draft (SDD-V0-632) carries only one page of entries, so the digest
+// also covers each TRUNCATED limitation: an entry added or removed off this
+// page changes the page's span and counts, and so the block. An unpaged draft
+// has no such limitation and keeps its earlier digest.
+func sourceDigest(draft doccompiler.SourceDraft) string {
 	hasher := sha256.New()
-	for _, entry := range entries {
+	for _, entry := range draft.Entries {
 		fmt.Fprintf(hasher, "%s|%s|%s;", entry.Path, entry.Blob, entry.SHA256)
+	}
+	for _, limitation := range draft.Limitations {
+		if strings.HasPrefix(limitation, "TRUNCATED:") {
+			fmt.Fprintf(hasher, "limitation|%s;", limitation)
+		}
 	}
 	return hex.EncodeToString(hasher.Sum(nil))
 }

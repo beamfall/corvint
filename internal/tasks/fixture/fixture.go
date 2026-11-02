@@ -518,7 +518,25 @@ func GenesisValue(t *testing.T, r *Repo) wire.Value {
 
 // CommitPosts is test-only fixture assembly: receipt bytes and projections are
 // written directly, without simulating durability or granting writer authority.
+// Like the real writer, it keeps each receipt within the reader's inline post
+// cap, so a larger post set commits as consecutive receipts of at most
+// wire.MaxInlinePostEntries posts in path order; a non-empty requestID goes on
+// the last one (V1-3903).
 func CommitPosts(t *testing.T, r *Repo, kind, requestID string, posts map[string][]byte) {
+	t.Helper()
+	var paths []string
+	for p := range posts {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	for len(paths) > wire.MaxInlinePostEntries {
+		commitPosts(t, r, kind, "", posts, paths[:wire.MaxInlinePostEntries])
+		paths = paths[wire.MaxInlinePostEntries:]
+	}
+	commitPosts(t, r, kind, requestID, posts, paths)
+}
+
+func commitPosts(t *testing.T, r *Repo, kind, requestID string, posts map[string][]byte, paths []string) {
 	t.Helper()
 	hraw, err := os.ReadFile(filepath.Join(r.StateDir, "head.json"))
 	if err != nil {
@@ -533,11 +551,6 @@ func CommitPosts(t *testing.T, r *Repo, kind, requestID string, posts map[string
 	if requestID != "" {
 		v.Obj.Set("requestId", str(requestID))
 	}
-	var paths []string
-	for p := range posts {
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
 	var pres, after []wire.Value
 	for _, p := range paths {
 		raw := posts[p]

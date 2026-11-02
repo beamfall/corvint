@@ -57,6 +57,9 @@ type Registry struct {
 	NestedHelpTopics []string
 	// Workflows are the code-declared multi-command chains (CAP-V0-030).
 	Workflows []WorkflowSource
+	// HiddenCommands are the dispatched verbs root help leaves unlisted, each with a
+	// root-help-style line: a gloss and its owning spec in trailing parentheses (CAP-V0-650).
+	HiddenCommands map[string]string
 }
 
 // Unknown names a field the registry cannot answer and why.
@@ -163,6 +166,11 @@ type rootEntry struct {
 // Build derives the catalog. It reads nothing but its argument.
 func Build(registry Registry) Catalog {
 	entries, freeze := parseRootCommands(registry.RootHelp)
+	for name, line := range registry.HiddenCommands {
+		if _, listed := entries[name]; !listed {
+			entries[name] = parseRootLabel(line, "experimental")
+		}
+	}
 	readOnly, writers, ledger := parseSupportBoundary(registry.RootHelp)
 	catalog := Catalog{
 		Schema:     Schema,
@@ -302,18 +310,27 @@ func parseRootCommands(rootHelp string) (map[string]rootEntry, string) {
 		if !found || maturity == "" {
 			continue
 		}
-		label = strings.TrimSpace(label)
-		spec := ""
-		if open := strings.LastIndex(label, " ("); open >= 0 && strings.HasSuffix(label, ")") {
-			spec = label[open+2 : len(label)-1]
-			label = label[:open]
-		}
-		command := strings.Fields(names)[0]
-		if _, seen := entries[command]; !seen {
-			entries[command] = rootEntry{purpose: label, maturity: maturity, spec: spec}
+		entry := parseRootLabel(label, maturity)
+		// A family line ("features | overview | review  gloss") labels each of its verbs.
+		for _, family := range strings.Split(names, " | ") {
+			command := strings.Fields(family)[0]
+			if _, seen := entries[command]; !seen {
+				entries[command] = entry
+			}
 		}
 	}
 	return entries, freeze
+}
+
+// parseRootLabel splits a root help gloss from its trailing owning spec in parentheses.
+func parseRootLabel(label, maturity string) rootEntry {
+	label = strings.TrimSpace(label)
+	spec := ""
+	if open := strings.LastIndex(label, " ("); open >= 0 && strings.HasSuffix(label, ")") {
+		spec = label[open+2 : len(label)-1]
+		label = label[:open]
+	}
+	return rootEntry{purpose: label, maturity: maturity, spec: spec}
 }
 
 func globalBlock(rootHelp string) string {

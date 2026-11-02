@@ -6,9 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"path"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode"
 	"unicode/utf8"
 
@@ -40,7 +44,9 @@ const (
 	maxForeignCallerBytes   = 64 << 10
 	maxForeignCallerScripts = 64
 	maxForeignCallers       = 256
-	maxForeignCallerReason  = 512
+	// maxForeignCallerReason is 1024 bytes (V1-4062, TSP-V0-820): the
+	// longest declared reason reached 512 bytes with 24 files.
+	maxForeignCallerReason = 1024
 )
 
 // ForeignCallers is one declared script: every file naming it, split into
@@ -91,20 +97,31 @@ func readForeignCallers(root *affected.Source) (map[string]ForeignCallers, error
 			}
 		}
 		if entry.Reason == "" || len(entry.Reason) > maxForeignCallerReason || !utf8.ValidString(entry.Reason) || strings.ContainsFunc(entry.Reason, unicode.IsControl) {
-			return nil, fmt.Errorf("%s: script %q reason", affected.ShellForeignCallersPath, script)
+			return nil, fmt.Errorf("%s: script %q reason has %d bytes; want non-empty valid UTF-8 without control characters, at most %d bytes", affected.ShellForeignCallersPath, script, len(entry.Reason), maxForeignCallerReason)
 		}
 	}
 	return declared.Scripts, nil
+}
+
+// CheckForeignCallers returns why the project's foreign-caller declaration
+// cannot be read, naming the member and any limit it exceeds, or nil when it
+// is absent or reads (V1-4062, TSP-V0-820). The plugin itself only names
+// FrontierForeignCallersInvalid; a caller that sees that frontier reports
+// this cause. Completeness against the tree is not checked here.
+func CheckForeignCallers(root *affected.Source) error {
+	_, err := readForeignCallers(root)
+	return err
 }
 
 func sortedUnique(paths []string) bool {
 	return slices.IsSorted(paths) && len(slices.Compact(slices.Clone(paths))) == len(paths)
 }
 
-// callerCandidate reports a file whose text could run a script: source text
+// CallerCandidate reports a file whose text could run a script: source text
 // of the shell or another planned language, a Make file, or a YAML file such
-// as a workflow.
-func callerCandidate(name string) bool {
+// as a workflow. The repository test of the declaration applies the same rule
+// (V1-4178).
+func CallerCandidate(name string) bool {
 	base := path.Base(name)
 	return hasAnySuffix(name, Suffixes) || hasAnySuffix(name, ForeignSourceSuffixes) ||
 		base == "Makefile" || base == "makefile" || base == "GNUmakefile" ||
@@ -158,26 +175,78 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, built map
 // mentions are exactly the candidate files, other than the script, whose text holds the
 // script's file name. A shell file that runs a script name it builds names
 // every script that name may be (TSP-V0-960), so it must be listed too. An
-// unreadable candidate fails it.
+// unreadable candidate fails it. Each candidate is read once, by at most
+// foreignCallerWorkers readers at a time on a disk source, and its body is
+// dropped as soon as it is matched, so the scan holds at most that many
+// bodies; the verdict is that of a serial pass (TSP-V0-943).
 func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
-	candidates, err := root.Files(callerCandidate)
+	candidates, err := root.Files(affected.ByName(CallerCandidate))
 	if err != nil {
 		return false
 	}
-	found := make(map[string][]string, len(declared))
-	for _, candidate := range candidates {
-		body, err := root.Read(candidate)
+	// A workflow under a HiddenRoots directory runs scripts too, so it must be
+	// listed like any other caller; it owns no unit and adds no edge (V1-4178).
+	for _, directory := range HiddenRoots {
+		hidden, err := root.FilesUnder(directory, CallerCandidate)
 		if err != nil {
 			return false
 		}
-		for script := range declared {
-			if candidate != script && (bytes.Contains(body, []byte(path.Base(script))) || built[candidate].names(path.Base(script))) {
-				found[script] = append(found[script], candidate)
+		candidates = append(candidates, hidden...)
+	}
+	scripts := slices.Sorted(maps.Keys(declared))
+	bases := make([][]byte, len(scripts))
+	for index, script := range scripts {
+		bases[index] = []byte(path.Base(script))
+	}
+	// names[offset] lists, by script index, the scripts candidate offset
+	// names; failed is set by any unreadable candidate.
+	names := make([][]int, len(candidates))
+	var failed atomic.Bool
+	match := func(offset int) {
+		candidate := candidates[offset]
+		body, err := root.Read(candidate)
+		if err != nil {
+			failed.Store(true)
+			return
+		}
+		for index, script := range scripts {
+			if candidate != script && (bytes.Contains(body, bases[index]) || built[candidate].names(string(bases[index]))) {
+				names[offset] = append(names[offset], index)
 			}
 		}
 	}
-	for script, entry := range declared {
-		named, listed := found[script], append(slices.Clone(entry.Callers), entry.Mentions...)
+	workers := min(runtime.GOMAXPROCS(0), foreignCallerWorkers, len(candidates))
+	if !root.ConcurrentReads() || workers < 2 {
+		for offset := range candidates {
+			if match(offset); failed.Load() {
+				return false
+			}
+		}
+	} else {
+		var next atomic.Int64
+		var pending sync.WaitGroup
+		for range workers {
+			pending.Add(1)
+			go func() {
+				defer pending.Done()
+				for offset := int(next.Add(1)) - 1; offset < len(candidates) && !failed.Load(); offset = int(next.Add(1)) - 1 {
+					match(offset)
+				}
+			}()
+		}
+		pending.Wait()
+		if failed.Load() {
+			return false
+		}
+	}
+	found := make([][]string, len(scripts))
+	for offset, named := range names {
+		for _, index := range named {
+			found[index] = append(found[index], candidates[offset])
+		}
+	}
+	for index, script := range scripts {
+		named, listed := found[index], append(slices.Clone(declared[script].Callers), declared[script].Mentions...)
 		slices.Sort(named)
 		slices.Sort(listed)
 		if !slices.Equal(named, listed) {
@@ -186,3 +255,7 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 	}
 	return true
 }
+
+// foreignCallerWorkers bounds the candidates foreignCallersComplete reads at
+// once (TSP-V0-943).
+const foreignCallerWorkers = 8

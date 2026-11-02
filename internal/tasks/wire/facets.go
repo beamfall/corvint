@@ -8,7 +8,10 @@ var (
 	FacetKinds            = []string{"FEATURE", "BUG", "CHORE", "SPIKE", "DOC", "MANUAL", "EXTERNAL"}
 	FacetExecutionClasses = []string{"AUTONOMOUS", "APPROVAL_REQUIRED", "MANUAL", "EXTERNAL", "NEVER"}
 	FacetEligibilities    = []string{"BLOCKED", "UNKNOWN"}
-	FacetNextActions      = []string{"admit", "answer", "complete-manual", "cutover", "grant-approval", "refine", "release-hold", "reopen", "restore", "set-dependencies", "set-effects", "wait-attempt", "wait-dependency"}
+	// FacetLifecycles are the TLC-V0-001 delivery lifecycle states, in byte
+	// order; TestTLCV0001_Vocabulary keeps them equal to lifecycle.States.
+	FacetLifecycles  = []string{"ARCHIVED", "AWAITING_CLOSEOUT", "AWAITING_INTEGRATION", "COMPLETED", "DRAFT", "HELD", "IN_PROGRESS", "IN_REVIEW", "OPEN", "SUBMITTED", "UNKNOWN"}
+	FacetNextActions = []string{"admit", "answer", "complete-manual", "cutover", "grant-approval", "refine", "release-hold", "reopen", "restore", "set-dependencies", "set-effects", "wait-attempt", "wait-dependency"}
 )
 
 // MaxFacetOpenKeys bounds byMilestone and byLabel (CAL-V0-206).
@@ -17,19 +20,29 @@ const MaxFacetOpenKeys = 64
 // decodeFacets validates the closed CAL-V0-206 summary (V1-1052): exactly the
 // specified members, wire Counts throughout, every closed enum value present
 // in the five closed maps and summing to total, only known non-zero keys in
-// the open maps, and the 64-key cap with its omitted count.
+// the open maps, and the 64-key cap with its omitted count. byLifecycle is
+// the one optional member, closed over FacetLifecycles (TLC-V0-009).
 func decodeFacets(r *Reader) {
-	r.Closed("total", "byStatus", "byPriority", "byKind", "byExecutionClass", "byEligibility",
+	keys := []string{"total", "byStatus", "byPriority", "byKind", "byExecutionClass", "byEligibility",
 		"byNextAction", "byBlockerCode", "byMilestone", "milestonesOmitted", "withoutMilestone",
-		"byLabel", "labelsOmitted")
+		"byLabel", "labelsOmitted"}
+	type closedMap struct {
+		key  string
+		enum []string
+	}
+	closedMaps := []closedMap{{"byStatus", FacetStatuses}, {"byPriority", FacetPriorities}, {"byKind", FacetKinds}, {"byExecutionClass", FacetExecutionClasses}, {"byEligibility", FacetEligibilities}}
+	if r.v.Kind == KindObject && r.v.Obj != nil {
+		if _, ok := r.v.Obj.Vals["byLifecycle"]; ok {
+			keys = append(keys, "byLifecycle")
+			closedMaps = append(closedMaps, closedMap{"byLifecycle", FacetLifecycles})
+		}
+	}
+	r.Closed(keys...)
 	if r.st.err != nil {
 		return
 	}
 	total := r.Field("total").Count().Int()
-	for _, closed := range []struct {
-		key  string
-		enum []string
-	}{{"byStatus", FacetStatuses}, {"byPriority", FacetPriorities}, {"byKind", FacetKinds}, {"byExecutionClass", FacetExecutionClasses}, {"byEligibility", FacetEligibilities}} {
+	for _, closed := range closedMaps {
 		f := r.Field(closed.key)
 		f.Closed(closed.enum...)
 		if sum := facetCounts(f, total, false, nil); r.st.err == nil && sum != total {

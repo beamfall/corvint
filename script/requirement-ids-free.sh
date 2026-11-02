@@ -105,6 +105,29 @@ if [[ -n $used ]]; then
   printf '%s\n' "$used"
   printf 'requirement-ids-free: %d of %d IDs in %s are used at %s (%s); pick a free block\n' \
     "$(printf '%s\n' "$used" | wc -l | tr -d ' ')" $((hi - lo + 1)) "$range" "$ref" "${sha:0:12}" >&2
+  # ASD-V0-660 (V1-3876): name the first block of the same width that no tracked file at REF uses,
+  # above HI and then below LO, so a collided charter block has a checked alternative.
+  next=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" '
+      match($0, prefix "[0-9]+$") {
+        number = substr($0, RSTART + length(prefix))
+        if (length(number) == 3) taken[number + 0] = 1
+      }
+      function free(start,   n) {
+        for (n = start; n < start + width; n++) if (n in taken) return 0
+        return 1
+      }
+      END {
+        width = hi - lo + 1
+        for (s = hi + 1; s + width <= 1000; s++) if (free(s)) { print s, s + width - 1; exit }
+        for (s = 0; s + width <= lo; s++) if (free(s)) { print s, s + width - 1; exit }
+      }' "$matches") || exit 2
+  if [[ -n $next ]]; then
+    read -r a b <<< "$next"
+    printf 'requirement-ids-free: next free block %s-%03d..%s-%03d at %s (%s); check open refs with make requirement-ids-free PREFIX=%s RANGE=%03d..%03d\n' \
+      "$prefix" "$a" "$prefix" "$b" "$ref" "${sha:0:12}" "$prefix" "$a" "$b" >&2
+  else
+    printf 'requirement-ids-free: next free block NONE: no block of %d IDs is free at %s (%s)\n' $((hi - lo + 1)) "$ref" "${sha:0:12}" >&2
+  fi
   exit 1
 fi
 printf 'free %s at %s (%s)\n' "$range" "$ref" "$sha"

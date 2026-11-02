@@ -122,9 +122,9 @@ func runAnswerability(ctx context.Context, arguments []string, stdout, stderr io
 	return 0
 }
 
-const answerabilityHelp = `
-Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON:
+const answerabilityHelp = `Retriever disagreement (experimental, RDS-V0 proposed), read-only, JSON.
 
+Usage:
   corvint [--root PATH] answerability --task TEXT [--subject PATH] [--limit N]
 
 Builds two candidate sets for the task from independent channels and reports

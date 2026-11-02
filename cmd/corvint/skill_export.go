@@ -165,9 +165,9 @@ func writeSkills(out string, skills []skillexport.Skill) error {
 	return nil
 }
 
-const skillExportHelp = `
-Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only:
+const skillExportHelp = `Learned-rule skill export (experimental, LTA-V0-006 to LTA-V0-008), read-only.
 
+Usage:
   corvint [--root PATH] skill-export --out DIR
 
 Writes one Agent Skills directory per admitted learned trace (a stored row

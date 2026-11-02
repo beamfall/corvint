@@ -24,6 +24,17 @@
 #                      crediting Claude as a GitHub contributor (V1-3227,
 #                      ASD-V0-561); script/check-ai-coauthor-trailers.sh refuses
 #                      those commits, and this check names the setting.
+#   landlock           test-confine -probe reported landlock abi 0 in the Unraid
+#                      lane container, so read-scope violations surfaced only in
+#                      CI (V1-3741, ASD-V0-643). The row reports the host's ABI
+#                      and never fails the preflight; CORVINT_LANDLOCK_PROBE names
+#                      a probe command to run instead of building test-confine.
+#   tasks-store        lane hosts read a stale store copy (808 tickets against 3713
+#                      on the Mac, V1-3931, TCL-V0-742). The row runs queue parity
+#                      against CORVINT_TASKS_AUTHORITY or the newest staged
+#                      ~/lane-inputs/ticket-bodies-*/queue-snapshot.json, warns when
+#                      behind and never fails the preflight; CORVINT_TASKS_BIN
+#                      names the corvint-tasks command.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 status=0
@@ -129,6 +140,71 @@ else
 	legacy-off) note "claude-attribution" "includeCoAuthoredBy is false ($from); the current form is \"attribution\": {\"commit\": \"\", \"pr\": \"\"}" ;;
 	on) fail "claude-attribution" "attribution is set but not empty in $from -- Claude Code will add an AI Co-Authored-By trailer; $attribution_fix $from" ;;
 	*) fail "claude-attribution" "unset -- Claude Code adds an AI Co-Authored-By trailer to every commit by default; $attribution_fix $claude_dir/settings.json" ;;
+	esac
+fi
+# Landlock ABI for confined test runs (ASD-V0-643): test-confine refuses a declared package below
+# ABI 2, so a lane on such a host never sees a read-scope violation before CI.
+host=$(hostname 2>/dev/null || uname -n)
+probe=${CORVINT_LANDLOCK_PROBE:-}
+probe_dir=
+if [ -z "$probe" ] && [ "$(uname -s)" != Linux ]; then
+	note "landlock" "probe is Linux-only ($(uname -s) on $host) -- confined test runs happen on a Linux host or in CI"
+else
+	why="cannot build test-confine from .github/testconfine/cmd"
+	if [ -z "$probe" ]; then
+		# A temporary-directory failure is an UNKNOWN row, not a set -e abort of the preflight.
+		if probe_dir=$(mktemp -d 2>/dev/null) && [ -n "$probe_dir" ]; then
+			probe=$probe_dir/test-confine
+			(cd "$root" && go build -trimpath -buildvcs=false -o "$probe" ./.github/testconfine/cmd >/dev/null 2>&1) || probe=
+		else
+			probe_dir=
+			why="cannot create a temporary directory for the test-confine build (TMPDIR=${TMPDIR:-unset})"
+		fi
+	fi
+	if [ -z "$probe" ]; then
+		note "landlock" "UNKNOWN on $host: $why"
+	else
+		probed=$("$probe" -probe 2>&1) && probe_rc=0 || probe_rc=$?
+		abi=${probed#landlock abi }
+		case $probed in
+		'landlock abi '*) ;;
+		*) abi= ;;
+		esac
+		# test-confine -probe exits 0 for an ABI of 2 or more and 1 below it; any other exit, or one
+		# that disagrees with the printed ABI, is not a probe result.
+		case $abi in
+		'' | *[!0-9]*) ;;
+		0 | 1) [ "$probe_rc" = 1 ] || abi= ;;
+		*) [ "$probe_rc" = 0 ] || abi= ;;
+		esac
+		case $abi in
+		'' | *[!0-9]*) note "landlock" "UNKNOWN on $host: test-confine -probe exited $probe_rc and printed '$probed'" ;;
+		0 | 1) note "landlock" "WARN abi $abi on $host: test-confine refuses confined runs here (exit 2); read-scope violations surface only in CI, so run confined tests in CI or on a host whose probe reports abi 2 or more" ;;
+		*) note "landlock" "abi $abi on $host, confined test runs enforce read scopes" ;;
+		esac
+	fi
+	[ -z "$probe_dir" ] || rm -rf "$probe_dir"
+fi
+# tasks-store (V1-3931, TCL-V0-742): compare the store this host reads with the authoritative queue
+# snapshot staged by script/lane-stage-inputs.sh, so a lane never trusts a stale copy silently.
+authority=${CORVINT_TASKS_AUTHORITY:-}
+if [ -z "$authority" ]; then
+	authority=$(ls -t "$HOME"/lane-inputs/ticket-bodies-*/queue-snapshot.json 2>/dev/null | head -n 1 || true)
+fi
+tasks=${CORVINT_TASKS_BIN:-corvint-tasks}
+if [ -z "$authority" ]; then
+	note "tasks-store" "no authoritative queue snapshot (CORVINT_TASKS_AUTHORITY unset, none under ~/lane-inputs/ticket-bodies-*/) -- store parity NOT_OBSERVED"
+elif ! command -v "$tasks" >/dev/null 2>&1; then
+	note "tasks-store" "UNKNOWN: $tasks is not on PATH -- store parity with $authority NOT_OBSERVED"
+else
+	parity=$(cd "$root" && "$tasks" queue parity --against "$authority" 2>/dev/null) && parity_rc=0 || parity_rc=$?
+	pcount() { printf '%s' "$parity" | sed -n "s/.*\"$1Count\":\"\([0-9]*\)\".*/\1/p"; }
+	case $parity in
+	*'"inSync":true'*) note "tasks-store" "in sync with $authority" ;;
+	*'"inSync":false'*)
+		first=$(printf '%s' "$parity" | sed -n 's/.*"missing":\[\([^]]*\)\].*/\1/p' | tr -d '"' | cut -c1-120)
+		note "tasks-store" "WARN behind $authority: $(pcount missing) tickets missing${first:+ ($first)}, $(pcount stale) stale, $(pcount extra) extra -- read tickets with CORVINT_TASKS_SNAPSHOT=$authority, and cite the store revision in any claim about store contents" ;;
+	*) note "tasks-store" "UNKNOWN: queue parity exited $parity_rc without a parity item -- store parity with $authority NOT_OBSERVED" ;;
 	esac
 fi
 printf '\n%s\n' "Build and test only the packages you own; a red ./... here is usually not yours."

@@ -1,8 +1,12 @@
 package affected
 
 import (
+	"context"
 	"errors"
 	"io/fs"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -187,5 +191,37 @@ func testSourceHiddenWalkRetainsIgnoredFailure(t *testing.T) {
 	_ = source.Walk(".maestro", func(string, fs.DirEntry, error) error { return nil })
 	if !errors.Is(source.Err(), ErrWalkUnrepresentable) {
 		t.Fatalf("hidden mode: %v", source.Err())
+	}
+}
+
+// TestSourceFilesOffersRelativePath pins V1-3583: Files hands accept the
+// repository-relative path as well as the base name, so a directory-scoped
+// rule such as a Gradle version catalog matches on every source kind.
+func TestSourceFilesOffersRelativePath_V1_3583(t *testing.T) {
+	files := map[string]string{"gradle/libs.versions.toml": "", "app/libs.versions.toml": "", "app/main.kt": ""}
+	tree := fstest.MapFS{}
+	root := t.TempDir()
+	for name, body := range files {
+		tree[name] = &fstest.MapFile{Data: []byte(body)}
+		if err := os.MkdirAll(filepath.Join(root, filepath.Dir(name)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	catalog := func(relative, name string) bool {
+		return name == "libs.versions.toml" && strings.HasPrefix(relative, "gradle/")
+	}
+	for label, source := range map[string]*Source{"fs": FSSource(tree), "disk": DiskSource(root), "disk context": DiskSourceContext(context.Background(), root)} {
+		got, err := source.Files(catalog)
+		if err != nil || !slices.Equal(got, []string{"gradle/libs.versions.toml"}) {
+			t.Errorf("%s: Files(catalog) = %v, %v; want [gradle/libs.versions.toml]", label, got, err)
+		}
+		byName, err := source.Files(ByName(func(name string) bool { return name == "libs.versions.toml" }))
+		slices.Sort(byName)
+		if err != nil || !slices.Equal(byName, []string{"app/libs.versions.toml", "gradle/libs.versions.toml"}) {
+			t.Errorf("%s: Files(ByName) = %v, %v", label, byName, err)
+		}
 	}
 }

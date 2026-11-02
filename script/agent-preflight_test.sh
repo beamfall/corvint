@@ -17,6 +17,13 @@ set -eu
 #      non-empty value, fails; "attribution": {"commit": "", "pr": ""} (or the legacy
 #      includeCoAuthoredBy false) passes; no config directory is not a Claude Code host;
 #      a project settings file overrides the user file.
+#   5. The landlock row (ASD-V0-643, V1-3741): a probe reporting abi 0 warns and
+#      names the CI route, abi 3 reports enforcement, a probe that prints nothing
+#      usable, exits other than its ABI implies, or has no temporary directory is
+#      UNKNOWN, and none of them changes the exit status.
+#   6. The tasks-store row (TCL-V0-742, V1-3931): in sync, behind (counts and the
+#      first missing IDs), no parity item, and no staged snapshot each print their
+#      line, the newest staged snapshot is the default, and the exit is unchanged.
 #
 # Each case runs the real script (copied into an isolated fixture repo, per the
 # gate-enumeration_test.sh pattern) against a small git history it controls.
@@ -155,4 +162,57 @@ test "$status" = 0 || fail "claude-attribution: no config directory failed, exit
 printf '%s\n' "$output" | grep -q '^claude-attribution no .* -- not a Claude Code host' || fail "claude-attribution: absent directory: $output"
 printf '  %-24s %s\n' "claude-attribution" "unset and non-empty fail; empty, legacy-off and absent pass; project overrides"
 
-printf 'agent-preflight_test: 16 assertions passed\n'
+# Case 5: the landlock row, with a stub probe in place of the test-confine build.
+fixture=$(new_fixture landlock)
+claude_dir=$harness_root/claude
+mkdir -p "$claude_dir"
+printf '{"attribution": {"commit": "", "pr": ""}}\n' > "$claude_dir/settings.json"
+landlock() { # probe-output probe-exit expected-text
+    printf '#!/bin/sh\nprintf "%%s\\n" "%s"\nexit %s\n' "$1" "$2" > "$harness_root/probe"
+    chmod +x "$harness_root/probe"
+    output=$(cd "$fixture" && CORVINT_LANDLOCK_PROBE="$harness_root/probe" CLAUDE_CONFIG_DIR="$claude_dir" PATH=/usr/bin:/bin \
+        sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
+    test "$status" = 0 || fail "landlock: probe '$1' changed the exit status to $status: $output"
+    printf '%s\n' "$output" | grep -q "^landlock  *$3" || fail "landlock: expected '$3' for probe '$1': $output"
+}
+landlock 'landlock abi 0' 1 'WARN abi 0 on .*: test-confine refuses confined runs here (exit 2); read-scope violations surface only in CI, so run confined tests in CI'
+landlock 'landlock abi 3' 0 'abi 3 on .*, confined test runs enforce read scopes'
+landlock 'exec failed' 2 "UNKNOWN on .*: test-confine -probe exited 2 and printed 'exec failed'"
+# A probe whose exit disagrees with its ABI line (test-confine exits 0 at abi 2 or more, 1 below)
+# is not a result: an enforcing line with exit 2, or abi 0 with exit 0, is UNKNOWN.
+landlock 'landlock abi 3' 2 "UNKNOWN on .*: test-confine -probe exited 2 and printed 'landlock abi 3'"
+landlock 'landlock abi 0' 0 "UNKNOWN on .*: test-confine -probe exited 0 and printed 'landlock abi 0'"
+assertions=21
+# The probe's temporary directory cannot be created: the row is UNKNOWN and the preflight still
+# finishes (ASD-V0-643), rather than set -e aborting it. Linux only: elsewhere the probe is skipped.
+if [ "$(uname -s)" = Linux ]; then
+    output=$(cd "$fixture" && TMPDIR="$harness_root/no-such-dir" CLAUDE_CONFIG_DIR="$claude_dir" PATH=/usr/bin:/bin \
+        sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
+    test "$status" = 0 || fail "landlock: an unwritable TMPDIR changed the exit status to $status: $output"
+    printf '%s\n' "$output" | grep -q '^landlock  *UNKNOWN on .*: cannot create a temporary directory for the test-confine build' ||
+        fail "landlock: an unwritable TMPDIR is not UNKNOWN: $output"
+    assertions=23
+fi
+printf '  %-24s %s\n' "landlock" "abi 0 warns with the CI route, abi 3 enforces, a failed or inconsistent probe or no temp dir is UNKNOWN, exit unchanged"
+
+# Case 6: the tasks-store row (TCL-V0-742, V1-3931), with a stub corvint-tasks in place of queue parity.
+fixture=$(new_fixture tasks-store)
+tasks_store() { # stub-output stub-exit authority expected-text
+    printf '#!/bin/sh\nprintf "%%s\\n" '"'"'%s'"'"'\nexit %s\n' "$1" "$2" > "$harness_root/tasks"
+    chmod +x "$harness_root/tasks"
+    output=$(cd "$fixture" && HOME="$harness_root/home" CORVINT_TASKS_AUTHORITY="$3" CORVINT_TASKS_BIN="$harness_root/tasks" \
+        CORVINT_LANDLOCK_PROBE="$harness_root/probe" CLAUDE_CONFIG_DIR="$claude_dir" PATH=/usr/bin:/bin sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
+    test "$status" = 0 || fail "tasks-store: stub '$1' changed the exit status to $status: $output"
+    printf '%s\n' "$output" | grep -q "^tasks-store  *$4" || fail "tasks-store: expected '$4' for stub '$1': $output"
+}
+tasks_store '{"items":[{"inSync":true}]}' 0 /a/snap.json 'in sync with /a/snap.json'
+tasks_store '{"items":[{"extraCount":"0","inSync":false,"missing":["V1-2600","V1-2601"],"missingCount":"2","staleCount":"1"}]}' 1 /a/snap.json \
+    'WARN behind /a/snap.json: 2 tickets missing (V1-2600,V1-2601), 1 stale, 0 extra'
+tasks_store '{"outcome":"ERROR"}' 1 /a/snap.json 'UNKNOWN: queue parity exited 1 without a parity item'
+tasks_store '{}' 0 '' 'no authoritative queue snapshot'
+mkdir -p "$harness_root/home/lane-inputs/ticket-bodies-ln1" && : > "$harness_root/home/lane-inputs/ticket-bodies-ln1/queue-snapshot.json"
+tasks_store '{"items":[{"inSync":true}]}' 0 '' 'in sync with .*/lane-inputs/ticket-bodies-ln1/queue-snapshot.json'
+assertions=$((assertions + 10))
+printf '  %-24s %s\n' "tasks-store" "in sync, behind with counts and IDs, no parity item, no snapshot and the staged default, exit unchanged"
+
+printf 'agent-preflight_test: %s assertions passed\n' "$assertions"

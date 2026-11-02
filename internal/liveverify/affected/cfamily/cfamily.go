@@ -135,7 +135,7 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(owned)
+	files, err := root.Files(affected.ByName(owned))
 	if err != nil {
 		return affected.Result{}, err
 	}
@@ -145,7 +145,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	// Every repository file, so an include of a file no plugin owns (an X-macro
 	// .def, a generated .inc) counts as resolved rather than unresolved. A dirty
 	// path there is unowned and widens the plan on its own.
-	everything, err := root.Files(func(string) bool { return true })
+	everything, err := root.Files(func(_, _ string) bool { return true })
 	if err != nil {
 		return affected.Result{}, err
 	}

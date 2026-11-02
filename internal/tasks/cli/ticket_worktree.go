@@ -14,7 +14,7 @@ import (
 // is `git worktree add` when the worktree does not exist.
 func worktreeCommand(env Env, args []string) *wire.Result {
 	if len(args) == 0 || args[0] != "ensure" {
-		return usage([]string{"worktree"}, "expected ensure")
+		return groupMiss([]string{"worktree"}, args, "expected ensure")
 	}
 	cmd := []string{"worktree", "ensure"}
 	args = args[1:]

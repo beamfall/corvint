@@ -31,6 +31,9 @@ type ProposeOptions struct {
 	// current hunks by hunk ID, else by path and content or BASE range
 	// (DCW-V0-442).
 	Refresh string
+	// FromCEM names a sealed CEM whose hunks seed the refresh rows in place
+	// of a --refresh plan (DCW-V0-843).
+	FromCEM string
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -38,8 +41,21 @@ type proposal struct {
 	flow
 	options ProposeOptions
 	stdout  io.Writer
+	// siblingDirs caches each parent's BASE directories (DCW-V0-841).
+	siblingDirs map[string][]string
+	// priorBase is the BASE the --refresh plan was drafted at when it is not
+	// BASE, the map's baseRevision; carriedFiles holds the first cite row
+	// carried to each file (DCW-V0-842).
+	priorBase    string
+	carriedFiles map[string]string
+	// cemBase is the --from-cem CEM's baseRevision (DCW-V0-843).
+	cemBase string
 	blobs   map[string][]byte
 	lines   map[string][][]byte
+	// batchBlobs reads uncached blobs through one cat-file --batch reader,
+	// batch, which the flow boundary closes (CKC-V0-015).
+	batchBlobs bool
+	batch      *blobBatch
 	// derived holds the canonical patch's hunks by ID and by path and old
 	// range; matches holds the BASE lines naming each anchor pattern.
 	derived map[string]*patch.Hunk
@@ -104,6 +120,14 @@ type proposal struct {
 	// BASE lines name it, counted as governing specs; their stable lines are
 	// cited like an untouched spec's, never a line the change edits (DCW-V0-886).
 	modifiedOwners map[string][]string
+	// claims is the --refresh file when it is a content-keyed claims file;
+	// patchHunks are the canonical patch's hunks in order, tombstones the
+	// removed cite rows of each hunk's claims, and claimStats count the
+	// refresh (CKC-V0-004, CKC-V0-007, CKC-V0-010).
+	claims     *claimsFile
+	patchHunks []*patch.Hunk
+	tombstones map[string]map[string]bool
+	claimStats claimsStats
 }
 
 // spanLine is one line of a BASE file.
@@ -132,9 +156,9 @@ type proposedHunk struct {
 func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stderr io.Writer) (int, error) {
 	run := &proposal{
 		flow:    flow{ctx: ctx, prefix: "dogfood-propose-citations", root: options.Root, stderr: stderr},
-		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+		options: options, stdout: stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{}, batchBlobs: batchBlobReads,
 	}
-	return boundary(ctx, run.run, func() {})
+	return boundary(ctx, run.run, run.closeBlobBatch)
 }
 
 func (p *proposal) run() int {
@@ -152,6 +176,12 @@ func (p *proposal) run() int {
 	p.base = chomp(base)
 	p.target = p.gitValue("rev-parse", "HEAD^{commit}")
 	p.requireBaseAncestor(p.base, p.target)
+	if p.cemBase != "" {
+		// The sealed CEM's base is the BASE its rows were cited at (DCW-V0-843).
+		if prior, status := p.git(true, "rev-parse", "--verify", "-q", p.cemBase+"^{commit}"); status == 0 {
+			p.priorBase = chomp(prior)
+		}
+	}
 	mapPath := filepath.Join(p.root, ".corvint", "change.cem.json")
 	if _, err := os.Lstat(mapPath); errors.Is(err, fs.ErrNotExist) {
 		return p.template("NOT_PREPARED")
@@ -166,10 +196,21 @@ func (p *proposal) run() int {
 		return p.template("UNREADABLE")
 	}
 	if baseRevision != p.base {
+		if p.options.Refresh != "" && p.options.FromCEM == "" {
+			// The map's BASE is the plan's BASE only when the last bind
+			// recorded this plan against this map; a plan refreshed since
+			// already cites another BASE, and re-pinning it from the map's
+			// would move valid spans onto other text (DCW-V0-842).
+			if !p.boundToMap(hunks) {
+				p.say("%s: NOTE refresh-base-unproven\n  no citation-plan binding records this --refresh plan against the map, so its BASE is not proven to be the map's baseRevision=%s; cite rows are carried as written, not re-pinned, and the vet judges them at BASE %s (DCW-V0-842)\n", p.prefix, baseRevision, p.base)
+			} else if prior, status := p.git(true, "rev-parse", "--verify", "-q", baseRevision+"^{commit}"); status == 0 {
+				p.priorBase = chomp(prior)
+			}
+		}
 		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
 		return p.template("OTHER_BASE")
 	}
-	if p.options.Refresh != "" {
+	if p.refreshing() {
 		// A refreshed plan is keyed by hunk ID, so it survives later reordering.
 		p.keyByID = true
 	}
@@ -202,7 +243,7 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 	for _, row := range rows {
 		key, _, _ := strings.Cut(row, "\t")
 		if hunk, ok := edits[key]; ok && key != "" {
-			p.say("  hunk %s edits %s\n", key, p.hunkSpan(hunk))
+			p.say("  hunk %s edits %s%s\n", key, p.hunkSpan(hunk), p.refreshMark(hunk))
 		}
 		if reason := p.reasons[key]; p.proposals[key] && key != "" && reason != "" {
 			p.say("  drafted proposal: %s\n    %s\n", row, reason)
@@ -383,32 +424,64 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			p.changed[name] = true
 		}
 	}
-	p.prepareAnchors(owed)
+	complete, patched := p.parseAnchors()
+	used := map[string]bool{}
+	p.carry(owed, used)
+	// The anchor search and the governing specs serve only drafted hunks, so
+	// a refresh that carries every owed hunk skips both (CKC-V0-014).
+	skip := allCarried(p, owed)
+	if !skip {
+		p.searchAnchors(owed, complete, patched)
+	}
 	if status != 0 || !bounded {
 		p.matches = map[string][]spanLine{}
 		p.changed[sealContract] = true
 	}
-	p.governing = p.governingSpecs(owed)
-	used := map[string]bool{}
-	p.carry(owed, used)
+	if !skip {
+		p.governing = p.governingSpecs(owed)
+	}
 	rows, notes := []string{}, append([]string{}, p.carryNotes...)
 	cited := 0
 	lastCite := ""
 	uniform := true
 	for _, hunk := range owed {
 		// A prior seal's CEM carried as unknown is redrafted (DCW-V0-966).
-		carried, ok := p.carried[hunk.id]
-		if ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried)) {
+		if carried, ok := p.carriedRows(hunk); ok {
 			rows = append(rows, carried...)
 			uniform = false
 			continue
 		}
+		// A seal no change is stacked on is replaced by the next bind, not
+		// carried, so its CEM gets no drafted row (ASD-V0-843).
+		if p.resealsSameContent(hunk.path) {
+			notes = append(notes, fmt.Sprintf("hunk %s of %s drafted no row: no change is stacked on that seal, so a bind here reseals the same content and replaces its CEM rather than citing it (ASD-V0-843)", hunk.id, hunk.path))
+			continue
+		}
 		if p.carried != nil {
 			// Drafted afresh: no row was carried, or a carried all-unknown row
-			// on a sealed CEM is redrafted (DCW-V0-966).
+			// on a sealed CEM is redrafted (DCW-V0-966). A carried-forward
+			// candidate still needs review, so it counts as redrafted too.
 			p.redrafted = append(p.redrafted, hunk)
 		}
-		row, cite, fellBack := p.propose(hunk, edited, used)
+		row, cite, fellBack := "", "", ""
+		ordinal := fmt.Sprint(hunk.ordinal)
+		if p.keyByID {
+			ordinal = hunk.id
+		}
+		if row, cite = p.carriedForward(hunk, ordinal); row == "" {
+			row, cite, fellBack = p.propose(hunk, edited, used)
+			// A drafted cite the author removed for this edit is never drafted
+			// again; the hunk keeps the unknown fallback (CKC-V0-007).
+			if cite != "" && p.tombstoned(hunk.id, row) {
+				key, _, _ := strings.Cut(row, "\t")
+				delete(p.proposals, key)
+				delete(p.reasons, key)
+				fields := strings.Split(row, "\t")
+				row = p.unknownProposal(hunk, key, "the drafted row cites "+fields[1]+" "+fields[2]+" ("+fields[3]+"), which the author removed for this edit (CKC-V0-007); cite the BASE contract the hunk depends on or implements, or keep it unknown")
+				cite, fellBack = "", ""
+				p.claimStats.suppressed++
+			}
+		}
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
 		}
@@ -430,6 +503,8 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		delete(p.proposals, ordinal)
 		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
+	rows, refused := p.vetRows(owed, rows)
+	notes = append(notes, refused...)
 	notes = append(notes, p.weak...)
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
@@ -450,10 +525,21 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if bookkeepingPath(hunk.path) {
 		return p.unknownProposal(hunk, ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
 	}
+	// A hunk that only repins line citations cites the rule that rewrote it,
+	// not its own file (DCW-V0-548).
+	if row, cite, note := p.repinProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
 	// Checked before any anchor: a BASE line that happens to name the path
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
 		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+			return row, cite, ""
+		}
+		// A new file following a BASE sibling's pattern is proposed that
+		// sibling's contract (DCW-V0-841, amending DCW-V0-440).
+		if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+			p.reasons[ordinal] = "the hunk names requirement " + id + ", which this change itself adds in " + where + " (DCW-V0-440); " + p.reasons[ordinal]
 			return row, cite, ""
 		}
 		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
@@ -482,13 +568,24 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
-	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
+	row, cite, filtered := p.anchoredProposal(hunk, ordinal, edited, used)
+	if row != "" {
 		return row, cite, ""
+	}
+	if filtered != "" {
+		// The set-aside candidates are named for a same-file proposal too.
+		p.weak = append(p.weak, "row "+ordinal+": no anchor was drafted"+filtered)
 	}
 	// A draft anchors only on files the change leaves untouched (DCW-V0-393):
 	// a hunk with no anchor elsewhere gets its own file's nearest stable line
 	// as a marked proposal, or stays unknown (DCW-V0-962).
-	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds"
+	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds" + filtered
+	if dataPath(hunk.path) {
+		missing += "; a data record is never cited, so cite the BASE contract of the code that writes or reads it (DCW-V0-841)"
+	}
+	if row, cite := p.siblingProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, ""
+	}
 	if _, ok := p.blob(p.base, hunk.path); !ok {
 		// An added file has no BASE line of its own; it reaches the verdict
 		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
@@ -568,19 +665,46 @@ func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[
 	return "", "", ""
 }
 
+// resealsSameContent reports a sealed CEM path BASE..HEAD adds whose bind
+// commit already holds HEAD's content outside .corvint/: nothing is stacked on
+// that seal, so a bind of HEAD reseals the same content and replaces the CEM,
+// which then is no part of the change to cite. A seal a later commit changes
+// content on is a stacked rebind and keeps its DCW-V0-385 row (ASD-V0-843,
+// V1-3961).
+func (p *proposal) resealsSameContent(path string) bool {
+	match := sealedCEMPath.FindStringSubmatch(path)
+	if match == nil || p.target == "" {
+		return false
+	}
+	if _, atBase := p.blob(p.base, path); atBase {
+		return false
+	}
+	return p.gitSucceeds("diff", "--quiet", "--no-renames", "--end-of-options", match[1], p.target, "--", ".", ":(exclude).corvint/")
+}
+
 // anchoredProposal returns the first row, on a span no other row cites, whose stable
 // BASE line earns hunk a CEM-V1-081 anchor (DCW-V0-161): the line defining a
 // requirement ID the hunk adds, then a line naming the hunk path, a
-// specification first. It returns "" when there is none.
-func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string) {
+// specification first. It returns "" when there is none, with a note naming
+// the candidates DCW-V0-847 set aside.
+func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	derived := p.derivedHunk(hunk)
 	_, ids := verify.SpanAnchors(derived, nil)
+	filtered := ""
+	if !p.basenames {
+		// An ID a test or data hunk names only as fixture text anchors
+		// nothing (DCW-V0-847).
+		var fixture []string
+		if ids, fixture = p.ownRequirementIDs(hunk.path, ids); len(fixture) > 0 {
+			filtered += "; " + hunk.path + " names " + strings.Join(fixture, ", ") + " only in test or fixture text, which is not an anchor (DCW-V0-847)"
+		}
+	}
 	candidates := []spanLine{}
 	for _, id := range ids {
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	definitions := len(candidates)
-	families := p.hunkFamilies(derived)
+	families, changeWide := p.hunkFamiliesScope(derived)
 	if p.basenames {
 		candidates = append(candidates, p.matches[anchorPath(derived)]...)
 	} else {
@@ -592,6 +716,8 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[name]...)
 	}
 	for index, candidate := range candidates {
+		// A large candidate set honours the deadline (DCW-V0-818).
+		p.checkpoint()
 		cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
 		// The hunk's own file is a proposal, never an anchor (DCW-V0-962).
 		if candidate.path == hunk.path || used[cite] || !p.stable(candidate.path, candidate.line, edited) {
@@ -607,6 +733,10 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 {
 			continue
 		}
+		// A mention inside a test or data file is not an anchor (DCW-V0-847).
+		if !p.basenames && testSourcePath(candidate.path) {
+			continue
+		}
 		// A path match inside a longer path, such as README.md within
 		// docs/specs/README.md, names another file (DCW-V0-381).
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
@@ -616,17 +746,32 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		// line of its dominant family, never by another spec's row, a bare
 		// list naming its path, or the definition of an ID it only mentions
 		// in passing (DCW-V0-404).
-		if !p.basenames && !relevantRequirementLine(families, text) {
+		// Families named only by the change's other files do not stop a line
+		// of an untouched file naming the hunk's whole path from anchoring it
+		// (DCW-V0-841).
+		// DCW-V0-847: that admission never covers a line carrying another
+		// requirement's IDs, such as a traceability row of another spec, and
+		// a line naming requirement IDs anchors a hunk that names IDs only
+		// when it carries one of them, never a neighbouring requirement's row.
+		pathLine := index >= definitions && changeWide && !p.changed[candidate.path] && namesWholePath(text, anchorPath(derived)) &&
+			!requirementToken.Match(text)
+		if !p.basenames && !pathLine && !relevantRequirementLine(families, text) {
 			continue
+		}
+		if index >= definitions && !p.basenames {
+			if foreign := foreignRequirementLine(ids, text); foreign != "" {
+				filtered += fmt.Sprintf("; %s:%d names %s but none of the hunk's %s, so it is another requirement's line (DCW-V0-847)", candidate.path, candidate.line, foreign, strings.Join(ids, ", "))
+				continue
+			}
 		}
 		relation := proposalRelation(candidate.path)
 		row := fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation)
 		if index >= definitions && !p.basenames && len(p.governing) > 0 && p.anchorRank(candidate) >= 2 {
 			p.weak = append(p.weak, p.weakAnchorNote(row, candidate, anchorPath(derived)))
 		}
-		return row, cite
+		return row, cite, ""
 	}
-	return "", ""
+	return "", "", filtered
 }
 
 // requirementToken is one requirement ID, such as DCW-V0-402, whose family
@@ -668,15 +813,22 @@ func dominantFamilies(text []byte) map[string]bool {
 // added and removed lines name, else its context lines, else the edits to the
 // same file, else the whole change's edits. It is empty when nothing names one.
 func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
+	families, _ := p.hunkFamiliesScope(hunk)
+	return families
+}
+
+// hunkFamiliesScope is hunkFamilies, also reporting whether the families came
+// only from the whole change's edits (DCW-V0-841).
+func (p *proposal) hunkFamiliesScope(hunk *patch.Hunk) (map[string]bool, bool) {
 	if hunk == nil {
-		return nil
+		return nil, false
 	}
 	edits, around := hunkText(hunk)
 	if changed := dominantFamilies(edits); len(changed) > 0 {
-		return changed
+		return changed, false
 	}
 	if context := dominantFamilies(around); len(context) > 0 {
-		return context
+		return context, false
 	}
 	// The fallbacks count every ID of the other edits together, so the
 	// family they name most often wins (DCW-V0-404).
@@ -692,9 +844,10 @@ func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
 		}
 	}
 	if families := dominantFamilies(file); len(families) > 0 {
-		return families
+		return families, false
 	}
-	return dominantFamilies(all)
+	families := dominantFamilies(all)
+	return families, len(families) > 0
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path
@@ -718,14 +871,41 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // leaves no candidates, and the drafts fall back to nearby lines; it reports
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
+	complete, patched := p.parseAnchors()
+	return p.searchAnchors(owed, complete, patched)
+}
+
+// allCarried reports whether a refresh carries rows for every owed hunk, so
+// draft proposes none and needs no anchor search (CKC-V0-014). A test
+// replaces it to compare the output against the searching path.
+var allCarried = func(p *proposal, owed []proposedHunk) bool {
+	for _, hunk := range owed {
+		if _, ok := p.carriedRows(hunk); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// parseAnchors reads the canonical BASE..HEAD patch, recording its hunks,
+// the requirement IDs it adds and the paths it patches; it reports whether
+// the read completed.
+func (p *proposal) parseAnchors() (bool, map[string]bool) {
 	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
 	p.modifiedOwners = map[string][]string{}
 	complete := false
 	patched := map[string]bool{}
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
-		if parsed, err := patch.Parse([]byte(raw)); err == nil {
+		// An empty diff is a patch with no hunks, as readCanonicalPatch has
+		// it, not an unavailable one: every claimed edit was reverted, and
+		// each claim is gone (CKC-V0-005).
+		if raw == "" {
+			complete, p.patchHunks = true, []*patch.Hunk{}
+		} else if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
+			p.patchHunks = parsed.Hunks
 			for _, hunk := range parsed.Hunks {
+				p.checkpoint()
 				p.derived[hunk.ID] = hunk
 				patched[hunk.DisplayPath] = true
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
@@ -748,6 +928,17 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			}
 		}
 	}
+	return complete, patched
+}
+
+// draftDataExcludes are the rest of dataPath, which a draft drops from the
+// search anyway, so git never reads them (CKC-V0-016). A test empties it to
+// compare the unnarrowed search.
+var draftDataExcludes = []string{":(exclude,glob)**/*.json", ":(exclude,glob)**/*.jsonl", ":(exclude).agent-evidence/"}
+
+// searchAnchors runs the one `git grep` of BASE for the owed hunks' anchors;
+// it reports whether the patch read (complete) and the search completed.
+func (p *proposal) searchAnchors(owed []proposedHunk, complete bool, patched map[string]bool) bool {
 	patterns := map[string]bool{}
 	if !p.basenames {
 		// Only drafts pair moves; the check's anchor search is unchanged.
@@ -797,13 +988,15 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		arguments = append(arguments, ":(exclude)benchmarks/", ":(exclude,glob)**/testdata/**",
 			":(exclude)docs/specs/INDEX.json", ":(exclude)docs/specs/REQUIREMENTS.tsv",
 			":(exclude,glob)**/raw/**", ":(exclude,glob)**/*.stdout", ":(exclude,glob)**/*.stderr")
+		arguments = append(arguments, draftDataExcludes...)
 	}
-	out, status, bounded := p.boundedGit(arguments...)
+	out, status, bounded := p.anchorGrep(arguments, sorted)
 	// git grep exits 1 when nothing matches: a complete read with no candidates.
 	if status > 1 || !bounded {
 		return false
 	}
 	for _, record := range strings.Split(out, "\n") {
+		p.checkpoint()
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)
@@ -1041,6 +1234,26 @@ func declaration(line string) bool {
 
 // hunkSpan names the hunk's path, its BASE range and, when the canonical
 // patch holds it, its new range at HEAD (DCW-V0-963).
+// carriedRows returns the rows a refresh carries for hunk. A prior seal's CEM
+// carried as unknown is redrafted instead (DCW-V0-966).
+func (p *proposal) carriedRows(hunk proposedHunk) ([]string, bool) {
+	carried, ok := p.carried[hunk.id]
+	return carried, ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried))
+}
+
+// refreshMark tells a refresh's reviewer whether a hunk's rows were carried
+// from the earlier plan or claims or drafted afresh, so review can start with
+// the drafted ones (CKC-V0-013). A plain draft has no mark.
+func (p *proposal) refreshMark(hunk proposedHunk) string {
+	if p.options.Refresh == "" {
+		return ""
+	}
+	if _, ok := p.carriedRows(hunk); ok {
+		return "; carried"
+	}
+	return "; drafted"
+}
+
 func (p *proposal) hunkSpan(hunk proposedHunk) string {
 	span := fmt.Sprintf("%s at BASE %d,%d", hunk.path, hunk.oldStart, hunk.oldCount)
 	if derived := p.derivedHunk(hunk); derived != nil && derived.Body != nil {
@@ -1061,6 +1274,10 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 	if data, ok := p.blobs[key]; ok {
 		return data, data != nil
 	}
+	if data, present, ok := p.batchBlob(commit, name); ok {
+		p.blobs[key] = data
+		return data, present
+	}
 	entry, status := p.git(true, "ls-tree", commit, "--", name)
 	if status != 0 || !strings.HasPrefix(entry, "100") || !strings.Contains(entry, " blob ") {
 		p.blobs[key] = nil
@@ -1069,6 +1286,97 @@ func (p *proposal) blob(commit, name string) ([]byte, bool) {
 	data, _ := p.git(true, "cat-file", "blob", key)
 	p.blobs[key] = []byte(data)
 	return p.blobs[key], true
+}
+
+// prefetchBlobs caches names at commit through one ls-tree and one cat-file
+// --batch read, so a caller that knows its read set starts two Git processes
+// rather than two a file (CKC-V0-012). A name the listing holds as no regular
+// file is cached absent, as blob caches it. A name that is not a clean
+// repository path, a blob that would take the batch past the flow's Git output
+// bound, and every name of a failed read stay uncached, so blob reads them
+// one by one as before. So does a name with a pathspec or revision
+// metacharacter, which blob's unquoted ls-tree reads its own way.
+func (p *proposal) prefetchBlobs(commit string, names []string) {
+	const chunk = 1024
+	for len(names) > chunk {
+		p.prefetchBlobs(commit, names[:chunk])
+		names = names[chunk:]
+	}
+	wanted := map[string]bool{}
+	arguments := []string{"--literal-pathspecs", "ls-tree", "-z", "-l", commit, "--"}
+	for _, name := range names {
+		if _, cached := p.blobs[commit+":"+name]; cached || wanted[name] || name == "" || name == "." || path.Clean(name) != name || path.IsAbs(name) || strings.HasPrefix(name, "../") || strings.ContainsAny(name, "*?[]\\:\x00\n") {
+			continue
+		}
+		wanted[name] = true
+		arguments = append(arguments, name)
+	}
+	if len(wanted) == 0 {
+		return
+	}
+	listing, status, bounded := p.boundedGit(arguments...)
+	if status != 0 || !bounded {
+		return
+	}
+	limit := p.gitOutputLimit
+	if limit <= 0 {
+		limit = maxGitOutputBytes
+	}
+	byObject, request, total := map[string][]string{}, &bytes.Buffer{}, 0
+	listed := map[string]bool{}
+	for _, entry := range strings.Split(listing, "\x00") {
+		meta, name, found := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if !found || !wanted[name] || len(fields) != 4 {
+			continue
+		}
+		listed[name] = true
+		size, err := strconv.Atoi(fields[3])
+		if !strings.HasPrefix(fields[0], "100") || fields[1] != "blob" || err != nil {
+			p.blobs[commit+":"+name] = nil
+			continue
+		}
+		if byObject[fields[2]] == nil {
+			// Each record adds its header and trailing LF to the object.
+			if total+size+len(fields[2])+32 > limit {
+				continue
+			}
+			total += size + len(fields[2]) + 32
+			request.WriteString(fields[2] + "\n")
+		}
+		byObject[fields[2]] = append(byObject[fields[2]], name)
+	}
+	for name := range wanted {
+		if !listed[name] {
+			p.blobs[commit+":"+name] = nil
+		}
+	}
+	if request.Len() == 0 {
+		return
+	}
+	p.checkpoint()
+	command := p.gitCommand(true, "cat-file", "--batch")
+	command.Stdin = request
+	raw, status, bounded := p.readGit(command)
+	if status != 0 || !bounded {
+		return
+	}
+	data := []byte(raw)
+	for len(data) > 0 {
+		header, rest, ok := bytes.Cut(data, []byte{'\n'})
+		fields := strings.Fields(string(header))
+		if !ok || len(fields) != 3 || fields[1] != "blob" {
+			return
+		}
+		size, err := strconv.Atoi(fields[2])
+		if err != nil || size < 0 || size+1 > len(rest) {
+			return
+		}
+		for _, name := range byObject[fields[0]] {
+			p.blobs[commit+":"+name] = rest[:size:size]
+		}
+		data = rest[size+1:]
+	}
 }
 
 // splitRecords splits data into LF-terminated records as cem cite counts

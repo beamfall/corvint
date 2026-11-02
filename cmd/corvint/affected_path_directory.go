@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gitstatus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -75,6 +76,64 @@ func affectedUntrackedUnder(root, directory string) ([]string, error) {
 	return names, nil
 }
 
+// affectedWorktreeFilesUnder lists, for a `--worktree` plan, every file the working tree holds
+// under one directory, untracked and ignored files included, plus the files HEAD tracks there, so a
+// deleted tracked file still counts (ACX-V0-851). A nested repository is refused, not entered.
+// isDirectory is false when path is not a directory in the working tree.
+func affectedWorktreeFilesUnder(root, path string) ([]string, bool, error) {
+	directory := filepath.Join(root, filepath.FromSlash(path))
+	if info, err := os.Lstat(directory); err != nil || !info.IsDir() {
+		return nil, false, nil
+	}
+	var files []string
+	walkErr := filepath.WalkDir(directory, func(current string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, relErr := filepath.Rel(root, current)
+		if relErr != nil {
+			return relErr
+		}
+		relative = filepath.ToSlash(relative)
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			if current != directory {
+				if _, statErr := os.Lstat(filepath.Join(current, ".git")); statErr == nil {
+					return argumentError("--path " + pythonRepr(path) + " holds a nested repository or submodule " + pythonRepr(relative) + "; pass the files explicitly")
+				}
+			}
+			return nil
+		}
+		if entry.Name() == ".git" {
+			return nil
+		}
+		if !affected.ValidRelativePath(relative) {
+			return argumentError("--path " + pythonRepr(path) + " holds a non-canonical entry " + pythonRepr(relative) + "; pass the files explicitly")
+		}
+		files = append(files, relative)
+		return nil
+	})
+	if walkErr != nil {
+		if _, ok := walkErr.(*gokernel.Error); ok {
+			return nil, true, walkErr
+		}
+		return nil, true, argumentError("--path " + pythonRepr(path) + " is a directory whose working-tree files could not be listed; " + affectedPathDirectoryForms)
+	}
+	if entries, err := affectedTreeEntries(root, true, path+"/"); err == nil {
+		for _, entry := range entries {
+			if entry[0] == "blob" && affected.ValidRelativePath(entry[1]) {
+				files = append(files, entry[1])
+			}
+		}
+	}
+	if len(files) == 0 {
+		return nil, true, argumentError("--path " + pythonRepr(path) + " is a directory with no files in the working tree; " + affectedPathDirectoryForms)
+	}
+	return files, true, nil
+}
+
 // expandAffectedPathDirectories replaces each `--path` that names a directory tracked at HEAD with
 // its tracked files. A directory that is untracked at HEAD, or one holding a submodule, is refused
 // rather than dropped or guessed (AFP-V0-231).
@@ -84,6 +143,16 @@ func expandAffectedPathDirectories(invocation *affectedInvocation) error {
 	}
 	var expanded []string
 	for _, path := range invocation.PathList {
+		if invocation.Worktree {
+			files, isDirectory, err := affectedWorktreeFilesUnder(invocation.Root, path)
+			if err != nil {
+				return err
+			}
+			if isDirectory {
+				expanded = append(expanded, files...)
+				continue
+			}
+		}
 		entries, err := affectedTreeEntries(invocation.Root, false, path)
 		if err == nil && len(entries) == 1 && entries[0][0] == "tree" {
 			files, listErr := affectedTreeEntries(invocation.Root, true, path+"/")

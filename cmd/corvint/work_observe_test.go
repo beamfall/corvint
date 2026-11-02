@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 	"github.com/Beamfall/corvint/internal/workqueue"
 	"github.com/Beamfall/corvint/internal/worksource"
@@ -23,7 +24,7 @@ func workFixtureScriptPrefix(t *testing.T, root, prefix string) {
 		t.Fatal(err)
 	}
 	line, rest, _ := strings.Cut(string(raw), "\n")
-	if err := os.WriteFile(path, []byte(line+"\n"+prefix+"\n"+rest), 0755); err != nil {
+	if err := execfile.WriteFile(path, []byte(line+"\n"+prefix+"\n"+rest), 0755); err != nil {
 		t.Fatal(err)
 	}
 	materializationGit(t, root, "add", ".")
@@ -46,7 +47,7 @@ func TestObserveWorkUsesOnlyTargetMaterialization(t *testing.T) {
 		before := materializationManifest(t, root)
 		poison := t.TempDir()
 		marker := filepath.Join(poison, "launched")
-		if err := os.WriteFile(filepath.Join(poison, "git"), []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 99\n"), 0755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(poison, "git"), []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 99\n"), 0755); err != nil {
 			t.Fatal(err)
 		}
 		directory, err := os.Getwd()

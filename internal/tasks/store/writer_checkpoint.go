@@ -56,7 +56,7 @@ func readWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
 	if err != nil {
 		return nil
 	}
-	base, err := intent.ReadFile(journal.WriterBasePath(repo.StateDir), journal.MaxWriterBaseBytes)
+	base, err := intent.ReadFile(journal.WriterBasePath(repo.StateDir), journal.MaxWriterBaseReadBytes)
 	if err != nil {
 		return nil
 	}
@@ -82,6 +82,22 @@ func boundWriterCheckpoint(repo *intent.Repository) (*journal.WriterCheckpoint, 
 		return nil, writerToken{}
 	}
 	return wc, token
+}
+
+// ReadWriterCheckpoint is the retained writer checkpoint for a read that has
+// no binding read checkpoint (LGL-V0-807): the one boundWriterCheckpoint
+// returns, published under the current CAL-V0-117 invalidation token, or nil.
+// It writes nothing; the journal reader rebinds it before use.
+func ReadWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
+	wc, _ := boundWriterCheckpoint(repo)
+	return wc
+}
+
+// RequestIndexOf is the request index over repo's journal whose lookups the
+// bound writer checkpoint may serve (LGL-V0-811); reader is the journal
+// reader the complete lookup uses.
+func RequestIndexOf(repo *intent.Repository, reader journal.Reader) journal.RequestIndex {
+	return journal.RequestIndex{Reader: reader, WriterCheckpoint: func() *journal.WriterCheckpoint { return ReadWriterCheckpoint(repo) }}
 }
 
 // retainWriterCheckpoint replaces the derived writer checkpoint with wc,
@@ -116,6 +132,7 @@ func replaceDerived(path string, raw []byte) error {
 	os.Remove(tmp)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
+		noteRetentionFailure(path)
 		return err
 	}
 	_, err = f.Write(raw)
@@ -128,6 +145,7 @@ func replaceDerived(path string, raw []byte) error {
 	}
 	if err != nil {
 		os.Remove(tmp)
+		noteRetentionFailure(path)
 	}
 	return err
 }
@@ -237,7 +255,7 @@ func (w *writerObservation) tail() uint64 {
 // With resume, the audit resumes from the lease command's own resume base
 // instead of the retained checkpoint (PSR-V0-052, proposed); the
 // invalidation token read before that base's audit must still be current.
-func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats) (w *writerObservation, decline, terminal error) {
+func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID string, forMutation, liveness bool, resume *leaseResume, walks *journal.WalkStats, preload *intent.Tree) (w *writerObservation, decline, terminal error) {
 	if headState == nil || headState.LastSeq.Uint64() < writerCheckpointMin(repo) {
 		return nil, errWriterRoute("head.json", "below the checkpoint threshold"), nil
 	}
@@ -255,6 +273,11 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 		return nil, errWriterRoute("checkpoint", "absent, unusable or invalidated"), nil
 	}
 	reader := journalReader(repo, headState)
+	// The caller's preload capture is the audit's outer snapshot
+	// (CAL-V0-140): bindObservation hashes the tree again before any
+	// effect, so its bytes are never the evidence the modeled bytes are
+	// current (LGL-V0-845).
+	reader.IntentTree = preload
 	var proof *journal.Result
 	var obs journal.PhysicalObservation
 	var err error
@@ -309,7 +332,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	if _, err := os.Lstat(filepath.Join(repo.StateDir, rp)); !errors.Is(err, fs.ErrNotExist) {
 		return nil, errWriterRoute(rp, "request path present or unobservable"), nil
 	}
-	if w.inv, err = writerInventory(repo, proof, obs.Files, wc); err != nil {
+	if w.inv, err = writerInventory(repo, proof, obs.Files, wc, preload); err != nil {
 		return nil, err, nil
 	}
 	if w.headReceipt, err = headReceipt(repo, w.head); err != nil {
@@ -327,7 +350,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 // from the audit's listing and the bytes it read. Evidence and pinned blobs
 // take their digest from their content-addressed name. A path the route
 // cannot account for without a read it did not make declines the route.
-func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint) (*transaction.Inventory, error) {
+func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint, preload *intent.Tree) (*transaction.Inventory, error) {
 	listing := proof.WriterListing()
 	if listing == nil {
 		return nil, errWriterRoute("listing", "absent")
@@ -421,7 +444,10 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 		}
 		elidedIntent = &transaction.ElidedIntent{Tickets: summary.Tickets, Releases: summary.Releases, Cost: summary.Cost, Has: summary.Has}
 	} else {
-		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
+		// The capture reads every intent file it does not take from the
+		// preload, so a file absent from its reads was taken from the
+		// preload at that digest (LGL-V0-845).
+		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys, preloadObserved(preload))
 		if err != nil {
 			return nil, err
 		}
@@ -613,4 +639,19 @@ func writerStage(ctx context.Context, name string, since time.Time) time.Time {
 	now := time.Now()
 	mutationStage(ctx, "fast."+name+"="+now.Sub(since).String())
 	return now
+}
+
+// preloadObserved is the preload capture as observed intent files, by their
+// journal path; nil without a preload.
+func preloadObserved(tree *intent.Tree) map[string]journal.PhysicalFile {
+	if tree == nil {
+		return nil
+	}
+	out := make(map[string]journal.PhysicalFile, len(tree.Files))
+	for _, f := range tree.Files {
+		if f.Raw != nil {
+			out["intent/"+f.Path] = journal.PhysicalFile{Sha256: f.Sha256, Bytes: len(f.Raw)}
+		}
+	}
+	return out
 }

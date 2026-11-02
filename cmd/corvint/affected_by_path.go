@@ -44,8 +44,11 @@ type affectedByPathReceipt struct {
 	// Degradations is the plan's AFP-V0-846 self-binary freshness, as the
 	// affected-plan/1 receipt carries it.
 	Degradations []string `json:"degradations,omitempty"`
-	Mutates      bool     `json:"mutates"`
-	OK           bool     `json:"ok"`
+	// Warning is the ACX-V0-851 --worktree warning (HEAD, the dirty count
+	// and the unpinned statement), as the affected-plan/1 receipt carries it.
+	Warning string `json:"warning,omitempty"`
+	Mutates bool   `json:"mutates"`
+	OK      bool   `json:"ok"`
 }
 
 // runAffectedByPath plans the union of the named paths once, then selects each
@@ -58,9 +61,12 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 		return 2
 	}
 	// AFP-V0-846: a stale or unverified binary is named here as on the plan.
-	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stderr).(affectedReceipt)
+	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr).(affectedReceipt)
 	result := affectedByPath(receipt, graph, invocation.PathList)
 	result.Degradations = receipt.Degradations
+	if invocation.Worktree {
+		result.Warning = receipt.Warning
+	}
 	if invocation.Format == "text" {
 		if _, err := io.WriteString(stdout, renderAffectedByPathText(result)); err != nil {
 			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write affected plan"})
@@ -122,6 +128,9 @@ func affectedByPath(receipt affectedReceipt, graph *affected.Graph, paths []stri
 func renderAffectedByPathText(result affectedByPathReceipt) string {
 	var out strings.Builder
 	fmt.Fprintf(&out, "affected by-path scope=%s paths=%d shared=%d revision=%s\n", result.Scope, len(result.Paths), len(result.Shared), result.Revision)
+	if result.Warning != "" {
+		fmt.Fprintf(&out, "warning %s\n", textWord(result.Warning))
+	}
 	for _, degradation := range result.Degradations {
 		fmt.Fprintf(&out, "degraded %s\n", degradation)
 	}

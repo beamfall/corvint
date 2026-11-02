@@ -50,7 +50,7 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 					// and points at the verbose form when it left anything out.
 					if !verbose && name != "help" {
 						for _, key := range r.Items[0].Obj.Keys {
-							if !strings.Contains(" usage implemented flags required example operation payloadKeys optionalPayloadKeys note verboseHelp ", " "+key+" ") && (name != "release" || key != "reasonCodes") {
+							if !strings.Contains(" usage implemented flags required example operation payloadKeys payloadKeyTypes optionalPayloadKeys note verboseHelp ", " "+key+" ") && (name != "release" || key != "reasonCodes") {
 								t.Fatalf("terse help carries %q: %v", key, args)
 							}
 						}
@@ -209,7 +209,7 @@ func TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes(t *testing.T) {
 	for word, verbs := range routes {
 		r := help(word, "--help")
 		warnings := strings.Join(r.Warnings, ";")
-		if r.Outcome != wire.OutcomeError || !strings.Contains(warnings, "unknown verb; did you mean") {
+		if r.Outcome != wire.OutcomeError || !strings.Contains(warnings, "unknown verb `"+word+"`; did you mean") {
 			t.Fatalf("%s --help: %s %v", word, r.Outcome, r.Warnings)
 		}
 		for _, verb := range verbs {
@@ -218,7 +218,7 @@ func TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes(t *testing.T) {
 			}
 		}
 	}
-	if r := help("no-such-verb", "--help"); strings.Join(r.Warnings, ";") != "unknown verb; run `corvint-tasks help`" {
+	if r := help("no-such-verb", "--help"); strings.Join(r.Warnings, ";") != "unknown verb `no-such-verb`; run `corvint-tasks help`" {
 		t.Fatalf("unmatched word hint: %v", r.Warnings)
 	}
 }

@@ -353,6 +353,36 @@ are URL templates, not component source files. This slice makes neither missing 
   unknown forces `full-suite-required`. Failure mode: a server-only change that could break any
   screen read `no-navigation-impact` and skipped every browser test. Non-goal: an exemption
   declaration, which needs its own owner-declared contract.
+- `ANL-V0-810`: (accepted under the owner's standing auto-accept (2026-11-01); V1-2713) The map
+  manifest MAY declare `impact_exempt`: 1 to 64 entries `{"path": GLOB, "reason": TEXT}`, each a
+  unique repository-relative glob in the `router_globs` syntax (`**` occupies a whole segment) with
+  a non-empty reason. `flows appmap impact` reads it from the `--root` manifest at the map revision.
+  A changed path that would read unknown `non-ui-path` (ANL-V0-048) and that an entry matches is
+  counted under `ignored_paths` instead and listed under `exempt` with the path, the pattern, the
+  reason and the declaring `MANIFEST:LINE`. An exemption never covers a path a map element or an
+  endpoint places, a UI-extension path, a path whose extension names a template or script the
+  classifier does not read as UI (`.mts`, `.cts`, `.erb`, `.haml`, `.slim`, `.ejs`, `.njk`,
+  `.twig`, `.liquid`, `.mustache`, `.handlebars`, `.jinja`, `.jinja2`, `.j2`, `.jsp`, `.php`,
+  `.cshtml`, `.razor`, `.astro`, `.coffee`, `.styl`, `.tpl`; such a path still reads unknown
+  `non-ui-path`), the manifest itself or a test file the map records, and is never inferred. An undeclared non-UI path still reads unknown `non-ui-path` and forces
+  `full-suite-required`; a manifest held by an aliased root declares no exemption here. Failure
+  mode: a documentation-only change forced `full-suite-required` with no reviewed way to exempt it.
+  Non-goal: exempting a UI path or a test file. Rollback: remove `impact_exempt` from the manifest
+  type and its use in `Impact`.
+- `ANL-V0-811`: (accepted under the owner's standing auto-accept (2026-11-01); V1-1236) Five step
+  forms stay named uncertainty in ANL-V0-035 step effects, never an inferred edge or effect, because
+  no pinned static evidence says what the click or call does: a click on a test-id locator
+  (`page.getByTestId(X).click()`), a click on a raw selector (`page.click(SELECTOR)` or
+  `page.locator(SELECTOR).click()`), a call through a property-bound locator (`this.FIELD.click()`,
+  FIELD not `page`), a method of a class that `extends` another, and a call to a spec-local helper
+  (a bare function call, whether or not the spec declares it). Each makes the step `unknown` with
+  `effect_ref` at the call's own `PATH:LINE` and `effect_call` naming the call (`click`, the
+  helper's name, or `extends` at the construction); a `getByRole('link', ...)` click stays the only
+  navigation-only click. The page-object model follows inherited methods and spec-local helpers
+  one anchored hop at a time instead (SKH-V0-012); step effects do not reuse that model. Failure
+  mode: an unclassified click read as navigation lets a prefix flag a step that changes state.
+  Non-goal: resolving a test-id or selector click to navigation from DOM or runtime evidence.
+  Rollback: none needed; this records existing behaviour.
 - `ANL-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2697, issue #1803)
   A changed test file the map records that is not a spec (a page object, workflow, scenario or
   helper) selects every spec that imports it, directly or through other test files, by walking the
@@ -626,6 +656,8 @@ unknown `remedy` (the declaration that would resolve it, or the stated uncertain
 | ANL-V0-047 | `internal/appmap/impacthop.go` `references` | `TestANLV0047IndexIdentifiersDoNotHideTheIndexFileReference` |
 | ANL-V0-048 | `internal/appmap/impact.go` `Impact` | `TestANLV0048RubyOnlyChangeFailsClosed`, `TestANLV0015RouterChangeReachesDescendants`, `TestANLV0016UnknownForcesFullSuite` |
 | ANL-V0-049 | `internal/appmap/impact.go` `importingSpecs`, `testGraphIncomplete` | `TestANLV0049PageObjectOnlyChangeSelectsImportingSpecs`, `TestANLV0049GraphIncompleteSourcesAndHopImporters` |
+| ANL-V0-810 | `internal/appmap/impact.go` `impactExemptions`, `internal/appmap/manifest.go` `validateImpactExempt` | `TestANLV0810DeclaredImpactExemption` |
+| ANL-V0-811 | `internal/appmap/effects.go` `call`, `method`, `construct` | `TestANLV0811StepEffectLimitsStayNamed`, `TestANLV0035StepEffects` |
 | ANL-V0-060 | `cmd/corvint/affected_appmap.go` `affectedBindImpactReport`, `cmd/corvint/affected.go`, `internal/appflows/repositories.go` `OpenCheckout` | `TestANLV0060AffectedBindsReportToDeclaredRepository` |
 | ANL-V0-061 | `cmd/corvint/affected_appmap.go` | `TestANLV0060AffectedBindsReportToDeclaredRepository` |
 | ANL-V0-062 | `cmd/corvint/affected_appmap.go`, `internal/appmap/impact.go` | `TestANLV0060AffectedBindsReportToDeclaredRepository` |

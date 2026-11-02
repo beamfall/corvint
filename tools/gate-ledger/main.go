@@ -7,8 +7,10 @@
 // Usage:
 //
 //	gate-ledger run STEP -- CMD [ARG...]   run CMD unless the ledger holds a pass for STEP's inputs
-//	gate-ledger go-test -- GO_TEST [FLAG...] run the resolved packages through Go's own test cache
-//	                                        and the unresolved packages under a tree-keyed record
+//	gate-ledger go-test [--packages LIST] -- GO_TEST [FLAG...]
+//	                                        run the resolved packages through Go's own test cache
+//	                                        and the unresolved packages under a tree-keyed record;
+//	                                        --packages limits the run to LIST's go list patterns
 //	gate-ledger plan STEP...                print HIT or RUN per step; reads nothing but the ledger
 //
 // Every doubt is a RUN: a step with no declared scope, a worktree the tool cannot
@@ -39,10 +41,12 @@ import (
 
 const (
 	schema      = "gate-ledger/1"
-	maxRecords  = 4096
+	maxRecords  = 32768 // about 88 h at 370 records an hour (GL-V0-910)
 	prefixOut   = "gate-ledger: "
 	treeScope   = "tree"
 	neverScope  = "never"
+	goScope     = "@go"
+	rootScope   = "@root"
 	unresolved  = "go-test-unresolved"
 	packageStep = "go-test-package"
 	toolingPath = "Makefile"
@@ -56,9 +60,13 @@ const listFields = "ImportPath,Dir,Module,Deps,GoFiles,CgoFiles,IgnoredGoFiles,T
 var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
 
 // scopes declares what each `make gate` step reads, as repository-relative
-// directory prefixes (trailing slash), exact paths, or `*.ext` suffix globs over
-// the whole tree. `tree` keys on the whole worktree; `never` always runs. A step
-// absent here always runs and is never recorded (GL-V0-003).
+// directory prefixes (trailing slash), exact paths, `*.ext` suffix globs over
+// the whole tree, `DIR/*.ext` globs whose `*` stays within one path component,
+// `@root` (every root-level path) or `@go` (every Go build input: a *.go,
+// go.mod, go.sum or go.work file, and every path under a directory that holds a
+// .go file, so embedded files and testdata count; GL-V0-600). `tree` keys on
+// the whole worktree; `never` always runs. A step absent here always runs and is
+// never recorded (GL-V0-003).
 var scopes = map[string][]string{
 	"host-adapter-test":             {treeScope},
 	"go-version":                    {},
@@ -90,6 +98,11 @@ var scopes = map[string][]string{
 	"host-package-versions-check":   {treeScope},
 	"host-package-versions-test":    {},
 	"diagnostic-coverage-check":     {treeScope},
+	// GL-V0-601 (V1-3580, V1-4099): the batch-precheck steps whose inputs
+	// corvint-self-development-v0.md ASD-V0-944 and ASD-V0-051 declare, so a
+	// post-seal precheck whose only new path is a CEM or a build log hits.
+	"selection-baseline-check": {goScope, rootScope, ".github/cishards/", "benchmarks/selection-baseline/"},
+	"capability-catalog-check": {goScope, rootScope, "docs/*.md"},
 }
 
 type record struct {
@@ -102,6 +115,7 @@ type record struct {
 	Host       string   `json:"host"`
 	Packages   []string `json:"packages,omitempty"`
 	Bound      string   `json:"bound,omitempty"` // how a per-package bound was proven (GL-V0-009)
+	Scope      []string `json:"scope,omitempty"` // the --packages patterns of a scoped go-test (GL-V0-720)
 }
 
 // packageKey is one resolved package's per-package content key, or the reason
@@ -138,6 +152,7 @@ type ledger struct {
 	dir       string
 	dirErr    string
 	identity  string
+	scope     []string // go-test --packages patterns; nil means ./... (GL-V0-720)
 	stdout    io.Writer
 	stderr    io.Writer
 }
@@ -163,11 +178,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 		return open(stdout, stderr).runStep(step, nil, command)
 	case "go-test":
-		_, command, ok := splitCommand(append([]string{unresolved}, args[1:]...))
+		scope, rest, ok := packagesFlag(args[1:])
 		if !ok {
 			return usage(stderr)
 		}
-		return open(stdout, stderr).goTest(command)
+		_, command, ok := splitCommand(append([]string{unresolved}, rest...))
+		if !ok {
+			return usage(stderr)
+		}
+		l := open(stdout, stderr)
+		l.scope = scope
+		return l.goTest(command)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
@@ -178,8 +199,35 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func usage(stderr io.Writer) int {
-	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test -- GO_TEST [FLAG...] | plan STEP...")
+	fmt.Fprintln(stderr, "usage: gate-ledger run STEP -- CMD [ARG...] | go-test [--packages LIST] -- GO_TEST [FLAG...] | plan STEP...")
 	return 2
+}
+
+// packagesFlag strips a leading `--packages LIST` or `--packages=LIST` (GL-V0-720): LIST's
+// whitespace- or comma-separated go list patterns. It refuses an empty LIST and a pattern
+// that looks like a flag; without the flag it returns args unchanged and a nil scope.
+func packagesFlag(args []string) ([]string, []string, bool) {
+	var list string
+	switch {
+	case len(args) > 1 && args[0] == "--packages":
+		list, args = args[1], args[2:]
+	case len(args) > 0 && strings.HasPrefix(args[0], "--packages="):
+		list, args = strings.TrimPrefix(args[0], "--packages="), args[1:]
+	case len(args) > 0 && args[0] == "--packages":
+		return nil, nil, false
+	default:
+		return nil, args, true
+	}
+	scope := strings.FieldsFunc(list, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+	if len(scope) == 0 {
+		return nil, nil, false
+	}
+	for _, pattern := range scope {
+		if strings.HasPrefix(pattern, "-") {
+			return nil, nil, false
+		}
+	}
+	return scope, args, true
 }
 
 // splitCommand parses `STEP -- CMD ARG...`.
@@ -254,7 +302,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	if code != 0 {
 		return code
 	}
-	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages}); err != nil {
+	if err := l.record(record{Schema: schema, Step: step, Key: key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: packages, Scope: l.scope}); err != nil {
 		fmt.Fprintf(l.stderr, "%sRECORD %s failed: %s\n", prefixOut, step, err)
 		return 0
 	}
@@ -267,12 +315,22 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 // and the unresolved packages, which run with -count=1 under a tree-keyed
 // record (GL-V0-004). When the partition cannot be computed every package runs
 // with -count=1 under the tree key; when the bounds cannot be computed the
-// resolved packages run through the Go test cache alone, unrecorded.
+// resolved packages run through the Go test cache alone, unrecorded. A --packages
+// scope (GL-V0-720) replaces `./...` with its patterns throughout.
 func (l *ledger) goTest(goTest []string) int {
-	resolved, unresolvedPkgs, reason := l.partition()
+	patterns := []string{"./..."}
+	if l.scope != nil {
+		patterns = l.scope
+		fmt.Fprintf(l.stdout, "%sSCOPE packages %s\n", prefixOut, strings.Join(patterns, " "))
+	}
+	resolved, unresolvedPkgs, reason := l.partition(patterns)
 	if reason != "" {
 		fmt.Fprintf(l.stdout, "%sPARTITION unavailable: %s; every package runs uncached\n", prefixOut, reason)
-		return l.runStep(unresolved, []string{"./..."}, append(append([]string{}, goTest...), "-count=1", "./..."))
+		return l.runStep(unresolved, patterns, append(append(append([]string{}, goTest...), "-count=1"), patterns...))
+	}
+	if l.scope != nil && len(resolved)+len(unresolvedPkgs) == 0 {
+		fmt.Fprintf(l.stderr, "%sSCOPE packages %s matches no packages to test\n", prefixOut, strings.Join(patterns, " "))
+		return 1
 	}
 	fmt.Fprintf(l.stdout, "%sPARTITION %d resolved packages under per-package keys, %d unresolved under the tree key\n", prefixOut, len(resolved), len(unresolvedPkgs))
 	code := 0
@@ -296,7 +354,7 @@ func (l *ledger) goTest(goTest []string) int {
 	return code
 }
 
-func (l *ledger) partition() (resolved, unresolvedPkgs []string, reason string) {
+func (l *ledger) partition(patterns []string) (resolved, unresolvedPkgs []string, reason string) {
 	if l.root == "" {
 		return nil, nil, "no repository root"
 	}
@@ -304,9 +362,9 @@ func (l *ledger) partition() (resolved, unresolvedPkgs []string, reason string) 
 	if err != nil {
 		return nil, nil, err.Error()
 	}
-	listed, err := output(l.root, "go", "list", "./...")
+	listed, err := output(l.root, "go", append([]string{"list"}, patterns...)...)
 	if err != nil {
-		return nil, nil, "go list ./... failed: " + err.Error()
+		return nil, nil, "go list " + strings.Join(patterns, " ") + " failed: " + err.Error()
 	}
 	flagged, err := output(l.root, "go", "run", "./tools/gate-affected-select", "-unresolved", module, l.root)
 	if err != nil {
@@ -613,7 +671,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 		if p.reason != "" || !passes[p.pkg] || code >= 128 {
 			continue
 		}
-		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound}
+		rec := record{Schema: schema, Step: packageStep, Key: p.key, Tree: l.tree, RecordedAt: started.UTC().Format(time.RFC3339), DurationMS: time.Since(started).Milliseconds(), Host: hostname(), Packages: []string{p.pkg}, Bound: p.bound, Scope: l.scope}
 		if err := l.record(rec); err != nil {
 			fmt.Fprintf(l.stderr, "%sRECORD %s %s failed: %s\n", prefixOut, packageStep, p.pkg, err)
 			continue
@@ -881,28 +939,76 @@ func (l *ledger) inputs(scope []string) string {
 			return "tree " + l.tree
 		}
 	}
+	var goDirs map[string]bool
+	for _, s := range scope {
+		if s == goScope {
+			goDirs = goDirectories(l.entries)
+		}
+	}
 	h := sha256.New()
 	for _, entry := range l.entries {
-		if inScope(entry.path, scope) || inScope(entry.path, tooling) {
+		if inScope(entry.path, scope) || inScope(entry.path, tooling) || (goDirs != nil && goInput(entry.path, goDirs)) {
 			fmt.Fprintf(h, "%s\n", entry.line)
 		}
 	}
 	return "entries " + hex.EncodeToString(h.Sum(nil))
 }
 
-func inScope(path string, scope []string) bool {
+// goDirectories is every directory ("." for the root) that holds a .go entry.
+func goDirectories(entries []treeEntry) map[string]bool {
+	dirs := map[string]bool{}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.path, ".go") {
+			dirs[path.Dir(entry.path)] = true
+		}
+	}
+	return dirs
+}
+
+// goInput reports whether p is a Go build input under `@go` (GL-V0-600): a Go
+// source or module file anywhere, or any path below a directory that holds a
+// .go file, which covers every file a //go:embed pattern can name.
+func goInput(p string, goDirs map[string]bool) bool {
+	switch path.Base(p) {
+	case "go.mod", "go.sum", "go.work", "go.work.sum":
+		return true
+	}
+	if strings.HasSuffix(p, ".go") {
+		return true
+	}
+	for d := path.Dir(p); ; d = path.Dir(d) {
+		if goDirs[d] {
+			return true
+		}
+		if d == "." || d == "/" {
+			return false
+		}
+	}
+}
+
+func inScope(p string, scope []string) bool {
 	for _, s := range scope {
 		switch {
+		case s == goScope:
+			// Matched by goInput, which needs the whole tree.
+		case s == rootScope:
+			if !strings.Contains(p, "/") {
+				return true
+			}
 		case strings.HasPrefix(s, "*."):
-			if strings.HasSuffix(path, s[1:]) {
+			if strings.HasSuffix(p, s[1:]) {
+				return true
+			}
+		case strings.Contains(s, "*"):
+			if ok, err := path.Match(s, p); err == nil && ok {
 				return true
 			}
 		case strings.HasSuffix(s, "/"):
-			if strings.HasPrefix(path, s) {
+			if strings.HasPrefix(p, s) {
 				return true
 			}
 		default:
-			if path == s {
+			if p == s {
 				return true
 			}
 		}
@@ -1079,8 +1185,28 @@ func (l *ledger) record(rec record) error {
 	return l.prune()
 }
 
-// prune keeps the ledger bounded at maxRecords, dropping the oldest records.
+// pruneStamp names the file whose modification time is the last prune scan, and
+// pruneInterval how long a scan stays fresh (GL-V0-911).
+const (
+	pruneStamp    = "prune.stamp"
+	pruneInterval = 5 * time.Minute
+)
+
+// prune keeps the ledger bounded at maxRecords, dropping the oldest records, and
+// reclaims free lock files. It scans the directory at most once per pruneInterval;
+// any other call costs one stat (GL-V0-911).
 func (l *ledger) prune() error {
+	stamp := filepath.Join(l.dir, pruneStamp)
+	if info, err := os.Lstat(stamp); err == nil && info.Mode().IsRegular() && time.Since(info.ModTime()) < pruneInterval {
+		return nil
+	}
+	now := time.Now()
+	if err := os.Chtimes(stamp, now, now); err != nil {
+		if err := os.WriteFile(stamp, nil, 0o600); err != nil {
+			return err
+		}
+	}
+	l.reclaimLocks()
 	matches, err := filepath.Glob(filepath.Join(l.dir, "*.json"))
 	if err != nil || len(matches) <= maxRecords {
 		return err
@@ -1104,21 +1230,104 @@ func (l *ledger) prune() error {
 	return nil
 }
 
+// locksDirName is the lock namespace (GL-V0-912). Older binaries create KEY.lock at the
+// top of the ledger directory and never re-check the inode, so this protocol uses a
+// directory they never touch, and the top-level files are never unlinked (GL-V0-913).
+const (
+	locksDirName    = "locks"
+	maxLockAttempts = 8
+)
+
+// lockHook, nil outside tests, observes each lock attempt: "open" after the lock file is
+// opened and "flock" once it is locked, before the inode re-check.
+var lockHook func(step, event string)
+
+// locksDir returns the lock namespace, creating it private; an entry there that is not a
+// plain directory makes locking unavailable.
+func (l *ledger) locksDir() (string, error) {
+	dir := filepath.Join(l.dir, locksDirName)
+	if err := os.Mkdir(dir, 0o700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is not a plain directory", dir)
+	}
+	return dir, nil
+}
+
+// reclaimLocks removes every lock file of the namespace that no run holds, taking each
+// lock without waiting and removing the file while holding it (GL-V0-913).
+func (l *ledger) reclaimLocks() {
+	matches, _ := filepath.Glob(filepath.Join(l.dir, locksDirName, "*.lock"))
+	for _, name := range matches {
+		f, err := os.OpenFile(name, os.O_RDWR, 0o600)
+		if err != nil {
+			continue
+		}
+		if lockExclusive(f, true) == nil {
+			if sameFile(f, name) {
+				os.Remove(name)
+			}
+			unlock(f)
+		}
+		f.Close()
+	}
+}
+
+// sameFile reports whether path, not followed, still names the open file f.
+func sameFile(f *os.File, path string) bool {
+	held, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	named, err := os.Lstat(path)
+	return err == nil && os.SameFile(held, named)
+}
+
 // lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record.
+// waiter reads the record. The holder removes locks/KEY.lock before releasing it,
+// and an acquirer whose file was removed or replaced meanwhile opens the path
+// again, at most maxLockAttempts times, so no lock file outlives its run, two
+// holders never coexist, and a symlinked lock file cannot loop (GL-V0-912).
 func (l *ledger) lock(key, step string) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(l.dir, key+".lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	dir, err := l.locksDir()
 	if err != nil {
 		return nil, err
 	}
-	if err := lockExclusive(f, true); err != nil {
-		fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
-		if err := lockExclusive(f, false); err != nil {
-			f.Close()
+	path := filepath.Join(dir, key+".lock")
+	waited := false
+	for attempt := 0; attempt < maxLockAttempts; attempt++ {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+		if err != nil {
 			return nil, err
 		}
+		if lockHook != nil {
+			lockHook(step, "open")
+		}
+		if err := lockExclusive(f, true); err != nil {
+			if !waited {
+				fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
+				waited = true
+			}
+			if err := lockExclusive(f, false); err != nil {
+				f.Close()
+				return nil, err
+			}
+		}
+		if lockHook != nil {
+			lockHook(step, "flock")
+		}
+		if sameFile(f, path) {
+			return func() { os.Remove(path); unlock(f); f.Close() }, nil
+		}
+		unlock(f)
+		f.Close()
 	}
-	return func() { unlock(f); f.Close() }, nil
+	return nil, fmt.Errorf("%s kept changing under %d lock attempts", path, maxLockAttempts)
 }
 
 // execute runs command with inherited stdio and returns its exit status; a

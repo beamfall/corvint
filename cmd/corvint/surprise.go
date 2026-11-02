@@ -136,9 +136,9 @@ func runSurprise(ctx context.Context, arguments []string, stdout, stderr io.Writ
 	return 0
 }
 
-const surpriseHelp = `
-Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON:
+const surpriseHelp = `Touch-set surprise (experimental, TSS-V0 proposed), read-only, JSON.
 
+Usage:
   corvint [--root PATH] surprise --task TEXT --base REV --target REV
            [--subject PATH] [--limit N]
 

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -41,6 +42,9 @@ const (
 // is not checked.
 type refValue struct {
 	value, mode, class, reason string
+	// re is a route regular expression anchored at both ends that compiles as RE2; routeCheck
+	// evaluates it against the screens (AMAP-V0-816).
+	re *regexp.Regexp
 }
 
 type testRef struct {
@@ -49,8 +53,13 @@ type testRef struct {
 	line int
 }
 
-// scanRefs reads the route, selector and endpoint references of one test source (AMAP-V0-091).
-func scanRefs(text string) []testRef {
+// httpMethods are the exact first arguments of a `cy.intercept(method, url)` call (AMAP-V0-814).
+var httpMethods = map[string]bool{"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true, "HEAD": true, "OPTIONS": true}
+
+// scanRefs reads the route, selector and endpoint references of one test source (AMAP-V0-091),
+// Cypress `cy` calls included (AMAP-V0-814). testIDAttrs are the configured test-id attributes
+// besides data-testid (AMAP-V0-815).
+func scanRefs(text string, testIDAttrs ...string) []testRef {
 	toks, _ := lexJS(text)
 	out := []testRef{}
 	for i := 1; i+1 < len(toks); i++ {
@@ -65,7 +74,31 @@ func scanRefs(text string) []testRef {
 			arg = refValue{reason: "non-literal-value"}
 		}
 		add := func(kind string, v refValue) { out = append(out, testRef{kind: kind, v: v, line: t.line}) }
+		cy := i >= 2 && toks[i-2].kind == tokIdent && toks[i-2].text == "cy" && (i < 3 || !isPunct(toks[i-3], "."))
+		route := func(arg refValue) {
+			if arg.re != nil {
+				arg.class = "" // an evaluated expression is not labelled (AMAP-V0-816)
+			}
+			add(refRoute, arg)
+		}
 		switch {
+		case cy && t.text == "visit":
+			route(arg)
+		case cy && t.text == "intercept":
+			if arg.reason == "" && arg.mode == matchExact && httpMethods[arg.value] && i+4 < len(toks) && isPunct(toks[i+3], ",") {
+				arg = refArg(toks, i+4)
+			}
+			for _, v := range endpointSegments(arg) {
+				add(refEndpoint, v)
+			}
+		case cy && t.text == "get":
+			if arg.reason == "" && strings.HasPrefix(arg.value, "@") {
+				add(refSelector, refValue{reason: "cypress-alias"})
+				continue
+			}
+			for _, v := range selectorNames("locator", arg, testIDAttrs...) {
+				add(refSelector, v)
+			}
 		case t.text == "goto" || t.text == "waitForURL" || t.text == "toHaveURL":
 			// A string's `*` is a URL glob; a regular expression's escaped `*` is a literal and keeps
 			// its label (AMAP-V0-092/095).
@@ -75,18 +108,130 @@ func scanRefs(text string) []testRef {
 					arg.reason = "glob-without-literal"
 				}
 			}
-			add(refRoute, arg)
+			route(arg)
 		case t.text == "route":
 			for _, v := range endpointSegments(arg) {
 				add(refEndpoint, v)
 			}
 		case selectorKinds[t.text].kind != "":
-			for _, v := range selectorNames(t.text, arg) {
+			for _, v := range selectorNames(t.text, arg, testIDAttrs...) {
 				add(refSelector, v)
 			}
 		}
 	}
 	return out
+}
+
+// anchoredRegex compiles a regular-expression literal anchored at both ends: `^` then `/` or
+// `\/`, an unescaped final `$`, and no flag but `i` (AMAP-V0-816). It is nil for any other.
+func anchoredRegex(src string) *regexp.Regexp {
+	end := strings.LastIndexByte(src, '/')
+	if end <= 0 {
+		return nil
+	}
+	body, flags := src[1:end], src[end+1:]
+	if flags != "" && flags != "i" || !(strings.HasPrefix(body, "^/") || strings.HasPrefix(body, `^\/`)) || !strings.HasSuffix(body, "$") {
+		return nil
+	}
+	escapes := 0
+	for k := len(body) - 2; k >= 0 && body[k] == '\\'; k-- {
+		escapes++
+	}
+	if escapes%2 == 1 || topLevelAlternation(body) {
+		return nil
+	}
+	if flags == "i" {
+		body = "(?i)" + body
+	}
+	re, err := regexp.Compile(body)
+	if err != nil {
+		return nil
+	}
+	return re
+}
+
+// topLevelAlternation reports whether body holds an unescaped `|` outside every group and class,
+// which leaves `^` and `$` anchoring only one branch each (AMAP-V0-816).
+func topLevelAlternation(body string) bool {
+	depth, class := 0, false
+	for k := 0; k < len(body); k++ {
+		switch c := body[k]; {
+		case c == '\\':
+			k++
+		case class:
+			class = c != ']'
+		case c == '[':
+			class = true
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+		case c == '|' && depth <= 0:
+			return true
+		}
+	}
+	return false
+}
+
+// testIDAttrs reads the test-id attributes that a `testIdAttribute: '<name>'` property or a
+// `setTestIdAttribute('<name>')` call configures, data-testid aside (AMAP-V0-815).
+func testIDAttrs(texts ...[]byte) []string {
+	seen := map[string]bool{}
+	for _, text := range texts {
+		toks, _ := lexJS(string(text))
+		for i := 0; i+2 < len(toks); i++ {
+			t, v := toks[i], toks[i+2]
+			if v.kind != tokString || v.inexact || v.regex != "" || v.text == "" || i+3 >= len(toks) {
+				continue
+			}
+			switch {
+			case (t.kind == tokIdent || t.kind == tokString) && t.text == "testIdAttribute" && isPunct(toks[i+1], ":") &&
+				(isPunct(toks[i+3], ",") || isPunct(toks[i+3], "}")):
+			case t.kind == tokIdent && t.text == "setTestIdAttribute" && isPunct(toks[i+1], "(") && isPunct(toks[i+3], ")"):
+			default:
+				continue
+			}
+			if v.text != "data-testid" {
+				seen[v.text] = true
+			}
+		}
+	}
+	out := make([]string, 0, len(seen))
+	for n := range seen {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// testIDName reads the value of an exact `[<attr>=value]` locator whose attribute is data-testid
+// or a configured test-id attribute (AMAP-V0-815).
+func testIDName(s string, attrs []string) (string, bool) {
+	if m := testIDAttribute.FindStringSubmatch(s); m != nil {
+		return m[1], true
+	}
+	inner, ok := strings.CutPrefix(s, "[")
+	if inner, ok = strings.CutSuffix(inner, "]"); !ok {
+		return "", false
+	}
+	attr, value, ok := strings.Cut(inner, "=")
+	if !ok {
+		return "", false
+	}
+	for _, a := range attrs {
+		if attr != a {
+			continue
+		}
+		for _, q := range []string{`"`, "'"} {
+			if len(value) >= 2 && strings.HasPrefix(value, q) && strings.HasSuffix(value, q) {
+				value = value[1 : len(value)-1]
+			}
+		}
+		if value != "" && !strings.ContainsAny(value, `"']`) {
+			return value, true
+		}
+	}
+	return "", false
 }
 
 // refArg classifies one argument (AMAP-V0-092): a whole literal is exact; a template with a
@@ -99,7 +244,7 @@ func refArg(toks []token, j int) refValue {
 	switch {
 	case t.regex != "":
 		if lit := regexLiteral(t.regex); lit != "" {
-			v = refValue{value: lit, mode: matchPrefix, class: classRegex}
+			v = refValue{value: lit, mode: matchPrefix, class: classRegex, re: anchoredRegex(t.regex)}
 		} else {
 			v = refValue{reason: "regex-without-literal"}
 		}
@@ -170,7 +315,7 @@ func regexLiteral(src string) string {
 
 // selectorNames reads the checkable names of one selector call (AMAP-V0-091): a test id, and the
 // id, class and `data-*` names of a CSS locator. Text-level kinds are counted, never checked.
-func selectorNames(method string, v refValue) []refValue {
+func selectorNames(method string, v refValue, testIDAttrs ...string) []refValue {
 	if v.reason != "" {
 		return []refValue{v}
 	}
@@ -183,8 +328,8 @@ func selectorNames(method string, v refValue) []refValue {
 	}
 	s := v.value
 	if v.mode == matchExact {
-		if m := testIDAttribute.FindStringSubmatch(s); m != nil {
-			return []refValue{{value: m[1], mode: matchExact}}
+		if name, ok := testIDName(s, testIDAttrs); ok {
+			return []refValue{{value: name, mode: matchExact}}
 		}
 	}
 	switch {
@@ -412,6 +557,9 @@ func (x *nameIndex) templated(name string) bool {
 // whether the reference misses, its false-positive class, or why it is not checked.
 func routeCheck(x *screenIndex, v refValue) (miss bool, class, reason string) {
 	path, ok := x.urlPath(v.value)
+	if !ok && v.re != nil {
+		path, ok = v.value, true // an evaluated expression may name the path without the base path
+	}
 	if !ok && v.mode == matchPrefix && path == "" {
 		path, ok = "/", true // a prefix that ends inside the hash-routing prefix names the root
 	}
@@ -440,11 +588,21 @@ func routeCheck(x *screenIndex, v refValue) (miss bool, class, reason string) {
 	} else {
 		concrete = splitSegments(path)
 	}
+	// Under the i flag the expression's literal start is compared without case (AMAP-V0-816).
+	fold := v.re != nil && strings.HasPrefix(v.re.String(), "(?i)")
+	if fold {
+		concrete, partial = lowerAll(concrete), strings.ToLower(partial)
+	}
 	matched, catchAll := false, false
 	for _, c := range routes {
 		r, splat := c.r, c.splat
+		if fold {
+			r.segments = lowerAll(r.segments)
+		}
 		var hit bool
 		switch {
+		case v.re != nil && !splat && !parameterized(r.segments):
+			hit = x.regexReaches(v.re, r.segments)
 		case v.mode == matchExact && !splat:
 			hit = len(r.segments) == len(concrete) && segmentsMatch(r.segments, concrete)
 		case v.mode == matchExact:
@@ -468,6 +626,44 @@ func routeCheck(x *screenIndex, v refValue) (miss bool, class, reason string) {
 		return true, classCatchAll, ""
 	}
 	return true, "", ""
+}
+
+func lowerAll(ss []string) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = strings.ToLower(s)
+	}
+	return out
+}
+
+func parameterized(segments []string) bool {
+	for _, s := range segments {
+		if strings.Contains(s, "{}") {
+			return true
+		}
+	}
+	return false
+}
+
+// regexReaches reports whether an anchored route expression matches a parameter-free template's
+// path, with or without the base path and hash prefix (AMAP-V0-816).
+func (x *screenIndex) regexReaches(re *regexp.Regexp, segments []string) bool {
+	path := "/" + strings.Join(segments, "/")
+	forms := []string{path}
+	if x.hashPrefix != "" {
+		forms = append(forms, "/"+x.hashPrefix+path)
+	}
+	if x.basePath != "" {
+		for _, f := range forms {
+			forms = append(forms, strings.TrimSuffix(x.basePath, "/")+f)
+		}
+	}
+	for _, f := range forms {
+		if re.MatchString(f) {
+			return true
+		}
+	}
+	return false
 }
 
 // prefixMatch reports whether some URL starting with the concrete segments and then partial can
@@ -536,6 +732,10 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 	if err != nil {
 		return nil, err
 	}
+	configs, err := playwrightConfigs(r, m.Revision)
+	if err != nil {
+		return nil, err
+	}
 	// A map test file of an aliased root is read at the map's pin of that root, so that root must
 	// be bound with --repo or --workspace; an unbound one refuses the check instead of counting
 	// its files unread and passing with no references (SKH-V0-189, AMAP-V0-350).
@@ -558,6 +758,12 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 		if err != nil {
 			return nil, err
 		}
+		// A bound aliased root's own Playwright config may set the attribute its tests use.
+		cfg, err := playwrightConfigs(ar, arev)
+		if err != nil {
+			return nil, err
+		}
+		configs = append(configs, cfg...)
 		unread += n
 		for p, b := range more {
 			if prev, ok := testRepo[p]; ok {
@@ -614,6 +820,7 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 			skipped++
 		}
 	}
+	attrs := configuredTestIDAttrs(configs, tests)
 	names := newNameIndex(files)
 	idx := newScreenIndex(m.HashPrefix, m.BasePath, m.Screens)
 	type missKey struct{ kind, value, match, class string }
@@ -626,7 +833,7 @@ func CheckRefs(ctx context.Context, m *Map, sources []string, o Options) (*RefsR
 	}
 	sort.Strings(paths)
 	for _, p := range paths {
-		for _, ref := range scanRefs(string(tests[p])) {
+		for _, ref := range scanRefs(string(tests[p]), attrs...) {
 			references++
 			at := p + ":" + strconv.Itoa(ref.line)
 			v, miss, class, reason := ref.v, false, "", ref.v.reason
@@ -759,6 +966,43 @@ func readTestFiles(r repo, m *Map) (map[string][]byte, int, error) {
 		}
 	}
 	return out, unread, err
+}
+
+// configuredTestIDAttrs reads the test-id attributes configured in the map test files and in the
+// committed root playwright.config.* files read (AMAP-V0-815).
+func configuredTestIDAttrs(configs [][]byte, tests map[string][]byte) []string {
+	texts := append([][]byte{}, configs...)
+	for _, b := range tests {
+		texts = append(texts, b)
+	}
+	return testIDAttrs(texts...)
+}
+
+// playwrightConfigs reads every committed playwright.config.* at the root of r at rev.
+func playwrightConfigs(r repo, rev string) ([][]byte, error) {
+	configs := []string{}
+	for _, ext := range []string{"ts", "js", "mjs", "cjs", "mts", "cts"} {
+		configs = append(configs, "playwright.config."+ext)
+	}
+	entries, err := r.tree(rev, configs, len(configs))
+	if err != nil {
+		return nil, err
+	}
+	mine := []blobEntry{}
+	for _, e := range entries {
+		if e.size <= maxTestFileBytes {
+			mine = append(mine, e)
+		}
+	}
+	data, err := r.blobs(mine, maxTestFileBytes, maxTestFileBytes*len(configs))
+	if err != nil {
+		return nil, err
+	}
+	texts := [][]byte{}
+	for _, e := range mine {
+		texts = append(texts, data[e.oid])
+	}
+	return texts, nil
 }
 
 // readMapTests reads the map test files of one root (alias, "" for --root) at rev; a file whose

@@ -102,9 +102,9 @@ func runReads(arguments []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-const readsHelp = `
-Unplanned reads (experimental, URE-V0 proposed), JSON:
+const readsHelp = `Unplanned reads (experimental, URE-V0 proposed), JSON.
 
+Usage:
   corvint [--root PATH] reads [--limit N]
   corvint [--root PATH] reads enable
   corvint [--root PATH] reads disable

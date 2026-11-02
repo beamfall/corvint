@@ -76,11 +76,11 @@ func (Language) Units(ctx context.Context, root string) (affected.Result, error)
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	files, err := root.Files(func(name string) bool { return strings.HasSuffix(name, ".swift") })
+	files, err := root.Files(func(_, name string) bool { return strings.HasSuffix(name, ".swift") })
 	if err != nil {
 		return affected.Result{}, err
 	}
-	metadata, err := root.Files(metadataFile)
+	metadata, err := root.Files(affected.ByName(metadataFile))
 	if err != nil {
 		return affected.Result{}, err
 	}

@@ -44,6 +44,13 @@ set -eu
 # `path:N` in a code comment (Go, shell or any other source file), since only the document set
 # above is scanned, and whether an unpinned legacy citation still names the line it meant.
 #
+# Minimal fixture layout (DCG-V0-746, V1-3388), all read from the Git index, so stage each file:
+# this script at script/check-line-citations.sh, the scanned documents and the files they cite,
+# and both script/line-citation-legacy-documents.txt and script/line-citation-unpinned-inventory.txt.
+# Each list may hold only `#` comments: then no document is legacy and no unpinned citation is
+# allowed. docs/specs/REQUIREMENTS.tsv is optional; without it a bare continuation after a
+# requirement ID resolves to no spec.
+#
 # Every path this gate reads is resolved against the Git index, never the working
 # filesystem: the scanned document set and the tracked set come from `git ls-files`, and
 # each file's bytes from `:<path>` through `git cat-file --batch`. `make gate` must measure what a fresh
@@ -72,7 +79,9 @@ CHECK_LINE_CITATIONS_SELF=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)/${0##*/}
 export CHECK_LINE_CITATIONS_SELF
 cd "$root"
 
-perl - "$@" <<'PERL'
+# The program arrives on standard input, so the caller's standard input (the --show-changed
+# answers, DCG-V0-630) is passed on descriptor 3.
+perl - "$@" 3<&0 <<'PERL'
 use strict;
 use warnings;
 use Digest::SHA qw(sha256_hex);
@@ -287,6 +296,8 @@ my @repins;
 my ($repin_base, $repin_base_label, @suggestions);
 # DCG-V0-920/921: --repin --changed, and the files --selects REV names as changed.
 my ($repin_changed, %selects_changed);
+# DCG-V0-630: --repin --show-changed, and the changed spans it shows for a confirmation.
+my ($repin_show, @show_changed);
 # DCG-V0-921: the pinned citations into a file --selects REV names as changed.
 my @selected;
 # DCG-V0-920: the changed spans --repin --changed rewrote, printed for a read.
@@ -371,13 +382,24 @@ sub check {
         if (!$in_range || anchor_of($lines, @numbers) !~ /^\Q$pin\E/) {
             # DCG-V0-920: a span the diff from the base deletes is never moved, even when an identical
             # block survives elsewhere; the deletion guard runs before the hash relocation.
-            my $deleted = defined $repin_base && diff_deletes($path, $pin, @numbers);
+            my $deleted = defined $repin_base && diff_deletes($path, $pin, undef, @numbers);
             my @shifts = $deleted ? () : relocations($lines, $pin, @numbers);
             my $shift = @shifts == 1 && relocatable($lines, $shifts[0], @numbers) ? $shifts[0] : undef;
             $shift //= diff_relocation($path, $lines, $pin, @numbers) if defined $repin_base && !$deleted;
             $shift //= history_relocation($path, $lines, $pin, @numbers) if defined $repin_base && !$deleted;
             if (defined $shift) {
                 my $moved = shifted_token($token, $shift);
+                # DCG-V0-841 (V1-3671): the plain check has no base, so a surviving copy of lines the
+                # index deleted since HEAD looks like a move; --repin refuses that case, so the hint
+                # names the recovery instead of --repin.
+                my $head = defined $repin_base_label ? undef : head_commit();
+                if (defined $head && diff_deletes($path, $pin, $head, @numbers)) {
+                    my ($span) = $moved =~ /^`?([^`\@]+)/;
+                    push @failures, "$doc:$line_number  $token  cited lines were deleted since HEAD; an identical copy "
+                        . "survives at $moved, which --repin refuses to move to: restore the deleted lines, or cite the "
+                        . "surviving copy with a new anchor from `script/check-line-citations.sh --hash $span`";
+                    return;
+                }
                 push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
                     . "(script/check-line-citations.sh --repin rewrites it)";
                 push @repins, [$doc, $line_number, $token, $moved, $token_at];
@@ -395,7 +417,12 @@ sub check {
                 return;
             }
             if (defined $repin_base) {
-                my $suggested = diff_suggestion($token, $path, $lines, $pin, $first, $last, @extra);
+                my ($suggested, $old_numbers, $new_numbers) = diff_suggestion($token, $path, $lines, $pin, $first, $last, @extra);
+                # DCG-V0-630: --show-changed asks, on the first pass only, before writing it.
+                if (defined $suggested && $repin_show && ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) eq '1') {
+                    push @show_changed, [$doc, $line_number, $token, $suggested, $token_at, $path, $lines, $old_numbers, $new_numbers];
+                    return;
+                }
                 # DCG-V0-920 (V1-3342, V1-3413): --repin --changed writes the diff's mapping and the
                 # new anchor too, each listed for a read; without --changed it is only suggested.
                 if (defined $suggested && $repin_changed) {
@@ -622,16 +649,27 @@ sub history_relocation {
 # DCG-V0-920: whether the pin matched these lines at the base and a hunk with no new lines (a
 # pure deletion) removed any of them.
 sub diff_deletes {
-    my ($path, $pin, @numbers) = @_;
-    my $base = base_lines($path) or return 0;
+    my ($path, $pin, $commit, @numbers) = @_;
+    my $base = base_lines($path, $commit) or return 0;
     return 0 if grep { $_ < 1 || $_ > @$base } @numbers;
     return 0 unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
-    my $hunks = base_hunks($path) or return 0;
+    my $hunks = base_hunks($path, $commit) or return 0;
     for my $number (@numbers) {
         my ($moved, undef, $count) = map_line($hunks, $number);
         return 1 if !defined $moved && !$count;
     }
     return 0;
+}
+
+# DCG-V0-841: HEAD's commit for the plain check's deletion hint, or undef on an unborn HEAD.
+my $head_commit;
+sub head_commit {
+    return $head_commit eq q() ? undef : $head_commit if defined $head_commit;
+    open my $resolve, '-|', 'git', 'rev-parse', '--verify', '--quiet', 'HEAD^{commit}' or die "git rev-parse: $!\n";
+    chomp(my $commit = <$resolve> // '');
+    close $resolve;
+    $head_commit = $commit =~ /\A[0-9a-f]{40,64}\z/ ? $commit : '';
+    return $head_commit eq '' ? undef : $head_commit;
 }
 
 # For a pinned span whose text changed since the base, the span the diff maps it to and that
@@ -669,7 +707,7 @@ sub diff_suggestion {
     return undef if $deleted;
     return undef if grep { $_ < 1 || $_ > @$lines } @now;
     (my $suggested = $token) =~ s{:\d[\d,-]*\@[0-9a-f]+`\z}{":$span\@" . substr(anchor_of($lines, @now), 0, 8) . '`'}e;
-    return $suggested;
+    return wantarray ? ($suggested, \@numbers, \@now) : $suggested;
 }
 
 # DCG-V0-047: whether the text before a backticked `:N` names a citation's file: empty for a
@@ -711,7 +749,7 @@ sub shifted_token {
 
 # --hash prints one citation with its anchor appended, so an author can pin a citation
 # without computing the digest by hand.
-my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--changed] [--base <rev>]] | --selects <rev> | --hash <path:line[-line][,line]> ...\n";
+my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--changed | --show-changed] [--base <rev>]] | --selects <rev> | --hash <path:line[-line][,line]> ...\n";
 my ($repin, $verbose, $base_arg, $selects_base);
 my @original_argv = @ARGV;
 if (@ARGV && $ARGV[0] ne '--hash') {
@@ -722,11 +760,13 @@ if (@ARGV && $ARGV[0] ne '--hash') {
         elsif ($flag eq '--verbose') { $verbose = 1 }
         elsif ($flag eq '--base' && @flags) { $base_arg = shift @flags }
         elsif ($flag eq '--changed') { $repin_changed = 1 }
+        elsif ($flag eq '--show-changed') { $repin_show = 1 }
         elsif ($flag eq '--selects' && @flags) { $selects_base = shift @flags }
         else { die $usage }
     }
     die "--base needs --repin\n$usage" if defined $base_arg && !$repin;
     die "--changed needs --repin\n$usage" if $repin_changed && !$repin;
+    die "--show-changed needs --repin and excludes --changed\n$usage" if $repin_show && (!$repin || $repin_changed);
     die "--selects takes no other flag\n$usage" if defined $selects_base && ($repin || $verbose);
 }
 # DCG-V0-045: --repin proves moves against the diff from --base (default HEAD) to the index. An
@@ -771,7 +811,8 @@ if (@ARGV && !defined $repin && !$verbose && !defined $selects_base) {
 }
 
 my $legacy_rows = lines_of('script/line-citation-legacy-documents.txt')
-    or die "script/line-citation-legacy-documents.txt: not readable from the Git index\n";
+    or die "script/line-citation-legacy-documents.txt: not readable from the Git index; track it, even holding only "
+        . "`#` comments (the minimal fixture layout is the comment at the top of this script, DCG-V0-746)\n";
 for my $path (@$legacy_rows) {
     next if $path eq '' || $path =~ /^#/;
     die "script/line-citation-legacy-documents.txt: invalid scanned-document path: $path\n"
@@ -784,7 +825,8 @@ for my $path (@$legacy_rows) {
 # as `<document>\t<path>:<span>`. Rows are only ever deleted: a new or edited unpinned citation
 # has no row and fails, so a legacy table cannot drift silently onto a different non-blank line.
 my $inventory_rows = lines_of('script/line-citation-unpinned-inventory.txt')
-    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index\n";
+    or die "script/line-citation-unpinned-inventory.txt: not readable from the Git index; track it, even holding only "
+        . "`#` comments (the minimal fixture layout is the comment at the top of this script, DCG-V0-746)\n";
 for my $row (@$inventory_rows) {
     next if $row eq '' || $row =~ /^#/;
     my ($doc, $citation) = $row =~ /^([^\t]+)\t([^\t]+:\d[\d,-]*)$/
@@ -799,12 +841,23 @@ for my $doc (sort grep { scanned_doc($_) } keys %tracked) {
     my $line_number = 0;
     my $fenced = 0;
     my $current;
+    my %table_row;
     for my $doc_line (@$doc_lines) {
         my $line = $doc_line;
         ++$line_number;
         if ($line =~ /^\s*```/) { $fenced = !$fenced; next; }
         next if $fenced;
         if ($line !~ /\S/) { undef $current; next; }
+        # DCG-V0-744 (V1-3746): a repeated table row doubles every repin and merge conflict on its
+        # pinned citations, so the second copy fails, naming the first.
+        if ($line =~ /^\|.*\|\s*$/ && $line =~ /`[^`]*:\d[\d,-]*\@[0-9a-f]{4,64}`/) {
+            if (defined(my $first = $table_row{$line})) {
+                push @failures, "$doc:$line_number  duplicate table row: it repeats $doc:$first byte for byte, "
+                    . "pinned citations included; delete one copy";
+            } else {
+                $table_row{$line} = $line_number;
+            }
+        }
         while ($line =~ /`[^`]*`/g) {
             check_malformed($doc, $line_number, $&);
         }
@@ -881,7 +934,30 @@ if (defined $selects_base) {
     if (@selected) {
         print "line citations: selects line-citations-check: " . scalar(@selected)
             . " pinned citation(s) cite a file changed since $selects_base; run make line-citations-check\n";
-        print "  $_\n" for @selected;
+        # DCG-V0-980 (lane cit-u18 friction): each selected citation the index already breaks is
+        # labelled moved (a mechanical --repin) or with its reason, and one in a document the change
+        # does not edit is marked, so a lane sees before the seal which out-of-scope specs it moves.
+        my %reason;
+        for my $failure (@failures) {
+            my ($key, $why) = $failure =~ /\A(\S+  `[^`]*`)  (.*)\z/s or next;
+            $reason{$key} //= $why;
+        }
+        my ($broken, $moved, $outside) = (0, 0, 0);
+        for my $entry (@selected) {
+            my ($doc) = $entry =~ /\A(.*):\d+  /;
+            my $line = "  $entry";
+            if (defined(my $why = $reason{$entry})) {
+                $broken++;
+                if ($why =~ /--repin rewrites it\)\z/) { $moved++; $line .= "  [moved: --repin rewrites it]" }
+                else { $line .= "  [breaks: $why]" }
+                if (!$selects_changed{$doc}) { $outside++; $line .= "  [outside this change]" }
+            }
+            print "$line\n";
+        }
+        print "line citations: selects hint: $broken of " . scalar(@selected) . " selected citation(s) break at the "
+            . "index ($moved moved, " . ($broken - $moved) . " need a read); $outside sit in documents this change does "
+            . "not edit; run script/check-line-citations.sh --repin and commit the rewritten documents before sealing "
+            . "(DCG-V0-980)\n" if $broken;
     } else {
         print "line citations: no pinned citation cites a file changed since $selects_base\n";
     }
@@ -893,8 +969,28 @@ if (defined $selects_base) {
 # it then stages exactly those rewritten documents (the index held their pre-rewrite bytes, so
 # nothing else is staged) and reruns itself until a pass rewrites nothing, at most five passes, so a
 # transitive chain resolves in one call and the index-reading check passes with no manual staging.
-# Every other finding is left for the ordinary check to report.
+# DCG-V0-842: every other finding is printed with its reason and fails the run.
 if ($repin) {
+    # DCG-V0-630: show each changed span old (at the base) and new (in the index) and write the
+    # mapped token only on a `y` answer; any other answer leaves it as a DCG-V0-045 suggestion.
+    my $answers;
+    open $answers, '<&=', 3 or die "--show-changed: no answer input: $!\n" if @show_changed;
+    for my $shown (@show_changed) {
+        my ($doc, $line_number, $from, $to, $at, $path, $lines, $old, $new) = @$shown;
+        my $base = base_lines($path);
+        print "$doc:$line_number  $from changed since $repin_base_label; the diff maps it to $to\n";
+        print "  - $_: " . ($base->[$_ - 1] =~ s/\r?\n\z//r) . "\n" for @$old;
+        print "  + $_: " . ($lines->[$_ - 1] =~ s/\r?\n\z//r) . "\n" for @$new;
+        print "write $to? [y/N] ";
+        my $answer = <$answers> // '';
+        print "\n" unless length $answer;
+        if ($answer =~ /\A\s*y(?:es)?\s*\z/i) {
+            push @repins, [$doc, $line_number, $from, $to, $at];
+            push @changed_repins, [$doc, $line_number, $from, $to];
+        } else {
+            push @suggestions, [$doc, $line_number, $from, $to];
+        }
+    }
     my (%by_doc, @refused);
     push @{ $by_doc{$_->[0]} }, $_ for @repins;
     for my $doc (sort keys %by_doc) {
@@ -927,8 +1023,8 @@ if ($repin) {
     close_index();
     for my $changed (@changed_repins) {
         my ($doc, $line_number, $from, $to) = @$changed;
-        print "$doc:$line_number  $from changed since $repin_base_label; --changed re-anchored it as $to (read those lines: "
-            . "the anchor now asserts this content)\n";
+        print "$doc:$line_number  $from changed since $repin_base_label; " . ($repin_show ? 'confirmed, written' : '--changed re-anchored it')
+            . " as $to (read those lines: the anchor now asserts this content)\n";
     }
     # DCG-V0-045: a changed span is never rewritten; the diff's mapping and the new anchor are
     # printed so the author reads those lines and pastes the token only if the sentence holds.
@@ -940,6 +1036,10 @@ if ($repin) {
     my @rewritten = grep { my $doc = $_; !grep { $_ eq $doc } @refused } sort keys %by_doc;
     my $count = grep { my $doc = $_->[0]; grep { $_ eq $doc } @rewritten } @repins;
     my $pass = ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) =~ /\A[1-9]\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1 : 1;
+    # DCG-V0-840 (V1-3613): the citations earlier passes rewrote, so the last pass, which rewrites
+    # nothing, still reports them instead of saying nothing moved.
+    my $earlier = ($ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} // '') =~ /\A\d{1,9}\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} : 0;
+    my $total = $earlier + (@rewritten ? $count : 0);
     my $staged = 0;
     if (@rewritten) {
         # Literal pathspecs: a document named docs/[ab].md must not also stage docs/a.md.
@@ -948,24 +1048,43 @@ if ($repin) {
             . ($staged ? "staged them (git add -- @rewritten)\n"
                 : "could not stage them; run `git add -- @rewritten` and rerun the check\n");
     }
-    print STDERR "line citations: --repin found no citation whose content moved unchanged\n" unless @repins;
+    if (!@repins && $total) {
+        print STDERR "line citations: --repin rewrote $total citation(s) across $pass pass(es); this pass found no further move\n";
+    } elsif (!@repins) {
+        print STDERR "line citations: --repin found no citation whose content moved unchanged\n";
+    }
     print_unstaged('--repin', @rewritten);
     print_skipped();
-    exit 1 if @refused;
-    # DCG-V0-048: an unstaged rewrite leaves the index-reading check failing, so it fails here too.
-    exit 1 if @rewritten && !$staged;
+    # DCG-V0-842 (V1-3672): every citation --repin did not resolve is printed with its reason, and
+    # the run fails, so a deletion found under the base is never reported as a clean repin. They
+    # print before every exit below, so a refused or unconverged document elsewhere cannot hide
+    # them; the rerun pass recomputes them from the staged rewrite.
+    my @unresolved = grep { !/--repin rewrites it/ } @failures;
+    my $print_unresolved = sub {
+        return unless @unresolved;
+        print STDERR "line citations: --repin left " . scalar(@unresolved) . " citation(s) that do not resolve:\n";
+        print STDERR "  $_\n" for @unresolved;
+    };
+    if (@refused || @rewritten && !$staged) {
+        # DCG-V0-048: an unstaged rewrite leaves the index-reading check failing, so it fails too.
+        $print_unresolved->();
+        exit 1;
+    }
     # A rewrite can unpin a citation into the rewritten document; the next pass reads the staged
     # rewrite and resolves that link of the chain. A fifth pass that still rewrote did not converge.
     if (@rewritten) {
         if ($pass >= 5 || !defined $ENV{CHECK_LINE_CITATIONS_SELF}) {
             print STDERR "line citations: --repin still rewrote citations in pass $pass of at most 5; the chain did not converge, so read the rewritten documents and rerun --repin\n";
+            $print_unresolved->();
             exit 1;
         }
         print STDERR "line citations: --repin pass " . ($pass + 1) . " rereads the staged rewrite\n";
         $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} = $pass + 1;
+        $ENV{CHECK_LINE_CITATIONS_REPIN_TOTAL} = $total;
         exec 'bash', $ENV{CHECK_LINE_CITATIONS_SELF}, @original_argv or die "rerun --repin: $!\n";
     }
-    exit 0;
+    $print_unresolved->();
+    exit(@unresolved ? 1 : 0);
 }
 
 close_index();
@@ -978,6 +1097,8 @@ if (@failures) {
     my $movable = grep { /--repin rewrites it/ } @failures;
     print STDERR "line citations: fix: $movable citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check\n"
         if $movable;
+    # DCG-V0-743 (V1-3678): name the copy that was checked, since it can differ from the worktree.
+    print STDERR "line citations: these results read the staged (Git index) copy of every file, not the worktree; git add an edit to check it\n";
 }
 print_skipped();
 print_unstaged('this gate');
@@ -1017,6 +1138,20 @@ sub print_unstaged {
     }
     # The documents --repin just rewrote are named by its own staging line above.
     delete @unstaged{@rewritten};
+    # DCG-V0-743 (V1-3678): an untracked document the scan would read is invisible until added.
+    my @untracked;
+    if (open my $others, '-|', 'git', 'ls-files', '--others', '--exclude-standard', '-z') {
+        local $/ = "\0";
+        while (my $path = <$others>) {
+            chomp $path;
+            push @untracked, $path if scanned_doc($path);
+        }
+        close $others;
+    }
+    print STDERR "line citations: note: $reader reads the Git index, so " . scalar(@untracked)
+        . " untracked document(s) it would scan were not checked (git add them to include them):\n"
+        . join('', map { "  $_\n" } sort @untracked)
+        if @untracked;
     return unless %unstaged;
     my @paths = sort keys %unstaged;
     print STDERR "line citations: note: $reader reads the Git index, so unstaged edits to "

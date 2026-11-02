@@ -90,9 +90,11 @@ func canonicalEnvironment() []string {
 	)
 }
 
-// canonicalGit runs git in repo under canonicalEnvironment.
+// canonicalGit runs git in repo under canonicalEnvironment. Its GIT_GRAFT_FILE
+// names the null device, so the graft-file advice is turned off to keep it out
+// of the stderr a failure reports (V1-3588).
 func canonicalGit(ctx context.Context, repo string, arguments ...string) (string, error) {
-	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo, "--no-optional-locks"}, arguments...)...)
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo, "--no-optional-locks", "-c", "advice.graftFileDeprecated=false"}, arguments...)...)
 	command.Env = canonicalEnvironment()
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr

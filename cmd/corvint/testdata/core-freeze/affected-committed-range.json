@@ -2,12 +2,6 @@
   "advice": {
     "checks": [
       {
-        "command": "<varies:string>",
-        "kind": "advisory",
-        "reason": "prints the selected focused test argv for this plan and runs nothing; run the selected units, not the whole suite",
-        "source": "affected-plan"
-      },
-      {
         "arguments": "provider.go.packages",
         "command": "GOTOOLCHAIN=local go test -count=1",
         "kind": "advisory",
@@ -24,6 +18,7 @@
     "note": "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says",
     "status": "PLAN_ONLY",
     "unknown": [
+      "FOCUSED_TEST_COMMAND_UNDECLARED: .github/cishards/test-commands.json is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead",
       "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block",
       "PLAN_UNKNOWN: 3 plan.unknown entries; see plan.unknown"
     ]
@@ -103,6 +98,7 @@
   },
   "revision": "<varies:string>",
   "summary": {
+    "committed": 5,
     "dirty": 5,
     "excluded": 0,
     "line": "scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3 UNOWNED_DIRTY_PATH=3",
@@ -111,7 +107,8 @@
     "unknown": 3,
     "unknownByReason": {
       "UNOWNED_DIRTY_PATH": 3
-    }
+    },
+    "worktree": 0
   },
   "tiers": {
     "counts": [

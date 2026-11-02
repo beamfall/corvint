@@ -12,7 +12,8 @@ import (
 // ticket in pages of --limit, refuses a filter or a repeat, and a search with
 // no filter names --all in its refusal (TCD-V0-966).
 func TestTCDV0966_SearchAllListsEveryTicket(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	for _, title := range []string{"alpha", "bravo", "charlie"} {
 		tcdTicket(t, root, title, "")

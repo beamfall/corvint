@@ -42,6 +42,7 @@ func listIDs(t *testing.T, root string, extra ...string) ([]string, string) {
 // order; an unknown, empty, repeated or mis-cased status refuses MALFORMED
 // and the read never writes.
 func TestCALV0181_TicketListStatusFilter(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-181", func(t *testing.T) {
 		r := compactListRepo(t)
 		state, intents := fixture.TreeSnapshot(t, r.StateDir), fixture.TreeSnapshot(t, r.IntentDir)
@@ -267,10 +268,10 @@ func TestCALV0184_QueueStatusLastCompletionAndWindows(t *testing.T) {
 			t.Fatalf("archived lastCompletion: %s", wire.Encode(lc))
 		}
 
-		// A journal the receipt audit cannot read (this fixture commits 361
-		// inline posts in one receipt) leaves the receipt UNKNOWN and the
-		// read otherwise unchanged.
+		// A journal the receipt audit cannot read leaves the receipt UNKNOWN
+		// and the read otherwise unchanged.
 		big := compactListRepo(t)
+		unreadableJournal(t, big)
 		if lc := field(status(big.Root), "lastCompletion"); field(lc, "ticketId").Str != fixture.TicketID("L357") || field(lc, "receipt").Str != "UNKNOWN" {
 			t.Fatalf("unaudited lastCompletion: %s", wire.Encode(lc))
 		}

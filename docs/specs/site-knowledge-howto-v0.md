@@ -1059,6 +1059,10 @@ Codex review fixes (V1-1900, V1-1903, V1-1904):
   `UNKNOWN` (for example an unsupported `testMatch` glob) MUST still arrange each test of an
   unnarrowed dependent project under its directory, so the dependency is reported as a
   `no-setup-for-precondition` gap in `how` rather than silently dropped (`SKH-V0-104`).
+- `SKH-V0-810`: (accepted under the owner's standing auto-accept, 2026-11-01; V1-2594) `corvint how
+  [FLAGS] GOAL` MUST be a top-level alias of `flows appmap how`: it takes the same flags and
+  positional goal, writes byte-identical stdout, and refuses with the same codes. Root help MUST
+  list it, so an agent finds the how-to answer without knowing the `flows appmap` nesting.
 
 Static links commented out in HTML (`<!-- -->`) or ERB (`<%# %>`), and programmatic navigation
 inside a string literal or after an inline comment, are not edges: this is a defect fix under
@@ -1226,6 +1230,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-189` | V1-2847 (#1905) | `internal/appmap/sourceroots.go`, `internal/appmap/site_knowledge_project.go`, `internal/appmap/refs.go`, `cmd/corvint/flows_appmap_knowledge.go` | experimental: `TestSKHV0189AliasedSources`, `TestSKHV0189AliasedHowDraft`; reproduces both #1905 refusals |
 | `SKH-V0-329`, `SKH-V0-330` | V1-2927 (#1933) | `internal/appmap/route_handlers.go` `readManifestAt`, `site_knowledge_edges.go`, `site_knowledge_setup_rails.go`; `cmd/corvint/flows_appmap_knowledge.go` `parseSourceVerb` | experimental: `TestSKHV0329AliasedManifestUnbound`, `TestWSDV0145SourceVerbsWorkspace` (links and setup over a manifest in the aliased root, trailing `--full`), `TestSKHV0330SourceVerbFlagOrder`; reproduces the #1933 links/setup refusal |
 | `SKH-V0-177`..`179`, `SKH-V0-111` (comment fix) | V1-1903, V1-1904, V1-1900 (Codex review fixes) | `internal/appmap/site_knowledge_how.go`, `internal/appmap/site_knowledge_draft.go`, `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_edges.go` | experimental: `TestSKHV0_177_HowPicksGoalVariation`, `TestSKHV0_178_DraftGuardAfterBodyOpener`, `TestSKHV0_179_UnknownSetupProjectStaysAGap`, `TestSKHV0_111_CommentedLinksAreNotEdges` (each failing first) over inline committed fixtures |
+| `SKH-V0-810` | V1-2594 | `cmd/corvint/flows.go` `flowInvocation`, `cmd/corvint/help.go`, `cmd/corvint/flows_appmap_how.go` | experimental: `TestSKHV0810HowAlias` |
 
 ## Promotion and kill criteria
 

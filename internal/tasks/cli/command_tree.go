@@ -16,6 +16,7 @@ var commandTreeInternal = []clitree.Internal{
 	{Word: "--directory", Reason: "lane-leader option the dispatcher passes"},
 	{Word: "--capsule", Reason: "lane-leader option the dispatcher passes"},
 	{Word: "--supervise", Reason: "run option the detached launcher passes to its own supervisor process"},
+	{Word: "--query", Reason: "ticket search refuses it and points to --text (TCL-V0-863)"},
 }
 
 // CommandTree is the corvint-tasks command tree (corvint-command-tree/0),

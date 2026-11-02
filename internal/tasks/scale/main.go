@@ -6,10 +6,22 @@
 // it never touches a real queue, and every store it writes lives under the
 // root the caller names.
 //
-//	tasks-scale gen --root DIR --tickets N
+//	tasks-scale gen --root DIR --tickets N [--resume] [--pause-after K] [--max-seconds S]
 //	tasks-scale run --store DIR [--fds] [--cpuprofile F] [--memprofile F] [--out F] -- ARGS...
 //	tasks-scale matrix --store DIR [--reps N] [--writes] [--profiles DIR] [--outputs DIR]
 //	tasks-scale contend --store DIR [--writers W] [--readers R] [--seconds S] [--work DIR] [-- READ ARGS...]
+//	tasks-scale relocate --store COPY [--from OLD]
+//
+// `gen --pause-after K` or `--max-seconds S` stops cleanly after a ticket and
+// `gen --resume` continues it (TCX-V0-850), so a store too large for one
+// bounded command is built across several, each through the product's own
+// writers; the manifest records the wall time of every 500 tickets.
+//
+// A generated store pins its primary worktree in head.json, so a copy made
+// with `cp -a STORE COPY` refuses every write until it is relocated
+// (V1-3752): `relocate` runs `corvint-tasks relocate` in COPY from the root
+// gen recorded in the copied manifest (or --from OLD), after which probes
+// may write to the copy and leave the original untouched.
 //
 // `contend` reproduces reads under an active writer pool (V1-1060): W child
 // processes create tickets back to back while R goroutines each re-run the
@@ -20,7 +32,9 @@
 // store.
 //
 // `run` executes one command in-process and prints one JSON line of
-// metrics. `matrix` re-executes this binary once per measurement, so every
+// metrics, with the result envelope's outcome and codes (V1-3753): only an
+// exit-0 OK outcome is a timing sample, and `matrix` fails on any other
+// rather than timing a refusal. `matrix` re-executes this binary once per measurement, so every
 // sample starts from a cold process exactly as the CLI does.
 package main
 
@@ -34,6 +48,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -49,6 +64,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/cli"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 )
 
 const (
@@ -75,6 +91,8 @@ func main() {
 		err = contend(os.Args[2:])
 	case "churn":
 		err = churn(os.Args[2:])
+	case "relocate":
+		err = relocate(os.Args[2:])
 	default:
 		err = fmt.Errorf("unknown subcommand %q", os.Args[1])
 	}
@@ -101,6 +119,74 @@ type manifest struct {
 	Claim    []string `json:"claim"`
 	Complete []string `json:"complete"`
 	Next     int      `json:"next"`
+	// Root is the primary worktree gen built the store in; a copy is
+	// relocated from it.
+	Root string `json:"root,omitempty"`
+	// ChunkSeconds is the wall time of each 500 tickets, across every
+	// resumed segment (TCX-V0-850).
+	ChunkSeconds []float64 `json:"chunkSeconds,omitempty"`
+}
+
+// genProgress is a paused gen's place, kept in the store's .git directory so
+// the store's own commit never includes it (TCX-V0-850). Every request ID gen
+// sends is derived from the ticket number, so a ticket redone after a kill
+// replays rather than duplicates.
+type genProgress struct {
+	Tickets int `json:"tickets"`
+	// IssuedAt is the one issuedAt every mutation of this gen carries, so a
+	// mutation redone after a kill is byte-identical and replays.
+	IssuedAt     string    `json:"issuedAt"`
+	Next         int       `json:"next"`
+	Receipts     int       `json:"receipts"`
+	Committed    bool      `json:"committed"`
+	Seconds      float64   `json:"seconds"`
+	ChunkSeconds []float64 `json:"chunkSeconds"`
+	Partial      float64   `json:"partial"`
+}
+
+func progressPath(store string) string { return filepath.Join(store, ".git", "scale-progress.json") }
+
+// genChunk is the ticket count of one chunkSeconds entry; tests lower it.
+var genChunk = 500
+
+// genCheckpointEvery is how many tickets pass between progress saves; a
+// pause also saves, and tickets redone after a kill replay.
+const genCheckpointEvery = 50
+
+// saveProgress replaces the progress file atomically: a temporary file in
+// the same directory is written, synced and renamed over it, so an
+// interrupted save leaves the previous checkpoint (TCX-V0-850).
+func saveProgress(store string, p *genProgress) error {
+	raw, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	path := progressPath(store)
+	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	_, err = tmp.Write(append(raw, '\n'))
+	if err == nil {
+		err = tmp.Sync()
+	}
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = os.Rename(name, path)
+	}
+	if err != nil {
+		os.Remove(name)
+		return err
+	}
+	dir, err := os.Open(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
 }
 
 func manifestPath(store string) string { return filepath.Join(store, ".scale-manifest.json") }
@@ -202,20 +288,30 @@ func writeJSONFile(path string, v any) error {
 
 func gen(args []string) error {
 	fs := flag.NewFlagSet("gen", flag.ExitOnError)
-	root := fs.String("root", "", "store root to create (must not exist)")
+	root := fs.String("root", "", "store root to create (must not exist unless --resume)")
 	n := fs.Int("tickets", 1000, "ticket count (the frozen queue limit is 10000)")
+	resume := fs.Bool("resume", false, "continue a paused gen of the same --root and --tickets")
+	pauseAfter := fs.Int("pause-after", 0, "pause cleanly after this many tickets in this run (0: no limit)")
+	maxSeconds := fs.Float64("max-seconds", 0, "pause cleanly once this run has taken this many seconds (0: no limit)")
 	_ = fs.Parse(args)
 	if *root == "" || *n < 2*reservedWrites+10 {
 		return errors.New("gen needs --root and --tickets >= 58")
 	}
-	if _, err := os.Lstat(*root); err == nil {
-		return fmt.Errorf("%s exists; refusing to reuse it", *root)
+	if *resume {
+		return genLoop(*root, *n, nil, *pauseAfter, *maxSeconds)
 	}
-	start := time.Now()
+	if _, err := os.Lstat(*root); err == nil {
+		return fmt.Errorf("%s exists; refusing to reuse it (pass --resume to continue a paused gen)", *root)
+	}
 	if err := os.MkdirAll(filepath.Join(*root, ".taskman"), 0o755); err != nil {
 		return err
 	}
-	store, err := filepath.EvalSymlinks(*root)
+	// An absolute root, so relocate of a copy passes the right --from.
+	abs, err := filepath.Abs(*root)
+	if err != nil {
+		return err
+	}
+	store, err := filepath.EvalSymlinks(abs)
 	if err != nil {
 		return err
 	}
@@ -245,35 +341,83 @@ func gen(args []string) error {
 	if err := writeJSONFile(filepath.Join(store, ".taskman", "policy.json"), policy); err != nil {
 		return err
 	}
-	if _, err := call(store, "init", "--request-id", "scale-init"); err != nil {
+	// The first checkpoint precedes the first mutation: Next 0 is init.
+	p := &genProgress{Tickets: *n, IssuedAt: time.Now().UTC().Format("2006-01-02T15:04:05Z"), Next: 0, Receipts: 1}
+	if err := saveProgress(store, p); err != nil {
 		return err
 	}
-	receipts := 1
-	m := manifest{Tickets: *n, Label: "optimizations", Show: local(*n / 2)}
+	return genLoop(store, *n, p, *pauseAfter, *maxSeconds)
+}
+
+// genLoop writes tickets p.Next..n into store, pausing after pauseAfter
+// tickets or maxSeconds of this run; a nil p resumes from the store's
+// progress file (TCX-V0-850).
+func genLoop(root string, n int, p *genProgress, pauseAfter int, maxSeconds float64) error {
+	start := time.Now()
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	store, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return err
+	}
+	if p == nil {
+		raw, err := os.ReadFile(progressPath(store))
+		if err != nil {
+			return fmt.Errorf("%s has no paused gen to resume: %v", root, err)
+		}
+		p = &genProgress{}
+		if err := json.Unmarshal(raw, p); err != nil {
+			return err
+		}
+		if p.Tickets != n {
+			return fmt.Errorf("%s was paused generating %d tickets, not %d", root, p.Tickets, n)
+		}
+	}
+	if p.Next == 0 {
+		// A kill after init committed but before the next save leaves the
+		// checkpoint at init; init does not replay, so its receipt is the
+		// evidence it ran.
+		if _, err := headSeq(store); err != nil {
+			if _, err := call(store, "init", "--request-id", "scale-init"); err != nil {
+				return err
+			}
+		}
+		p.Next = 1
+		if err := saveProgress(store, p); err != nil {
+			return err
+		}
+	}
+	receipts := p.Receipts
+	m := manifest{Tickets: n, Label: "optimizations", Show: local(n / 2), Root: store}
 	reserved := map[int]bool{}
 	for k := 0; k < reservedWrites; k++ {
-		c, d := *n-2*reservedWrites+k+1, *n-reservedWrites+k+1
+		c, d := n-2*reservedWrites+k+1, n-reservedWrites+k+1
 		reserved[c], reserved[d] = true, true
 		m.Claim = append(m.Claim, local(c))
 		m.Complete = append(m.Complete, local(d))
 	}
-	committed := false
-	for i := 1; i <= *n; i++ {
+	committed := p.Committed
+	chunkStart, done := time.Now(), 0
+	// One ticket's writes; the bookkeeping after it runs for every ticket,
+	// reserved ones included.
+	ticketWrites := func(i int) error {
 		var deps []string
 		if !reserved[i] && i > 10 && i%3 == 0 {
 			for k := 1; k <= 1+i%3; k++ {
 				deps = append(deps, ticketID(i-k*3-1))
 			}
 		}
-		if _, err := call(store, "ticket", "create", "--request-id", fmt.Sprintf("c%d", i), "--payload", createPayload(i, deps)); err != nil {
+		if _, err := call(store, "ticket", "create", "--request-id", fmt.Sprintf("c%d", i), "--issued-at", p.IssuedAt, "--payload", createPayload(i, deps)); err != nil {
 			return err
 		}
 		receipts++
 		if reserved[i] {
-			continue
+			return nil
 		}
 		if i%2 == 0 {
-			if _, err := call(store, "ticket", "prioritize", "--request-id", fmt.Sprintf("p%d", i), "--target", local(i),
+			if _, err := call(store, "ticket", "prioritize", "--request-id", fmt.Sprintf("p%d", i), "--issued-at", p.IssuedAt, "--target", local(i),
 				"--expected-revision", "1", "--payload", fmt.Sprintf(`{"order":"%d","priority":"P%d"}`, (i*7)%100, (i+1)%4)); err != nil {
 				return err
 			}
@@ -302,18 +446,57 @@ func gen(args []string) error {
 			if i%2 == 0 {
 				rev = 2
 			}
-			if _, err := call(store, "ticket", "complete-manual", "--request-id", fmt.Sprintf("m%d", i), "--target", local(i),
+			if _, err := call(store, "ticket", "complete-manual", "--request-id", fmt.Sprintf("m%d", i), "--issued-at", p.IssuedAt, "--target", local(i),
 				"--expected-revision", strconv.Itoa(rev), "--payload", `{"evidence":[],"reason":"synthetic"}`); err != nil {
 				return err
 			}
 			receipts++
 		}
+		return nil
+	}
+	for i := p.Next; i <= n; i++ {
+		if err := ticketWrites(i); err != nil {
+			return err
+		}
+		done++
+		p.Next, p.Receipts, p.Committed = i+1, receipts, committed
+		if i%genChunk == 0 {
+			p.ChunkSeconds = append(p.ChunkSeconds, p.Partial+time.Since(chunkStart).Seconds())
+			p.Partial, chunkStart = 0, time.Now()
+		}
+		if i < n && i%genCheckpointEvery == 0 {
+			// A snapshot of the totals so far, so a kill resumes from here
+			// without the running totals counting this segment twice.
+			q := *p
+			q.Seconds += time.Since(start).Seconds()
+			q.Partial += time.Since(chunkStart).Seconds()
+			if err := saveProgress(store, &q); err != nil {
+				return err
+			}
+		}
+		if i < n && ((pauseAfter > 0 && done >= pauseAfter) || (maxSeconds > 0 && time.Since(start).Seconds() >= maxSeconds)) {
+			p.Partial += time.Since(chunkStart).Seconds()
+			p.Seconds += time.Since(start).Seconds()
+			if err := saveProgress(store, p); err != nil {
+				return err
+			}
+			fmt.Fprintf(os.Stderr, "gen: paused at %d/%d tickets after %.0fs; rerun with --resume\n", i, n, time.Since(start).Seconds())
+			return nil
+		}
 		if i%500 == 0 {
-			fmt.Fprintf(os.Stderr, "gen: %d/%d tickets, %d receipts, %.0fs\n", i, *n, receipts, time.Since(start).Seconds())
+			fmt.Fprintf(os.Stderr, "gen: %d/%d tickets, %d receipts, %.0fs\n", i, n, receipts, p.Seconds+time.Since(start).Seconds())
 		}
 	}
-	m.Receipts = receipts
-	m.Seconds = time.Since(start).Seconds()
+	// The journal's own count: a ticket redone after a kill replays without
+	// a receipt, so counting calls would overcount.
+	if m.Receipts, err = headSeq(store); err != nil {
+		return err
+	}
+	m.Seconds = p.Seconds + time.Since(start).Seconds()
+	m.ChunkSeconds = p.ChunkSeconds
+	if err := os.Remove(progressPath(store)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
 	return writeJSONFile(manifestPath(store), m)
 }
 
@@ -347,6 +530,36 @@ type metrics struct {
 	PeakFDs    int      `json:"peakFds,omitempty"`
 	OutBytes   int      `json:"outBytes"`
 	OutSha256  string   `json:"outSha256"`
+	// Outcome and Codes are the result envelope's; Outcome is UNDECODABLE
+	// when stdout is not one. Sample is true only for an exit-0 OK outcome,
+	// the only run whose timing measures the command (V1-3753).
+	Outcome string   `json:"outcome"`
+	Codes   []string `json:"codes"`
+	Sample  bool     `json:"sample"`
+}
+
+// envelopeOutcome reads the outcome and codes of a result envelope.
+func envelopeOutcome(out []byte) (string, []string) {
+	var env struct {
+		Outcome string   `json:"outcome"`
+		Codes   []string `json:"codes"`
+	}
+	if json.Unmarshal(out, &env) != nil || env.Outcome == "" {
+		return "UNDECODABLE", []string{}
+	}
+	if env.Codes == nil {
+		env.Codes = []string{}
+	}
+	return env.Outcome, env.Codes
+}
+
+// timingSample refuses a run that is not a timing sample, naming its exit,
+// outcome and codes, so a refused or failed command never enters a median.
+func timingSample(m metrics) error {
+	if m.Sample {
+		return nil
+	}
+	return fmt.Errorf("%v: exit %d outcome %s codes %v: not a timing sample", m.Args, m.Exit, m.Outcome, m.Codes)
 }
 
 func runOne(args []string) error {
@@ -378,22 +591,10 @@ func runOne(args []string) error {
 			return err
 		}
 	}
-	var out bytes.Buffer
-	var before, after runtime.MemStats
-	runtime.ReadMemStats(&before)
-	ru0 := rusage()
-	t0 := time.Now()
-	code := cli.Run(cli.Env{Cwd: *store, Args: cmd, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: io.Discard})
-	wall := time.Since(t0)
-	ru1 := rusage()
-	runtime.ReadMemStats(&after)
+	m, out := measure(*store, cmd)
 	if *cpu != "" {
 		pprof.StopCPUProfile()
 	}
-	m := metrics{Args: cmd, Exit: code, WallMs: ms(wall), UserMs: ms(ru1[0] - ru0[0]), SysMs: ms(ru1[1] - ru0[1]),
-		Mallocs: after.Mallocs - before.Mallocs, AllocBytes: after.TotalAlloc - before.TotalAlloc, OutBytes: out.Len()}
-	sum := sha256.Sum256(out.Bytes())
-	m.OutSha256 = hex.EncodeToString(sum[:])
 	if stop != nil {
 		m.PeakFDs = stop()
 	}
@@ -408,13 +609,33 @@ func runOne(args []string) error {
 		f.Close()
 	}
 	if *outFile != "" {
-		if err := os.WriteFile(*outFile, out.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(*outFile, out, 0o644); err != nil {
 			return err
 		}
 	}
 	b, _ := json.Marshal(m)
 	fmt.Println(string(b))
 	return nil
+}
+
+// measure runs one command in-process and returns its metrics and stdout.
+func measure(store string, cmd []string) (metrics, []byte) {
+	var out bytes.Buffer
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	ru0 := rusage()
+	t0 := time.Now()
+	code := cli.Run(cli.Env{Cwd: store, Args: cmd, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: io.Discard})
+	wall := time.Since(t0)
+	ru1 := rusage()
+	runtime.ReadMemStats(&after)
+	m := metrics{Args: cmd, Exit: code, WallMs: ms(wall), UserMs: ms(ru1[0] - ru0[0]), SysMs: ms(ru1[1] - ru0[1]),
+		Mallocs: after.Mallocs - before.Mallocs, AllocBytes: after.TotalAlloc - before.TotalAlloc, OutBytes: out.Len()}
+	sum := sha256.Sum256(out.Bytes())
+	m.OutSha256 = hex.EncodeToString(sum[:])
+	m.Outcome, m.Codes = envelopeOutcome(out.Bytes())
+	m.Sample = code == 0 && m.Outcome == "OK"
+	return m, out.Bytes()
 }
 
 func ms(d time.Duration) float64 { return float64(d.Microseconds()) / 1000 }
@@ -513,8 +734,8 @@ func matrix(args []string) error {
 			if err != nil {
 				return err
 			}
-			if x.Exit != 0 {
-				return fmt.Errorf("%v: exit %d", s.args, x.Exit)
+			if err := timingSample(x); err != nil {
+				return err
 			}
 			samples = append(samples, x)
 		}
@@ -582,9 +803,9 @@ func matrix(args []string) error {
 			if err != nil {
 				return err
 			}
-			if s.Exit != 0 {
+			if err := timingSample(s); err != nil {
 				b, _ := os.ReadFile(out)
-				return fmt.Errorf("%v: exit %d: %s", a, s.Exit, b)
+				return fmt.Errorf("%v: %s", err, b)
 			}
 			if r == 0 {
 				peak = s.PeakFDs
@@ -653,6 +874,62 @@ func row(name string, s []metrics, peak int) {
 	sort.Slice(s, func(i, j int) bool { return s[i].WallMs < s[j].WallMs })
 	x := s[len(s)/2]
 	fmt.Printf("| %s | %.1f | %.1f | %.1f | %d | %.1f | %d | %d |\n", name, x.WallMs, x.UserMs, x.SysMs, x.Mallocs, float64(x.AllocBytes)/(1<<20), peak, x.OutBytes)
+}
+
+// ---------------------------------------------------------------- relocate
+
+// relocate re-pins a copied store to the directory it now lives in, so
+// writes to the copy are admitted (V1-3752). OLD is the root the copied
+// manifest records unless --from names it.
+func relocate(args []string) error {
+	fs := flag.NewFlagSet("relocate", flag.ExitOnError)
+	store := fs.String("store", "", "the copied store root")
+	from := fs.String("from", "", "the primary worktree the copy was made from (default: the manifest root)")
+	_ = fs.Parse(args)
+	if *store == "" || fs.NArg() != 0 {
+		return errors.New("relocate needs --store COPY and no other arguments")
+	}
+	old := *from
+	if old == "" {
+		raw, err := os.ReadFile(manifestPath(*store))
+		if err != nil {
+			return err
+		}
+		var m manifest
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return err
+		}
+		if m.Root == "" {
+			return errors.New("the manifest records no root; pass --from OLD, the primary worktree the refusal names")
+		}
+		old = m.Root
+	}
+	sum := sha256.Sum256([]byte(old))
+	env, err := call(*store, "relocate", "--from", old, "--request-id", "scale-relocate-"+hex.EncodeToString(sum[:8]))
+	if err != nil {
+		return err
+	}
+	// The copy's manifest now names the copy, so a copy of it relocates
+	// from here.
+	if raw, err := os.ReadFile(manifestPath(*store)); err == nil {
+		var m manifest
+		if err := json.Unmarshal(raw, &m); err != nil {
+			return err
+		}
+		abs, err := filepath.Abs(*store)
+		if err != nil {
+			return err
+		}
+		if m.Root, err = filepath.EvalSymlinks(abs); err != nil {
+			return err
+		}
+		if err := writeJSONFile(manifestPath(*store), m); err != nil {
+			return err
+		}
+	}
+	b, _ := json.Marshal(item(env))
+	fmt.Println(string(b))
+	return nil
 }
 
 // ---------------------------------------------------------------- contend
@@ -911,4 +1188,21 @@ func auditFields(path string) (mode, code string) {
 		}
 	}
 	return mode, code
+}
+
+// headSeq is the store's last receipt sequence.
+func headSeq(store string) (int, error) {
+	raw, err := os.ReadFile(filepath.Join(store, ".git", "taskman", "head.json"))
+	if err != nil {
+		return 0, err
+	}
+	h, err := snapshot.DecodeHead(raw)
+	if err != nil {
+		return 0, err
+	}
+	seq := h.LastSeq.Uint64()
+	if seq > math.MaxInt {
+		return 0, fmt.Errorf("head sequence %d exceeds the int range", seq)
+	}
+	return int(seq), nil
 }

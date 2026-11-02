@@ -26,3 +26,4 @@ for wrapper in corvint-companion-release-gate public-release-check; do
   [ ! -e "$CORVINT_ADMISSION_MARKER" ]
 done
 printf 'release environment compatibility: PASS\n'
+# Committed 100755, so a selected run executes it directly (ASD-V0-921, V1-3243).

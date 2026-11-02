@@ -10,9 +10,11 @@ import (
 	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
-const graphImportsHelp = `usage: corvint [--root DIR] graph imports --revision FULL_COMMIT [--kinds KINDS] [--format jsonl]
+const graphImportsHelp = `Export every resolved indexed file import as deterministic graph-imports/1 JSONL.
 
-Export every resolved indexed file import as deterministic graph-imports/1 JSONL.
+Usage:
+  corvint [--root DIR] graph imports --revision FULL_COMMIT [--kinds KINDS] [--format jsonl]
+
 Required: --revision is a full existing commit ID (40 or 64 lowercase hex digits).
 KINDS is a comma-separated subset of import,type-import,angular-template,
 angular-style,ruby-constant; default is all. --kinds removes only edges.

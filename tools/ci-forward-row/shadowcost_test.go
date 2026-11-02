@@ -194,9 +194,9 @@ func TestAFPV0480Tiers(t *testing.T) {
 		len(strs(sub(d, "tiers")["full"])) != 0 || len(strs(d["tierIncomplete"])) != 0 {
 		t.Fatalf("tiers.sh of a CEM and a declared spec = %v", d)
 	}
-	makefile := commit(map[string]string{"Makefile": "all:\n", "docs/specs/s.md": "spec 2\n"})
-	if d := tiers(evidence, makefile); fmt.Sprint(strs(sub(d, "tiers")["full"])) != "[a non-Go file changed: Makefile]" {
-		t.Fatalf("tiers.sh of a Makefile and a declared spec = %v", d)
+	makefile := commit(map[string]string{"Makefile": "all:\n", "docs/specs/s.md": "spec 2\n"})                            //corvint:fixture-path
+	if d := tiers(evidence, makefile); fmt.Sprint(strs(sub(d, "tiers")["full"])) != "[a non-Go file changed: Makefile]" { //corvint:fixture-path
+		t.Fatalf("tiers.sh of a Makefile and a declared spec = %v", d) //corvint:fixture-path
 	}
 }
 
@@ -231,12 +231,12 @@ func TestAFPV0520TierExemptions(t *testing.T) {
 		}
 	}
 	// Every other non-Go path, and a CEM anywhere but directly under .corvint/changes/, stays FULL.
-	for _, p := range []string{"Makefile", "script/x.sh", "docs/x.md", "docs/specs", ".corvint/change.cem.json",
+	for _, p := range []string{"Makefile", "script/x.sh", "docs/x.md", "docs/specs", ".corvint/change.cem.json", //corvint:fixture-path
 		".corvint/changes/x/y.cem.json", ".corvint/changes/.cem.json", ".corvint/changes/README.md",
 		"docs/x.cem.json", ".corvint/documentation-paths.json", "notes.md.bak"} {
 		full(declared, p+"\n", "a non-Go file changed: "+p)
 	}
-	full(declared, cem+"\ndocs/specs/s.md\nMakefile\na/x.go\n", "a non-Go file changed: Makefile")
+	full(declared, cem+"\ndocs/specs/s.md\nMakefile\na/x.go\n", "a non-Go file changed: Makefile") //corvint:fixture-path
 	// The earlier rules still win inside a declared directory: testdata, an embedded file, .github/.
 	full(declared, "docs/specs/testdata/in.json\n", "a testdata file changed: docs/specs/testdata/in.json")
 	full(declared, "b/static/x.html\n", "a file a package embeds changed: b/static/x.html")

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // adopt --setup (ADS-V0): one read-only, machine-readable report of a
@@ -37,10 +38,10 @@ var setupInstructionFiles = []string{"AGENTS.md", "CLAUDE.md", "GEMINI.md"}
 var setupHookFiles = []string{".claude/settings.json", ".codex/hooks.json"}
 
 // setupIgnoredPaths are Corvint's private local state paths, each of which
-// must be ignored by Git so derived or ledger state is never committed.
+// must be ignored by Git so derived or ledger state is never committed. The
+// index store is added only when it falls back to the worktree (ADS-V0-801).
 var setupIgnoredPaths = []string{
 	".context-corvint/",
-	".corvint/index/",
 	".corvint/self-observations.jsonl",
 	".corvint/unplanned-reads.jsonl",
 	".corvint/unplanned-reads.enabled",
@@ -59,6 +60,7 @@ func runSetupReport(ctx context.Context, root string, stdout, stderr io.Writer) 
 		setupInstructionCheck(root),
 		setupHookCheck(root),
 		setupIgnoreCheck(ctx, root),
+		setupTestCommandsCheck(root),
 	}
 	gaps := 0
 	rows := make([]any, 0, len(checks))
@@ -188,7 +190,7 @@ func setupHookCheck(root string) setupCheck {
 		check.Evidence = []string{"no repository-scoped hook file (" + strings.Join(setupHookFiles, ", ") + "); user-scope installs are not read"}
 	}
 	if check.Status == "gap" {
-		check.Fix = "claude plugin install corvint@corvint --scope project (see integrations/claude-code/README.md), or the Codex plugin in integrations/codex/README.md"
+		check.Fix = "claude plugin install corvint@corvint --scope project (guide: https://github.com/beamfall/corvint/tree/main/integrations/claude-code), or the Codex plugin (guide: https://github.com/beamfall/corvint/tree/main/integrations/codex)"
 	}
 	return check
 }
@@ -208,7 +210,8 @@ func setupIgnoreCheck(ctx context.Context, root string) setupCheck {
 	defer cancel()
 	command := exec.CommandContext(ctx, git, "-C", root, "check-ignore", "--no-index", "--stdin", "--non-matching", "--verbose")
 	command.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0")
-	command.Stdin = strings.NewReader(strings.Join(setupIgnoredPaths, "\n") + "\n")
+	paths, store := setupIgnoreTargets(root)
+	command.Stdin = strings.NewReader(strings.Join(paths, "\n") + "\n")
 	var output, warnings bytes.Buffer
 	command.Stdout = &output
 	command.Stderr = &warnings
@@ -245,9 +248,62 @@ func setupIgnoreCheck(ctx context.Context, root string) setupCheck {
 		}
 	}
 	if check.Status == "ok" {
-		check.Evidence = []string{"all " + strconv.Itoa(len(setupIgnoredPaths)) + " Corvint local state paths are ignored"}
+		check.Evidence = []string{"all " + strconv.Itoa(len(paths)) + " Corvint local state paths are ignored"}
 	} else {
 		check.Fix = "add the listed paths to .gitignore"
+	}
+	if store != "" {
+		check.Evidence = append(check.Evidence, "index store: "+store+" is under the Git common directory, which Git never tracks")
+	}
+	return check
+}
+
+// setupIgnoreTargets is the ignore check's path list and, when the index store resolves under the
+// Git common directory, that store's location (ADS-V0-801): only the worktree fallback store
+// .corvint/index/ needs an ignore rule.
+func setupIgnoreTargets(root string) ([]string, string) {
+	paths := append([]string{}, setupIgnoredPaths...)
+	store := contextindex.SnapshotDirectory(root)
+	if filepath.Clean(store) == filepath.Join(filepath.Clean(root), ".corvint", "index") {
+		return append(paths, ".corvint/index/"), ""
+	}
+	return paths, store
+}
+
+// setupImpactLanguages are the declared language names corvint impact has a rule for.
+var setupImpactLanguages = map[string]bool{"go": true, "ruby": true, "javascript": true, "typescript": true}
+
+// setupTestCommandsCheck reports the project-owned test-command declaration (ADS-V0-802): a gap
+// when it is absent or unreadable, otherwise each declared command and each declared language
+// that corvint impact has no rule for. It runs no process.
+func setupTestCommandsCheck(root string) setupCheck {
+	check := setupCheck{Class: "test-commands", Status: "gap"}
+	fix := "declare the Go test flags and each other language's full test command (or a reason none runs) in " + sessiontest.DeclarationPath + " with profile " + sessiontest.DeclarationProfile
+	content, ok := setupRead(root, sessiontest.DeclarationPath)
+	if !ok {
+		check.Evidence, check.Fix = []string{sessiontest.DeclarationPath + ": absent, not a regular file, or over 1 MiB"}, fix
+		return check
+	}
+	declared := sessiontest.ParseDeclared(content)
+	if declared.Unreadable != "" {
+		check.Evidence, check.Fix = []string{declared.Unreadable}, fix
+		return check
+	}
+	check.Status = "ok"
+	check.Evidence = []string{"go: " + strings.Join(append(append(append([]string{}, declared.GoEnv...), "go", "test"), declared.GoFlags...), " ")}
+	var abstains []string
+	for _, entry := range declared.Languages {
+		if entry.None != "" {
+			check.Evidence = append(check.Evidence, entry.Language+": none ("+entry.None+")")
+		} else {
+			check.Evidence = append(check.Evidence, entry.Language+": "+strings.Join(entry.Argv, " "))
+		}
+		if !setupImpactLanguages[entry.Language] {
+			abstains = append(abstains, entry.Language)
+		}
+	}
+	if len(abstains) != 0 {
+		check.Evidence = append(check.Evidence, "no corvint impact rule (impact abstains on their files): "+strings.Join(abstains, ", "))
 	}
 	return check
 }

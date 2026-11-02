@@ -76,11 +76,24 @@ func (s *Source) retain(err error) {
 	}
 }
 
-func (s *Source) Files(accept func(string) bool) ([]string, error) {
+// Files lists the walked source files that accept admits. accept receives
+// each file's repository-relative slash path and its base name, so a
+// directory-scoped rule (gradle/libs.versions.toml) can match as well as a
+// name-only one (V1-3583); ByName adapts a name-only predicate.
+func (s *Source) Files(accept func(relative, name string) bool) ([]string, error) {
 	files, _, err := s.FilesIncluding(accept)
 	return files, err
 }
-func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
+
+// ByName adapts a predicate over a file's base name to the accept callback of
+// Files and FilesIncluding.
+func ByName(accept func(name string) bool) func(relative, name string) bool {
+	return func(_, name string) bool { return accept(name) }
+}
+
+// FilesIncluding is Files with explicit language-owned exceptions to
+// SkippedDirectories; accept receives the relative path and the base name.
+func (s *Source) FilesIncluding(accept func(relative, name string) bool, included ...string) (filesOut []string, boundedOut bool, errOut error) {
 	if err := s.stopped(); err != nil {
 		return nil, false, err
 	}
@@ -89,7 +102,11 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 		return nil, false, ErrInvalidLanguage
 	}
 	if s.fsys == nil && s.ctx == nil {
-		return SourceFilesIncluding(s.root, accept, included...)
+		all, bounded, err := SourceFilesIncluding(s.root, acceptEveryName, included...)
+		if err != nil {
+			return nil, false, err
+		}
+		return slices.DeleteFunc(all, func(relative string) bool { return !accept(relative, path.Base(relative)) }), bounded, nil
 	}
 	key := strings.Join(included, "\x00")
 	s.mu.Lock()
@@ -118,7 +135,7 @@ func (s *Source) FilesIncluding(accept func(string) bool, included ...string) (f
 		if err := s.cancelled(); err != nil {
 			return nil, false, err
 		}
-		if accept(path.Base(relative)) {
+		if accept(relative, path.Base(relative)) {
 			files = append(files, relative)
 		}
 	}
@@ -331,6 +348,39 @@ func (s *Source) LinkedEntries(directory string, accept func(name string) bool) 
 		}
 	}
 	return linksOut, nil
+}
+
+// LinkTarget resolves the symbolic link relative, following every link, to the
+// repository-relative slash path of the regular file it names (TSP-V0-721). The
+// link is recorded followed, so a retargeted link or an edited target
+// invalidates a graph cache entry. A target outside the root's real path, one
+// that is not a regular file and any resolution failure answer ok false, as does
+// an immutable tree source, which has no on-disk links.
+func (s *Source) LinkTarget(relative string) (target string, ok bool) {
+	if s == nil || s.fsys != nil || s.stopped() != nil || !fs.ValidPath(relative) || relative == "." {
+		return "", false
+	}
+	s.record.path(s.root, relative, true)
+	realRoot, err := filepath.EvalSymlinks(s.root)
+	if err != nil {
+		return "", false
+	}
+	resolved, err := filepath.EvalSymlinks(filepath.Join(s.root, filepath.FromSlash(relative)))
+	if err != nil {
+		return "", false
+	}
+	if info, err := os.Stat(resolved); err != nil || !info.Mode().IsRegular() {
+		return "", false
+	}
+	inside, err := filepath.Rel(realRoot, resolved)
+	if err != nil {
+		return "", false
+	}
+	inside = filepath.ToSlash(inside)
+	if inside == "." || inside == ".." || strings.HasPrefix(inside, "../") || !fs.ValidPath(inside) {
+		return "", false
+	}
+	return inside, true
 }
 
 // ResolvesToDependency reports whether the existing path relative resolves on disk, following

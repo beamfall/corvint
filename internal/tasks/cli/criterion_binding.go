@@ -44,7 +44,7 @@ func criterionBindingCommand(env Env, args []string) *wire.Result {
 	}
 	command = append(command, args[0])
 	if args[0] != "capture" && args[0] != "verify" {
-		return usage(command, "unknown criterion-binding verb")
+		return groupMiss([]string{"criterion-binding"}, args, "unknown criterion-binding verb")
 	}
 	ticketID, attemptID := "", ""
 	if args[0] == "verify" && len(args) != 1 {

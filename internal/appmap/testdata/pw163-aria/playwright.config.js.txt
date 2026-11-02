@@ -1,0 +1,1 @@
+module.exports = { testDir: ".", outputDir: "out", use: { trace: { mode: "on", snapshots: true, screenshots: false, sources: true } }, projects: [{ name: "chromium", use: { browserName: "chromium", launchOptions: { executablePath: "<chromium_headless_shell-1228>" } } }] };

@@ -143,3 +143,34 @@ func TestTLFV0880_AdoptFileRefusesProgress(t *testing.T) {
 		})
 	}
 }
+
+// TestTLFV0820_ProgressPayloadOmittedNullableKeys: the canonical payload reads
+// an absent nullable key as null, so the omitted and spelled-null forms are
+// one request, while an absent phase still refuses naming the key.
+func TestTLFV0820_ProgressPayloadOmittedNullableKeys(t *testing.T) {
+	spelled, err := mutation.CanonicalPayload(mutation.OpProgressSet, progressMark("IN_REVIEW", "lane", "w4", "pr", "42"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	omitted := obj("lane", str("w4"), "phase", str("IN_REVIEW"), "pr", str("42"))
+	got, err := mutation.CanonicalPayload(mutation.OpProgressSet, omitted)
+	if err != nil {
+		t.Fatalf("payload omitting nullable keys refused: %v", err)
+	}
+	if !bytes.Equal(wire.Encode(got), wire.Encode(spelled)) {
+		t.Fatalf("canonical forms differ:\n%s\n%s", wire.Encode(got), wire.Encode(spelled))
+	}
+	if len(omitted.Obj.Keys) != 3 {
+		t.Fatalf("CanonicalPayload mutated its input: %s", wire.Encode(omitted))
+	}
+	if _, err := mutation.Decode(envelope("p", owner, "AT-01", "1", mutation.OpProgressSet, got)); err != nil {
+		t.Fatalf("filled payload does not decode in the closed envelope: %v", err)
+	}
+	_, err = mutation.CanonicalPayload(mutation.OpProgressSet, obj("lane", str("w4")))
+	if err == nil || wire.CodeOf(err) != wire.CodeMalformed || !strings.Contains(err.Error(), "missing keys: phase") {
+		t.Fatalf("absent phase: %v", err)
+	}
+	if _, err := mutation.CanonicalPayload(mutation.OpProgressSet, obj("phase", str("IN_REVIEW"))); err == nil || !strings.Contains(err.Error(), "pr") {
+		t.Fatalf("IN_REVIEW without pr: %v", err)
+	}
+}

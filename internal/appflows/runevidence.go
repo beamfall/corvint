@@ -173,6 +173,47 @@ func validateRunHeader(r TestRunEvidence) error {
 	return validateCoverageArtifacts(r.CoverageArtifacts)
 }
 
+// RunHeaderProblem is one run-header field a record built from the header would refuse, with the
+// value format the field accepts (AFU-V1-904, V1-3937).
+type RunHeaderProblem struct {
+	// Field is the run-header member, such as "run_id" or "environment_digest".
+	Field string
+	// Missing is true when the field is empty, false when it is set but invalid.
+	Missing bool
+	// Format is the accepted value format.
+	Format string
+}
+
+// Run-header value formats (AFU-V1-904).
+const (
+	runIDFormat     = "1-128 letters, digits, '.', '_' or '-', starting with a letter or digit"
+	runOIDFormat    = "a full 40- or 64-character lowercase hex object ID"
+	runDigestFormat = "a bare 64-character lowercase hex sha256 digest, without a sha256: prefix"
+)
+
+// CheckRunHeader returns every run-header field that validateRunHeader would refuse in a record
+// built from h, in header order, so one refusal can name them all (AFU-V1-904). The runner name
+// comes from the report format and coverage artifacts from their own flag, so neither is checked.
+func CheckRunHeader(h RunHeader) []RunHeaderProblem {
+	var problems []RunHeaderProblem
+	check := func(field, value, format string, ok bool) {
+		if !ok {
+			problems = append(problems, RunHeaderProblem{Field: field, Missing: value == "", Format: format})
+		}
+	}
+	check("run_id", h.RunID, runIDFormat, memberPattern.MatchString(h.RunID))
+	check("runner_version", h.RunnerVersion, "non-empty printable text of at most 4096 bytes", flowText(h.RunnerVersion))
+	check("source_commit", h.Source.Commit, runOIDFormat, oidPattern.MatchString(h.Source.Commit))
+	check("source_tree", h.Source.Tree, runOIDFormat, oidPattern.MatchString(h.Source.Tree))
+	check("build_artifact_digest", h.BuildArtifactDigest, runDigestFormat, sha256Pattern.MatchString(h.BuildArtifactDigest))
+	check("environment_id", h.Environment.ID, runIDFormat, memberPattern.MatchString(h.Environment.ID))
+	check("environment_digest", h.Environment.Digest, runDigestFormat, sha256Pattern.MatchString(h.Environment.Digest))
+	check("fixture_id", h.Fixture.ID, runIDFormat, memberPattern.MatchString(h.Fixture.ID))
+	check("fixture_digest", h.Fixture.Digest, runDigestFormat, sha256Pattern.MatchString(h.Fixture.Digest))
+	check("cleanup", h.Cleanup, "done, failed or not-declared", slices.Contains(cleanupStates, h.Cleanup))
+	return problems
+}
+
 // maxCoverageArtifacts bounds the coverage files one run record may pin (AFU-V1-120).
 const maxCoverageArtifacts = 64
 

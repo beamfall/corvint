@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -434,7 +435,7 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 		}
 		bin := t.TempDir()
 		wrapper := "#!/bin/sh\nfor arg do\n if [ \"$arg\" = update-index ]; then exit 47; fi\ndone\nexec \"$ACTUAL_TEST_GIT\" \"$@\"\n"
-		if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("ACTUAL_TEST_GIT", actualGit)
@@ -580,6 +581,48 @@ func TestGoTestRunsUnresolvedAfterResolvedFailure(t *testing.T) {
 	data, _ := os.ReadFile(log)
 	if lines := strings.Split(strings.TrimSpace(string(data)), "\n"); len(lines) != 2 || strings.Contains(lines[0], "-count=1") || lines[1] != "-count=1 example.com/fixture/wd" {
 		t.Fatalf("go test received %q", data)
+	}
+}
+
+// GL-V0-720 (V1-3846): go-test --packages runs only the listed packages, says so, records the
+// scope, and refuses an empty list or a flag-like pattern before anything runs.
+func TestGoTestScopedPackages(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	packageRepository(t, map[string]string{
+		"go.mod":              "module example.com/fixture\n\ngo 1.27\n",
+		"core/core_test.go":   "package core\n\nimport \"testing\"\n\nfunc TestCore(t *testing.T) {}\n",
+		"other/other_test.go": "package other\n\nimport \"testing\"\n\nfunc TestOther(t *testing.T) {}\n",
+	})
+	log := filepath.Join(t.TempDir(), "ARGS")
+	command := []string{"--", "sh", "-c", `echo "$@" >> "$0"; for pkg in "$@"; do case "$pkg" in -*) continue;; esac; printf '{"Action":"start","Package":"%s"}\n{"Action":"pass","Package":"%s"}\n' "$pkg" "$pkg"; done`, log}
+	for _, bad := range [][]string{{"--packages", ""}, {"--packages", " , "}, {"--packages", "./core,-x"}, {"--packages"}} {
+		if code, out := ledgerRun(t, append(append([]string{"go-test"}, bad...), command...)...); code != 2 || !strings.Contains(out, "usage: gate-ledger") {
+			t.Fatalf("%q: code %d, %q", bad, code, out)
+		}
+	}
+	if code, out := ledgerRun(t, append([]string{"go-test", "--packages", "./docs/..."}, command...)...); code != 1 || !strings.Contains(out, "gate-ledger: SCOPE packages ./docs/... matches no packages to test") {
+		t.Fatalf("a scope matching no package: code %d, %q", code, out)
+	}
+	if _, err := os.Stat(log); !os.IsNotExist(err) {
+		t.Fatalf("a refused scope ran the command: %v", err)
+	}
+	code, out := ledgerRun(t, append([]string{"go-test", "--packages", "./core"}, command...)...)
+	if code != 0 || !strings.Contains(out, "gate-ledger: SCOPE packages ./core\n") || !strings.Contains(out, "PARTITION 1 resolved packages") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/core ") {
+		t.Fatalf("scoped run: code %d, %q", code, out)
+	}
+	if data, _ := os.ReadFile(log); strings.Contains(string(data), "other") || !strings.Contains(string(data), "example.com/fixture/core") {
+		t.Fatalf("go test received %q", data)
+	}
+	records, _ := filepath.Glob(filepath.Join(os.Getenv("CORVINT_GATE_LEDGER_DIR"), "*.json"))
+	if len(records) != 1 {
+		t.Fatalf("records %q", records)
+	}
+	if data, _ := os.ReadFile(records[0]); !strings.Contains(string(data), `"scope":["./core"]`) {
+		t.Fatalf("record %s", data)
+	}
+	// Without --packages every package runs and the record carries no scope.
+	if code, out := ledgerRun(t, append([]string{"go-test"}, command...)...); code != 0 || strings.Contains(out, "SCOPE") || !strings.Contains(out, "RECORD go-test-package example.com/fixture/other ") {
+		t.Fatalf("unscoped run: code %d, %q", code, out)
 	}
 }
 
@@ -1038,5 +1081,104 @@ func TestRunPackagesRefusesPartialOutput(t *testing.T) {
 				t.Fatalf("partial output recorded: %s", out.String())
 			}
 		})
+	}
+}
+
+// TestRunStepKeysBatchPrecheckScopes replays GL-V0-600 and GL-V0-601: the
+// selection-baseline and capability-catalog steps hit after a change to a CEM
+// or a build log, the paths a post-seal precheck adds, and run after a change
+// to any declared input: a Go file, an embedded file under a Go package
+// directory, a module file, a root-level file, the gate tooling, and each
+// step's own data (the shard costs and change set; a top-level docs page).
+func TestRunStepKeysBatchPrecheckScopes(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the ledger step under test is an sh -c command")
+	root := fixtureRepository(t)
+	if err := os.Remove(filepath.Join(root, "main.go")); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{"pkg/testdata/deep", ".corvint/changes", "docs/build-log", ".github/cishards", "benchmarks/selection-baseline", "script"} { //corvint:fixture-path
+		if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(dir)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(t, root, ".gitignore", "COUNT\n")
+	write(t, root, "pkg/a.go", "package pkg\n")                          //corvint:fixture-path
+	write(t, root, "pkg/testdata/deep/golden.txt", "one\n")              //corvint:fixture-path
+	write(t, root, "go.mod", "module example.invalid/m\n")               //corvint:fixture-path
+	write(t, root, "README.md", "one\n")                                 //corvint:fixture-path
+	write(t, root, "docs/CAPABILITIES.md", "one\n")                      //corvint:fixture-path
+	write(t, root, ".github/cishards/package-costs.json", "{}\n")        //corvint:fixture-path
+	write(t, root, "benchmarks/selection-baseline/changes.json", "{}\n") //corvint:fixture-path
+	write(t, root, "script/tool.sh", "true\n")                           //corvint:fixture-path
+	for _, step := range []string{"selection-baseline-check+s1", "capability-catalog-check+c1"} {
+		run := append([]string{"run", step}, counting...)
+		if code, out := ledgerRun(t, run...); code != 0 || !strings.Contains(out, "RECORD "+step) {
+			t.Fatalf("%s first run: code %d, %q", step, code, out)
+		}
+		check := func(file, body string, hit bool) {
+			t.Helper()
+			write(t, root, file, body)
+			_, out := ledgerRun(t, run...)
+			if hit && !strings.Contains(out, "HIT "+step) {
+				t.Fatalf("%s: a change to %s missed: %q", step, file, out)
+			}
+			if !hit && !strings.Contains(out, "RUN "+step+": no recorded pass") {
+				t.Fatalf("%s: a change to %s hit: %q", step, file, out)
+			}
+		}
+		check(".corvint/changes/"+step+".cem.json", "{}\n", true)           //corvint:fixture-path
+		check("docs/build-log/"+step+".md", "entry\n", true)                //corvint:fixture-path
+		check("pkg/a.go", "package pkg\n\n// "+step+"\n", false)            //corvint:fixture-path
+		check("pkg/testdata/deep/golden.txt", step+"\n", false)             //corvint:fixture-path
+		check("go.mod", "module example.invalid/m\n\n// "+step+"\n", false) //corvint:fixture-path
+		check("README.md", step+"\n", false)                                //corvint:fixture-path
+		check("script/tool.sh", "# "+step+"\n", false)                      //corvint:fixture-path
+		if step == "selection-baseline-check+s1" {
+			check("docs/CAPABILITIES.md", step+"\n", true)                             //corvint:fixture-path
+			check(".github/cishards/package-costs.json", "{\"a\": 1}\n", false)        //corvint:fixture-path
+			check("benchmarks/selection-baseline/changes.json", "{\"a\": 1}\n", false) //corvint:fixture-path
+		} else {
+			check(".github/cishards/package-costs.json", "{\"b\": 2}\n", true) //corvint:fixture-path
+			check("docs/CAPABILITIES.md", step+"\n", false)                    //corvint:fixture-path
+		}
+	}
+}
+
+// TestInScopeBatchPrecheckForms pins the GL-V0-600 scope forms.
+func TestInScopeBatchPrecheckForms(t *testing.T) {
+	for _, c := range []struct {
+		path, scope string
+		want        bool
+	}{
+		{"README.md", rootScope, true},              //corvint:fixture-path
+		{"docs/README.md", rootScope, false},        //corvint:fixture-path
+		{"docs/CAPABILITIES.md", "docs/*.md", true}, //corvint:fixture-path
+		{"docs/build-log/x.md", "docs/*.md", false}, //corvint:fixture-path
+		{"docs/x.txt", "docs/*.md", false},          //corvint:fixture-path
+		// goScope is matched by goInput, never by inScope.
+		{"cmd/corvint/main.go", goScope, false}, //corvint:fixture-path
+	} {
+		if got := inScope(c.path, []string{c.scope}); got != c.want {
+			t.Errorf("inScope(%q, %q) = %v, want %v", c.path, c.scope, got, c.want)
+		}
+	}
+	dirs := goDirectories([]treeEntry{{path: "cmd/corvint/main.go"}, {path: ".github/cishards/x.go"}}) //corvint:fixture-path
+	for _, c := range []struct {
+		path string
+		want bool
+	}{
+		{"cmd/corvint/main.go", true},                 //corvint:fixture-path
+		{"cmd/corvint/testdata/a/b.json", true},       //corvint:fixture-path
+		{"internal/new/x.go", true},                   //corvint:fixture-path
+		{"interop/m/go.sum", true},                    //corvint:fixture-path
+		{".github/cishards/package-costs.json", true}, //corvint:fixture-path
+		{".github/workflows/ci.yml", false},           //corvint:fixture-path
+		{".corvint/changes/x.cem.json", false},        //corvint:fixture-path
+		{"docs/build-log/x.md", false},                //corvint:fixture-path
+		{"cmd/README.md", false},                      //corvint:fixture-path
+	} {
+		if got := goInput(c.path, dirs); got != c.want {
+			t.Errorf("goInput(%q) = %v, want %v", c.path, got, c.want)
+		}
 	}
 }

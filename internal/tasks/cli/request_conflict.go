@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -12,23 +13,33 @@ import (
 )
 
 // defaultedIssuedAtConflict explains a REQUEST_ID_CONFLICT whose issuedAt the
-// CLI defaulted to now (CAL-V0-250, V1-1384). The request digest covers
-// issuedAt, so a byte-identical retry in a later second conflicts. The
-// journal keeps only the original digest, so this rebuilds the envelope with
-// the recordedAt of the receipt the request-index entry names, which equals
-// a defaulted issuedAt and survives later updates (ATR-V0-275, V1-1438),
-// then the recorded ticket's createdAt and updatedAt (and up to two seconds
-// before each, since the writer clock can tick past the CLI second) and names issuedAt as the
-// difference only when one rebuilt digest equals the recorded one. It never
-// replays or writes: the retry with --issued-at does that. Otherwise it
-// names the digest inputs, so the refusal never guesses.
-func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
-	generic := "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
+// CLI defaulted to now (CAL-V0-250, V1-1384). A retry that differs from the
+// recorded request only in that defaulted issuedAt never reaches it: the
+// writer reuses the recorded issuedAt and replays (TCL-V0-800, V1-3958). So
+// the request differs in more than issuedAt, and this names the digest inputs
+// and never attributes the conflict to issuedAt alone.
+func defaultedIssuedAtConflict(issued wire.Timestamp) string {
+	return "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
 		"and issuedAt defaulted to " + string(issued) + " because --issued-at was not given: a retry replays only with the original --issued-at"
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
-	entry, found, err := idx.Lookup(flags.requestID)
-	if err != nil || !found || idx.TicketID == "" {
-		return generic
+}
+
+// recordedIssuedAt recovers the issuedAt of a recorded request whose retry
+// omitted --issued-at (TCL-V0-800, TCL-V0-735, V1-3958): it rebuilds this invocation's
+// envelope with the recordedAt of the receipt the request-index entry names
+// (ATR-V0-275), then the recorded ticket's createdAt and updatedAt, each
+// also up to two seconds earlier since the writer clock can tick past the CLI
+// second, and returns the one whose
+// digest equals the recorded mutation digest, with the recorded ticket. A
+// different payload, actor, target or revision never matches, so it never
+// turns a real conflict into a replay. found is false when nothing matched.
+func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) (at wire.Timestamp, ticketID string, found bool) {
+	if flags.requestID == "" {
+		return "", "", false
+	}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
+	entry, ok, err := idx.Lookup(flags.requestID)
+	if err != nil || !ok || idx.TicketID == "" {
+		return "", "", false
 	}
 	var bases []wire.Timestamp
 	if entry.Outcome.ReceiptSeq != nil {
@@ -36,7 +47,7 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 			bases = append(bases, at)
 		}
 	}
-	if rec, ok := st.Inventory.Get(idx.TicketID); ok {
+	if rec, ok := st.Inventory.Get(ticketID); ok {
 		bases = append(bases, rec.CreatedAt, rec.UpdatedAt)
 	}
 	seen := map[wire.Timestamp]bool{issued: true}
@@ -53,14 +64,72 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 			seen[at] = true
 			envelope, err := buildEnvelope(operation, st.Queue.QueueID.Raw, actor, flags, payload, at)
 			if err != nil {
-				return generic
+				return "", "", false
 			}
 			d, err := transaction.Digest(transaction.Request{Operation: transaction.Mutate, QueueID: st.Queue.QueueID.Raw, RequestID: flags.requestID, Actor: actor, Envelope: envelope})
 			if err == nil && d == entry.MutationSha256 {
-				return "request " + flags.requestID + " is recorded for ticket " + idx.TicketID + "; this retry differs from the recorded request only in issuedAt: the original was " +
-					string(at) + " and this one defaulted to " + string(issued) + " because --issued-at was not given; retry with --issued-at " + string(at) + " to replay"
+				return at, idx.TicketID, true
 			}
 		}
 	}
-	return generic
+	return "", "", false
+}
+
+// recordedCurrentRevision is the revision `--expected-revision current`
+// submits (TCL-V0-860). The live revision is flags.expected; after a
+// recorded write it has advanced past the one the original request was
+// digested with, so a retry with the same --request-id and --issued-at
+// would conflict. When the request index records this request ID, the
+// envelope is rebuilt at each earlier revision, and the one whose digest
+// equals the recorded digest is submitted, so the store replays the
+// recorded result. Without --issued-at, a recorded entry or a matching
+// digest, the live revision stands and the store judges it as before.
+func recordedCurrentRevision(env Env, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value) string {
+	live := flags.expected
+	n, err := strconv.ParseUint(live, 10, 64)
+	if flags.issuedAt == "" || err != nil {
+		return live
+	}
+	issued, err := wire.ParseTimestamp("issuedAt", flags.issuedAt)
+	if err != nil {
+		return live
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return live
+	}
+	st, err := intent.Load(repo.IntentRoot())
+	if err != nil {
+		return live
+	}
+	idx := store.RequestIndexOf(repo, journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree})
+	if r, ok, err := recordedRevision(idx, operation, st.Queue.QueueID.Raw, actor, flags, payload, issued, n); err == nil && ok {
+		return r
+	}
+	return live
+}
+
+// recordedRevision is the revision at or below n whose envelope digest
+// equals the one the request index records for flags.requestID, whatever
+// that request's outcome, so a retry submits exactly the recorded request.
+// ok is false when the index holds no such request or no revision matches;
+// err is a request index that could not be read (TCL-V0-860, TLF-V0-1102).
+func recordedRevision(idx journal.RequestIndex, operation, queueID string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp, n uint64) (string, bool, error) {
+	entry, found, err := idx.Lookup(flags.requestID)
+	if err != nil || !found {
+		return "", false, err
+	}
+	for r := n; r >= 1; r-- {
+		f := flags
+		f.expected = strconv.FormatUint(r, 10)
+		envelope, err := buildEnvelope(operation, queueID, actor, f, payload, issued)
+		if err != nil {
+			return "", false, nil
+		}
+		d, err := transaction.Digest(transaction.Request{Operation: transaction.Mutate, QueueID: queueID, RequestID: flags.requestID, Actor: actor, Envelope: envelope})
+		if err == nil && d == entry.MutationSha256 {
+			return f.expected, true, nil
+		}
+	}
+	return "", false, nil
 }

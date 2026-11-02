@@ -22,6 +22,7 @@ import (
 	"go/scanner"
 	"go/token"
 	"io/fs"
+	"maps"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -72,6 +73,13 @@ const (
 	// reader refuses. Its use set is unknown, so only the root module is
 	// observed and every other module's packages are absent (AFP-V0-190).
 	FrontierWorkspaceUnparsed = "go:workspace-unparsed"
+	// FrontierSymlinkedSource is the unit frontier of a package with a
+	// symlinked .go file whose target this plugin cannot attribute: one that
+	// does not resolve to a regular .go file inside the root, or lies in a
+	// directory outside the package's module or one the go tool ignores. The
+	// build compiles that target, so an edge the graph cannot show may reach
+	// the package (TSP-V0-721).
+	FrontierSymlinkedSource = "go:symlinked-source-unattributed"
 )
 
 // maxPathTokens bounds one package's distinct path tokens. A package over it
@@ -144,7 +152,7 @@ var includedDirectories = []string{"build", "dist", "target"}
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
 	frontier := map[string]bool{}
-	observed, includedDirectoryBounded, err := root.FilesIncluding(func(name string) bool {
+	observed, includedDirectoryBounded, err := root.FilesIncluding(func(_, name string) bool {
 		return strings.HasSuffix(name, ".go") || name == "go.mod"
 	}, includedDirectories...)
 	if err != nil {
@@ -263,7 +271,7 @@ func resolveEmbeds(root *affected.Source, units []affected.Unit, unitDirectories
 	if len(embedding) == 0 {
 		return nil
 	}
-	files, _, err := root.FilesIncluding(func(string) bool { return true }, includedDirectories...)
+	files, _, err := root.FilesIncluding(func(_, _ string) bool { return true }, includedDirectories...)
 	if err != nil {
 		return err
 	}
@@ -374,8 +382,17 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	var patterns []string
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
+	// The disk walk drops a symlinked .go file, though the build compiles its
+	// target as one of this package's files: read the target under the link's
+	// name and depend on the target's own package (TSP-V0-721).
+	targets, unattributed, linked := linkedSources(root, owner, directory)
+	files = append(slices.Clip(files), slices.Sorted(maps.Keys(targets))...)
 	for _, relative := range files {
-		body, err := root.Read(relative)
+		readPath := relative
+		if target, ok := targets[relative]; ok {
+			readPath = target
+		}
+		body, err := root.Read(readPath)
 		if err != nil {
 			frontier[FrontierUnparsedSource] = true
 			continue
@@ -424,7 +441,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 			globs[glob] = true
 		}
 		for _, name := range scan.tokens {
-			names[name] = true
+			if !scan.fixtureOnly(name, isTest) {
+				names[name] = true
+			}
 			if reason := escapesPackage(directory, name, isTest); reason != "" {
 				reads.mark(relative+" "+reason, isTest)
 			}
@@ -444,21 +463,72 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	if bounded {
 		names, globs = nil, nil
 	}
+	for link, target := range targets {
+		dependency := linkedImportPath(owner, directory, target)
+		switch {
+		case dependency == "":
+		case strings.HasSuffix(link, "_test.go"):
+			testImportPaths[dependency] = true
+		default:
+			importPaths[dependency] = true
+		}
+	}
 	var unitFrontier []string
 	var frontierBears string
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
 		frontierBears = affected.FrontierBearsOnOwnFiles
-		// A symlinked .go file compiles a target outside this directory that
-		// the walk never listed, so the unit's own files are not all here:
-		// the frontier bears on every plan, as it does when the directory
-		// cannot be listed (TSP-V0-002).
-		links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
-		if err != nil || len(links) > 0 {
+		// A symlinked .go file compiles a target outside this directory, so
+		// the unit's own files are not all here: the frontier bears on every
+		// plan, as it does when the directory cannot be listed (TSP-V0-002).
+		if linked {
 			frontierBears = ""
 		}
 	}
+	if unattributed {
+		unitFrontier = append(unitFrontier, FrontierSymlinkedSource)
+		frontierBears = ""
+	}
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
+}
+
+// linkedSources maps each symlinked .go entry of directory whose target it can
+// attribute to that target's repository-relative path, and reports whether any
+// entry is unattributable (a listing failure, a target that is not a regular
+// .go file inside the root, or one in a directory the go tool ignores or outside
+// owner's module) and whether directory holds any such link (TSP-V0-721).
+func linkedSources(root *affected.Source, owner module, directory string) (map[string]string, bool, bool) {
+	links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
+	if err != nil {
+		return nil, true, true
+	}
+	targets := make(map[string]string, len(links))
+	unattributed := false
+	for _, link := range links {
+		target, ok := root.LinkTarget(link)
+		if !ok || !strings.HasSuffix(target, ".go") || ignoredByGo(path.Dir(target)) || !inModule(path.Dir(target), owner.dir) {
+			unattributed = true
+			continue
+		}
+		targets[link] = target
+	}
+	return targets, unattributed, len(links) > 0
+}
+
+// linkedImportPath is the import path of the package holding a symlink's
+// target, or "" when the target lies in the linking directory itself, whose
+// unit already owns it.
+func linkedImportPath(owner module, directory, target string) string {
+	targetDirectory := path.Dir(target)
+	if targetDirectory == directory {
+		return ""
+	}
+	return strings.TrimPrefix(unitID(owner, targetDirectory), "go:")
+}
+
+// inModule reports whether directory lies in the module rooted at moduleDir.
+func inModule(directory, moduleDir string) bool {
+	return moduleDir == "." || directory == moduleDir || strings.HasPrefix(directory, moduleDir+"/")
 }
 
 // platformNames are the GOOS and GOARCH values a file-name suffix constrains
@@ -526,10 +596,28 @@ func importsEnd(fileSet *token.FileSet, file *ast.File) int {
 
 // fileScan is what one lexing pass over a file's body after its imports
 // yields: its path tokens, its root-locating calls, and any lexical error.
+// fixture holds each token that only literals on a line carrying
+// FixturePathMarker hold (AFP-V0-551).
 type fileScan struct {
-	tokens []string
-	calls  []string
-	err    error
+	tokens  []string
+	calls   []string
+	err     error
+	fixture map[string]bool
+}
+
+// FixturePathMarker is the per-literal fixture marker of ASD-V0-895: a test
+// file's string literal that starts or ends on a line carrying this comment is
+// a path written into or compared against a temporary repository and names no
+// read. A token only such literals of a test file hold is no path token of the
+// unit, so it selects no PATH_LITERAL_READER (AFP-V0-551); a token any
+// unmarked literal of the file also holds stays, and the marked literal still
+// counts toward the unit's unbounded-read reasons.
+const FixturePathMarker = "//corvint:fixture-path"
+
+// fixtureOnly reports whether a test file's token is one fileScan.fixture
+// holds.
+func (scan fileScan) fixtureOnly(name string, isTest bool) bool {
+	return isTest && scan.fixture[name]
 }
 
 // pathTokens lexes body for the path tokens of every string literal, with the
@@ -541,12 +629,22 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 	aliases, dotImported := rootLocatorImports(imports)
 	var scan fileScan
 	var lexer scanner.Scanner
-	lexer.Init(token.NewFileSet().AddFile("", -1, len(body)), body, func(_ token.Position, message string) { scan.err = errors.New(message) }, 0)
+	source := token.NewFileSet().AddFile("", -1, len(body))
+	lexer.Init(source, body, func(_ token.Position, message string) { scan.err = errors.New(message) }, scanner.ScanComments)
 	previous := [2]string{}
+	var literals []scannedLiteral
+	markers := map[int]bool{}
 	for {
-		_, kind, text := lexer.Scan()
+		position, kind, text := lexer.Scan()
 		if kind == token.EOF {
+			scan.fixture = fixtureTokens(literals, markers)
 			return scan
+		}
+		if kind == token.COMMENT {
+			if strings.TrimSpace(text) == FixturePathMarker {
+				markers[source.Line(position)] = true
+			}
+			continue
 		}
 		if kind == token.IDENT {
 			scan.calls = append(scan.calls, rootLocatorCall(previous, text, aliases, dotImported)...)
@@ -559,8 +657,38 @@ func pathTokens(body []byte, modulePath string, imports []*ast.ImportSpec) fileS
 		if err != nil {
 			continue
 		}
-		scan.tokens = append(scan.tokens, literalTokens(value, modulePath)...)
+		tokens := literalTokens(value, modulePath)
+		scan.tokens = append(scan.tokens, tokens...)
+		literals = append(literals, scannedLiteral{tokens: tokens, start: source.Line(position), end: source.Line(position + token.Pos(len(text)-1))})
 	}
+}
+
+// scannedLiteral is one string literal's tokens with its first and last line.
+type scannedLiteral struct {
+	tokens     []string
+	start, end int
+}
+
+// fixtureTokens returns the tokens only literals starting or ending on a
+// marker line hold, nil without a marker (AFP-V0-551, ASD-V0-895).
+func fixtureTokens(literals []scannedLiteral, markers map[int]bool) map[string]bool {
+	if len(markers) == 0 {
+		return nil
+	}
+	marked, blocked := map[string]bool{}, map[string]bool{}
+	for _, item := range literals {
+		for _, value := range item.tokens {
+			if markers[item.start] || markers[item.end] {
+				marked[value] = true
+			} else {
+				blocked[value] = true
+			}
+		}
+	}
+	for value := range blocked {
+		delete(marked, value)
+	}
+	return marked
 }
 
 // literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.

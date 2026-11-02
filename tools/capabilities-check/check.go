@@ -315,11 +315,30 @@ func parseDispatched(src []byte) ([]string, error) {
 }
 
 // Root help maturity group headers (CCF-V1-008, V1-0945). The Commands: block may group its
-// verbs under these headers, each indented less than the verbs it heads.
+// verbs under these headers, each indented less than the verbs it heads. One Core header leads,
+// and one or more Experimental headers group the other verbs by job (V1-3730).
 const (
 	coreGroupPrefix         = "Core ("
-	experimentalGroupPrefix = "Experimental, no stability promise"
+	experimentalGroupPrefix = "Experimental"
 )
+
+// hiddenSet reads the hiddenCommands literal: dispatched verbs that root help leaves unlisted
+// (CCF-V1-008, V1-3730), so they are documented, experimental and not dispatch-undocumented.
+var hiddenSet = regexp.MustCompile(`(?s)hiddenCommands = map\[string\]string\{(.*?)\n\}`)
+
+var hiddenKey = regexp.MustCompile(`(?m)^\s*"([a-z][a-z-]*)":`)
+
+func parseHidden(src []byte) []string {
+	m := hiddenSet.FindSubmatch(src)
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, w := range hiddenKey.FindAllSubmatch(m[1], -1) {
+		out = append(out, string(w[1]))
+	}
+	return out
+}
 
 // parseCommands reads the root help's Commands: block and its Core maturity list. The block is
 // either flat, with the Core list in a separate section, or grouped under exactly the Core and
@@ -358,8 +377,8 @@ func parseCommands(src []byte) ([]string, map[string]bool, map[string]bool, erro
 				return nil, nil, nil, fmt.Errorf("root help group header is neither Core nor Experimental: %q", line)
 			}
 			switch {
-			case seen[group]:
-				return nil, nil, nil, fmt.Errorf("root help repeats a group header: %q", line)
+			case group == "core" && seen[group], group == "core" && seen["experimental"]:
+				return nil, nil, nil, fmt.Errorf("root help repeats or misplaces the Core group header: %q", line)
 			case groupIndent < 0 && len(commands) > 0:
 				return nil, nil, nil, fmt.Errorf("root help group header follows ungrouped commands: %q", line)
 			case groupIndent >= 0 && indent != groupIndent:
@@ -374,13 +393,21 @@ func parseCommands(src []byte) ([]string, map[string]bool, map[string]bool, erro
 		if groupIndent >= 0 && indent <= groupIndent {
 			return nil, nil, nil, fmt.Errorf("root help command line is not indented under its group header: %q", line)
 		}
-		switch group {
-		case "core":
-			core[strings.Fields(name)[0]] = true
-		case "experimental":
-			experimental[strings.Fields(name)[0]] = true
+		for _, family := range strings.Split(name, " | ") {
+			switch group {
+			case "core":
+				core[strings.Fields(family)[0]] = true
+			case "experimental":
+				experimental[strings.Fields(family)[0]] = true
+			}
+			commands = append(commands, family)
 		}
-		commands = append(commands, name)
+	}
+	for _, verb := range parseHidden(src) {
+		if groupIndent >= 0 {
+			experimental[verb] = true
+		}
+		commands = append(commands, verb)
 	}
 	if len(commands) == 0 {
 		return nil, nil, nil, errors.New("root help Commands: block is empty")
@@ -651,6 +678,14 @@ func commandName(name string) string {
 
 // Check compares the catalog (and, when readme is non-nil, the README capability table) with
 // the inventory. linkBase is the directory relative catalog links resolve against.
+// newCommandChecklist is the missing-command finding's detail (CAP-V0-780, V1-3886): a new
+// top-level command fails three checks one after another unless all three artifacts change, so
+// the first of them names every artifact and the command that updates it.
+const newCommandChecklist = "no catalog row; a new top-level command updates three artifacts: " +
+	"(1) add its row to the docs/CAPABILITIES.md commands table and the README capability table, " +
+	"(2) regenerate internal/capcatalog with `make capability-catalog`, " +
+	"(3) repin conformance/use-cases-v0/receipts with `script/repin-use-case-receipts.sh`"
+
 func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 	findings, commands := checkDispatch(inv)
 	catalogRows := map[string]map[string]row{}
@@ -687,7 +722,11 @@ func Check(catalog, readme []byte, inv Inventory, linkBase string) []Finding {
 		for _, item := range sec.items {
 			want[item] = true
 			if _, ok := byName[item]; !ok {
-				findings = append(findings, Finding{"missing", sec.name, item, "no catalog row"})
+				detail := "no catalog row"
+				if sec.name == sectionCommands {
+					detail = newCommandChecklist
+				}
+				findings = append(findings, Finding{"missing", sec.name, item, detail})
 			}
 		}
 		for name, r := range byName {

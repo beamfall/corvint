@@ -75,7 +75,8 @@ func TestDocsMCPDraftsTypeScriptModule(t *testing.T) {
 	}
 	markdown := draft["structuredContent"].(map[string]any)["markdown"].(string)
 	for _, want := range []string{
-		"## `\"func renderBadge\"`", "## `\"class BadgeCache\"`",
+		// SDD-V0-631: entries group under their file's heading; a declaration's excerpt names it.
+		"## S2 `\"web/badge.ts\"`", "class BadgeCache",
 		"export function renderBadge(label: string): string {",
 		"Non-Go languages drafted: TypeScript.", "importers of these sources are UNKNOWN",
 		"Sources omitted because the native index extracts no declarations from their language: Java.",

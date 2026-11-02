@@ -12,7 +12,6 @@ import (
 	"context"
 	"path"
 	"regexp"
-	"slices"
 	"sort"
 	"strings"
 	"unicode"
@@ -122,17 +121,14 @@ func (language Language) Units(ctx context.Context, root string) (affected.Resul
 
 // UnitsSource reads only the explicitly supplied source universe.
 func (language Language) UnitsSource(root *affected.Source) (affected.Result, error) {
-	// Files offers base names, so a catalog name is admitted here and its
-	// directory checked below.
-	files, err := root.Files(func(name string) bool {
-		return language.Owns(name) || name == "libs.versions.toml" || strings.HasSuffix(name, ".java")
+	// Files offers the relative path, so only a catalog in a build root's
+	// gradle directory is admitted (V1-3583).
+	files, err := root.Files(func(relative, name string) bool {
+		return language.Owns(name) || isVersionCatalog(relative) || strings.HasSuffix(name, ".java")
 	})
 	if err != nil {
 		return affected.Result{}, err
 	}
-	files = slices.DeleteFunc(files, func(relative string) bool {
-		return path.Base(relative) == "libs.versions.toml" && !isVersionCatalog(relative)
-	})
 	layout, err := observeBuildLayout(root)
 	if err != nil {
 		return affected.Result{}, err
@@ -191,7 +187,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 }
 
 func observeBuildLayout(root *affected.Source) (buildLayout, error) {
-	manifests, err := root.Files(func(name string) bool {
+	manifests, err := root.Files(func(_, name string) bool {
 		switch name {
 		case "build.gradle", "build.gradle.kts", "settings.gradle", "settings.gradle.kts", "pom.xml":
 			return true
@@ -203,11 +199,10 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 		return buildLayout{}, err
 	}
 	layout := buildLayout{androidTest: map[string]bool{}}
-	catalogs, err := root.Files(func(name string) bool { return name == "libs.versions.toml" })
+	catalogs, err := root.Files(func(relative, _ string) bool { return isVersionCatalog(relative) })
 	if err != nil {
 		return buildLayout{}, err
 	}
-	catalogs = slices.DeleteFunc(catalogs, func(relative string) bool { return !isVersionCatalog(relative) })
 	// Each build root's catalog plugin aliases that name com.android.test.
 	testAliases := map[string]map[string]bool{}
 	for _, catalog := range catalogs {

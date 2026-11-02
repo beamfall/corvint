@@ -62,3 +62,27 @@ func TestASDV0092RequirementsSectionHintNamesBootstrapRoute(t *testing.T) {
 		t.Fatal("hint still requires every intent at BASE")
 	}
 }
+
+// TestDCWV0817RecordIntentHintNamesAcceptedForms (V1-3621): a build-log entry
+// named as the intent of a change that is not a record change gets a fix line
+// naming the record-change rule and the accepted forms, and the
+// missing-intent-scope fix names the same rule.
+func TestDCWV0817RecordIntentHintNamesAcceptedForms(t *testing.T) {
+	c := &change{intents: []string{"docs/build-log/2026-11-01-x.md", "docs/specs/x-v0.md"}}
+	c.ctx, c.root, c.base, c.prefix, c.stderr = context.Background(), t.TempDir(), "feedface", "dogfood-change", io.Discard
+	hint := c.fixHint(step{name: "ocm-prepare-001", status: "FAIL", reason: "invalid-requirements-section"})
+	for _, want := range []string{
+		`"docs/build-log/2026-11-01-x.md" on line 001 of DOGFOOD_INTENTS_FILE is a build-log entry or decision`,
+		"intent only of a record change",
+		`spec Markdown file with a "## Requirements" heading`,
+		"#no-intent-declared",
+		"rerun corvint dogfood change feedface (DCW-V0-817)",
+	} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("record intent hint %q lacks %q", hint, want)
+		}
+	}
+	if !strings.Contains(intentScopeHint, "docs/build-log/*.md entry or docs/decisions/*.md file is an intent only of a record change") {
+		t.Fatalf("missing-intent-scope fix does not name the record rule: %q", intentScopeHint)
+	}
+}

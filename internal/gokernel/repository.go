@@ -328,6 +328,9 @@ type repositoryObservation struct {
 	identity  [3]string
 	dirty     []string
 	statusRaw []byte
+	// statusElapsed and identityElapsed time each concurrent read from its own start to its own
+	// end (AHI-800), so a slow identity read is never reported as a slow status read.
+	statusElapsed, identityElapsed time.Duration
 }
 
 // observeRepository takes one side of the bracket. The identity read and the
@@ -346,13 +349,18 @@ func observeRepositoryNotifying(ctx context.Context, run gitRunner, root string,
 	var dirty []string
 	var statusRaw []byte
 	var dirtyErr error
+	var statusElapsed time.Duration
 	var pending sync.WaitGroup
 	pending.Add(1)
 	go func() {
 		defer pending.Done()
+		started := time.Now()
 		dirty, statusRaw, dirtyErr = dirtyPaths(ctx, run, root)
+		statusElapsed = time.Since(started)
 	}()
+	identityStarted := time.Now()
 	identity, identityErr := repositoryIdentity(ctx, run, root)
+	identityElapsed := time.Since(identityStarted)
 	if identityErr == nil && onIdentity != nil {
 		onIdentity(identity[0], identity[1], identity[2])
 	}
@@ -363,7 +371,7 @@ func observeRepositoryNotifying(ctx context.Context, run gitRunner, root string,
 	if dirtyErr != nil {
 		return repositoryObservation{}, dirtyErr
 	}
-	return repositoryObservation{identity: identity, dirty: dirty, statusRaw: statusRaw}, nil
+	return repositoryObservation{identity: identity, dirty: dirty, statusRaw: statusRaw, statusElapsed: statusElapsed, identityElapsed: identityElapsed}, nil
 }
 
 func probeRepositoryContext(parent context.Context, root string, run gitRunner) (_ Repository, unstable error) {
@@ -437,13 +445,16 @@ type Observation struct {
 	ObjectFormat, CommitRevision, TreeRevision string
 	DirtyPaths                                 []string
 	StatusSHA256                               string
+	// StatusElapsed and IdentityElapsed are the two concurrent reads' own durations (AHI-800).
+	StatusElapsed, IdentityElapsed time.Duration
 }
 
 func (observation repositoryObservation) exported() Observation {
 	return Observation{
 		ObjectFormat: observation.identity[0], CommitRevision: observation.identity[1],
 		TreeRevision: observation.identity[2], DirtyPaths: slices.Clone(observation.dirty),
-		StatusSHA256: sha256Hex(observation.statusRaw),
+		StatusSHA256: sha256Hex(observation.statusRaw), StatusElapsed: observation.statusElapsed,
+		IdentityElapsed: observation.identityElapsed,
 	}
 }
 

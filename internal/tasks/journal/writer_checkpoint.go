@@ -1224,6 +1224,31 @@ func (r Reader) AuditForLiveness(wc *WriterCheckpoint, requestID string) (*Resul
 // checkpoint compares them at its own head.
 const ModePrefix = "COMPLETE_PREFIX"
 
+// AuditThrough walks receipts 1..seq only (TCL-V0-820): the CAL-V0-265
+// prefix walk bounded at seq, so receipts after seq are not validated and
+// the result's LastSeq is seq. It is a bounded verdict, never a complete
+// audit or a checkpoint; a moving journal is re-walked up to four times.
+func (r Reader) AuditThrough(seq uint64) (*Result, error) {
+	switch r.Source.(type) {
+	case Native, *Native:
+	default:
+		return nil, errCheckpoint("source", "a bounded audit needs a native source")
+	}
+	if seq == 0 {
+		return nil, wire.Errorf(wire.CodeMalformed, "--through", "sequence must be at least 1")
+	}
+	observation := PhysicalObservation{}
+	r.physical, r.prefix, r.through, r.Checkpoint, r.handoffPolicy = &observation, true, seq, nil, nil
+	for attempt := 0; attempt < 4; attempt++ {
+		result, err := r.auditAttempt(nil, "", profileLimits, true, nil)
+		if wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			continue
+		}
+		return result, err
+	}
+	return nil, moved("receipts")
+}
+
 // AuditWriterRefresh is the scheduled refresh's audit (CAL-V0-117,
 // CAL-V0-265, proposed). It first runs one attempt of AuditForWriteObserved;
 // any result other than SNAPSHOT_MOVED is returned as that audit returns it,
@@ -1300,7 +1325,20 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 		}
 	}
 	st := &chain{canonical: map[string]latest{}}
-	for i, name := range o.receipts[:headSeq] {
+	if r.through != 0 {
+		// A bounded audit restores elided liveness receipts as the complete
+		// walk does; only a walk that reaches the head applies Superseded
+		// (TCL-V0-820). The writer refresh keeps refusing them.
+		st.restore = &snapshot.ReceiptRestorer{}
+	}
+	bound := headSeq
+	if r.through != 0 {
+		if r.through > headSeq {
+			return result, wire.Errorf(wire.CodeMalformed, "--through", "sequence %d is above the head %d", r.through, headSeq)
+		}
+		bound = r.through
+	}
+	for i, name := range o.receipts[:bound] {
 		if err := r.step(o, st, result, name, uint64(i+1), headSeq, nil, "", lim); err != nil {
 			return result, err
 		}
@@ -1309,6 +1347,15 @@ func (r Reader) walkPrefix(o *observation, lim limits) (*Result, error) {
 	result.StructuralConsistency = "CONSISTENT"
 	if result.SemanticCoverage != "UNKNOWN" {
 		result.SemanticCoverage = "KNOWN_CODECS"
+	}
+	if bound < headSeq {
+		// A later receipt may post a request, evidence or pinned path
+		// again, so the current projection is not the state at the bound
+		// (TCL-V0-820); projectionAgreement stays NOT_OBSERVED.
+		return result, nil
+	}
+	if err := st.restore.Superseded(); err != nil {
+		return result, err
 	}
 	// Request afterimages are written once and evidence and pinned blobs are
 	// content-addressed, so their latest afterimage at H is still what a

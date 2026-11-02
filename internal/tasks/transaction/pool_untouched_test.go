@@ -17,7 +17,7 @@ func untouchedContext(t *testing.T) (leaseContext, *snapshot.Attempt, *ticket.Re
 	t.Helper()
 	q, _ := intent.DecodeQueue(fixture.QueueBytes())
 	v := fixture.PolicyValue()
-	command := object("argv", wire.Strings([]string{"/bin/false"}), "cwd", s("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", s("3"))
+	command := object("argv", wire.Strings([]string{"/usr/bin/false"}), "cwd", s("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", s("3"))
 	v.Obj.Set("pools", wire.Array(object("id", s("db"), "members", wire.Strings([]string{"a", "b"}), "memberConfig", object("a", object("cleanup", command)))))
 	p, err := intent.DecodePolicy(wire.EncodeFile(v))
 	if err != nil {

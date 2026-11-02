@@ -11,7 +11,7 @@ Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints cap
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
 - Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
-- Blocked on: the 40 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, and the ten subcommand companions of CAP-V0-972 under that requirement); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
+- Blocked on: the 38 `cmd/` binaries on the CLI ratchet have no command tree yet (`corvint-cem-candidate` and `corvint-cem-experiments` left it under CAP-V0-930, the ten subcommand companions of CAP-V0-972 under that requirement, and `corvint-update` and `corvint-work-queue` under CAP-V0-726); flags and subcommands deeper than `VERB SUB` are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
 
 ## User and baseline
@@ -321,6 +321,15 @@ cannot silently go missing or outlive its command.
   lines leave the `flows appmap`, `flows appmap build`, `mcp`, `repro` and `repro record` usage
   (and `repro record` loses the `--path` flag its example contributed). Rollback: restore the
   previous `Synopses` and regenerate the snapshots.
+- `CAP-V0-975`: (experimental under the standing lane auto-accept (2026-11-01); V1-4071; refines
+  `CAP-V0-040`) The flag extractor (`clitree.Flags`) MUST read every `|` alternative of a synopsis
+  field as its own token, so `[--summary|--pins]`, `(--preview|--apply)` and `-c|--cee` name each
+  option, not only the first; an alternative that is not an option (`json|text`, `<path|->`) adds
+  nothing. Failure mode: a node's `flags` omitted every alternative after the first, so
+  `capabilities-check` could not see those options as documented. Evidence:
+  `TestCAPV0975FlagsSplitAlternatives` (`internal/clitree`) and the regenerated
+  `internal/capcatalog/trees/corvint.json`, where `docs maintain` gains `--apply`. Rollback:
+  restore the single-token read and regenerate the snapshots.
 - `CAP-V0-060`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
@@ -361,6 +370,15 @@ cannot silently go missing or outlive its command.
   2 before it reads a repository or listens; `corvint-update` MUST refuse an action other than
   `check`, `apply` or `rollback` (including none) with its usage on stderr and exit 2 before it reads
   state, and its usage names every action, `--allow-network` and `--component core|tasks`.
+- `CAP-V0-820`: (experimental under the standing lane auto-accept (2026-11-01); V1-3902; refines
+  `CAP-V0-060`) An unknown verb, at the first word or after any verb group (`ticket`, `queue`,
+  `plan`, `policy`, `service`, `slots` and the rest), MUST
+  exit nonzero with outcome `ERROR` and the stable code `MALFORMED`, so a caller tells a typo from
+  a help request by its codes alone. The envelope's command names the group and the unknown word
+  when that word is an identifier (`help` stands in otherwise), and the warning quotes the word and
+  suggests the nearest implemented verb by edit distance (at most 2, or a third of the word's
+  length when longer; no verb within that distance means no suggestion) after the CAP-V0-060 last-word routes; with neither, it keeps the plain
+  `corvint-tasks help` pointer.
 - `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
   `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
   kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
@@ -449,12 +467,47 @@ cannot silently go missing or outlive its command.
   Rollback: restore the ten ratchet rows and the ceiling of 50, and delete the ten snapshots, their
   `commandTreeRefs`, `llms.txt`, Makefile and Command trees entries, the ten `help.go` files,
   `clitree.Help` and `internal/clitree/clitreetest`.
+- `CAP-V0-726`: (experimental under the standing lane auto-accept, 2026-11-01; V1-2685; amends
+  `CAP-V0-974`) A ratchet binary that dispatches subcommand words the CAP-V0-041 scan does not see
+  MUST still ship a command tree. `corvint-update` compares its first argument with `check`,
+  `apply` and `rollback`, and `corvint-work-queue` dispatches `snapshot`, `details` and `verify` in
+  `internal/worklistadapter`; each derives its tree from its usage text, answers the CAP-V0-973
+  help forms before its own dispatch, keeps its snapshot under `internal/capcatalog/trees/`, is
+  linked from `commandTrees`, `llms.txt`, the Makefile and the Command trees section, and leaves
+  `CLI-RATCHET.tsv`, whose `ratchetCeiling` falls from 40 to 38. `corvint-work-queue` names
+  `internal/worklistadapter` as a second dispatch source, so the drift check sees its operations.
+  `corvint-update` keeps its authored usage as the root help and takes only the `--version` forms
+  from the companion contract (CAP-V0-700). `corvint-work-queue` answers help before
+  `runProducer` and acquires no scratch or source, so its closed operation set (WQO-V0-007) is
+  unchanged. Each of the 14 other single-mode rows MUST say that its dispatch matches no
+  subcommand word. Non-goals: trees for single-mode tools, analyzer processes, folded shims and MCP
+  servers, whose options or tools are gated elsewhere or not at all; changing either binary's
+  refusals, flags or output. Failure modes: `corvint-update` parses one flag set for all three
+  actions, so its synopsis lists every flag on each. Rollback: restore the two ratchet rows, the
+  14 old reasons and the ceiling of 40, and delete the two snapshots, `help.go` and
+  `command_tree_test.go` files, their entries and the `treeCompanions` member.
 - `CAP-V0-955`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3286; refines
   `CAP-V0-040`) `clitree.Synopses` MUST NOT read an indented line under an example header (an
   unindented line ending in `:` that contains `example`, such as `Example:`, `Examples:` or
   `For example:`) as a synopsis, before or after the Usage block; the example block ends at the next
   unindented line. So an example command never becomes a node's usage, flag or derived example.
   Rollback: drop the example-block skip and regenerate the command trees.
+- `CAP-V0-120`: (experimental under the standing lane auto-accept (2026-11-01); V1-3682; refines
+  `CAP-V0-040`) The `--help` of each daily-path dogfood subverb (every action in
+  `dogfoodFlowOptions`) MUST list an `Options:` block naming each option that subverb accepts with
+  a one-line description, and a subverb that takes `--refresh` or `--citations` MUST also print the
+  citation plan row format and point to `docs/DOGFOOD.md` (`DOGFOOD_CITATIONS`). An option without
+  a description, or a description for no accepted option, fails the test. Non-goals: renaming or
+  adding options; describing options of non-daily-path nodes. Evidence:
+  `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint). Rollback: drop
+  `dogfoodFlowOptionsText` from `nodeHelpText`.
+- `CAP-V0-121`: (experimental under the standing lane auto-accept (2026-11-01); V1-3802) When
+  `corvint query` is given a positional argument (one that does not start with `-`), its
+  `invalid-arguments` refusal MUST keep the `unrecognized arguments: ARG` prefix and add the
+  `--task` form, `corvint query --task "ARG"`; it still exits 2. Non-goals: accepting positional
+  task text (the `--task` contract stays the one input form). Evidence:
+  `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint). Rollback: drop the hint branch in
+  `parseQueryArgumentsForPlatform`.
 - `CAP-V0-965`: (experimental under the standing lane auto-accept (2026-11-01); V1-3661; refines
   CAP-V0-961) A command row's `Subcommands` sentence MUST have a typed structure: every backticked
   span at parenthesis depth zero in it is exactly one subcommand name (`^[a-z][a-z0-9-]*$`); a
@@ -462,6 +515,28 @@ cannot silently go missing or outlive its command.
   the verb, the span and the row line, and such detail goes inside parentheses, which the reader
   skips. CAP-V0-961 then reads names rather than relying on the first-word prose convention.
   Rollback: drop `checkSubcommandSpans` and its call; the CAP-V0-961 reader is unchanged.
+- `CAP-V0-650`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3730, 2026-11-01)
+  The root-help parsers (`capcatalog.Build` and `tools/capabilities-check`) MUST accept the job
+  groups of CCF-V1-008: every header after the Core group starts `Experimental`, a line naming
+  verbs separated by ` | ` labels each verb, and a Core header after an experimental one fails. The
+  registry's `HiddenCommands` verbs MUST appear in the catalog and in the capabilities inventory as
+  experimental with their gloss, though root help does not list them. Rollback: drop the family
+  split and the hidden-verb merge and regenerate the catalog.
+- `CAP-V0-979`: (experimental under the standing lane auto-accept (2026-11-01); V1-3679; refines
+  CAP-V0-041 and CAP-V0-043) The CAP-V0-041 scan MUST NOT report a key of an event table (a table
+  whose identifier contains `event`, case-insensitively, such as `claudeContextEvents`) as a
+  dispatched word, whether an argument indexes the table or is compared with that key
+  (`arguments[1] == "session-start"`); such a value needs no `commandTreeInternal` entry. A word an
+  argument is compared with that no event table holds is still dispatch. Residual risk: a real
+  subcommand spelled like an event key in the same package is not checked. Rollback: drop
+  `eventTable` and the event-key filter; event values again need internal entries.
+
+- `CAP-V0-780`: (experimental under the standing lane auto-accept (2026-11-01); V1-3886) A
+  `missing` finding for a top-level command with no catalog row MUST name the three artifacts a
+  new command updates: its row in the `docs/CAPABILITIES.md` commands table and the README
+  capability table, the `internal/capcatalog` regeneration (`make capability-catalog`), and the
+  use-case receipt repin (`script/repin-use-case-receipts.sh`). Other sections keep their plain
+  detail. Rollback: restore the plain detail for the commands section.
 
 ## Boundaries and failure modes
 
@@ -586,6 +661,7 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-961 | `documentedSubcommands`, `checkStaleSubcommands` | `TestCAPV0961StaleDocumentedSubcommandFails`, `TestCAPV0961DocumentedSubcommandsParse` |
 | CAP-V0-965 | `subcommandSpans`, `checkSubcommandSpans` | `TestCAPV0965SubcommandSpansAreNames` |
 | CAP-V0-962 | `ScanLiterals`, `checkRefusals` | `TestCAPV0962RefusalCodeMatchesWholeLiteral`, `TestCAPV0009RemovedRefusalCodeFails` |
+| CAP-V0-650 | `capcatalog.Registry.HiddenCommands`, `parseRootCommands`, `parseRootLabel`, `parseHidden`, `parseCommands` | `TestCAPV0002JobGroupedRootHelp`, `TestCAPV0019CommittedCatalogMatchesTheBinary`, `TestHiddenVerbsStayCallableButUnlisted` |
 | CAP-V0-015 | `capabilityRegistry`, `capabilityCatalogJSON`, `capcatalog.Build`, `capabilityHelpTopics` | `TestCAPV0015HelpJSONListsEveryDispatchedCommand` |
 | CAP-V0-016 | `capcatalog.Build` unknowns | `TestCAPV0016UnderivableFieldsAreUnknownWithReasons`, `TestCAPV0016UnknownFieldsAreNullWithReasons` |
 | CAP-V0-017 | `internal/capcatalog/AGENT-GUIDE.md`, `capcatalog.Guide`, `helpText("guide")`, `capcatalog.requiredFlags`, `capcatalog.FormKey` | `TestCAPV0017HelpGuideServesTheShippedGuide`, `TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep`, `TestCAPV0017RequiredFlagsAreDerivedFromUsageForms`, `TestCAPV0017GuideExamplesCarryRequiredOptions` |
@@ -619,9 +695,16 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-700 | `internal/companioncli` (`Answer`), the `main` of each named companion | `internal/companionrelease/companion_cli_contract_test.go`'s `TestCAPV0700CompanionsAnswerTheSharedContract` (all eight built binaries, five forms, outside a repository); `TestCAPV0700AnswerHandlesOnlyTheContractForms` (internal/companioncli) |
 | CAP-V0-701 | `parseOptions` (`cmd/corvint-console`), `main` (`cmd/corvint-update`) | `TestCAPV0701CompanionsRefuseStrayArgumentsFirst` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
+| CAP-V0-820 | `unknownVerb`, `nearestVerbs` (`internal/tasks/cli/unknown_verb.go`) | `TestCAPV0820_UnknownVerbIsCodedAndSuggestsNearest`, `TestCAPV0820_VerbGroupsRefuseUnknownVerb`, `TestCAPV0820_NoSuggestionBeyondThreshold` (internal/tasks/cli) |
 | CAP-V0-970 | `clitree.Synopses` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0970SynopsesTakeTheUsageLineNotAnExample` |
+| CAP-V0-726 | `cmd/corvint-update/help.go`, `cmd/corvint-work-queue/help.go`, `internal/capcatalog/trees/corvint-update.json`, `internal/capcatalog/trees/corvint-work-queue.json` | `TestCAPV0726EveryNodeAnswersHelp` (both binaries), `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0700CompanionsAnswerTheSharedContract` |
+| CAP-V0-975 | `clitree.Flags` (`internal/clitree/clitree.go`), `internal/capcatalog/trees/corvint.json` | `TestCAPV0975FlagsSplitAlternatives` |
 | CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |
 | CAP-V0-930 | `cmd/corvint-cem-candidate/help.go`, `cmd/corvint-cem-experiments/help.go`, `internal/capcatalog/trees/corvint-cem-{candidate,experiments}.json`, `commandTreeRefs`, `ratchetCeiling` | `TestCAPV0930TreeSnapshotIsCurrent` (both binaries), `TestCAPV0045CatalogLinksCurrentTreeSnapshots`, `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`, `TestCAPV0049LLMsEntryPointLinksEveryView` |
 | CAP-V0-931 | `clitree.Answer` | `TestCAPV0931AnswerRoutesHelpOnly` (internal/clitree) |
 | CAP-V0-932 | `rootHelp` in both `help.go` files | `TestCAPV0932EveryNodeAnswersHelp` (both binaries) |
 | CAP-V0-955 | `internal/clitree/clitree.go` (`Synopses`) | `TestSynopsesSkipsIndentedExamples` (examples after, before and directly above Usage); regenerated `internal/capcatalog/trees/corvint.json` drops the `docs` example lines and the stray `-m` flag |
+| CAP-V0-979 | `internal/clitree/scan.go` (`eventTable`, the event-key filter in `scanPackage`) | `TestCAPV0979EventValuesAreNotDispatch` (internal/clitree), `TestCAPV0979EventValuesAreNotDrift` (tools/capabilities-check) |
+| CAP-V0-780 | `tools/capabilities-check/check.go` (`newCommandChecklist`) | `TestCAPV0780NewCommandNamesEveryArtifact` (a stub command names all three artifacts; a companion binary keeps the plain detail) |
+| CAP-V0-120 | `cmd/corvint/dogfood_flow.go` (`dogfoodFlowOptionHelp`, `dogfoodFlowOptionsText`, `dogfoodCitationPlanFormat`), `nodeHelpText` | `TestCAPV0120DogfoodSubverbHelpDescribesOptions` (cmd/corvint) |
+| CAP-V0-121 | `parseQueryArgumentsForPlatform` (`cmd/corvint/main.go`) | `TestCAPV0121QueryPositionalTextNamesTaskForm` (cmd/corvint) |

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const blindedKey = `{"profile":"corvint-docs-blinded-answer-key/0","answers":{"q1":["Preview"],"q2":["cmd/corvint","internal/companionrelease"]}}`
+const blindedKey = `{"profile":"corvint-docs-blinded-answer-key/0","answers":{"q1":["Preview"],"q2":["cmd/corvint","internal/companionrelease"]}}` //corvint:fixture-path
 
 func blindedTasks(keySHA string) []byte {
 	return []byte(`{"profile":"corvint-docs-blinded-task-set/0","reference":{"source":"s.md","package":"p","revision":"r"},` +
@@ -21,14 +21,14 @@ func TestSDDV0015BlindedScoring(t *testing.T) {
 		t.Fatalf("a key the task set did not commit to was accepted: %v", err)
 	}
 	pass := `{"profile":"corvint-docs-blinded-responses/0","participant":"p1","condition":"generated-reference",` +
-		`"answers":{"q1":"  preview  ","q2":"CMD/corvint and internal/companionrelease"}}`
+		`"answers":{"q1":"  preview  ","q2":"CMD/corvint and internal/companionrelease"}}` //corvint:fixture-path
 	res, err := ScoreBlinded(tasks, []byte(blindedKey), []byte(pass))
 	if err != nil || res.Verdict != "PASS" || res.Correct != 2 || res.Profile != BlindedResultProfile {
 		t.Fatalf("pass run: %+v %v", res, err)
 	}
 	fail := `{"profile":"corvint-docs-blinded-responses/0","participant":"p2","condition":"generated-reference","answers":{"q2":"cmd/corvint"}}`
 	res, err = ScoreBlinded(tasks, []byte(blindedKey), []byte(fail))
-	if err != nil || res.Verdict != "FAIL" || res.Correct != 0 || len(res.Scores[1].Missing) != 1 || res.Scores[1].Missing[0] != "internal/companionrelease" {
+	if err != nil || res.Verdict != "FAIL" || res.Correct != 0 || len(res.Scores[1].Missing) != 1 || res.Scores[1].Missing[0] != "internal/companionrelease" { //corvint:fixture-path
 		t.Fatalf("fail run: %+v %v", res, err)
 	}
 	if res.ResponsesSHA256 != digestHex([]byte(fail)) || res.TaskSetSHA256 != digestHex(tasks) {

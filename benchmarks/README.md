@@ -248,3 +248,19 @@ cache-state vocabulary above: `COLD_UNIQUE` is observed (no snapshot store, `.gi
 plain clone, in the copy before the call), `PRIMED_SHARED` when one exists, nearest-rank p50/p95/max and MAD, `NOT_RUN` below 30
 samples, never a mean. "Faster than ripgrep" may only be claimed from primed cells whose p95 ratio
 is below one on every repository-size bucket; the cold cell is the amortised cost, never the headline.
+
+## Retained benchmark data outside the repository (ASD-V0-646)
+
+Benchmark rows too large to commit stay on the host that produced them, and
+`benchmarks/retained-data.tsv` records where (V1-3754: the V1-2761 AC3 rows were found only by
+searching one WSL host). The file is tab separated with one row per retained directory and the
+columns `id`, `ticket`, `host`, `path`, `sha256`, `files`, `bytes`, `producing_commit`, `recorded`
+and `note`.
+
+- `sha256`, `files` and `bytes` come from one `script/retained-data-digest.sh DIR` run on the host:
+  the SHA-256 of the sorted `sha256sum` listing of every file under DIR (paths relative to DIR), so
+  the digest does not depend on write order or mount point.
+- `producing_commit` is the full SHA of the commit whose tool wrote the data.
+- A value that was not observed is `NOT_OBSERVED`, with the reason in `note`.
+- Ticket evidence and build-log entries cite the row `id`. `script/retained-data-digest.sh --check`
+  validates the file, and `make lane-scripts-test` runs that check.

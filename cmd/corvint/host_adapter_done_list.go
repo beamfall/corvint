@@ -25,6 +25,7 @@ import (
 const (
 	doneListProfile    = "corvint-done-list/0"
 	doneListOptIn      = "CORVINT_STOP_DONE_LIST"
+	doneListPluginOpt  = "CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST"
 	doneListUnitLimit  = 8
 	doneListPathLimit  = 8
 	doneListGitLimit   = 1 << 20
@@ -49,12 +50,18 @@ func init() {
 	adapterDeclaredHostKill["claude-code stop-done-list"] = 10 * time.Second
 }
 
-// runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set: only
-// stop-done-list, which owes no lifecycle record and so skips normalization and degradation
-// recording.
+// runClaudeUnlistedEvent serves the Claude Code events outside the shared lifecycle set:
+// subagent-start and pre-tool, which reuse the user-prompt path (AHI-804, AHI-805), and stop-done-list, which owes no
+// lifecycle record and so skips normalization and degradation recording.
 func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[string]any) map[string]any {
+	if event == "subagent-start" {
+		return runClaudeSubagentStart(ctx, payload)
+	}
+	if event == "pre-tool" {
+		return runClaudePreToolRead(ctx, payload)
+	}
 	if event != "stop-done-list" {
-		return degradedAdapterOutput("unsupported-hook-event")
+		return unsupportedHookEvent("claude-code")
 	}
 	root, err := claudeAdapterRoot(ctx)
 	if err != nil {
@@ -66,10 +73,21 @@ func runClaudeUnlistedEvent(ctx context.Context, event string, payload map[strin
 	return runClaudeStopDoneList(ctx, root, payload)
 }
 
+// doneListOptedIn reports the Stop done-list opt-in (AHI-807, V1-2514): a set
+// CORVINT_STOP_DONE_LIST decides alone (only "1" enables), otherwise the plugin's boolean
+// stop_done_list userConfig option, which the host exports as CLAUDE_PLUGIN_OPTION_STOP_DONE_LIST.
+func doneListOptedIn(ctx context.Context) bool {
+	if value := adapterGetenv(ctx, doneListOptIn); value != "" {
+		return value == "1"
+	}
+	option := adapterGetenv(ctx, doneListPluginOpt)
+	return option == "true" || option == "1"
+}
+
 // runClaudeStopDoneList is the `claude-code stop-done-list` hook event. It stays silent unless the
 // user opted in, on a continued Stop, in a subagent, and on a clean tree (AHI-191, AHI-192).
 func runClaudeStopDoneList(ctx context.Context, root string, payload map[string]any) map[string]any {
-	if adapterGetenv(ctx, doneListOptIn) != "1" {
+	if !doneListOptedIn(ctx) {
 		return map[string]any{}
 	}
 	if active, _ := payload["stop_hook_active"].(bool); active || claudeSubagent(payload) {

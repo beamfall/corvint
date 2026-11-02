@@ -26,6 +26,7 @@ Application map usage (experimental, AMAP-V0):
       [--receipt FILE]... [--bind STEP_ID=TEST_KEY]...
   corvint [--root PATH] flows appmap entries --map FILE [--ledger FILE] [--budget N | --full] [--revision REV]
   corvint [--root PATH] flows appmap stats --map FILE [--budget N | --full] [--min-resolved PCT] [--remedies]
+  corvint [--root PATH] flows appmap coverage --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap refs --map FILE --source [ALIAS:]DIR... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
   corvint [--root PATH] flows appmap endpoints --map FILE --source [ALIAS:]DIR... [--rails-routes [ALIAS:]FILE]...
       [--openapi [ALIAS:]FILE]... [--repo ALIAS=ABSOLUTE_ROOT]... [--budget N | --full]
@@ -259,7 +260,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -312,6 +313,9 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag i
 	if verb == "stats" {
 		return runFlowsAppmapStats(ctx, root, args, out)
 	}
+	if verb == "coverage" {
+		return runFlowsAppmapCoverage(ctx, root, args, out)
+	}
 	if verb == "refs" {
 		return runFlowsAppmapRefs(ctx, root, args, out)
 	}
@@ -344,7 +348,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out, diag i
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, coverage, refs, endpoints, pageobjects, steps, setup, links, infer, how, actions, blocker, branches, edges, observe, structure-diff, staleness, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

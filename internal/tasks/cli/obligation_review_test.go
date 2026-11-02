@@ -46,6 +46,7 @@ func witnessReview(t *testing.T, v wire.Value, ac string) wire.Value {
 // with no on-path stub risk credit the obligation with REVIEWED evidence;
 // a non-OWNER REVIEWED witness is refused (TOL-V0-073, 075).
 func TestTOLV0073_ReviewedWitnessCreditsOnAgreement(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	before := obligationsShow(t, r.Root, id)
@@ -92,6 +93,7 @@ func TestTOLV0073_ReviewedWitnessCreditsOnAgreement(t *testing.T) {
 // on-path stub risk give HELD with both reasons kept; the entry stays OPEN
 // (TOL-V0-075).
 func TestTOLV0075_HeldVerdictsKeptWithReasons(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	file := reviewFile(t, "2", "boundary", verdict("rev-a", "partial", "none", "misses the error branch"), verdict("rev-b", "correct", "on-path", "the session store is stubbed on the path"))
@@ -119,6 +121,7 @@ func TestTOLV0075_HeldVerdictsKeptWithReasons(t *testing.T) {
 // a re-review of the same blob is refused, and a new review of the edited
 // example credits again (TOL-V0-076, TOL-V0-077).
 func TestTOLV0077_EditedExampleMakesReviewStale(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	file := reviewFile(t, "2", "none", verdict("rev-a", "correct", "none", "ok"), verdict("rev-b", "correct", "none", "ok"))
@@ -162,6 +165,7 @@ func TestTOLV0077_EditedExampleMakesReviewStale(t *testing.T) {
 // longer resolves leaves stale unknown and the credit uncounted (Codex #1189
 // finding 1).
 func TestTOLV0077_TestRepositoryReviewStaleness(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -199,6 +203,7 @@ func TestTOLV0077_TestRepositoryReviewStaleness(t *testing.T) {
 // refused OBLIGATION_REVIEWER_NOT_INDEPENDENT and nothing is written; a
 // secret-shaped reason refuses SECRET_DETECTED (TOL-V0-074, TOL-V0-078).
 func TestTOLV0074_AuthorReviewerRefused(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	before := fixture.TreeSnapshot(t, r.StateDir)
@@ -222,6 +227,7 @@ func TestTOLV0074_AuthorReviewerRefused(t *testing.T) {
 // while an edited subject at an existing HEAD still reports stale true
 // (TOL-V0-100).
 func TestTOLV0100_UnbornTestRepositoryHeadUnresolved(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)
@@ -250,6 +256,7 @@ func TestTOLV0100_UnbornTestRepositoryHeadUnresolved(t *testing.T) {
 // credited, and an edit on the candidate makes it stale though HEAD is
 // unchanged; each entry names the basis it was judged at (TOL-V0-131).
 func TestTOLV0131_StalenessJudgedAtCandidate(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	file := reviewFile(t, "2", "none", verdict("rev-a", "correct", "none", "ok"), verdict("rev-b", "correct", "none", "ok"))
@@ -309,6 +316,7 @@ func TestTOLV0131_StalenessJudgedAtCandidate(t *testing.T) {
 // COVERED, an edit on the candidate makes it a STALE_REVIEW; each reviewed
 // witness names its staleBasis (TOL-V0-132).
 func TestTOLV0132_PlanWitnessJudgedAtCandidate(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	file := reviewFile(t, "1", "none", verdict("rev-a", "correct", "none", "asserts the login redirect"))

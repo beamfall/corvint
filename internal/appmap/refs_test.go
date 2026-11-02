@@ -122,7 +122,8 @@ func TestAMAPV0092ValueModes(t *testing.T) {
 		{"page.goto(`${url}`)", "", "", "", "dynamic-value"},
 		{"page.goto(url)", "", "", "", "non-literal-value"},
 		{"page.goto('/a' ? b : c)", "", "", "", "non-literal-value"},
-		{`page.toHaveURL(/^\/orders\/\d+$/)`, "/orders/", matchPrefix, classRegex, ""},
+		{`page.toHaveURL(/^\/orders\/\d+$/)`, "/orders/", matchPrefix, "", ""}, // evaluated (AMAP-V0-816)
+		{`page.toHaveURL(/^\/orders\/\d+/)`, "/orders/", matchPrefix, classRegex, ""},
 		{`page.toHaveURL(/.*settings/)`, "", "", "", "regex-without-literal"},
 		{"page.waitForURL('/files/**')", "/files/", matchPrefix, "", ""},
 		{`page.toHaveURL(/^\/missing\*/)`, "/missing*", matchPrefix, classRegex, ""}, // an escaped `*` is not a glob

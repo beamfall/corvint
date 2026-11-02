@@ -117,7 +117,7 @@ func TestPSRV0160_UndeclaredOperationRefused(t *testing.T) {
 	if _, e := operate(t, s, "unknown-op", "a", "rebuild", ""); wire.CodeOf(e) != wire.CodeMalformed {
 		t.Fatalf("unknown operation name: %v", e)
 	}
-	for name, ops := range map[string]wire.Value{"unknown key": obj("rebuild", obj("argv", wire.Strings([]string{"/bin/true"}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("5"))), "empty": wire.ObjectValue(wire.NewObject())} {
+	for name, ops := range map[string]wire.Value{"unknown key": obj("rebuild", obj("argv", wire.Strings([]string{"/usr/bin/true"}), "cwd", str("REPOSITORY"), "env", wire.Array(), "timeoutSeconds", str("5"))), "empty": wire.ObjectValue(wire.NewObject())} {
 		v := fixture.PolicyValue()
 		v.Obj.Set("policyVersion", str("4"))
 		v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))

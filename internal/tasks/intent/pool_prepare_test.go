@@ -9,9 +9,9 @@ import (
 // health/cleanup shape and 1..3600 bound; it requires safeReuse, and an
 // absent prepare leaves the decoded configuration without one.
 func TestPSRV0024PrepareConfig(t *testing.T) {
-	const reuse = `{"argv":["/bin/true"],"envKeys":[],"maxAttempts":"1","timeoutSeconds":"3","verify":{"argv":["/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"x"}}`
+	const reuse = `{"argv":["/usr/bin/true"],"envKeys":[],"maxAttempts":"1","timeoutSeconds":"3","verify":{"argv":["/usr/bin/true"],"envKeys":[],"expectExit":"0","expectStdout":"x"}}`
 	command := func(timeout string) string {
-		return `{"argv":["/bin/true"],"cwd":"REPOSITORY","env":[],"timeoutSeconds":"` + timeout + `"}`
+		return `{"argv":["/usr/bin/true"],"cwd":"REPOSITORY","env":[],"timeoutSeconds":"` + timeout + `"}`
 	}
 	got, e := gh628Pools(t, `{"prepare":`+command("3600")+`,"safeReuse":`+reuse+`}`)
 	if e != nil || got[0].MemberConfig["a"].Prepare == nil || got[0].MemberConfig["a"].Prepare.TimeoutSeconds != "3600" {
@@ -28,7 +28,7 @@ func TestPSRV0024PrepareConfig(t *testing.T) {
 			t.Fatalf("prepare timeout %s: %v", timeout, e)
 		}
 	}
-	if _, e = gh628Pools(t, `{"prepare":{"argv":["/bin/true"],"cwd":"REPOSITORY","env":["SECRET"],"timeoutSeconds":"3"},"safeReuse":`+reuse+`}`); e == nil {
+	if _, e = gh628Pools(t, `{"prepare":{"argv":["/usr/bin/true"],"cwd":"REPOSITORY","env":["SECRET"],"timeoutSeconds":"3"},"safeReuse":`+reuse+`}`); e == nil {
 		t.Fatal("prepare env outside the allowlist accepted")
 	}
 }

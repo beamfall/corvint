@@ -20,6 +20,7 @@ import (
 // the WORKER scope refuses an anchor outside touchPaths and another actor,
 // each with its stable detail prefix.
 func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r := exclusionCLIRepo(t)
 	policyPath := filepath.Join(r.IntentDir, "policy.json")
 	raw, err := os.ReadFile(policyPath)
@@ -40,7 +41,7 @@ func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 	if x := atm(t, r.Root, nil, "init"); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("init: %+v", x.res)
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
+	setActor(t, "agent")
 	home := planTicket(t, r.Root, "home", "P1", `["src/"]`)
 	other := planTicket(t, r.Root, "other", "P2", `["docs/x.md"]`)
 	c := atm(t, r.Root, nil, "claim", home, "--holder", "agent", "--request-id", "claim-home")
@@ -64,12 +65,12 @@ func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 		{"foreign actor", "intruder", mutation.KnowHowWorkerAttemptForeign, add("w-foreign", home, gen, "src/a.go")},
 	}
 	for _, rc := range refusals {
-		t.Setenv("CORVINT_TASKS_ACTOR", rc.actor)
+		setActor(t, rc.actor)
 		if x := atm(t, r.Root, nil, rc.args...); x.res.Outcome == wire.OutcomeOK || !strings.Contains(string(x.stdout), rc.prefix) {
 			t.Fatalf("%s: %s", rc.name, x.stdout)
 		}
 	}
-	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
+	setActor(t, "agent")
 	x := atm(t, r.Root, nil, add("w-ok", home, gen, "src/a.go")...)
 	if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "outcome").Str != mutation.OutcomeCompleted {
 		t.Fatalf("worker add: %s", x.stdout)
@@ -101,8 +102,9 @@ func TestKHNV0022_WorkerKnowHowThroughTheCLI(t *testing.T) {
 // the claim holder's WORKER add is refused UNAUTHORIZED with the same detail
 // an unadmitted role always received, and nothing is written.
 func TestKHNV0021_WorkerKnowHowRefusedWithoutPolicy(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r := knowHowCLIRepo(t)
-	t.Setenv("CORVINT_TASKS_ACTOR", "agent")
+	setActor(t, "agent")
 	home := planTicket(t, r.Root, "home", "P1", `["src/"]`)
 	c := atm(t, r.Root, nil, "claim", home, "--holder", "agent", "--request-id", "claim-home")
 	if c.res.Outcome != wire.OutcomeOK {

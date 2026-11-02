@@ -50,21 +50,28 @@ type snapshotBundleFile struct {
 
 // snapshotVerbs are the verbs SnapshotEnv serves (TCL-V0-011).
 var snapshotVerbs = map[string]bool{
-	"version": true, "--version": true, "roadmap": true, "queue status": true,
-	"ticket search": true, "ticket show": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
+	"version": true, "--version": true, "roadmap": true, "queue status": true, "queue parity": true,
+	"ticket search": true, "ticket show": true, "ticket blockers": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 }
 
 // queueSnapshot writes the intent tree as one snapshot object to --out, or
 // raw to stdout (TCL-V0-010).
 func queueSnapshot(env Env, args []string) int {
 	cmd := []string{"queue", "snapshot"}
-	values, _, bad := listFlags(cmd, args, []string{"out"}, nil, nil)
+	values, _, bad := listFlags(cmd, args, []string{"out", "worktree"}, nil, nil)
 	if bad != nil {
 		return emit(env.Stdout, bad)
 	}
 	var raw []byte
 	var b snapshotBundle
-	rc, err := withInventoryStore(env, func(rc *readCtx) error {
+	read := withInventoryStore
+	if v := values["worktree"]; len(v) == 1 {
+		dir := commandPath(env.Cwd, v[0])
+		read = func(_ Env, body func(*readCtx) error) (*readCtx, error) {
+			return withWorktreeStore(env, dir, body)
+		}
+	}
+	rc, err := read(env, func(rc *readCtx) error {
 		host, _ := os.Hostname()
 		b = snapshotBundle{Profile: snapshotBundleSchema, SourceHost: host, PrimaryWorktree: rc.repo.PrimaryWorktree,
 			ProducedAt: time.Now().UTC().Format("2006-01-02T15:04:05Z"), TreeSha256: string(rc.store.Tree.Sha256)}
@@ -110,6 +117,42 @@ func queueSnapshot(env Env, args []string) int {
 	o.Set("lastSeq", snapshotSeqValue(b.Journal))
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	return emit(env.Stdout, res)
+}
+
+// withWorktreeStore loads the intent tree at dir/.taskman with no
+// repository resolution and no journal, for a linked or pruned worktree
+// whose store the primary checkout would otherwise shadow (TCL-V0-869).
+func withWorktreeStore(env Env, dir string, body func(*readCtx) error) (*readCtx, error) {
+	if fi, err := os.Stat(filepath.Join(dir, intent.Dir)); err != nil || !fi.IsDir() {
+		return nil, wire.Errorf(wire.CodeUninitialized, filepath.Join(dir, intent.Dir), "--worktree names no intent store directory")
+	}
+	rc := &readCtx{repo: &intent.Repository{PrimaryWorktree: dir}, journalAbsent: true}
+	// TCL-V0-869: the tree is digested again after the body, as an
+	// inventory read is, so a tree that changed under the read is read
+	// afresh and one that keeps changing is refused.
+	for attempt := 0; attempt < 4; attempt++ {
+		tree, err := intent.TreeDigest(dir)
+		if err != nil {
+			return rc, err
+		}
+		st, err := intent.LoadTree(dir, tree, "")
+		if err != nil {
+			return rc, err
+		}
+		rc.store = st
+		bodyErr := body(rc)
+		if env.afterRead != nil {
+			env.afterRead()
+		}
+		again, err := intent.TreeDigest(dir)
+		if err != nil {
+			return rc, err
+		}
+		if again.Sha256 == st.Tree.Sha256 {
+			return rc, bodyErr
+		}
+	}
+	return rc, wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(dir, intent.Dir), "intent tree changed during four read attempts")
 }
 
 func snapshotSeqValue(j *snapshotBundleJournal) wire.Value {
@@ -189,10 +232,12 @@ func withSnapshotStore(path string, body func(*readCtx) error) (*readCtx, error)
 	return rc, body(rc)
 }
 
-// bundleWarning names where and when the served snapshot was produced.
+// bundleWarning names where and when the served snapshot was produced, its
+// tree digest and its age at this read (TCL-V0-742).
 func bundleWarning(rc *readCtx) string {
 	return "served read-only from the " + SnapshotEnv + " snapshot " + rc.bundlePath + " (host " + rc.bundle.SourceHost +
-		", primary worktree " + rc.bundle.PrimaryWorktree + ", produced " + rc.bundle.ProducedAt + ", journal seq " +
+		", primary worktree " + rc.bundle.PrimaryWorktree + ", produced " + rc.bundle.ProducedAt + ", age " +
+		snapshotAge(rc.bundle.ProducedAt, time.Now()) + ", tree " + rc.bundle.TreeSha256 + ", journal seq " +
 		snapshotSeqValue(rc.bundle.Journal).Str + "); intent written after it, journal history and liveness are NOT_OBSERVED"
 }
 
@@ -225,5 +270,5 @@ func snapshotRefusal(env Env, args []string) *wire.Result {
 }
 
 func snapshotVerbList() []string {
-	return []string{"ticket search", "ticket show", "ticket export", "ticket similar", "ticket digest", "roadmap", "queue status"}
+	return []string{"ticket search", "ticket show", "ticket export", "ticket similar", "ticket digest", "roadmap", "queue status", "queue parity"}
 }

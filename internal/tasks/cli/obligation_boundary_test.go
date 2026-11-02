@@ -15,8 +15,8 @@ import (
 // boundarySet runs one ticket obligations set as actor with role.
 func boundarySet(t *testing.T, root, id, req, actor, role, changes string) run {
 	t.Helper()
-	t.Setenv("CORVINT_TASKS_ACTOR", actor)
-	defer t.Setenv("CORVINT_TASKS_ACTOR", "owner")
+	setActor(t, actor)
+	defer setActor(t, "owner")
 	return atm(t, root, nil, "ticket", "obligations", "set", "--target", id, "--expected-revision", obligationRevision(t, root, id),
 		"--request-id", req, "--role", role, "--payload", `{"changes":`+changes+`}`)
 }
@@ -71,6 +71,7 @@ func boundaryRepo(t *testing.T, v wire.Value, name string) wire.Value {
 // a test file lists it as a re-scope candidate (TOL-V0-079..083, GitHub
 // #1180).
 func TestTOLV0083_NoTestBoundaryScopeDecisionAndRescope(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	infra := infraRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"infra": infra}))
 	seedObligations(t, r.Root, id)
@@ -162,6 +163,7 @@ func TestTOLV0083_NoTestBoundaryScopeDecisionAndRescope(t *testing.T) {
 // scope decision still moves core; without the policy the plain change
 // stays admitted (TOL-V0-082, TOL-V0-007).
 func TestTOLV0082_RequireScopeDecisionRefusesPlainCore(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	plain := `[{"id":"AC-1","state":null,"core":false,"reason":"not core"}]`
 	r0, id0, _ := obligationRepo(t)
 	seedObligations(t, r0.Root, id0)
@@ -285,6 +287,7 @@ func TestTOLV0086_WorklistBatchCandidateAndNeedsText(t *testing.T) {
 // TestTOLV0085_FindingNeedsShortfallVerdict: a no-falsifiable-text finding
 // on a correct verdict is refused (TOL-V0-085).
 func TestTOLV0085_FindingNeedsShortfallVerdict(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	bad := reviewFile(t, "2", "none", `{"reviewer":"rev-a","verdict":"correct","stubRisk":"none","reason":"r","finding":"NO_FALSIFIABLE_TEXT"}`, verdict("rev-b", "correct", "none", "ok"))
@@ -301,6 +304,7 @@ func TestTOLV0085_FindingNeedsShortfallVerdict(t *testing.T) {
 // grants OBLIGATIONS_SET admits a proposal, but ACCEPT stays OWNER-only even
 // from an actor other than the proposer (TOL-V0-081).
 func TestTOLV0081_GrantedOperatorCannotAccept(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := obligationRepoWith(t, func(p wire.Value) {
 		p.Obj.Set("roles", wire.ObjectValue(wire.NewObject().Set("OPERATOR", wire.Strings([]string{"OBLIGATIONS_SET"}))))
 	})
@@ -323,6 +327,7 @@ func TestTOLV0081_GrantedOperatorCannotAccept(t *testing.T) {
 // with no HEAD commit leaves it SUBJECT_UNVERIFIED, never SUBJECT_CHANGED
 // (TOL-V0-086; Codex finding on this change).
 func TestTOLV0086_WorklistTestRepositoryUnverified(t *testing.T) {
+	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	app, appHead := separateTestRepo(t)
 	r, id, _ := obligationRepoWith(t, testRepoPolicy(map[string]string{"app": app}))
 	seedObligations(t, r.Root, id)

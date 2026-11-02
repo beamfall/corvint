@@ -27,7 +27,7 @@ type NestedModule = nestedModule
 // NestedModules is the per-module nested-frontier evidence for one source.
 func NestedModules(t testing.TB, root *affected.Source) []NestedModule {
 	t.Helper()
-	manifests, err := root.Files(func(name string) bool { return path.Base(name) == "go.mod" })
+	manifests, err := root.Files(func(_, name string) bool { return path.Base(name) == "go.mod" })
 	if err != nil {
 		t.Fatalf("manifests: %v", err)
 	}

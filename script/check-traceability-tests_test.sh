@@ -103,6 +103,26 @@ esac
 /bin/rm -f "$test_root/docs/specs/qualified.md"
 stage docs/specs/qualified.md
 
+# TTG-V0-917 (V1-4048): a backticked word of the test-name shape followed by `(not a test)`, such as
+# a fixture name, is not checked; the same word without the marker on the next row still fails.
+# shellcheck disable=SC2016
+printf '%s\n' '# Prose' '' '## Traceability' '' \
+  '| FIX-V0-009 | the fixture `TestLine` (not a test) and TestCol (not a test) | `TestGhostOnlyOnDisk` |' \
+  > "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+run >/dev/null || fail "a word marked (not a test) was checked as a test function: $(run)"
+# shellcheck disable=SC2016
+printf '%s\n' '| FIX-V0-010 | the fixture `TestLine` |' >> "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+output=$(run) && fail "an unmarked fixture word passed"
+case "$output" in
+  *"docs/specs/prose.md:6: TestLine"*) ;;
+  *) fail "the unmarked fixture word was not reported: $output" ;;
+esac
+case "$output" in *TestCol*) fail "the marked word was reported: $output" ;; esac
+git -C "$test_root" rm -q --cached -- docs/specs/prose.md
+/bin/rm -f "$test_root/docs/specs/prose.md"
+
 # TTG-V0-012 (V1-3235): a declaration added to a tracked file but not staged is named with its file
 # and the staging fix; staging it resolves the row.
 printf '%s\n' 'func TestAddedUnstaged() {}' >> "$test_root/internal/demo/ghost_test.go"

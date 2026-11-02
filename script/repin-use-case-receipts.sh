@@ -13,6 +13,7 @@ set -eu
 #
 #   script/repin-use-case-receipts.sh           repin every stale receipt and report each one
 #   script/repin-use-case-receipts.sh --check   list stale receipts; exit 1 if any, write nothing
+#   script/repin-use-case-receipts.sh --merged  also adopt a receipt git holds after a merge
 #   ... [--changed PATH...]                     take the changed paths from the arguments
 #
 # It refuses, writing nothing, when a receipt or subject is missing, when a receipt's bytes do not
@@ -22,6 +23,18 @@ set -eu
 # A receipt that left its ledger pin is refused with the exact `git restore --source=REV` and
 # repin command when a recent commit holds the pinned bytes (UCV0-019).
 #
+# A subject with `lines` pins only that span and one with `symbol` only that Go declaration
+# (UCV0-630): a symbol is repinned by the digest `go run ./conformance/use-cases-v0 -subject-digest`
+# prints, while a span whose own lines changed is refused, since the same numbers may hold other text.
+#
+# --merged (ASD-V0-985, V1-3936) is the integrator's step after merging lanes, and the batch-regen
+# full run's use-case-receipts step: a receipt whose bytes left its ledger pin is adopted, not
+# refused, when its worktree bytes equal its index blob, that is when git holds them (a merge
+# result, committed or staged) rather than an unstaged edit. Its ledger pin is then rewritten to
+# its bytes, after its subjects are repinned, and it is listed as "adopted". Two lanes that each
+# repinned one receipt merge, through script/merge-use-case-pins.sh, to ours' pins, which this
+# mode recomputes from the merged subjects. An unstaged receipt edit is still refused.
+#
 # It also lists, for information only, each changed path that no receipt pins (UCV0-018): the
 # paths `git diff --name-only HEAD` names, or the `--changed` paths. "All receipts current" says
 # nothing about such a path, for example help text no receipt covers. The listing never changes
@@ -30,12 +43,13 @@ set -eu
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 
-usage() { printf 'usage: %s [--check] [--changed PATH...]\n' "$0" >&2; exit 64; }
+usage() { printf 'usage: %s [--check | --merged] [--changed PATH...]\n' "$0" >&2; exit 64; }
 mode=write
 source=diff
 while [ $# -gt 0 ]; do
     case $1 in
     --check) [ "$mode" = write ] || usage; mode=check; shift ;;
+    --merged) [ "$mode" = write ] || usage; mode=merged; shift ;;
     --changed) source=args; shift; break ;;
     *) usage ;;
     esac
@@ -105,11 +119,41 @@ sub pinned_recovery {
         . "then restore the receipt or record the change by hand";
 }
 
+# span_bytes returns lines N-M of a file with their terminators (UCV0-630), or undef.
+sub span_bytes {
+    my ($bytes, $span) = @_;
+    my ($first, $last) = ($span // '') =~ /\A([1-9][0-9]{0,8})-([1-9][0-9]{0,8})\z/ or return undef;
+    my @lines = split /(?<=\n)/, $bytes;
+    return undef if $first > $last || $last > @lines;
+    return join '', @lines[$first - 1 .. $last - 1];
+}
+
+# symbol_digest asks the conformance runner for one Go declaration's digest (UCV0-630), or undef.
+sub symbol_digest {
+    my ($subject, $symbol) = @_;
+    open my $run, '-|', 'go', 'run', './conformance/use-cases-v0', '-subject-digest', "$subject#$symbol" or return undef;
+    chomp(my $out = do { local $/; <$run> } // '');
+    close $run or return undef;
+    return $out =~ /\A[0-9a-f]{64}\z/ ? $out : undef;
+}
+
+# index_blob returns the bytes git holds for a path in the index, or undef when it has none.
+sub index_blob {
+    my ($path) = @_;
+    open my $blob, '-|', 'git', 'cat-file', 'blob', ":$path" or return undef;
+    binmode $blob;
+    local $/;
+    my $bytes = <$blob>;
+    close $blob or return undef;
+    return $bytes;
+}
+
 my $ledger_raw = slurp($ledger_path) // die "repin: $ledger_path is missing\n";
 my $ledger = JSON::PP->new->decode($ledger_raw);
 
 my @refusals;
 my @stale;    # [receipt path, pinned receipt digest, receipt raw, [[subject, old, new], ...]]
+my %adopted;  # --merged: receipts whose git-held bytes left their ledger pin
 my $receipt_count = 0;
 my %pinned = ($ledger_path => 1);    # the ledger, every receipt, subject and clause-extract spec
 for my $row (@{ $ledger->{useCases} }) {
@@ -123,7 +167,11 @@ for my $row (@{ $ledger->{useCases} }) {
             push @refusals, "$path: receipt is missing";
             next;
         }
-        if (sha256_hex($raw) ne $ref->{sha256}) {
+        if (sha256_hex($raw) ne $ref->{sha256} && $mode eq 'merged'
+            && defined(my $held = index_blob($path))) {
+            $adopted{$path} = 1 if $held eq $raw;
+        }
+        if (sha256_hex($raw) ne $ref->{sha256} && !$adopted{$path}) {
             push @refusals, "$path: receipt bytes do not match the ledger pin (hand edit?)\n    "
                 . pinned_recovery($path, $ref->{sha256});
             next;
@@ -142,10 +190,33 @@ for my $row (@{ $ledger->{useCases} }) {
                 && defined $extract->{spec} && !ref $extract->{spec}) {
                 $pinned{ $extract->{spec} } = 1;
             }
-            my $digest = sha256_hex($bytes);
+            # UCV0-630: a span subject pins its lines, a symbol subject one Go declaration.
+            my $digest;
+            if (defined $subject->{lines} && defined $subject->{symbol}) {
+                push @refusals, "$path: subject $subject->{path} pins both lines and a symbol (UCV0-630)";
+                next;
+            } elsif (defined $subject->{lines}) {
+                my $span = span_bytes($bytes, $subject->{lines});
+                if (!defined $span) {
+                    push @refusals, "$path: subject $subject->{path} lines $subject->{lines} is not a span of the file (UCV0-630)";
+                } elsif (sha256_hex($span) ne $subject->{sha256}) {
+                    push @refusals, "$path: subject $subject->{path} lines $subject->{lines} changed; the same numbers may "
+                        . "now hold other text, so read them and repin the span by hand (UCV0-630)";
+                }
+                next;
+            } elsif (defined $subject->{symbol}) {
+                $digest = symbol_digest($subject->{path}, $subject->{symbol});
+                if (!defined $digest) {
+                    push @refusals, "$path: subject $subject->{path} symbol $subject->{symbol} has no digest: "
+                        . "go run ./conformance/use-cases-v0 -subject-digest refused it (UCV0-630)";
+                    next;
+                }
+            } else {
+                $digest = sha256_hex($bytes);
+            }
             push @changed, [$subject->{path}, $subject->{sha256}, $digest] if $digest ne $subject->{sha256};
         }
-        push @stale, [$path, $ref->{sha256}, $raw, \@changed] if @changed;
+        push @stale, [$path, $ref->{sha256}, $raw, \@changed] if @changed || $adopted{$path};
     }
 }
 
@@ -203,6 +274,7 @@ my $verb = $mode eq 'check' ? 'stale' : 'repinned';
 for my $entry (@stale) {
     my ($path, undef, undef, $changed) = @$entry;
     print "$verb $path\n";
+    print "  adopted the merged receipt bytes (--merged)\n" if $adopted{$path};
     print "  subject $_->[0]\n" for @$changed;
 }
 

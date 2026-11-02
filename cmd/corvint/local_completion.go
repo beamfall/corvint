@@ -316,12 +316,14 @@ func emitLocalCompletionFailureDetail(stderr io.Writer, code, detail string) int
 // the rule (LCP-V0-018, V1-1043). Each text is fixed, so the message still
 // carries no path or command text; the code stays the stable member.
 var localCompletionRemedies = map[string]string{
-	"cancel-reason-required": "an active, unsatisfied enrollment is cancelled only with --reason TEXT; to move to a new base, leave it ACTIVE and begin a new enrollment in a fresh worktree or clone instead (docs/DOGFOOD.md)",
-	"sealed-evidence-drift":  "a sealed continuation's pinned evidence no longer matches; the detail names the artifact, the reason and, for a byte change, the pinned and current digests. Only the lane closeout's own outcome record is re-pinned, so run the enrolled finish, then the lane closeout, then dogfood verify and finish (docs/DOGFOOD.md); restore any other named artifact instead of editing private evidence",
-	"finish-interrupted":     "the caller's signal or cancellation ended finish during the named step; its logs are retained, no outcome or terminal was written, and rerunning the named finish reuses the unchanged bound results",
-	"final-check-failed":     "the final strict dogfood check did not pass; read the named logs under the Git directory, fix the cause, and rerun finish",
-	"prior-completion-stale": "this session's satisfied enrollment is bound to an earlier target and no longer evaluates as satisfied; begin the next stage of a staged binding in a fresh worktree or clone, and leave this one as it is (docs/DOGFOOD.md, staged binding)",
-	"invalid-check-bound":    "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
-	"invalid-intent-scope":   "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
-	"plan-bound-exceeded":    "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
+	"session-identity-required":  "no session identity: pass --session-key KEY (the key the host hook reports), or run inside Codex (CODEX_THREAD_ID or CODEX_SESSION_ID) or Claude Code (CLAUDECODE=1 with CLAUDE_CODE_SESSION_ID) (LCP-V0-810)",
+	"session-identity-ambiguous": "both a Codex and a Claude Code session identity are set: pass --session-key KEY (the key the host hook reports) to name the enrollment (LCP-V0-810)",
+	"cancel-reason-required":     "an active, unsatisfied enrollment is cancelled only with --reason TEXT; to move to a new base, leave it ACTIVE and begin a new enrollment in a fresh worktree or clone instead (docs/DOGFOOD.md)",
+	"sealed-evidence-drift":      "a sealed continuation's pinned evidence no longer matches; the detail names the artifact, the reason and, for a byte change, the pinned and current digests. Only the lane closeout's own outcome record is re-pinned, so run the enrolled finish, then the lane closeout, then dogfood verify and finish (docs/DOGFOOD.md); restore any other named artifact instead of editing private evidence",
+	"finish-interrupted":         "the caller's signal or cancellation ended finish during the named step; its logs are retained, no outcome or terminal was written, and rerunning the named finish reuses the unchanged bound results",
+	"final-check-failed":         "the final strict dogfood check did not pass; read the named logs under the Git directory, fix the cause, and rerun finish",
+	"prior-completion-stale":     "this session's satisfied enrollment is bound to an earlier target and no longer evaluates as satisfied; begin the next stage of a staged binding in a fresh worktree or clone, and leave this one as it is (docs/DOGFOOD.md, staged binding)",
+	"invalid-check-bound":        "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
+	"invalid-intent-scope":       "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",
+	"plan-bound-exceeded":        "the plan intents array must list 1-16 repository-relative spec paths, sorted in byte order with no duplicates, and the checks array 1-16 checks; an empty or longer array is refused",
 }

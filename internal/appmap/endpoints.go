@@ -1090,32 +1090,44 @@ func (c *endpointCall) setURL(u string) string {
 // objectKeys reads the plain object literal at toks[i]: each key's value index. ok is false when the
 // object has a spread, computed key, method or shorthand.
 func objectKeys(toks []token, i int) (map[string]int, bool) {
+	keys, ok, escaped := configKeys(toks, i)
+	return keys, ok && !escaped
+}
+
+// configKeys is objectKeys that also reports an escaped identifier key (AMAP-V0-880). Such a key
+// is doubt, never the name it decodes to, so it is left out of keys and the caller refuses or
+// widens what it reads.
+func configKeys(toks []token, i int) (map[string]int, bool, bool) {
 	if !next(toks, i, "{") {
-		return nil, false
+		return nil, false, false
 	}
-	keys := map[string]int{}
+	keys, escaped := map[string]int{}, false
 	for k := i + 1; k < len(toks); {
 		if next(toks, k, "}") {
-			return keys, true
+			return keys, true, escaped
 		}
 		t := toks[k]
 		if (t.kind != tokIdent && !literal(t)) || !next(toks, k+1, ":") {
-			return nil, false
+			return nil, false, false
 		}
-		keys[t.text] = k + 2
+		if t.escaped {
+			escaped = true
+		} else {
+			keys[t.text] = k + 2
+		}
 		k = skipValue(toks, k+2)
 		if next(toks, k, ",") {
 			k++
 		}
 	}
-	return nil, false
+	return nil, false, false
 }
 
 // config reads a request configuration object at toks[i]: a literal `url`, a literal `method` or
 // def, and no `baseURL`.
 func (c *endpointCall) config(toks []token, i int, def string) string {
-	keys, ok := objectKeys(toks, i)
-	if !ok {
+	keys, ok, escaped := configKeys(toks, i)
+	if !ok || escaped {
 		return "non-literal-config"
 	}
 	if _, has := keys["baseURL"]; has {
@@ -1143,8 +1155,11 @@ func (c *endpointCall) init(toks []token, i int) string {
 	if !next(toks, k, ",") || next(toks, k+1, ")") {
 		return ""
 	}
-	keys, ok := objectKeys(toks, k+1)
-	if !ok {
+	keys, ok, escaped := configKeys(toks, k+1)
+	if escaped && (c.Client == "axios" || c.Client == "axios-instance") {
+		return "non-literal-config" // the escaped key may be baseURL
+	}
+	if !ok || escaped {
 		c.Verb = "*"
 		return ""
 	}
@@ -1165,7 +1180,10 @@ func (c *endpointCall) init(toks []token, i int) string {
 func (c *endpointCall) noBaseURL(toks []token, i int) string {
 	k := skipValue(toks, i)
 	for next(toks, k, ",") && !next(toks, k+1, ")") {
-		if keys, ok := objectKeys(toks, k+1); ok {
+		if keys, ok, escaped := configKeys(toks, k+1); ok {
+			if escaped {
+				return "non-literal-config" // the escaped key may be baseURL
+			}
 			if _, has := keys["baseURL"]; has {
 				return "config-base-url"
 			}

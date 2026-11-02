@@ -430,6 +430,7 @@ func TestDogfoodEventGoPythonWireAndSession(t *testing.T) {
 	})
 	t.Run("LCP-V0-002 enrollment", func(t *testing.T) {
 		t.Setenv("CODEX_THREAD_ID", "native-session-é")
+		t.Setenv("CLAUDECODE", "") // a run inside Claude Code would be ambiguous (LCP-V0-810)
 		key, err := localcompletion.SessionKey("")
 		if err != nil || key != localcompletion.HashSession("native-session-é") {
 			t.Fatalf("CLI session domain: %s %v", key, err)

@@ -145,7 +145,7 @@ type doctorScan struct {
 }
 
 func doctorUsage() error {
-	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR] [--config FILE], or --line alone")
+	return wire.Errorf(wire.CodeMalformed, "argv", "doctor takes [--refresh] [--plugins DIR] [--config FILE], or --line or --rebuild-closed-index alone")
 }
 
 func doctorCommand(env Env, args []string) *wire.Result {
@@ -1197,6 +1197,7 @@ func doctorItemOf(rc *readCtx, scan *doctorScan, arr []wire.Value, cut bool, tot
 	sc.Set("truncated", wire.Bool(scan.truncated)).Set("findingsTruncated", wire.Bool(cut))
 	// TQD-V0-820: FULL walked the whole journal; CHECKPOINT_PLUS_TAIL resumed from a writer checkpoint.
 	sc.Set("journalAudit", wire.String(auditMode(rc)))
+	sc.Set("journalAuditCheckpoint", wire.String(auditCheckpoint(rc)))
 	o := wire.NewObject().Set("profile", wire.String(profile)).Set("queueId", wire.String(rc.store.Queue.QueueID.Raw))
 	o.Set("observedAt", wire.String(scan.observedAt.Format(time.RFC3339)))
 	o.Set("summary", wire.ObjectValue(summary)).Set("findings", wire.Array(arr...)).Set("scan", wire.ObjectValue(sc))

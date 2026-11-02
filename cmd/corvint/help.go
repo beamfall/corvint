@@ -203,7 +203,11 @@ func helpText(topic string) string {
 	if command, ok := strings.CutPrefix(topic, catalogCommandHelpPrefix); ok {
 		return catalogCommandJSON(command)
 	}
-	return topicText(topic) + helpExampleTrailer(topic)
+	text := topicText(topic) + helpExampleTrailer(topic)
+	if _, hidden := hiddenCommands[topic]; hidden {
+		text += hiddenHelpNote
+	}
+	return text
 }
 
 // topicText is a help topic's authored text, the source the command tree derives from.
@@ -265,6 +269,8 @@ func topicText(topic string) string {
 		return obligationsHelp
 	case "flows":
 		return flowsHelp
+	case "how":
+		return howHelp
 	case "step":
 		return stepHelp
 	case "changes":
@@ -345,8 +351,8 @@ Usage:
 
 Commands:
   Core (decision 0332; only the modes and profiles CCF-V1 lists are frozen):
-    init  first repository inventory
-    adopt  recoverable repository inventory
+    init  alias of adopt
+    adopt  bounded repository inventory; --setup lists setup gaps
     index  write the index snapshot
     query  repository context or authority receipt
     context  task-context packet: files to read
@@ -357,48 +363,44 @@ Commands:
     ocm  Obligation Closure Map tool
     frontier  Change Frontier review queue
     dogfood  evidence: change, check, seal, batch-check
-  Experimental, no stability promise; owning spec in parentheses:
+  Experimental, context and review:
+    feature  one declared feature's context (GPK-V0)
+    features | overview | review  inferred repository guidance (RGV-V0)
     graph  pinned whole-tree import edges and uncertainty (NGI-V0)
-    feature  bounded feature context (GPK-V0)
-    eval  evaluate a frozen corpus (REC-V0)
+    batch  batched query, context, impact (SBQ-V0)
+    docs  source-derived documentation (SDD-V0)
+    depsource  cite pinned Go module source (DSE-V0)
     breakage  cross-repository API relations (BKM-V0)
-    changes  offline upgrade checklist (UCL1142-V0)
-    runs  Playwright verdicts (PWR-V0)
+    witness  unwitnessed surface of a range (AGW-V0)
+    obligations  CEM external-obligations sidecar (EFO-V0)
+    step  declared authoring scope receipts (ASS-V0)
+    delta  source-free record of one change (DLT-V0)
+  Experimental, tests:
     test  affected tests (STR-V0)
     tests  setup, lint, duplicates (TSA-V0)
+    test-plan  test consolidation plan (TCN-V0)
+    test-validity  project a live-test receipt (MTV-V0)
+    runs  Playwright verdicts (PWR-V0)
+    flows  application flows and assertions (AFU-V0)
+    how  how do I GOAL: alias of flows appmap how (SKH-V0)
     repro  pinned reproduction bundles (RPB-V0)
+  Experimental, agent hosts and local records:
     harness event  one agent lifecycle event (AHI)
     adapter  one native host adapter (AHI)
     mcp  local read-only stdio MCP server (AHI)
-    dogfood-ocm  verify dogfood OCM maps (OCM-V0)
-    lrf  lexical relevance floor (LRF-V0)
-    record  record one local task outcome (LTPM-V0)
-    migrate-traces  plan or apply trace migration (LTPM-V0)
-    migration-ratchet  compare migration evidence (MER-V0)
-    observations  self-observation digest (SOL-V0)
-    features  inferred feature candidates (RGV-V0)
-    overview  immutable repository guidance (RGV-V0)
-    review  range advice and branch overlaps (RGV-V0)
-    flows  application flows and assertions (AFU-V0)
-    obligations  CEM external-obligations sidecar (EFO-V0)
-    prove-observe  record prove verdict counts (SOL-V0)
-    batch  batched query, context, impact (SBQ-V0)
     work  queue observation or shadow wave (WQO-V0)
-    docs  source-derived documentation (SDD-V0)
-    depsource  cite pinned Go module source (DSE-V0)
+    lease  local scope lease over paths (SCL-V0)
+    reads  opt-in unplanned-read digest (URE-V0)
+    record  record one local task outcome (LTPM-V0)
+    observations  self-observation digest (SOL-V0)
+    skill-export  learned traces as SKILL.md (LTA-V0)
+  Experimental, lab (research metrics):
+    eval  evaluate a frozen corpus (REC-V0)
     necessity  label packet file necessity (NEC-V0)
     surprise  touched set vs delivered packet (TSS-V0)
     answerability  retrieval channel agreement (RDS-V0)
-    kernel  compaction kernel (CKN-V0)
-    lease  local scope lease over paths (SCL-V0)
-    reads  opt-in unplanned-read digest (URE-V0)
     calibrate  packet stances vs outcomes (OCL-V0)
-    skill-export  learned traces as SKILL.md (LTA-V0)
-    witness  unwitnessed surface of a range (AGW-V0)
-    test-validity  project a live-test receipt (MTV-V0)
-    test-plan  test consolidation plan (TCN-V0)
-    step  declared authoring scope receipts (ASS-V0)
-    delta  source-free record of one change (DLT-V0)
+    kernel  compaction kernel (CKN-V0)
 
 Global options:
   --root PATH  Repository root (default: current directory).
@@ -406,6 +408,8 @@ Global options:
   --help       Print this help on stdout and exit 0.
 
 Support boundary:
+  Experimental verbs carry no stability promise; parentheses name the owning spec.
+  Internal and historical verbs stay callable but unlisted (corvint help --json).
   Local-only; no network or telemetry. init, adopt, query, feature and impact are
   qualified on Darwin and Linux only.
   init, adopt, query, impact, docs, harness, and lrf read without mutating
@@ -417,6 +421,21 @@ Support boundary:
   CEM artifacts; cem report, ocm, record, migrate-traces --apply, index, and docs
   flows and maintain write local state (COMMAND --help).
 `
+
+// hiddenCommands are the dispatched internal or historical verbs that root help leaves out of
+// its verb index (CCF-V1-008, V1-3730). Each stays callable with its own help topic, which says
+// it is unlisted, and each value is its catalog line: a gloss and the owning spec prefix.
+var hiddenCommands = map[string]string{
+	"changes":           "offline upgrade checklist (UCL1142-V0)",
+	"dogfood-ocm":       "verify dogfood OCM maps (OCM-V0)",
+	"lrf":               "lexical relevance floor, historical only (LRF-V0)",
+	"migrate-traces":    "plan or apply trace migration (LTPM-V0)",
+	"migration-ratchet": "compare migration evidence (MER-V0)",
+	"prove-observe":     "record prove verdict counts (SOL-V0)",
+}
+
+// hiddenHelpNote ends the help topic of each hiddenCommands verb.
+const hiddenHelpNote = "\nUnlisted in root help: an internal or historical verb that stays callable.\n"
 
 const adapterHelp = `Run one bounded native host adapter.
 
@@ -431,9 +450,18 @@ Usage:
   corvint adapter pi-tool context|expand|record
 
 Reads one bounded JSON object from stdin and writes one bounded adapter response;
-done-list reads no stdin. The installed host hooks invoke these commands. EVENT is
-a host hook event such as session-start, pre-compact or post-compact. Adapter
+done-list reads no stdin. The installed host hooks invoke these commands. Adapter
 responses are local-only and carry no repository authority.
+
+Events:
+  claude-code EVENT  session-start, user-prompt, subagent-start, pre-tool,
+                     file-change, post-tool, stop, stop-done-list, session-end,
+                     pre-compact, post-compact
+  codex              no EVENT argument; reads hook_event_name: SessionStart,
+                     UserPromptSubmit, Stop, SessionEnd (others answer {})
+  pi EVENT           file-change, post-tool, session-end, session-start, stop,
+                     user-prompt
+An unaccepted EVENT degrades with unsupported-hook-event and names the accepted ones.
 `
 
 const dogfoodOCMHelp = `Verify the private ordered set of dogfood OCM maps.
@@ -670,6 +698,13 @@ for inferred discovery. --limit defaults to 10 (range 1-50).
 --budget-bytes bounds the complete packet and retains omitted-result counts.
 Repository and trace state are read-only; do not substitute a legacy runtime
 for a typed unsupported result. See docs/specs/go-production-kernel-migration-v0.md.
+
+FEATURE_ID is the lowercase kebab-case ID a source declares with a feature:ID
+marker, such as feature:checkout-flow; a requirement prefix such as GPK-V0 is
+refused. Use features to list inferred candidates.
+
+Example:
+  corvint feature --limit 1 checkout-flow
 `
 
 const evalHelp = `Evaluate a frozen retrieval corpus through the native candidate.
@@ -716,13 +751,15 @@ Usage:
     [--exclude-prefix PATH] [--full-receipt]
   corvint [--root PATH] adopt --setup
 
---revision defaults to HEAD. --exclude-prefix is repeatable. The default output
-is a bounded sealed summary; --full-receipt emits the complete canonical receipt.
-Both activations are read-only and local-only.
+init is an alias of adopt: both run the same inventory, and the output's tool
+member names the verb that ran. --revision defaults to HEAD. --exclude-prefix is
+repeatable. The default output is a bounded sealed summary; --full-receipt emits
+the complete canonical receipt. Both activations are read-only and local-only.
 
 Experimental (ADS-V0): adopt --setup takes no other option and reports the
 repository's Corvint setup gaps (index snapshot, agent instructions, hooks,
-ignored paths), each with its evidence and a suggested fix. It writes nothing.
+ignored paths, declared test commands), each with its evidence and a suggested
+fix. It writes nothing.
 `
 
 const recordHelp = `Record one explicit local task outcome.
@@ -860,14 +897,15 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
-          [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
+          [--paths-from FILE] [--worktree] [--cache DIR | --no-cache]
+          [--format json|text]
   corvint [--root PATH] affected --by-path --path PATH [PATH ...] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full | --summary] [--require-clean]
           --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
@@ -900,7 +938,8 @@ degradations, present only when it applies, names self-binary-stale: inside
 its own repository this binary was built from a commit whose Go source differs
 from HEAD, so the plan may not be the one current source gives, or
 self-binary-unverified when that comparison could not complete; stderr repeats
-it with the rebuild command (AFP-V0-846).
+it with the rebuild command (AFP-V0-846), except when stdout and stderr are
+one pipe or file (2>&1), so the document still parses (AFP-V0-871).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
@@ -910,9 +949,11 @@ summary restates the plan in one object: scope, dirty, selected, excluded and
 unknown counts, unknownByReason {REASON: count}, and line, the same as one
 text line ("scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3
 UNOWNED_DIRTY_PATH=3"), so a reader needs neither the plan nor a JSON tool
-to learn what was decided; it never changes the selection.
+to learn what was decided; it never changes the selection. dirty counts
+plan.dirty, which with --base includes the committed range; worktree and
+committed split it, so a clean tree reads worktree=0 (AFP-V0-820).
 --format text (AFP-V0-928) writes the same affected-plan/1 plan as lines
-instead of JSON: "affected <summary.line> revision=SHA [base=SHA]", a
+instead of JSON: "affected <summary.line> worktree=N revision=SHA [base=SHA]", a
 "warning TEXT" line when the plan read unpinned worktree content, one
 "selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]" line per selection,
 one "unknown REASON DETAIL [hint TEXT]" line per plan unknown, the exclusion
@@ -920,6 +961,13 @@ count and digest, and one "check KIND COMMAND" line per advice check with the
 advisory packages appended. It cannot be combined with --full or
 --playwright-config; --format json (the default) is the JSON document.
 Example: corvint affected --base FULL_SHA --format text
+--summary (AFP-V0-872) writes a few-line affected-summary/1 verdict instead of
+the plan: summary, tiers {counts, summary, tier0, tier1} with the sorted
+tier-0 and tier-1 unit names a lane runs locally, range {base, paths count},
+degradations and warning; --format text writes it as lines ("affected
+<summary.line> ...", "tiers ...", one "tier0 UNIT" or "tier1 UNIT" per unit).
+It never changes the selection.
+Example: corvint affected --base FULL_SHA --summary
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own
@@ -938,7 +986,9 @@ in this bounded snapshot profile; existing profiles are unchanged.
 --base joins the committed tree diff FULL_COMMIT_ID..HEAD (renames listed as
 both paths) to the worktree dirty set, so a branch is selected as a whole; the
 receipt's range member records the base and exactly the committed paths that
-joined. The base must be a full commit id present in the repository.
+joined. The base is a full commit id, a 7-digit or longer prefix, or a
+revision such as HEAD~1 or origin/main; it is resolved once to the full
+commit id that range.base records.
 plan.dirty is that union ("dirty" means changed since the base), so a clean
 worktree still lists its committed range paths there (range.paths names them);
 UNOWNED_DIRTY_PATH marks the union's unowned paths from either component.
@@ -973,7 +1023,9 @@ deleted path. The receipt's path_list member echoes the sorted paths. A dirty
 worktree, or an ignored file HEAD does not track that the list names or the
 graph reads, refuses with unsupported-affected-mixed-worktree, since the graph
 would not be HEAD's; one only a TypeScript unit lists, such as a gitignored
-playwright-report/ bundle, is instead excluded from the graph. One --path
+playwright-report/ bundle, is instead excluded from the graph. A worktree whose
+only dirty paths are declared documentation (.corvint/documentation-paths.json,
+itself clean) that no unit owns plans as a clean one would (AFP-V0-832). One --path
 takes every following value up to the next option, so --path a b c and
 --path a --path b --path c plan the same bytes. Write --path=VALUE for a name
 that begins with -. It does not combine with --base (invalid-arguments).
@@ -981,6 +1033,14 @@ Under --snapshot, --provider, the Playwright profile (--playwright-config,
 --playwright-discovery) or --appmap-impact it refuses with exit 2 and
 unsupported-affected-path-profile, naming why that profile plans its own
 change set and the recovery: commit the paths and plan with --base <HEAD>.
+
+--worktree (experimental, ACX-V0-851; requires --path or --paths-from, not
+with --require-clean, --snapshot or --base) plans the named paths against the
+working tree, dirty and ignored files included, instead of refusing a dirty
+worktree. The receipt carries the degradation worktree-path-plan and a warning
+naming HEAD and the dirty count: the plan is worktree-derived, not pinned
+evidence. Without --worktree the refusal stays the default.
+Example: corvint affected --worktree --path internal/foo/foo.go --format text
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
 per LF-separated line, blank lines skipped; FILE is relative to the root unless
@@ -1080,6 +1140,20 @@ A dirty path that .corvint/runtime-readers.json declares (AFP-V0-602) is listed
 in plan.nonSource as DECLARED_RUNTIME_READERS with the entry's own reason, not
 as UNOWNED_DIRTY_PATH; the units that embed, enclose, name or read it are still
 selected.
+.corvint/playwright-unreached-paths.json (TJAA-V0-106, AFP-V0-874) lists the
+source paths the Playwright suite cannot reach, even through the application
+under test. Without it, a dirty TypeScript or JavaScript path that reaches no
+Playwright test by a static edge raises playwright:out-of-suite-source and the
+plan runs the full suite. Schema: a closed JSON object of at most 64 KiB,
+{"profile":"corvint-playwright-unreached-paths/0","paths":[...]}, at most 256
+strictly ascending repository-relative files or /-ended directories, none under
+.corvint/. Example:
+  {"profile":"corvint-playwright-unreached-paths/0","paths":["scripts/","tools/seed.ts"]}
+Effect: a matched dirty path is excluded, and recorded in plan.declaration, only
+when the Playwright closure provably leaves it out; a matched path the closure
+may load (its unit is in the closure, it is the config, or membership is
+incomplete) refuses the record and raises a second playwright:out-of-suite-source
+unknown naming the path. An invalid file is an error, never an empty list.
 --playwright-env (repeatable, requires --playwright-config, not with --snapshot)
 records one environment variable in plan.environment with its value and SHA-256:
 NAME=VALUE is a value the caller supplies, and NAME reads only that variable from
@@ -1840,6 +1914,14 @@ Language capabilities (syntax evidence, never complete runtime impact):
                                           advisory autoload constant references, two hops.
   JavaScript  .js .jsx .mjs .cjs           path/range; relative/profile/tsconfig imports (path).
   TypeScript  .ts .tsx                    path/range; relative/profile/tsconfig imports (path).
+  Swift       .swift                      path; SwiftPM target-module imports and
+                                          same-target references (one hop).
+  Kotlin      .kt                         path; package imports of declared names and
+                                          same-package references; .kts NOT_SUPPORTED.
+  C#          .cs                         path; using/static/alias directives and
+                                          enclosing-namespace references; .csproj NOT_SUPPORTED.
+  Swift, Kotlin and C# rows carry their precision limits as coverage uncertainty;
+  range impact and the historical packet budget do not use them.
   The non-go-syntax-v0 profile always reports dynamic-dispatch unknowns;
   unsupported constructs remain unknown even without a lexical dynamic token.
 
@@ -1910,8 +1992,11 @@ Options:
                              DIR's HEAD. Repeat up to 8 times; requires --provider.
   --capabilities             Print the corvint-impact-capabilities/0 listing and
                              exit: suffixes with a reverse-import rule, suffixes
-                             admitted without one, and the per-call limits, derived
-                             from the admission tables. Takes no other argument.
+                             admitted without one, those of them with a
+                             Swift/Kotlin/C# module reference rule, the
+                             per-call limits, derived from the admission
+                             tables, and the reverse-import closure depth.
+                             Takes no other argument.
   --producer                 Add one "producer" member (version, build, commit,
                              commitState) to the receipt; an unknown member reads
                              "unknown" and an unstamped build reads "unstamped".
@@ -2016,7 +2101,9 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM] BASE
+  corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
+    [--draft DRAFT] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
@@ -2115,13 +2202,33 @@ it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
 written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
 and content (else the same path and BASE range), and every re-keyed or dropped row
-is noted on stderr, a re-keyed unknown row's NOTE marked stale for review
-(DCW-V0-884); only the remaining hunks are drafted afresh. Without a
+is noted on stderr, a re-keyed unknown row's NOTE marked stale for review when
+its hunk's content changed (DCW-V0-884, DCW-V0-842); a plan drafted at another
+BASE is re-pinned to the BASE lines holding the same text, and a new hunk of a file
+whose other hunks carry a citation is proposed that citation, carried forward
+(DCW-V0-842); only the remaining hunks are drafted afresh. Without a
 citation-plan binding, ordinal rows resolve through the one sealed CEM of
 BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
 (DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+--from-cem CEM seeds the same refresh from a sealed CEM instead of a plan, such as
+.corvint/changes/COMMIT.cem.json after a mainline merge (DCW-V0-843): each of its
+hunks becomes a cite row per basis, its byte span read as BASE lines at the CEM's
+base, or an unknown row with the CEM's reason. It cannot be combined with --refresh
+(refresh-source-conflict), and an unreadable CEM is refused from-cem-unreadable.
+
+record-claims (experimental, CKC-V0-002) records a reviewed plan as content-keyed
+claims in --claims FILE, the only file it writes: each row is kept with its hunk's
+path, content and BASE range and the hash of the BASE text it cites. A cite row of
+--draft DRAFT, or of the earlier claims file, that the plan dropped is kept as a
+tombstone and never drafted again (CKC-V0-003, CKC-V0-007). --refresh FILE given
+a claims file compiles each claim onto the one current hunk with the same path,
+content and BASE range, relocated by its unique BASE text when BASE moved, and
+prints an ordinary hunk-ID plan; a duplicate, split, merged, changed or unlocated
+edit is drafted afresh with a REASSESS note naming its earlier rows (CKC-V0-004,
+CKC-V0-005).
 
 prechange records the agent pre-change receipts before the first edit, while
 HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context
@@ -2143,13 +2250,15 @@ func rootPreambleValue(arguments []string, index int) bool {
 	return index < len(arguments) && (arguments[index] == "--" || !argparseOptionLike(arguments[index]))
 }
 
-const repositoryGuidanceHelp = `Experimental inferred repository guidance (read-only, clean HEAD only;
-features and overview degrade to a MIXED unknown when the only dirt is untracked).
+const repositoryGuidanceHelp = `Experimental inferred repository guidance: features, overview and review.
 
 Usage:
   corvint [--root PATH] features
   corvint [--root PATH] overview
   corvint [--root PATH] review --base FULL_COMMIT_ID [--max-refs N]
+
+All three are read-only and need a clean HEAD; features and overview degrade to
+a MIXED unknown when the only dirt is untracked.
 
 Features are bounded heuristic candidates with immutable blob/line evidence, not
 accepted feature IDs. A label that is a canonical feature ID also carries featureId

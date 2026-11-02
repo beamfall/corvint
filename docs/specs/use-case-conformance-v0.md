@@ -210,6 +210,23 @@ cannot be interpreted as success.
   `git restore --source=HEAD -- <ledger> <ledger dir>/receipts`, then the repin. stdout stays the
   canonical result and the exit status is unchanged; nothing is run or restored. Falsifier: either
   refusal prints no recovery. Rollback: remove `recoveryHint` and its test.
+- `UCV0-630`: (experimental under the standing lane auto-accept (2026-11-01); V1-3722)
+  A receipt subject MAY carry exactly one of `lines` (`"N-M"`, 1-based, inclusive, N <= M) or
+  `symbol` (the name of one top-level Go declaration: a function, a method as `Type.Method`, a
+  type, a constant or a variable) beside `path` and `sha256`. Its `sha256` then pins the SHA-256
+  of exactly those bytes: the cited lines with their line terminators, or the declaration from its
+  doc comment (if any) through its end as `go/parser` positions it. The runner MUST refuse a
+  subject with both, a malformed span, a span past the end of the file, a symbol on a non-Go
+  path, or a symbol that names no declaration or more than one, with `invalid-subject-pin`, and a
+  digest mismatch keeps `subject-digest-mismatch`. `script/repin-use-case-receipts.sh` MUST repin
+  a symbol subject by the digest `go run ./conformance/use-cases-v0 -subject-digest PATH#SYMBOL`
+  prints, and MUST refuse to repin a `lines` subject whose digest changed, naming the subject,
+  since the same numbers may now hold other text. A whole-file subject keeps UCV0-004. Design: 11
+  October receipt commits were whole-file repins after edits elsewhere in a subject; a span or
+  symbol pin changes only when the cited content does. Non-goals: following a span across a
+  shift (pin a symbol for that), non-Go symbols. Evidence: `TestUCV0630SpanAndSymbolSubjects`
+  and case 10 of `script/repin-use-case-receipts_test.sh`. Rollback: drop the two optional keys
+  and `subjectBytes`; existing receipts carry neither.
 
 ## Trust boundary and failure behavior
 
@@ -259,6 +276,7 @@ evidence; never rewrite a failed receipt.
 | `UCV0-018` | `script/repin-use-case-receipts.sh` | `script/repin-use-case-receipts_test.sh` cases 1 to 4 (`make use-case-receipts-test`) |
 | `UCV0-019` | `script/repin-use-case-receipts.sh` `pinned_recovery` | `script/repin-use-case-receipts_test.sh` cases 7 to 9 (`make use-case-receipts-test`) |
 | `UCV0-020` | `conformance/use-cases-v0/main.go` `recoveryHint` | `TestUCV0020DigestRefusalNamesRecovery` |
+| `UCV0-630` | `conformance/use-cases-v0/main.go` `subjectBytes`; `script/repin-use-case-receipts.sh` | `TestUCV0630SpanAndSymbolSubjects`; `script/repin-use-case-receipts_test.sh` case 10 |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 
 ## Unresolved decisions and kill criteria

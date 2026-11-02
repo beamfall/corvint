@@ -93,7 +93,9 @@ relative, profile and tsconfig-alias imports. Dynamic dispatch, test closure, re
 Ruby path outside mapped autoload roots and unresolved bare imports stay unknowns, never results. The receipt is the CLI
 `corvint impact` syntax-profile receipt for the same paths, revision and limit, unbudgeted unless
 `budgetBytes` is given (NGI-V0-068). The CLI admits more suffixes and the `--base` range form;
-`corvint impact --capabilities` lists them. Absolute paths, `.`/`..`/empty segments, other
+`corvint impact --capabilities` lists them. `corvint.impact` stays single-root (MMR-V0-005,
+MMR-V0-007): a question that spans an application root and a separate test root uses the CLI
+`corvint impact --app-root DIR --test-root ALIAS=ROOT` (ANL-V0-064..067) instead. Absolute paths, `.`/`..`/empty segments, other
 suffixes, path escapes, extra fields, and invalid limits are rejected before repository access. Context `task` is 1–32,000 bytes and not blank. The CEM
 `map` is a repository-relative path of at most 512 bytes with no `.git` segment; a symlinked map or
 ancestor is refused as `cem-map-unavailable`, so a repository file cannot redirect the read outside

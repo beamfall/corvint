@@ -18,6 +18,7 @@ func capabilityRegistry() capcatalog.Registry {
 		Operations:       map[string][]string{},
 		NestedOperations: map[string]map[string][]string{},
 		Workflows:        []capcatalog.WorkflowSource{e2eAdoptionWorkflow},
+		HiddenCommands:   hiddenCommands,
 	}
 	for _, command := range topLevelCommands {
 		topic, _ := publicHelpTopic(command)

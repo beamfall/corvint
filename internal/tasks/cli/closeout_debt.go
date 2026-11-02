@@ -26,6 +26,8 @@ const (
 	maxCloseoutScanLimit     = 10000
 	maxCloseoutRows          = 2000
 	maxCloseoutSubjectBytes  = 512
+	// maxCloseoutScanSkip bounds --skip (TCD-V0-740).
+	maxCloseoutScanSkip = 10_000_000
 
 	citeDirect   = "direct-id"
 	citeIssue    = "issue-link"
@@ -45,6 +47,10 @@ const (
 	proposeBatchClose = "BATCH_CLOSE"
 	proposeCommit     = "COMMIT_DELIVERED"
 	proposeReview     = "REVIEW"
+
+	// Why a cited OPEN ticket is no candidate (TCD-V0-741).
+	excludeMarked       = "MARKED_NOT_DELIVERED"
+	excludeBuildLogOnly = "BUILD_LOG_ONLY"
 )
 
 var (
@@ -57,6 +63,9 @@ var (
 	// closeoutIssueText and closeoutIssueSlug are the ticket-side issue links.
 	closeoutIssueText = regexp.MustCompile(`(?i)\bissue\s+#([0-9]{1,9})\b`)
 	closeoutIssueSlug = regexp.MustCompile(`\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)#([0-9]{1,9})\b`)
+	// closeoutNotDelivered is a capitalized marker that a line's tickets
+	// were not delivered (TCD-V0-741).
+	closeoutNotDelivered = regexp.MustCompile(`\bNOT[ _-]DELIVERED\b|\bBLOCKED\b|\bPARTIAL\b`)
 )
 
 // closeoutIndex maps citations to the tickets they name, of every status
@@ -156,6 +165,24 @@ func (x *closeoutIndex) cites(message string) []closeoutCite {
 		out = append(out, *c)
 	}
 	return out
+}
+
+// markedNotDelivered reports that a line of text names ticket id and holds
+// a closeoutNotDelivered marker (TCD-V0-741).
+func (x *closeoutIndex) markedNotDelivered(text, id string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		if closeoutNotDelivered.MatchString(line) && slices.Contains(x.lineTickets(line), id) {
+			return true
+		}
+	}
+	return false
+}
+
+// closeoutExcluded is one cited OPEN ticket every citation of which is no
+// delivery, with the strongest reason and the citing commits (TCD-V0-741).
+type closeoutExcluded struct {
+	ticketID, local, reason string
+	commits                 []string
 }
 
 // closeoutRow is one candidate (TCD-V0-007).
@@ -311,13 +338,18 @@ func truncateUTF8(s string, n int) string {
 // candidate count to the TCD-V0-009 exit status.
 func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "closeout-debt"}
-	fl, pos, err := flags(args, "ref", "since", "limit", "prs")
+	fl, pos, err := flags(args, "ref", "since", "limit", "skip", "prs")
 	if err == nil && len(pos) != 0 {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket closeout-debt takes no positional argument")
 	}
-	limit := 0
+	limit, skip := 0, 0
 	if err == nil {
 		limit, err = parseScanLimit(fl)
+	}
+	if v, ok := fl["skip"]; err == nil && ok {
+		if skip, err = strconv.Atoi(v); err != nil || skip < 0 || skip > maxCloseoutScanSkip {
+			err = wire.Errorf(wire.CodeMalformed, "--skip", "skip must be 0..%d", maxCloseoutScanSkip)
+		}
 	}
 	prsFile, prsGiven := fl["prs"]
 	var prs []ghPR
@@ -364,11 +396,12 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 	ref, refCommit, since, err := closeoutRef(root, branch, fl)
 	var scan store.CommitScan
 	if err == nil {
-		scan, err = store.ScanCommits(root, refCommit, since, limit)
+		scan, err = store.ScanCommitsFrom(root, refCommit, since, skip, limit)
 	}
 	if err != nil {
 		return failure(cmd, rc, err), 0
 	}
+	var warnings []string
 
 	src := journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}
 	gateOf := func(d string) (*snapshot.GateResult, error) {
@@ -381,12 +414,101 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		return snapshot.DecodeGateResult(raw)
 	}
+	// A merge commit's citation of a ticket that a non-merge scanned commit
+	// also cites repeats that constituent's row, and one that a merge commit
+	// it merged also cites repeats that inner merge's row, so both are
+	// dropped (TCD-V0-731); separate merges and a sole citer still list.
+	cites := make([][]closeoutCite, len(scan.Commits))
+	for i, c := range scan.Commits {
+		cites[i] = index.cites(c.Message)
+	}
+	constituent := map[string]bool{}
+	mergeCiters := map[string][]int{} // ticket ID -> scan indexes of citing merges; filled below
+	enclosing := map[[2]int]bool{}    // {outer, inner} scan indexes
+	encloses := func(outer, inner int) bool {
+		k := [2]int{outer, inner}
+		if v, ok := enclosing[k]; ok {
+			return v
+		}
+		o, ic := scan.Commits[outer].Commit, scan.Commits[inner].Commit
+		first, err := store.CloseoutRevision(root, o+"^1")
+		v := err == nil && store.IsAncestor(root, ic, o) && !store.IsAncestor(root, ic, first)
+		enclosing[k] = v
+		return v
+	}
+	repeatsInner := func(i int, id string) bool {
+		if constituent[id] {
+			return true
+		}
+		for _, j := range mergeCiters[id] {
+			if j != i && encloses(i, j) {
+				return true
+			}
+		}
+		return false
+	}
+	// A citation is no delivery when its message or a build-log line it
+	// adds marks the ticket NOT DELIVERED, BLOCKED or PARTIAL, or when its
+	// commit changes only docs/build-log/** (TCD-V0-741).
+	var citing []string
+	for i, c := range scan.Commits {
+		if slices.ContainsFunc(cites[i], func(cite closeoutCite) bool { _, open := locals[cite.ticketID]; return open }) {
+			citing = append(citing, c.Commit)
+		}
+	}
+	changes, cerr := store.CommitChanges(root, citing)
+	if cerr != nil {
+		warnings = append(warnings, "build-log exclusion NOT_OBSERVED: "+cerr.Error()+"; only commit-message markers exclude candidates")
+	}
+	noDelivery := func(c store.ScannedCommit, id string) string {
+		ch := changes[c.Commit]
+		switch {
+		case index.markedNotDelivered(c.Message, id) || ch != nil && index.markedNotDelivered(strings.Join(ch.BuildLogAdded, "\n"), id):
+			return excludeMarked
+		case ch.BuildLogOnly():
+			return excludeBuildLogOnly
+		}
+		return ""
+	}
+	// Only a citation that is a delivery can make a merge's citation a
+	// repeat: an excluded build-log or NOT DELIVERED citation never
+	// suppresses the merge that delivered the ticket (TCD-V0-741).
+	for i, c := range scan.Commits {
+		for _, cite := range cites[i] {
+			if _, open := locals[cite.ticketID]; open && noDelivery(c, cite.ticketID) != "" {
+				continue
+			}
+			if c.Parents < 2 {
+				constituent[cite.ticketID] = true
+			} else {
+				mergeCiters[cite.ticketID] = append(mergeCiters[cite.ticketID], i)
+			}
+		}
+	}
+	excludedBy := map[string]*closeoutExcluded{}
+	listed := map[string]bool{}
 	collected := closeoutRows{max: maxCloseoutRows}
-	for _, c := range scan.Commits {
+	for i, c := range scan.Commits {
 		subject := truncateUTF8(c.Subject, maxCloseoutSubjectBytes)
 		var refs map[string]string
-		for _, cite := range index.cites(c.Message) {
+		for _, cite := range cites[i] {
+			if c.Parents > 1 && repeatsInner(i, cite.ticketID) {
+				continue
+			}
 			if local, open := locals[cite.ticketID]; open {
+				if why := noDelivery(c, cite.ticketID); why != "" {
+					e := excludedBy[cite.ticketID]
+					if e == nil {
+						e = &closeoutExcluded{ticketID: cite.ticketID, local: local, reason: why}
+						excludedBy[cite.ticketID] = e
+					}
+					if why == excludeMarked {
+						e.reason = why
+					}
+					e.commits = append(e.commits, c.Commit)
+					continue
+				}
+				listed[cite.ticketID] = true
 				if prsGiven && refs == nil {
 					refs = index.commitReferences(c.Message)
 				}
@@ -395,6 +517,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 			}
 		}
 		for _, id := range heads[c.Commit] {
+			listed[id] = true
 			collected.add(closeoutRow{ticketID: id, local: locals[id], commit: c.Commit, subject: subject, kind: citeProgressHead})
 		}
 	}
@@ -413,11 +536,28 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		rows[i].step, rows[i].gate = st.step, st.gate
 	}
+	var excluded []closeoutExcluded
+	for id, e := range excludedBy {
+		if !listed[id] {
+			excluded = append(excluded, *e)
+		}
+	}
+	sort.Slice(excluded, func(i, j int) bool { return excluded[i].ticketID < excluded[j].ticketID })
 	res := success(cmd, rc)
+	res.Warnings = append(res.Warnings, warnings...)
+	nextSkip := -1
 	if scan.Truncated {
-		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older citations are not reported")
+		nextSkip = skip + len(scan.Commits)
+		res.Warnings = append(res.Warnings, "commit scan stopped at --limit "+strconv.Itoa(limit)+"; older citations are not reported; continue with --skip "+strconv.Itoa(nextSkip))
 	}
 	item := closeoutValue(rows, total, ref, refCommit, since, limit, len(scan.Commits), scan.Truncated, index.origin)
+	item.Obj.Set("skip", count(skip))
+	if nextSkip < 0 {
+		item.Obj.Set("nextSkip", wire.Null())
+	} else {
+		item.Obj.Set("nextSkip", count(nextSkip))
+	}
+	setExcluded(item, excluded)
 	debt := total
 	if prsGiven {
 		name := prsFile
@@ -426,6 +566,7 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		p := closeoutProposals(root, index, prs, scan.Commits, locals, rows)
 		p.render(item, rows, len(prs), name)
+		res.Warnings = append(res.Warnings, p.warnings...)
 		debt += len(p.byPR)
 	}
 	res.Items = []wire.Value{item}
@@ -440,6 +581,9 @@ type closeoutPlan struct {
 	prOf    map[string]int64   // ticket ID -> proposing PR
 	prsOf   map[string][]int64 // ticket ID -> every delivering PR, ascending (TCD-V0-874)
 	reviews []string           // locals, sorted
+	// warnings name each proposing PR whose lane commit scan was cut at
+	// the bound (TCD-V0-731).
+	warnings []string
 }
 
 type closeoutPRProposal struct {
@@ -450,7 +594,8 @@ type closeoutPRProposal struct {
 
 // closeoutProposals derives the TCD-V0-871 proposals: each exported MERGED
 // PR whose merge commit was scanned proposes batch-close for the OPEN
-// tickets its batch-delivered set delivers; other candidate rows propose
+// tickets its batch-delivered set delivers, lane commits included
+// (TCD-V0-731); other candidate rows propose
 // COMMIT_DELIVERED or REVIEW. It writes nothing.
 func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []store.ScannedCommit, locals map[string]string, rows []closeoutRow) *closeoutPlan {
 	scanned := make(map[string]bool, len(commits))
@@ -472,6 +617,10 @@ func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []
 	for _, n := range numbers {
 		in := &batchInput{number: n, batch: byNumber[n], byNumber: byNumber}
 		in.deriveLanes(root)
+		in.scanLanes(root)
+		if in.laneScan != nil && in.laneScan.Truncated {
+			plan.warnings = append(plan.warnings, "PR #"+strconv.FormatInt(n, 10)+": "+in.laneWarnings()[0])
+		}
 		delivered, _ := in.hits(index)
 		pp := closeoutPRProposal{number: n, merge: in.batch.mergeOid()}
 		for _, h := range delivered {
@@ -594,6 +743,24 @@ func closeoutValue(rows []closeoutRow, total int, ref, refCommit, since string, 
 	o.Set("human", wire.Strings(human))
 	o.Set("mutationAuthority", wire.Bool(false))
 	return wire.ObjectValue(o)
+}
+
+// setExcluded adds the TCD-V0-741 excludedCandidates and their human lines.
+func setExcluded(item wire.Value, excluded []closeoutExcluded) {
+	human, _ := item.Obj.Get("human")
+	lines := slices.Clone(human.Arr)
+	vals := make([]wire.Value, 0, len(excluded))
+	for _, e := range excluded {
+		o := wire.NewObject()
+		o.Set("ticketId", wire.String(e.ticketID))
+		o.Set("local", wire.String(e.local))
+		o.Set("reason", wire.String(e.reason))
+		o.Set("commits", wire.Strings(e.commits))
+		vals = append(vals, wire.ObjectValue(o))
+		lines = append(lines, wire.String(e.local+" excluded "+e.reason+" via "+strconv.Itoa(len(e.commits))+" commit(s)"))
+	}
+	item.Obj.Set("excludedCandidates", wire.Array(vals...))
+	item.Obj.Set("human", wire.Array(lines...))
 }
 
 // emitCloseoutDebt maps the result to the TCD-V0-009 exit status: 0 for OK

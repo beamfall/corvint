@@ -27,6 +27,7 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/plansnapshot"
 	"github.com/Beamfall/corvint/internal/projectprofile"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // affectedProfile names the full wire `--full` emits (AFP-V0-003), which is
@@ -56,6 +57,10 @@ type affectedReceipt struct {
 	// Degradations names conditions that make this receipt less trustworthy
 	// than current source would, such as self-binary-stale (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// WorktreeDirty is the size of the worktree status set alone, before the
+	// committed range is unioned into plan.dirty; the compact summary
+	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
+	WorktreeDirty int `json:"-"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -97,13 +102,23 @@ type affectedInvocation struct {
 	// Full selects the affected-plan/0 wire: every exclusion and every
 	// selected test file (AFP-V0-035).
 	Full bool
+	// Summary writes the affected-summary/1 verdict instead of the plan
+	// (AFP-V0-872).
+	Summary bool
 	// sharedVia selects with every witness chain held by reference, for a
 	// receipt that is only ever compacted (AFP-V0-641); runAffected sets it
 	// for the default wire. Every other caller gets each chain in Via.
 	sharedVia bool
+	// observed is the HEAD and dirty set a caller already read for this
+	// plan, so the compile does not read them again; its closing recheck
+	// still compares both (AFP-V0-824). Only `corvint test` sets it.
+	observed *affectedObservation
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
+	// Worktree plans a --path list against the working tree, dirty and
+	// ignored bytes included, as a labelled non-evidence plan (ACX-V0-851).
+	Worktree bool
 	// ByPath writes the affected-by-path/1 document for a --path list: the
 	// shared UNBOUNDED_READER set once, then each path's additions
 	// (AFP-V0-990).
@@ -181,6 +196,9 @@ type affectedAdvice struct {
 	// AppNavigation is present only when --appmap-impact was named (ANL-V0-031).
 	AppNavigation []affectedAppNavigation `json:"app_navigation,omitempty"`
 	Unknown       []string                `json:"unknown"`
+	// WholePackages names each selected Go unit a TestMain change makes
+	// whole, with the reason (AFP-V0-550); omitted when there is none.
+	WholePackages []affectedWhole `json:"whole_packages,omitempty"`
 }
 
 type affectedCheck struct {
@@ -204,6 +222,7 @@ const (
 	adviceMaxMandatoryChecks = 16
 	adviceNote               = "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says"
 	adviceFocusedCommand     = "corvint test --base %s --dry-run"
+	adviceFocusedUndeclared  = "FOCUSED_TEST_COMMAND_UNDECLARED: " + sessiontest.DeclarationPath + " is absent, so corvint test --dry-run would fall back to a FULL scope with no units; run the declared mandatory checks instead"
 	adviceNoGateUnknown      = "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
 	adviceUnreadableUnknown  = "MANDATORY_DECLARATION_UNREADABLE: %s exists but is not a readable regular file"
 	adviceMakefileReason     = "the repository Makefile declares a gate target, so the full gate stays mandatory at the project terminal boundary, not as the default next step"
@@ -306,7 +325,7 @@ func affectedFormatRefusal(value string) error {
 // affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
 // the caller, such as a second --format (AFP-V0-928).
 func affectedFormatRefusalFor(fault string) error {
-	names := []string{"--format", "--full", "--no-cache", "--require-clean"}
+	names := []string{"--format", "--full", "--no-cache", "--require-clean", "--worktree"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
@@ -356,11 +375,27 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			index++
 			continue
 		}
+		if rest[index] == "--summary" || strings.HasPrefix(rest[index], "--summary=") {
+			if invocation.Summary || rest[index] != "--summary" {
+				return affectedInvocation{}, argumentError("argument --summary: does not accept a value or repetition")
+			}
+			invocation.Summary = true
+			index++
+			continue
+		}
 		if rest[index] == "--require-clean" || strings.HasPrefix(rest[index], "--require-clean=") {
 			if invocation.RequireClean || rest[index] != "--require-clean" {
 				return affectedInvocation{}, argumentError("argument --require-clean: does not accept a value or repetition")
 			}
 			invocation.RequireClean = true
+			index++
+			continue
+		}
+		if rest[index] == "--worktree" || strings.HasPrefix(rest[index], "--worktree=") {
+			if invocation.Worktree || rest[index] != "--worktree" {
+				return affectedInvocation{}, argumentError("argument --worktree: does not accept a value or repetition")
+			}
+			invocation.Worktree = true
 			index++
 			continue
 		}
@@ -447,6 +482,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
 	}
+	if invocation.Summary && (invocation.Full || invocation.ByPath || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--summary writes the affected-summary/1 verdict and cannot be combined with --full, --by-path or --playwright-config")
+	}
 	if invocation.ByPath && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.Full) {
 		return affectedInvocation{}, argumentError("--by-path requires --path or --paths-from and cannot be combined with --full")
 	}
@@ -460,6 +498,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err := affectedPathProfileRefusal(invocation); err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "" || invocation.Base != "") {
+		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean, --snapshot or --base")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -697,8 +738,8 @@ func setAffectedBase(invocation *affectedInvocation, baseSet *bool, value string
 	if *baseSet {
 		return argumentError("--base requires exactly one full commit id")
 	}
-	if !validGitObjectID(value) && !validAbbreviatedObjectID(value) {
-		return argumentError("--base must be a full commit id or an unambiguous lowercase-hex prefix of at least 7 digits, got " + value)
+	if !validGitObjectID(value) && !validAbbreviatedObjectID(value) && !validAffectedBaseRevision(value) {
+		return argumentError("--base must be a full commit id, an unambiguous lowercase-hex prefix of at least 7 digits or a revision such as HEAD~1, got " + value + affectedBaseHint(value))
 	}
 	*baseSet, invocation.Base = true, value
 	return nil
@@ -767,7 +808,7 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		receipt, err = compileAffected(ctx, invocation)
 	}
 	if err == nil {
-		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stderr)
+		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr)
 	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
@@ -775,6 +816,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if err != nil {
 		emitError(stderr, err)
 		return 2
+	}
+	if invocation.Summary {
+		return writeAffectedVerdict(receipt, invocation.Format, stdout, stderr)
 	}
 	if invocation.Format == "text" {
 		compact, ok := receipt.(affectedCompactReceipt)
@@ -801,14 +845,19 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 
 // degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
 // affected-plan/1 receipt and prints it on stderr when this binary is stale
-// for root, or could not be compared with it (AFP-V0-846).
-func degradeStaleAffected(ctx context.Context, root string, receipt any, stderr io.Writer) any {
+// for root, or could not be compared with it (AFP-V0-846). When stdout and
+// stderr are one pipe or file (2>&1) and the receipt carries the member, the
+// stderr line is left out so the document still parses (AFP-V0-871).
+func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout, stderr io.Writer) any {
 	freshness := selfBinaryStale(ctx, root)
 	if freshness.Code == "" {
 		return receipt
 	}
-	_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
-	if full, ok := receipt.(affectedReceipt); ok {
+	full, ok := receipt.(affectedReceipt)
+	if !ok || !sharedOutputStream(stdout, stderr) {
+		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+	}
+	if ok {
 		full.Degradations = append(full.Degradations, freshness.Code)
 		return full
 	}
@@ -1089,6 +1138,24 @@ func compileAffected(ctx context.Context, invocation affectedInvocation) (affect
 	return receipt, err
 }
 
+// affectedObservation is one read of HEAD and then the dirty set.
+type affectedObservation struct {
+	revision string
+	dirty    []string
+}
+
+func affectedObserve(ctx context.Context, gitExecutable, root string) (*affectedObservation, error) {
+	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, err
+	}
+	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
+	if err != nil {
+		return nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
+	}
+	return &affectedObservation{revision: revision, dirty: dirty}, nil
+}
+
 // compileAffectedGraph is compileAffected that also returns the graph the plan
 // was selected over, so `corvint test` reads the Go universe from the same
 // observation (STR-V0-001, STR-V0-007).
@@ -1098,19 +1165,25 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, affectedGitExecutableRefusal()
 	}
-	revision, err := affectedHeadRevision(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, err
+	observed := invocation.observed
+	if observed == nil {
+		if observed, err = affectedObserve(ctx, gitExecutable, root); err != nil {
+			return affectedReceipt{}, nil, err
+		}
 	}
-	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
-	if err != nil {
-		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-status", Message: err.Error()}
-	}
+	revision, dirty := observed.revision, observed.dirty
 	if invocation.RequireClean && len(dirty) != 0 {
 		return affectedReceipt{}, nil, affectedMixedWorktreeRefusal(revision, dirty)
 	}
-	if len(invocation.PathList) != 0 && len(dirty) != 0 {
-		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+	worktreeDirty := len(dirty)
+	documentationOnly := false
+	if len(invocation.PathList) != 0 && len(dirty) != 0 && !invocation.Worktree {
+		if documentationOnly = affectedDocumentationOnly(root, dirty); !documentationOnly {
+			return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+		}
+		// The tolerated set leaves the receipt a clean worktree gives, so its
+		// summary reads worktree=0 (AFP-V0-832, AFP-V0-820).
+		worktreeDirty = 0
 	}
 	committed, err := affectedRangePaths(ctx, gitExecutable, root, invocation.Base)
 	if err != nil {
@@ -1120,12 +1193,15 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err != nil {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-graph", Message: err.Error()}
 	}
+	if documentationOnly && slices.ContainsFunc(dirty, func(path string) bool { _, owned := graph.OwnerOf(path); return owned }) {
+		return affectedReceipt{}, nil, affectedPathListMixedRefusal(revision, dirty)
+	}
 	changed := affected.NormalizePaths(append(append([]string{}, dirty...), committed...))
 	if len(invocation.PathList) != 0 {
 		changed = invocation.PathList
 	}
 	var ignored []string
-	if len(invocation.PathList) != 0 {
+	if len(invocation.PathList) != 0 && !invocation.Worktree {
 		if graph, ignored, err = affectedPathListGraph(ctx, gitExecutable, root, revision, invocation, graph); err != nil {
 			return affectedReceipt{}, nil, err
 		}
@@ -1164,7 +1240,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if !equalStringSlices(dirty, recheck) {
 		return affectedReceipt{}, nil, &gokernel.Error{Code: "unsupported-affected-drift", Message: "worktree changed while the plan was compiled"}
 	}
-	if len(invocation.PathList) != 0 {
+	if len(invocation.PathList) != 0 && !invocation.Worktree {
 		if err := playwrightIgnoredDrift(ctx, gitExecutable, root, ignored, "plan"); err != nil {
 			return affectedReceipt{}, nil, err
 		}
@@ -1175,7 +1251,7 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 	if err := recheckCheckouts(); err != nil {
 		return affectedReceipt{}, nil, err
 	}
-	return affectedReceipt{
+	receipt := affectedReceipt{
 		PathList: invocation.PathList,
 		Advice:   advice,
 		Mutates:  false,
@@ -1187,7 +1263,24 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 		Revision: revision,
 		Tool:     "affected",
 		Warning:  affectedMixedWarning(revision, dirty, committed),
-	}, graph, nil
+
+		WorktreeDirty: worktreeDirty,
+	}
+	if invocation.Worktree {
+		receipt.Warning = affectedWorktreeWarning(revision, dirty)
+		receipt.Degradations = append(receipt.Degradations, affectedWorktreeDegradation)
+	}
+	return receipt, graph, nil
+}
+
+// affectedWorktreeDegradation labels a --worktree path plan, which reads
+// uncommitted bytes and so is not pinned evidence (ACX-V0-851).
+const affectedWorktreeDegradation = "worktree-path-plan"
+
+// affectedWorktreeWarning names HEAD and the dirty count of a --worktree plan
+// and says it is worktree-derived, not pinned evidence (ACX-V0-851).
+func affectedWorktreeWarning(revision string, dirty []string) string {
+	return fmt.Sprintf("WORKTREE plan: --worktree planned the named paths against the working tree at HEAD %s with %d dirty worktree paths; the plan is worktree-derived and is not pinned evidence", revision, len(dirty))
 }
 
 // affectedE2ESafeSelection runs the e2e-safe profile over the plan and hands its closed output to
@@ -1268,6 +1361,22 @@ func affectedPriorReadScopes(ctx context.Context, gitExecutable, root, base, rev
 	return scopes
 }
 
+// affectedSparseCheckout reports whether the worktree at root is a sparse
+// checkout, where a directory absent from disk may lie outside the cone
+// rather than be deleted (AFP-V0-821). Only an unset key (exit 1) reads as
+// not sparse; any other Git failure reads as sparse, which keeps the
+// path's unknown.
+func affectedSparseCheckout(ctx context.Context, gitExecutable, root string) bool {
+	deadline, cancel := context.WithTimeout(ctx, affectedRevisionDeadline)
+	defer cancel()
+	output, err := hermeticGitCommand(deadline, gitExecutable, root, "config", "--type=bool", "--get", "core.sparseCheckout").Output()
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return false
+	}
+	return err != nil || strings.TrimSpace(string(output)) == "true"
+}
+
 // affectedPlanInputs are what planAffectedGraph measures a change from: the
 // repository whose Git objects hold the base, the tree the graph was built
 // over (the worktree, or a review's materialized snapshot), and whether the
@@ -1284,12 +1393,16 @@ type affectedPlanInputs struct {
 // through it, so a plan member added here reaches review.affected too.
 func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affected.Graph, changed []string) (*affected.Graph, affected.Plan, affectedGoProvider, affectedAdvice) {
 	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, in.gitExecutable, in.repository, in.base, in.revision, changed))
+	if in.tree == in.repository && affectedSparseCheckout(ctx, in.gitExecutable, in.repository) {
+		graph = graph.WithSparseCheckout()
+	}
 	if in.additive {
 		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
 	}
 	plan := affectedSelect(graph, changed, in.shared)
 	provider := providerGoProjection(graph, plan)
-	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.base, plan)
+	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.tree, in.base, plan)
+	advice = withWholePackages(ctx, advice, in.repository, in.tree, in.base, in.revision, plan)
 	return graph, plan, provider, advice
 }
 
@@ -1535,9 +1648,15 @@ func compileAffectedAdvice(root string, graph *affected.Graph, plan affected.Pla
 // withFocusedNextStep puts the focused selected-test command first among the
 // advisory checks when the plan has a base and dirty paths (AFP-V0-496): the
 // default next step is the narrowed run, and the declared exhaustive commands
-// stay the terminal-boundary checks a project policy may require.
-func withFocusedNextStep(advice affectedAdvice, base string, plan affected.Plan) affectedAdvice {
+// stay the terminal-boundary checks a project policy may require. A root
+// without the test-command declaration gets an unknown entry instead, since
+// that command would select nothing there (ACX-V0-853).
+func withFocusedNextStep(advice affectedAdvice, root, base string, plan affected.Plan) affectedAdvice {
 	if base == "" || len(plan.Dirty) == 0 {
+		return advice
+	}
+	if info, err := os.Stat(filepath.Join(root, filepath.FromSlash(sessiontest.DeclarationPath))); err != nil || !info.Mode().IsRegular() {
+		advice.Unknown = sortedUniqueStrings(append(advice.Unknown, adviceFocusedUndeclared))
 		return advice
 	}
 	focused := affectedCheck{Command: fmt.Sprintf(adviceFocusedCommand, shellQuoteJoin([]string{base})), Kind: adviceKindAdvisory, Reason: "prints the selected focused test argv for this plan and runs nothing; run the selected units, not the whole suite", Source: adviceSourcePlan}
@@ -2027,7 +2146,7 @@ func compileSnapshotAffected(ctx context.Context, invocation affectedInvocation)
 		}
 		plan := affectedSelect(graph, snapshot.Paths, invocation.sharedVia)
 		provider := providerGoProjection(graph, plan)
-		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
+		receipt = affectedReceipt{Snapshot: snapshot.Scope(), Advice: withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), root, snapshot.Base, plan), OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: snapshot.Base, Paths: snapshot.Paths}, Revision: snapshot.Commit, Tool: "affected"}
 	}
 	if err := snapshot.Validate(ctx, invocation.Root); err != nil {
 		return nil, snapshotAffectedError()

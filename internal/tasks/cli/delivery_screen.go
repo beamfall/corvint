@@ -50,13 +50,16 @@ const (
 )
 
 var (
-	// deliveryLead and deliveryTail make a PR-body line a delivery claim
-	// (TCD-V0-160): it starts with Refs, Closes, Fixes, Delivers or
-	// Delivered, or it says DELIVERED in capitals.
+	// deliveryLead is a commit line led by a delivery word (TCD-V0-167).
 	deliveryLead = regexp.MustCompile(`(?i)^\W*(?:refs|closes|fixes|delivers|delivered)\b`)
-	deliveryTail = regexp.MustCompile(`\bDELIVERED\b`)
-	// deliveryVeto marks a line that names a ticket it did not deliver.
-	deliveryVeto = regexp.MustCompile(`(?i)not[ -]started|not[ -]delivered|skipped|residual|duplicate|blocked|already`)
+	// deliveryWord and deliveryVeto are the per-ID markers of TCD-V0-730:
+	// a delivery word, and a phrase that names a ticket it did not deliver.
+	// A delivery word inside a veto phrase (`ALREADY-DELIVERED`) is no
+	// marker of its own.
+	deliveryWord = regexp.MustCompile(`(?i)\b(?:refs|closes|fixes|delivers|delivered)\b`)
+	deliveryVeto = regexp.MustCompile(`(?i)(?:already|not)[ -]+delivered|not[ -]+started|skipped|residual|duplicate|blocked|already`)
+	// clauseBreak splits a line into the clauses markers stay inside.
+	clauseBreak = regexp.MustCompile(`[;|]`)
 	// prNumberRef is a `#N` PR reference in a batch title or body.
 	prNumberRef = regexp.MustCompile(`#([0-9]{1,9})\b`)
 	// subjectScope and subjectTail are the ticket-scoped parts of a commit
@@ -163,45 +166,146 @@ func (x *closeoutIndex) lineTickets(line string) []string {
 	return out
 }
 
-// references maps each ticket a PR title or body names to delivered or
-// mentioned (TCD-V0-160): only a lead or DELIVERED line delivers, and a
-// vetoed line only mentions. Delivered on any line wins. Commit messages use
-// commitReferences (TCD-V0-167).
-func (x *closeoutIndex) references(text string) map[string]string {
-	out := map[string]string{}
-	for _, line := range strings.Split(text, "\n") {
-		ids := x.lineTickets(line)
-		if len(ids) == 0 {
+// refMarker is one delivery word or veto phrase on a line (TCD-V0-730).
+type refMarker struct {
+	start, end int
+	veto       bool
+}
+
+// lineMarkers returns the markers of line in order. With anywhere false (a
+// commit line, TCD-V0-167) a delivery word other than DELIVERED counts only
+// when it leads the line.
+func lineMarkers(line string, anywhere bool) []refMarker {
+	var out []refMarker
+	vetoes := deliveryVeto.FindAllStringIndex(line, -1)
+	for _, v := range vetoes {
+		out = append(out, refMarker{v[0], v[1], true})
+	}
+	lead := deliveryLead.FindStringIndex(line)
+	for _, w := range deliveryWord.FindAllStringIndex(line, -1) {
+		if slices.ContainsFunc(vetoes, func(v []int) bool { return w[0] < v[1] && v[0] < w[1] }) {
 			continue
 		}
-		strong := !deliveryVeto.MatchString(line) && (deliveryLead.MatchString(line) || deliveryTail.MatchString(line))
-		for _, id := range ids {
-			if strong {
-				out[id] = refDelivered
-			} else if out[id] == "" {
-				out[id] = refMentioned
-			}
+		if anywhere || line[w[0]:w[1]] == "DELIVERED" || (lead != nil && lead[1] == w[1]) {
+			out = append(out, refMarker{w[0], w[1], false})
 		}
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].start < out[j].start })
 	return out
 }
 
-// prReferences maps each ticket one PR of a batch read names to delivered or
-// mentioned (TCD-V0-870): its body under references, plus every unvetoed
-// body line whose first word is the ticket's ID, plus its title read as a
-// commit subject under commitReferences. Delivered wins.
-func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
-	out := x.references(p.Body)
-	for _, line := range strings.Split(p.Body, "\n") {
-		lead := strings.TrimLeftFunc(line, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
-		if lead == "" || deliveryVeto.MatchString(line) {
-			continue
+// idReferences classifies each ticket one line names (TCD-V0-730): per
+// clause, an ID's trailing markers (up to the next ID's comma, or the clause
+// end) decide first, a veto before a delivery word, then the last marker
+// before it; with no marker it is mentioned. vetoed holds every ID a veto
+// governs on the line.
+func (x *closeoutIndex) idReferences(line string, anywhere bool) (refs map[string]string, vetoed map[string]bool) {
+	refs, vetoed = map[string]string{}, map[string]bool{}
+	markers := lineMarkers(line, anywhere)
+	bounds := []int{0}
+	for _, b := range clauseBreak.FindAllStringIndex(line, -1) {
+		bounds = append(bounds, b[0])
+	}
+	bounds = append(bounds, len(line))
+	type occ struct {
+		start, end int
+		id         string
+	}
+	for c := 0; c+1 < len(bounds); c++ {
+		lo, hi := bounds[c], bounds[c+1]
+		var occs []occ
+		for _, w := range closeoutWord.FindAllStringIndex(line[lo:hi], -1) {
+			if id, ok := x.tokens[wire.FoldToken(strings.TrimRight(line[lo+w[0]:lo+w[1]], ".:"))]; ok {
+				occs = append(occs, occ{lo + w[0], lo + w[1], id})
+			}
 		}
-		for _, id := range x.lineTickets(closeoutWord.FindString(lead)) {
-			out[id] = refDelivered
+		for k, o := range occs {
+			trailEnd := hi
+			if k+1 < len(occs) {
+				trailEnd = occs[k+1].start
+				if i := strings.IndexByte(line[o.end:trailEnd], ','); i >= 0 {
+					trailEnd = o.end + i
+				}
+			}
+			var leading *refMarker
+			trailVeto, trailDeliver := false, false
+			for i := range markers {
+				m := &markers[i]
+				switch {
+				case m.start >= lo && m.end <= o.start:
+					leading = m
+				case m.start >= o.end && m.start < trailEnd:
+					trailVeto, trailDeliver = trailVeto || m.veto, trailDeliver || !m.veto
+				}
+			}
+			kind := refMentioned
+			switch {
+			case trailVeto:
+				vetoed[o.id] = true
+			case trailDeliver:
+				kind = refDelivered
+			case leading != nil && leading.veto:
+				vetoed[o.id] = true
+			case leading != nil:
+				kind = refDelivered
+			}
+			if kind == refDelivered || refs[o.id] == "" {
+				refs[o.id] = kind
+			}
 		}
 	}
-	for id, ref := range x.commitReferences(p.Title) {
+	return refs, vetoed
+}
+
+// references maps each ticket a PR title or body names to delivered or
+// mentioned (TCD-V0-160, TCD-V0-730): a delivery word anywhere in an ID's
+// clause delivers it unless a veto governs that ID. Delivered on any line
+// wins. Commit messages use commitReferences (TCD-V0-167).
+func (x *closeoutIndex) references(text string) map[string]string {
+	out, _ := x.textReferences(text)
+	return out
+}
+
+// textReferences is references plus every ID a veto governs on some line.
+func (x *closeoutIndex) textReferences(text string) (out map[string]string, vetoed map[string]bool) {
+	out, vetoed = map[string]string{}, map[string]bool{}
+	for _, line := range strings.Split(text, "\n") {
+		refs, v := x.idReferences(line, true)
+		for id, kind := range refs {
+			if kind == refDelivered || out[id] == "" {
+				out[id] = kind
+			}
+		}
+		for id := range v {
+			vetoed[id] = true
+		}
+	}
+	return out, vetoed
+}
+
+// prReferences maps each ticket one PR of a batch read names to delivered or
+// mentioned (TCD-V0-870, TCD-V0-730): its body under references, plus every
+// body line whose first word is a ticket's ID that no veto on that line
+// governs, plus its title read as a commit subject under commitReferences,
+// whose scope a per-ID body veto overrides. Delivered wins.
+func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
+	out, bodyVetoed := x.textReferences(p.Body)
+	for _, line := range strings.Split(p.Body, "\n") {
+		lead := strings.TrimLeftFunc(line, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+		if lead == "" {
+			continue
+		}
+		_, vetoed := x.idReferences(line, true)
+		for _, id := range x.lineTickets(closeoutWord.FindString(lead)) {
+			if !vetoed[id] {
+				out[id] = refDelivered
+			}
+		}
+	}
+	for id, ref := range x.messageReferences(p.Title, true) {
+		if ref == refDelivered && bodyVetoed[id] {
+			ref = refMentioned
+		}
 		if ref == refDelivered || out[id] == "" {
 			out[id] = ref
 		}
@@ -210,29 +314,33 @@ func (x *closeoutIndex) prReferences(p *ghPR) map[string]string {
 }
 
 // commitReferences maps each ticket a commit message names to delivered or
-// mentioned (TCD-V0-167). A line delivers when it is not vetoed and either
-// leads with Refs, Closes, Fixes, Delivers or Delivered, says DELIVERED in
-// capitals, or is the subject and the subject is scoped to the ticket: its
-// first word, its conventional-commit scope or its final parenthetical names
-// the ticket. Every other naming line only mentions. Delivered wins.
+// mentioned (TCD-V0-167, TCD-V0-730). Per ID, a line delivers when no veto
+// governs the ID and either a leading Refs, Closes, Fixes, Delivers or
+// Delivered or a DELIVERED in capitals marks it, or it is on the subject and
+// the subject is scoped to it: its first word, its conventional-commit scope
+// or its final parenthetical names it. Every other naming line only
+// mentions. Delivered wins.
 func (x *closeoutIndex) commitReferences(message string) map[string]string {
+	return x.messageReferences(message, false)
+}
+
+// messageReferences is commitReferences with the delivery-word placement of
+// idReferences: anywhere in the clause for a PR title (TCD-V0-730), leading
+// the line for a commit message.
+func (x *closeoutIndex) messageReferences(message string, anywhere bool) map[string]string {
 	out := map[string]string{}
 	for n, line := range strings.Split(strings.TrimLeft(message, "\n"), "\n") {
-		ids := x.lineTickets(line)
-		if len(ids) == 0 {
-			continue
+		refs, vetoed := x.idReferences(line, anywhere)
+		if n == 0 {
+			for _, id := range x.subjectTickets(line) {
+				if !vetoed[id] {
+					refs[id] = refDelivered
+				}
+			}
 		}
-		vetoed := deliveryVeto.MatchString(line)
-		lead := !vetoed && (deliveryLead.MatchString(line) || deliveryTail.MatchString(line))
-		var scoped []string
-		if n == 0 && !vetoed {
-			scoped = x.subjectTickets(line)
-		}
-		for _, id := range ids {
-			if lead || slices.Contains(scoped, id) {
-				out[id] = refDelivered
-			} else if out[id] == "" {
-				out[id] = refMentioned
+		for id, kind := range refs {
+			if kind == refDelivered || out[id] == "" {
+				out[id] = kind
 			}
 		}
 	}
@@ -300,6 +408,13 @@ type screenRow struct {
 	note  wire.Value
 }
 
+// deliveryScreenBools and deliveryScreenValues are the declared boolean and
+// value flags of delivery-screen; its usage names exactly these (TCL-V0-737).
+var (
+	deliveryScreenBools  = []string{"lane-refs", "json"}
+	deliveryScreenValues = []string{"prs", "ref", "since", "limit"}
+)
+
 // deliveryScreenCommand is `corvint-tasks ticket delivery-screen`. It takes
 // no lock and writes nothing (TCD-V0-159); exit 0 when every ticket is
 // CLEAR, 1 otherwise, 2 on a refusal (TCD-V0-162). A COMPLETED or HELD
@@ -307,10 +422,9 @@ type screenRow struct {
 // row carries the ticket's holds and latest operator note (TCD-V0-170).
 func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	cmd := []string{"ticket", "delivery-screen"}
-	laneRefs := slices.Contains(args, "--lane-refs")
 	// The output is always JSON, so a bare --json is a no-op (TCD-V0-955).
-	args = slices.DeleteFunc(slices.Clone(args), func(a string) bool { return a == "--lane-refs" || a == "--json" })
-	fl, pos, err := flags(args, "prs", "ref", "since", "limit")
+	fl, set, pos, err := flagsBool(args, deliveryScreenBools, deliveryScreenValues...)
+	laneRefs := set["lane-refs"]
 	if err == nil && (len(pos) == 0 || len(pos) > maxScreenTickets) {
 		err = wire.Errorf(wire.CodeMalformed, "argv", "ticket delivery-screen takes 1..%d ticket ids", maxScreenTickets)
 	}
@@ -402,7 +516,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 	}
 	prRefs := make([]map[string]string, len(prs))
 	for i := range prs {
-		prRefs[i] = index.references(prs[i].Title + "\n" + prs[i].Body)
+		prRefs[i] = index.prReferences(&prs[i])
 	}
 	sort.SliceStable(rows, func(i, j int) bool { return rows[i].ticketID < rows[j].ticketID })
 	clear := 0
@@ -630,6 +744,21 @@ type batchInput struct {
 	// excluded is every PR the batch text names that is not a lane PR
 	// because its head is not proven in the merge's ancestry (TCD-V0-179).
 	excluded []excludedLane
+	// laneScan is the merge's lane commits (TCD-V0-731); nil when they are
+	// NOT_OBSERVED.
+	laneScan *store.CommitScan
+	// root is the primary worktree the merge ancestry is read in, "" when
+	// none resolved; parent is the merge's first parent, resolved once by
+	// headInBatch (TLF-V0-1101).
+	root, parent   string
+	parentResolved bool
+	parentErr      error
+	// ancestry is the error-preserving ancestry query, store.Ancestry
+	// unless a test injects a failure (TLF-V0-1101).
+	ancestry func(root, a, b string) (bool, error)
+	// progressNotes names each progress mark that names this batch but
+	// delivers nothing, with why; both verbs report them as warnings.
+	progressNotes []string
 }
 
 // excludedLane is one PR the batch title or body names that was left out of
@@ -693,10 +822,52 @@ func (in *batchInput) excludedWarning() string {
 		"; a lane PR's headRefOid must be exported and be an ancestor of the merge commit in this repository (git fetch both), or name its tickets in a Refs line of the batch body"
 }
 
+// laneCommitsValue is the number of lane commits read, or NOT_OBSERVED
+// (TCD-V0-731).
+func (in *batchInput) laneCommitsValue() wire.Value {
+	if in.laneScan == nil {
+		return wire.String(notObserved)
+	}
+	return count(len(in.laneScan.Commits))
+}
+
+// laneWarnings says when the lane commits were not read or were cut short
+// (TCD-V0-731).
+func (in *batchInput) laneWarnings() []string {
+	switch {
+	case in.laneScan == nil:
+		return []string{"the batch merge commit's lane commits are NOT_OBSERVED (TCD-V0-731): the merge commit must resolve in this repository with two parents (git fetch it); only PR text was read"}
+	case in.laneScan.Truncated:
+		return []string{"lane commit scan stopped at " + strconv.Itoa(defaultCloseoutScanLimit) + " commits; older lane commits deliver nothing (TCD-V0-731)"}
+	}
+	return nil
+}
+
+// Delivery sources of a batch hit (TLF-V0-1101).
+const (
+	sourcePRText     = "PR_TEXT"
+	sourceLaneCommit = "LANE_COMMIT"
+	sourceProgress   = "PROGRESS"
+)
+
+// progressWarnings names the progress marks that name this batch but
+// deliver nothing (TLF-V0-1101), so an operator sees why a marked ticket was
+// left out.
+func (in *batchInput) progressWarnings() []string {
+	if len(in.progressNotes) == 0 {
+		return nil
+	}
+	return []string{"recorded progress delivers nothing for " + strings.Join(in.progressNotes, "; ") + " (TLF-V0-1101): fetch the commits or correct the mark with ticket progress"}
+}
+
 // batchHit is one ticket a batch delivered or only mentioned.
 type batchHit struct {
 	ticketID string
-	lane     int64 // 0 = the batch body itself
+	lane     int64  // 0 = the batch text itself, or a lane commit
+	commit   string // the lane commit that is the source, "" for PR text (TCD-V0-731)
+	// source is PR_TEXT, LANE_COMMIT or PROGRESS, and phase the recorded
+	// progress phase of a PROGRESS hit (TLF-V0-1101).
+	source, phase string
 }
 
 // parseBatchInput reads the batch inputs of verb from already-parsed flags.
@@ -733,6 +904,10 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	case err != nil:
 	case in.batch == nil:
 		err = wire.Errorf(wire.CodeMalformed, "--pr", "PR #%d is not in the --prs export", in.number)
+	case in.batch.State == "" || prose(in.batch.State) != in.batch.State:
+		// TCD-V0-1103: an export without `state` names the field and the
+		// whole field list, never a withheld message in place of the state.
+		err = wire.Errorf(wire.CodeMalformed, "--prs", "PR #%d in the --prs export has no state: the `state` field is missing, empty or not text (TCD-V0-1103); rerun gh pr list --state merged --json %s", in.number, batchPRFields)
 	case in.batch.State != "MERGED":
 		err = wire.Errorf(wire.CodePrerequisiteUnsatisfied, "--pr", "PR #%d is %s, not merged", in.number, prose(in.batch.State))
 	case in.batch.mergeOid() == "":
@@ -745,7 +920,9 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	if repo, e := intent.Resolve(env.Cwd); e == nil {
 		root = repo.PrimaryWorktree
 	}
+	in.root = root
 	in.deriveLanes(root)
+	in.scanLanes(root)
 	for _, r := range in.runs {
 		if r.Conclusion == "success" && (r.HeadSha == in.batch.mergeOid() || r.HeadSha == in.batch.HeadRefOid) && !slices.Contains(in.green, r.DatabaseID) {
 			in.green = append(in.green, r.DatabaseID)
@@ -753,6 +930,17 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	}
 	slices.Sort(in.green)
 	return in, nil
+}
+
+// scanLanes reads the merge's lane commits (TCD-V0-731); laneScan stays nil
+// when root is empty or the merge does not resolve with two parents.
+func (in *batchInput) scanLanes(root string) {
+	if root == "" {
+		return
+	}
+	if scan, e := store.ScanLaneCommits(root, in.batch.mergeOid(), defaultCloseoutScanLimit); e == nil {
+		in.laneScan = &scan
+	}
 }
 
 // deriveLanes sets the lane PRs: the other exported PRs the batch title or
@@ -791,19 +979,129 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 		rec, _ := rc.store.Inventory.Get(id)
 		index.add(rec)
 	}
-	return in.hits(index)
+	delivered, mentioned = in.hits(index)
+	return in.progressHits(rc, delivered, mentioned)
+}
+
+// progressHits adds the tickets whose effective progress says this batch
+// delivered them (TLF-V0-1101): a review, merge-queue or merged phase whose
+// pr is the batch PR or one of its lane PRs, or a branch or merged phase
+// whose head the merge reaches and its first parent does not. Progress only
+// speaks for a ticket the batch text never names: a text delivery keeps its
+// source, and a mention, which may be a TCD-V0-730 veto such as BLOCKED or
+// ALREADY-DELIVERED, stays mentioned.
+func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit) ([]batchHit, []batchHit) {
+	seen := map[string]bool{}
+	for _, h := range append(slices.Clone(delivered), mentioned...) {
+		seen[h.ticketID] = true
+	}
+	for _, id := range rc.store.Inventory.Sorted() {
+		if seen[id] {
+			continue
+		}
+		rec, _ := rc.store.Inventory.Get(id)
+		p := rec.EffectiveProgress()
+		if p == nil {
+			continue
+		}
+		lane, ok, why := in.progressDelivery(p)
+		if ok {
+			delivered = append(delivered, batchHit{ticketID: id, lane: lane, source: sourceProgress, phase: p.Phase})
+		} else if why != "" {
+			in.progressNotes = append(in.progressNotes, rec.TicketID.Local+" "+p.Phase+": "+why)
+		}
+	}
+	return delivered, mentioned
+}
+
+// progressDelivery reports whether progress entry p delivers its ticket in
+// this batch, through which lane PR (0 for the batch itself), and otherwise
+// why a mark that names this batch delivers nothing (TLF-V0-1101). Every
+// piece of evidence the mark carries must hold: a pr must be the batch PR or
+// one of its lane PRs, so an excluded or unexported PR stays excluded
+// whatever its head; and a head must be one the batch merged, so a pr match
+// never overrides a contradicting head. A head whose ancestry this clone
+// cannot read abstains.
+func (in *batchInput) progressDelivery(p *ticket.Progress) (lane int64, ok bool, why string) {
+	byPR := p.Phase == ticket.PhaseInReview || p.Phase == ticket.PhaseInMergeQueue || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	byHead := p.Phase == ticket.PhaseDeliveredOnBranch || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	if p.PR != nil {
+		if !byPR {
+			return 0, false, ""
+		}
+		n := p.PR.Int()
+		if n != in.number && !slices.Contains(in.lanes, n) {
+			return 0, false, ""
+		}
+		if n != in.number {
+			lane = n
+		}
+	} else if !byHead || p.Head == nil {
+		return 0, false, ""
+	}
+	if p.Head == nil {
+		return lane, true, ""
+	}
+	merged, err := in.headInBatch(*p.Head)
+	switch {
+	case err != nil:
+		return 0, false, "head " + *p.Head + " is NOT_OBSERVED against batch PR #" + strconv.FormatInt(in.number, 10) + " (" + prose(err.Error()) + ")"
+	case !merged:
+		if p.PR == nil {
+			return 0, false, ""
+		}
+		return 0, false, "head " + *p.Head + " is not merged by batch PR #" + strconv.FormatInt(in.number, 10)
+	}
+	return lane, true, ""
+}
+
+// headInBatch reports whether this clone proves head merged by the batch:
+// the merge commit reaches it and the merge's first parent does not. An
+// error means the answer is unobservable here (an unfetched head, merge or
+// parent, or a failed ancestry query), never a no and never a yes.
+func (in *batchInput) headInBatch(head string) (bool, error) {
+	if in.root == "" {
+		return false, wire.Errorf(wire.CodeUnsupported, "root", "no repository resolved")
+	}
+	merge, err := store.ResolveCommit(in.root, in.batch.mergeOid())
+	if err != nil {
+		return false, err
+	}
+	if !in.parentResolved {
+		in.parentResolved = true
+		in.parent, in.parentErr = store.ResolveCommit(in.root, merge+"^1")
+	}
+	if in.parentErr != nil {
+		return false, in.parentErr
+	}
+	h, err := store.ResolveCommit(in.root, head)
+	if err != nil {
+		return false, err
+	}
+	ancestry := in.ancestry
+	if ancestry == nil {
+		ancestry = store.Ancestry
+	}
+	inMerge, err := ancestry(in.root, h, merge)
+	if err != nil || !inMerge {
+		return false, err
+	}
+	inParent, err := ancestry(in.root, h, in.parent)
+	if err != nil {
+		return false, err
+	}
+	return !inParent, nil
 }
 
 // hits is batchHits over an already-built index.
 func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHit) {
 	seen := map[string]bool{}
 	var weak []batchHit
-	for _, n := range append(slices.Clone(in.lanes), 0) {
-		p := in.batch
-		if n != 0 {
-			p = in.byNumber[n]
+	hit := func(refs map[string]string, n int64, commit string) {
+		source := sourcePRText
+		if commit != "" {
+			source = sourceLaneCommit
 		}
-		refs := index.prReferences(p)
 		ids := make([]string, 0, len(refs))
 		for id := range refs {
 			ids = append(ids, id)
@@ -813,10 +1111,22 @@ func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHi
 			switch {
 			case refs[id] == refDelivered && !seen[id]:
 				seen[id] = true
-				delivered = append(delivered, batchHit{id, n})
+				delivered = append(delivered, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			case refs[id] == refMentioned:
-				weak = append(weak, batchHit{id, n})
+				weak = append(weak, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			}
+		}
+	}
+	for _, n := range append(slices.Clone(in.lanes), 0) {
+		p := in.batch
+		if n != 0 {
+			p = in.byNumber[n]
+		}
+		hit(index.prReferences(p), n, "")
+	}
+	if in.laneScan != nil {
+		for _, c := range in.laneScan.Commits {
+			hit(index.commitReferences(c.Message), 0, c.Commit)
 		}
 	}
 	for _, h := range weak {
@@ -882,6 +1192,8 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		o.Set("local", wire.String(local))
 		o.Set("status", wire.String(st))
 		o.Set("lanePr", lanePR(h.lane))
+		o.Set("commit", orNull(h.commit))
+		o.Set("source", wire.String(h.source))
 		o.Set("batchPr", wire.String(strconv.FormatInt(number, 10)))
 		o.Set("mergeCommit", wire.String(batch.mergeOid()))
 		o.Set("greenRuns", greenValue)
@@ -896,6 +1208,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		o.Set("local", wire.String(local))
 		o.Set("status", wire.String(st))
 		o.Set("pr", lanePR(h.lane))
+		o.Set("commit", orNull(h.commit))
 		weakRows = append(weakRows, wire.ObjectValue(o))
 	}
 	lanesValue := make([]wire.Value, 0, len(lanes))
@@ -909,6 +1222,8 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 	o.Set("batchHead", orNull(batch.HeadRefOid))
 	o.Set("lanePrs", wire.Array(lanesValue...))
 	o.Set("excludedPrs", in.excludedValue())
+	o.Set("laneCommits", in.laneCommitsValue())
+	o.Set("laneCommitsTruncated", wire.Bool(in.laneScan != nil && in.laneScan.Truncated))
 	o.Set("greenRuns", greenValue)
 	o.Set("delivered", wire.Array(rows...))
 	o.Set("mentioned", wire.Array(weakRows...))
@@ -921,6 +1236,8 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 	if w := in.excludedWarning(); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
+	res.Warnings = append(res.Warnings, in.laneWarnings()...)
+	res.Warnings = append(res.Warnings, in.progressWarnings()...)
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	res.Untrusted = true
 	return res

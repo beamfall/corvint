@@ -63,3 +63,36 @@ func TestCALV0302_ReceiptCompactCLI(t *testing.T) {
 		t.Fatalf("rerun: %v", again)
 	}
 }
+
+// TestTCLV0820_BoundedAuditRestoresElidedReceipts: after `receipt compact`
+// elides superseded heartbeats, `receipt audit --through SEQ` restores them
+// as the complete walk does, including an elided receipt at SEQ itself
+// whose superseding heartbeat lies after the bound (TCL-V0-820).
+func TestTCLV0820_BoundedAuditRestoresElidedReceipts(t *testing.T) {
+	now := time.Now().UTC().Truncate(time.Second)
+	root, claims := leaseCLIStore(t, 1, now.Add(-11*time.Minute))
+	c := claims[0]
+	for i := 0; i < 3; i++ {
+		if h := atm(t, root, nil, "attempt", "heartbeat", "--attempt", c.AttemptID, "--generation", string(c.Generation), "--request-id", "hb-"+strconv.Itoa(i)); h.code != 0 {
+			t.Fatalf("heartbeat %d: %s", i, h.stdout)
+		}
+	}
+	if x := atm(t, root, nil, "receipt", "compact"); x.code != 0 || field(x.res.Items[0], "elided").Str != "2" {
+		t.Fatalf("compact: %s", x.stdout)
+	}
+	full := atm(t, root, nil, "receipt", "audit")
+	if full.code != 0 {
+		t.Fatalf("complete audit after compact: %s", full.stdout)
+	}
+	headSeq, err := strconv.ParseUint(field(full.res.Items[0], "headSeq").Str, 10, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, through := range []uint64{headSeq - 1, headSeq} {
+		seq := strconv.FormatUint(through, 10)
+		x := atm(t, root, nil, "receipt", "audit", "--through", seq)
+		if x.code != 0 || len(x.res.Items) != 1 || field(x.res.Items[0], "structuralConsistency").Str != "CONSISTENT" || field(x.res.Items[0], "headSeq").Str != seq {
+			t.Fatalf("--through %s over elided receipts: %s", seq, x.stdout)
+		}
+	}
+}

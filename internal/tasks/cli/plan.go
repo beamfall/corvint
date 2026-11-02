@@ -23,7 +23,7 @@ func planCommand(env Env, args []string) *wire.Result {
 	if len(args) >= 1 && args[0] == "record" {
 		return notRun([]string{"plan", "record"})
 	}
-	return usage([]string{"plan"}, "plan needs the verb preview or batches")
+	return groupMiss([]string{"plan"}, args, "plan needs the verb preview or batches")
 }
 
 // planPreview is the CAL-V0-014 taskman-priority-first/0 plan over the

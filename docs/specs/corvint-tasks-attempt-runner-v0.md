@@ -1935,6 +1935,9 @@ Failure mode: a caller matching the old collision text sees a longer detail. Rol
 detail suffix; the tests of ATR-V0-801 pin existing admission and stay.
 Acceptance evidence: `TestATRV0801_DistinctDeclaredFilesAdmitConcurrently` and
 `TestATRV0800_CollisionNamesTheNextAction` (`internal/tasks/store`);
+`TestATRV0801_CompiledBinaryAdmitsDistinctBuildLogFiles` (`internal/tasks/cli`, the compiled
+native qualification on a scratch fixture queue: two distinct build-log files admitted, the same
+file and the parent directory refused, the directory refusal naming the set-effects action);
 `TestCALV0024_SubmitOutsideTheScopeIsRefused`; `TestCALV0009_StaleGenerationIsFencedAndRecorded`.
 
 Claim scope diagnostics, ATR-V0-806..808, are proposed (V1-3185, V1-3540, V1-3547). They add

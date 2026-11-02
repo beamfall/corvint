@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -155,10 +154,12 @@ func TestSTRV0006LedgerMatchesDeclaration(t *testing.T) {
 	makefile := filepath.Join(root, "Makefile")
 	const recipe = "ledger/go-test:\n\t@$(GATE_LEDGER) go-test -- go test $(GO_TEST_FLAGS)\n"
 	refusals := map[string][3]string{
-		"flags":              {"GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)", "GO_TEST_FLAGS = -p 4 -timeout $(GO_TEST_TIMEOUT)", "runs go test [-p 4 -timeout 30m] (GO_TEST_FLAGS)"},
-		"timeout":            {"GO_TEST_TIMEOUT ?= 30m", "GO_TEST_TIMEOUT ?= 10m", "runs go test [-p 1 -timeout 10m] (GO_TEST_FLAGS)"},
-		"race":               {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = -race -p 1", "runs go test [-race -p 1 -timeout 30m]"},
-		"cache":              {"CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache", "CORVINT_GOCACHE ?= /tmp/other", "runs go with [GOCACHE=/tmp/other GOTOOLCHAIN=local] (GATE_LEDGER)"},
+		"flags":   {"GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)", "GO_TEST_FLAGS = -p 4 -timeout $(GO_TEST_TIMEOUT)", "runs go test [-p 4 -timeout 30m] (GO_TEST_FLAGS)"},
+		"timeout": {"GO_TEST_TIMEOUT ?= 30m", "GO_TEST_TIMEOUT ?= 10m", "runs go test [-p 1 -timeout 10m] (GO_TEST_FLAGS)"},
+		"race":    {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = -race -p 1", "runs go test [-race -p 1 -timeout 30m]"},
+		"cache":   {"CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache", "CORVINT_GOCACHE ?= /tmp/other", "runs go with [GOCACHE=/tmp/other GOTOOLCHAIN=local] (GATE_LEDGER)"},
+		// STR-V0-908: only the exact TMPDIR default resolves; another make function stays a refusal.
+		"cache function":     {"CORVINT_GOCACHE ?= $(patsubst %/,%,$(or $(TMPDIR),/tmp))/corvint-go-build-cache", "CORVINT_GOCACHE ?= $(or $(TMPDIR),/tmp)/corvint-go-build-cache", "GATE_LEDGER expands \"GOCACHE=$(or $(TMPDIR),/tmp)/"},
 		"ledger env":         {"GATE_LEDGER = GOCACHE", "GATE_LEDGER = GOFLAGS=-race GOCACHE", "runs go with [GOCACHE=/tmp/corvint-go-build-cache GOFLAGS=-race GOTOOLCHAIN=local]"},
 		"appended flags":     {"", "GO_TEST_FLAGS += -race\n", "GO_TEST_FLAGS is assigned 2 times"},
 		"unknown variable":   {"GO_TEST_FLAGS = -p 1", "GO_TEST_FLAGS = $(EXTRA) -p 1", "GO_TEST_FLAGS expands"},
@@ -455,26 +456,8 @@ func TestASDV0921ScriptTestsAreExecutable(t *testing.T) {
 	if err != nil {
 		t.Skipf("repository Git index unreadable here (%v); doc-gates checks it", err)
 	}
-	// pendingChmod lists the script tests still committed 100644 only because cem/1.0 cannot bind a
-	// mode change (metadata-only and old/new mode patches are refused), so a lane cannot carry the
-	// chmod; the integrator makes it outside a bound change and removes the entry. An entry that is
-	// already executable fails, so the list only shrinks.
-	pendingChmod := map[string]bool{
-		"script/release-env-compat_test.sh (100644)":  true,
-		"script/runtime-environment_test.sh (100644)": true,
-	}
-	var bad []string
-	for _, path := range found {
-		if !pendingChmod[path] {
-			bad = append(bad, path)
-		}
-		delete(pendingChmod, path)
-	}
-	if len(bad) != 0 {
-		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", bad)
-	}
-	if len(pendingChmod) != 0 {
-		t.Fatalf("pendingChmod entries are executable now: %q; remove them", slices.Sorted(maps.Keys(pendingChmod)))
+	if len(found) != 0 {
+		t.Fatalf("script tests committed without the executable bit: %q; run git update-index --chmod=+x on each", found)
 	}
 }
 
@@ -591,4 +574,39 @@ func TestGateStepsTwoLaneMergeIsClean_STR_V0_920(t *testing.T) {
 func sortedIndex(names []string, name string) int {
 	i, _ := slices.BinarySearch(names, name)
 	return i
+}
+
+// ACX-V0-857 (V1-3734): a bare `make` runs the help target, which lists the documented targets
+// and the effective BASE, whose file default is origin/main; it starts no build, test or gate.
+func TestMakeDefaultGoalIsHelp_ACXV0857(t *testing.T) {
+	root := requireMake(t)
+	command := exec.Command("make", "-s", "-C", root, "-f", "Makefile", "--no-print-directory")
+	command.Env = append(slices.DeleteFunc(os.Environ(), func(entry string) bool { return strings.HasPrefix(entry, "BASE=") }), "MAKEFLAGS=")
+	var stderr strings.Builder
+	command.Stderr = &stderr
+	out, err := command.Output()
+	if err != nil {
+		t.Fatalf("bare make: %v: %s", err, stderr.String())
+	}
+	got := string(out)
+	if !strings.HasPrefix(got, "usage: make <target> [BASE=<rev>]  (BASE=origin/main)\n") {
+		t.Fatalf("bare make did not print the help header with BASE=origin/main:\n%s", got)
+	}
+	for _, target := range []string{"help", "gate", "doc-gates", "dogfood-change", "windows-vet"} {
+		if !regexp.MustCompile(`(?m)^  ` + regexp.QuoteMeta(target) + ` +\S`).MatchString(got) {
+			t.Errorf("help does not list %s:\n%s", target, got)
+		}
+	}
+	// BASE reaches the recipe through the environment, so a quote in it is
+	// printed as given rather than breaking the shell command (ACX-V0-857).
+	quoted := exec.Command("make", "-s", "-C", root, "-f", "Makefile", "--no-print-directory", "help", "BASE=feature/o'brien \"x\" $$HOME")
+	quoted.Env = command.Env
+	quoted.Stderr = &stderr
+	out, err = quoted.Output()
+	if err != nil {
+		t.Fatalf("make help with a quoted BASE: %v: %s", err, stderr.String())
+	}
+	if want := "usage: make <target> [BASE=<rev>]  (BASE=feature/o'brien \"x\" $HOME)\n"; !strings.HasPrefix(string(out), want) {
+		t.Fatalf("make help with a quoted BASE printed %q, want prefix %q", out, want)
+	}
 }

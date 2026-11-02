@@ -46,6 +46,10 @@ type token struct {
 	regex string
 	// doubtLine, on the first token only, is the line where lexJS first met source it cannot place.
 	doubtLine int
+	// escaped marks an identifier written with a \u escape (`\u0061pp`, `a\u{62}c`). Its text is
+	// the raw source, never decoded, so it equals no name or keyword; every reader that matches
+	// names treats it as doubt, since it may name what the reader looks for unseen (AMAP-V0-880).
+	escaped bool
 }
 
 // literal reports whether t is a string or substitution-free template whose value is exact.
@@ -303,13 +307,22 @@ func (lx *jsLexer) lex(i, line, depth int) ([]token, int, int) {
 			// A regex is a value but never a literal string: a pattern is not the text it matches.
 			toks = append(toks, token{kind: tokString, text: "", line: line, inexact: true, regex: text[i:j]})
 			i = j
-		case isIdentStart(c):
-			j := i + 1
-			for j < len(text) && isIdentPart(text[j]) {
-				j++
+		case isIdentStart(c) || identEscapeAt(text, i) > i:
+			j, escaped := i+1, false
+			if c == '\\' {
+				j, escaped = identEscapeAt(text, i), true
+			}
+			for j < len(text) {
+				if isIdentPart(text[j]) {
+					j++
+				} else if end := identEscapeAt(text, j); end > j {
+					j, escaped = end, true
+				} else {
+					break
+				}
 			}
 			note(!identChars(text[i:j]))
-			toks = append(toks, token{kind: tokIdent, text: text[i:j], line: line})
+			toks = append(toks, token{kind: tokIdent, text: text[i:j], line: line, escaped: escaped})
 			i = j
 		case c >= '0' && c <= '9':
 			j := i + 1
@@ -525,6 +538,18 @@ func identChars(s string) bool {
 	return true
 }
 
+// identEscapeAt returns the end of a well-formed \uHHHH or \u{H+} escape starting at text[i], or i
+// when there is none; a malformed backslash stays a punctuation token.
+func identEscapeAt(text string, i int) int {
+	if i+1 >= len(text) || text[i] != '\\' || text[i+1] != 'u' {
+		return i
+	}
+	if _, end, ok := unicodeEscape(text, i+2); ok {
+		return end
+	}
+	return i
+}
+
 func isIdentStart(c byte) bool {
 	return c == '_' || c == '$' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c >= 0x80
 }
@@ -615,18 +640,39 @@ func unescape(b *strings.Builder, text string, j int) (int, bool) {
 // unicodeEscape reads the HHHH or {H+} after a \u at text[j].
 func unicodeEscape(text string, j int) (rune, int, bool) {
 	if j < len(text) && text[j] == '{' {
-		end := strings.IndexByte(text[j:], '}')
-		if end < 2 || end > 7 {
+		// Any number of hex digits, leading zeros included, up to the value 0x10FFFF.
+		k, r := j+1, rune(0)
+		for ; k < len(text) && text[k] != '}'; k++ {
+			d, ok := hexDigit(text[k])
+			if !ok {
+				return 0, j, false
+			}
+			if r = r<<4 | d; r > utf8.MaxRune {
+				return 0, j, false
+			}
+		}
+		if k == j+1 || k >= len(text) {
 			return 0, j, false
 		}
-		r, ok := hexRune(text, j+1, j+end)
-		return r, j + end + 1, ok && r <= utf8.MaxRune
+		return r, k + 1, true
 	}
 	r, ok := hexRune(text, j, j+4)
 	if !ok {
 		return 0, j, false // never consume past a short or non-hex escape
 	}
 	return r, j + 4, true
+}
+
+func hexDigit(c byte) (rune, bool) {
+	switch {
+	case c >= '0' && c <= '9':
+		return rune(c - '0'), true
+	case c >= 'a' && c <= 'f':
+		return rune(c-'a') + 10, true
+	case c >= 'A' && c <= 'F':
+		return rune(c-'A') + 10, true
+	}
+	return 0, false
 }
 
 func hexRune(text string, from, to int) (rune, bool) {
@@ -909,8 +955,9 @@ func parseObject(toks []token, i int) (jsValue, int) {
 			return v, i + 1
 		}
 		t := toks[i]
-		if (t.kind != tokIdent && (t.kind != tokString || t.inexact)) || !next(toks, i+1, ":") {
-			// spread, computed key, method or shorthand: the object is not a plain literal
+		if (t.kind != tokIdent && (t.kind != tokString || t.inexact)) || t.escaped || !next(toks, i+1, ":") {
+			// spread, computed key, method, shorthand or an escaped identifier key (AMAP-V0-880):
+			// the object is not a plain literal
 			v.obj = append(v.obj, jsPair{key: "", value: jsValue{kind: "other", line: t.line}})
 			i = skipValue(toks, i)
 		} else {

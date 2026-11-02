@@ -116,7 +116,7 @@ An unqualified `ADVISORY` in prose is a defect in that prose.
 **Normative definition.** A bounded, valid, non-error result stating that the profile declined to
 produce a witness or a closing relation for a named subject, together with the exact reason. An
 abstention is a result, never a missing field and never a failure
-(`docs/MCP-SERVER.md:108-109@a1ba8f57`).
+(`docs/MCP-SERVER.md:110-111@a1ba8f57`).
 
 **Owning contract.** *Proposal:* none exists; each profile names its own field. This file is the
 cross-profile definition and the following table is the mapping between the field names.
@@ -125,7 +125,7 @@ cross-profile definition and the following table is the mapping between the fiel
 
 | Surface | Field | Values | Citation |
 |---|---|---|---|
-| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1100@e32959ff`; `docs/MCP-SERVER.md:153@84842141` |
+| MCP bridge | `state` | `READY`, `ABSTAINED` | `internal/mcp/bridge/bridge.go:1100@e32959ff`; `docs/MCP-SERVER.md:155@84842141` |
 | LRF edge tuple | `outcome` | `cem-lexical-v0` / `lexically-proximate-candidate`, `rejected`, `abstained` | `docs/specs/lexical-relevance-floor-v0.md:268,271@dc369243`; the deleted lrf/0 evaluator (V1-2665) |
 | TCQ claim result | `associationState` | `ASSOCIATED`, `ABSTAINED` | `docs/tcq-0.schema.json:124@61c3deb0`; `docs/specs/test-claim-qualification-v0.md:123@c6531e00` |
 | TCQ claim result | `hygieneState` | (independent axis, same result object) | `docs/specs/test-claim-qualification-v0.md:118@11bd5f87` |
@@ -135,7 +135,7 @@ normative for the whole vocabulary: `abstained` means the inputs could not be ev
 subject stays unknown (`docs/specs/lexical-relevance-floor-v0.md:65-67@781e744f`); `rejected` means the
 inputs were evaluable and did not meet the floor (`:68@1522c636`). *Proposal:* every profile that today has
 only a two-value abstention field states which of the two LRF senses its `ABSTAINED` carries, or
-splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:111-113@4dcf1137`).
+splits it. MCP `ABSTAINED` currently carries both senses (`docs/MCP-SERVER.md:113-115@4dcf1137`).
 
 ### `NONE`
 
@@ -177,10 +177,10 @@ expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, n
 **Normative definition.** A named gate, trial, or promotion step has not been executed. It
 describes **delivery evidence about Corvint itself**, never a value inside a receipt. `NOT_RUN`
 evidence stays visible and is never converted into a pass
-(`docs/SPEC-DRIVEN-DEVELOPMENT.md:163@ef8f012f`).
+(`docs/SPEC-DRIVEN-DEVELOPMENT.md:167@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
-state (`docs/specs/README.md:14,15,21,32,40,44,46@a62af3de`;
+state (`docs/specs/README.md:14,15,21,24,36,44,46@874566fb`;
 `docs/specs/analyzer-candidate-profiles.md:444@57f8e367`;
 `docs/specs/analyzer-candidate-profiles.md:542@6424bf91`). It is also used once for a metric denominator
 — a zero positive denominator is `NOT_RUN`
@@ -377,7 +377,7 @@ declared relations are those involving rank 30, which no surface previously orde
 
 The first two are enumerable and bounded by exactly one declared input. The third is a standing
 property of the repository, is not enumerable as items, and is also a programme name
-(`docs/specs/README.md:78@b5ba0a4e`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
+(`docs/specs/README.md:63@efc19d01`, "Unknown Frontier outcome gate"). `docs/ARCHITECTURE.md:82@311e28e5` and `:198@16bd8a01`
 are not the same set either: `:82@311e28e5` is the complement of one certificate, `:198@16bd8a01` is the repository
 residue.
 

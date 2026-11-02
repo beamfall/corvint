@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -105,7 +105,8 @@ therefore come from something keyed on content, not from Go's cache.
 - `GL-V0-006`: Records MUST live in a per-user directory (`CORVINT_GATE_LEDGER_DIR`, else
   `$XDG_CACHE_HOME/corvint/gate-ledger`, else `~/.cache/corvint/gate-ledger`) that is a plain
   directory owned by the caller with no group or world permission; any other directory MUST make
-  every step run without recording. The directory MUST hold at most 4096 records, oldest pruned.
+  every step run without recording. The directory MUST hold at most 4096 records, oldest pruned
+  (amended by GL-V0-910 and GL-V0-911: 32768 records, pruned at most once per interval).
   A record the tool cannot parse, or whose schema or key does not match, MUST count as absent.
   Records are private derived state: nothing in Corvint's product path, ranking, learning,
   evidence, or authority MAY read them (`AGENTS.md` invariant 4).
@@ -116,7 +117,7 @@ therefore come from something keyed on content, not from Go's cache.
   starting before the clear, including under `make -j`.
 - `GL-V0-008`: Two runs of one key at once MUST execute the step once: the second MUST wait on a
   per-key lock and read the record the first wrote. A lock the tool cannot take MUST make the
-  step run without recording.
+  step run without recording. GL-V0-912 and GL-V0-913 govern the lock file's lifetime.
 - `GL-V0-009`: (accepted, decision 0511) A resolved package MUST run under its own key, step `go-test-package`, derived as
   GL-V0-001 derives every key from the package's import path and a digest of the worktree entries
   in its proven bound together with the gate tooling. The bound MUST be the union of every file
@@ -158,6 +159,89 @@ therefore come from something keyed on content, not from Go's cache.
   salt never hits. An undeclared NAME with a salt MUST key on the whole tree; an unsalted
   undeclared name still runs and records nothing (GL-V0-003), and `never` scopes still always
   run. `make batch-precheck` is the caller (`corvint-self-development-v0.md` `ASD-V0-042`).
+- `GL-V0-720`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends
+  `GL-V0-005` for a scoped run) `gate-ledger go-test --packages LIST -- go test FLAGS` MUST run
+  only the packages that LIST names. LIST is one or more `go list` patterns, separated by
+  whitespace or commas. The run partitions them as GL-V0-005 partitions `./...`, prints
+  `gate-ledger: SCOPE packages LIST` first, and adds `"scope":[...]` to each record it writes.
+  The unresolved key already includes the package names, so a scoped run never matches a
+  whole-tree record. When the `go list` or selector partition fails, it MUST fall back to one
+  uncached run of LIST, not `./...`. An empty LIST, or a pattern that starts with `-`, MUST be
+  refused with usage and exit 2 before anything runs. A LIST that partitions to no package (for
+  example `./docs/...`) MUST fail with exit 1 and `gate-ledger: SCOPE packages LIST matches no
+  packages to test` before anything runs, as `go test` fails with no packages to test. Without `--packages`, `go-test` behaves
+  exactly as before. Design: the flag belongs to the tool, not to the Makefile, because
+  `ledger/go-test` is pinned by `STR-V0-006`. A lane that changes three packages can now record
+  a ledger run of only those, where before it needed a full-tree run of about 25 minutes.
+  Non-goals: choosing the packages; a Makefile scope variable. Failure mode: a scope that
+  leaves out an affected package does not test it. The SCOPE line and the record show what ran. Rollback: remove
+  `--packages` and `record.Scope`; `go-test` then runs `./...` only.
+- `GL-V0-600`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099) A
+  scope entry MAY also be `@root` (every root-level path), `DIR/*.ext` (a glob whose `*` stays in
+  one path component, through `path.Match`) or `@go` (every Go build input: any `*.go`, `go.mod`,
+  `go.sum`, `go.work` or `go.work.sum` file, and every path below a directory that holds a `.go`
+  file, so `//go:embed` targets and `testdata` count). `@go` MUST be computed from the same tree
+  listing the key digests, so a new Go package directory widens the scope in that key. Failure
+  mode: a Go reader that opens a path outside every Go package directory, the root and the step's
+  other entries would hit when it should run; each GL-V0-601 scope therefore also names the step's
+  own data directories, and `tooling` still adds `Makefile`, `go.mod`, `go.sum`, `script/` and
+  `tools/`. Rollback: drop the three forms; a step using them then keys on fewer paths, so remove
+  the GL-V0-601 entries in the same change.
+- `GL-V0-601`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)
+  `selection-baseline-check` MUST be scoped `@go @root .github/cishards/
+  benchmarks/selection-baseline/` and `capability-catalog-check` `@go @root docs/*.md`, the input
+  lists `script/batch-precheck.sh` already declares for them (`corvint-self-development-v0.md`
+  `ASD-V0-944`, `ASD-V0-051`), so the post-seal `make batch-precheck` whose only new paths are a
+  CEM under `.corvint/changes/` or a `docs/build-log/` entry hits instead of repeating both checks.
+  A change to any declared input, the checker's own source under `tools/` or `script/` included,
+  and a different toolchain (the tool identity) MUST run the step. Measured on the WSL lane host
+  (build log 2026-11-01-perf-w22): the post-seal rerun of `selection-baseline-check` went from
+  221 s (a miss) to 2 s, and `capability-catalog-check` from 11 s to 2 s. Rollback: delete the two
+  entries; both steps return to the whole-tree key of GL-V0-051.
+
+- `GL-V0-910`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends
+  `GL-V0-006`) The directory MUST hold at most 32768 records, the oldest by modification time
+  pruned. Design: a busy host writes about 370 records an hour, and 4096 records spanned only
+  2026-11-01T13:47Z to 2026-11-02T00:28Z (about 11 h), so a pass from the morning was gone by
+  night. 32768 records keep about 88 h at that rate (at least 72 h was asked). A record is about
+  290 bytes, so the bound is about 9.5 MB of content, or about 128 MB counting 4 KiB filesystem
+  blocks. Failure mode: a faster writer keeps proportionally fewer hours; nothing else changes.
+- `GL-V0-911`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A record
+  write MUST scan the directory to prune only when the file `prune.stamp` in it is missing or was
+  last modified at least 5 minutes ago; the scan MUST touch `prune.stamp` first, then prune the
+  records to GL-V0-910's bound and reclaim stale lock files (GL-V0-913). Every other write costs
+  one `stat`. Between scans the directory may exceed the bound by the records written in one
+  interval (about 31 at 370 an hour). Design: the former prune globbed and `lstat`ed every record
+  on every write, about 32 ms per write on a full ledger, and would cost more at 32768 records.
+  Failure modes: two writers that both see an old stamp both scan; removals are idempotent, so
+  the only cost is one extra scan. A stamp that cannot be written leaves the scan to the next write.
+- `GL-V0-912`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241); amends
+  `GL-V0-008`) The per-key lock MUST be the file `locks/KEY.lock` in a `locks` subdirectory of the
+  ledger directory, a plain directory the tool creates with mode `0700`; a `locks` entry that is not
+  a plain directory MUST make the lock unavailable. The holder MUST remove its lock file before
+  releasing it. After `flock` succeeds, the acquirer MUST confirm that the path still names the
+  file it locked (`lstat`, same device and inode) and otherwise MUST close it and open the path
+  again, at most 8 times; after that the lock is unavailable and the step runs without recording
+  (GL-V0-008). So a waiter that wakes on a removed file never runs beside a newer holder, a lock
+  file that is a symlink cannot loop forever, and no lock file outlives its run. Design: older
+  binaries (an older worktree's own `tools/gate-ledger`) still create `KEY.lock` at the top of the
+  directory and never re-check the inode, so the new protocol uses a name they never touch.
+  Failure modes: a holder killed before removal leaves one stale file, which GL-V0-913 reclaims.
+  While an older binary and a newer one run the same key at once, they take different lock files
+  and may both execute it; both write the same key by atomic rename, so the cost is one duplicate
+  run, never a wrong record.
+- `GL-V0-913`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241)) A prune
+  scan MUST remove each `locks/*.lock` file whose lock it can take without waiting, under the
+  GL-V0-912 protocol (remove while holding, only when the path still names the locked file). A
+  held lock MUST be left alone. The scan MUST NOT remove a top-level `KEY.lock`: an older acquirer
+  that opened one before the scan locked it would flock the unlinked file while another older run
+  created a new one, and the key would run twice. The leaked top-level files (8,397 of 12,493
+  entries on the host of V1-4241) are removed once by the operator after no older binary can run:
+  `find "$DIR" -maxdepth 1 -name '*.lock' -delete`.
+- `GL-V0-914`: (experimental under the standing lane auto-accept (2026-11-01; V1-4241)) GL-V0-910
+  to GL-V0-913 MUST NOT change a key, a record's bytes, or how a record is looked up: `key`,
+  `digestKey`, `lookup` and the record encoding stay as they are, so every HIT and RUN decision
+  for a retained record is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -236,10 +320,17 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-005 | `TestRunStepRefusesWhatItCannotDigest`: skip-worktree, assume-unchanged and an ignored `build/build.go` run and record nothing; `TestWorktreeDigestImportFailureRunsWithoutRecord`: private import failure runs without recording and removes the private index/lock |
 | GL-V0-006 | the same test: a `0755` ledger directory runs and records nothing |
 | GL-V0-007 | the same test: `CORVINT_GATE_LEDGER=off` runs silently; `TestRunStepSkipsOnlyRecordedIdenticalInputs`: `plan` leaves the run count unchanged; `script/gate-receipt_test.sh` ordering probe through the `ledger/` targets |
-| GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection |
+| GL-V0-008 | `lock` in `tools/gate-ledger/main.go`, flock per key with a second lookup after acquisition; inspection; `TestLockRemovesItsFileAndExcludesARacer` |
+| GL-V0-910 | `TestPruneKeepsTheNewestRecords`: a ledger over the bound keeps exactly the newest 32768 |
+| GL-V0-911 | `TestPruneScansOncePerInterval`: a fresh stamp skips the scan, an old or missing stamp scans and touches it; `BenchmarkRecordFullLedger` before and after in build log 2026-11-01-glc-w34 |
+| GL-V0-912 | `TestLockRemovesItsFileAndExcludesARacer`: a waiter provably holding the removed file's descriptor, with a newer holder forced in before it re-checks, reopens instead of running beside it, and no `.lock` remains; `TestLockGivesUpOnASymlink`: a symlinked lock file makes the lock unavailable after the bounded retries |
+| GL-V0-913 | `TestPruneReclaimsOnlyFreeLockFiles`: free `locks/` files go, a held one and every top-level legacy `KEY.lock` stay |
+| GL-V0-914 | `TestRecordBytesUnchanged`; the existing GL-V0-001 and GL-V0-009 hit tests |
 | GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (2026-09-22) |
 | GL-V0-050 | `TestGoTestKeysDeclaredPackagesByTheirScope`: a declared `os.Getwd` package records per package, hits after an edit outside its scope, reruns after an edit under a declared entry or to the declaration, and an invalid declaration keys nothing by scope; `TestDeclaredPackagesAreBoundByTheirScope`: `-unresolved` omits the declared locator and keeps the undeclared one, `-bounds` lists its `declared` paths, and an invalid declaration is an error in both; both fail before the change |
 | GL-V0-051 | `TestRunStepKeysSaltedStepsByBaseScope`: `NAME+SALT` records, hits after a change outside NAME's scope, a different salt runs, an undeclared salted name records on the whole tree and reruns after any change, an unsalted undeclared name records nothing |
+| GL-V0-600 | `TestInScopeBatchPrecheckForms`: `@root` matches a root file only, `docs/*.md` matches a top-level docs page but not a build-log entry or another extension, `@go` matches a Go file, a `testdata` file under a Go package, a nested `go.sum` and a data file beside a `.go` file, and not a workflow, a CEM, a build-log entry or a non-Go directory |
+| GL-V0-601 | `TestRunStepKeysBatchPrecheckScopes`: both steps hit after a new CEM or build-log entry and run after a change to a Go file, an embedded `testdata` file, `go.mod`, a root file or `script/`; `selection-baseline-check` runs after a cost-table or change-set edit and hits after a docs page edit, `capability-catalog-check` the reverse; measured hit on WSL (build log 2026-11-01-perf-w22) |
 
 ## Traceability
 
@@ -253,9 +344,17 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-006 | `ledgerDirectory`, `lookup`, `record`, `prune`; `ownedByInvokingUser` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` refuses the directory on non-Unix hosts) | `TestRunStepRefusesWhatItCannotDigest` |
 | GL-V0-007 | `open`, `plan`; the `ledger/%` targets and their `off` branch in `Makefile` | `TestRunStepRefusesWhatItCannotDigest`; `script/gate-receipt_test.sh` |
 | GL-V0-008 | `lock`; `lockExclusive` in `tools/gate-ledger/platform_unix.go` (`platform_other.go` fails the lock on non-Unix hosts) | inspection |
+| GL-V0-910 | `maxRecords`, `prune` in `tools/gate-ledger/main.go` | `TestPruneKeepsTheNewestRecords` |
+| GL-V0-911 | `record`, `prune`, `pruneStamp`, `pruneInterval` | `TestPruneScansOncePerInterval`; `BenchmarkRecordFullLedger` |
+| GL-V0-912 | `lock`, `locksDir`, `sameFile`, `maxLockAttempts`, `lockHook` | `TestLockRemovesItsFileAndExcludesARacer`; `TestLockGivesUpOnASymlink` |
+| GL-V0-913 | `reclaimLocks` | `TestPruneReclaimsOnlyFreeLockFiles` |
+| GL-V0-914 | `key`, `digestKey`, `lookup`, `record` unchanged in encoding | `TestRecordBytesUnchanged` |
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
+| GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
+| GL-V0-600 | `goScope`, `rootScope`, `goDirectories`, `goInput`, `inScope` and `inputs` in `tools/gate-ledger/main.go` | `TestInScopeBatchPrecheckForms` |
+| GL-V0-601 | the `selection-baseline-check` and `capability-catalog-check` entries of `scopes` in `tools/gate-ledger/main.go` | `TestRunStepKeysBatchPrecheckScopes`; build log 2026-11-01-perf-w22 |
 
 ## Rollout, rollback, and drift
 

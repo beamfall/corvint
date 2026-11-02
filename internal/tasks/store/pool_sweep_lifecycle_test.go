@@ -528,7 +528,7 @@ func TestPSRRequestConflictAndOrphan(t *testing.T) {
 		}
 		policy.Obj.Set("policyVersion", str("4"))
 		_, reuse := psrReuse(policy)
-		reuse.Set("argv", wire.Strings([]string{"/bin/true"}))
+		reuse.Set("argv", wire.Strings([]string{"/usr/bin/true"}))
 		changed, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("occupied-definition", "3", wire.EncodeFile(policy)), now(t))
 		if e != nil || changed.Outcome.Outcome == mutation.OutcomeCompleted {
 			t.Fatal("occupied safeReuse definition changed", changed, e)

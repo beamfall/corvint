@@ -78,6 +78,9 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 			if !namesAny(tokens[i], split[j]) {
 				continue
 			}
+			if graph.foreignTestFile(id, dirtyPath) && !namesFileName(tokens[i], split[j]) {
+				continue
+			}
 			if graph.resolves(id, dirtyPath) {
 				if seen {
 					reads[id] = true
@@ -107,6 +110,33 @@ func (graph *Graph) readers(reached map[string]Witness, dirty []string) (narrowe
 		}
 	}
 	return narrowed, reads
+}
+
+// foreignTestFile reports whether dirtyPath is a `_test.go` file that a Go
+// unit other than id owns while id is a Go unit: Go compiles that file only
+// into its owner's test binary, so id reads it only by naming the file
+// (namesFileName), never by a literal of an ancestor directory (ACX-V0-852).
+func (graph *Graph) foreignTestFile(id, dirtyPath string) bool {
+	if !strings.HasPrefix(id, "go:") || !strings.HasSuffix(dirtyPath, "_test.go") {
+		return false
+	}
+	owner, owned := graph.owner[dirtyPath]
+	return owned && owner != id && strings.HasPrefix(owner, "go:")
+}
+
+// namesFileName reports whether a component run of one of the tokens matches
+// the split path ending at its file name, so the token names the file itself
+// (whole, or as a run's trailing fragment) rather than only an ancestor
+// directory of it (ACX-V0-852).
+func namesFileName(tokens []pathToken, parts []string) bool {
+	for _, token := range tokens {
+		for _, candidate := range token.runs {
+			if offset := len(parts) - len(candidate.components); offset >= 0 && candidate.matchesAt(parts[offset:]) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // globRead reports whether one of unit id's literal glob patterns matches a

@@ -115,6 +115,7 @@ func testCALV0027_NonfixtureReleaseBindings(t *testing.T) {
 
 // CAL-V0-027: absent/failed gates, missing predecessors and changed acceptance remain blockers.
 func TestCALV0027_NonfixtureReleaseReadinessRefusals(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-027 witness", testCALV0027_NonfixtureReleaseReadinessRefusals)
 }
 

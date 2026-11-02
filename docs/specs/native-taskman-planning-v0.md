@@ -107,6 +107,10 @@ CAL-V0-014), not inside the fixture planner above.
   SIGINT or SIGTERM cancels the running Git, and the view is removed before the read refuses; only an
   uncatchable kill can leave a `corvint-plan-batches-*` temporary directory, which holds no
   repository state. The repository MUST gain no object and no ref, and no merged tree is reported.
+  The merge's two sides are passed as parentless commits that wrap each tree, written only to the
+  view with a fixed identity and date, because Git before 2.45 accepts only commits there; the plan
+  is the same on every Git from 2.40, and an older Git, which lacks `--merge-base`, refuses
+  UNSUPPORTED (V1-3901).
   Known limit: Git may refresh the mtime of an existing object that a merge recreates (its prune
   grace clock); object content, count and refs are unchanged.
 - `NTP-V0-023`: `--max-group-size N` MUST bound every group, from 1 to 64, default 8; the item
@@ -237,7 +241,7 @@ in scope only once a supported product path calls `Preview`.
 | NTP-V0-008 | cmd/corvint opt-in dispatch | TestNTPV0008CommandBoundary, TestNTPV0001AdapterCanonicalReadOnly; native fixture unchanged-state comparison |
 | NTP-V0-020 | internal/tasks/cli/plan_batches.go batchCandidates | TestNTPV0020_CandidatesAreLatestSubmittedOrReadyAttempts, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-021 | internal/tasks/cli/plan_batches.go resolveCandidate, batchDisjoint | TestNTPV0021_GroupsByDisjointChangedPaths, TestNTPV0021_SharedPathCollisionIsSymmetric |
-| NTP-V0-022 | internal/tasks/cli/plan_batches.go batchPlan, batchView, batchGit; plan_batches_unix.go | TestNTPV0022_DryChainedMergeSplitsConflicts, TestNTPV0022_DryMergeAddsNoObjectsOrRefs, TestNTPV0022_JoiningCandidateIsCheckedAgainstTip, TestNTPV0022_GitDeadlineKillsProcessGroup, TestNTPV0022_InterruptRemovesTemporaryDirectory |
+| NTP-V0-022 | internal/tasks/cli/plan_batches.go batchPlan, batchView, batchGit; plan_batches_unix.go | TestNTPV0022_DryChainedMergeSplitsConflicts, TestNTPV0022_DryMergeAddsNoObjectsOrRefs, TestNTPV0022_JoiningCandidateIsCheckedAgainstTip, TestNTPV0022_GitDeadlineKillsProcessGroup, TestNTPV0022_InterruptRemovesTemporaryDirectory, TestNTPV0022_MergeSidesAreViewOnlyCommits |
 | NTP-V0-023 | internal/tasks/cli/plan_batches.go planBatches flags | TestNTPV0023_MaxGroupSizeBoundsGroups, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-024 | internal/tasks/cli/plan_batches.go resolveCandidate | TestNTPV0024_UnresolvableCandidateIsReportedUngrouped, TestNTPV0024_MissingNestedTreeIsUngrouped, TestNTPV0024_FatalDiffFailureRefuses, TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb |
 | NTP-V0-025 | internal/tasks/cli plan dispatch, ReadVerbs, command help, batchView | TestNTPV0025_PlanBatchesIsAReadOnlyCLIVerb, TestNTPV0025_RepositoryMergeDriverDoesNotRun, TestCALV0047_AllCommandHelpIsReadOnly |

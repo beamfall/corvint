@@ -152,3 +152,30 @@ func TestProbeAroundPrefetchingOverlapsTheOpeningStatusRead(t *testing.T) {
 		}
 	})
 }
+
+// TestObservationTimesEachReadSeparately pins AHI-800: the concurrent status and identity reads
+// are each timed from their own start to their own end, so a slow identity read does not inflate
+// the status duration the deadline notice uses to name a large worktree.
+func TestObservationTimesEachReadSeparately(t *testing.T) {
+	run, _ := recordingRunner(func(command string) ([]byte, error) {
+		switch command {
+		case "rev-parse":
+			time.Sleep(300 * time.Millisecond)
+			return testIdentityOutput(), nil
+		case "status":
+			return []byte{}, nil
+		}
+		return nil, newError("test-command", "unexpected Git command")
+	})
+	var opening Observation
+	_, err := probeRepositoryAround(context.Background(), ".", run, nil, func(_ context.Context, observation Observation) error {
+		opening = observation
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if opening.IdentityElapsed < 300*time.Millisecond || opening.StatusElapsed >= 150*time.Millisecond {
+		t.Fatalf("status %v, identity %v: want a fast status and a slow identity read timed apart", opening.StatusElapsed, opening.IdentityElapsed)
+	}
+}

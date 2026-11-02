@@ -161,9 +161,9 @@ func kernelGovernance(ctx context.Context, index *contextindex.Index) ([]compact
 	return compactionkernel.GovernanceFromPacket(packet), nil
 }
 
-const kernelHelp = `
-Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text:
+const kernelHelp = `Compaction kernel (experimental, CKN-V0 proposed), read-only, JSON/text.
 
+Usage:
   corvint [--root PATH] kernel [--requirements IDS]
   corvint [--root PATH] kernel verify < SUMMARY
 

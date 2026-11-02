@@ -113,7 +113,7 @@ func TestSourceShortCircuitsAfterFatalRead_V11416(t *testing.T) {
 	_, statErr := source.Stat("go.mod")
 	_, lstatErr := source.Lstat("go.mod")
 	_, readErr := source.ReadBounded("go.mod", 64)
-	_, filesErr := source.Files(func(string) bool { return true })
+	_, filesErr := source.Files(func(_, _ string) bool { return true })
 	walkErr := source.Walk(".", func(string, fs.DirEntry, error) error { return nil })
 	for _, err := range []error{statErr, lstatErr, readErr, filesErr, walkErr} {
 		if cemcode.CodeOf(err) != cemcode.GitBudgetExceeded {

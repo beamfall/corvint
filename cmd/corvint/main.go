@@ -168,7 +168,7 @@ func parse(arguments []string) (options, error) {
 		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + "; to print the version, run corvint --version (or corvint --version --json)")
 	}
 	if arguments[index] != "harness" {
-		return result, invalidChoice("command", arguments[index], topLevelCommands)
+		return result, argumentError(invalidChoice("command", arguments[index], topLevelCommands).Error() + didYouMean(arguments[index], topLevelCommands))
 	}
 	if index+1 >= len(arguments) {
 		return result, argumentError("the following arguments are required: harness_command")
@@ -254,6 +254,11 @@ func parseQueryArgumentsForPlatform(result options, arguments []string, platform
 		}
 		name, value, inline := strings.Cut(arguments[index], "=")
 		if name != "--task" && name != "--limit" && name != "--budget-bytes" {
+			if !strings.HasPrefix(arguments[index], "-") {
+				// CAP-V0-121 (V1-3802): positional task text names the --task form.
+				return result, argumentError("unrecognized arguments: " + arguments[index] +
+					"; pass the task text with --task, as in: corvint query --task " + strconv.Quote(arguments[index]))
+			}
 			return result, argumentError("unrecognized arguments: " + arguments[index])
 		}
 		if !inline {
@@ -849,7 +854,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp", "how"}
 )
 
 func knownHost(value string) bool {
@@ -915,6 +920,11 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 	}
 	if mcpAfterGlobalRoot(arguments) {
 		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
+		return 2
+	}
+	arguments, err := withHeadAlias(arguments)
+	if err != nil {
+		emitError(stderr, err)
 		return 2
 	}
 	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {

@@ -90,7 +90,7 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 			text = string(data)
 		}
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -142,6 +142,7 @@ func noteShow(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items = []wire.Value{*item}
@@ -229,6 +230,7 @@ func noteHistory(env Env, cmd []string, args []string) *wire.Result {
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
 		res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+		res.Codes = append(res.Codes, wire.CodeMalformed) // TCL-V0-859
 		return res
 	}
 	res.Items, res.Page, res.Untrusted = []wire.Value{*item}, pg, true

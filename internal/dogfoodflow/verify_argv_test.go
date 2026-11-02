@@ -71,7 +71,7 @@ func TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation(t *testi
 	for _, line := range []string{
 		"go test -run TestA|TestB ./a",
 		"go test -run ^(TestA|TestB)$ ./a",
-		"go test -run '^(TestA|TestB)' ./a",
+		"go test -run '(TestA|TestB)$' ./a",
 		"go test -run '^(TestA|TestB)$|TestC' ./a",
 		"go test -run '^TestA$|TestB' ./a",
 		"go test -run '^(TestA|(TestB))$' ./a",
@@ -221,7 +221,7 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 		"go test -run ^TestA$ ./a":    "",
 		"go test -run .* ./a":         "",
 		"go test -run '^Test.*$' ./a": "",
-		"go test -run '^TestA' ./a":   "",
+		"go test -run '^Test.*' ./a":  "",
 	} {
 		args := verifyArguments([]byte(line + "\n"))
 		if len(args) != 2 || args[0] != "--verify" || validateVerify(args) == nil {
@@ -233,6 +233,42 @@ func TestDCWV0904VerifyAdmitsSingleAndWholeRunForms(t *testing.T) {
 	}
 	if got := quotedRunSuggestion("go test -run TestA ./a"); got != "" {
 		t.Errorf("an admitted unquoted name got a suggestion %q", got)
+	}
+}
+
+// DCW-V0-814 (V1-3742, V1-3895): a quoted -run name or ^(...) group anchored
+// at one end, as go test accepts, is one argv word; the quoted name, the
+// fully anchored name and group stay admitted, and a refused word names the
+// admitted forms.
+func TestDCWV0814VerifyAdmitsOneEndAnchoredRunWords(t *testing.T) {
+	for line, want := range map[string]string{
+		"go test -run 'TestX' ./a":           `["go","test","-run","TestX","./a"]`,
+		"go test -run '^TestX' ./a":          `["go","test","-run","^TestX","./a"]`,
+		"go test -run '^TestX$' ./a":         `["go","test","-run","^TestX$","./a"]`,
+		"go test -run 'TestX$' ./a":          `["go","test","-run","TestX$","./a"]`,
+		"go test -run=\"^TestX\" ./a":        `["go","test","-run=^TestX","./a"]`,
+		"go test -run '^(TestA|TestB)$' ./a": `["go","test","-run","^(TestA|TestB)$","./a"]`,
+		"go test -run '^(TestA|TestB)' ./a":  `["go","test","-run","^(TestA|TestB)","./a"]`,
+	} {
+		got := verifyArguments([]byte(line + "\n"))
+		if len(got) != 2 || got[0] != "--verify-argv-json" || got[1] != want {
+			t.Errorf("%q became %q, want argv %s", line, got, want)
+			continue
+		}
+		if err := validateVerify(got); err != nil {
+			t.Errorf("%q refused: %v", line, err)
+		}
+		if reason := quotedRunRefusal(line); reason != "" {
+			t.Errorf("%q admitted but got refusal %q", line, reason)
+		}
+	}
+	for _, line := range []string{"go test -run '^^TestX' ./a", "go test -run 'TestX$$' ./a", "go test -run '(TestA|TestB)$' ./a"} {
+		if args := verifyArguments([]byte(line + "\n")); validateVerify(args) == nil {
+			t.Errorf("%q admitted as %q", line, args)
+		}
+		if reason := quotedRunRefusal(line); !strings.Contains(reason, "^A, A$") || !strings.Contains(reason, "DCW-V0-814") {
+			t.Errorf("%q refusal %q does not name the one-end anchored forms", line, reason)
+		}
 	}
 }
 

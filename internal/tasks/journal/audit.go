@@ -130,6 +130,17 @@ type Reader struct {
 	// every refusal on that path is re-derived by the complete audit, so it
 	// can only make an agreeing read cheaper. Result.Mode names what ran.
 	Checkpoint *Checkpoint
+	// WriterCheckpoint, when set, opts a plain Audit into resuming from the
+	// writer-retained checkpoint it returns when Checkpoint is nil or did not
+	// serve (LGL-V0-807). It is called at most once, only then, and returns
+	// the checkpoint already bound to its CAL-V0-117 invalidation token, or
+	// nil. The walk is the writer route's (CAL-V0-116): it rebinds the
+	// checkpoint to the retained receipt it names, validates every later
+	// receipt as the complete audit does and compares every latest
+	// afterimage with its projection, with this read's own selection. Every
+	// decline falls through to the complete audit, which derives any
+	// refusal itself; Result.Mode is ModeWriter when it served.
+	WriterCheckpoint func() *WriterCheckpoint
 	// IntentTree, when set, is the intent tree the caller's outer snapshot
 	// hashed before this audit began and hashes again after it ends
 	// (CAL-V0-140). Both captures take an intent file's bytes from it
@@ -185,6 +196,7 @@ type Reader struct {
 	writerBefore    *observation      // AuditForWriter's first capture, set for its second only
 	liveness        bool              // AuditForLiveness: list no intent directory; read only queue.json and policy.json (JSG-V0-001)
 	prefix          bool              // AuditWriterRefresh's prefix walk only
+	through         uint64            // AuditThrough: walk receipts 1..through only (TCL-V0-820)
 	fullAttempts    int               // AuditWriterRefresh: complete attempts before the prefix walk
 	abortMoved      bool              // PrefixFallback's complete attempt: stop once head.json moves
 	resume          *ResumeBase       // AuditForResume only
@@ -373,6 +385,21 @@ func (r Reader) audit(paths []string, request string, lim limits, checkIntent bo
 			var pending inFlight
 			if wire.CodeOf(err) != wire.CodeSnapshotMoved && !errors.As(err, &pending) {
 				break
+			}
+		}
+	}
+	if r.WriterCheckpoint != nil && r.writer == nil && request == "" && checkIntent && !r.writerCache && !r.intentOnly && !r.unpauseTickets && r.divergentIntent == "" {
+		if wc := r.WriterCheckpoint(); wc != nil {
+			w := r
+			w.writer, w.Checkpoint = wc, nil
+			for attempt := 0; attempt < 2; attempt++ {
+				result, err := w.auditAttempt(selected, request, lim, checkIntent, nil)
+				if err == nil || err == errHeadPassed {
+					return result, err
+				}
+				if wire.CodeOf(err) != wire.CodeSnapshotMoved {
+					break
+				}
 			}
 		}
 	}

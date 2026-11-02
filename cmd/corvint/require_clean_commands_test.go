@@ -48,6 +48,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"review":            {args: []string{"review", "--base", "HEAD"}},
 	"migration-ratchet": {args: []string{"migration-ratchet", "--profile", "profile.json"}},
 	"flows":             {args: []string{"flows", "--manifest", "manifest.json"}}, "skill-export": {args: []string{"skill-export"}},
+	"how":      {args: []string{"how", "--source", "e2e", "ship an order"}},
 	"breakage": {args: []string{"breakage"}}, "graph": {args: []string{"graph", "imports", "--revision", "HEAD"}},
 	"step":    {args: []string{"step", "snapshot", "--declaration", "a.json", "--host", "b.json"}},
 	"delta":   {args: []string{"delta", "--base", "HEAD", "--head", "HEAD"}},

@@ -13,41 +13,56 @@ import (
 var errSnapshotFault = errors.New("snapshot mapping fault")
 
 // decodeMappedSnapshotValue is decodeSnapshotValue over a read-only mapping
-// of the whole file (V1-2237). It reads the same bytes and makes the same
-// header, message and SHA-256 trailer checks, in the same on-disk format;
-// only the order of work differs. The trailer hash runs on its own goroutine
-// over the mapping while the gob message is decoded, so the hash leaves the
-// load's critical path, and neither side copies the file through read(2).
-// The mapping is released only after both sides return, and every decoded
-// value is a copy (gob copies a message out of its reader before decoding
-// it), so nothing returned aliases the mapping.
-func decodeMappedSnapshotValue(mapping []byte, identity repositoryIdentity, engineID string, value any) error {
-	defer unmapReadOnly(mapping)
-	payload := mapping[:len(mapping)-sha256.Size]
+// of the whole file (V1-2237). The trailer hash of the messages and footer
+// runs on its own goroutine while the messages decode, and neither side
+// copies the file through read(2). Gob copies every message out of its
+// reader and each region body is copied out under the guard, so nothing
+// decoded aliases the mapping. The mapping is released once both sides
+// return, unless the decode handed out lazy bodies (IDX-SNAP-V0-811), which
+// then hold it through bodies.lease.
+func decodeMappedSnapshotValue(mapping *snapshotMapping, identity repositoryIdentity, engineID string, bodies *snapshotBodies, decode func(*gob.Decoder) error) error {
+	defer mapping.release()
+	data := mapping.data()
+	var messages, regionStart int64
+	footerAt := int64(len(data)) - sha256.Size - snapshotFooterBytes
+	if err := guardMappedRead(func() (err error) {
+		messages, regionStart, err = snapshotLayout(int64(len(data)), data[footerAt:footerAt+snapshotFooterBytes])
+		return err
+	}); err != nil {
+		return err
+	}
+	bodies.region, bodies.mapping, bodies.messageBytes = data[regionStart:footerAt], mapping, messages
 	digests := make(chan bool, 1)
 	go func() {
 		matched := false
 		defer func() { digests <- matched }()
 		_ = guardMappedRead(func() error {
-			sum := sha256.Sum256(payload)
-			matched = bytes.Equal(sum[:], mapping[len(payload):])
+			digest := sha256.New()
+			digest.Write(data[:messages])
+			digest.Write(data[footerAt : footerAt+snapshotFooterBytes])
+			matched = bytes.Equal(digest.Sum(nil), data[len(data)-sha256.Size:])
 			return nil
 		})
 	}()
 	decodeErr := guardMappedRead(func() error {
-		decoder := gob.NewDecoder(bytes.NewReader(payload))
+		decoder := gob.NewDecoder(bytes.NewReader(data[:messages]))
 		if err := decodeSnapshotHeader(decoder, identity, engineID); err != nil {
 			return err
 		}
-		return decoder.Decode(value)
+		return decode(decoder)
 	})
-	// Join the hash before the deferred unmap, on every path.
+	// Join the hash before the deferred release, on every path.
 	matched := <-digests
 	if decodeErr != nil {
+		bodies.lazy = nil
 		return decodeErr
 	}
 	if !matched {
+		bodies.lazy = nil
 		return errors.New("snapshot digest mismatch")
+	}
+	if bodies.lazy != nil {
+		bodies.lease = mapping.lease()
 	}
 	return nil
 }

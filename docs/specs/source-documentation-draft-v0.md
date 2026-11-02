@@ -67,7 +67,7 @@ generated file to repository evidence or persist derived authority. Exact recons
 source binding only, not behavioral truth or independent human review. The pure byte-comparison
 helper cannot assert `SOURCE_REDERIVED`; only the CLI attaches that label after fresh Git reconstruction.
 
-- `SDD-V0-005`: Bound source preamble/digest to 64 lines, declarations and importers to 64 entries each,
+- `SDD-V0-005`: Bound source preamble/digest to 64 lines, declarations and importers to 64 entries each per page (`SDD-V0-632`),
 entry excerpts to 4 KiB, draft output and consume input to 64 KiB, encoded consume JSON including
 its trailing newline to 64 KiB, and query to 1024 UTF-8 bytes. Refuse unsupported
 sources and overflow; do not silently omit due to limits. Deterministic ranking uses case-insensitive
@@ -124,7 +124,8 @@ generated block of one Markdown page (a page path not ending in `.md` is refused
 `docs draft` uses. Content outside generated markers, and any other selector's block, is
 never read as a source of truth and never rewritten. This is a maintenance session over
 the SDD-V0-001..006 draft contract, not a new renderer: `docs/specs/human-documentation-
-compiler-v0.md` remains not-started, and `docs/specs/deployment-neutral-index-platform-v0.md`'s
+compiler-v0.md` remains partial (HDCV0-023..029, HDCV0-041; its `docs/specs/INDEX.json` delivery,
+checked by `SDD-V0-634`), and `docs/specs/deployment-neutral-index-platform-v0.md`'s
 statement that this contract does not constitute a delivered continuous-maintenance system
 still holds; no generated block is promoted to accepted intent (AGENTS.md invariant 8). An
 applied write replaces the page atomically and keeps an existing page's permission bits
@@ -310,13 +311,97 @@ verbs. Evidence: `TestSDDV0700AbsentOwnerSourceRefusesBeforeTheIndex` (missing, 
 and non-Markdown sources, both tools: equal to `DraftSources` over a full index, under 100 ms, no
 build; a committed owner still builds). Rollback: drop `PrecheckDraft` and `Registry.precheck`.
 
+- `SDD-V0-630`: Every draft states whether its owner excerpt names the drafted package (V1-3719).
+The relation is `NAMES_PACKAGE` when the owner excerpt contains the package directory as a whole
+path token: the directory string not preceded by a letter, digit, `_`, `-`, `.` or `/` and followed
+by end of text, `/`, a character other than a letter, digit, `_`, `-` or `.`, or a `.` that is
+itself not followed by a letter, digit, `_` or `-` (prose punctuation). Otherwise it is
+`OWNER_UNRELATED`. The header carries `Owner relation: NAMES_PACKAGE|OWNER_UNRELATED`; an unrelated
+draft also leads its limitations with `OWNER_UNRELATED: the owner excerpt does not name this
+package; its prose may describe a different capability and governs nothing here.` The label is
+orientation, not a refusal, so existing owners and fixtures still draft; it never strengthens
+authority. Evidence: `TestSDDV0630OwnerRelationLabelsUnrelatedOwner`. Rollback: remove the relation
+line, limitation and helper. Status: experimental under the standing lane auto-accept (V1-3719).
+
+- `SDD-V0-631`: A Go declaration entry spans its doc comment and its full declaration surface, not
+one signature line (V1-3717): a function or method from its doc comment through the line of its
+body's opening brace (the whole declaration when it has no body); a type from its doc comment
+(the spec's own, or the enclosing single-spec `type` group's) through the end of its spec,
+including struct fields and interface methods; a constant or variable spec from its doc comment
+through the end of that spec; an ungrouped `type`, `const` or `var` declaration spans its whole
+declaration including the keyword. The span is derived by `go/parser` over the same admitted blob;
+a parse failure keeps the indexed single line, and a span whose excerpt exceeds 4 KiB or contains
+a carriage return cites its indexed line with a counted limitation (the indexed line itself must
+still pass every `SDD-V0-003` excerpt rule). Each Go package directory with a package doc comment adds
+one `package-doc` entry (the first non-test file in path order whose `package` clause carries a doc
+comment, from the comment through the clause; one over 4 KiB is omitted with a limitation naming
+its file). Other languages keep the indexed line. Provenance is printed once per source file:
+entries are grouped under one `## S<n> "PATH"` heading per cited file, `S1`… in path order, which
+carries the file's blob, SHA-256 and its indented `git --no-pager --no-replace-objects show BLOB`
+route; under it each entry, in line order, prints only its kind and title (a declaration prints
+neither, since its excerpt shows the name) and its line span, then the exact excerpt indented four
+spaces. A blobless dry-run owner keeps its own heading. Entry JSON (`DraftEntry`) keeps its
+per-entry path, blob, SHA-256 and lines, so consumption results and the `SDD-V0-008` source
+identity are unchanged. Acceptance: the `internal/docmaintain` draft is no larger than
+`go doc -all ./internal/docmaintain` at the same commit, both measured and retained in the lane
+build log. Evidence: `TestSDDV0631DeclarationsCarryDocCommentsAndFields`,
+`TestSDDV0631ProvenanceOncePerFile`. Rollback: restore single-line spans and per-entry provenance.
+Status: experimental under the standing lane auto-accept (V1-3717).
+
+- `SDD-V0-632`: Declarations and importers are paged independently, 64 entries per list per page,
+in entry-ID order (V1-3718). `docs draft` and `docs consume` accept `--page N` (default 1); the
+page count is the larger of the two lists' page counts, at least 1. A page outside `1..count` is
+refused as `documentation-limit-exceeded`, naming the page and the count. When either list
+exceeds 64 entries the header carries `Page: N of P` and the limitations carry one line per cut
+list, `TRUNCATED: declarations A–B of M on page N of P; the other M-k entries are UNKNOWN on this
+page.` (importers likewise; a list with no entries on the page says `0 of M`).
+A package whose lists both fit one page keeps its bytes free of any page or TRUNCATED line. The
+`SDD-V0-005` byte bounds still apply per page. `corvint-docs-mcp` and `docs maintain` draft page 1,
+so an over-64 package now yields a labelled first page there instead of a refusal. The `docs maintain`
+source digest covers each TRUNCATED line as well as the page's entries, so an entry added or removed
+on a later page refreshes the page-1 block instead of reporting it `unchanged`; an unpaged draft keeps
+its earlier digest. Evidence: `TestSDDV0632PagesOverSixtyFourEntries`,
+`TestSDDV0632ImportersCountSeparately`, `TestSDDV0632MaintainDigestCoversTruncation`. Rollback: restore
+the combined refusal. Status: experimental under the standing lane auto-accept (V1-3718).
+
+- `SDD-V0-633`: Foreign repositories need no Corvint-specific heading (V1-3721). `docs draft`,
+`docs consume` and `docs draft --dry-run` accept `--owner-section HEADING`: the owner entry is then
+exactly one literal `## HEADING` line outside fenced code, and its excerpt is that section alone
+(heading through the line before the next `## ` line or end of file), at most 64 lines and 4 KiB.
+HEADING is 1..200 bytes of printable UTF-8 without a newline or surrounding spaces. A non-default
+section adds the header line `Owner section: ` followed by the backticked quoted heading, like the
+other header metadata; the default `Agent digest` keeps the preamble-plus-digest excerpt and its
+bytes. The product check lives in `internal/doccitations`. `corvint docs citations check [--root PATH] [PATH...]` is the product line-citation
+check for any Git repository: it scans tracked Markdown (or the named tracked files) for backticked
+`path:N`, `path:N-M` or `path:N,M[,…]` tokens with an optional `@HEX` anchor whose path is a tracked
+file, reads each cited file's index blob, and reports per citation `out-of-range`, `trivial-span`
+(only blank or closing-punctuation lines) or `anchor-mismatch` (the anchor is not a prefix of the
+SHA-256 of the cited right-trimmed lines joined by LF, the same rule as `script/check-line-citations.sh`);
+a token whose path has a `/` and whose first segment is a tracked directory but is not itself
+tracked is `missing-file`. Output is one line per failure and a summary; exit 0 when clean, 1 on any
+failure, 2 with `citations-check-failed` on argument or repository errors. It reads only and writes nothing. It does not replace
+the repository's own `make line-citations-check`, whose extra Corvint scope rules remain script
+policy. Evidence: `TestSDDV0633OwnerSectionDraftsWithoutAgentDigest`,
+`TestSDDV0633CitationsCheckForeignRepository`. Rollback: remove the flag and the `citations`
+subcommand. Status: experimental under the standing lane auto-accept (V1-3721).
+
+- `SDD-V0-634`: Maturity statements in Go help strings and package docs of the form
+``docs/specs/NAME.md` remains STATUS`` must agree with that spec's `delivery` in
+`docs/specs/INDEX.json`: STATUS must equal the delivery field's leading word (`partial`,
+`not-started`, `delivered`, ...) and, when the delivery names a parenthesized requirement range,
+STATUS carries the same parenthesized text (V1-3720). Evidence:
+`TestSDDV0634MaturityStringsMatchSpecIndex`, which scans the non-test Go files of `cmd/corvint` and
+`internal/docmaintain` and fails on any disagreement. Rollback: remove the test. Status:
+experimental under the standing lane auto-accept (V1-3720).
+
 
 ## CLI contract
 
 ```
-corvint [--root PATH] docs draft --source PATH --package DIRECTORY
-corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY
-corvint [--root PATH] docs consume --source PATH --package DIRECTORY --task TEXT < draft.md
+corvint [--root PATH] docs draft --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+corvint [--root PATH] docs draft --dry-run [--owner-stdin] --source PATH --package DIRECTORY [--page N] [--owner-section HEADING]
+corvint [--root PATH] docs consume --source PATH --package DIRECTORY [--page N] [--owner-section HEADING] --task TEXT < draft.md
+corvint [--root PATH] docs citations check [PATH...]
 ```
 
 Help must disclose the admission prerequisites: committed HEAD sources; admitted tracked,
@@ -330,7 +415,8 @@ corvint docs draft --source docs/specs/source-documentation-draft-v0.md --packag
 corvint docs consume --source docs/specs/source-documentation-draft-v0.md --package internal/docmaintain --task Preview < /tmp/corvint-source-draft.md
 ```
 
-`internal/doccompiler` itself exceeds the SDD-V0-005 64-declaration/importer bound and is not a
+`internal/doccompiler` itself exceeds the SDD-V0-005 64-declaration/importer bound per page; since
+`SDD-V0-632` it drafts as labelled pages (V1-3718), while before that it was refused and not a
 working example (V1-0030, 2026-09-22); `internal/docmaintain` is the smallest package this repository
 keeps under that bound while still producing a non-empty `--task Preview` consumption result.
 
@@ -389,8 +475,8 @@ returned under its own draft code (`unsupported-documentation-source` or
 | `maintenance-conflict` | `internal/docmaintain/docmaintain.go:256` | at `Apply`, the page existence or SHA256 differs from what `Preview` started from; the result is returned with `Conflict` set and nothing is written |
 | `maintenance-session-disabled` | `internal/docmaintain/docmaintain.go:107` | `Preview` was called with `policy.Enabled` false |
 | `marker-in-content` | `internal/docmaintain/docmaintain.go:161` | the new draft Markdown, or the body of the existing block for that selector, contains the begin-marker prefix or the end marker |
-| `duplicate-block` | `internal/docmaintain/render.go:150@0b71614d` | two generated blocks outside fenced code name the same selector; replacing only one would leave the other stale while later sessions report `unchanged`, so the whole page is validated before any splice and nothing is written (V1-0461, `TestDuplicateAndOrphanMarkersAreRefused`) |
-| `malformed-block` | `internal/docmaintain/render.go:121@2b42622e` | outside fenced code, a marker line is not part of exactly one well-formed block: a begin without its end, an end without a begin, a begin nested in a block, or a marker line that does not parse. Appending or splicing would wedge every later session, so nothing is written (V1-0461, `TestMalformedSelectorBlockIsRefused`, `TestDuplicateAndOrphanMarkersAreRefused`). A begin marker followed directly by its end marker is an empty block and is replaced in place (`TestEmptySeededBlockIsReplacedInPlace`). Markers and the insertion point inside ``` or ~~~ fences (CommonMark length and closing rules) are prose (`TestMarkersInsideFencedCodeAreProse`) |
+| `duplicate-block` | `internal/docmaintain/render.go:160@0b71614d` | two generated blocks outside fenced code name the same selector; replacing only one would leave the other stale while later sessions report `unchanged`, so the whole page is validated before any splice and nothing is written (V1-0461, `TestDuplicateAndOrphanMarkersAreRefused`) |
+| `malformed-block` | `internal/docmaintain/render.go:131@2b42622e` | outside fenced code, a marker line is not part of exactly one well-formed block: a begin without its end, an end without a begin, a begin nested in a block, or a marker line that does not parse. Appending or splicing would wedge every later session, so nothing is written (V1-0461, `TestMalformedSelectorBlockIsRefused`, `TestDuplicateAndOrphanMarkersAreRefused`). A begin marker followed directly by its end marker is an empty block and is replaced in place (`TestEmptySeededBlockIsReplacedInPlace`). Markers and the insertion point inside ``` or ~~~ fences (CommonMark length and closing rules) are prose (`TestMarkersInsideFencedCodeAreProse`) |
 | `no-preview` | `internal/docmaintain/docmaintain.go:219` | `Apply` was called with a nil preview |
 | `no-selectors` | `internal/docmaintain/docmaintain.go:110` | `Preview` was called with no selectors |
 | `page-unreadable` | `internal/docmaintain/docmaintain.go:130` | reading the page failed for a reason other than absence (`Preview`, and `Apply` before its conflict check) |

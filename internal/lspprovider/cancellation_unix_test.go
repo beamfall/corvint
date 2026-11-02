@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // EEP-V0-027: cancellation of the actual provider retires its spawned child,
@@ -24,7 +26,7 @@ func TestContextLSPCancellationRetiresDescendants(t *testing.T) {
 		cacheFile := filepath.Join(dir, "cache")
 		executable := filepath.Join(dir, "gopls")
 		body := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nprintf '%%s' $! > '%s'\nprintf '%%s' \"$GOPLSCACHE\" > '%s'\nwait\n", pidFile, cacheFile)
-		if err := os.WriteFile(executable, []byte(body), 0755); err != nil {
+		if err := execfile.WriteFile(executable, []byte(body), 0755); err != nil {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
@@ -75,5 +77,30 @@ func TestContextLSPEnvironmentDropsRelativePATH(t *testing.T) {
 	env := strings.Join(environment("/tmp/private"), "\n")
 	if !strings.Contains(env, "PATH=/usr/bin:/bin\n") || !strings.Contains(env, "GOTELEMETRY=off") || !strings.Contains(env, "GOPROXY=off") {
 		t.Fatal(env)
+	}
+}
+
+// EEP-V0-821: a FIFO named gopls is refused before any read. Opening it for
+// reading would block until a writer appears, before the session's
+// cancellation or timeout supervise anything.
+func TestContextLSPRefusesNonRegularExecutable(t *testing.T) {
+	m := newModule(t)
+	fifo := filepath.Join(t.TempDir(), "gopls")
+	if err := syscall.Mkfifo(fifo, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan Result, 1)
+	go func() { done <- Expand(context.Background(), m.request(t, fifo, "a/a.go")) }()
+	select {
+	case result := <-done:
+		if result.Failure != "gopls executable unreadable" || result.Record != nil {
+			t.Fatalf("FIFO executable: failure %q", result.Failure)
+		}
+	case <-time.After(10 * time.Second):
+		// Unblock the stuck open so the goroutine can finish.
+		if writer, err := os.OpenFile(fifo, os.O_WRONLY|syscall.O_NONBLOCK, 0); err == nil {
+			writer.Close()
+		}
+		t.Fatal("Expand blocked on a FIFO executable")
 	}
 }

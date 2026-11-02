@@ -2,8 +2,13 @@ package doccorpus
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
 )
 
 // TestDCRV1975PinnedRevisionsOneBatchPerCheckout: a checkout's pinned
@@ -66,4 +71,36 @@ func TestDCRV1975PinnedRevisionsOneBatchPerCheckout(t *testing.T) {
 	if err := verify(bound, wrongTree); err == nil || !strings.Contains(err.Error(), "recorded tree differs") {
 		t.Fatalf("primary tree mismatch before a missing revision: %v", err)
 	}
+}
+
+// TestDCIV1630BudgetRefusalNamesBoundInForce: an exhausted Git operation
+// budget names the bound the run carried, not the 1,024 default (V1-3762):
+// gitrun's own refusal from a 1-operation budget spent twice, and a pinned
+// revision check under a bound too small to open the checkout.
+func TestDCIV1630BudgetRefusalNamesBoundInForce(t *testing.T) {
+	t.Parallel()
+	budget := gitrun.NewBudget(1, gitrun.DefaultTotalBudget)
+	if _, err := budget.ReserveOperation(time.Second); err != nil {
+		t.Fatal(err)
+	}
+	_, spent := budget.ReserveOperation(time.Second)
+	check := func(err error, want string) {
+		t.Helper()
+		var refused *Error
+		if !errors.As(err, &refused) || refused.Code != CapacityCode {
+			t.Fatalf("not a capacity refusal: %v", err)
+		}
+		if !strings.HasPrefix(refused.Message, want) || strings.Contains(refused.Message, "1024") {
+			t.Fatalf("refusal %q does not start %q", refused.Message, want)
+		}
+	}
+	check(gitCapacity(spent, ""), "Git operation budget of 1 operations exhausted (")
+	check(gitCapacity(cemcode.New(cemcode.GitBudgetExceeded, "Git operation budget exhausted"), ""), "Git operation budget exhausted (")
+	root, a, _ := builtFixture(t)
+	git(t, root, "commit", "-q", "--allow-empty", "-m", "pin")
+	c := *a
+	input := a.Manifest.Inputs[0]
+	input.Revision = git(t, root, "rev-parse", "HEAD")
+	c.Manifest.Inputs = append(append([]Input{}, a.Manifest.Inputs...), input)
+	check(verifyPinnedRevisions(boundCorpusGitOps(context.Background(), 0), root, &c), "Git operation budget of 0 operations exhausted while verifying pinned revisions (")
 }

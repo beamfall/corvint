@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
@@ -19,6 +20,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
+
+// SetCloseMergedRefResolved runs f after work close-merged pins the REF
+// commit (TAW-V0-018) and returns the restore function.
+func SetCloseMergedRefResolved(f func()) func() {
+	was := closeMergedRefResolved
+	closeMergedRefResolved = f
+	return func() { closeMergedRefResolved = was }
+}
 
 // SetAttemptBeatInterval shortens the attempt runner's heartbeat interval for
 // a test and returns the restore function.
@@ -106,12 +115,18 @@ func DecodeRunRecord(raw []byte) error {
 	return err
 }
 
-// SetObligationQualifiedVersions replaces the TOL-V0-009 qualified Playwright
-// version list for a test and returns the restore function.
-func SetObligationQualifiedVersions(v []string) func() {
-	was := obligationQualifiedVersions
-	obligationQualifiedVersions = func() []string { return append([]string(nil), v...) }
-	return func() { obligationQualifiedVersions = was }
+// WriteExecutable writes an executable fixture without an in-process write
+// descriptor (TCL-V0-827).
+func WriteExecutable(t testing.TB, path string, body []byte, mode os.FileMode) {
+	t.Helper()
+	writeExecutable(t, path, body, mode)
+}
+
+// WithObligationQualifiedVersions returns env with the TOL-V0-009 qualified
+// Playwright version list replaced by v for this run only (TCL-V0-826).
+func WithObligationQualifiedVersions(env Env, v []string) Env {
+	env.qualifiedVersions = append([]string{}, v...)
+	return env
 }
 
 // SubmitObligationWitness submits a caller-composed OBLIGATIONS_WITNESS
@@ -119,7 +134,7 @@ func SetObligationQualifiedVersions(v []string) func() {
 // test can present a payload that differs from the recomputation.
 func SubmitObligationWitness(env Env, target, expected, requestID string, check *mutation.ObligationReportCheck, payload wire.Value) *wire.Result {
 	cmd := []string{"ticket", "obligations", "witness"}
-	actor, err := initActor("OWNER")
+	actor, err := initActor(env, "OWNER")
 	if err == nil {
 		payload, err = mutation.CanonicalPayload(ticket.OpObligationsWitness, payload)
 	}
@@ -568,4 +583,12 @@ func SetSplitAfterStep(f func(step string) error) func() {
 	was := splitAfterStep
 	splitAfterStep = f
 	return func() { splitAfterStep = was }
+}
+
+// SetPolicyDryRunHook runs f after `policy update --dry-run` reads its fence
+// preview (TCL-V0-821).
+func SetPolicyDryRunHook(f func()) func() {
+	was := policyDryRunHook
+	policyDryRunHook = f
+	return func() { policyDryRunHook = was }
 }

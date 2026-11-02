@@ -141,6 +141,32 @@ func TestCAPV0003SyntheticOmissionAndStaleRowFail(t *testing.T) {
 	}
 }
 
+// TestCAPV0780NewCommandNamesEveryArtifact: a stub top-level command with no catalog row gets
+// one finding that names all three artifacts a new command updates and each update command,
+// while a missing binary keeps the plain detail (V1-3886).
+func TestCAPV0780NewCommandNamesEveryArtifact(t *testing.T) {
+	inv, catalog, _ := load(t)
+	inv.Commands = append(append([]string(nil), inv.Commands...), "stubverb")
+	inv.Binaries = append(append([]string(nil), inv.Binaries...), "corvint-stub-companion")
+	var cmd, bin string
+	for _, f := range Check(catalog, nil, inv, linkBase) {
+		switch {
+		case f.Kind == "missing" && f.Name == "stubverb":
+			cmd = f.String()
+		case f.Kind == "missing" && f.Name == "corvint-stub-companion":
+			bin = f.String()
+		}
+	}
+	for _, want := range []string{"docs/CAPABILITIES.md", "README", "make capability-catalog", "script/repin-use-case-receipts.sh"} { //corvint:fixture-path
+		if !strings.Contains(cmd, want) {
+			t.Errorf("missing-command finding does not name %q: %q", want, cmd)
+		}
+	}
+	if !strings.HasSuffix(bin, ": no catalog row") {
+		t.Errorf("missing-binary finding changed: %q", bin)
+	}
+}
+
 // TestCAPV0002ToolNamesWithDigitsAndHyphens proves a tool name with a digit or a hyphen is
 // collected, so a catalog that omits it fails.
 func TestCAPV0002ToolNamesWithDigitsAndHyphens(t *testing.T) {
@@ -671,5 +697,31 @@ func TestCAPV0962RefusalCodeMatchesWholeLiteral(t *testing.T) {
 	}
 	if !literals["owned-code"] || literals["other-code"] || !literals["see other-code here"] {
 		t.Errorf("literals %v", literals)
+	}
+}
+
+// TestCAPV0002JobGroupedRootHelp pins the V1-3730 layout: several Experimental job headers
+// follow the one Core header, a family line labels each of its verbs, and a hiddenCommands verb
+// counts as documented and experimental although no Commands line lists it.
+func TestCAPV0002JobGroupedRootHelp(t *testing.T) {
+	src := "const rootHelp = `Usage:\n\nCommands:\n" +
+		"  Core (decision 0332):\n    init  alias of adopt\n" +
+		"  Experimental, context and review:\n    features | overview  guidance (RGV-V0)\n" +
+		"  Experimental, tests:\n    test  affected tests (STR-V0)\n\n`\n" +
+		"var hiddenCommands = map[string]string{\n\t\"lrf\": \"floor (LRF-V0)\",\n}\n"
+	commands, core, experimental, err := parseCommands([]byte(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(commands, ",") != "init,features,overview,test,lrf" || len(core) != 1 || !core["init"] {
+		t.Fatalf("commands %v core %v", commands, core)
+	}
+	for _, verb := range []string{"features", "overview", "test", "lrf"} {
+		if !experimental[verb] {
+			t.Errorf("%s is not experimental: %v", verb, experimental)
+		}
+	}
+	if _, _, _, err := parseCommands([]byte(strings.Replace(src, "  Experimental, tests:\n", "  Core (again):\n", 1))); err == nil {
+		t.Error("a Core header after an Experimental header passed")
 	}
 }

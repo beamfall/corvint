@@ -142,18 +142,19 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 }
 
 func (language Language) units(root string, resolveAliases bool) (affected.Result, frontierSet, error) {
-	return language.observe(affected.DiskSource(root), resolveAliases)
+	result, frontier, _, err := language.observe(affected.DiskSource(root), resolveAliases)
+	return result, frontier, err
 }
 
 // unitsSource is the general affected-plan/0 observation: its frontier entries name every site
 // and token, bounded per reason (TJAA-V0-052). The Playwright profile reads the bare reasons and
 // the site set from units instead.
 func (language Language) unitsSource(root *affected.Source, resolveAliases bool) (affected.Result, error) {
-	result, frontier, err := language.observe(root, resolveAliases)
+	result, frontier, e2eConfigs, err := language.observe(root, resolveAliases)
 	if err != nil {
 		return result, err
 	}
-	localizeFixtureFrontier(&result, frontier)
+	localizeFixtureFrontier(&result, frontier, e2eConfigs)
 	result.Frontier = locatedFrontier(frontier)
 	return result, nil
 }
@@ -385,16 +386,18 @@ func lineStarts(body string) []int {
 	return starts
 }
 
-func (language Language) observe(root *affected.Source, resolveAliases bool) (affected.Result, frontierSet, error) {
-	files, err := root.Files(observedName)
+// observe also returns the directory of every end-to-end runner config it read, sorted, which
+// bounds the fixture localization of end-to-end sites (AFP-V0-725).
+func (language Language) observe(root *affected.Source, resolveAliases bool) (affected.Result, frontierSet, []string, error) {
+	files, err := root.Files(affected.ByName(observedName))
 	if err != nil {
-		return affected.Result{}, nil, err
+		return affected.Result{}, nil, nil, err
 	}
 	// A path the repository declares as no test asset raises no cross-language test-asset
 	// frontier (TJAA-V0-111).
 	_, nonTestAssets, err := readPathDeclaration(root, NonTestAssetPathsPath, NonTestAssetPathsProfile)
 	if err != nil {
-		return affected.Result{}, nil, err
+		return affected.Result{}, nil, nil, err
 	}
 	frontier := frontierSet{}
 	bodies := make(map[string]string, len(files))
@@ -554,7 +557,13 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			sites.raiseRef(frontier, reason(observation.path, ref), observation.path, ref)
 		}
 	}
-	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason), frontier, nil
+	var e2eConfigs []string
+	for _, config := range configs {
+		if isE2ERunner(config.runner) {
+			e2eConfigs = append(e2eConfigs, config.directory)
+		}
+	}
+	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored(), reason), frontier, e2eConfigs, nil
 }
 
 // pathAliasMarker returns the offset of the first `"paths"` or `"baseUrl"` key in a tsconfig.
@@ -1678,7 +1687,9 @@ func jsxQuoteStartsLiteral(body []byte, index int) bool {
 	if len(prefix) == 0 || bytes.HasSuffix(prefix, []byte("\n")) || bytes.HasSuffix(prefix, []byte("\r")) {
 		return true
 	}
-	if bytes.HasSuffix(prefix, []byte("=>")) || strings.ContainsRune("([={,:;!?&|+-*%^~", rune(prefix[len(prefix)-1])) {
+	// A `<` opens a type argument list or is a comparison: JSX text can hold no `<`, which always
+	// opens a tag whose name cannot begin with a quote (TJAA-V0-871).
+	if bytes.HasSuffix(prefix, []byte("=>")) || strings.ContainsRune("([={,:;!?&|+-*%^~<", rune(prefix[len(prefix)-1])) {
 		return true
 	}
 	wordStart := len(prefix)

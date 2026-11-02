@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
@@ -328,11 +329,11 @@ func TestAFPV0391ProgramIdentityRefusesAReplacedExecutable(t *testing.T) {
 	}
 	directory := t.TempDir()
 	name := filepath.Join(directory, "corvint")
-	if err := os.WriteFile(name, []byte("build A"), 0o755); err != nil {
+	if err := execfile.WriteFile(name, []byte("build A"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	replacement := filepath.Join(directory, "corvint.new")
-	if err := os.WriteFile(replacement, []byte("build B"), 0o755); err != nil {
+	if err := execfile.WriteFile(replacement, []byte("build B"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Rename(replacement, name); err != nil {

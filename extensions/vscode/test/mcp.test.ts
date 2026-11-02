@@ -294,7 +294,7 @@ function toolRegistry(): Array<Record<string, unknown>> {
   return [
     { name: "corvint.impact", description: "Compile revision-bound impact evidence for tracked Go files without returning source bodies.", annotations,
       inputSchema: schema({ snapshot, paths: { type: "array", minItems: 1, maxItems: 100, uniqueItems: true, items: { type: "string", minLength: 1, maxLength: 1024, pattern: "^(?!/)(?!.*(?:^|/)[.]{1,2}(?:/|$))(?!.*//)(?!.*\\\\).+[.]go$" } }, limit: { type: "integer", minimum: 1, maximum: 50, default: 10 } }, ["paths"]) },
-    { name: "corvint.query", description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one).", annotations,
+    { name: "corvint.query", description: "Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.", annotations,
       inputSchema: schema({ snapshot, task: { type: "string", minLength: 1, maxLength: 2000, pattern: "^[ -~]*[!-~][ -~]*$" } }, ["task"]) },
     { name: "corvint.status", description: "Observe Git commit, tree, worktree state, and a privacy-preserving dirty-path digest.", annotations, inputSchema: schema({}, []) },
   ];

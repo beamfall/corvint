@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
+	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
 // AFP-V0-032: a declaration path that exists but is not a readable regular
@@ -87,9 +88,10 @@ func TestAffectedAdviceFocusedNextStep_AFPV0496(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, adviceMakefileName), []byte("gate:\n\ttrue\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
+	writeTestCommandDeclaration(t, root)
 	plan := affected.Plan{Dirty: []string{"a.go"}}
 	base := compileAffectedAdvice(root, nil, plan, affectedGoProvider{State: providerStateRunnable, Packages: []string{"./a"}})
-	advice := withFocusedNextStep(base, "abc123", plan)
+	advice := withFocusedNextStep(base, root, "abc123", plan)
 	first := -1
 	for index, check := range advice.Checks {
 		if check.Kind == adviceKindAdvisory {
@@ -107,10 +109,38 @@ func TestAffectedAdviceFocusedNextStep_AFPV0496(t *testing.T) {
 	if gate.Command != "make gate" || !strings.Contains(gate.Reason, "terminal boundary, not as the default next step") {
 		t.Errorf("gate reason: %+v", gate)
 	}
-	if got := withFocusedNextStep(base, "", plan); len(got.Checks) != len(base.Checks) {
+	if got := withFocusedNextStep(base, root, "", plan); len(got.Checks) != len(base.Checks) {
 		t.Errorf("no base added a check")
 	}
-	if got := withFocusedNextStep(base, "abc123", affected.Plan{}); len(got.Checks) != len(base.Checks) {
+	if got := withFocusedNextStep(base, root, "abc123", affected.Plan{}); len(got.Checks) != len(base.Checks) {
 		t.Errorf("no dirty path added a check")
+	}
+}
+
+// ACX-V0-853 (V1-3726): a root without the corvint test command declaration
+// is not advised corvint test, whose dry run would select nothing there; the
+// unknown entry names the declaration and the declared checks stay first.
+func TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, adviceAgentsName), []byte("## Verify\n\n```sh\nswift test\n```\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Plan{Dirty: []string{"a.swift"}}
+	base := compileAffectedAdvice(root, nil, plan, affectedGoProvider{State: providerStateEmpty, Packages: []string{}})
+	advice := withFocusedNextStep(base, root, "abc123", plan)
+	for _, check := range advice.Checks {
+		if strings.HasPrefix(check.Command, "corvint test") {
+			t.Fatalf("advice suggests corvint test without %s: %+v", sessiontest.DeclarationPath, advice.Checks)
+		}
+	}
+	if len(advice.Checks) == 0 || advice.Checks[0].Command != "swift test" || advice.Checks[0].Kind != adviceKindMandatory {
+		t.Fatalf("declared Verify command is not the first check: %+v", advice.Checks)
+	}
+	if !slices.Contains(advice.Unknown, adviceFocusedUndeclared) || !strings.Contains(adviceFocusedUndeclared, sessiontest.DeclarationPath) {
+		t.Fatalf("unknown does not name the missing declaration: %v", advice.Unknown)
+	}
+	writeTestCommandDeclaration(t, root)
+	if got := withFocusedNextStep(base, root, "abc123", plan); slices.Contains(got.Unknown, adviceFocusedUndeclared) || !slices.ContainsFunc(got.Checks, func(check affectedCheck) bool { return strings.HasPrefix(check.Command, "corvint test") }) {
+		t.Fatalf("declared root lost the focused command: %+v", got)
 	}
 }

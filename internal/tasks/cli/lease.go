@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"errors"
+	"io/fs"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -306,7 +308,13 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	// the lease request.
 	scopeFromDiff, fromDiff := parsed.values["--scope-from-diff"]
 	if fromDiff && (name != "claim" || scopeFromDiff == "" || parsed.next || parsed.whole || len(parsed.scope) > 0) {
-		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope, --whole-repository and --next"))
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope and --next"))
+	}
+	// TCL-V0-866: only widen takes --whole-repository; a claim reaches
+	// WHOLE_REPOSITORY as its fallback scope, so the flag is refused here
+	// before any store read rather than as a misfit lease request.
+	if parsed.whole && name == "claim" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "claim takes no --whole-repository: a claim without --scope of a ticket that declares no scope already claims WHOLE_REPOSITORY; to widen a live attempt to the whole repository run widen --attempt A --generation G --whole-repository (TCL-V0-866)"))
 	}
 	// TRM-V0-801: the barrier exemption names one ticket or attempt, so it
 	// belongs to a named claim or a widen and never to claim --next.
@@ -334,7 +342,7 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	if _, err = mutation.ParseRequestID("requestId", requestID); err != nil {
 		return fail(err)
 	}
-	actor, err := initActor(role)
+	actor, err := initActor(env, role)
 	if err != nil {
 		return fail(err)
 	}
@@ -599,6 +607,9 @@ func attemptCommand(env Env, args []string) *wire.Result {
 	if len(args) > 0 && args[0] == "heartbeat" {
 		return leaseCommand(env, "attempt heartbeat", args[1:])
 	}
+	if len(args) > 0 && args[0] != "show" {
+		return groupMiss([]string{"attempt"}, args, "attempt needs the verb show <attemptId>")
+	}
 	return readAttempt(env, args, true)
 }
 
@@ -636,7 +647,7 @@ func readAttempt(env Env, args []string, observations bool) *wire.Result {
 			addHolderObservation(item.Obj, a, observedAt, rc.store.Policy.HeartbeatTTLSeconds())
 			addHistoryObservation(item.Obj)
 			// CAL-V0-322: the newest failed gate's retained output tail.
-			item.Obj.Set("lastFailedGate", attemptLastFailedGate(rc.repo, a))
+			item.Obj.Set("lastFailedGate", attemptLastFailedGate(rc.repo, rc.store.Policy, a))
 			if a.PoolAllocation != nil {
 				binding, e := poolBindingValue(proof.Records["pools.json"].Raw, a)
 				if e != nil {
@@ -671,7 +682,12 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	if shared && rc.proof != nil {
 		return rc.proof, nil
 	}
-	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, Checkpoint: readCheckpoint(rc.repo), IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
+	reader := journal.Reader{Source: journal.Native{StateDir: rc.repo.StateDir, PrimaryWorktree: rc.repo.IntentRoot()}, QueueID: rc.snap.Head.QueueID, PrimaryWorktree: rc.repo.PrimaryWorktree, SelectState: true, IntentTree: rc.tree, ExpectHeadSha256: rc.snap.HeadSha256}
+	reader.Checkpoint, rc.checkpoint = readCheckpoint(rc.repo)
+	// LGL-V0-807: without a read checkpoint that serves, resume from the
+	// writer checkpoint before paying the complete audit.
+	repo := rc.repo
+	reader.WriterCheckpoint = func() *journal.WriterCheckpoint { return store.ReadWriterCheckpoint(repo) }
 	proof, err := reader.Audit(paths...)
 	if err != nil {
 		return nil, err
@@ -683,18 +699,43 @@ func auditState(rc *readCtx, paths ...string) (*journal.Result, error) {
 	return proof, nil
 }
 
-// readCheckpoint returns the retained audit checkpoint, or nil when it is
-// absent or unreadable. The journal reader rebinds whatever this returns.
-func readCheckpoint(repo *intent.Repository) *journal.Checkpoint {
+// readCheckpoint returns the retained audit checkpoint, or nil and why:
+// ABSENT, UNREADABLE or MALFORMED (LGL-V0-803). The journal reader rebinds
+// whatever this returns.
+func readCheckpoint(repo *intent.Repository) (*journal.Checkpoint, string) {
 	raw, err := intent.ReadFile(journal.CheckpointPath(repo.StateDir), journal.MaxCheckpointBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, "ABSENT"
+	}
 	if err != nil {
-		return nil
+		return nil, "UNREADABLE"
 	}
 	cp, err := journal.DecodeCheckpoint(raw)
 	if err != nil {
-		return nil
+		return nil, "MALFORMED"
 	}
-	return cp
+	return cp, ""
+}
+
+// auditCheckpoint says what the shared audit made of the retained read
+// checkpoint (LGL-V0-803): USED when it resumed from it, WRITER_CHECKPOINT
+// when it resumed from the writer checkpoint instead (LGL-V0-807), ABSENT,
+// UNREADABLE or MALFORMED when a complete audit ran because no read
+// checkpoint was valid to read, NOT_APPLIED when one was read but did not
+// bind the store as it is, and NOT_OBSERVED when the command needed no
+// journal audit. It reads nothing.
+func auditCheckpoint(rc *readCtx) string {
+	switch {
+	case rc.proof == nil:
+		return "NOT_OBSERVED"
+	case rc.proof.Mode == journal.ModeCheckpoint:
+		return "USED"
+	case rc.proof.Mode == journal.ModeWriter:
+		return "WRITER_CHECKPOINT"
+	case rc.checkpoint != "":
+		return rc.checkpoint
+	}
+	return "NOT_APPLIED"
 }
 
 // auditMode names how the command's journal audit ran: FULL walked every

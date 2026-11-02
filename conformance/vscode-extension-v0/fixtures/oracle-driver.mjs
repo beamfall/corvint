@@ -28,7 +28,7 @@ const mcpTools = [
     }, ['paths']), annotations: mcpAnnotations,
   },
   {
-    name: 'corvint.query', description: 'Compile the narrow project-operations authority-start receipt (limit is fixed at one).',
+    name: 'corvint.query', description: 'Compile the narrow project-operations authority-start receipt (limit is fixed at one). The task must name at least two of contribute, contributor, gate, instruction, orient, orientation, roadmap, ticket and workflow (plurals count), or work queue and one of them; for example: orient contributor roadmap ticket workflow. Any other task abstains with UNSUPPORTED_QUERY_INTENT; for a code, test or bug task use corvint.context (task-review profile) or the corvint context command.',
     inputSchema: mcpSchema({ task: { type: 'string', minLength: 1, maxLength: 2000, pattern: '^[ -~]+$' } }, ['task']), annotations: mcpAnnotations,
   },
   {

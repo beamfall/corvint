@@ -49,6 +49,7 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-cem-experiments", Command: "corvint-cem-experiments help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-experiments.json"},
 	{Binary: "corvint-corpus-republish", Command: "corvint-corpus-republish help --json", Snapshot: "internal/capcatalog/trees/corvint-corpus-republish.json"},
 	{Binary: "corvint-dashboard-snapshot", Command: "corvint-dashboard-snapshot help --json", Snapshot: "internal/capcatalog/trees/corvint-dashboard-snapshot.json"},
+	{Binary: "corvint-gateway", Command: "corvint-gateway help --json", Snapshot: "internal/capcatalog/trees/corvint-gateway.json"},
 	{Binary: "corvint-go-test-provider", Command: "corvint-go-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-go-test-provider.json"},
 	{Binary: "corvint-intake", Command: "corvint-intake help --json", Snapshot: "internal/capcatalog/trees/corvint-intake.json"},
 	{Binary: "corvint-js-test-provider", Command: "corvint-js-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-js-test-provider.json"},
@@ -59,6 +60,8 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-ruby-test-provider", Command: "corvint-ruby-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-ruby-test-provider.json"},
 	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
 	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
+	{Binary: "corvint-update", Command: "corvint-update help --json", Snapshot: "internal/capcatalog/trees/corvint-update.json"},
+	{Binary: "corvint-work-queue", Command: "corvint-work-queue help --json", Snapshot: "internal/capcatalog/trees/corvint-work-queue.json"},
 }
 
 // commandTreeJSON is `corvint help --tree`, the canonical corvint-command-tree/0 document.
@@ -177,7 +180,7 @@ func nodeHelpText(path string) string {
 	if !ok {
 		panic("unknown command tree node")
 	}
-	return clitree.Render(commandTree(), node) + parentTopicPointer(node.Path)
+	return clitree.Render(commandTree(), node) + dogfoodFlowOptionsText(node.Path) + parentTopicPointer(node.Path)
 }
 
 // parentTopicPointer names the authored help topic that documents a node's command in full, so a
