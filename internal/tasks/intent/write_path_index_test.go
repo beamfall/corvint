@@ -196,3 +196,44 @@ func TestTCXV0849ParsedIndexReusedPerVersion(t *testing.T) {
 		t.Fatalf("reparsed index holds %v", got)
 	}
 }
+
+// TestTCXV0849SameStatRewriteReparsed: an index rewritten in place at the
+// same length with its modification time restored, as on a filesystem whose
+// change time is coarse, is parsed again; an invalid replacement is refused,
+// never served from the earlier parse.
+func TestTCXV0849SameStatRewriteReparsed(t *testing.T) {
+	r := writePathRepo(t)
+	path := intent.ClosedIndexPath(r.StateDir)
+	if intent.ReadClosedIndex(r.StateDir) == nil {
+		t.Fatal("index does not read back")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forged := bytes.Clone(raw)
+	forged[len(forged)-2] ^= 0x01 // one body byte; the checksum no longer holds
+	f, err := os.OpenFile(path, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.WriteAt(forged, 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(path, info.ModTime(), info.ModTime()); err != nil {
+		t.Fatal(err)
+	}
+	if after, err := os.Stat(path); err != nil || after.Size() != info.Size() || !after.ModTime().Equal(info.ModTime()) || !os.SameFile(info, after) {
+		t.Fatalf("fixture: rewrite changed size, time or file: %v", err)
+	}
+	if idx := intent.ReadClosedIndex(r.StateDir); idx != nil {
+		t.Fatal("an invalid same-stat replacement was served from the earlier parse")
+	}
+}

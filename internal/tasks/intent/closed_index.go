@@ -169,62 +169,53 @@ func ReadClosedIndex(stateDir string) *ClosedIndex {
 	if err != nil || !info.Mode().IsRegular() || info.Size() == 0 || info.Size() > closedIndexMaxBytes {
 		return nil
 	}
-	if idx := parsedIndex(path, info); idx != nil {
-		return idx
-	}
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil
+	}
+	// A parse is reused only for byte-identical file content, whatever its
+	// timestamps say (TCX-V0-849).
+	sum := sha256.Sum256(raw)
+	if idx := parsedIndex(path, sum); idx != nil {
+		return idx
 	}
 	idx, err := decodeClosedIndex(raw)
 	if err != nil {
 		return nil
 	}
-	// The file read must still be the file stat saw, or the parse is not
-	// remembered for that version.
-	if after, err := os.Lstat(path); err == nil && sameIndexVersion(info, after) {
-		rememberIndex(path, info, idx)
-	}
+	rememberIndex(path, sum, idx)
 	return idx
 }
 
 // parsedIndexes holds, in process memory, the last parse of each index path
-// with the version it was parsed at (TCX-V0-849). A parsed index is never
-// changed after its decode, so callers share it.
+// with the SHA-256 of the bytes it parsed (TCX-V0-849). A parsed index is
+// never changed after its decode, so callers share it.
 var (
 	parsedMu      sync.Mutex
 	parsedIndexes = map[string]parsedIndexEntry{}
 )
 
 type parsedIndexEntry struct {
-	info os.FileInfo
-	idx  *ClosedIndex
+	sum [sha256.Size]byte
+	idx *ClosedIndex
 }
 
-func parsedIndex(path string, info os.FileInfo) *ClosedIndex {
+func parsedIndex(path string, sum [sha256.Size]byte) *ClosedIndex {
 	parsedMu.Lock()
 	defer parsedMu.Unlock()
-	if e, ok := parsedIndexes[path]; ok && sameIndexVersion(e.info, info) {
+	if e, ok := parsedIndexes[path]; ok && e.sum == sum {
 		return e.idx
 	}
 	return nil
 }
 
-func rememberIndex(path string, info os.FileInfo, idx *ClosedIndex) {
+func rememberIndex(path string, sum [sha256.Size]byte, idx *ClosedIndex) {
 	parsedMu.Lock()
 	defer parsedMu.Unlock()
 	if len(parsedIndexes) >= 16 {
 		clear(parsedIndexes)
 	}
-	parsedIndexes[path] = parsedIndexEntry{info: info, idx: idx}
-}
-
-// sameIndexVersion reports one file at one version: the same device and
-// inode, size, modification time and change time.
-func sameIndexVersion(a, b os.FileInfo) bool {
-	ca, okA := changeTime(a)
-	cb, okB := changeTime(b)
-	return os.SameFile(a, b) && a.Size() == b.Size() && a.ModTime().Equal(b.ModTime()) && okA && okB && ca == cb
+	parsedIndexes[path] = parsedIndexEntry{sum: sum, idx: idx}
 }
 
 const (
