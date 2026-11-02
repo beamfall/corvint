@@ -98,6 +98,10 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 	if err != nil {
 		return declined(err.Error())
 	}
+	// TCX-V0-846: the derived ticket index lets the model hold an unselected
+	// ticket as its summary when the canonical bytes equal an admitted
+	// entry's; it governs only this queue and policy, and is never authority.
+	index := intent.ReadClosedIndex(repo.StateDir).WriterSummaries(q.QueueID.Raw, wire.Sum(w.proof.Records["intent/policy.json"].Raw))
 	result := transaction.Model(request, transaction.Input{
 		Inventory:         w.inv,
 		Head:              w.head,
@@ -115,6 +119,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		RecordedAt:        now,
 		PriorNoteEvent:    priorNote,
 		ValueScreen:       screen,
+		TicketIndex:       index,
 	})
 	at = writerStage(ctx, "model", at)
 	if w.inv.Incomplete() {
