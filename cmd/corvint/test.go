@@ -281,11 +281,13 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
-	// HEAD is resolved once: the stale-binary check and the source identity
-	// below both use it, so the check spawns no rev-parse of its own. When it
-	// cannot be resolved, the check resolves HEAD itself as before (AFP-V0-825).
+	// HEAD is read once: the stale-binary check and the source identity below
+	// both use it, so the check spawns no rev-parse of its own. A failed read
+	// is the check's own failed read, unverified, and the source identity then
+	// reads HEAD again as before (AFP-V0-825).
+	started := time.Now()
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
-	if freshness := selfBinaryStaleAt(ctx, root, head); freshness.Code != "" {
+	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
 		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
 	}
 	receiptFlag := "--receipt"
@@ -312,7 +314,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	}
 	var source sessiontest.SourceIdentity
 	var observed *affectedObservation
-	if err = headErr; err == nil {
+	if headErr != nil {
+		source, observed, err = testObserveSource(ctx, gitExecutable, root)
+	} else {
 		source, observed, err = testObserveSourceAt(ctx, gitExecutable, root, head)
 	}
 	if err != nil {
