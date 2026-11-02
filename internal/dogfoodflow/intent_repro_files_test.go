@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -42,8 +41,10 @@ func TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles(t *testing.T) {
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	for _, name := range repro {
-		// The committed blob, read from the repository this test runs in.
-		data, err := exec.Command("git", "show", "HEAD:"+name).Output()
+		// The file as checked out; test-confine admits only the declared
+		// read scopes (.corvint/test-read-scopes.json), not .git, so a git
+		// read of the committed blob exits 128 under confinement.
+		data, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)
 		}
