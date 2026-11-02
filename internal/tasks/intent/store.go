@@ -291,7 +291,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 					if keys != nil {
 						keys[rel] = key
 					}
-					pf.known = idx.trusted(rel, key)
+					pf.known = idx.trusted(rel, key, keys != nil)
 				}
 				plan = append(plan, pf)
 				if total > int64(wire.MaxIntentTreeBytes) {
@@ -541,6 +541,13 @@ func decodeTree(root string, tree Tree) (*Store, error) {
 // decodeTreeIndexed is decodeTree where a closed ticket file the capture
 // took from idx (Raw nil) is held as idx's summary.
 func decodeTreeIndexed(root string, tree Tree, idx *ClosedIndex) (*Store, error) {
+	return decodeTreeHeld(root, tree, idx, nil)
+}
+
+// decodeTreeHeld is decodeTreeIndexed where a summarized ticket whose bytes
+// are in held is decoded from them on first Get instead of being read again
+// (TCX-V0-847).
+func decodeTreeHeld(root string, tree Tree, idx *ClosedIndex, held map[string][]byte) (*Store, error) {
 	st := &Store{Root: root, Tree: tree, Digests: map[string]wire.Digest{}}
 	byPath := map[string]File{}
 	lazy := map[string]wire.Digest{}
@@ -637,7 +644,7 @@ func decodeTreeIndexed(root string, tree Tree, idx *ClosedIndex) (*Store, error)
 		}
 		records = append(records, rec)
 	}
-	inv, err := ticket.NewLazyInventory(q.QueueID, records, closed, closedLoader(root, lazy))
+	inv, err := ticket.NewLazyInventory(q.QueueID, records, closed, closedLoader(root, lazy, held))
 	if err != nil {
 		return nil, err
 	}

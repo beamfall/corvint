@@ -26,8 +26,13 @@ import (
 // that time predates the index capture by closedIndexRacyWindow, and any
 // header, checksum or decode mismatch discards the whole index, so the read
 // falls back to the full scan.
+//
+// Format 3 (TCX-V0-845) holds every ticket file, open or closed, each
+// admitted only after its record re-encoded to exactly its bytes. Reads still
+// trust only closed entries; the native writer and the CLI preload use an
+// entry only for bytes whose digest and length equal it (TCX-V0-846, 847).
 const (
-	closedIndexMagic      = "corvint-tasks-closed-index/2"
+	closedIndexMagic      = "corvint-tasks-closed-index/3"
 	closedIndexSuffix     = ".closed-index"
 	closedIndexRacyWindow = 2 * time.Second
 	closedIndexMaxBytes   = wire.MaxIntentTreeBytes
@@ -60,8 +65,10 @@ type ClosedIndex struct {
 }
 
 // trusted returns the entry for rel when its stat key still matches and its
-// modification time is outside the racy window of the capture.
-func (idx *ClosedIndex) trusted(rel string, key statKey) *ClosedEntry {
+// modification time is outside the racy window of the capture. A read trusts
+// only a closed entry; the index rewrite, which never serves a record, also
+// keeps an open one (TCX-V0-845).
+func (idx *ClosedIndex) trusted(rel string, key statKey, open bool) *ClosedEntry {
 	if idx == nil {
 		return nil
 	}
@@ -69,7 +76,57 @@ func (idx *ClosedIndex) trusted(rel string, key statKey) *ClosedEntry {
 	if !ok || e.Size != key.size || e.mtime != key.mtime || key.mtime >= idx.captured-int64(closedIndexRacyWindow) {
 		return nil
 	}
+	if !open && !ticket.Closed(e.Summary.Status) {
+		return nil
+	}
 	return e
+}
+
+// WriterSummaries returns the entries by digest when idx governs queueID
+// and policySha, and nil otherwise. A caller may hold a ticket as its entry's
+// summary only for bytes whose SHA-256 and length equal the entry's
+// (TCX-V0-846).
+func (idx *ClosedIndex) WriterSummaries(queueID string, policySha wire.Digest) map[wire.Digest]*ClosedEntry {
+	if idx == nil || idx.queueID != queueID || idx.policySha != policySha {
+		return nil
+	}
+	out := make(map[wire.Digest]*ClosedEntry, len(idx.entries))
+	for _, e := range idx.entries {
+		out[e.Sha] = e
+	}
+	return out
+}
+
+// LoadSummarized loads the store from a full capture, holding a ticket as
+// its idx entry's summary when its bytes' SHA-256 and length equal the
+// entry's and decoding it from those bytes on first Get (TCX-V0-847). A nil
+// idx, or one that does not govern the tree, is the full load.
+func LoadSummarized(primaryWorktree string, idx *ClosedIndex) (*Store, error) {
+	tree, err := TreeDigest(primaryWorktree)
+	if err != nil {
+		return nil, err
+	}
+	if idx == nil || !idx.governs(tree) {
+		return LoadTree(primaryWorktree, tree, "")
+	}
+	files := append([]File(nil), tree.Files...)
+	held := map[string][]byte{}
+	for i, f := range files {
+		e, ok := idx.entries[f.Path]
+		if !ok || !strings.HasPrefix(f.Path, TicketsDir+"/") || e.Sha != f.Sha256 || e.Size != int64(len(f.Raw)) {
+			continue
+		}
+		held[f.Path] = f.Raw
+		files[i].Raw = nil
+	}
+	summarized := tree
+	summarized.Files = files
+	st, err := decodeTreeHeld(filepath.Join(primaryWorktree, Dir), summarized, idx, held)
+	if err != nil {
+		return nil, err
+	}
+	st.Tree = tree
+	return st, nil
 }
 
 // governs reports whether idx was captured for tree's queue and policy; an
@@ -251,7 +308,7 @@ func decodeEntry(f []string) (*ClosedEntry, error) {
 	size, err1 := strconv.ParseInt(f[1], 10, 64)
 	mtime, err2 := strconv.ParseInt(f[2], 10, 64)
 	id, err3 := wire.ParseTicketID("", f[4])
-	if err1 != nil || err2 != nil || err3 != nil || f[0] != TicketsDir+"/"+id.Local+".json" || !ticket.Closed(f[5]) {
+	if err1 != nil || err2 != nil || err3 != nil || f[0] != TicketsDir+"/"+id.Local+".json" || f[5] == "" {
 		return nil, errClosedIndex
 	}
 	s := &ticket.Summary{TicketID: id, Status: f[5], ArchivedFrom: parseOpt(f[6]), Priority: f[7], Order: wire.Count(f[8]),
@@ -321,13 +378,17 @@ func readIndexed(root, rel string, sha wire.Digest) ([]byte, error) {
 }
 
 // closedLoader decodes a lazily held record with the checks decodeTree
-// applies to every ticket.
-func closedLoader(root string, shas map[string]wire.Digest) ticket.Loader {
+// applies to every ticket, from its held bytes when it has them and
+// otherwise from the file, re-hashed against the captured digest.
+func closedLoader(root string, shas map[string]wire.Digest, held map[string][]byte) ticket.Loader {
 	return func(s *ticket.Summary) (*ticket.Record, error) {
 		rel := TicketsDir + "/" + s.TicketID.Local + ".json"
-		raw, err := readIndexed(root, rel, shas[rel])
-		if err != nil {
-			return nil, err
+		raw, ok := held[rel]
+		if !ok {
+			var err error
+			if raw, err = readIndexed(root, rel, shas[rel]); err != nil {
+				return nil, err
+			}
 		}
 		rec, err := ticket.Decode(raw)
 		if err != nil {
@@ -340,11 +401,12 @@ func closedLoader(root string, shas map[string]wire.Digest) ticket.Loader {
 	}
 }
 
-// WriteClosedIndex refreshes the closed-ticket index of a repository after
-// a write (TCX-V0-984): entries whose stat key still matches are kept, and
-// every other closed ticket is read, decoded and validated as a full load
-// does. The file is replaced by rename. A store that does not load, or an
-// index that cannot be written, leaves the readers' full scan in place.
+// WriteClosedIndex refreshes the ticket index of a repository after a write
+// (TCX-V0-984, TCX-V0-845): entries whose stat key still matches are kept,
+// and every other ticket is read, decoded and validated as a full load does,
+// and admitted only when its record re-encodes to exactly its bytes. The
+// file is replaced by rename. A store that does not load, or an index that
+// cannot be written, leaves the readers' full scan in place.
 func WriteClosedIndex(primaryWorktree, stateDir string) error {
 	old := ReadClosedIndex(stateDir)
 	captured := time.Now().UnixNano()
@@ -362,20 +424,35 @@ func WriteClosedIndex(primaryWorktree, stateDir string) error {
 		return err
 	}
 	idx := &ClosedIndex{queueID: st.Queue.QueueID.Raw, policySha: st.Digests[PolicyFile], captured: captured, entries: map[string]*ClosedEntry{}}
+	read := map[string][]byte{}
+	for _, f := range st.Tree.Files {
+		if f.Raw != nil {
+			read[f.Path] = f.Raw
+		}
+	}
 	for _, id := range st.Inventory.IDs() {
 		s, _ := st.Inventory.Summary(id)
-		if !ticket.Closed(s.Status) {
-			continue
-		}
 		rel := TicketsDir + "/" + s.TicketID.Local + ".json"
 		key, ok := keys[rel]
 		if !ok || key.mtime >= captured-int64(closedIndexRacyWindow) {
 			continue
 		}
+		// A file read here was decoded by the load; it joins only when its
+		// record re-encodes to its bytes. A kept entry was admitted so.
+		if raw, fresh := read[rel]; fresh {
+			rec, _ := st.Inventory.Get(id)
+			if !bytes.Equal(reencode(rec), raw) {
+				continue
+			}
+		}
 		idx.entries[rel] = &ClosedEntry{Size: key.size, mtime: key.mtime, Sha: st.Digests[rel], Summary: s}
 	}
 	return writeFileAtomic(ClosedIndexPath(stateDir), encodeClosedIndex(idx))
 }
+
+// reencode is the re-encoding an index entry's bytes must equal; tests
+// replace it to show a non-canonical record is left out (TCX-V0-845).
+var reencode = (*ticket.Record).Encode
 
 func writeFileAtomic(path string, raw []byte) error {
 	tmp, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
