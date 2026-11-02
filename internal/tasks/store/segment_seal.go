@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -226,15 +228,34 @@ func collectSegment(repo *intent.Repository, old *snapshot.SegmentManifest, firs
 		prev = &d
 	}
 	posted := map[string]wire.Digest{}
+	// LGL-V0-814: the receipts are read and decoded in parallel; every check
+	// below runs in sequence order on the results, so the first refusal is
+	// the one the sequential loop reported.
+	type read struct {
+		raw       []byte
+		found     bool
+		readErr   error
+		rc        *snapshot.Receipt
+		digest    wire.Digest
+		decodeErr error
+	}
+	reads := make([]read, last+2-first)
+	inParallel(len(reads), func(k int) {
+		r := &reads[k]
+		if r.raw, r.found, r.readErr = receiptBytes(repo, first+uint64(k)); r.readErr == nil && r.found {
+			r.rc, r.digest, _, r.decodeErr = snapshot.DecodeRetainedReceipt(r.raw)
+		}
+	})
 	for seq := first; seq <= last+1; seq++ {
-		raw, found, err := receiptBytes(repo, seq)
+		r := reads[seq-first]
+		raw, found, err := r.raw, r.found, r.readErr
 		if err != nil {
 			return nil, entry, err
 		}
 		if !found {
 			return nil, entry, wire.Errorf(wire.CodeJournalForked, receiptPath(seq), "receipt to seal is absent")
 		}
-		rc, digest, _, err := snapshot.DecodeRetainedReceipt(raw)
+		rc, digest, err := r.rc, r.digest, r.decodeErr
 		if err != nil {
 			return nil, entry, err
 		}
@@ -258,20 +279,37 @@ func collectSegment(repo *intent.Repository, old *snapshot.SegmentManifest, firs
 			posted[p.Path] = *p.Sha256
 		}
 	}
-	for p, want := range posted {
+	paths := make([]string, 0, len(posted))
+	for p := range posted {
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	files := make([]snapshot.SegmentFile, len(paths))
+	errs := make([]error, len(paths))
+	inParallel(len(paths), func(k int) {
+		p := paths[k]
 		bound, err := snapshot.PostBound(p)
 		if err != nil {
-			return nil, entry, err
+			errs[k] = err
+			return
 		}
 		raw, err := intent.ReadFile(segmentPath(repo, p), bound)
 		if err != nil {
+			errs[k] = err
+			return
+		}
+		if wire.Sum(raw) != posted[p] {
+			errs[k] = wire.Errorf(wire.CodeUnsupported, p, "request afterimage differs from the digest its sealed receipt posted")
+			return
+		}
+		files[k] = snapshot.SegmentFile{Path: p, Raw: raw}
+	})
+	for _, err := range errs {
+		if err != nil {
 			return nil, entry, err
 		}
-		if wire.Sum(raw) != want {
-			return nil, entry, wire.Errorf(wire.CodeUnsupported, p, "request afterimage differs from the digest its sealed receipt posted")
-		}
-		seg.Requests = append(seg.Requests, snapshot.SegmentFile{Path: p, Raw: raw})
 	}
+	seg.Requests = append(seg.Requests, files...)
 	snapshot.SortSegmentFiles(seg.Requests)
 	entry.Requests = uint64(len(seg.Requests))
 	return seg, entry, nil
@@ -302,9 +340,19 @@ func boundManifest(repo *intent.Repository, head *snapshot.Head) (*snapshot.Segm
 // shard directories stay.
 func dropSealed(repo *intent.Repository, seg *snapshot.Segment, oldThrough uint64) error {
 	dirs := map[string]bool{"receipts": true, snapshot.SegmentsDir: true}
-	for _, f := range append(append([]snapshot.SegmentFile(nil), seg.Receipts...), seg.Requests...) {
-		if err := os.Remove(segmentPath(repo, f.Path)); err != nil && !os.IsNotExist(err) {
-			return err
+	all := append(append([]snapshot.SegmentFile(nil), seg.Receipts...), seg.Requests...)
+	errs := make([]error, len(all))
+	// LGL-V0-814: the unlinks run in parallel; the first error in file
+	// order is the one the sequential loop returned, and the directory
+	// syncs below run only after every unlink returned.
+	inParallel(len(all), func(k int) {
+		if err := sealUnlink(segmentPath(repo, all[k].Path)); err != nil && !os.IsNotExist(err) {
+			errs[k] = err
+		}
+	})
+	for k, f := range all {
+		if errs[k] != nil {
+			return errs[k]
 		}
 		dirs[f.Path[:strings.LastIndexByte(f.Path, '/')]] = true
 	}
@@ -322,13 +370,57 @@ func syncDirs(repo *intent.Repository, dirs map[string]bool) error {
 		names = append(names, d)
 	}
 	sort.Strings(names)
-	for _, d := range names {
-		if err := syncDir(repo, d); err != nil {
+	// LGL-V0-814: every directory is still synced, now concurrently so the
+	// filesystem can group the flushes (as LGL-V0-016 does for publish
+	// syncs); the call returns only after all of them, with the first error
+	// in name order.
+	errs := make([]error, len(names))
+	inParallel(len(names), func(k int) { errs[k] = sealSyncDir(repo, names[k]) })
+	for _, err := range errs {
+		if err != nil {
 			return err
 		}
 	}
 	return nil
 }
+
+// inParallel calls f(0..n-1) on up to sealWorkers goroutines and returns
+// when every call has returned.
+func inParallel(n int, f func(int)) {
+	workers := min(int(sealWorkers.Load()), n)
+	var next atomic.Int64
+	var wg sync.WaitGroup
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				k := int(next.Add(1) - 1)
+				if k >= n {
+					return
+				}
+				f(k)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+// sealUnlink and sealSyncDir are the seal's parallel unlink and directory
+// sync. Only the non-parallel LGL-V0-814 fault tests replace them, to fail or
+// delay one worker.
+var (
+	sealUnlink  = os.Remove
+	sealSyncDir = syncDir
+)
+
+// reuseOpeningCheckpoint is false only in the test that derives both
+// checkpoints to compare them.
+var reuseOpeningCheckpoint = true
+
+// sealWorkers bounds a seal's concurrent reads, unlinks and directory syncs.
+// It is atomic because a non-parallel test lowers it.
+var sealWorkers = func() *atomic.Int64 { n := new(atomic.Int64); n.Store(32); return n }()
 
 // settleSegmentSeal finishes or undoes a seal a stop interrupted (JSG-V0-008).
 // It runs under the writer lock before any write. With the prior head still
@@ -475,7 +567,8 @@ func journalMigrate(ctx context.Context, repo *intent.Repository, seal bool) (*J
 	if !seal && head.Segments == nil {
 		return report, nil
 	}
-	if err := compactAudit(repo, head); err != nil {
+	opening, err := compactAudit(repo, head)
+	if err != nil {
 		return nil, err
 	}
 	session, err := authority.NewSession(repo, lock)
@@ -511,12 +604,43 @@ func journalMigrate(ctx context.Context, repo *intent.Repository, seal bool) (*J
 	report.ThroughAfter = through(head)
 	if head.Segments != nil {
 		report.SegmentsAfter = int(through(head) / snapshot.SegmentReceipts)
+		retainMigratedCheckpoint(repo, opening)
 		return report, nil
 	}
 	if err := dropEmptySegments(repo); err != nil {
 		return nil, err
 	}
+	retainMigratedCheckpoint(repo, opening)
 	return report, nil
+}
+
+// retainMigratedCheckpoint leaves the read checkpoint a seal or unseal
+// dropped (LGL-V0-809). A read checkpoint is a function of the chain and of
+// the head's queue, worktree, sequence, receipt digest, generation and init
+// digest, none of which a migration changes: it moves receipts between their
+// physical files and segments and rebinds head.json's segment manifest only.
+// So when the migrated head still names the sequence, receipt and generation
+// the opening complete audit saw, the checkpoint that audit derives is the
+// one a complete audit of the migrated journal derives, byte for byte
+// (LGL-V0-815, TestLGLV0815_MigrationReusesTheOpeningCheckpoint), and is
+// retained without a second walk. Otherwise one complete settled audit of the
+// migrated journal runs under the writer lock. Like every retention it is
+// best effort (CAL-V0-060): an audit that does not settle retains nothing and
+// changes no outcome.
+func retainMigratedCheckpoint(repo *intent.Repository, opening *journal.Result) {
+	head, err := readHead(repo)
+	if err != nil {
+		return
+	}
+	if opening != nil && opening.Head != nil && head.LastSeq == opening.LastSeq && head.LastReceiptSha256 != nil && *head.LastReceiptSha256 == opening.LastReceiptSha256 && head.Generation == opening.Head.Generation && head.QueueID == opening.Head.QueueID && head.PrimaryWorktree == opening.Head.PrimaryWorktree && head.InitSha256 == opening.Head.InitSha256 && reuseOpeningCheckpoint {
+		retainCheckpoint(repo, opening)
+		return
+	}
+	proof, err := lockedJournalReader(repo, head).Audit()
+	if err != nil || proof.StagingPresent || proof.LastSeq != head.LastSeq {
+		return
+	}
+	retainCheckpoint(repo, proof)
 }
 
 func through(head *snapshot.Head) uint64 {

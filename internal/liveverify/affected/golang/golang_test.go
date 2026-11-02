@@ -394,7 +394,7 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 		"noise/n_test.go":         "package noise\n",
 		"joined/j.go":             "package joined\n\nvar rows = \"store/rows.txt\"\n",
 		"joined/j_test.go":        "package joined\n",
-		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n",
+		"named/n.go":              "package named\n\nvar rows, build = \"rows.txt\", \"Makefile\"\n", //corvint:fixture-path
 		"named/n_test.go":         "package named\n",
 		"internal/store/s.go":     "package store\n",
 		"internal/store/rows.txt": "rows\n",
@@ -403,12 +403,12 @@ func TestDirectoryShapedLiteralNamesNoPath(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"})
+	plan := affected.Select(graph, []string{"Makefile", "internal/store/rows.txt"}) //corvint:fixture-path
 	selected := make([]string, 0, len(plan.Selected))
 	for _, selection := range plan.Selected {
 		selected = append(selected, selection.UnitID+"<-"+selection.Witness.DirtyPath)
 	}
-	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]"
+	want := "[go:example.test/m/joined<-internal/store/rows.txt go:example.test/m/named<-Makefile]" //corvint:fixture-path
 	if got := fmt.Sprint(selected); got != want {
 		t.Fatalf("selected = %s, want %s", got, want)
 	}
@@ -796,6 +796,9 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 		"variant/variant_test.go": "package variant\n",
 		"core/core.go":            "package core\n",
 		"core/core_test.go":       "package core\n",
+		// other/ stays on disk, so its dirty model.go is not a deleted
+		// package (AFP-V0-821).
+		"other/notes.txt": "",
 	})
 	graph, err := affected.Build(context.Background(), root, golang.New())
 	if err != nil {
@@ -1021,6 +1024,96 @@ func TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002(t *testing.T) {
 		if linked && plan.Scope != affected.ScopeUnknown {
 			t.Errorf("linked: scope %s, want %s", plan.Scope, affected.ScopeUnknown)
 		}
+	}
+}
+
+// TSP-V0-721: the disk walk drops a symlinked .go file, though the build
+// compiles its target as one of the package's files. The link is the
+// package's own source, the target's imports are the package's, and a change
+// to the target selects the package and its dependents. A link the plugin
+// cannot attribute leaves a unit frontier instead.
+func TestSymlinkedGoSourceIsAttributedToItsPackage_TSP_V0_721(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"pkg/pkg.go":                "package pkg\n",
+		"pkg/pkg_test.go":           "package pkg\n",
+		"shared/common.go":          "package pkg\n\nimport _ \"example.test/m/dep\"\n",
+		"shared/helper_test.go":     "package pkg\n",
+		"dep/dep.go":                "package dep\n",
+		"dep/dep_test.go":           "package dep\n",
+		"consumer/consumer.go":      "package consumer\n\nimport _ \"example.test/m/pkg\"\n",
+		"consumer/consumer_test.go": "package consumer\n",
+		"other/other.go":            "package other\n",
+		"other/other_test.go":       "package other\n",
+	}
+	build := func(t *testing.T, links map[string]string) *affected.Graph {
+		t.Helper()
+		root := t.TempDir()
+		writeFiles(t, root, files)
+		for link, target := range links {
+			if err := os.Symlink(target, filepath.Join(root, filepath.FromSlash(link))); err != nil {
+				t.Skipf("symlink: %v", err)
+			}
+		}
+		graph, err := affected.Build(context.Background(), root, golang.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return graph
+	}
+	unlinked := build(t, nil)
+	if plan := affected.Select(unlinked, []string{"shared/common.go"}); slices.Contains(plan.SelectedTests(), "pkg/pkg_test.go") {
+		t.Fatalf("without the link: tests %v; want pkg unreached", plan.SelectedTests())
+	}
+	graph := build(t, map[string]string{
+		"pkg/common.go":      filepath.Join("..", "shared", "common.go"),
+		"pkg/linked_test.go": filepath.Join("..", "shared", "helper_test.go"),
+	})
+	unit, ok := graph.Unit("go:example.test/m/pkg")
+	if !ok || !slices.Contains(unit.Sources, "pkg/common.go") || !slices.Contains(unit.Tests, "pkg/linked_test.go") {
+		t.Fatalf("pkg unit %+v; want the links among its sources and tests", unit)
+	}
+	if !slices.Contains(unit.Imports, "go:example.test/m/shared") || !slices.Contains(unit.Imports, "go:example.test/m/dep") {
+		t.Errorf("pkg imports %v; want the target's package and the target's own import", unit.Imports)
+	}
+	if owner, _ := graph.OwnerOf("pkg/common.go"); owner != "go:example.test/m/pkg" {
+		t.Errorf("owner of the link %q; want pkg", owner)
+	}
+	for _, dirty := range []string{"shared/common.go", "dep/dep.go", "pkg/common.go"} {
+		plan := affected.Select(graph, []string{dirty})
+		tests := plan.SelectedTests()
+		if !slices.Contains(tests, "pkg/pkg_test.go") || !slices.Contains(tests, "consumer/consumer_test.go") {
+			t.Errorf("%s: tests %v; want pkg and its dependent", dirty, tests)
+		}
+		if slices.Contains(tests, "other/other_test.go") {
+			t.Errorf("%s: tests %v; want other unselected", dirty, tests)
+		}
+		if plan.Scope != affected.ScopeBounded {
+			t.Errorf("%s: scope %s (unknown %v), want BOUNDED", dirty, plan.Scope, plan.Unknown)
+		}
+	}
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "far.go"), []byte("package pkg\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for name, target := range map[string]string{
+		"outside the root":  filepath.Join(outside, "far.go"),
+		"dangling":          filepath.Join("..", "shared", "absent.go"),
+		"not a Go file":     filepath.Join("..", "go.mod"),
+		"an ignored target": filepath.Join("..", "testdata", "t.go"),
+	} {
+		t.Run(name, func(t *testing.T) {
+			files["testdata/t.go"] = "package pkg\n"
+			defer delete(files, "testdata/t.go")
+			graph := build(t, map[string]string{"pkg/far.go": target})
+			want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierSymlinkedSource}
+			if plan := affected.Select(graph, []string{"pkg/pkg.go"}); !slices.Contains(plan.Unknown, want) || plan.Scope != affected.ScopeUnknown {
+				t.Errorf("reached: scope %s unknown %v; want the unattributed frontier", plan.Scope, plan.Unknown)
+			}
+			if plan := affected.Select(graph, []string{"other/other.go"}); slices.Contains(plan.Unknown, want) {
+				t.Errorf("unreached: unknown %v; want the frontier to bear only where pkg is reached", plan.Unknown)
+			}
+		})
 	}
 }
 

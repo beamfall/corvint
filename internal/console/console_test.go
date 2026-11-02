@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // stubTaskman writes a fake `atm` that replies with canned envelopes, so the
@@ -31,7 +33,7 @@ func stubTaskman(t *testing.T, replies map[string]string) string {
 		script.WriteString("  '" + verb + "'*) cat <<'ENVELOPE'\n" + envelope + "\nENVELOPE\n  ;;\n")
 	}
 	script.WriteString("  *) echo '{\"profile\":\"taskman-command-result/0\",\"command\":[],\"outcome\":\"ERROR\",\"codes\":[],\"warnings\":[\"stub has no reply\"],\"items\":[],\"untrusted\":[]}' ;;\nesac\n")
-	if err := os.WriteFile(path, []byte(script.String()), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script.String()), 0o755); err != nil {
 		t.Fatalf("stub: %v", err)
 	}
 	return path
@@ -112,7 +114,7 @@ func TestConsoleBoundary(t *testing.T) {
 		write := func(list string) {
 			script := "#!/bin/sh\ncase \"$1 $2\" in\n 'help '*) cat <<'E'\n" + helpEnvelope +
 				"\nE\n ;;\n *) cat <<'E'\n" + list + "\nE\n ;;\nesac\n"
-			if err := os.WriteFile(binary, []byte(script), 0o755); err != nil {
+			if err := execfile.WriteFile(binary, []byte(script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 		}
@@ -220,7 +222,7 @@ func TestConsoleMutationDelegation(t *testing.T) {
 		// runs `atm version` and `atm help` for attribution and capabilities.
 		script := "#!/bin/sh\ncase \"$1 $2\" in\n 'help '*) cat <<'E'\n" + helpEnvelope +
 			"\nE\n ;;\n 'ticket archive'*) touch " + marker + "; echo '{}' ;;\n *) echo '{}' ;;\nesac\n"
-		if err := os.WriteFile(binary, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(binary, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		server := newTestServer(t, binary)
@@ -244,7 +246,7 @@ func TestConsoleMutationDelegation(t *testing.T) {
 		binary := filepath.Join(dir, "atm-stub")
 		script := "#!/bin/sh\ncase \"$1 $2\" in\n 'help '*) cat <<'E'\n" + helpEnvelope +
 			"\nE\n ;;\n *) echo \"$@\" > " + argv + "; cat <<'E'\n" + refusalEnvelope + "\nE\n ;;\nesac\n"
-		if err := os.WriteFile(binary, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(binary, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		server := newTestServer(t, binary)
@@ -475,7 +477,7 @@ func stubSnapshot(t *testing.T, document string) string {
 	}
 	path := filepath.Join(t.TempDir(), "snapshot-stub")
 	script := "#!/bin/sh\ncat <<'DOCUMENT'\n" + document + "\nDOCUMENT\n"
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatalf("stub: %v", err)
 	}
 	return path
@@ -562,7 +564,7 @@ func TestConsoleEvidencePane(t *testing.T) {
 		// corvint-dashboard-snapshot writes its refusal to stderr and exits 2.
 		path := filepath.Join(t.TempDir(), "snapshot-stub")
 		script := "#!/bin/sh\necho '{\"code\":\"DASHBOARD_REPOSITORY_UNAVAILABLE\",\"profile\":\"corvint-dashboard-error/0\"}' >&2\nexit 2\n"
-		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		evidence := Dashboard{Binary: path, Root: repoRoot(t)}.Read(context.Background())
@@ -573,7 +575,7 @@ func TestConsoleEvidencePane(t *testing.T) {
 	t.Run("LAC-V0-022 an error object without a code is a failure, not a refusal", func(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "snapshot-stub")
 		script := "#!/bin/sh\necho '{\"code\":\"\",\"profile\":\"corvint-dashboard-error/0\"}'\nexit 2\n"
-		if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(script), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		evidence := Dashboard{Binary: path, Root: repoRoot(t)}.Read(context.Background())

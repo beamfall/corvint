@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestDocsMaintainWatchSignalHelper(t *testing.T) {
@@ -39,7 +41,7 @@ func TestDocsMaintainWatchSignalJoinsGitDescendants(t *testing.T) {
 			wrapper := t.TempDir()
 			pidFile := filepath.Join(wrapper, "pids")
 			script := "#!/bin/sh\nsleep 30 &\nchild=$!\ntrap 'kill \"$child\" 2>/dev/null; wait \"$child\" 2>/dev/null' EXIT INT TERM\nprintf '%s %s' \"$$\" \"$child\" > '" + pidFile + "'\nwait \"$child\"\n"
-			if err := os.WriteFile(filepath.Join(wrapper, "git"), []byte(script), 0700); err != nil {
+			if err := execfile.WriteFile(filepath.Join(wrapper, "git"), []byte(script), 0700); err != nil {
 				t.Fatal(err)
 			}
 			command := exec.Command(os.Args[0], "-test.run=^TestDocsMaintainWatchSignalHelper$")

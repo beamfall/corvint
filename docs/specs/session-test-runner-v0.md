@@ -541,7 +541,10 @@ two requirements make its version name its content and make each receipt carry i
   units, a long reason and incomplete entry stay under the bound; another shard's unit is not
   named; `--summary` alone is refused) and `TestSTRV0800CLIDryRunSummary`. Rollback: remove
   `testDryRunSummary` and the flag.
+- `STR-V0-120`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3530; refines `STR-V0-003`) When a `corvint test` manifest has any `incomplete` entry, the human stderr SHALL end with one `corvint-test: VERDICT INCOMPLETE: scope SCOPE is planned but cannot run complete (FIRST-ENTRY); exit 3 is INCOMPLETE, not FAIL` line, and the `--dry-run` JSON SHALL carry `"verdict": "INCOMPLETE"` (else `"PLANNED"`), so the two agree although the scope reads FULL; for an unreadable declaration the first entry names `.github/cishards/test-commands.json`. The `corvint test` help SHALL say a dry run exits 0 for PLANNED and 3 for INCOMPLETE. Non-goals: changing the planned scope, the exit codes or the existing FALLBACK and INCOMPLETE lines. Evidence: `TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration`. Rollback: drop the VERDICT line, the `verdict` key and the help sentence.
+
 - `STR-V0-920`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines `STR-V0-004` and the `GATE_STEPS` rule (d) above) The Makefile's `GATE_STEPS` assignment and `shell-test:` rule SHALL each list one entry per backslash-continued line, ending in a comment line that names the rule: `GATE_STEPS` keeps its first five steps (`host-adapter-test go-version go-test go-vet cross-vet`) in that order and the rest sorted, and the `shell-test` prerequisites are sorted, so two lanes that add different steps insert at different lines and merge without a conflict. Rule (d) still reads exactly one plain `GATE_STEPS = ...` assignment, as make's logical line (continuations joined, the comment dropped); `TestSTRV0004ShellTestIsTheGateShellSteps` and the `no-python-runtime-dependency` reader read logical lines too. Non-goals: a merge driver for the Makefile; two lanes adding the same step, or steps that sort to the same place, still conflict, trivially. Failure modes: an entry line without its trailing backslash ends the list early, which test-commands-check reports as gate steps missing from `shell-test`. Evidence: `TestGateStepsTwoLaneMergeIsClean_STR_V0_920` (the real Makefile's lists are sorted; two lanes each adding a step to both lists merge cleanly and the merged `GATE_STEPS` and `shell-test` list both). Rollback: rejoin each list on one line.
+- `STR-V0-908`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3796; refines rule (f) of `STR-V0-006`) In the `ledger/go-test` comparison, `tools/test-commands-check` SHALL resolve the exact expression `$(patsubst %/,%,$(or $(TMPDIR),/tmp))` in a ledger variable's value as `/tmp`, its value in the declared CI environment, which sets no `TMPDIR`, and SHALL keep refusing every other make expression it cannot expand. Intent: the Makefile's `CORVINT_GOCACHE` default follows `TMPDIR` (ASD-V0-914) so lanes stop filling a small `/tmp`; as with `STR-V0-174`, a caller's `TMPDIR` only moves the build cache, which is not a test input. Failure mode: a local `make gate` with `TMPDIR` set runs on a different cache directory than the declaration names; results do not depend on it. Evidence: `TestSTRV0006DeclarationMatchesMakefile` on the repository Makefile and the `cache` and `cache function` mutations of `TestSTRV0006LedgerMatchesDeclaration` (`tools/test-commands-check/main_test.go`). Rollback: drop `tmpdirDefault` and restore `CORVINT_GOCACHE ?= /tmp/corvint-go-build-cache`.
 
 - **STR-V0-770:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)
   Every whole-package unit of a `corvint test` manifest MUST carry a `reason` naming the reader it
@@ -560,6 +563,25 @@ two requirements make its version name its content and make each receipt carry i
   same 109 packages on it, so a stale binary accounts for none of the count here; the attribution-only
   `reader` lines come from the fast-tier lexicon (AFP-V0-765 difference (4)). Rollback: remove
   `wholeReader` and `testAttributionReasons`.
+
+- **STR-V0-548:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3478)
+  Every Go unit of a `corvint test` manifest that carries a prose `reason` MUST also carry
+  `reasonCode`, a stable code from a closed set that `sessiontest.ReasonCode` derives from the prose:
+  `selected-changed-tests`, `selected-reaching-change`, `selected-build-only`, `whole-attributed`,
+  `whole-also-selected`, `whole-not-separable`, `whole-test-side-effect`, `whole-unreadable`,
+  `whole-shared-declaration`, `whole-test-imports-changed`, `whole-no-test-function`,
+  `whole-pattern-bound`, `whole-not-in-graph`, `whole-no-changed-test-file`,
+  `whole-foreign-test-file`, `whole-nested-module`, `direct-source-change`,
+  `direct-source-non-function-edit`, `direct-source-reference-signature`,
+  `direct-source-every-test-reaches`, `direct-source-slice-bound`, `reached-via-KIND` (the plan
+  witness kind in kebab case, for example `reached-via-unbounded-reader`), and `other` for prose
+  no rule matches. The prose is unchanged. `tools/selection-baseline` classifies units by the code
+  and no longer greps the prose; its old `changed too` match had been dead since the prose
+  changed (V1-3348). Non-goals: codes for non-Go units. Failure modes: a new prose shape without a
+  rule reads as `other`, which the pinning test catches. Evidence:
+  `TestSTRV0548ReasonCodesPinTheProseShapes`. Rollback: remove `reasonCode` and `ReasonCode`, and
+  restore the prose grep.
+
 
 ## Non-goals
 
@@ -791,7 +813,10 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, symlink-to-same-inode, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 | STR-V0-800 | `testDryRunSummary`, `summaryList` and `summaryClip` in `cmd/corvint/test_summary.go`; the `--summary` flag and its refusal in `parseTestOptions` (`cmd/corvint/test.go`) | `TestSTRV0800DryRunSummaryIsBounded`, `TestSTRV0800CLIDryRunSummary` |
 | STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
+| STR-V0-548 | `ReasonCode` and its codes in `internal/sessiontest/reasoncode.go`; `Unit.ReasonCode` in `internal/sessiontest/manifest.go` and `plan.go`; the classifier in `tools/selection-baseline/main.go` | `TestSTRV0548ReasonCodesPinTheProseShapes` in `internal/sessiontest/reasoncode_test.go`; `tools/selection-baseline` tests; the TSP-V0-006/861 and STR-V0-063 manifest tests |
 | STR-V0-920 | `Makefile` `GATE_STEPS` and `shell-test:`; `tools/test-commands-check/main_test.go` `TestGateStepsTwoLaneMergeIsClean_STR_V0_920`, `TestSTRV0004ShellTestIsTheGateShellSteps` on logical lines; `script/no-python-runtime-dependency_test.sh` continued-list fixtures | implemented; Go and shell tests PASS |
+| STR-V0-908 | `tmpdirDefault` and its use in `checkLedger` (`tools/test-commands-check/main.go`); `CORVINT_GOCACHE ?=` in the `Makefile` | `TestSTRV0006DeclarationMatchesMakefile`; the `cache` and `cache function` cases of `TestSTRV0006LedgerMatchesDeclaration` in `tools/test-commands-check/main_test.go` |
+| STR-V0-120 | `testVerdict`, `testPlanVerdict`, `testDryRun` and the `corvint test` help in `cmd/corvint/test.go` | `TestSTRV0120DryRunVerdictAgreesAndNamesTheDeclaration` (cmd/corvint) |
 
 ## Open decisions
 

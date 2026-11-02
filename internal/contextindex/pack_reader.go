@@ -236,12 +236,19 @@ var ErrSnapshotRefused = errors.New("snapshot body failed verification")
 type packBody struct {
 	section        *packSection
 	offset, length uint64
+	// gob and ordinal back a deferred gob snapshot body instead
+	// (IDX-SNAP-V0-811); section is then nil.
+	gob     *gobBodies
+	ordinal int
 }
 
 // text verifies the blocks the body covers and answers Source.Text over
 // them. A mismatch records the refusal on the section and reports the body
 // unloaded, so no unverified byte is ever returned.
 func (body packBody) text(source Source) (string, bool, bool) {
+	if body.gob != nil {
+		return body.gobText(source)
+	}
 	var text string
 	var valid, loaded bool
 	err := guardMappedRead(func() error {

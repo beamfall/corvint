@@ -87,7 +87,7 @@ func TestRangeAndOutputFlagVocabulary_ACXV0858(t *testing.T) {
 	t.Parallel()
 	vocabulary := regexp.MustCompile(`--(head|target|revision|rev|base|format|json|summary)\b`)
 	for verb, want := range map[string][]string{
-		"affected":    {"--base", "--format"},
+		"affected":    {"--base", "--format", "--summary"},
 		"calibrate":   {"--format"},
 		"changes":     {"--base", "--format", "--head", "--json"},
 		"context":     {"--json", "--summary"},

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 // affectedDirtyPathsShown bounds the dirty paths a MIXED warning or refusal names.
@@ -63,6 +64,29 @@ func affectedMixedWorktreeRefusal(revision string, dirty []string) error {
 // the global-excludes cause (AFP-V0-356).
 func affectedPathListMixedRefusal(revision string, dirty []string) error {
 	return &gokernel.Error{Code: "unsupported-affected-mixed-worktree", Message: fmt.Sprintf("MIXED worktree: --path plans at HEAD and refuses a dirty worktree; HEAD is commit %s with %d dirty worktree paths; %s. %s", revision, len(dirty), affectedDirtyDetail(dirty), affectedPathListRecovery(revision))}
+}
+
+// affectedDocumentationOnly reports whether every dirty path is a path the
+// worktree's own, clean documentation declaration names (AFP-V0-160): no
+// plugin reads such a file as source, so a --path graph stays HEAD's and the
+// dirty set need not refuse, once the built graph shows no unit owns any of
+// them (AFP-V0-832).
+func affectedDocumentationOnly(root string, dirty []string) bool {
+	if slices.Contains(dirty, affected.DocumentationPathsPath) {
+		return false
+	}
+	_, entries, err := affected.ReadDocumentationDeclaration(root)
+	if err != nil || len(entries) == 0 {
+		return false
+	}
+	for _, path := range dirty {
+		if !slices.ContainsFunc(entries, func(entry string) bool {
+			return path == entry || strings.HasSuffix(entry, "/") && strings.HasPrefix(path, entry)
+		}) {
+			return false
+		}
+	}
+	return true
 }
 
 // affectedPathListRecovery is the AFP-V0-507 recovery a --path refusal names:

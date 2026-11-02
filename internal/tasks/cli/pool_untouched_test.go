@@ -18,6 +18,7 @@ import (
 // The explicitly synthetic cutover input exercises parser/admission wiring;
 // it is not evidence that CAL019 ran or that a deployment is qualified.
 func TestPoolLaneUntouched_NativeFixture(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-067", func(t *testing.T) {
 		binary := cli.CompiledTasksBinary(t)
 		r := exclusionCLIRepo(t)

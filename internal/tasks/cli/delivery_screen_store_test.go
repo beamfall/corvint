@@ -17,7 +17,7 @@ import (
 // each row carries the latest operator note; the screen stays write-free
 // (TCD-V0-170).
 func TestTCDV0170_DeliveryScreenStoreVerdictsAndNotes(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	compID, comp := tcdTicket(t, root, "comp", "")
 	heldID, held := tcdTicket(t, root, "held", "")
@@ -69,7 +69,7 @@ func TestTCDV0170_DeliveryScreenStoreVerdictsAndNotes(t *testing.T) {
 // reads the PR export from stdin with the same verdicts as a file, and an
 // empty stdin is refused (TCD-V0-171).
 func TestTCDV0171_DeliveryScreenReadsPRsFromStdin(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, inflight := tcdTicket(t, root, "inflight", "")
 	body := []byte(`[{"number":10,"state":"OPEN","title":"lane","body":"` + tdsJSON("Refs "+inflight) + `","labels":[]}]`)
@@ -98,7 +98,7 @@ func TestTCDV0171_DeliveryScreenReadsPRsFromStdin(t *testing.T) {
 // TCD-V0-955 (V1-3607): delivery-screen always prints JSON, so a bare --json is
 // a no-op with byte-identical output and exit code; --json=VALUE stays malformed.
 func TestTCDV0955_DeliveryScreenAcceptsJSONAsNoOp(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, inflight := tcdTicket(t, root, "inflight", "")
 	file := tdsExport(t, "prs.json", `[{"number":10,"state":"OPEN","title":"lane","body":"`+tdsJSON("Refs "+inflight)+`","labels":[]}]`)

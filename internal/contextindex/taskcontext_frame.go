@@ -4,7 +4,9 @@ import (
 	"math"
 	"slices"
 	"sort"
+	"strings"
 
+	"github.com/Beamfall/corvint/internal/projectprofile"
 	"github.com/Beamfall/corvint/internal/runtimeenv"
 )
 
@@ -70,29 +72,33 @@ func (compiler *taskContextCompiler) namedTestFrames() []string {
 }
 
 func (linker *testLinker) frameCandidates(anchor string) []*testCandidate {
-	index := linker.compiler.index
-	// The import resolver only reads this view. Restricting its importer map
-	// to the frame avoids scanning every importer for every source candidate.
-	view := *index
-	view.Imports = map[string]map[string]struct{}{anchor: index.Imports[anchor]}
+	frames := linker.frameIndex()
 	found := map[string]*testCandidate{}
-	for _, candidate := range linker.table.Paths {
-		if contextIsTest(candidate) || isDocumentationSuffix(candidate) {
-			continue
+	entry := func(candidate string) *testCandidate {
+		if found[candidate] == nil {
+			found[candidate] = &testCandidate{path: candidate, anchor: anchor}
 		}
-		entry := &testCandidate{path: candidate, anchor: anchor}
-		relation := pairRelation(anchor, candidate, contextStem(anchor), true)
-		if relation != "" && relation != "module directory member" {
-			entry.mirrored = relation
-			entry.weight += mirroredWeight(relation)
-		}
-		if len(reverseImporters(&view, candidate)) != 0 {
-			entry.imports = true
-			entry.weight++
-		}
-		found[candidate] = entry
+		return found[candidate]
 	}
-	linker.creditFrameIdentifiers(anchor, found)
+	// Signal one: every relation but the module directory needs the anchor's
+	// stem (pairRelation), so only the same-stem paths are read.
+	stem := contextStem(anchor)
+	for _, candidate := range frames.byStem[stem] {
+		relation := pairRelation(anchor, candidate, stem, true)
+		if relation != "" && relation != "module directory member" {
+			current := entry(candidate)
+			current.mirrored = relation
+			current.weight += mirroredWeight(relation)
+		}
+	}
+	// Signal two: the paths the anchor's own imports resolve to, the inverse
+	// of reverseImporters over a view holding only the anchor's imports.
+	for _, candidate := range frames.importedBy(linker.compiler.index, anchor) {
+		current := entry(candidate)
+		current.imports = true
+		current.weight++
+	}
+	linker.creditFrameIdentifiers(anchor, frames.eligible, entry)
 	result := make([]*testCandidate, 0, len(found))
 	for _, candidate := range found {
 		if candidate.signals() > 0 {
@@ -102,7 +108,7 @@ func (linker *testLinker) frameCandidates(anchor string) []*testCandidate {
 	return result
 }
 
-func (linker *testLinker) creditFrameIdentifiers(anchor string, found map[string]*testCandidate) {
+func (linker *testLinker) creditFrameIdentifiers(anchor string, eligible map[string]struct{}, entry func(string) *testCandidate) {
 	text, loaded := sourceTextBounded(linker.compiler.index.Sources[anchor])
 	if !loaded {
 		return
@@ -113,10 +119,90 @@ func (linker *testLinker) creditFrameIdentifiers(anchor string, found map[string
 			continue
 		}
 		idf := math.Log(float64(len(linker.table.Paths)+1) / float64(high-low))
-		for _, definer := range linker.declared[word] {
-			if candidate := found[definer]; candidate != nil {
-				candidate.mention(word, idf)
+		for _, definer := range linker.declaredOf(word) {
+			if _, ok := eligible[definer]; ok {
+				entry(definer).mention(word, idf)
 			}
 		}
 	}
+}
+
+// frameIndex indexes the frame candidates, the term table's paths that are
+// neither tests nor documentation, once per linker (IDX-SNAP-V0-810): by
+// stem for the mirrored relation, and by the key each reverse-import rule
+// matches a path on -- its Go package import path, each Python import
+// spelling, or its suffixless web target -- so an anchor reads only the paths
+// its stem and imports name, where it used to test every path.
+type frameIndex struct {
+	eligible                                       map[string]struct{}
+	byStem, goByPackage, pyBySpelling, byWebTarget map[string][]string
+}
+
+func (linker *testLinker) frameIndex() *frameIndex {
+	if linker.frames != nil {
+		return linker.frames
+	}
+	frames := &frameIndex{
+		eligible: map[string]struct{}{}, byStem: map[string][]string{}, goByPackage: map[string][]string{},
+		pyBySpelling: map[string][]string{}, byWebTarget: map[string][]string{},
+	}
+	module := linker.compiler.index.Module
+	for _, candidate := range linker.table.Paths {
+		if contextIsTest(candidate) || isDocumentationSuffix(candidate) {
+			continue
+		}
+		frames.eligible[candidate] = struct{}{}
+		frames.byStem[contextStem(candidate)] = append(frames.byStem[contextStem(candidate)], candidate)
+		// The same dispatch as reverseImporters.
+		switch {
+		case strings.HasSuffix(candidate, goImpactSuffix):
+			key := goPackageImportPath(module, candidate)
+			frames.goByPackage[key] = append(frames.goByPackage[key], candidate)
+		case strings.HasSuffix(candidate, pythonImpactSuffix):
+			for spelling := range PythonImportCandidates(candidate) {
+				frames.pyBySpelling[spelling] = append(frames.pyBySpelling[spelling], candidate)
+			}
+		case webSuffixes[strings.ToLower(pythonPathSuffix(candidate))]:
+			key := pythonWithoutSuffix(candidate)
+			frames.byWebTarget[key] = append(frames.byWebTarget[key], candidate)
+		}
+	}
+	linker.frames = frames
+	return frames
+}
+
+// importedBy is every frame candidate c for which reverseImporters, over a
+// view whose only importer is anchor, finds anchor: Go and Python exclude the
+// anchor itself, the web rule does not (its oracle has no such guard).
+func (frames *frameIndex) importedBy(index *Index, anchor string) []string {
+	imports := index.Imports[anchor]
+	if len(imports) == 0 {
+		return nil
+	}
+	seen := map[string]struct{}{}
+	var out []string
+	add := func(candidates []string, guard bool) {
+		for _, candidate := range candidates {
+			if guard && candidate == anchor {
+				continue
+			}
+			if _, ok := seen[candidate]; !ok {
+				seen[candidate] = struct{}{}
+				out = append(out, candidate)
+			}
+		}
+	}
+	profile := projectprofile.ByID(index.ProfileID)
+	for imported := range imports {
+		add(frames.goByPackage[imported], true)
+		add(frames.pyBySpelling[imported], true)
+		if webSpecifierAdmitted(imported, profile) {
+			resolved := webImportTarget(anchor, imported, profile)
+			add(frames.byWebTarget[resolved], false)
+			if index := strings.TrimRight(resolved, "/") + "/index"; index != resolved {
+				add(frames.byWebTarget[index], false)
+			}
+		}
+	}
+	return out
 }

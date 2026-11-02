@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestCheckDCWV0047DeclaredOutputChange reproduces V1-1279: a change that adds
@@ -57,7 +59,7 @@ func TestCheckDCWV0047DeclaredOutputChange(t *testing.T) {
 	runs := map[string]int{}
 	verifier := func(role, status string) Runner {
 		path := filepath.Join(t.TempDir(), role)
-		if err := os.WriteFile(path, []byte(role), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(role), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return Runner{Path: path, Run: func(_ context.Context, _ string, args []string, stdout, _ io.Writer) int {
@@ -207,7 +209,7 @@ func TestCheckDCWV0160ComputesOCMStatusOnce(t *testing.T) {
 	runs := map[string]int{}
 	verifier := func(role string, run func(stdout, stderr io.Writer) int) Runner {
 		path := filepath.Join(t.TempDir(), role)
-		if err := os.WriteFile(path, []byte(role), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(role), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return Runner{Path: path, Run: func(_ context.Context, _ string, args []string, stdout, stderr io.Writer) int {
@@ -295,7 +297,7 @@ func TestCheckDCWV0047RefusedBaseNotProduced(t *testing.T) {
 	treeStatus := `{"state":"ready-for-ci"}` + "\n"
 	runner := func(role string, run func(stdout, stderr io.Writer) int) Runner {
 		path := filepath.Join(t.TempDir(), role)
-		if err := os.WriteFile(path, []byte(role), 0o755); err != nil {
+		if err := execfile.WriteFile(path, []byte(role), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return Runner{Path: path, Run: func(_ context.Context, _ string, _ []string, stdout, stderr io.Writer) int {

@@ -54,6 +54,7 @@ func setObligations(t *testing.T, root, id, req, changes string) run {
 // with every alias kept; a 128-byte alias seeds; a 129-byte alias refuses
 // MALFORMED naming the 128-byte limit and writes nothing.
 func TestTOLV0055_AliasLimit128(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, _ := migrationRepo(t)
 	aliases := entryAliases(obligationsShow(t, r.Root, id))
 	if len(aliases) != 110 || aliases["AC-110"] != migrationAlias(110) || aliases["AC-1"] != migrationAlias(1) {
@@ -83,6 +84,7 @@ func TestTOLV0055_AliasLimit128(t *testing.T) {
 // is SPLIT, an omitted core OPEN row is UNASSIGNED, an id under both lists
 // refuses MALFORMED, and a plan without rerun keeps its old output.
 func TestTOLV0056_0057_PlanRerunAndNonCore(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := migrationRepo(t)
 	if x := atm(t, r.Root, nil, declareArgs(id, "w-1", obligationRevision(t, r.Root, id), head, "AC-1,AC-2,AC-50")...); x.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("witness: %s", x.stdout)
@@ -149,6 +151,7 @@ func strList2(v wire.Value) []string {
 // with a reason; PARTIAL counts in the total but never as witnessed, stays
 // pending for the plan check, and a witness credits it to WITNESSED.
 func TestTOLV0058_PartialNeverWitnessed(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	if x := setObligations(t, r.Root, id, "set-p", `[{"id":"AC-1","state":"PARTIAL","core":null,"reason":"two of three steps witnessed"}]`); x.res.Outcome != wire.OutcomeOK {
@@ -188,6 +191,7 @@ func TestTOLV0058_PartialNeverWitnessed(t *testing.T) {
 // any provenance flag refuses MALFORMED and a secret in the provenance refuses
 // SECRET_DETECTED, none writing.
 func TestTOLV0059_WitnessProvenance(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	r, id, head := obligationRepo(t)
 	seedObligations(t, r.Root, id)
 	tree := strings.TrimSpace(gitOut(t, r.Root, "rev-parse", "HEAD^{tree}"))

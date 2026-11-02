@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -227,16 +228,11 @@ func load(ctx context.Context, root rootRepository, source string) provider {
 	if !filepath.IsAbs(resolved) {
 		resolved = filepath.Join(root.dir, filepath.FromSlash(source))
 	}
-	info, err := os.Stat(resolved)
-	if err != nil {
-		entry.reason = "cannot read record: " + describe(err)
+	data, err := readRecordFile(resolved)
+	if errors.Is(err, errRecordTooLarge) {
+		entry.state, entry.reason = StateInvalid, err.Error()
 		return entry
 	}
-	if info.Size() > MaxRecordBytes {
-		entry.state, entry.reason = StateInvalid, fmt.Sprintf("record exceeds %d bytes", MaxRecordBytes)
-		return entry
-	}
-	data, err := os.ReadFile(resolved)
 	if err != nil {
 		entry.reason = "cannot read record: " + describe(err)
 		return entry

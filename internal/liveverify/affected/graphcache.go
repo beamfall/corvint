@@ -334,8 +334,14 @@ func writeGraphCache(entryPath, root string, excluded []string, entry cacheEntry
 	if err != nil {
 		return "encode: " + err.Error()
 	}
+	return writeCacheFile(entryPath, root, excluded, GraphCacheProfile, body)
+}
+
+// writeCacheFile writes body under a profile and checksum header, as
+// writeGraphCache describes.
+func writeCacheFile(entryPath, root string, excluded []string, profile string, body []byte) string {
 	sum := sha256.Sum256(body)
-	encoded := append([]byte(GraphCacheProfile+" "+hex.EncodeToString(sum[:])+"\n"), body...)
+	encoded := append([]byte(profile+" "+hex.EncodeToString(sum[:])+"\n"), body...)
 	if len(encoded) > graphCacheMaxBytes {
 		return fmt.Sprintf("entry over the %d-byte bound", graphCacheMaxBytes)
 	}
@@ -371,6 +377,37 @@ func writeGraphCache(entryPath, root string, excluded []string, entry cacheEntry
 // loadGraphCache returns the graph of a verified entry, or nil and the reason
 // it is not trusted. Every check fails closed to a full build (AFP-V0-392).
 func loadGraphCache(ctx context.Context, entryPath, root string, excluded []string, identity string, languages []Language) (*Graph, string) {
+	body, reason := readCacheFile(entryPath, root, excluded, GraphCacheProfile)
+	if reason != "" {
+		return nil, reason
+	}
+	var entry cacheEntry
+	if err := json.Unmarshal(body, &entry, json.RejectUnknownMembers(true), json.FormatNilSliceAsNull(true)); err != nil {
+		return nil, "entry undecodable"
+	}
+	names := languageNames(languages)
+	if entry.Profile != GraphCacheProfile || entry.Root != root || entry.Identity != identity || len(entry.Languages) != len(names) {
+		return nil, "entry key mismatch"
+	}
+	if reason := completeStamps(entry); reason != "" {
+		return nil, reason
+	}
+	if reason := verifyObservation(ctx, root, entry); reason != "" {
+		return nil, reason
+	}
+	graph, err := restoreGraph(ctx, entry, languages)
+	if err != nil {
+		return nil, "entry graph invalid: " + err.Error()
+	}
+	if graph.digest != entry.Digest {
+		return nil, "entry graph digest mismatch"
+	}
+	return graph, ""
+}
+
+// readCacheFile returns the body of the verified cache file at entryPath
+// written under profile, or nil and the reason it is not trusted.
+func readCacheFile(entryPath, root string, excluded []string, expected string) ([]byte, string) {
 	directory, reason := openCacheDirectory(filepath.Dir(entryPath), root, excluded, false)
 	if reason != "" {
 		return nil, reason
@@ -401,31 +438,10 @@ func loadGraphCache(ctx context.Context, entryPath, root string, excluded []stri
 	header, body, found := bytes.Cut(raw, []byte("\n"))
 	profile, checksum, _ := strings.Cut(string(header), " ")
 	sum := sha256.Sum256(body)
-	if !found || profile != GraphCacheProfile || checksum != hex.EncodeToString(sum[:]) {
+	if !found || profile != expected || checksum != hex.EncodeToString(sum[:]) {
 		return nil, "entry checksum or profile mismatch"
 	}
-	var entry cacheEntry
-	if err := json.Unmarshal(body, &entry, json.RejectUnknownMembers(true), json.FormatNilSliceAsNull(true)); err != nil {
-		return nil, "entry undecodable"
-	}
-	names := languageNames(languages)
-	if entry.Profile != GraphCacheProfile || entry.Root != root || entry.Identity != identity || len(entry.Languages) != len(names) {
-		return nil, "entry key mismatch"
-	}
-	if reason := completeStamps(entry); reason != "" {
-		return nil, reason
-	}
-	if reason := verifyObservation(ctx, root, entry); reason != "" {
-		return nil, reason
-	}
-	graph, err := restoreGraph(ctx, entry, languages)
-	if err != nil {
-		return nil, "entry graph invalid: " + err.Error()
-	}
-	if graph.digest != entry.Digest {
-		return nil, "entry graph digest mismatch"
-	}
-	return graph, ""
+	return body, ""
 }
 
 // completeStamps refuses a stamp list that cannot be the one newCacheEntry

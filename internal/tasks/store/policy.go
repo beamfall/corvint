@@ -141,7 +141,7 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		}
 	}
 	reader := lockedJournalReader(id, head)
-	index := journal.RequestIndex{Reader: reader}
+	index := RequestIndexOf(repo, reader)
 	entry, found, err := index.Lookup(request.RequestID)
 	if err != nil {
 		return report, nil, err

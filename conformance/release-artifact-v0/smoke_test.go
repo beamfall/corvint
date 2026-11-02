@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -162,7 +163,7 @@ if [ "$SMOKE_MUTATE" = "1" ]; then
 fi
 echo "$SMOKE_QUERY_OUTPUT"
 `
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return path

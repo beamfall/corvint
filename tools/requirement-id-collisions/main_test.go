@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -203,5 +204,70 @@ func TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped(t *testing.T) {
 	out.Reset()
 	if code := run([]string{"--repo", dir, "--base", "main"}, &out, &errb); code != 1 || !strings.Contains(out.String(), "REQUIREMENT_ID_COLLISION ASD-V0-500 new on two refs with different definitions refs/heads/batch:docs/specs/s.md refs/heads/lane-y:docs/specs/s.md") {
 		t.Fatalf("a lane outside the batch: exit %d\n%s%s", code, out.String(), errb.String())
+	}
+}
+
+// TestTLFV0805_BatchedReadsEqualPerHeadReads proves the V1-4093 fast path: one
+// merge-base --independent keeps exactly the heads a pairwise --is-ancestor
+// walk keeps, and one git grep over every tree yields each commit's
+// definitions as a per-commit grep does (TLF-V0-805).
+func TestTLFV0805_BatchedReadsEqualPerHeadReads(t *testing.T) {
+	dir := t.TempDir()
+	tgit(t, dir, "init", "-q", "-b", "main")
+	base := "- `ASD-V0-031`: base.\n"
+	commitSpec(t, dir, "s.md", base)
+	var heads []head
+	add := func(branch, from, file, body string) {
+		tgit(t, dir, "checkout", "-q", "-b", branch, from)
+		commitSpec(t, dir, file, body)
+		heads = append(heads, head{ref: "refs/heads/" + branch, commit: strings.TrimSpace(tgit(t, dir, "rev-parse", "HEAD"))})
+	}
+	add("a", "main", "s.md", base+"- `ASD-V0-500`: a.\n")
+	add("a2", "a", "s.md", base+"- `ASD-V0-500`: a.\n- `ASD-V0-501`: a2.\n")
+	add("b", "main", "s.md", base+"- `ASD-V0-502`: b.\n")
+	add("c", "main", "c.md", "- `ASD-V0-500`: c.\n")
+	tgit(t, dir, "checkout", "-q", "-b", "batch", "b")
+	tgit(t, dir, "merge", "-q", "--no-ff", "-m", "merge c", "c")
+	heads = append(heads, head{ref: "refs/heads/batch", commit: strings.TrimSpace(tgit(t, dir, "rev-parse", "HEAD"))})
+	tgit(t, dir, "checkout", "-q", "main")
+
+	kept, skipped, err := outermost(dir, heads)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wantKept, wantSkipped []head
+	for _, h := range heads {
+		contained := false
+		for _, o := range heads {
+			if o.commit != h.commit && exec.Command("git", "-C", dir, "merge-base", "--is-ancestor", h.commit, o.commit).Run() == nil {
+				contained = true
+			}
+		}
+		if contained {
+			wantSkipped = append(wantSkipped, h)
+		} else {
+			wantKept = append(wantKept, h)
+		}
+	}
+	if fmt.Sprint(kept) != fmt.Sprint(wantKept) || fmt.Sprint(skipped) != fmt.Sprint(wantSkipped) {
+		t.Fatalf("batched outermost kept %v skipped %v; pairwise kept %v skipped %v", kept, skipped, wantKept, wantSkipped)
+	}
+
+	var commits []string
+	for _, h := range heads {
+		commits = append(commits, h.commit)
+	}
+	all, err := definitions(dir, commits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range commits {
+		one, err := definitions(dir, []string{c})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if fmt.Sprint(one[c]) != fmt.Sprint(all[c]) || len(all[c]) == 0 {
+			t.Fatalf("commit %s: batched %v, alone %v", c, all[c], one[c])
+		}
 	}
 }
