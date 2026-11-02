@@ -865,6 +865,10 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	case err != nil:
 	case in.batch == nil:
 		err = wire.Errorf(wire.CodeMalformed, "--pr", "PR #%d is not in the --prs export", in.number)
+	case in.batch.State == "" || prose(in.batch.State) != in.batch.State:
+		// TCD-V0-1103: an export without `state` names the field and the
+		// whole field list, never a withheld message in place of the state.
+		err = wire.Errorf(wire.CodeMalformed, "--prs", "PR #%d in the --prs export has no state: the `state` field is missing, empty or not text (TCD-V0-1103); rerun gh pr list --state merged --json %s", in.number, batchPRFields)
 	case in.batch.State != "MERGED":
 		err = wire.Errorf(wire.CodePrerequisiteUnsatisfied, "--pr", "PR #%d is %s, not merged", in.number, prose(in.batch.State))
 	case in.batch.mergeOid() == "":
