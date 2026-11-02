@@ -4614,6 +4614,26 @@ selected package unrun. The full fallback is unchanged.
   this rule. Falsifier: a deleted package whose loss changes a test outcome in a unit the plan
   excludes. Rollback: drop the `deletedGoPackage` check in `seed`.
 
+- **AFP-V0-822:** (experimental under the owner's standing lane auto-accept (2026-11-01); V1-4192;
+  extends AFP-V0-436 to AFP-V0-439) `corvint test` SHALL plan from the default affected graph
+  cache that `corvint affected` reads, so an unchanged tree is not observed again. It SHALL also
+  keep a gateselect scan memo, `affected-graph-scan-<hash>.json`, in the same cache directory.
+  The memo holds the imports, root-locator calls, embed flag, tokenize outcome and path tokens
+  that each Go source contributed to the attribution index, keyed by root, module and program
+  identity and pinned per file by the graph-entry stat stamp. The indexing walk still runs in full.
+  A file whose stamp matches is recalled without a read. A file that the stamp cannot pin is read
+  again and is not stored: a platform without a change time, or a change inside the
+  `GraphCacheRacyWindow` of the index start. Rule: the memo is written and read under every
+  placement, privacy, checksum, size and eviction rule of a graph entry. A memo that fails any of
+  them, names another root, module or program, or does not decode, is ignored, and every file is
+  scanned. A scan error is never stored. The index is built while the graph compiles, and the
+  plan, manifest and stdout SHALL be byte-identical with and without either cache. Failure mode: a
+  same-stamp rewrite is trusted, as it is for a graph entry (AFP-V0-392). Acceptance: on an
+  unchanged tree `test --dry-run` runs within 1.5x of `corvint affected` on the same host.
+  Falsifier: a cached plan that differs from the uncached plan of the same tree. Rollback: drop
+  `testScanMemo` and `StartIndex` in `cmd/corvint/test.go` and plan with
+  `gateselect.SelectStructural` and an uncached graph again.
+
 - **AFP-V0-615:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2952)
   A package whose tests launch a sandbox of their own is never declared in
   `.corvint/test-read-scopes.json`: AFP-V0-023 runs a declared package under the Landlock wrapper,
@@ -6137,6 +6157,7 @@ traceability table.
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
 | AFP-V0-820 | `WorktreeDirty` in `affectedReceipt` (`cmd/corvint/affected.go`); `Committed` and `Worktree` in `affectedSummary`, `summarizeAffectedPlan` (`cmd/corvint/affected_summary.go`); the text header in `cmd/corvint/affected_text.go` | `TestAFPV0820CleanTreeWithARangeReadsWorktreeZero` (a committed-only range reads `worktree=0` and `committed=dirty`; an edit reads `worktree=1`; the text header names it), `TestAFPV0510AffectedSummaryRestatesThePlan`, `TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions` and `TestAFPV0928AffectedFormatTextRestatesThePlan` and the regenerated core-freeze goldens in `cmd/corvint` |
 | AFP-V0-821 | `deletedGoPackage` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestDeletedGoPackageIsAttributedToItsImporters_AFPV0821` in `internal/liveverify/affected/golang/deletedtests_test.go` (a deleted command package is `BOUNDED` with nothing selected; a deleted library package selects its importer's tests; a deleted file whose directory remains keeps `UNINDEXED_SOURCE_PATH`) |
+| AFP-V0-822 | `testRunInput` and `testScanMemo` in `cmd/corvint/test.go`; `StartIndex`, `SelectStructuralIndexed` in `internal/gateselect/select.go`; `ScanMemo` in `internal/gateselect/scanmemo.go`; `ScanMemoEntryPath`, `LoadScanMemo`, `StoreScanMemo`, `FileStamp` in `internal/liveverify/affected/scanmemo.go` | `TestAFPV0822DryRunCachedPlanMatchesUncached` in `cmd/corvint` (uncached, cold and warm plans byte-identical in stdout and manifest, before and after a source change; the warm run hits the graph cache and a memo is stored); `TestAFPV0822ScanMemoIndexMatchesTheFullScan` and `TestAFPV0822UnpinnedFilesAreNeverRecalled` in `internal/gateselect` |
 | AFP-V0-980 | `readExistenceReaders`, `manifestNames`, `existenceReaderUnits`, `existenceReadersOf`, `absent` in `internal/liveverify/affected/existence_readers.go`; `declarations`, `digestBody.ExistenceReaders` in `graph.go`; `cacheEntry.ExistenceReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `terminalWitness` in `select.go`; the repository declaration `.corvint/existence-readers.json` | `TestDeletedManifestNameSelectsExistenceReader_AFPV0980`, `TestExistenceReadersDeclarationIsValidated_AFPV0980` (`internal/liveverify/affected/golang/existence_readers_test.go`, the first fails before the change); `TestDeletedManifestNameSelectsExistenceReaderCLI_AFPV0980` (`cmd/corvint/affected_existence_readers_unix_test.go`: `corvint affected`, the gate selector the CI driver runs on its receipt, and the shadow `corvint test --dry-run` all select the reader; fails before the change); build log 2026-11-01-rts-w9 |
 | AFP-V0-981 | `statReaders` and its call in `check`, `tools/test-read-scopes-check/main.go` | `TestStatOfDataDerivedPathFails_V1_3772` (`tools/test-read-scopes-check/main_test.go`); on this repository the check found `internal/observations` (`TestFixedFrontierDegradationIsReportedByDesign` stats the decision records `degradationByDesign` names), now declared |
 | AFP-V0-982 | `AllowedUnknown` and `UnobservedModule` in `internal/gateselect/allowlist.go`, called by `unknownNarrowing` in `select.go` and `allowedUnknown`/`moduleDirectory` in `internal/sessiontest/plan.go`; `make selection-baseline-check` keeps its floor of 12 | `TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982` (`internal/sessiontest/allowlist_afpv0982_test.go`: every planner unknown reason against every Go frontier detail and non-Go frontiers; five entries diverged before the change); `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` unchanged |

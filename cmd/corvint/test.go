@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -421,6 +422,26 @@ func testWithin(path, directory string) bool {
 	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator)) && !filepath.IsAbs(relative)
 }
 
+// testScanMemo is the gateselect scan memo kept beside the affected graph
+// entries in the resolved cache directory, or nil when there is none
+// (AFP-V0-822).
+func testScanMemo(invocation affectedInvocation, module string) *gateselect.ScanMemo {
+	if invocation.Cache == "" {
+		return nil
+	}
+	horizon := time.Now().Add(-affected.GraphCacheRacyWindow)
+	return &gateselect.ScanMemo{
+		Identity: affectedProgramIdentity(),
+		Load: func() []byte {
+			return affected.LoadScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module)
+		},
+		Store: func(body []byte) {
+			_ = affected.StoreScanMemo(invocation.Cache, invocation.Root, invocation.CacheExcluded, module, body)
+		},
+		Stamp: func(info fs.FileInfo) (string, bool) { return affected.FileStamp(info, horizon) },
+	}
+}
+
 // testRunInput plans in process through `corvint affected --base` and the
 // AFP-V0-012 attribution, and reads the declared full scope and partition
 // files independently of the planner (STR-V0-001..003, STR-V0-018).
@@ -433,10 +454,27 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 			Slices: testReadOptional(filepath.Join(root, testPartitionDirectory, "test-slices.json")),
 		},
 	}
-	receipt, graph, err := compileAffectedGraph(ctx, affectedInvocation{Root: root, Base: options.base})
+	// The graph comes from the default affected graph cache when one can be
+	// placed, as `corvint affected` reads it, so an unchanged tree is not
+	// re-scanned; the cache returns the same graph bytes (AFP-V0-438,
+	// AFP-V0-822).
+	// The attribution index depends only on the root and module, so it is
+	// built while the graph compiles, and its per-file scans are memoized in
+	// the same cache directory (AFP-V0-822).
+	invocation := affectedInvocation{Root: root, Base: options.base}
+	err := resolveAffectedBatchAndCache(&invocation)
+	var index *gateselect.Index
+	if module, moduleErr := golang.ReadModulePath(root); err == nil && moduleErr == nil {
+		index = gateselect.StartIndex(root, module, testScanMemo(invocation, module))
+	}
+	var receipt affectedReceipt
+	var graph *affected.Graph
+	if err == nil {
+		receipt, graph, err = compileAffectedGraph(ctx, invocation)
+	}
 	if err == nil {
 		input.GraphDigest = graph.Digest()
-		err = testFillPlan(ctx, &input, receipt, graph, root, options.base)
+		err = testFillPlan(ctx, &input, receipt, graph, root, options.base, index)
 	}
 	if err != nil {
 		message := err.Error()
@@ -452,7 +490,7 @@ func testRunInput(ctx context.Context, root string, options testOptions, source 
 	return input
 }
 
-func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string) error {
+func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affectedReceipt, graph *affected.Graph, root, base string, index *gateselect.Index) error {
 	compact, err := compactAffectedReceipt(receipt)
 	if err != nil {
 		return err
@@ -498,7 +536,7 @@ func testFillPlan(ctx context.Context, input *sessiontest.Input, receipt affecte
 	case err != nil:
 		input.GoSelection = "FALLBACK the root module path cannot be read"
 	default:
-		lines := gateselect.SelectStructural(plan, module, root)
+		lines := gateselect.SelectStructuralIndexed(plan, module, root, index)
 		if len(lines) != 0 {
 			input.GoSelection = lines[len(lines)-1]
 		}

@@ -66,6 +66,12 @@ type repositoryIndex struct {
 }
 
 func indexRepository(root, module string) (*repositoryIndex, error) {
+	return indexRepositoryMemo(root, module, nil)
+}
+
+// indexRepositoryMemo is indexRepository that reuses, through memo, the scan
+// of each Go source whose stamp is unchanged; memo may be nil (AFP-V0-822).
+func indexRepositoryMemo(root, module string, memo *ScanMemo) (*repositoryIndex, error) {
 	index := &repositoryIndex{module: module, packages: map[string]*goPackage{}, holders: map[string][]string{}, nonTestHolders: map[string][]string{}, importers: map[string][]string{}, namers: map[string][]string{}, testImporters: map[string][]string{}}
 	var files []indexedFile
 	entries := 0
@@ -107,7 +113,9 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 	// recorded in walk order, so the index and the first error are those of
 	// the serial pass: a file's scan error precedes any walk error after it.
 	imports := map[string]map[string]bool{}
-	for _, scanned := range scanFiles(root, module, files) {
+	recalled := memo.load(root, module)
+	results := scanFiles(root, module, files, recalled)
+	for _, scanned := range results {
 		if scanned.err != nil {
 			return nil, scanned.err
 		}
@@ -116,6 +124,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 	if walkErr != nil {
 		return nil, walkErr
 	}
+	memo.store(root, module, recalled, results)
 	index.link(imports)
 	index.applyGatedLocators(root, files)
 	return index, nil
@@ -135,6 +144,8 @@ type scannedFile struct {
 	imports             []string
 	scan                sourceScan
 	tokens              [][]string // pathTokens of each scan.literals entry
+	stamp               string     // the memo stamp, "" when it has none
+	recalled            bool       // taken from the memo, not read
 	err                 error
 }
 
@@ -142,12 +153,12 @@ type scannedFile struct {
 const scanWorkers = 8
 
 // scanFiles scans every file, each result at its file's offset.
-func scanFiles(root, module string, files []indexedFile) []scannedFile {
+func scanFiles(root, module string, files []indexedFile, recalled *scanRecall) []scannedFile {
 	results := make([]scannedFile, len(files))
 	workers := min(runtime.GOMAXPROCS(0), scanWorkers, len(files))
 	if workers < 2 {
 		for offset, file := range files {
-			results[offset] = scanFile(root, module, file)
+			results[offset] = recalled.scan(root, module, file)
 		}
 		return results
 	}
@@ -158,7 +169,7 @@ func scanFiles(root, module string, files []indexedFile) []scannedFile {
 		go func() {
 			defer pending.Done()
 			for offset := int(next.Add(1)) - 1; offset < len(files); offset = int(next.Add(1)) - 1 {
-				results[offset] = scanFile(root, module, files[offset])
+				results[offset] = recalled.scan(root, module, files[offset])
 			}
 		}()
 	}
