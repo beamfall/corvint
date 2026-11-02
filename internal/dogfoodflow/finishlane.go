@@ -33,6 +33,14 @@ type FinishLaneOptions struct {
 	// NOT_CHECKED and exits 3, since a sealed head binds no new input
 	// (ASD-V0-842, V1-3960).
 	SealedSkip bool
+	// Entry is the make target a wrapper ran (dogfood-inputs-check,
+	// dogfood-finish or dogfood-closeout); every rerun hint then names that
+	// target with the run's inputs (DCW-V0-730).
+	Entry string
+	// Static runs only the input checks that read no step output and take no
+	// operation lock, then reports STATIC PASS; the wrappers run it with a
+	// cached tree binary before the host admission (DCW-V0-731).
+	Static bool
 }
 
 // finishLaneSidecar is the one path the bind loop writes and commits.
@@ -139,8 +147,11 @@ func (l *finishLane) run() int {
 	l.requireRoot()
 	l.requireTrustedAncestry()
 	l.gitDir = l.gitValue("rev-parse", "--absolute-git-dir")
-	// One operation lock spans every step; each nested pass shares it.
-	l.acquireOperation()
+	// One operation lock spans every step; each nested pass shares it. The
+	// static pre-check runs no step, so it takes none (DCW-V0-731).
+	if !l.options.Static {
+		l.acquireOperation()
+	}
 	l.base = l.gitValue("rev-parse", l.options.Change.Base+"^{commit}")
 	l.target = l.gitValue("rev-parse", "HEAD^{commit}")
 	l.requireBaseAncestor(l.base, l.target)
@@ -151,10 +162,15 @@ func (l *finishLane) run() int {
 	}
 	// A plan drafted before HEAD moved is refreshed before its inputs are
 	// snapshotted, so the run checks and binds the refreshed file (DCW-V0-947).
-	l.refreshMovedPlan()
+	if !l.options.Static {
+		l.refreshMovedPlan()
+	}
 	l.requireReviewedCitations()
 	l.requireVerifyInput()
 	l.requireIntentsInput()
+	if l.options.Static {
+		return l.staticPass()
+	}
 	l.snapshotInputs()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another
 	// base or a dirty tree is refused rather than reported as done.

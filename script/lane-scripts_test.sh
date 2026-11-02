@@ -1527,7 +1527,7 @@ printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-onl
 holder=$!
 sleep 0.5
 s0=$SECONDS
-(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
+(cd "$script/.." && DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
   BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
 rc=$?
 wait "$holder"
@@ -1543,6 +1543,35 @@ grep -q "^# the holder's apostrophe$" "$to/heavy-quote.sh" && bash -n "$to/heavy
   HEAVY_LOCK_DIR=$to/slots bash "$to/heavy-quote.sh" true 2> /dev/null || fail "an apostrophe in the slot_perl body breaks heavy.sh"
 bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" "$script"/lane-*.sh)
 [[ -z $bad ]] || fail "unguarded array expansion (bash 3.2 set -u aborts on an empty one; use \${a[@]+\"\${a[@]}\"}): $bad"
+ok
+# DCW-V0-731 (NEW-B2): with no cached tree build (an empty bin cache), the inputs-only phase runs the
+# static pre-check with an installed corvint that lists --static: its refusal stops make before any
+# admission and names the escape; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
+# a SKIP and the admitted run goes on.
+mkdir -p "$to/static/bin" "$to/static/cache" || fail "static fixture"
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/bin/corvint" &&
+  chmod +x "$to/static/bin/corvint" || fail "static corvint stub"
+static_make() {
+  /bin/rm -f "$to/admitted"
+  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
+    CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
+    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/static/err")
+}
+static_make
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
+  grep -q "ran the installed $to/static/bin/corvint, not this tree's build; .*DOGFOOD_STATIC_PRECHECK=0" "$to/static/err" &&
+  grep -q -- '--entry dogfood-inputs-check --static yes$' "$to/static/args" ||
+  fail "the static pre-check did not refuse before admission (rc=$rc): $(cat "$to/static/err" "$to/static/args" 2> /dev/null)"
+static_make DOGFOOD_STATIC_PRECHECK=0
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
+  fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
+static_make
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP no-static-binary' "$to/static/err" ||
+  fail "a corvint without --static was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases

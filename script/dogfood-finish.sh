@@ -73,9 +73,52 @@ if ((${#missing[@]} > 0)); then
   printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
   exit 2
 fi
+# Relative input paths keep meaning the ones the caller named.
+inputs=()
+for pair in "--citations=$citations" "--intents=$intents" "--verify=$verify" "--outcome=$outcome"; do
+  name=${pair%%=*}
+  value=${pair#*=}
+  [[ -n $value ]] || continue
+  [[ $name == --outcome || $value == /* ]] || value="$PWD/$value"
+  inputs+=("$name" "$value")
+done
+# ASD-V0-842 (V1-3960): the finish and closeout entries keep a seal head a SKIP that exits 0;
+# a direct make dogfood-inputs-check on a seal head reports NOT_CHECKED and exits 3.
+[[ $entry == dogfood-inputs-check ]] || inputs+=(--sealed skip)
+# DCW-V0-730 (V1-3883, V1-3930): every rerun hint names the make target the operator ran.
+inputs+=(--entry "$entry")
 # ICL-V0-030 (V1-1629): the Makefile runs this refusal alone first, before the host admission, so a
 # missing input is named before the admitted run queues on host load.
-[[ ${DOGFOOD_FINISH_INPUTS_ONLY-} != 1 ]] || exit 0
+# DCW-V0-731 (NEW-B2): that phase also runs the static input checks (plan, verify, intents and
+# outcome; no lock, no step) before the admission wait and the build, so an input defect is refused
+# in about a second. It runs the cached tree binary of HEAD's exact build key, or else the installed
+# corvint on PATH; either must list --static. With neither it says SKIP, and DOGFOOD_STATIC_PRECHECK=0
+# skips it; the admitted pre-flight still runs every check with the tree's own build.
+static_capable() { "$1" dogfood inputs-check --help 2> /dev/null | grep -q '^  --static '; }
+if [[ ${DOGFOOD_FINISH_INPUTS_ONLY-} == 1 ]]; then
+  [[ ${DOGFOOD_STATIC_PRECHECK-} != 0 ]] || exit 0
+  repo=$(cd "$(dirname "$0")/.." && pwd)
+  git_dir=$(git -C "$repo" rev-parse --absolute-git-dir 2> /dev/null) || exit 0
+  [[ -f $repo/script/dogfood-build-corvint.sh ]] || exit 0
+  go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
+  source "$repo/script/dogfood-build-corvint.sh" || exit 0
+  static_bin='' installed=''
+  if key=$(dogfood_corvint_key HEAD "$repo") && mkdir -p "$git_dir/corvint" &&
+    dogfood_corvint_reuse "$git_dir/corvint/corvint" "$key" && static_capable "$git_dir/corvint/corvint"; then
+    static_bin=$git_dir/corvint/corvint
+  elif installed=$(command -v corvint) && static_capable "$installed"; then
+    static_bin=$installed
+  fi
+  if [[ -z $static_bin ]]; then
+    printf '%s: static pre-check SKIP no-static-binary (no cached tree build or installed corvint lists --static; the admitted inputs-check runs every check after its build)\n' "$prefix" >&2
+    exit 0
+  fi
+  (cd "$repo" && exec "$static_bin" dogfood inputs-check --base "$base_arg" ${inputs[@]+"${inputs[@]}"} --static yes) && exit 0
+  status=$?
+  [[ $static_bin != "$installed" ]] ||
+    printf '%s: the static pre-check ran the installed %s, not this tree'"'"'s build; if this tree changed the refused rule, rerun with DOGFOOD_STATIC_PRECHECK=0\n' "$prefix" "$installed" >&2
+  exit "$status"
+fi
 repo=$(cd "$(dirname "$0")/.." && pwd)
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
@@ -185,18 +228,6 @@ if [[ -n $corvint_bin_set ]]; then
   fi
   override=(--override-verifier "$corvint_bin")
 fi
-# Relative input paths keep meaning the ones the caller named.
-inputs=()
-for pair in "--citations=$citations" "--intents=$intents" "--verify=$verify" "--outcome=$outcome"; do
-  name=${pair%%=*}
-  value=${pair#*=}
-  [[ -n $value ]] || continue
-  [[ $name == --outcome || $value == /* ]] || value="$PWD/$value"
-  inputs+=("$name" "$value")
-done
-# ASD-V0-842 (V1-3960): the finish and closeout entries keep a seal head a SKIP that exits 0;
-# a direct make dogfood-inputs-check on a seal head reports NOT_CHECKED and exits 3.
-[[ $entry == dogfood-inputs-check ]] || inputs+=(--sealed skip)
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"

@@ -56,7 +56,9 @@ func TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst(t *testing.T) {
 			"dogfood-inputs-check: REFUSE intent-manifest-unsorted\n",
 			"  input: --intents " + intents + "\n",
 			`  line 2 "docs/specs/a.md" does not sort after line 1 "docs/specs/b.md"`,
-			"  fix: LC_ALL=C sort -u -o " + intents + " " + intents + ", then rerun corvint dogfood finish-lane --base " + base + "\n",
+			// DCW-V0-730 (V1-3930): the pre-flight names inputs-check.
+			"  fix: LC_ALL=C sort -u -o " + intents + " " + intents + ", then rerun corvint dogfood inputs-check --base " + base +
+				" --citations " + plan + " --intents " + intents + " --verify " + verify + " --outcome passed\n",
 		}},
 		{"duplicate finish-lane", "docs/a.md\ndocs/a.md\n", false, []string{"dogfood-finish-lane: REFUSE intent-manifest-unsorted\n", "LC_ALL=C sort -u -o "}},
 		// ASD-V0-840 (V1-3922): the two committed intents of the passing

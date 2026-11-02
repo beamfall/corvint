@@ -1055,7 +1055,8 @@ dogfood-finish:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
-# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
+# checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing. Its first,
+# unadmitted line also runs the static input pre-check (DCW-V0-731).
 .PHONY: dogfood-inputs-check
 dogfood-inputs-check: ## Check the dogfood bind inputs (needs BASE=<full sha>)
 	@DOGFOOD_FINISH_INPUTS_ONLY=1 DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \

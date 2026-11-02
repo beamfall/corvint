@@ -24,6 +24,12 @@ func TestDCWV0808DogfoodOptionRefusalNamesTheFault(t *testing.T) {
 			[]string{"dogfood finish-lane takes the base as --base BASE, never as a positional argument"}},
 		"check option": {[]string{"dogfood", "seal", "--citations", "c", "B"}, "invalid-local-completion-option",
 			[]string{"dogfood seal does not take --citations; it takes "}},
+		// DCW-V0-730, DCW-V0-731: --entry names a wrapper's make target and
+		// --static takes yes; any other value is refused before any step.
+		"entry value": {[]string{"dogfood", "inputs-check", "--base", "B", "--entry", "dogfood-change"}, "invalid-dogfood-entry-value",
+			[]string{"dogfood inputs-check takes --entry dogfood-inputs-check, dogfood-finish or dogfood-closeout"}},
+		"static value": {[]string{"dogfood", "inputs-check", "--base", "B", "--static", "1"}, "invalid-dogfood-static-value",
+			[]string{"dogfood inputs-check takes --static yes and no other value"}},
 		"unsafe name": {[]string{"dogfood", "check", "--X\x1b[31m", "B"}, "invalid-local-completion-option",
 			[]string{"dogfood check does not take an option; it takes --base, --base-verifier, --override-verifier, --tree-verifier"}},
 	} {
