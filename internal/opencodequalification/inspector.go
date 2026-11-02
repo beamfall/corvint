@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -171,11 +170,52 @@ func readRegularBounded(path string, limit int64) ([]byte, error) {
 	return b, nil
 }
 
-var (
-	hostPluginFailed = regexp.MustCompile(`message="plugin operation failed"`)
-	hostPluginField  = regexp.MustCompile(`\b(plugin|stage)=(\S+)`)
-	hostPluginError  = regexp.MustCompile(`\berror="((?:[^"\\]|\\.)*)"`)
-)
+// hostLogFields parses the top-level key=value fields of one host log line. A key starts at the
+// line start or after whitespace; a quoted value is consumed whole, escapes included, so text that
+// looks like a field inside a quoted value or a path is never read as one (AHI-1961).
+func hostLogFields(line string) map[string]string {
+	fields := map[string]string{}
+	for i := 0; i < len(line); {
+		if line[i] == ' ' || line[i] == '\t' {
+			i++
+			continue
+		}
+		start := i
+		for i < len(line) && line[i] != '=' && line[i] != ' ' && line[i] != '\t' {
+			i++
+		}
+		if i >= len(line) || line[i] != '=' {
+			continue
+		}
+		key := line[start:i]
+		i++
+		if i < len(line) && line[i] == '"' {
+			end := i + 1
+			for end < len(line) && line[end] != '"' {
+				if line[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			if end >= len(line) {
+				return fields
+			}
+			if value, err := strconv.Unquote(line[i : end+1]); err == nil {
+				fields[key] = value
+			} else {
+				fields[key] = line[i+1 : end]
+			}
+			i = end + 1
+			continue
+		}
+		start = i
+		for i < len(line) && line[i] != ' ' && line[i] != '\t' {
+			i++
+		}
+		fields[key] = line[start:i]
+	}
+	return fields
+}
 
 // hostPluginFailure names the last Corvint TUI plugin operation the host logged as failed
 // (AHI-1961): OpenCode drops every slot of a plugin whose setup throws, so a missing Corvint
@@ -188,19 +228,13 @@ func hostPluginFailure(root string) string {
 	}
 	last := ""
 	for _, line := range strings.Split(string(bytes), "\n") {
-		if !hostPluginFailed.MatchString(line) {
-			continue
-		}
-		fields := map[string]string{}
-		for _, m := range hostPluginField.FindAllStringSubmatch(line, -1) {
-			fields[m[1]] = m[2]
-		}
-		if !strings.HasPrefix(fields["plugin"], "corvint") {
+		fields := hostLogFields(line)
+		if fields["message"] != "plugin operation failed" || !strings.HasPrefix(fields["plugin"], "corvint") {
 			continue
 		}
 		cause := ""
-		if m := hostPluginError.FindStringSubmatch(line); m != nil {
-			cause = ": " + strconv.Quote(m[1])
+		if value, ok := fields["error"]; ok {
+			cause = ": " + strconv.Quote(value)
 		}
 		last = "host plugin " + fields["plugin"] + " " + fields["stage"] + " failed" + cause
 	}

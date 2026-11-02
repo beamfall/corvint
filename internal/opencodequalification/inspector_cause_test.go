@@ -39,8 +39,28 @@ func TestAHI620InspectorWitnessNamesPreciseCause(t *testing.T) {
 			hostLog: `timestamp=2026-11-02T15:53:34.142Z level=WARN message="plugin operation failed" component=plugin id=19 stage=setup durationMs=2 error="SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene" plugin=other.ui target=/x` + "\n" +
 				`timestamp=2026-11-02T15:53:34.142Z level=WARN message="plugin operation failed" component=plugin id=20 stage=setup durationMs=2 error="SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene, or a \"ResourceContext\"" plugin=corvint.inspector.ui target=/x` + "\n" +
 				`timestamp=2026-11-02T15:53:34.146Z level=INFO message="plugin reconciliation completed" component=plugin id=1 plugins=16 role=cli` + "\n",
-			want:   []string{`host plugin corvint.inspector.ui setup failed: "SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene, or a \\\"ResourceContext\\\""`},
+			want:   []string{`host plugin corvint.inspector.ui setup failed: "SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene, or a \"ResourceContext\""`},
 			reject: []string{"other.ui"},
+		},
+		{
+			// AHI-1961: a field-like word inside a quoted value is not a field.
+			name: "host log field inside a quoted value", screen: screen,
+			hostLog: `level=WARN message="plugin operation failed" stage=setup error="initialization failed at stage=compile plugin=other" plugin=corvint.inspector.ui` + "\n",
+			want:    []string{`host plugin corvint.inspector.ui setup failed: "initialization failed at stage=compile plugin=other"`},
+			reject:  []string{"compile\" failed", "host plugin other"},
+		},
+		{
+			// AHI-1961: a field-like segment inside a later unquoted value does not replace the plugin ID.
+			name: "host log field inside a path", screen: screen,
+			hostLog: `level=WARN message="plugin operation failed" stage=setup error="boom" plugin=corvint.inspector.ui target=/workspace/plugin=example/src/tui.tsx` + "\n",
+			want:    []string{`host plugin corvint.inspector.ui setup failed: "boom"`},
+			reject:  []string{"example"},
+		},
+		{
+			// AHI-1961: the failure message must be the message field itself, not text in another value.
+			name: "host log message inside another value", screen: screen,
+			hostLog: `level=INFO message="ok" note="message=\"plugin operation failed\"" stage=setup plugin=corvint.inspector.ui` + "\n",
+			reject:  []string{"host plugin"},
 		},
 		{name: "width and forbidden string", screen: screen, absent: []string{"Tasks unavailable", "Reading Corvint Tasks"}, width: 72, want: []string{"expected width 72", `still shows "Tasks unavailable"`}, reject: []string{"Reading Corvint Tasks", "witness plugin error", "host plugin"}},
 	}
