@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775 and GL-V0-776 experimental under the standing lane auto-accept (2026-11-01; V1-4160)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775, GL-V0-776 and GL-V0-785 experimental under the standing lane auto-accept (2026-11-01; V1-4160)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -192,6 +192,15 @@ therefore come from something keyed on content, not from Go's cache.
   rerunning them on the whole-tree key of an undeclared salted name. The audit of the other
   undeclared salted steps, with each one's reason to stay tree-keyed, is in
   `docs/build-log/2026-11-01-csp-w33.md`. Rollback: drop `testScopes`; both return to the tree key.
+- `GL-V0-785`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4160) Every
+  ledger name `script/batch-precheck.sh` keys a step under MUST be classified by one table test:
+  either it declares a scope, and its key changes on an edit under each declared entry and not on
+  a CEM-only change outside them, or it is undeclared (or `tree`), and its key changes on a
+  CEM-only change, a build-log edit and a source edit, so no input dimension lies outside its key.
+  The table MUST name every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry, so a new step fails
+  the test until it is classified. A declared scope's completeness (that the command reads
+  nothing outside it) stays the declaring change's claim under GL-V0-001; the test proves the
+  key follows the declaration. Rollback: delete `tools/gate-ledger/precheck_steps_test.go`.
 
 ## Non-goals and simpler baseline
 
@@ -293,6 +302,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
 | GL-V0-775 | `scopedInputs`, `testClosure`, `readTestScopes`, `inTestReadScope` in `tools/gate-ledger/test_scope.go`; `listedFilesFor` in `tools/gate-ledger/main.go` | `TestRunStepKeysTestScopeOnPackageClosure`: a CEM-only change, a build-log edit and an unrelated package edit hit; a subtree, dependency source, embedded file, declared entry or declaration edit reruns; `TestRunStepTestScopeFallsBackToTheTree`: an undeclared package, an unknown member, a wrong profile and a `..` entry key on the tree with the reason printed |
 | GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
+| GL-V0-785 | `precheckLedgerNames` in `tools/gate-ledger/precheck_steps_test.go` | `TestPrecheckLedgerNamesAreComplete_GLV0785` (every `DOC_GATE_TARGETS` and `EXTRA_TARGETS` entry is classified); `TestEveryPrecheckStepDeclaresOrKeysOnTheTree_GLV0785` (each declared step's key follows its entries and ignores a CEM-only change; each undeclared step's key changes on a CEM, build-log and source edit) |
 
 ## Rollout, rollback, and drift
 
