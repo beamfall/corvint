@@ -1577,7 +1577,7 @@ olane="$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-prech
 mkdir -p "$rrepo/.corvint/changes" && printf '{}\n' > "$rrepo/.corvint/changes/$ohead.cem.json"
 git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal lane change evidence'
 BATCH_PRECHECK_SINCE_RECEIPT=1 orun --base "$rbase" || fail "batch run over a lane receipt failed: $(cat "$tmp/out")"
-grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)$' "$tmp/out" ||
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)$' "$tmp/out" ||
   fail "a batch run narrowed from a lane receipt: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 [[ ! -e $olane ]] || fail "a batch receipt kept the .lane mark"
@@ -1586,5 +1586,77 @@ mkdir -p "$rrepo/internal/companionrelease" && printf 'x\n' > "$rrepo/internal/c
 LANE=1 orun --base "$rbase" || fail "lane run with a companion input failed: $(cat "$tmp/out")"
 row_is PASS 'batch-drift TestFreeze'
 /bin/rm -rf "$rrepo/internal"
+
+
+# 17. ASD-V0-1990 (V1-4329): selection-baseline is deferred in both lane closeout passes,
+# including Go changes, unusable plans and no readable diff; batch mode keeps its original check.
+for target in dogfood-closeout dogfood-closeout-precheck; do
+  grep -qx "$target: export LANE = 1" "$script/../Makefile" || fail "$target does not export lane mode"
+done
+baseline_deferred() {
+  grep -qx 'batch-precheck: lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$tmp/out" ||
+    fail "lane deferral not named: $(cat "$tmp/out")"
+  grep -q '^batch-precheck: | NOT_RUN | *[0-9]*s | make selection-baseline-check: lane closeout: selection-baseline-check deferred to the batch precheck' "$tmp/out" ||
+    fail "lane deferral row missing: $(cat "$tmp/out")"
+  grep -qE '^batch-precheck: (PASS make selection-baseline-check|\| (PASS|REUSE) \| *[0-9]*s \| make selection-baseline-check)' "$tmp/out" &&
+    fail "lane deferral recorded as a pass: $(cat "$tmp/out")"
+  grep -q 'selection-baseline-check' "$tmp/scalls" && fail "deferred baseline built or ran: $(cat "$tmp/scalls")"
+  return 0
+}
+pbase=$rbase plan "$frontier" golden
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_SKIP_DRIFT=1 rrun --base "$rbase" || fail "pre-bind lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+: > "$tmp/scalls"
+LANE=1 STUB_PLAN_RC=3 rrun --base "$rbase" || fail "unusable-plan lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+: > "$tmp/scalls"
+LANE=1 rrun || fail "no-base lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+# sdrift contains no @own entry: selection-baseline alone must mark the clean lane receipt.
+: > "$tmp/scalls"
+LANE=1 rrun --base "$rbase" || fail "lane baseline receipt run: $(cat "$tmp/out")"
+baseline_deferred
+bhead=$(git -C "$rrepo" rev-parse HEAD)
+breceipt=$(git -C "$rrepo" rev-parse --path-format=absolute --git-path batch-precheck-receipt)
+grep -qx 'not-run selection-baseline-check lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)' "$breceipt" ||
+  fail "receipt does not retain the deferral: $(cat "$breceipt")"
+[[ $(cat "$breceipt.lane" 2> /dev/null) == "$bhead" ]] || fail "baseline-only deferral did not mark the lane receipt"
+rrun --verify-receipt "$bhead" || fail "deferred receipt refused: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt records NOT_RUN selection-baseline-check lane closeout:' "$tmp/out" || fail "receipt hides deferral"
+# Model the sealed-head pass: an evidence-only commit follows the marked lane receipt.
+printf '{}\n' > "$rrepo/.corvint/changes/$bhead.cem.json"
+git -C "$rrepo" add -A && git -C "$rrepo" commit -qm 'chore: seal baseline deferral'
+pbase=$bhead plan "$frontier"
+: > "$tmp/scalls"
+LANE=1 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "sealed-head lane baseline run: $(cat "$tmp/out")"
+baseline_deferred
+# Outside lane closeout the marked receipt cannot hide Go changes, even at the same clean HEAD.
+pbase=$rbase plan "$frontier" golden
+: > "$tmp/scalls"
+LANE=0 BATCH_PRECHECK_SINCE_RECEIPT=1 rrun --base "$rbase" || fail "batch baseline run: $(cat "$tmp/out")"
+grep -q '^batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check' "$tmp/out" || fail "batch reused lane deferral"
+grep -qx 'make -s selection-baseline-check' "$tmp/scalls" || fail "batch did not run baseline: $(cat "$tmp/scalls")"
+row_is PASS 'make selection-baseline-check'
+[[ ! -e $breceipt.lane ]] || fail "batch baseline receipt kept lane marker"
+
+
+# The real closeout expands doc-gates: defer only the baseline target, retaining its peers.
+sed -i.bak 's/make -s spec-requirements-check selection-baseline-check/make doc-gates/' "$rrepo/.github/workflows/ci.yml" && /bin/rm -f "$rrepo/.github/workflows/ci.yml.bak"
+printf 'DOC_GATE_TARGETS := spec-requirements-check selection-baseline-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' >> "$rrepo/Makefile"
+: > "$tmp/scalls"
+LANE=1 rrun --base "$rbase" || fail "expanded doc-gates lane run: $(cat "$tmp/out")"
+baseline_deferred
+grep -qx 'make -s spec-requirements-check' "$tmp/scalls" || fail "lane deferral hid a peer doc gate"
+# Recipe drift must refuse before an opaque aggregate can build/run the deferred baseline.
+printf '\t@echo extra\n' >> "$rrepo/Makefile"
+: > "$tmp/scalls"
+LANE=1 rrun --base "$rbase"
+[[ $? == 2 ]] || fail "opaque doc-gates lane run did not refuse: $(cat "$tmp/out")"
+grep -q '^batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates;' "$tmp/out" || fail "opaque aggregate refusal unnamed"
+grep -qE '^make -s (doc-gates|selection-baseline-check)$' "$tmp/scalls" && fail "opaque aggregate built/ran the baseline"
+: > "$tmp/scalls"
+LANE=0 rrun --base "$rbase" || fail "opaque doc-gates non-lane run: $(cat "$tmp/out")"
+grep -qx 'make -s doc-gates' "$tmp/scalls" || fail "non-lane aggregate fallback changed"
 
 finish
