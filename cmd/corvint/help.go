@@ -2101,7 +2101,8 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM] BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN|CLAIMS | --from-cem CEM]
+    [--intents-draft FILE] BASE
   corvint [--root PATH] dogfood record-claims --plan PLAN --claims FILE
     [--draft DRAFT] BASE
   corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
@@ -2212,6 +2213,12 @@ BASE..HEAD whose hunks hold them, so a reviewed plan carries across a reseal
 (DCW-V0-885). The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+--intents-draft FILE also writes the draft DOGFOOD_INTENTS_FILE, its only write
+(DCW-V0-711): each Markdown file the change adds or modifies that derives as an
+intent at HEAD, sorted one per line, else #no-intent-declared. A file whose
+edits only repin citations, or an intent over one OCM map's obligation bound, is
+left out, the latter named in a NOTE; review the draft before use.
 
 --from-cem CEM seeds the same refresh from a sealed CEM instead of a plan, such as
 .corvint/changes/COMMIT.cem.json after a mainline merge (DCW-V0-843): each of its

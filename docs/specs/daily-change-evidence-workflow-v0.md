@@ -3534,6 +3534,24 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestChangeDCWV0114ReportsEveryRefusedCiteRow` (each probed row carries the `CEM-V1-710` bound
   detail). Rollback: restore the first-refusal `fail` in the cite loop and drop `detailedRefusal`.
 
+- `DCW-V0-711`: (experimental under the standing lane auto-accept, 2026-11-02; lane cit-w41
+  V1-3956; extends `DCW-V0-150` and `DCW-V0-945`) `corvint dogfood propose-citations
+  --intents-draft FILE BASE` MUST also write FILE, its only write: the draft
+  `DOGFOOD_INTENTS_FILE` of BASE..HEAD. It names each Markdown path the change adds or modifies
+  that `lrfrepo.DeriveIntentAt` derives as an intent at HEAD, which is the derivation inputs-check
+  and ocm-prepare run, one per line in strictly increasing bytewise order. A path is left out when
+  every one of its hunks is a citation repin (`DCW-V0-548`), and when its derivation is refused. A
+  path refused `too-many-obligations` is also named in a stderr NOTE. With no such path FILE is
+  exactly `#no-intent-declared`. A draft over 16 scopes is still written, with a NOTE that the
+  manifest admits at most 16. Without the option, propose-citations stays read-only. Non-goals:
+  choosing among more than 16 specs; checking the aggregate obligation bound, which inputs-check
+  still refuses by name. Failure modes: an unwritable FILE is refused `intents-draft-unwritable`
+  (exit 2); an unreadable canonical patch falls back to Git's added-or-modified name list without
+  the repin filter. Evidence: `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck`. Its
+  draft holds two new specs and leaves out a repin-only spec edit, a build-log entry and a README,
+  and the inputs pre-flight accepts it unchanged; a later code-only change drafts the no-intent
+  manifest. Rollback: drop the option and `internal/dogfoodflow/propose_intents.go`.
+
 ## Code vocabulary
 
 The daily subverbs (`DCW-V0-020`) emit these codes. A change-step code marks that step
@@ -3912,6 +3930,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
 | `DCW-V0-980` (experimental under the standing lane auto-accept; lane cit-u18 friction) | `internal/dogfoodflow/propose_vet.go` `vetRows`, `nearestSurvivingSpan`, `survivingParts`; `TestProposeCitationsDCWV0980DeletedLineGetsNearestSurvivingSpan`, `TestProposeCitationsDCWV0840VetsCarriedRows`, `TestSurvivingPartsDCWV0980` | implemented; focused tests PASS |
 | `DCW-V0-710` (experimental under the standing lane auto-accept; lane cit-w41 NEW-A1) | `script/dogfood-bind-range.sh` cite loop, `plan_row_refusal`, `refusal_detail`; `internal/dogfoodflow/change.go` `probeCitationRows`, `detailedRefusal`; `script/dogfood-bind-range_test.sh` `DCW-V0-710` case; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` | implemented; focused tests PASS |
+| `DCW-V0-711` (experimental under the standing lane auto-accept; lane cit-w41 V1-3956) | `internal/dogfoodflow/propose_intents.go` `writeIntentsDraft`, `changedMarkdown`; `cmd/corvint/dogfood_flow.go` `--intents-draft`; `TestProposeCitationsDCWV0711IntentsDraftPassesInputsCheck` | implemented; focused tests PASS |
 | `DCW-V0-984` (experimental under the standing lane auto-accept; V1-3810) | `internal/dogfoodflow/check_anchor_grep.go` `anchorGrep`, `anchorRecords`; `prepareAnchors` in `propose.go`; the `binding` sub-phase and `verifier-pair` rows in `check.go` and `check_tiers.go`; `TestDCWV0984CheckAnchorGrepKeepsEveryGrepCandidate`, `TestDCWV0984BindingSubphaseRows` | implemented; focused tests PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
