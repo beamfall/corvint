@@ -11,7 +11,8 @@ import (
 // Capture always lists and stats the closed intent layout. Reuse requires
 // native identity and change-time equality; unsupported platforms read all
 // bytes. Returned trees and their bytes must be treated as immutable.
-// The caller serializes use and binds the capture again before effects.
+// The caller serializes use. This cache is only for planning/modeling:
+// binding before effects must use TreeDigest to hash live bytes independently.
 type TreeCapture struct {
 	root  string
 	files map[string]capturedFile
@@ -45,7 +46,35 @@ func (c *TreeCapture) retain(tree Tree, plan []plannedFile, at time.Time) {
 	// order. Retain metadata alongside those exact bytes without a second
 	// inventory map or a per-entry heap allocation.
 	for i, f := range tree.Files {
-		c.files[f.Path] = capturedFile{plan[i].info, f}
+		p := plan[i]
+		info := p.opened
+		if p.reused.Path != "" {
+			info = p.info
+		}
+		// Phase 1 may have stat'd a different inode than phase 2 opened.
+		// Retain only matching metadata from the descriptor actually read.
+		if sameCaptureKey(p.info, info) {
+			c.files[f.Path] = capturedFile{info, f}
+		}
 	}
 	c.at = at
+}
+
+// captureDirsBound checks the phase-1 directory identities before retention.
+// Phase 2's pinned descriptors alone cannot detect a swap before they opened.
+func captureDirsBound(root *os.Root, listing []capturedInfo) bool {
+	for _, entry := range listing {
+		if !entry.info.IsDir() {
+			continue
+		}
+		path := entry.path
+		if path == "" {
+			path = "."
+		}
+		now, err := root.Lstat(path)
+		if err != nil || !os.SameFile(entry.info, now) {
+			return false
+		}
+	}
+	return true
 }

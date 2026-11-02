@@ -10,3 +10,5 @@ import (
 )
 
 func sameCaptureFile(a, b os.FileInfo, capturedAt time.Time) bool { return false }
+
+func sameCaptureKey(a, b os.FileInfo) bool { return false }

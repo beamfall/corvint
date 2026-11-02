@@ -27,8 +27,8 @@ type batchWriteCache struct {
 }
 
 // WithBatchWrites scopes bounded derived reuse to one sequential batch-close
-// command. It grants no authority; each observation and pre-effect binding
-// validates the current filesystem again (TCX-V0-977..979).
+// command. It grants no authority; planning may reuse bytes, but binding
+// always reads and hashes the live content (TCX-V0-977..979).
 func WithBatchWrites(ctx context.Context) context.Context {
 	return context.WithValue(ctx, batchWriteKey{}, &batchWriteCache{})
 }
@@ -52,7 +52,9 @@ func bindWriterObservation(ctx context.Context, repo *intent.Repository, identit
 	if err != nil {
 		return err
 	}
-	tree, err := captureWriteTree(ctx, repo)
+	// Stat keys cannot detect every content change (notably MAP_SHARED writes).
+	// CAL-V0-070 requires live bytes here, independently of the modeling cache.
+	tree, err := intent.TreeDigest(repo.IntentRoot())
 	if err != nil {
 		return err
 	}

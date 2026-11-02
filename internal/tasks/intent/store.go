@@ -181,6 +181,7 @@ type plannedFile struct {
 	known  *ClosedEntry
 	reused File
 	info   os.FileInfo
+	opened os.FileInfo
 }
 
 // TreeDigest reads the intent store of a primary worktree through a
@@ -364,20 +365,27 @@ func captureDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]sta
 	}
 	dirs := newPinnedTreeDirs()
 	defer dirs.close()
-	tree, err := captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
-		return dirs.read(root, full, rel, max)
+	tree, err := captureTree(rootPath, plan, func(full, rel string, max int, opened *os.FileInfo) ([]byte, error) {
+		return dirs.read(root, full, rel, max, opened)
 	})
 	if err != nil || dirs.bound(root) {
 		tree.listing = listing
 		if err == nil && cache != nil {
-			cache.retain(tree, plan, capturedAt)
+			if captureDirsBound(root, listing) {
+				cache.retain(tree, plan, capturedAt)
+			} else {
+				cache.files = nil
+			}
 		}
 		return tree, err
 	}
 	for i := range plan {
 		plan[i].reused = File{}
 	}
-	return captureTree(rootPath, plan, func(full, rel string, max int) ([]byte, error) {
+	if cache != nil {
+		cache.files = nil
+	}
+	return captureTree(rootPath, plan, func(full, rel string, max int, _ *os.FileInfo) ([]byte, error) {
 		return readInRoot(root, full, rel, max)
 	})
 }
@@ -387,7 +395,7 @@ func captureDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]sta
 // checked on its own, so the walk's refusals are reported in plan order
 // exactly as the serial walk reported them, and the tree's files, bytes and
 // digest are the same. read must admit concurrent calls.
-func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int) ([]byte, error)) (Tree, error) {
+func captureTree(rootPath string, plan []plannedFile, read func(full, rel string, max int, opened *os.FileInfo) ([]byte, error)) (Tree, error) {
 	files := make([]File, len(plan))
 	refusals := make([]error, len(plan))
 	// Reused entries need no worker, atomic scheduling or content read.
@@ -407,7 +415,7 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 	ParallelEach(len(pending), func(k int) {
 		i := pending[k]
 		p := plan[i]
-		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max, &plan[i].opened)
 		if err != nil {
 			refusals[i] = err
 			return
@@ -515,8 +523,12 @@ func statRegularInfo(root *os.Root, full, rel string, max int) (os.FileInfo, err
 // the store, whatever races with the Lstat above), re-checks the opened
 // descriptor, and reads it with a hard bound.
 func readInRoot(root *os.Root, full, rel string, max int) ([]byte, error) {
+	return readInRootObserved(root, full, rel, max, nil)
+}
+
+func readInRootObserved(root *os.Root, full, rel string, max int, opened *os.FileInfo) ([]byte, error) {
 	f, err := safeopen.InRoot(root, rel, os.O_RDONLY, 0, false)
-	return readOpened(f, err, full, max)
+	return readOpened(f, err, full, max, opened)
 }
 
 // pinnedTreeDirs holds one safeopen.PinSubDir descriptor per store
@@ -557,17 +569,17 @@ func (d *pinnedTreeDirs) dir(root *os.Root, sub string) *os.File {
 	return pinned
 }
 
-func (d *pinnedTreeDirs) read(root *os.Root, full, rel string, max int) ([]byte, error) {
+func (d *pinnedTreeDirs) read(root *os.Root, full, rel string, max int, opened *os.FileInfo) ([]byte, error) {
 	sub, name, nested := strings.Cut(rel, "/")
 	if !pinTreeDirs || !nested || strings.Contains(name, "/") {
-		return readInRoot(root, full, rel, max)
+		return readInRootObserved(root, full, rel, max, opened)
 	}
 	dir := d.dir(root, sub)
 	if dir == nil {
-		return readInRoot(root, full, rel, max)
+		return readInRootObserved(root, full, rel, max, opened)
 	}
 	f, err := safeopen.InDir(dir, name, os.O_RDONLY, 0)
-	return readOpened(f, err, full, max)
+	return readOpened(f, err, full, max, opened)
 }
 
 // afterTreeDirPin is replaced only by the deterministic directory-swap test.
@@ -608,7 +620,7 @@ func (d *pinnedTreeDirs) close() {
 	}
 }
 
-func readOpened(f *os.File, err error, full string, max int) ([]byte, error) {
+func readOpened(f *os.File, err error, full string, max int, opened *os.FileInfo) ([]byte, error) {
 	if err != nil {
 		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "cannot open: %v", err)
 	}
@@ -629,6 +641,9 @@ func readOpened(f *os.File, err error, full string, max int) ([]byte, error) {
 	}
 	if len(raw) == 0 {
 		return nil, wire.Errorf(wire.CodeMalformed, full, "empty file (a canonical document is never empty)")
+	}
+	if opened != nil {
+		*opened = st
 	}
 	return raw, nil
 }

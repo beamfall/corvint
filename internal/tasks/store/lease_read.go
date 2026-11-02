@@ -120,7 +120,8 @@ func checkpointedLeaseProof(ctx context.Context, repo *intent.Repository) (*jour
 			// Projection bytes came from our native capture, so validate the
 			// complete live tree again before the gate may use them. Keep the
 			// audit's independent listings and the complete-read fallback.
-			current, err := captureWriteTree(ctx, repo)
+			// This binding must hash live bytes, never a stat-cached digest.
+			current, err := intent.TreeDigest(repo.IntentRoot())
 			if err != nil || current.Sha256 != proof.Identity.IntentTreeSha256 {
 				return readLeaseProof(ctx, repo)
 			}
