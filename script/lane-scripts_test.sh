@@ -1500,6 +1500,21 @@ if [[ $(id -u) != 0 ]]; then
     TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$heavy" env GOCACHE="$wp/ro" sh -c ': > ran' > "$wp/out" 2> "$wp/err"); rc=$?
   wp_refused "$rc"
   grep -qF "heavy.sh: unwritable GOCACHE=$wp/ro" "$wp/err" || fail "heavy.sh ignored a wrapped cache override: $(cat "$wp/err")"
+  # Options must not hide later assignments, including the two-word -u NAME spelling.
+  for option in unset separate ignore long dash end; do
+    case $option in
+      unset) set -- -uUNUSED ;;
+      separate) set -- -u UNUSED ;;
+      ignore) set -- -i ;;
+      long) set -- --unset=UNUSED ;;
+      dash) set -- - ;;
+      end) set -- -- ;;
+    esac
+    (cd "$wp" && env HEAVY_LOCK_DIR="$wp/locks" HEAVY_SELECTION_LOG="$wp/selection.log" HEAVY_FALLBACK_LOG="$wp/fallback.log" \
+      TMPDIR="$wp/scratch" GOCACHE="$wp/cache" HEAVY_SLOTS=1 "$heavy" env "$@" GOTMPDIR="$wp/ro" /bin/sh -c ': > ran' > "$wp/out" 2> "$wp/err"); rc=$?
+    wp_refused "$rc"
+    grep -qF "heavy.sh: unwritable GOTMPDIR=$wp/ro" "$wp/err" || fail "heavy.sh ignored GOTMPDIR after env $*: $(cat "$wp/err")"
+  done
   wprun HEAVY_LOCK_DIR="$wp/ro" TMPDIR="$wp/ro" GOCACHE="$wp/ro" HEAVY_SELECTION_LOG="$wp/readonly.log" HEAVY_FALLBACK_LOG="$wp/readonly.log"; rc=$?
   wp_refused "$rc"
   # The home-disk defaults are subject to the same check even though both directories exist.

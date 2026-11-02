@@ -791,6 +791,23 @@ printf 'timeout limit 3s exceeded\n--- FAIL: TestX (0.01s)\n' > "$crepo/fail-tes
 crun --base "$base2" && fail "a changed diagnostic number was classified base-present"
 grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "diagnostic number: $(cat "$tmp/out")"
 
+# Exercise the actual normalize function without executing the precheck entry point. awk must
+# parse the whole program even for plain input; some awks reject an unescaped / in a class.
+sed -n '/^normalize() {/,/^}/p' "$pre" > "$tmp/normalize.sh"
+for awk_name in awk /usr/bin/awk original-awk mawk; do
+  awk_bin=$(command -v "$awk_name") || continue
+  NORMALIZE_AWK=$awk_bin bash -c '
+    set -o pipefail
+    source "$1"
+    awk() { "$NORMALIZE_AWK" "$@"; }
+    normalize "$2"
+  ' _ "$tmp/normalize.sh" "$tmp" <<< 'plain diagnostic' > "$tmp/normalized"
+  rc=$?
+  [[ $rc == 0 && $(cat "$tmp/normalized") == 'plain diagnostic' ]] ||
+    fail "normalize plain input with $awk_bin rc=$rc: $(cat "$tmp/normalized")"
+  printf 'batch-precheck_test: normalize plain input: %s rc=%s\n' "$awk_bin" "$rc"
+done
+
 # 6b. ASD-V0-1971 (V1-4327): moving a failing test changes locations and group totals, not its
 # finding. A second finding in the same output must still be introduced.
 printf 'lane-scripts_test: FAIL inherited mismatch 42\nlane-scripts_test: 10 groups passed, 1 failed:\n  group 7: line 123: inherited mismatch 42\n  - case "6b. stable case" line 125: inherited mismatch 42\n    fixture_test.go:17:9: inherited mismatch 42\nbatch-precheck_test: FAIL 1 case(s):\n' > "$crepo/fail-test-commands-check"
@@ -806,6 +823,20 @@ sed -e 's/1 failed:/2 failed:/' -e 's/FAIL 1 case(s):/FAIL 2 case(s):/' "$crepo/
 cp "$tmp/shifted" "$crepo/fail-test-commands-check"
 crun --base "$shiftbase" && fail "new finding hidden beside shifted inherited failure"
 grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "shifted plus new finding: $(cat "$tmp/out")"
+
+# A second occurrence in the same source file is new even when coordinates normalize equally.
+printf 'fixture_test.go:17:9: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm occurrence-base || fail "occurrence base commit"
+occurrencebase=$(git -C "$crepo" rev-parse HEAD)
+printf 'fixture_test.go:29:4: inherited mismatch 42\nfixture_test.go:35:2: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+crun --base "$occurrencebase" && fail "second normalized-identical finding classified base-present"
+grep -q '^batch-precheck: FAIL make test-commands-check .* introduced' "$tmp/out" || fail "duplicate finding: $(cat "$tmp/out")"
+# Fewer occurrences remain inherited: comparison is containment, rather than exact count equality.
+git -C "$crepo" add -A && git -C "$crepo" -c user.name=t -c user.email=t@t commit -qm two-occurrences || fail "two occurrences commit"
+twobase=$(git -C "$crepo" rev-parse HEAD)
+printf 'fixture_test.go:41:1: inherited mismatch 42\n' > "$crepo/fail-test-commands-check"
+crun --base "$twobase" || fail "fewer inherited occurrences classified introduced: $(cat "$tmp/out")"
+grep -q '^batch-precheck: WARN make test-commands-check .* base-present' "$tmp/out" || fail "fewer occurrences: $(cat "$tmp/out")"
 
 # 7. Drift and catalog selection under a base (ASD-V0-050, ASD-V0-051; V1-3134, V1-3136), on a
 # real Go fixture module, a stub planner and a stub make: a diff touching no drift or catalog input

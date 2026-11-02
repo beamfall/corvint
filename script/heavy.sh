@@ -1496,6 +1496,25 @@ writable_paths() {
   # Also check paths the wrapped command explicitly overrides through env (or leading NAME=V).
   if [[ $mode == local && ${1-} == env ]]; then
     shift
+    # env options precede assignments; -u consumes a name, while -- ends option parsing.
+    while (($#)); do
+      case $1 in
+        -u)
+          (($# >= 2)) || break
+          name=$2; shift 2 ;;
+        -u?*) name=${1#-u}; shift ;;
+        --unset=*) name=${1#--unset=}; shift ;;
+        -i|-) scratch=/tmp; cache=; corvint=; gotmp=; shift; continue ;;
+        --) shift; break ;;
+        *) break ;;
+      esac
+      case $name in
+        TMPDIR) scratch=/tmp ;;
+        GOCACHE) cache= ;;
+        CORVINT_GOCACHE) corvint= ;;
+        GOTMPDIR) gotmp= ;;
+      esac
+    done
     for path; do
       [[ $path =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break
       case $path in
