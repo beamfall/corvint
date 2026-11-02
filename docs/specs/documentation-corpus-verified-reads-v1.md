@@ -577,6 +577,59 @@ V1-2657.
   equal answers and remaining operations) and `TestObjectSessionMatchesOneShotReads` (a forged
   directory tree read through the session fails as the one-shot lookup does).
 
+The `DCP-V1-314` checkout stamp refuses any entry changed within 2 s of its capture (the racy
+window), so a later edit in the same timestamp granule cannot keep the stamp. That holds for a
+granule of up to 2 s only while file times come from the reading host's clock; on a
+coarse-timestamp share whose server clock runs behind the reader, a same-size in-place edit made
+after an accepted capture can land in the captured granule. Coarse and network filesystems could
+not be mounted on the measuring host, so both blocks are modelled and measured as stated. Status
+for `DCR-V1-845` and `DCR-V1-846`: experimental under the standing lane auto-accept; V1-2443.
+
+- `DCR-V1-845`: The `DCP-V1-314` checkout stamp is also unavailable when a stamped directory
+  holds at least one entry and every entry it records has whole-second change and modification
+  times, and the `DCR-V1-417` artifact file stamp is unavailable when both of the file's times are
+  whole seconds. Whole-second times on every entry mark a coarse-timestamp filesystem (FAT, HFS+,
+  or an SMB or NFS share backed by one), and such a checkout takes the Git path. Target, set before
+  the build: in the modelled sweep (granule 1 s and 2 s, server clock behind by 0, 0.5, 1 and 3 s,
+  edit offsets every 100 ms of a granule) no same-size edit after an accepted capture leaves an
+  equal stamp, while a fine-grained checkout is still stamped; on the `DCP-V1-317` fixture the
+  warm stamp capture (`verify_ms`) median stays within 5 ms of its base value (35-42 ms).
+  Non-goals: a stamp path for coarse-timestamp or network filesystems; NFS client attribute
+  caching, which is outside the stamp as it is outside Git's own reads. Failure mode avoided: a
+  same-second, same-size edit on a skewed coarse share served as fresh. Acceptance:
+  `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale`.
+  Rollback: remove the coarse check, and such checkouts are stamped as before.
+- `DCR-V1-846`: A checkout the stamp does not cover (a linked worktree or submodule gitfile, an
+  alternate object store, a config include or worktree setting, a coarse-timestamp filesystem, or
+  a platform without an lstat change time, such as Windows) takes the Git observation and pin
+  verification path on every warm call. Measured on the `DCP-V1-317` fixture with the stamp
+  unavailable throughout, that path meets the same warm bounds as the stamp path: median warm
+  `freshness_ms` under 100 ms and p95 warm `total_ms` under 1 s. Non-goal: a stamp path for those
+  checkouts. The Windows cost is measured through the same code path on Linux, not on a Windows
+  host. Acceptance: `TestDCRV1846GitFallbackWarmCallsWithinBudget`. Rollback: delete the test.
+
+The stamp capture is the largest term of a warm call once the stamp holds: on the `DCP-V1-317`
+fixture it took 44.0 ms per capture (`BenchmarkDCRV1847CheckoutStamp`, 50 iterations, load 2.2 to
+4.2) against about 21 ms for the Git path's freshness plus pin verification, and its CPU is 56%
+`lstat` and `getdents` syscalls. Each directory's entries were described on one goroutine, so the
+fixture's 12,000-file directory ran serially. Status for `DCR-V1-847`: experimental under the
+standing lane auto-accept; V1-2443 follow-up.
+
+- `DCR-V1-847`: A stamped directory with more than 1,024 recorded entries describes them in chunks
+  of 1,024 on additional goroutines while a stamp slot is free, and on the reading goroutine
+  otherwise. Records are assembled in name order and subdirectories are visited after, so the
+  digest is byte-identical to a serial walk; any chunk's refusal makes the stamp unavailable, and
+  a cancelled call still stops at the next batch. Target, set before the build: the benchmark's
+  capture median at or under 30 ms on the same host with load recorded, and an identical digest
+  for every chunk size. Measured, interleaved at load 3.4 to 4.5: 34.2 to 36.7 ms against 46.5 to
+  47.3 ms before, 25% lower, so the 30 ms target is not met; the remainder is per-entry `lstat`
+  and `getdents` syscall time, and statting through an `os.Root` directory handle measured slower
+  (50.2 to 58.0 ms). Non-goals: no change to what the stamp records, to the entry bound, or to
+  the coarse check of `DCR-V1-845`. Failure mode avoided: a large flat directory serializing the
+  warm call. Acceptance: `TestDCRV1847ChunkedStatMatchesSerialDigest`,
+  `BenchmarkDCRV1847CheckoutStamp`, and every `DCP-V1-314` and `DCR-V1-845` test unchanged.
+  Rollback: describe every directory serially again.
+
 ## Non-goals
 
 The parent contract's non-goals and simpler baseline apply; these blocks add none of their own.
@@ -637,3 +690,6 @@ DCPV1.
 | DCR-V1-450 | `internal/doccorpus/compile.go`, `query.go` | `TestDCRV1450ScopeMatchingMatchesPairwise`, `TestDCRV1450NestedScopesKeepRefusalsAndReasons`, `TestDCRV1450NewLiveFileNotedPerHoldingScope` |
 | DCR-V1-451 | `internal/doccorpus/read_fast_fixture_test.go`, `many_scopes_test.go` | `TestDCRV1451ManyScopesReadMatchesRederivation`, `BenchmarkDCRV1451ManyScopesVerifiedRead`, `BenchmarkDCRV1451ManyScopesRederivedRead`; profiles in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-read-hotspots-scope-and-pin.md |
 | DCR-V1-452..453 | `internal/contextindex/stat_routed_pin.go`, `index_stat_darwin.go`, `index_stat_linux.go`, `index_stat_unix.go`, `index_stat_other.go`, `index.go`, `corpus.go` | `TestDCRV1452GitIndexVouchesUnchangedEntries`, `TestDCRV1452RacyEntryIsNotVouched`, `TestDCRV1452IndexVersionsAndFlags`, `TestDCRV1453UnusableIndexVouchesNothing`, `TestDCRV1453IndexPathnameBounds`, `FuzzParseGitIndex`, `TestDCRV1453FailedBlobBatchFallsBackToWorktree`, `TestDCRV1453RoutedPinMatchesParityRepository` |
+| DCR-V1-845 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1845CoarseTimestampsLeaveNoStamp`, `TestDCRV1845SkewedCoarseEditNeverServedStale` |
+| DCR-V1-846 | `internal/mcp/corpusbridge/additional_freshness_test.go` | `TestDCRV1846GitFallbackWarmCallsWithinBudget` |
+| DCR-V1-847 | `internal/mcp/corpusbridge/stamp.go` | `TestDCRV1847ChunkedStatMatchesSerialDigest`, `BenchmarkDCRV1847CheckoutStamp` |

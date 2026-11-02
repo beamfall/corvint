@@ -407,6 +407,40 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   routes decline it. Reads after a retire walk only from the retire anchor, so their cost is
   bounded by the receipts since the anchor, not by the retired history.
 
+### Mutation reads (V1-4229 round 3, V1-4263)
+
+Status for `LGL-V0-845` and `LGL-V0-846`: experimental under the standing lane auto-accept;
+V1-4229, V1-4263.
+
+- `LGL-V0-845`: A native mutation through the CLI hands the writer the intent tree its preload
+  captured, through the journal reader's existing `IntentTree` input. The writer audit takes a
+  file's bytes from that capture when the file still has the size the preload read, as the seam
+  already allows; it reads every other file. Every check the audit makes is unchanged. The
+  pre-effect recheck still reads and hashes every intent file under the writer lock, and refuses
+  `SNAPSHOT_MOVED` when the digest differs from the audit's. So bytes that changed after the
+  preload never reach an effect. A mutation therefore reads and hashes its intent bytes twice (the
+  preload and the recheck) instead of three times. Target, set before the build: the writer
+  audit's intent reads at 2,000 tickets fall by at least 80%. Acceptance:
+  `TestLGLV0845WriterTakesPreloadBytes`, `TestLGLV0845ChangedAfterPreloadRefused`,
+  `TestTCXV0848JournalByteIdenticalWithIndex`.
+- `LGL-V0-846`: A native mutation whose request ID is recorded with different request bytes is
+  refused exactly as at the base. A request retained beyond the writer route's replay tail still
+  declines that route, and the complete route's full audit refuses it, so every refusal that wins
+  at the base, such as a malformed file in a request shard, still wins. The audit that refused
+  `REQUEST_ID_CONFLICT` already bound the recorded request and its ticket. It hands both to the
+  CLI's defaulted-`issuedAt` explanation, which no longer runs a second full audit of its own
+  (`RequestIndex.Lookup`). The preload still runs first, so a `complete-manual` whose intent checks
+  fail is still refused before the conflict. The refusal, its codes and its warnings are
+  byte-identical. Target, set before the build: at 500 tickets the refusal costs at most 25% of the
+  base CPU (1,166 ms to at most 290 ms). Amended after review (Codex r1 P2): an earlier version
+  answered the conflict from the writer checkpoint, which pre-empted the complete audit's shard
+  refusals. Acceptance: `TestLGLV0846ConflictRefusedFromCheckpoint`,
+  `TestLGLV0846MalformedShardRefusedAsBase`, `TestLGLV0846ConflictOutputMatchesCompleteRoute`.
+  Batch 1101e merge note: under `TCL-V0-800` (V1-3958) a retry that differs only in the defaulted
+  `issuedAt` replays, and the explanation names the digest inputs without a lookup, so it takes
+  no binding; `TestLGLV0846ConflictOutputMatchesCompleteRoute` now retries with a changed title.
+  The 500-ticket refusal target was not re-measured after that merge.
+
 ## Non-goals
 
 no writer-route admission for the pool verbs (CAL-V0-264 stays declined); no sealed-base resume

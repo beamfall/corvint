@@ -2734,6 +2734,12 @@ TCX-V0-985	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The journal audit 
 TCX-V0-986	docs/specs/corvint-tasks-closed-ticket-index-v0.md	`roadmap` renders a COMPLETED or ARCHIVED ticket's row from its summary, without	unrecorded	-
 TCX-V0-987	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The test fixture's journaled store `fixture.WriteWritableState` also creates the	unrecorded	-
 TCX-V0-988	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The shipped command `corvint-tasks doctor --rebuild-closed-index` (`TCL-V0-738`)	unrecorded	-
+TCX-V0-845	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index format becomes `corvint-tasks-closed-index/3` and holds an entry for	unrecorded	-
+TCX-V0-846	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The native mutation writer gives the model the index's entries when the index	unrecorded	-
+TCX-V0-847	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The CLI's pre-mutation load, which feeds only intent checks and warnings, reads	unrecorded	-
+TCX-V0-848	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Derived-state argument and measurement. The index is derived, rebuildable state	unrecorded	-
+TCX-V0-849	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-4229, round 3) The index	standing	V1-4229
+TCX-V0-850	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-1148) `tasks-scale gen`	standing	V1-1148
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
@@ -3053,6 +3059,8 @@ LGL-V0-813	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243)
 LGL-V0-814	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243) A seal MUST keep its per-segment protocol and order: a	unrecorded	-
 LGL-V0-815	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4243) A seal or unseal MUST retain (LGL-V0-809) the read	unrecorded	-
 LGL-V0-816	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-4217) `receipt retire` MUST NOT retain a read checkpoint. A store	unrecorded	-
+LGL-V0-845	docs/specs/corvint-tasks-lease-gate-latency-v0.md	A native mutation through the CLI hands the writer the intent tree its preload	unrecorded	-
+LGL-V0-846	docs/specs/corvint-tasks-lease-gate-latency-v0.md	A native mutation whose request ID is recorded with different request bytes is	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
@@ -4346,6 +4354,9 @@ DCR-V1-558	docs/specs/documentation-corpus-verified-reads-v1.md	The recorded-ide
 DCR-V1-559	docs/specs/documentation-corpus-verified-reads-v1.md	A streamed decode whose boundary scan has more than one segment pre-scans each	unrecorded	-
 DCR-V1-975	docs/specs/documentation-corpus-verified-reads-v1.md	The pinned-revision verification resolves every pinned revision of one checkout	unrecorded	-
 DCR-V1-985	docs/specs/documentation-corpus-verified-reads-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2745)	standing	2026-10-11; V1-2745
+DCR-V1-845	docs/specs/documentation-corpus-verified-reads-v1.md	The `DCP-V1-314` checkout stamp is also unavailable when a stamped directory	unrecorded	-
+DCR-V1-846	docs/specs/documentation-corpus-verified-reads-v1.md	A checkout the stamp does not cover (a linked worktree or submodule gitfile, an	unrecorded	-
+DCR-V1-847	docs/specs/documentation-corpus-verified-reads-v1.md	A stamped directory with more than 1,024 recorded entries describes them in chun	unrecorded	-
 QAT-V0-001	docs/specs/dogfood-query-abstention-v0.md	The producer MUST qualify only exit 2, empty raw stdout and exactly the canonica	unrecorded	-
 QAT-V0-002	docs/specs/dogfood-query-abstention-v0.md	The producer MUST retain the exact NUL-terminated invocation, raw output files a	unrecorded	-
 QAT-V0-003	docs/specs/dogfood-query-abstention-v0.md	The report MUST keep the query row `NOT_PRODUCED` with reason `authority-start-t	unrecorded	-

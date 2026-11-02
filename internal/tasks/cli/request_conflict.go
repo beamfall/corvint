@@ -47,7 +47,7 @@ func recordedIssuedAt(repo *intent.Repository, st *intent.Store, operation strin
 			bases = append(bases, at)
 		}
 	}
-	if rec, ok := st.Inventory.Get(idx.TicketID); ok {
+	if rec, ok := st.Inventory.Get(ticketID); ok {
 		bases = append(bases, rec.CreatedAt, rec.UpdatedAt)
 	}
 	seen := map[wire.Timestamp]bool{issued: true}
