@@ -102,12 +102,23 @@ measure. None of them drops a unit the change can reach.
   Non-goal: any other file under `integrations/`, which stays a source or unowned path, and the
   TypeScript literal rule itself.
 
+- **AFP-V0-831:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3509,
+  V1-4258; amending the `AFP-V0-551` non-goal) The dependent nested-module reader
+  (`AFP-V0-582`, `nested.go`) MUST honour the `//corvint:fixture-path` marker as the package reader
+  does: a token only marked literals of the module's `_test.go` files hold is no path token of the
+  module's unit. The token still adds its import edge, and a marked literal still counts toward
+  the module's unbounded-read reasons. Motivation: `tools/local-authority`'s
+  `codec_package_test.go` builds a Git tree object whose entry is named `README.md`; the bare token
+  made that module a reader of every `README.md` and brought `go:nested-module-frontier` into a
+  host README plan. Target: an `integrations/claude-code/README.md` edit beside a Go change adds no
+  unknown entry to the Go change's own plan (`AFP-V0-830`).
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
 literals, a runtime read trace, or symbol-level reachability inside a hub package (V1-3282,
 V1-2744). It does not narrow a test-only edit's unbounded readers (V1-4143). The nested-module
-reader path (`nested.go`) still reads every token. AFP-V0-552 does not add a Python tokenizer to the
+reader path (`nested.go`) honours the marker only since AFP-V0-831. AFP-V0-552 does not add a Python tokenizer to the
 adapter.
 
 ## Failure modes
@@ -128,6 +139,7 @@ unit whole. A missing `python3` skips AFP-V0-552 rather than passing it.
 | AFP-V0-552 | `astImports`, `differentialCorpus` in `internal/liveverify/affected/python/differential_test.go` | `TestScanImportsAgreesWithAst_V13322` |
 | AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/replay_v14170_test.go` |
 | AFP-V0-830 | the integrations README listing in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestIntegrationReadmesAreDocumentation_AFP_V0_830` in `internal/liveverify/affected/integration_readme_documentation_repo_test.go`; `script/gen-documentation-paths_test.sh` case 6 |
+| AFP-V0-831 | the `fixtureOnly` check on the token loop of `observeDependentModule` in `internal/liveverify/affected/golang/nested.go`; the marker in `tools/local-authority/codec_package_test.go` | `TestNestedModuleHonoursFixtureMarker_AFP_V0_831` in `internal/liveverify/affected/golang/fixture_marker_test.go`; `TestIntegrationReadmesAreDocumentation_AFP_V0_830` (repository plan) |
 
 ## Rollback
 
