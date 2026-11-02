@@ -191,7 +191,8 @@ jobs:
             '.profile == "corvint-docs-ci/0" and .mode == "DOCS" and .verified == true and .base == $base and .head == $head and .target == $target' \
             "$RUNNER_TEMP/docs-ci-plan.json" > /dev/null; then
             mode=DOCS
-            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex)
+            # DCI-V0-857: tools/capabilities-check reads the README capability table.
+            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)
           fi
           echo "mode=$mode" >> "$GITHUB_OUTPUT"
       - name: Retain documentation decision

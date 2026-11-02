@@ -122,10 +122,34 @@ func wantLine(t *testing.T, name, block, line string) {
 	}
 }
 
-// statusJobRuns evaluates the if of status job JOB in ci-control-plane.yml for a completed CI
-// run of EVENT and CONCLUSION. It knows only &&-joined equality tests of those two payload
-// fields, so any other condition shape fails the test rather than being guessed at.
-func statusJobRuns(t *testing.T, w, job, event, conclusion string) bool {
+// runHead is the head SHA of every workflow_run payload runPayload builds.
+const runHead = "59cc560b9d98f746bba0282d18c0442e65b85a98"
+
+// runPayload returns a completed workflow_run payload shaped like GitHub's: run head runHead,
+// and one pull_requests entry per PRHEADS head SHA (none for a fork pull request, whose list
+// GitHub sends empty: actions/runner#3444).
+func runPayload(t *testing.T, event, conclusion string, prHeads ...string) map[string]any {
+	t.Helper()
+	prs := []string{}
+	for i, h := range prHeads {
+		prs = append(prs, fmt.Sprintf(`{"id":%d,"number":%d,"url":"https://api.github.com/repos/beamfall/corvint/pulls/%d",`+
+			`"head":{"ref":"claude/x","sha":%q,"repo":{"id":1,"name":"corvint"}},`+
+			`"base":{"ref":"main","sha":"35475f860d97bfde9bbaa6cccf1f2ba8f78ea44b","repo":{"id":1,"name":"corvint"}}}`, 9000+i, 1144+i, 1144+i, h))
+	}
+	raw := fmt.Sprintf(`{"workflow_run":{"id":41342717277,"name":"CI","event":%q,"status":"completed","conclusion":%q,`+
+		`"head_branch":"claude/x","head_sha":%q,"pull_requests":[%s]}}`, event, conclusion, runHead, strings.Join(prs, ","))
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(raw), &payload); err != nil {
+		t.Fatal(err)
+	}
+	return payload["workflow_run"].(map[string]any)
+}
+
+// statusJobRuns evaluates the if of status job JOB in ci-control-plane.yml against the
+// workflow_run payload RUN. It knows only equality tests of event and conclusion, the
+// AFP-V0-855 empty-list and listed-head tests, parentheses, && and ||, so any other condition
+// shape fails the test rather than being guessed at.
+func statusJobRuns(t *testing.T, w, job string, run map[string]any) bool {
 	t.Helper()
 	b := jobBlock(t, w, job)
 	m := regexp.MustCompile(`(?m)^    if: (.+)$`).FindStringSubmatch(b)
@@ -133,16 +157,68 @@ func statusJobRuns(t *testing.T, w, job, event, conclusion string) bool {
 		t.Fatalf("%s has no single-line if", job)
 	}
 	clause := regexp.MustCompile(`^github\.event\.workflow_run\.(event|conclusion) (==|!=) '([a-z_]+)'$`)
-	payload := map[string]string{"event": event, "conclusion": conclusion}
-	runs := true
-	for _, c := range strings.Split(m[1], "&&") {
-		p := clause.FindStringSubmatch(strings.TrimSpace(c))
-		if p == nil {
-			t.Fatalf("%s: unrecognised if clause %q; extend statusJobRuns", job, c)
+	const emptyList = "toJSON(github.event.workflow_run.pull_requests) == '[]'"
+	const listedHead = "contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)"
+	prs, _ := run["pull_requests"].([]any)
+	var eval func(expr string) bool
+	// split cuts EXPR at top-level occurrences of OP, outside parentheses.
+	split := func(expr, op string) []string {
+		var parts []string
+		depth, last := 0, 0
+		for i := 0; i < len(expr); i++ {
+			switch {
+			case expr[i] == '(':
+				depth++
+			case expr[i] == ')':
+				depth--
+			case depth == 0 && strings.HasPrefix(expr[i:], op):
+				parts = append(parts, expr[last:i])
+				last = i + len(op)
+			}
 		}
-		runs = runs && (payload[p[1]] == p[3]) == (p[2] == "==")
+		return append(parts, expr[last:])
 	}
-	return runs
+	eval = func(expr string) bool {
+		expr = strings.TrimSpace(expr)
+		if parts := split(expr, "||"); len(parts) > 1 {
+			anyTrue := false
+			for _, p := range parts {
+				anyTrue = eval(p) || anyTrue
+			}
+			return anyTrue
+		}
+		if parts := split(expr, "&&"); len(parts) > 1 {
+			allTrue := true
+			for _, p := range parts {
+				allTrue = eval(p) && allTrue
+			}
+			return allTrue
+		}
+		if strings.HasPrefix(expr, "(") && strings.HasSuffix(expr, ")") {
+			return eval(expr[1 : len(expr)-1])
+		}
+		switch expr {
+		case emptyList:
+			b, err := json.Marshal(run["pull_requests"])
+			if err != nil {
+				t.Fatal(err)
+			}
+			return string(b) == "[]"
+		case listedHead:
+			for _, pr := range prs {
+				if head, _ := pr.(map[string]any)["head"].(map[string]any); head["sha"] == run["head_sha"] {
+					return true
+				}
+			}
+			return false
+		}
+		p := clause.FindStringSubmatch(expr)
+		if p == nil {
+			t.Fatalf("%s: unrecognised if clause %q; extend statusJobRuns", job, expr)
+		}
+		return (run[p[1]] == p[3]) == (p[2] == "==")
+	}
+	return eval(m[1])
 }
 
 // V1-1778 (AFP-V0-079): each status job runs for every completed CI run of its event, cancelled
@@ -157,14 +233,21 @@ func TestAFPV0079ControlPlaneReportsEveryCompletedRun(t *testing.T) {
 		b := jobBlock(t, w, job)
 		wantLine(t, job, b, "      group: ci-control-plane-"+event+"-${{ github.event.workflow_run.head_sha }}")
 		wantLine(t, job, b, "      cancel-in-progress: true")
+		// The run's head listed, an empty list (a fork), and only a newer head listed.
+		lists := map[string][]string{"listed": {runHead}, "empty": nil, "superseded": {strings.Repeat("a", 40)}}
 		for _, conclusion := range []string{"success", "failure", "cancelled", "timed_out"} {
-			for other, otherJob := range jobs {
-				if got, want := statusJobRuns(t, w, otherJob, event, conclusion), other == event; got != want {
-					t.Errorf("%s for a %s run that concluded %s: runs=%v, want %v", otherJob, event, conclusion, got, want)
+			for list, heads := range lists {
+				for other, otherJob := range jobs {
+					// AFP-V0-855: only a cancelled pull-request run whose non-empty list lacks its
+					// head is left without a control-plane job.
+					want := other == event && !(otherJob == "control-plane" && conclusion == "cancelled" && list == "superseded")
+					if got := statusJobRuns(t, w, otherJob, runPayload(t, event, conclusion, heads...)); got != want {
+						t.Errorf("%s for a %s run that concluded %s (list %s): runs=%v, want %v", otherJob, event, conclusion, list, got, want)
+					}
 				}
 			}
 		}
-		if statusJobRuns(t, w, job, "push", "success") {
+		if statusJobRuns(t, w, job, runPayload(t, "push", "success", runHead)) {
 			t.Errorf("%s must not run for a push run", job)
 		}
 	}
@@ -184,13 +267,14 @@ func TestAFPV0079CancelledRunStillPostsTheStatus(t *testing.T) {
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatalf("the status steps need bash on PATH: %v", err)
 	}
-	const head = "59cc560b9d98f746bba0282d18c0442e65b85a98"
+	const head = runHead
 	w := readWorkflow(t, "ci-control-plane.yml")
 	for _, tc := range []struct{ job, event, branch, want string }{
 		{"control-plane", "pull_request", "claude/x", "state=success"},
 		{"merge-group", "merge_group", "gh-readonly-queue/main/pr-1144-" + head, "state=success"},
 	} {
-		if !statusJobRuns(t, w, tc.job, tc.event, "cancelled") {
+		// AFP-V0-855: a fork pull request's payload lists no pull requests, yet its run is current.
+		if !statusJobRuns(t, w, tc.job, runPayload(t, tc.event, "cancelled")) {
 			t.Errorf("%s does not run for a cancelled %s run", tc.job, tc.event)
 			continue
 		}
@@ -233,6 +317,40 @@ esac
 		if p := string(posts); strings.Count(p, "\n") != 1 || !strings.Contains(p, "repos/beamfall/corvint/statuses/"+head) ||
 			!strings.Contains(p, tc.want) || !strings.Contains(p, "context=ci-control-plane") {
 			t.Errorf("%s posted %q, want one ci-control-plane %s on %s", tc.job, p, tc.want, head)
+		}
+	}
+}
+
+// V1-1778 (AFP-V0-855): a pull-request run cancelled because a newer push superseded its head
+// starts no control-plane job when GitHub lists the pull request by branch (its newer head is
+// listed). An empty list, which GitHub sends for a fork pull request, still starts the job: its
+// step looks up open pull requests by head SHA and posts the status a current fork head needs.
+// A non-cancelled run always starts it, and merge-group is untouched.
+func TestAFPV0855SupersededCancelledRunStartsNoJob(t *testing.T) {
+	w := readWorkflow(t, "ci-control-plane.yml")
+	newer := strings.Repeat("a", 40)
+	for _, tc := range []struct {
+		name, job, event, conclusion string
+		heads                        []string
+		want                         bool
+	}{
+		{"fork, empty list, current head", "control-plane", "pull_request", "cancelled", nil, true},
+		{"listed by branch, newer head only", "control-plane", "pull_request", "cancelled", []string{newer}, false},
+		{"listed at the run's head", "control-plane", "pull_request", "cancelled", []string{newer, runHead}, true},
+		{"success, newer head only", "control-plane", "pull_request", "success", []string{newer}, true},
+		{"failure, newer head only", "control-plane", "pull_request", "failure", []string{newer}, true},
+		{"success, empty list", "control-plane", "pull_request", "success", nil, true},
+		{"merge-group cancelled", "merge-group", "merge_group", "cancelled", []string{newer}, true},
+	} {
+		if got := statusJobRuns(t, w, tc.job, runPayload(t, tc.event, tc.conclusion, tc.heads...)); got != tc.want {
+			t.Errorf("%s: %s runs=%v, want %v", tc.name, tc.job, got, tc.want)
+		}
+	}
+	b := jobBlock(t, w, "control-plane")
+	for _, c := range []string{"toJSON(github.event.workflow_run.pull_requests) == '[]'",
+		"contains(github.event.workflow_run.pull_requests.*.head.sha, github.event.workflow_run.head_sha)"} {
+		if !strings.Contains(b, c) {
+			t.Errorf("control-plane condition lacks %s", c)
 		}
 	}
 }
@@ -925,4 +1043,35 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 			}
 		}
 	}
+}
+
+// DCI-V0-856 (V1-0470): a pull-request run whose docs-plan chose DOCS leaves no record that lets
+// a queue or push run skip its root race invocation, and only a pull-request event plans DOCS.
+// DCI-V0-855 binds the docs-only qualification to its classifier and policy alone on the strength
+// of this backstop, so losing any clause here would let a README reader added after review reach
+// main untested.
+func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
+	w := readWorkflow(t, "ci.yml")
+	ifLine := func(job string) string {
+		m := regexp.MustCompile(`(?m)^    if: (.+)$`).FindStringSubmatch(jobBlock(t, w, job))
+		if m == nil {
+			t.Fatalf("%s has no single-line if", job)
+		}
+		return m[1]
+	}
+	for job, clause := range map[string]string{
+		"ci-tested-tree-record":   " && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}",
+		"ci-narrowed-tree-record": " && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}",
+	} {
+		// The clause must close a top-level && chain: the text before it balances its parentheses.
+		got := ifLine(job)
+		rest := strings.TrimSuffix(got, clause)
+		if !strings.HasPrefix(got, "${{ !cancelled() && ") || rest == got || strings.Count(rest, "(") != strings.Count(rest, ")") {
+			t.Errorf("%s if = %q, want a top-level && ending %q", job, got, clause)
+		}
+	}
+	plan := jobBlock(t, w, "docs-plan")
+	wantLine(t, "docs-plan", plan, `          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then`)
+	// DCI-V0-857: the README capability table's reader runs on every DOCS run.
+	wantLine(t, "docs-plan", plan, `            (cd "$GITHUB_WORKSPACE/source" && go test -race -count=1 -timeout 30m ./tools/docs-ci-plan ./internal/specindex ./tools/capabilities-check)`)
 }

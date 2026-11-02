@@ -57,11 +57,11 @@ func newFixture(t *testing.T) fixture {
 	put(t, root, "docs/specs/documentation-ci-v0.md", "# Policy\n")
 	rev := commit(t, root)
 	r := repo{root}
-	tree, tool, e := r.identities(rev)
+	tool, policy, e := r.identities(rev)
 	if e != nil {
 		t.Fatal(e)
 	}
-	q := qualification{Profile: "corvint-docs-ci-qualification/0", Approved: true, Tree: tree, Classifier: tool, Checks: checks, Inventory: "docs/specs/documentation-ci-v0.md#consumer-inventory", Review: "independent-fixture-review"}
+	q := qualification{Profile: qualificationProfile, Approved: true, Classifier: tool, Policy: policy, Checks: checks, Inventory: "docs/specs/documentation-ci-v0.md#consumer-inventory", Review: "independent-fixture-review"}
 	b, _ := json.Marshal(q)
 	put(t, root, qualificationFile, string(b))
 	return fixture{r: r, base: commit(t, root)}
@@ -95,7 +95,7 @@ func TestREADMEAndCitationRegression(t *testing.T) {
 	if e := f.r.verify(&p); e != nil {
 		t.Fatal(e)
 	}
-	if !p.Verified || p.Qualification == "" || p.Tree == "" || p.Target != f.target || p.Unknown == "" {
+	if !p.Verified || p.Qualification == "" || p.Policy == "" || p.Target != f.target || p.Unknown == "" {
 		t.Fatalf("incomplete receipt: %+v", p)
 	}
 }
@@ -204,10 +204,11 @@ func TestMergeBindings(t *testing.T) {
 	}
 }
 
-// DCI-V0-005: the qualification binds the full source/control-plane closure,
-// including names and modes. PR-proposed approval cannot admit that PR.
+// DCI-V0-005, DCI-V0-855: the qualification binds the classifier source and this policy,
+// including names and modes, and refuses an older profile or an unsupported tree entry.
+// PR-proposed approval cannot admit that PR.
 func TestQualificationInvalidation(t *testing.T) {
-	for _, name := range []string{"missing", "unapproved", "bad-checks", "malformed", "stale-source", "mode-drift"} {
+	for _, name := range []string{"missing", "unapproved", "bad-checks", "malformed", "old-profile", "stale-classifier", "classifier-mode-drift", "stale-policy", "unsupported-entry"} {
 		t.Run(name, func(t *testing.T) {
 			f := newFixture(t)
 			b, e := os.ReadFile(filepath.Join(f.r.root, qualificationFile))
@@ -233,17 +234,67 @@ func TestQualificationInvalidation(t *testing.T) {
 				put(t, f.r.root, qualificationFile, string(b))
 			case "malformed":
 				put(t, f.r.root, qualificationFile, "{} {}")
-			case "stale-source":
-				put(t, f.r.root, "new.go", "package changed\n")
-			case "mode-drift":
-				gitTest(t, f.r.root, "update-index", "--chmod=+x", "docs/guide.md")
-				if e = os.Chmod(filepath.Join(f.r.root, "docs/guide.md"), 0700); e != nil {
+			case "old-profile":
+				q.Profile = "corvint-docs-ci-qualification/0"
+				b, _ = json.Marshal(q)
+				put(t, f.r.root, qualificationFile, string(b))
+			case "stale-classifier":
+				put(t, f.r.root, "tools/docs-ci-plan/extra.go", "package main\n")
+			case "classifier-mode-drift":
+				gitTest(t, f.r.root, "update-index", "--chmod=+x", "tools/docs-ci-plan/main.go")
+				if e = os.Chmod(filepath.Join(f.r.root, "tools/docs-ci-plan/main.go"), 0700); e != nil {
+					t.Fatal(e)
+				}
+			case "stale-policy":
+				put(t, f.r.root, policyFile, "# Policy\n\nWidened.\n")
+			case "unsupported-entry":
+				if e = os.Symlink("docs/guide.md", filepath.Join(f.r.root, "link.md")); e != nil {
 					t.Fatal(e)
 				}
 			}
 			f.base = commit(t, f.r.root)
 			f.change(t, func(r string) { prose(t, r) })
 			if p := f.plan(); p.Mode != "FULL" {
+				t.Fatalf("%+v", p)
+			}
+		})
+	}
+}
+
+// DCI-V0-855: drift outside the classifier and this policy, which went stale with every merge
+// under the former whole-tree binding, no longer invalidates the approval.
+func TestQualificationIgnoresUnrelatedDrift(t *testing.T) {
+	f := newFixture(t)
+	put(t, f.r.root, "new.go", "package changed\n")
+	put(t, f.r.root, "docs/guide.md", "# Guide\n\n## Usage\n\nMore.\n")
+	gitTest(t, f.r.root, "update-index", "--chmod=+x", "docs/guide.md")
+	if e := os.Chmod(filepath.Join(f.r.root, "docs/guide.md"), 0700); e != nil {
+		t.Fatal(e)
+	}
+	f.base = commit(t, f.r.root)
+	f.change(t, func(r string) { prose(t, r) })
+	p := f.plan()
+	if p.Mode != "DOCS" {
+		t.Fatalf("%+v", p)
+	}
+	if e := f.r.verify(&p); e != nil || !p.Verified {
+		t.Fatalf("error=%v receipt=%+v", e, p)
+	}
+}
+
+// DCI-V0-857: the capability table's two region markers are admitted; any other comment is not.
+func TestCapabilityMarkerComments(t *testing.T) {
+	table := "<!-- capability-gate:readme -->\n| Capability | Try it |\n|---|---|\n| Init | `corvint init` |\n<!-- /capability-gate:readme -->\n"
+	for _, tc := range []struct{ name, body, mode string }{
+		{"markers", fixtureREADME + "\n" + table, "DOCS"},
+		{"other-comment", fixtureREADME + "\n<!-- hidden -->\n", "FULL"},
+		{"marker-suffix", fixtureREADME + "\n<!-- capability-gate:readme --x -->\n", "FULL"},
+		{"unclosed", fixtureREADME + "\n<!-- capability-gate:readme\n", "FULL"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.change(t, func(r string) { put(t, r, readme, tc.body) })
+			if p := f.plan(); p.Mode != tc.mode {
 				t.Fatalf("%+v", p)
 			}
 		})
@@ -357,7 +408,7 @@ func TestNativeCLI(t *testing.T) {
 	if e = json.Unmarshal(b, &q); e != nil {
 		t.Fatal(e)
 	}
-	if q.Approved || q.Review != "" || q.Tree == "" {
+	if q.Approved || q.Review != "" || q.Classifier == "" || q.Policy == "" || q.Profile != qualificationProfile {
 		t.Fatalf("proposal self-approved: %+v", q)
 	}
 }
