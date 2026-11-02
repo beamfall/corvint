@@ -113,6 +113,17 @@ measure. None of them drops a unit the change can reach.
   host README plan. Target: an `integrations/claude-code/README.md` edit beside a Go change adds no
   unknown entry to the Go change's own plan (`AFP-V0-830`).
 
+- **AFP-V0-832:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-4259,
+  amending `AFP-V0-094`) `affected --path` MUST NOT refuse a dirty worktree whose every dirty path
+  is a declared documentation path (`AFP-V0-160`, read from the worktree's own
+  `.corvint/documentation-paths.json`, which must itself be clean) that no unit of the built graph
+  owns: no plugin reads such a file as source, so the graph and the plan are HEAD's, and the
+  receipt is byte-identical to the one a clean worktree gives. Any other dirty path, an unreadable
+  declaration, or a dirty path a unit owns keeps the `unsupported-affected-mixed-worktree`
+  refusal; `--require-clean` is unchanged. Motivation: a lane's untracked build-log entry made
+  every `--path` probe refuse until the entry was committed. Non-goal: tolerating any other
+  untracked file.
+
 ## Non-goals
 
 The parent contract's non-goals and authority rules apply. AFP-V0-551 does not narrow by suffix
@@ -140,6 +151,7 @@ unit whole. A missing `python3` skips AFP-V0-552 rather than passing it.
 | AFP-V0-553 | `ownDirectory` and the `+` operators of `braced` in `internal/liveverify/affected/shell/computed.go`; `commandStrings` in `internal/liveverify/affected/shell/shell.go` | `TestInvocationThroughVariables_AFP_V0_553` in `internal/liveverify/affected/shell/invocation_test.go`; `TestHeavyShEditKeepsShellReaders_V14170` in `internal/liveverify/affected/replay_v14170_test.go` |
 | AFP-V0-830 | the integrations README listing in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestIntegrationReadmesAreDocumentation_AFP_V0_830` in `internal/liveverify/affected/integration_readme_documentation_repo_test.go`; `script/gen-documentation-paths_test.sh` case 6 |
 | AFP-V0-831 | the `fixtureOnly` check on the token loop of `observeDependentModule` in `internal/liveverify/affected/golang/nested.go`; the marker in `tools/local-authority/codec_package_test.go` | `TestNestedModuleHonoursFixtureMarker_AFP_V0_831` in `internal/liveverify/affected/golang/fixture_marker_test.go`; `TestIntegrationReadmesAreDocumentation_AFP_V0_830` (repository plan) |
+| AFP-V0-832 | `affectedDocumentationOnly` and its two checks in `compileAffectedGraph` (`cmd/corvint/affected.go`, `cmd/corvint/affected_freshness.go`); the `--path` paragraph of `corvint help affected` | `TestPathListToleratesDirtyDocumentation_AFP_V0_832` in `cmd/corvint/affected_path_test.go` |
 
 ## Rollback
 
