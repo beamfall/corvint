@@ -37,8 +37,8 @@ var genesisDirectories = []string{"receipts", "evidence", "pinned", "requests", 
 type Report struct {
 	LaneUntouchedAttestation *snapshot.LaneUntouchedAttestation
 
-	// conflict is the bound request a writer-route REQUEST_ID_CONFLICT
-	// refused against (LGL-V0-846); it never reaches any output.
+	// conflict is the recorded request the complete route's audit bound when
+	// it refused REQUEST_ID_CONFLICT (LGL-V0-846); it never reaches output.
 	conflict *writerReplay
 
 	PoolAllocation *snapshot.PoolAllocation
@@ -912,9 +912,8 @@ func readIntent(repo *intent.Repository) (queue, policy []byte, queueID, branch 
 }
 
 // ConflictBinding returns the recorded request entry and the ticket its
-// receipt targeted when the writer route refused REQUEST_ID_CONFLICT from the
-// writer checkpoint, bound as the complete route's audit would bind them
-// (LGL-V0-846).
+// receipt targeted when the complete route's audit refused
+// REQUEST_ID_CONFLICT, as that audit bound them (LGL-V0-846).
 func (r *Report) ConflictBinding() (mutation.IndexEntry, string, bool) {
 	if r == nil || r.conflict == nil {
 		return mutation.IndexEntry{}, "", false

@@ -64,22 +64,6 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 		writerStage(ctx, "replay", at)
 		return true, report, nil
 	}
-	if w.retained != nil {
-		// LGL-V0-846: a request retained beyond the replay tail with other
-		// request bytes is refused here as the complete route refuses it; a
-		// matching digest is a replay, which that route still serves.
-		if d, err := transaction.Digest(request); err != nil || d == w.retained.entry.MutationSha256 {
-			return declined(w.retainedDecline.Error())
-		}
-		result := replayResult(request, w.retained.entry)
-		if result.Outcome.Outcome != mutation.OutcomeRequestIDConflict {
-			return declined(w.retainedDecline.Error())
-		}
-		report.Outcome, report.Coverage, report.Detail, report.Kind = result.Outcome, result.Coverage, result.Detail, result.Kind
-		report.conflict = w.retained
-		writerStage(ctx, "conflict", at)
-		return true, report, nil
-	}
 	paths := []string{"intent/queue.json", "intent/policy.json"}
 	for _, file := range w.inv.FilesUnder("intent/") {
 		if strings.HasPrefix(file.Path, "intent/tickets/") || strings.HasPrefix(file.Path, "intent/releases/") {

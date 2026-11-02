@@ -1658,19 +1658,6 @@ func (res *Result) WriterListing() map[string]ListedFile {
 // The one exception is cleanup, a failed native close of these reads, which
 // is terminal as it is for the audit (CAL-V0-116): err then carries it too.
 func (r Reader) WriterReplay(res *Result, requestID string) (found bool, entry mutation.IndexEntry, ticketID string, cleanup, err error) {
-	return r.writerRequest(res, requestID, MaxWriterTail)
-}
-
-// WriterConflictRequest is WriterReplay without its tail bound: a request
-// posted at or before the checkpoint is bound by the same checks, walking
-// the Prev digests back to its receipt however far that is. Store uses it
-// only to refuse a REQUEST_ID_CONFLICT, whose answer names no receipt, and
-// still sends a matching digest to the complete route (LGL-V0-846).
-func (r Reader) WriterConflictRequest(res *Result, requestID string) (found bool, entry mutation.IndexEntry, ticketID string, cleanup, err error) {
-	return r.writerRequest(res, requestID, ^uint64(0))
-}
-
-func (r Reader) writerRequest(res *Result, requestID string, maxWalk uint64) (found bool, entry mutation.IndexEntry, ticketID string, cleanup, err error) {
 	if res == nil || res.Mode != ModeWriter || res.writerBase == nil {
 		return false, entry, "", nil, errCheckpoint("writer replay", "not a writer audit")
 	}
@@ -1723,7 +1710,7 @@ func (r Reader) writerRequest(res *Result, requestID string, maxWalk uint64) (fo
 		return false, entry, "", nil, err
 	}
 	seq, last := req.Seq.Uint64(), wc.Seq.Uint64()
-	if req.Entry.RequestID != requestID || seq < 1 || seq > last || last-seq > maxWalk {
+	if req.Entry.RequestID != requestID || seq < 1 || seq > last || last-seq > MaxWriterTail {
 		return false, entry, "", nil, errCheckpoint(rp, "request is not within the bound before the checkpoint")
 	}
 	digest := wc.ReceiptSha256

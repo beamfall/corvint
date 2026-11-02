@@ -252,18 +252,18 @@ V1-4229, V1-4263.
   `TestLGLV0845WriterTakesPreloadBytes`, `TestLGLV0845ChangedAfterPreloadRefused`,
   `TestTCXV0848JournalByteIdenticalWithIndex`.
 - `LGL-V0-846`: A native mutation whose request ID is recorded with different request bytes is
-  refused on the writer route. When the writer checkpoint vouches for the request's afterimage,
-  the route binds it to its receipt by walking the checkpoint's receipt chain back to the
-  request's sequence. That walk makes the same checks as `CAL-V0-190`, without the tail bound that
-  route keeps for replays. When the recorded digest differs, the model refuses
-  `REQUEST_ID_CONFLICT` exactly as the complete route does, and the full audit does not run. The
-  CLI's defaulted-`issuedAt` explanation takes the bound entry and ticket from that refusal
-  instead of running a second full audit. A retained request with the same digest beyond the tail
-  still declines to the complete route. The preload still runs first, so a `complete-manual`
-  whose intent checks fail is still refused before the conflict, as at the base. The refusal, its
-  codes and its warnings are byte-identical. Target, set before the build: at 500 tickets the
-  refusal costs at most 25% of the base CPU (1,166 ms to at most 290 ms). Acceptance:
-  `TestLGLV0846ConflictRefusedFromCheckpoint`, `TestLGLV0846ConflictOutputMatchesCompleteRoute`.
+  refused exactly as at the base. A request retained beyond the writer route's replay tail still
+  declines that route, and the complete route's full audit refuses it, so every refusal that wins
+  at the base, such as a malformed file in a request shard, still wins. The audit that refused
+  `REQUEST_ID_CONFLICT` already bound the recorded request and its ticket. It hands both to the
+  CLI's defaulted-`issuedAt` explanation, which no longer runs a second full audit of its own
+  (`RequestIndex.Lookup`). The preload still runs first, so a `complete-manual` whose intent checks
+  fail is still refused before the conflict. The refusal, its codes and its warnings are
+  byte-identical. Target, set before the build: at 500 tickets the refusal costs at most 25% of the
+  base CPU (1,166 ms to at most 290 ms). Amended after review (Codex r1 P2): an earlier version
+  answered the conflict from the writer checkpoint, which pre-empted the complete audit's shard
+  refusals. Acceptance: `TestLGLV0846ConflictRefusedFromCheckpoint`,
+  `TestLGLV0846MalformedShardRefusedAsBase`, `TestLGLV0846ConflictOutputMatchesCompleteRoute`.
 
 ## Non-goals
 
