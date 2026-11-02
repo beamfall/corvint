@@ -14,8 +14,8 @@ import (
 
 // TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles (V1-3633): the two files
 // the friction report named as INTENTS entries, a build-log entry and the spec
-// index docs/specs/README.md, are committed byte for byte into a non-record
-// change. The inputs-check pre-flight refuses that manifest before any step,
+// index docs/specs/README.md, are committed into a non-record change from
+// frozen copies under testdata/v1-3633. The inputs-check pre-flight refuses that manifest before any step,
 // naming each file with the code lrfrepo.DeriveIntentAt (the derivation
 // ocm-prepare runs after the bind commit) returns for it, which is
 // invalid-requirements-section for both.
@@ -41,10 +41,10 @@ func TestDCWV0620InputsCheckRefusesTheV1_3633ReproFiles(t *testing.T) {
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	for _, name := range repro {
-		// The file as checked out; test-confine admits only the declared
-		// read scopes (.corvint/test-read-scopes.json), not .git, so a git
-		// read of the committed blob exits 128 under confinement.
-		data, err := os.ReadFile(filepath.Join("..", "..", filepath.FromSlash(name)))
+		// A frozen copy under testdata: the build-log entry whole, the spec
+		// index's head. Reading the live files would need .git (refused under
+		// test-confine) or a climb to the repository root.
+		data, err := os.ReadFile(filepath.Join("testdata", "v1-3633", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)
 		}
