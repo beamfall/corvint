@@ -104,6 +104,7 @@ GATE_STEPS = \
   host-package-versions-test \
   instruction-conflicts-test \
   interop-gate \
+  lane-interrupted-test \
   legal-file-pins-check \
   license-headers-check \
   license-headers-test \
@@ -1216,6 +1217,11 @@ dogfood-change-runs:
 lane-scripts-test:
 	@script/lane-scripts_test.sh
 
+# ASD-V0-788 (NEW-D6): the interrupted-lane marker (docs/LANE-ORCHESTRATION.md section 17).
+.PHONY: lane-interrupted-test
+lane-interrupted-test:
+	@script/lane-interrupted_test.sh
+
 # ASD-V0-641 (V1-3745): every script a shell test or a Makefile recipe names exists.
 .PHONY: test-script-refs-check
 test-script-refs-check:
@@ -1345,6 +1351,7 @@ shell-test: \
   hlq-local-test \
   host-package-versions-test \
   instruction-conflicts-test \
+  lane-interrupted-test \
   license-headers-test \
   line-citations-test \
   no-python-runtime-dependency-test \

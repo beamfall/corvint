@@ -1257,3 +1257,34 @@ section 4 step 2 applies to the per-lane rebind, where no such change follows.
    `coverage=restored:...` or `coverage=disposition`.
 7. Some lanes were skipped as `ours-unresolved`. Each takes the per-lane rebind of `docs/DOGFOOD.md`
    section 4 step 2 at the assembled head, then merges.
+
+## 17. Interrupted lanes: marker and resume (ASD-V0-788, NEW-D6)
+
+A lane session can end without its handback: a usage-limit kill, a crash or a closed SSH session.
+Its commits and uncommitted edits stay in the worktree, but nothing records which tickets are left,
+so the lane was neither resumed nor requeued. The marker is derived from Git state alone, so the
+orchestrator writes it on the lane's host after the fact and the dead lane does nothing.
+
+1. Detect: the idle watchdog (section 5) flags the lane, or the session ends with no
+   `~/lane-reports/<lane>/final.md` (section 14).
+2. Record, on the lane's host:
+
+   ```sh
+   script/lane-interrupted.sh record --dir <lane dir> --env <dir>/lane.env --reason usage-limit
+   ```
+
+   It writes `<worktree git dir>/corvint/lane-interrupted` and prints it: `head`, `base`,
+   `commits`, `cited` (each ID a lane commit names, with the newest such commit), `remaining` (the
+   other IDs in dispatch order) and one `path <XY> <path>` line per uncommitted entry. Without a
+   `lane.env`, pass `--lane`, `--base` and the IDs. Only the lane's own non-merge commits on its
+   first-parent chain cite, so a merged batch tip never marks another lane's IDs as done.
+3. Requeue: each round, `script/lane-interrupted.sh list` in the host's repository prints one
+   `INTERRUPTED lane=... head=... remaining=<n> dirty=<n> dir=...` line per marker and exits 1
+   while any exists.
+4. Resume in the same worktree and branch, never from a fresh base: the new brief names `head`, the
+   `remaining` IDs and the dirty paths, which are the killed session's work and must not be
+   discarded. A cited ID is not delivered; the resumed lane screens it again (charter rule 0).
+5. Clear: after the resumed lane hands back, `script/lane-interrupted.sh clear --dir <lane dir>`.
+
+`lane-clean.sh` keeps a dirty or unmerged checkout (section 6), so an interrupted worktree is not
+removed before it is recorded.
