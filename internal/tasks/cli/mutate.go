@@ -466,7 +466,7 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "/payload/reason", "complete-manual of a ticket whose intent checks FAILED (%s) needs a nonblank reason recording why it is closed despite them (TCD-V0-176)", blockerCodes(overridden)))
 		}
 	}
-	report, err := store.Mutate(ctx, repo, actor, envelope, now)
+	report, err := store.Mutate(store.WithPreloadTree(ctx, &store0.Tree), repo, actor, envelope, now)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
