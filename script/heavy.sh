@@ -1265,11 +1265,12 @@ selection_manifest() {
 }
 
 # compile_only COMMAND...: succeeds when the go test arguments (up to -args) include -c, which
-# builds the test binary and runs no test (ASD-V0-721).
+# builds the test binary and runs no test (ASD-V0-721); the go word may be path-qualified
+# (ASD-V0-910, V1-3739).
 compile_only() {
   local seen=0 prev_go=0 c=0 skip=0 arg
   for arg in "$@"; do
-    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ ${arg##*/} == go ]] && prev_go=1 || prev_go=0; continue; fi
     if ((skip)); then skip=0; continue; fi
     case ${arg#-} in
       -args | args) break ;;
@@ -1356,17 +1357,6 @@ selection_policy() {
     return 1
   fi
   selection_log "$now whole reason=$(printf %q "$HEAVY_WHOLE_REASON") pwd=$PWD cmd=$*"
-}
-
-# compile_only COMMAND...: true when the go test carries -c (or -c=true): it builds the test
-# binary and runs nothing (ASD-V0-910).
-compile_only() {
-  local a seen= prev=
-  for a; do
-    [[ -n $seen ]] || { [[ $a == test && $prev == go ]] && seen=1; prev=${a##*/}; continue; }
-    case $a in -c | -c=true | --c | --c=true) return 0 ;; esac
-  done
-  return 1
 }
 
 # env_reasons COMMAND...: ASD-V0-910 (V1-3739). The lane reasons given as leading NAME=VALUE words
