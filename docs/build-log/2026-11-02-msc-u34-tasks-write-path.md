@@ -638,3 +638,63 @@ Tests after both fixes, all ok:
 The remaining O(n) work per write sits in the writer itself, outside these tickets' passes, and
 belongs to tkp-u33's area: the audit's read, the recheck, the journal audit (36 ms at 2,000) and
 the writer inventory listing (24 ms). Those are where any further linearity has to come from.
+
+## Round 5: measured floors (orchestrator: keep the bars, attempt, then record the floors)
+
+Fresh stores were built with the resumable gen: one 2,000-ticket gen, with a relocated copy taken at
+500 tickets. No code changed in this round.
+
+### V1-1148: `gen --tickets 2000` linearity (target: the last 500-ticket chunk at most 1.5 times the first)
+
+| Run | load | chunks of 500 (s) | last / first |
+|---|---|---|---|
+| round 4 | 4.4 to 5.6 | 156.3, 227.0, 240.7, 288.8 | 1.85 |
+| round 5 | about 3.8 | 156.4, 224.1, 248.6, 286.0 | 1.83 |
+
+Each segment stayed under 9 minutes (500 s and 380 s plus 520 s), and both runs completed. The
+target is **not met**. A write's fixed cost is about 0.15 s of durable writes. On top of that, its
+cost grows with the store in these passes, per create at 2,000 tickets (12 profiled creates, load
+3.1):
+
+| Pass | ms per create |
+|---|---|
+| the two byte-exact intent reads (preload, shared into the audit, and the pre-effect recheck) | about 65 |
+| the journal writer audit | about 36 |
+| the writer inventory (`NewSummarizedInventory` 50%, `archive.SortFiles` 36%) | 12 |
+| the index | 10 |
+
+### V1-4229: `TCX-V0-848` (three passes under 1.2 times from 500 to 2,000 tickets)
+
+| Approach | Result at 2,000 tickets |
+|---|---|
+| BASE | 364 ms |
+| round 2: write-path summary index (`TCX-V0-845..847`) | 61 ms (3.5x) |
+| round 3: shared capture (`LGL-V0-845`) and incremental index (`TCX-V0-849`) | 39 ms (3.1x) |
+| stat-trusted preload | not built: since `LGL-V0-845` the preload's read is the writer audit's own read, so trusting stats only moves that read back into the audit |
+| one buffer for digest and parse | already so: `TreeDigest` reads each file once into the buffer that is hashed, shared with the writer audit, and decoded on demand; nothing is read twice in the preload |
+
+Floor: inside `treeDigest` the CPU is syscalls 30% (open, fstat, read and close per file, plus the
+first pass's `lstat`, 23% of the digest) and SHA-256 14%. The remaining Go overhead (allocation and
+GC) is about 20% of the preload. Even removing all of it would leave about 2.8 times growth. The two
+byte-exact reads per write (about 41 ms preload and 24 ms recheck at 2,000 tickets) are the
+physical floor while every write must read every intent byte twice. The target is **not met.**
+
+### V1-4263: `LGL-V0-846` (conflict refusal at most 25% of base CPU at 500 tickets)
+
+| Approach | CPU p50 | Share of base | Status |
+|---|---|---|---|
+| writer-checkpoint shortcut (round 3) | 176.7 ms | 18% | rejected by Codex r1: pre-empts BASE refusals |
+| complete route plus a binding handed to the CLI (after r1) | 572.9 ms | 51% | current |
+
+A profile of the current refusal (6 runs) is about 580 ms CPU each. The full `AuditForMutation`
+is about 540 ms of that: receipt prefetch and decode with the canonical re-encode
+(`snapshot.WholeReceipt`, `wire.Parse` and `Encode`), `validateRecord` and the listing scan. The
+rest is the preload (12 ms) and the declined writer-route attempt (8 ms).
+
+A checkpoint-resumed audit was considered and not built. Every refusal at BASE comes from the full
+audit, and a checkpointed audit would answer a conflict where a corrupted prefix receipt refuses at
+BASE: the same class of deviation as the Codex finding.
+
+Floor: about 48% of base CPU, one full journal audit. The 25% target needs the journal audit itself
+(tkp-u33's area, for example V1-4243's segmented parallel decode) to run about twice as fast.
+**Not met.**
