@@ -19,6 +19,7 @@ func TestAHI620InspectorWitnessNamesPreciseCause(t *testing.T) {
 	screen := `{"width":80,"height":24,"lines":[[{"text":"Corvint"}],[{"text":"Work"}],[{"text":"unavailable: Tasks unavailable"}],[{"text":"Evidence"}]]}`
 	tests := []struct {
 		name, screen, log string
+		hostLog           string
 		absent            []string
 		width             int
 		want              []string
@@ -32,7 +33,16 @@ func TestAHI620InspectorWitnessNamesPreciseCause(t *testing.T) {
 			want:   []string{"frame 80x24", `lacks "0/0 completed", "0 draft", "0 held", "0 archived"`, `witness plugin error "Error: session create refused"`},
 			reject: []string{`"Corvint"`, `"Evidence"`, "expected width", "still shows"},
 		},
-		{name: "width and forbidden string", screen: screen, absent: []string{"Tasks unavailable", "Reading Corvint Tasks"}, width: 72, want: []string{"expected width 72", `still shows "Tasks unavailable"`}, reject: []string{"Reading Corvint Tasks", "witness plugin error"}},
+		{
+			// AHI-1961 (V1-2929): the live 2.2.5 failure, a Corvint TUI setup throw the host logged.
+			name: "host plugin setup failure", screen: screen,
+			hostLog: `timestamp=2026-11-02T15:53:34.142Z level=WARN message="plugin operation failed" component=plugin id=19 stage=setup durationMs=2 error="SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene" plugin=other.ui target=/x` + "\n" +
+				`timestamp=2026-11-02T15:53:34.142Z level=WARN message="plugin operation failed" component=plugin id=20 stage=setup durationMs=2 error="SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene, or a \"ResourceContext\"" plugin=corvint.inspector.ui target=/x` + "\n" +
+				`timestamp=2026-11-02T15:53:34.146Z level=INFO message="plugin reconciliation completed" component=plugin id=1 plugins=16 role=cli` + "\n",
+			want:   []string{`host plugin corvint.inspector.ui setup failed: "SyntaxStyle requires an explicit resource owner: pass renderer.nativeScene, or a \\\"ResourceContext\\\""`},
+			reject: []string{"other.ui"},
+		},
+		{name: "width and forbidden string", screen: screen, absent: []string{"Tasks unavailable", "Reading Corvint Tasks"}, width: 72, want: []string{"expected width 72", `still shows "Tasks unavailable"`}, reject: []string{"Reading Corvint Tasks", "witness plugin error", "host plugin"}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -44,6 +54,14 @@ func TestAHI620InspectorWitnessNamesPreciseCause(t *testing.T) {
 			}
 			if test.log != "" {
 				if err := os.WriteFile(filepath.Join(root, "witness.jsonl"), []byte(test.log), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if test.hostLog != "" {
+				if err := os.MkdirAll(filepath.Join(root, "data/opencode/log"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(root, "data/opencode/log/opencode.log"), []byte(test.hostLog), 0o600); err != nil {
 					t.Fatal(err)
 				}
 			}

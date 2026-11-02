@@ -1318,6 +1318,28 @@ separate exact extension tuple remains governed by AHI-024.
   `TestAHI620WitnessLogReadIsBounded`, `TestAHI620WitnessLogRefusesSymlink`,
   `TestAHI620WitnessLogRefusesFIFO` and `TestAHI620WitnessCauseReportsSaveFailure`
   (`internal/opencodequalification`). Rollback: return the bare prefix.
+- `AHI-1960`: (experimental under the standing lane auto-accept (2026-11-02); V1-2929) The OpenCode
+  TUI plugin (`integrations/opencode/src/tui.tsx`) MUST pass the renderer's native scene as the
+  resource owner when it builds its `SyntaxStyle` (`SyntaxStyle.fromStyles(styles,
+  ctx.renderer?.nativeScene)`). OpenTUI 0.7, shipped with OpenCode 2.1 and later, refuses a
+  `SyntaxStyle` without an explicit resource owner; the throw fails the plugin's `setup`, and the
+  host then drops every Corvint slot, which is the root cause of the `sidebar` witness failure
+  `AHI-620` left `NOT_OBSERVED`. Older OpenTUI ignores the extra argument. Non-goals: any change to
+  the witnessed strings or the inspector's steps. Failure mode: a host without `renderer` passes
+  `undefined` and fails as before, which `AHI-1961` names. Acceptance evidence: a live
+  `qualify-opencode --inspector` campaign on OpenCode 2.2.5 passes in both themes (46 checks),
+  after failing at base with `native UI witness missing: sidebar`; the 2.1.3 campaign is
+  `NOT_RUN` (no lane host has 2.1.3). Evidence in `docs/build-log/2026-11-02-opc-m45.md`.
+  Rollback: drop the second argument.
+- `AHI-1961`: (experimental under the standing lane auto-accept (2026-11-02); V1-2929) Amendment to
+  `AHI-620`. The witness cause MUST also name the last Corvint TUI plugin operation the OpenCode
+  host logged as failed in the run's `data/opencode/log/opencode.log`, as
+  `host plugin PLUGIN STAGE failed: "ERROR"`, ignoring failures of other plugins. The read uses the
+  same bounded, regular-file-only rule as the witness log, and a missing or unreadable host log
+  adds nothing. Failure mode: a host that changes its log format adds no clause, which leaves the
+  `AHI-620` cause unchanged. Acceptance evidence: the `host plugin setup failure` case of
+  `TestAHI620InspectorWitnessNamesPreciseCause` (`internal/opencodequalification`). Rollback:
+  drop `hostPluginFailure`.
 - `AHI-248`: (experimental under the standing lane auto-accept (2026-10-11); V1-2972) A well-formed
   OpenCode user-prompt envelope that holds an exact copy of the task MUST be withheld as the
   abstention `prompt-echo-withheld`, recorded at info level, and MUST NOT be reported as
@@ -2837,6 +2859,8 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-031` | `cmd/corvint/local_completion_event.go` (`dogfoodExpiryCode`, snapshot-miss flag in `localEventContext`, `dogfoodMissOutlastsDeadline`), `cmd/corvint/host_adapter.go` (`withSnapshotRemediation`, `adapterDegradationReason`, `snapshotRemediation`, `withCodexSnapshotRemediation`), `internal/observations` rejection registry | `TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot`, `TestClaudeAdapterStaleSnapshotNamesRemediation` (fail at base 489701ca with `dogfood-event-deadline` and no argv); V1-0286 amendment (accepted, decision 0422): `TestDogfoodEventSnapshotMissUsesRecordedBuildCost`, `TestCodexAdapterStaleSnapshotNamesRemediation` |
 | `AHI-920` | `cmd/corvint/local_completion_event.go` (`dogfoodMissBuild`) | `TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin` |
 | `AHI-921` | `cmd/corvint/harness_context.go` (`sanitizeHarnessQueryContext`) | `TestHarnessUserPromptPacketBytesDescribeTheWrittenContext` |
+| `AHI-1960` (experimental 2026-11-02; V1-2929) | `SyntaxStyle.fromStyles` owner argument in `integrations/opencode/src/tui.tsx` | live `qualify-opencode --inspector` on OpenCode 2.2.5 in `docs/build-log/2026-11-02-opc-m45.md` |
+| `AHI-1961` (experimental 2026-11-02; V1-2929) | `hostPluginFailure`, `frameWitnessCause` in `internal/opencodequalification/inspector.go` | `TestAHI620InspectorWitnessNamesPreciseCause` |
 | `AHI-950` | `internal/opencodequalification/baseline.go` (`baselineSample.reference`), `process.go` (`runCommand`, `timeoutError`) | `TestAHI172SameWindowBaseline` (`AHI-950` subtest), `TestProcessTimeoutUnderContention` |
 | `AHI-951` | `script/publish-codex-plugin.sh` (`check`, `publish`), `Makefile` `host-package-versions-check` | `script/publish-codex-plugin_test.sh` |
 | `AHI-952` | `parseReceipt` and `EXPECTED_DEGRADATIONS` in `integrations/gemini-cli/hooks/corvint-hook.mjs` | `gemini response tampering and budgets fail visibly` (`echo` case, `integrations/host-adapters.test.mjs`), run by `TestHostAdapterJavaScriptHosts` |
