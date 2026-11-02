@@ -32,13 +32,14 @@ var readOnlyVerbs = map[string]bool{
 // readOnlyRefusal refuses, before any store read or lock, every command
 // that is not a listed pure read while ReadOnlyEnv is set to a nonempty
 // value other than "0" (ATR-V0-212). doctor --refresh writes its cache and
-// is refused too.
+// doctor --rebuild-closed-index writes the closed-ticket index (TCL-V0-738),
+// so both are refused too.
 func readOnlyRefusal(args []string) *wire.Result {
 	if v := os.Getenv(ReadOnlyEnv); v == "" || v == "0" {
 		return nil
 	}
 	verb := verbPath(args)
-	if readOnlyVerbs[verb] && !(verb == "doctor" && hasArg(args, "--refresh")) {
+	if readOnlyVerbs[verb] && !(verb == "doctor" && (hasArg(args, "--refresh") || hasArg(args, "--rebuild-closed-index"))) {
 		return nil
 	}
 	return &wire.Result{Command: strings.Fields(verb), Outcome: wire.OutcomeError, Codes: []string{wire.CodeUnsupported}, NotRetryable: true, Warnings: []string{

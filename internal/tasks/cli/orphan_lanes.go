@@ -1,9 +1,15 @@
 package cli
 
 import (
+	"context"
+	"errors"
+	"os"
+	"os/exec"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -75,32 +81,55 @@ func orphanLanesCommand(env Env, args []string) *wire.Result {
 	if err == nil {
 		heads, err = store.LaneHeads(root, refCommit)
 	}
+	// The batch branches come from every local branch name, not from
+	// LaneHeads, which keeps one ref per commit: a lane branch and a batch
+	// branch at the same commit must still count as batched.
+	var batchHeads []store.LaneHead
+	if err == nil {
+		batchHeads, err = orphanBatchHeads(rc.repo.CommonDir, glob)
+	}
 	// Every commit an in-flight batch holds beyond the ref is merged work,
 	// never an orphan. A batch scan cut at --limit leaves its older commits
-	// unknown, so the result is marked truncated.
+	// unread, so a candidate it may hold is checked against that batch head
+	// with merge-base --is-ancestor; an unanswered check is UNKNOWN, never an
+	// orphan.
 	inBatch := map[string]bool{}
-	var batchRefs, lanes []wire.Value
+	var batchRefs, lanes, unknownRows []wire.Value
 	batchTruncated := false
-	var laneHeads []store.LaneHead
-	for _, h := range heads {
+	var truncatedBatches []string
+	for _, h := range batchHeads {
 		if err != nil {
 			break
-		}
-		short := strings.TrimPrefix(h.Ref, "refs/heads/")
-		if ok, _ := path.Match(glob, short); !ok {
-			laneHeads = append(laneHeads, h)
-			continue
 		}
 		var scan store.CommitScan
 		if scan, err = store.ScanCommits(root, h.Commit, refCommit, limit); err != nil {
 			break
 		}
-		batchTruncated = batchTruncated || scan.Truncated
+		if scan.Truncated {
+			batchTruncated = true
+			truncatedBatches = append(truncatedBatches, h.Commit)
+		}
 		for _, c := range scan.Commits {
 			inBatch[c.Commit] = true
 		}
 		batchRefs = append(batchRefs, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(h.Ref)).Set("commit", wire.String(h.Commit)).
 			Set("scanTruncated", wire.Bool(scan.Truncated))))
+	}
+	// batched is true when a truncated batch holds commit, false when none
+	// does, and an error when git could not say.
+	batched := func(commit string) (bool, error) {
+		for _, b := range truncatedBatches {
+			if in, e := orphanIsAncestor(rc.repo.CommonDir, commit, b); e != nil || in {
+				return in, e
+			}
+		}
+		return false, nil
+	}
+	var laneHeads []store.LaneHead
+	for _, h := range heads {
+		if ok, _ := path.Match(glob, strings.TrimPrefix(h.Ref, "refs/heads/")); !ok {
+			laneHeads = append(laneHeads, h)
+		}
 	}
 	var rows []wire.Value
 	orphans, laneTruncated := 0, false
@@ -125,12 +154,21 @@ func orphanLanesCommand(env Env, args []string) *wire.Result {
 					continue
 				}
 				seen[c.Commit+" "+id] = true
+				row := wire.NewObject().Set("ref", wire.String(h.Ref)).Set("commit", wire.String(c.Commit)).
+					Set("ticketId", wire.String(id)).Set("local", wire.String(local)).
+					Set("subject", wire.String(truncateUTF8(c.Subject, maxCloseoutSubjectBytes)))
+				if in, e := batched(c.Commit); e != nil {
+					if len(unknownRows) < maxOrphanRows {
+						unknownRows = append(unknownRows, wire.ObjectValue(row))
+					}
+					continue
+				} else if in {
+					continue
+				}
 				n++
 				orphans++
 				if len(rows) < maxOrphanRows {
-					rows = append(rows, wire.ObjectValue(wire.NewObject().Set("ref", wire.String(h.Ref)).Set("commit", wire.String(c.Commit)).
-						Set("ticketId", wire.String(id)).Set("local", wire.String(local)).
-						Set("subject", wire.String(truncateUTF8(c.Subject, maxCloseoutSubjectBytes)))))
+					rows = append(rows, wire.ObjectValue(row))
 				}
 			}
 		}
@@ -144,7 +182,7 @@ func orphanLanesCommand(env Env, args []string) *wire.Result {
 	o := wire.NewObject().Set("profile", wire.String(profileOrphanLanes)).Set("ref", wire.String(ref)).Set("refCommit", wire.String(refCommit)).
 		Set("batchGlob", wire.String(glob)).Set("batchRefs", wire.Array(batchRefs...)).Set("batchScanTruncated", wire.Bool(batchTruncated)).
 		Set("laneHeads", wire.Array(lanes...)).Set("laneScanTruncated", wire.Bool(laneTruncated)).
-		Set("orphanCount", count(orphans)).Set("orphans", wire.Array(rows...))
+		Set("orphanCount", count(orphans)).Set("orphans", wire.Array(rows...)).Set("unknown", wire.Array(unknownRows...))
 	res := success(cmd, rc)
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	if len(batchRefs) == 0 {
@@ -153,7 +191,71 @@ func orphanLanesCommand(env Env, args []string) *wire.Result {
 	if batchTruncated || laneTruncated {
 		res.Warnings = append(res.Warnings, "a lane or batch scan stopped at --limit, so the orphan list is incomplete; raise --limit (TCL-V0-744)")
 	}
+	if len(unknownRows) > 0 {
+		res.Warnings = append(res.Warnings, strconv.Itoa(len(unknownRows))+" lane commit(s) are UNKNOWN, not orphans: git could not say whether a truncated batch holds them; raise --limit (TCL-V0-744)")
+	}
 	return res
+}
+
+// orphanBatchHeads is every local branch whose name under refs/heads/
+// matches glob, each ref kept even when another branch is at its commit.
+func orphanBatchHeads(commonDir, glob string) ([]store.LaneHead, error) {
+	out, code, err := orphanGit(commonDir, "for-each-ref", "--format=%(objectname) %(refname)", "refs/heads/")
+	if err != nil || code != 0 {
+		return nil, wire.Errorf(wire.CodeUnsupported, "git for-each-ref", "listing the local branches failed (exit %d): %v", code, err)
+	}
+	var heads []store.LaneHead
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		commit, ref, ok := strings.Cut(line, " ")
+		if !ok {
+			continue
+		}
+		if m, _ := path.Match(glob, strings.TrimPrefix(ref, "refs/heads/")); m {
+			heads = append(heads, store.LaneHead{Ref: ref, Commit: commit})
+		}
+	}
+	return heads, nil
+}
+
+// orphanIsAncestor reports whether commit is reachable from head: git exit 0
+// is true, 1 is false, anything else is an error.
+func orphanIsAncestor(commonDir, commit, head string) (bool, error) {
+	_, code, err := orphanGit(commonDir, "merge-base", "--is-ancestor", "--end-of-options", commit, head)
+	switch {
+	case err != nil:
+		return false, err
+	case code == 0:
+		return true, nil
+	case code == 1:
+		return false, nil
+	}
+	return false, wire.Errorf(wire.CodeUnsupported, "git merge-base", "merge-base --is-ancestor exited %d", code)
+}
+
+// orphanGit runs one bounded, read-only git command against the common
+// directory with the sanitized plan-batches environment, returning stdout
+// and the exit status.
+func orphanGit(commonDir string, args ...string) (string, int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	c := exec.CommandContext(ctx, "git", append([]string{"-c", "credential.helper=", "-c", "core.fsmonitor=false", "-c", "core.hooksPath=" + os.DevNull}, args...)...)
+	c.Dir = commonDir
+	c.Env = append(batchGitEnvironment(), "GIT_DIR="+commonDir)
+	c.WaitDelay = time.Second
+	out := &boundedBuffer{max: 1 << 20}
+	c.Stdout = out
+	err := c.Run()
+	if out.over {
+		return "", 0, wire.Errorf(wire.CodeLimitExceeded, "git "+args[0], "git output exceeds 1 MiB")
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) {
+		return out.buf.String(), exit.ExitCode(), nil
+	}
+	if err != nil {
+		return "", 0, err
+	}
+	return out.buf.String(), 0, nil
 }
 
 // sortOrphanRows orders rows by ticket, then ref, then commit.

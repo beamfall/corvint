@@ -74,3 +74,48 @@ func TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries(t *testing.T) {
 		}
 	}
 }
+
+// TestTCLV0744_OrphanLanesBatchSharingACommitAndTruncatedBatch pins two
+// review findings: a batch branch at the same commit as a lane branch still
+// counts as batched (LaneHeads keeps one ref per commit), and a batch scan cut
+// at --limit checks a candidate with merge-base instead of calling it an
+// orphan because the scan did not reach it.
+func TestTCLV0744_OrphanLanesBatchSharingACommitAndTruncatedBatch(t *testing.T) {
+	parallelTest(t) // seam-carried actor; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
+	setActor(t, "tester")
+	root, _ := ergStore(t)
+	_, shared := tcdTicket(t, root, "shared", "")
+	_, deep := tcdTicket(t, root, "deep", "")
+	main := strings.TrimSpace(gitOutput(t, root, "rev-parse", "--abbrev-ref", "HEAD"))
+	// A lane branch and a batch branch whose name sorts after it, at one commit.
+	git(t, root, "checkout", "-q", "-b", "claude/lane-v")
+	tcdCommit(t, root, "tasks: shared work\n\nRefs "+shared)
+	git(t, root, "branch", "claude/zz-batch-3")
+	// A batch holding a lane commit two commits back.
+	git(t, root, "checkout", "-q", main)
+	git(t, root, "checkout", "-q", "-b", "claude/lane-d")
+	tcdCommit(t, root, "tasks: deep work\n\nRefs "+deep)
+	git(t, root, "checkout", "-q", main)
+	git(t, root, "checkout", "-q", "-b", "claude/zz-batch-4")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "merge lane-d", "claude/lane-d")
+	tcdCommit(t, root, "batch: a later commit on the batch")
+	git(t, root, "checkout", "-q", main)
+
+	x := atm(t, root, nil, "ticket", "orphan-lanes", "--batch", "claude/zz-batch-*")
+	if x.res.Outcome != wire.OutcomeOK || field(x.res.Items[0], "orphanCount").Str != "0" {
+		t.Fatalf("a batch at a lane's commit or holding the lane was not seen: %s", x.stdout)
+	}
+	x = atm(t, root, nil, "ticket", "orphan-lanes", "--batch", "claude/zz-batch-*", "--limit", "1")
+	item := x.res.Items[0]
+	if x.res.Outcome != wire.OutcomeOK || !field(item, "batchScanTruncated").Bool {
+		t.Fatalf("--limit 1 did not truncate the batch scan: %s", x.stdout)
+	}
+	for _, r := range field(item, "orphans").Arr {
+		if field(r, "local").Str == deep || field(r, "local").Str == shared {
+			t.Fatalf("a truncated batch scan made batched work an orphan: %s", x.stdout)
+		}
+	}
+	if len(field(item, "unknown").Arr) != 0 {
+		t.Fatalf("a resolvable ancestry check was reported UNKNOWN: %s", x.stdout)
+	}
+}

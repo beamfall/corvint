@@ -65,7 +65,7 @@ func TestTCLV0743_CreateRecordsSourceRefForAbsentPaths(t *testing.T) {
 	if x := create(`"Source ref: main@`+base+`"`, `"lane/y.go"`); x.res.Outcome == wire.OutcomeOK || !warned(x, "absent from both the base") {
 		t.Fatalf("a source ref lacking the path was accepted: %s", x.stdout)
 	}
-	if x := create(`"Source ref: mac-only@`+strings.Repeat("ab", 20)+`"`, `"lane/z.go"`); x.res.Outcome != wire.OutcomeOK || !warned(x, "is not in this clone") {
+	if x := create(`"Source ref: mac-only@`+strings.Repeat("ab", 20)+`"`, `"lane/z.go"`); x.res.Outcome != wire.OutcomeOK || !warned(x, "is not in this clone") || warned(x, "present at the recorded source ref") {
 		t.Fatalf("a source ref outside this clone was not recorded with NOT_OBSERVED: %s", x.stdout)
 	}
 	if x := create(`null`, `"new/pkg/"`, "--creates-paths"); x.res.Outcome != wire.OutcomeOK || warned(x, "TCL-V0-743") {

@@ -400,3 +400,42 @@ func TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery(t *testing.T) {
 		t.Fatalf("human lines name no exclusion: %+v", field(item, "human"))
 	}
 }
+
+// TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge pins the review
+// finding on V1-3870: a build-log-only commit inside a merged lane that cites
+// a ticket is excluded, so it must not also make the merge's own citation of
+// that ticket a repeat; the merge stays the ticket's candidate row.
+func TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	merged, mLocal := tcdTicket(t, root, "merged", "")
+	main := strings.TrimSpace(gitOutput(t, root, "rev-parse", "--abbrev-ref", "HEAD"))
+	git(t, root, "checkout", "-q", "-b", "lane-log")
+	full := filepath.Join(root, "docs", "build-log", "2026-11-01-lane.md")
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte("# lane\n\n- "+mLocal+" built on the lane.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-01-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): lane notes "+mLocal)
+	git(t, root, "checkout", "-q", main)
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge lane-log\n\nRefs "+mLocal, "lane-log")
+	mergeSha := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+
+	_, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	found := false
+	for _, r := range rows {
+		found = found || r.ticket == merged
+	}
+	if !found {
+		t.Fatalf("the delivering merge %s was suppressed by its excluded build-log constituent: candidates %+v, excluded %s", mergeSha, rows, wire.Encode(field(item, "excludedCandidates")))
+	}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		if field(e, "ticketId").Str == merged {
+			t.Fatalf("a listed ticket is also reported excluded: %s", wire.Encode(e))
+		}
+	}
+}

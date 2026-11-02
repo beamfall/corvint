@@ -305,7 +305,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   mutation, reporting `path`, `journal` (`PRESENT` or `ABSENT`) and `indexSha256`. The index file
   is its only write. A repository with no store, or a tree that does not load, MUST refuse with
   the read's own code and write nothing; a snapshot bundle refuses `UNSUPPORTED`; the flag with
-  any other argument refuses `MALFORMED`.
+  any other argument refuses `MALFORMED`. Under `CORVINT_TASKS_READ_ONLY` it MUST be refused
+  `UNSUPPORTED` before any store access, as `doctor --refresh` is (ATR-V0-212).
 - `TCL-V0-739`: (experimental under the standing lane auto-accept (2026-11-01); V1-3272; extends
   TCL-V0-004) The record's existing typed `supersedes` link (written by a create or refine payload
   and by `ticket split`) is the duplicate-of link. `ticket search --supersedes TICKET` MUST match
@@ -347,8 +348,10 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   creates them or the body records where the code lives with a line `Source ref: BRANCH@SHA`
   (SHA a full 40-hex commit). A recorded commit present in this clone MUST hold every absent path
   or the create is refused naming those still absent; one not in this clone is accepted with a
-  `NOT_OBSERVED` warning. An accepted create whose paths are absent from the base carries a
-  warning naming the source ref. A clone with neither ref, or a git observation that fails,
+  `NOT_OBSERVED` warning and no claim that it holds the paths. An accepted create whose paths are
+  absent from the base and present at a recorded commit in this clone carries a warning naming the
+  source ref. A path git cannot read at the base or at the recorded commit MUST NOT be counted
+  absent or present: the create warns that its presence there is `NOT_OBSERVED`. A clone with neither ref, or a git observation that fails,
   MUST NOT refuse: it warns that subject presence is `NOT_OBSERVED`. `--creates-paths` MUST NOT
   enter the payload or the request digest and is refused by every other verb. The body line is the
   record: `script/lane-dispatch-check.sh` names it on an `ABSENT` finding (ASD-V0-645), and the
@@ -364,8 +367,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `taskman-orphan-lanes/0` item with `ref`, `refCommit`, `batchGlob`, `batchRefs` (ref, commit,
   `scanTruncated`), `laneHeads` (ref, commit, `orphanCount`, `scanTruncated`), `orphanCount` and
   `orphans` (ref, commit, `ticketId`, `local`, subject; sorted by ticket, ref, commit; at most 500
-  listed). Each head is read at most `--limit` commits beyond the ref; a cut scan sets its
-  `scanTruncated` and adds a warning that the list is incomplete. No branch matching GLOB MUST add a
+  listed). The batch branches MUST come from every local branch name matching GLOB, so a batch
+  branch at the same commit as a lane branch still counts. Each head is read at most `--limit`
+  commits beyond the ref; a cut scan sets its `scanTruncated` and adds a warning that the list is
+  incomplete. A candidate commit that a cut batch scan did not reach MUST be checked with
+  `git merge-base --is-ancestor` against that batch head; a commit a batch holds is no orphan, and
+  one git cannot answer for is listed in `unknown`, never in `orphans`, with a warning. No branch matching GLOB MUST add a
   warning that in-flight batches are `NOT_OBSERVED`. A ticket ID argument, a bad `--limit` or an
   invalid glob refuses `MALFORMED`. `script/lane-dispatch-check.sh --orphans FILE` (ASD-V0-645)
   reads this result and reports `ORPHAN` for each assigned ticket it lists. Non-goals: reading
@@ -487,7 +494,7 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0737_FlagsParseDeclaredBooleans`, `TestTCLV0737_DeliveryScreenUsageMatchesParser`
   (TCL-V0-737).
 - `internal/tasks/cli/doctor_closed_index_test.go`:
-  `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; the wsl-lanes live rebuild in
+  `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; `TestATRV0212_ReadOnlySessionRefusesMutations` (read-only refusal); the wsl-lanes live rebuild in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-738).
 - `internal/tasks/cli/supersedes_link_test.go`:
   `TestTCLV0739_DuplicateRecordedAsSupersedesLink`; `TestTCLV0004_CreateGuard` (TCL-V0-739).
@@ -498,10 +505,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   (`tasks-store` row); the wsl-lanes live snapshot read in `docs/build-log/2026-11-01-tcl-w31.md`
   (TCL-V0-742).
 - `internal/tasks/cli/create_source_ref_test.go`:
-  `TestTCLV0743_CreateRecordsSourceRefForAbsentPaths`; `make lane-scripts-test` group `ASD-V0-645`
+  `TestTCLV0743_CreateRecordsSourceRefForAbsentPaths`;
+  `TestTCLV0743_UnreadPathsAreNotObservedNotPresent`; `make lane-scripts-test` group `ASD-V0-645`
   (an `ABSENT` finding naming a recorded source ref) (TCL-V0-743).
 - `internal/tasks/cli/orphan_lanes_test.go`:
-  `TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries`; `make lane-scripts-test` group
+  `TestTCLV0744_OrphanLanesListsUnbatchedLaneDeliveries`;
+  `TestTCLV0744_OrphanLanesBatchSharingACommitAndTruncatedBatch`; `make lane-scripts-test` group
   `ASD-V0-645` (`ORPHAN` and a bad `--orphans` file); the wsl-lanes live run in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-744).
 - `internal/tasks/cli/actor_seam_internal_test.go`: `TestTCLV0825_ActorSeamKeepsEnvPrecedence`;
