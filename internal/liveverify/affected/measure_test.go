@@ -38,7 +38,9 @@ func buildRepositoryGraph(t *testing.T) (*affected.Graph, time.Duration) {
 	t.Helper()
 	root := repositoryRoot(t)
 	start := time.Now()
-	graph, err := affected.Build(context.Background(), root, golang.New(), python.New())
+	// Partial: .corvint/runtime-edges.json names TypeScript tests, which a
+	// Go and Python graph cannot hold (AFP-V0-819).
+	graph, err := affected.BuildPartial(context.Background(), root, golang.New(), python.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -369,7 +371,7 @@ func TestWitnessesResolveUnderTheGoStructuralRules_V1_0564_V1_0739(t *testing.T)
 			t.Fatal(err)
 		}
 	}
-	graph, err := affected.Build(context.Background(), root, golang.New())
+	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,7 +609,7 @@ func TestPythonSelectionNarrowsARealCorpus(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := affected.Build(context.Background(), root, python.New())
+	graph, err := affected.BuildPartial(context.Background(), root, python.New())
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
