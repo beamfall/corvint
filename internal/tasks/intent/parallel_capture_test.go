@@ -19,7 +19,10 @@ import (
 // parallelStore writes a store of n open tickets T0..T(n-1) under root.
 func parallelStore(t *testing.T, n int) string {
 	t.Helper()
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	dir := filepath.Join(root, intent.Dir)
 	fixture.Write(t, filepath.Join(dir, intent.QueueFile), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(dir, intent.PolicyFile), fixture.PolicyBytes())
