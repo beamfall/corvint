@@ -77,6 +77,7 @@
         "script/dogfood-change_test.sh",
         "script/dogfood-seal.sh",
         "script/lane-scripts_test.sh",
+        "script/review-head-check_test.sh",
         "script/runtime-environment_test.sh"
       ],
       "reason": "Every tracked file naming dogfood-check.sh: make dogfood-check and dogfood-seal.sh run it, and five shell tests and a cmd/corvint test run or copy it into fixtures; the others name it in comments, or match it as an argv string without running it (TSP-V0-005; V1-3898: the scripts a seal commit's CEM paths reach).",
@@ -94,7 +95,8 @@
     "script/dogfood-seal.sh": {
       "callers": [
         "Makefile",
-        "script/dogfood-change_test.sh"
+        "script/dogfood-change_test.sh",
+        "script/review-head-check_test.sh"
       ],
       "mentions": [
         "internal/console/chain.go",
@@ -105,7 +107,7 @@
         "script/pre-push-dogfood-seal_test.sh",
         "script/review-head-check_test.sh"
       ],
-      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file naming dogfood-seal.sh: make dogfood-seal and the dogfood-change test run it (the dogfood-cache test reaches it through make dogfood-seal). The console and replay Go files name it in comments, and the pre-push hook files only contain it inside pre-push-dogfood-seal.sh (TSP-V0-005; V1-3571). review-head-check_test.sh copies and runs it, with a stub dogfood-check.sh it writes (V1-3959)."
     },
     "script/heavy.sh": {
       "callers": [
