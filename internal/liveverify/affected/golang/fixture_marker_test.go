@@ -67,3 +67,37 @@ func TestAFPV0551FixtureMarkedLiteralsNameNoRead(t *testing.T) {
 		t.Fatalf("FilePathTokens = %v, %v", tokens, err)
 	}
 }
+
+// AFP-V0-831 (V1-3509, V1-4258): the dependent nested-module reader honours
+// the marker too: a README.md token only a marked _test.go literal holds no
+// longer makes the module a reader of a README edit, while an unmarked one, or
+// a marked literal in a non-test file, still does.
+func TestNestedModuleHonoursFixtureMarker_AFP_V0_831(t *testing.T) {
+	marker := "//" + "corvint:fixture-path"
+	manifest := "module example.test/nested\n\ngo 1.26\n\nrequire example.test/root v0.0.0\n\nreplace example.test/root => ../\n"
+	for _, test := range []struct {
+		name, file, body string
+		reads            bool
+	}{
+		{"marked test literal", "nested/tree_test.go", "package nested\n\nvar entry = \"README.md\" " + marker + "\n", false},
+		{"unmarked test literal", "nested/tree_test.go", "package nested\n\nvar entry = \"README.md\"\n", true},
+		{"marked non-test literal", "nested/tree.go", "package nested\n\nvar entry = \"README.md\" " + marker + "\n", true},
+	} {
+		root := nestedFixture(t, manifest, map[string]string{
+			"nested/n.go": "package nested\n",
+			test.file:     test.body,
+			"README.md":   "# root\n", //corvint:fixture-path
+		})
+		graph, err := affected.Build(context.Background(), root, golang.New())
+		if err != nil {
+			t.Fatalf("%s: build: %v", test.name, err)
+		}
+		bears := false
+		for _, unknown := range affected.Select(graph, []string{"README.md"}).Unknown { //corvint:fixture-path
+			bears = bears || unknown.Detail == golang.FrontierNestedModule
+		}
+		if bears != test.reads {
+			t.Errorf("%s: nested frontier bears %v on a README edit, want %v", test.name, bears, test.reads)
+		}
+	}
+}

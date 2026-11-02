@@ -43,6 +43,18 @@ func TestIntegrationReadmesAreDocumentation_AFP_V0_830(t *testing.T) {
 			}
 		}
 	}
+	// A Go change plus a host README is UNKNOWN on no account of the README:
+	// it adds no unknown entry to the Go change's own plan.
+	goOnly := affected.Select(graph, []string{"internal/specindex/requirements.go"})
+	mixed := affected.Select(graph, []string{"integrations/claude-code/README.md", "internal/specindex/requirements.go"})
+	if len(mixed.Unknown) != len(goOnly.Unknown) {
+		t.Errorf("Go change plus README: %d unknowns, Go change alone %d: %+v", len(mixed.Unknown), len(goOnly.Unknown), mixed.Unknown)
+	}
+	for _, unknown := range mixed.Unknown {
+		if strings.Contains(unknown.Detail, "README.md") {
+			t.Errorf("Go change plus README: unknown on the README's account: %s %s", unknown.Reason, unknown.Detail)
+		}
+	}
 	// A source file in the same host directory stays source: the declaration
 	// names only the README.
 	plan := affected.Select(graph, []string{"integrations/opencode/src/index.js"})
