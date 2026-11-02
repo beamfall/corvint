@@ -993,3 +993,32 @@ func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
 		}
 	}
 }
+
+// DCI-V0-856 (V1-0470): a pull-request run whose docs-plan chose DOCS leaves no record that lets
+// a queue or push run skip its root race invocation, and only a pull-request event plans DOCS.
+// DCI-V0-855 binds the docs-only qualification to its classifier and policy alone on the strength
+// of this backstop, so losing any clause here would let a README reader added after review reach
+// main untested.
+func TestDCIV0856DocsRunLeavesNoQueueReuseEvidence(t *testing.T) {
+	w := readWorkflow(t, "ci.yml")
+	ifLine := func(job string) string {
+		m := regexp.MustCompile(`(?m)^    if: (.+)$`).FindStringSubmatch(jobBlock(t, w, job))
+		if m == nil {
+			t.Fatalf("%s has no single-line if", job)
+		}
+		return m[1]
+	}
+	for job, clause := range map[string]string{
+		"ci-tested-tree-record":   " && (needs.docs-plan.result != 'success' || (needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE')) }}",
+		"ci-narrowed-tree-record": " && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}",
+	} {
+		// The clause must close a top-level && chain: the text before it balances its parentheses.
+		got := ifLine(job)
+		rest := strings.TrimSuffix(got, clause)
+		if !strings.HasPrefix(got, "${{ !cancelled() && ") || rest == got || strings.Count(rest, "(") != strings.Count(rest, ")") {
+			t.Errorf("%s if = %q, want a top-level && ending %q", job, got, clause)
+		}
+	}
+	plan := jobBlock(t, w, "docs-plan")
+	wantLine(t, "docs-plan", plan, `          if [ "$GITHUB_EVENT_NAME" != pull_request ] || [ ! -f tools/docs-ci-plan/main.go ]; then`)
+}
