@@ -1706,7 +1706,8 @@
         "Writes corvint/index/<object-format>-<tree>-<engine>.gob under the Git common directory, shared by every linked worktree (index-snapshot-v0, experimental): the compiled index of HEAD's tree, keyed by the tree id and by a digest of this binary, so a changed tree or a rebuilt Corvint never reads it.",
         "Eight snapshots per worktree are kept, up to 64 and 1 GiB: the one just written, then this binary's of a tree checked out at a live worktree HEAD, then this binary's others, then another binary's live trees, then the rest, newest first.",
         "This is the only verb that writes there; \"context\" reads a matching snapshot in place of rebuilding the index and applies the worktree's dirty paths from git status, and falls back to a full build when none matches.",
-        "With --if-stale, a matching snapshot writes nothing and reports state \"fresh\"; a missing or stale snapshot is rebuilt exactly as above."
+        "With --if-stale, a matching snapshot writes nothing and reports state \"fresh\"; a missing or stale snapshot is rebuilt exactly as above.",
+        "CORVINT_INDEX_STORE=DIR (operator env var, off by default) makes DIR, a real directory, the store that every command writes and reads instead of the shared one, so a scratch or measurement binary leaves the shared store untouched."
       ],
       "unknowns": [
         {

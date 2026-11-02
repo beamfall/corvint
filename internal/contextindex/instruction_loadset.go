@@ -164,6 +164,11 @@ func instructionSourceBytes(source Source, present bool) ([]byte, bool) {
 	if source.Data != nil {
 		return source.Data, true
 	}
+	// A deferred gob body gives the bytes a full read would, invalid UTF-8
+	// and NUL included, for the lossy decode below (IDX-SNAP-V0-813).
+	if source.body.gob != nil {
+		return source.body.rawBytes(source)
+	}
 	text, valid, loaded := source.Text()
 	if !valid || !loaded {
 		return nil, false

@@ -117,7 +117,7 @@ type Source struct {
 // Text reports separately whether the source bytes were loaded and whether
 // those loaded bytes are valid text. An unloaded source is never an empty one.
 func (source Source) Text() (text string, valid, loaded bool) {
-	if source.body.section != nil {
+	if source.body.section != nil || source.body.gob != nil {
 		return source.body.text(source)
 	}
 	if !source.Checked {
@@ -290,6 +290,12 @@ type Index struct {
 	// committedSources is an overlay view's HEAD source map, the only
 	// source of project-owned authority such a view may read; nil otherwise.
 	committedSources map[string]Source
+	// symbolTerms is the gob snapshot's precomputed symbol term table
+	// (IDX-SNAP-V0-807); nil on an index that was not read from one.
+	symbolTerms *symbolTermTable
+	// testLinks is the gob snapshot's precomputed test-link table
+	// (IDX-SNAP-V0-809); nil on an index that was not read from one.
+	testLinks *testLinkTable
 }
 
 // vocabulary returns the term table, building it once for an index compiled
