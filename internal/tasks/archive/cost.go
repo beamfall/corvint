@@ -4,6 +4,8 @@ import (
 	"archive/tar"
 	"math"
 	"strconv"
+	"sync"
+	"sync/atomic"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -307,12 +309,44 @@ func MeasureFileSet(files []FileEntry) (FileSetCost, error) {
 // EntryCost validates one entry's path and size as MeasureManifestEncoding
 // does and returns its cost. It needs no content: with a canonical digest the
 // encoded size depends on path and size only.
+//
+// The cost is memoized by path and size (CAL-V0-975): it depends on nothing
+// else, so a writer that measures several inventories in one process (a
+// gated batch close models one per step) measures each unchanged entry
+// once. A refusal is never memoized, and a full memo is dropped whole.
 func EntryCost(path string, size uint64) (FileSetCost, error) {
+	key := entryCostKey{path, size}
+	if v, ok := entryCosts.Load(key); ok {
+		return v.(FileSetCost), nil
+	}
 	if _, err := validateManifestFiles([]FileEntry{{Path: path, Sha256: canonicalDigestShape, Bytes: wire.SizeOf(size)}}); err != nil {
 		return FileSetCost{}, err
 	}
-	return entryCost(path, size)
+	c, err := entryCost(path, size)
+	if err != nil {
+		return FileSetCost{}, err
+	}
+	if entryCostCount.Add(1) > entryCostsMax {
+		entryCosts.Clear()
+		entryCostCount.Store(1)
+	}
+	entryCosts.Store(key, c)
+	return c, nil
 }
+
+type entryCostKey struct {
+	path string
+	size uint64
+}
+
+var (
+	entryCosts     sync.Map // entryCostKey -> FileSetCost
+	entryCostCount atomic.Int64
+)
+
+// entryCostsMax bounds the memo: 131,072 entries, above the largest
+// inventory the bounds admit, so one store never evicts its own entries.
+const entryCostsMax = 1 << 17
 
 func entryCost(path string, size uint64) (FileSetCost, error) {
 	if size > math.MaxInt64 {
