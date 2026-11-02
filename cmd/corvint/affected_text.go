@@ -20,10 +20,8 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 	}
 	out.WriteString("\n")
 	// AFP-V0-871: the AFP-V0-846 degradation, so a merged-stream reader
-	// that gets no stderr line still sees it.
-	for _, degradation := range receipt.Degradations {
-		fmt.Fprintf(&out, "degraded %s\n", textWord(degradation))
-	}
+	// that gets no stderr line still sees it, with its notice (ACX-V0-750).
+	writeAffectedDegradations(&out, receipt.Degradations, receipt.DegradationDetails)
 	// The AFP-V0-044 / AFP-V0-356 warning that the plan read unpinned
 	// worktree content, with its recovery, as the JSON receipt carries it.
 	if receipt.Warning != "" {
@@ -102,6 +100,19 @@ func affectedTextVia(links map[string]string, selection affectedCompactSelection
 		chain[left], chain[right] = chain[right], chain[left]
 	}
 	return chain
+}
+
+// writeAffectedDegradations writes one `degraded CODE` line per degradation
+// (AFP-V0-871) and, after it, one `degraded-detail CODE NOTICE` line when the
+// receipt carries that code's notice (ACX-V0-750), so the recovery reaches a
+// reader of the text forms alone.
+func writeAffectedDegradations(out *strings.Builder, codes []string, details map[string]string) {
+	for _, code := range codes {
+		fmt.Fprintf(out, "degraded %s\n", textWord(code))
+		if detail := details[code]; detail != "" {
+			fmt.Fprintf(out, "degraded-detail %s %s\n", textWord(code), textWord(detail))
+		}
+	}
 }
 
 // textWord prints value bare, or Go-quoted when it is empty or holds a

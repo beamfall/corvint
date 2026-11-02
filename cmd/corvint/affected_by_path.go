@@ -44,6 +44,8 @@ type affectedByPathReceipt struct {
 	// Degradations is the plan's AFP-V0-846 self-binary freshness, as the
 	// affected-plan/1 receipt carries it.
 	Degradations []string `json:"degradations,omitempty"`
+	// DegradationDetails is the plan receipt's notice per code (ACX-V0-750).
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 	// Warning is the ACX-V0-851 --worktree warning (HEAD, the dirty count
 	// and the unpinned statement), as the affected-plan/1 receipt carries it.
 	Warning string `json:"warning,omitempty"`
@@ -64,6 +66,7 @@ func runAffectedByPath(ctx context.Context, invocation affectedInvocation, stdou
 	receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stdout, stderr).(affectedReceipt)
 	result := affectedByPath(receipt, graph, invocation.PathList)
 	result.Degradations = receipt.Degradations
+	result.DegradationDetails = receipt.DegradationDetails
 	if invocation.Worktree {
 		result.Warning = receipt.Warning
 	}
@@ -131,9 +134,7 @@ func renderAffectedByPathText(result affectedByPathReceipt) string {
 	if result.Warning != "" {
 		fmt.Fprintf(&out, "warning %s\n", textWord(result.Warning))
 	}
-	for _, degradation := range result.Degradations {
-		fmt.Fprintf(&out, "degraded %s\n", degradation)
-	}
+	writeAffectedDegradations(&out, result.Degradations, result.DegradationDetails)
 	for _, unit := range result.Shared {
 		fmt.Fprintf(&out, "shared %s tests=%d %s\n", textWord(unit.UnitID), unit.TestCount, unit.Witness)
 	}

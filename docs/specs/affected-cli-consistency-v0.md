@@ -6,14 +6,15 @@ Requirement prefix: `ACX-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3583, V1-3327, V1-3578, V1-3726, V1-3727, V1-3045,
-V1-2907, V1-3734, V1-3731 and V1-3736. These requirements refine the
+V1-2907, V1-3734, V1-3731 and V1-3736; lane aff-w42 (2026-11-02) adds V1-4214, V1-4039,
+V1-4008 and the orchestrator's NEW-C1 and NEW-C3 items. These requirements refine the
 [affected plan](affected-plan-v0.md) and the command-line surface around it; they live here to
 keep that spec's Requirements section under the 256-obligation OCM limit (`maxObligations`).
 
 ## Agent digest
 - Claim: Affected source walks, worktree path plans, test-file readers, revspec bases and the CLI flag, error and Makefile surface follow one contract.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12).
-- Exists: `Source.Files` and `ByName` in `internal/liveverify/affected/source.go`; `--worktree` in `cmd/corvint/affected.go`.
+- Exists: `Source.Files` and `ByName` in `internal/liveverify/affected/source.go`; `--worktree` in `cmd/corvint/affected.go`; `selfBinaryNotice` in `cmd/corvint/self_binary.go`.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -121,10 +122,37 @@ driving Corvint from scripts.
   reads any input. The conformance test SHALL fail when a row is silent or unchecked. The
   `corvint-work-queue` row is the one exception: WQO-V0-007 and WQO-V0-030 pin its refusal to the
   exact text `unsupported operation`, so its row checks that text until those requirements change.
+- **ACX-V0-750:** (experimental, amending AFP-V0-846 and AFP-V0-871, under the owner's standing
+  lane auto-accept, 2026-10-11; V1-4214, NEW-C1) When `corvint affected` judges its own binary
+  `self-binary-stale` or `self-binary-unverified`, every output form SHALL carry the notice its
+  stderr line prints. The affected-plan/1 receipt (compact and `--full`), the `--summary`
+  affected-summary/1 verdict and the `--by-path` affected-by-path/1 receipt SHALL add the member
+  `"degradationDetails": {"<code>": "<notice>"}`, and their `--format text` forms SHALL print
+  `degraded-detail CODE NOTICE` right after the `degraded CODE` line, so a reader of stdout alone,
+  as after `2>&1`, still gets the recovery. The notice is the AFP-V0-846 detail; for a stale
+  binary it continues `, or run this checkout's own build without installing it (go run
+  ./cmd/corvint)`, and for both codes it ends `; this notice changes no plan, selection or exit
+  status: they are this binary's own, and current source may compute them differently`.
+  `corvint affected` and `corvint test` SHALL print that notice in their `DEGRADED` lines. A
+  binary built at `HEAD`, or one Corvint cannot judge, SHALL add neither the member nor the line,
+  so its output is byte-identical to before. The plan, the selection and the exit status are
+  unchanged in every case.
+- **ACX-V0-751:** (experimental, under the owner's standing lane auto-accept, 2026-10-11;
+  V1-4039) Each `corvint affected` or `corvint test` invocation SHALL judge its binary once and
+  print at most one `DEGRADED` line, the same line on every invocation at the same `HEAD`, and
+  SHALL record nothing about having printed it: read commands keep no such state (product
+  invariant 4). A replay that runs the planner N times therefore prints N identical lines; its
+  driver dedupes them on the `degradations` member, or merges stdout and stderr so AFP-V0-871
+  leaves the line out. Rebuilding, or running this checkout's build with `go run ./cmd/corvint`,
+  removes the notice.
 
 ## Non-goals
 
-Pinning a worktree-derived plan as evidence; a repository-wide flag rename.
+Pinning a worktree-derived plan as evidence; a repository-wide flag rename. For ACX-V0-750 and
+ACX-V0-751: narrowing the AFP-V0-846 / TSP-V0-722 staleness rule (the lane aff-w42 build-log entry
+`docs/build-log/2026-11-02-aff-w42.md` measured the narrower rules and records why the rule
+stays), rebuilding or replacing a binary, and a once-per-session notice, which would need state a
+read command may not write.
 
 ## Failure modes
 
@@ -134,7 +162,13 @@ read as evidence by a consumer that ignores `degradations`; the warning and the 
 it. (3) A Go test that walks a directory holding another package's `_test.go` files and reads
 them as data is no longer selected by that directory literal alone on a test-only edit; it is
 selected when it declares the read in `.corvint/test-read-scopes.json` (AFP-V0-023), and full CI
-still runs it.
+still runs it. (4) A decoder that rejects unknown members would reject a stale binary's receipt for
+`degradationDetails`; the repository's readers of these receipts (`.github/cishards`,
+`tools/corvint-pr-tests`, `internal/companionrelease`, the `jq` filters in
+`script/batch-precheck.sh`) are lenient, and a fresh binary's output is unchanged. (5) The notice
+never says the plan is current: it says the plan is the binary's own and may differ from what
+current source computes, so a stale binary still yields uncertainty, not invented certainty
+(product invariant 2).
 
 ## Acceptance evidence and traceability
 
@@ -151,6 +185,8 @@ still runs it.
 | ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-664 | the unknown-verb refusals in `main.go` of the eight named binaries and `run` in `cmd/corvint-postmerge-connect/main.go`; the coded-row check in `conformance/cli-errors-v0/contract_test.go` | `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
+| ACX-V0-750 | `selfBinaryNotice` in `cmd/corvint/self_binary.go`; `degradeStaleAffected` in `cmd/corvint/affected.go`; `writeAffectedDegradations` in `cmd/corvint/affected_text.go`; the `DegradationDetails` members in `affected_compact.go`, `affected_verdict.go` and `affected_by_path.go`; the `corvint-test: DEGRADED` line in `cmd/corvint/test.go` | `TestStaleBinaryNoticeReachesEveryAffectedForm_ACXV0750`; `TestAFPV0825StaleCheckReusesThePlanHEAD` |
+| ACX-V0-751 | `degradeStaleAffected` in `cmd/corvint/affected.go`; the stale check in `runTest` in `cmd/corvint/test.go` | `TestStaleBinaryNoticeOncePerInvocation_ACXV0751` |
 
 ## Rollback
 

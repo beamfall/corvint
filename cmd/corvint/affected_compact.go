@@ -34,6 +34,8 @@ type affectedCompactReceipt struct {
 	Warning  string                `json:"warning,omitempty"`
 	// Degradations is copied from the full receipt (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// DegradationDetails is copied from the full receipt (ACX-V0-750).
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 	// Tiers ranks the selection for a bounded local run (AFP-V0-162); it is
 	// omitted when nothing is selected.
 	Tiers *affectedTiers `json:"tiers,omitempty"`
@@ -181,6 +183,8 @@ func compactAffected(full affectedReceipt) (affectedCompactReceipt, error) {
 		Degradations: full.Degradations,
 		Tiers:        tierAffectedSelections(full.Plan.Selected),
 		Summary:      summarizeAffectedPlan(full.Plan, excluded.Count, full.WorktreeDirty, len(full.Range.Paths)),
+
+		DegradationDetails: full.DegradationDetails,
 	}, nil
 }
 

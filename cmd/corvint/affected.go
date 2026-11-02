@@ -57,6 +57,10 @@ type affectedReceipt struct {
 	// Degradations names conditions that make this receipt less trustworthy
 	// than current source would, such as self-binary-stale (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// DegradationDetails maps each self-binary freshness code to the notice
+	// its stderr line prints, so a reader of stdout alone, as after 2>&1,
+	// still gets the recovery (ACX-V0-750).
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 	// WorktreeDirty is the size of the worktree status set alone, before the
 	// committed range is unioned into plan.dirty; the compact summary
 	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
@@ -847,18 +851,23 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 // affected-plan/1 receipt and prints it on stderr when this binary is stale
 // for root, or could not be compared with it (AFP-V0-846). When stdout and
 // stderr are one pipe or file (2>&1) and the receipt carries the member, the
-// stderr line is left out so the document still parses (AFP-V0-871).
+// stderr line is left out so the document still parses (AFP-V0-871). The
+// line and the receipt carry the same notice (ACX-V0-750). Each invocation
+// judges the binary once and prints at most one line; it keeps no state, so
+// a replay that runs the planner N times prints N lines (ACX-V0-751).
 func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout, stderr io.Writer) any {
 	freshness := selfBinaryStale(ctx, root)
 	if freshness.Code == "" {
 		return receipt
 	}
+	notice := selfBinaryNotice(freshness)
 	full, ok := receipt.(affectedReceipt)
 	if !ok || !sharedOutputStream(stdout, stderr) {
-		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, notice)
 	}
 	if ok {
 		full.Degradations = append(full.Degradations, freshness.Code)
+		full.DegradationDetails = map[string]string{freshness.Code: notice}
 		return full
 	}
 	return receipt

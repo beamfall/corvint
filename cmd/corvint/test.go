@@ -310,7 +310,7 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 	started := time.Now()
 	head, headErr := affectedHeadRevision(ctx, gitExecutable, root)
 	if freshness := selfBinaryStaleAt(ctx, root, &headRead{revision: head, elapsed: time.Since(started)}); freshness.Code != "" {
-		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, selfBinaryNotice(freshness))
 	}
 	receiptFlag := "--receipt"
 	if options.receipt == "" && !options.dryRun {
