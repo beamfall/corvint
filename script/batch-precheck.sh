@@ -107,12 +107,13 @@
 # `corvint affected --path` plan of those paths that selects none of its packages and has no
 # unknown beyond the frontier); otherwise it prints why and runs the entry again.
 #
-# Lane closeout (ASD-V0-825, V1-4069): with LANE=1 (dogfood-closeout exports it), an `@own` entry
+# Lane closeout (ASD-V0-825, V1-4069): with BATCH_PRECHECK_LANE_CLOSEOUT=1 (set inline by the two
+# closeout recipes), an `@own` entry
 # (the companion-release reproducible builds, about 170 s each) runs only when a COMPANION_INPUTS
 # path changed since the base; otherwise it is skipped with the reason printed, and the batch
-# precheck, which runs without LANE, runs it. With no readable diff it runs. A receipt written by
-# such a run gets a `.lane` sidecar naming its head, and a since-receipt run without LANE=1 does
-# not narrow from that receipt.
+# precheck, which clears that mode, runs it. With no readable diff it runs. A receipt written by
+# such a run gets a `.lane` sidecar naming its head. Outside lane-closeout mode, a since-receipt
+# run cannot narrow from it and the push guard refuses it (ASD-V0-1991, ASD-V0-1992).
 #
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
@@ -123,6 +124,9 @@ export LC_ALL=C
 root=${BATCH_PRECHECK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)} || exit 2
 self_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
 cd "$root" || exit 2
+# ASD-V0-1991: consume only the dedicated recipe opt-in. Do not pass it to child gates/tests.
+lane_closeout=${BATCH_PRECHECK_LANE_CLOSEOUT:-0}
+unset BATCH_PRECHECK_LANE_CLOSEOUT
 workflow=${BATCH_PRECHECK_WORKFLOW:-.github/workflows/ci.yml}
 heavy=${BATCH_PRECHECK_HEAVY-script/heavy.sh}
 # ASD-V0-941 (V1-3037): an operator wrapper (a host semaphore or offload hook) for the make and
@@ -377,9 +381,9 @@ sync_check() {
 # Selection state (ASD-V0-050, ASD-V0-051): sel_on=1 once select_plan narrowed the run; otherwise
 # sel_why says why everything runs. drift_on[i] is 1 for each DRIFT_TESTS entry that runs and
 # cat_skip, when set, is why capability-catalog-check is skipped, and sb_skip why
-# selection-baseline-check is (ASD-V0-944).
+# selection-baseline-check is (ASD-V0-944); sb_deferred names its lane deferral (ASD-V0-1990).
 sel_on=0 sel_why='no --base or BATCH_PRECHECK_BASE' sel_sha='' sel_planned='' sel_changed='' sel_go='' why='' sel_docs=0
-drift_on=() cat_skip='' sb_skip='' sel_diff=0
+drift_on=() cat_skip='' sb_skip='' sb_deferred='' sel_diff=0
 # The repository-wide frontier unknowns every plan of this checkout carries; any other unknown
 # runs everything.
 FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:foreign-invocation-unmodelled"]'
@@ -636,11 +640,11 @@ select_report() {
   select_baseline
 }
 
-# lane_own_skip leaves out, under LANE=1, each @own entry no COMPANION_INPUTS path reaches
+# lane_own_skip leaves out, in lane-closeout mode, each @own entry no COMPANION_INPUTS path reaches
 # (ASD-V0-825, V1-4069); with no readable diff every entry stays.
 lane_own_skip() {
   local i n=${#DRIFT_TESTS[@]} pkg prefix inputs
-  [[ ${LANE:-} == 1 ]] || return 0
+  [[ $lane_closeout == 1 ]] || return 0
   if ((!sel_diff)); then
     printf 'batch-precheck: lane closeout runs the @own companion builds (%s)\n' "$sel_why"
     return 0
@@ -659,8 +663,23 @@ lane_own_skip() {
 # select_baseline decides sb_skip (ASD-V0-944): under the plan as for the catalog check; with the
 # diff read but no usable plan, only when no Go input and no declared input changed at all.
 select_baseline() {
-  local pkgs tok p
+  local pkgs tok p expanded
   grep -q '^selection-baseline-check:' Makefile 2> /dev/null || return 0
+  # ASD-V0-1990 (V1-4329): both lane closeout prechecks defer the replay to the batch.
+  if [[ $lane_closeout == 1 ]]; then
+    # An opaque aggregate could invoke the target behind our back. Refuse before any step runs.
+    if doc_gates | grep -qx $'make\tdoc-gates'; then
+      expanded=$(doc_gate_expansion)
+      [[ -n $expanded && $expanded != drift ]] || {
+        printf 'batch-precheck: REFUSE selection-baseline deferral: lane closeout cannot expand doc-gates; update doc_gate_expansion before rerunning\n' >&2
+        exit 2
+      }
+    fi
+    sb_deferred='lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)'
+    lane_skipped=1
+    printf 'batch-precheck: %s\n' "$sb_deferred"
+    return 0
+  fi
   # Every package the selection-baseline-check recipe names, on any recipe line.
   pkgs=$(awk '/^selection-baseline-check:/ { on = 1; next } on && /^\t/ { print; next } on { exit }' Makefile 2> /dev/null |
     grep -oE '\./[A-Za-z0-9_./-]+' | sort -u | tr '\n' ' ')
@@ -791,7 +810,9 @@ steps() {
   while IFS=$'\t' read -r kind value; do
     case $kind in
       make)
-        if [[ $value == selection-baseline-check && -n $sb_skip ]]; then
+        if [[ $value == selection-baseline-check && -n $sb_deferred ]]; then
+          printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "NOT_RUN: $sb_deferred"
+        elif [[ $value == selection-baseline-check && -n $sb_skip ]]; then
           printf 'make %s\tprintf "%%s\\n" %q\n' "$value" "skipped: $sb_skip"
         else
           printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value"
@@ -819,6 +840,11 @@ steps() {
 base=${BATCH_PRECHECK_BASE:-}
 receipt_path() { git rev-parse --path-format=absolute --git-path batch-precheck-receipt; }
 
+# ASD-V0-1992: either indicator disqualifies a lane receipt as batch evidence.
+receipt_has_lane_limits() {
+  [[ -e $1.lane ]] || awk '$1 == "not-run" && $2 == "selection-baseline-check" { found = 1 }
+    END { exit !found }' "$1" 2> /dev/null
+}
 verify_receipt() {
   local want head receipt
   receipt=$(receipt_path) || return 2
@@ -835,6 +861,11 @@ verify_receipt() {
     END { exit (bad || NR < 5 || passed + NR - 5 != steps) }' "$receipt" || { printf 'batch-precheck: refused: %s is not a well-formed passing precheck receipt; rerun make batch-precheck\n' "$receipt" >&2; return 1; }
   head=$(awk '$1 == "head" { print $2 }' "$receipt")
   [[ $head == "$want" ]] || { printf 'batch-precheck: refused: the precheck receipt names %s, not %s; rerun make batch-precheck\n' "${head:-nothing}" "$want" >&2; return 1; }
+  if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$receipt"; then
+    printf 'batch-precheck: refused: lane closeout receipt deferred selection-baseline-check or skipped @own companion builds; batch evidence is required (ASD-V0-1992)\n' >&2
+    printf 'batch-precheck: fix: make batch-precheck\n' >&2
+    return 1
+  fi
   printf 'batch-precheck: receipt matches %s (%s)\n' "$want" "$(awk '$1 == "finished" { print $2 }' "$receipt")"
   awk 'NR > 5 { $1 = ""; sub(/^ /, ""); print "batch-precheck: receipt records NOT_RUN " $0 }' "$receipt"
 }
@@ -1050,10 +1081,10 @@ since_receipt() {
   local named head
   named=$(awk '$1 == "head" { print $2 }' "$(receipt_path)" 2> /dev/null) || named=
   head=$(git rev-parse HEAD)
-  if [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
+  if [[ $lane_closeout != 1 ]] && receipt_has_lane_limits "$(receipt_path)"; then
+    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that deferred selection-baseline-check or skipped the @own companion builds (ASD-V0-1990, ASD-V0-825)\n'
+  elif [[ -z $named ]] || ! verify_receipt "$named" > /dev/null 2>&1; then
     printf 'batch-precheck: since-receipt not used: no well-formed passing receipt\n'
-  elif [[ ${LANE:-} != 1 && $(cat "$(receipt_path).lane" 2> /dev/null) == "$named" ]]; then
-    printf 'batch-precheck: since-receipt not used: the receipt is from a lane closeout that skipped the @own companion builds (ASD-V0-825)\n'
   elif [[ $named == "$head" ]] && tree_clean; then
     printf 'batch-precheck: SKIP receipt already names HEAD %s and the checkout is clean; no step reruns (ASD-V0-943)\n' "$head"
     exit 0
@@ -1241,7 +1272,9 @@ run_one() {
     rc=$?
   fi
   printf '%s %s %s\n' "$rc" $((SECONDS - t0)) "$reused" > "$BATCH_PRECHECK_DIR/$1.rc"
-  if [[ -n $reused ]]; then
+  if [[ $rc == 0 && $cmd == 'printf "%s\n" '* ]] && grep -q '^NOT_RUN: ' "$log"; then
+    printf 'batch-precheck: NOT_RUN %s (%ss): %s\n' "$name" $((SECONDS - t0)) "$(sed -n 's/^NOT_RUN: //p' "$log")"
+  elif [[ -n $reused ]]; then
     printf 'batch-precheck: REUSE %s (%ss): %s\n' "$name" $((SECONDS - t0)) "$(grep -m1 '^gate-ledger: HIT ' "$log" | sed 's/^gate-ledger: HIT [^ ]* //')"
   else
     printf 'batch-precheck: %s %s (%ss)\n' "$( ((rc)) && echo FAIL || echo PASS)" "$name" $((SECONDS - t0))
@@ -1338,11 +1371,15 @@ pass=0 fail=0 summed=0 failed=() warn=0 warned=() reused=0 notrun=()
 # pass prints REUSE and counts as passed. A print-only step (CMD) whose output is NOT_AVAILABLE
 # prints NOT_AVAILABLE and counts as not run (ASD-V0-973).
 row() {
-  local rc secs flag why=
+  local rc secs flag why= deferred=
   read -r rc secs flag < "$2" 2> /dev/null || { rc=1 secs=0 flag=; }
   summed=$((summed + secs))
   [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && why=$(sed -n '1s/^NOT_AVAILABLE: //p' "${2%.rc}.log" 2> /dev/null)
-  if [[ -n $why ]]; then
+  [[ $rc == 0 && ${3-} == 'printf "%s\n" '* ]] && deferred=$(sed -n '1s/^NOT_RUN: //p' "${2%.rc}.log" 2> /dev/null)
+  if [[ -n $deferred ]]; then
+    notrun+=("${1#make } $deferred")
+    printf 'batch-precheck: | NOT_RUN | %5ss | %s: %s\n' "$secs" "$1" "$deferred"
+  elif [[ -n $why ]]; then
     notrun+=("${1#make } $why")
     printf 'batch-precheck: | NOT_AVAILABLE | %5ss | %s: %s\n' "$secs" "$1" "$why"
   elif [[ $rc == 0 && $flag == flaky ]]; then
@@ -1415,7 +1452,7 @@ elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_bef
     "$head_before" "$((pass + fail + ${#notrun[@]}))" "$pass" "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     for x in ${notrun[@]+"${notrun[@]}"}; do printf 'not-run %s\n' "$x"; done; } > "$receipt.tmp" && /bin/mv -f "$receipt.tmp" "$receipt"; then
     printf 'batch-precheck: receipt for %s written to %s\n' "$head_before" "$receipt"
-    # A lane closeout receipt that skipped @own entries is marked so no batch narrows from it.
+    # A lane receipt with deferred selection-baseline or skipped @own entries cannot narrow a batch.
     ((!lane_skipped)) || printf '%s\n' "$head_before" > "$receipt.lane" || /bin/rm -f "$receipt"
   else
     /bin/rm -f "$receipt.tmp"

@@ -853,9 +853,11 @@ pre-push-dogfood-seal-test:
 # batch-review-packet BASE=<sha> [HEAD=<rev>] prints the bounded, read-only batch reviewer input for
 # the checked-out merged range: the reviewed revision, lane overlap, corvint impact and dogfood
 # batch-check (ASD-V0-043, V1-2986).
+# ASD-V0-1991: public batch entry points clear inherited lane-closeout authority. Only the two
+# closeout recipes below opt in inline, invoking the script directly rather than this target.
 .PHONY: batch-precheck
 batch-precheck:
-	@$(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
+	@BATCH_PRECHECK_LANE_CLOSEOUT=0 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: batch-regen
 batch-regen:
@@ -863,7 +865,7 @@ batch-regen:
 
 .PHONY: batch-push-check
 batch-push-check:
-	@script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
+	@BATCH_PRECHECK_LANE_CLOSEOUT=0 script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
 
 .PHONY: adopter-ci-advisory-test
 adopter-ci-advisory-test:
@@ -1134,7 +1136,7 @@ dogfood-closeout: export LANE = 1
 dogfood-closeout: export DOGFOOD_FINISH_ENTRY = dogfood-closeout
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SKIP_DRIFT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 	@$(MAKE) --no-print-directory dogfood-finish
 	@echo 'dogfood-closeout: sealed; next, as its own command: make dogfood-closeout-precheck (DCW-V0-923)'
 
@@ -1144,7 +1146,7 @@ dogfood-closeout:
 .PHONY: dogfood-closeout-precheck
 dogfood-closeout-precheck: export LANE = 1
 dogfood-closeout-precheck:
-	@BATCH_PRECHECK_SINCE_RECEIPT=1 $(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_LANE_CLOSEOUT=1 BATCH_PRECHECK_SINCE_RECEIPT=1 $(HEAVY_ADMIT) script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
 .PHONY: dogfood-batch-check
 dogfood-batch-check:
