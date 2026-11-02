@@ -540,3 +540,8 @@ All ran through `script/heavy.sh`; the store and CLI runs used `GOCACHE=~/.cache
     - Expected: the slice's usual 108 s.
     - Actual: a timeout at 480 s. Two smaller slices together then ran past the tool's 10-minute
       limit and were moved to the background automatically.
+11. `make windows-vet` puts its build cache on the root filesystem, whatever the environment says.
+    - Repro: `GOCACHE=~/.cache/go-build make windows-vet` on unraid-lanes.
+    - Expected: the Go cache the environment names.
+    - Actual: the Makefile sets `GOCACHE=/tmp/corvint-go-build-cache` itself, and recreated the
+      cache the orchestrator had just removed to free the full root filesystem.
