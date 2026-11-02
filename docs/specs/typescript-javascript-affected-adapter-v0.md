@@ -1790,6 +1790,24 @@ with its reason.
   files now read past its type argument, `PrivateJoin.tsx`, raises `typescript:scan-unresolved`
   for a JSX-text `/` at line 412, as `TJAA-V0-039` requires. Rollback: remove `<` from the `jsxQuoteStartsLiteral` punctuators.
 
+- `TJAA-V0-830`: (experimental under the standing lane auto-accept (2026-10-11); V1-4258, V1-3509;
+  extending `AFP-V0-551` and ASD-V0-895 to this adapter) A test file's string or template literal
+  that starts or ends on a line carrying the comment `//corvint:fixture-path` is a path written
+  into or compared against a temporary directory and names no read: a path token that only such
+  literals of that test file hold is no path token of its unit, so it selects no
+  `PATH_LITERAL_READER`. A token any unmarked literal of the file also holds stays, a marker in a
+  non-test module marks nothing, and a module read whole because it does not tokenize keeps every
+  token. An import specifier stays out of the tokens only as `TJAA-V0-126` already rules.
+  Motivation: `integrations/host-adapters.test.mjs` and `integrations/pi/core-host.test.mjs`
+  write `README.md` into temporary repositories; the bare `README.md` token made both tests
+  readers of every `README.md` in the repository, so a host README edit brought the whole
+  TypeScript frontier. Target: an `integrations/claude-code/README.md` edit beside a Go change adds
+  no unknown entry to the Go change's own plan, while `host-adapters.test.mjs`, which copies and
+  hashes `integrations/opencode/`, stays a reader of `integrations/opencode/README.md` through its
+  directory token. Non-goal: narrowing a directory token by what the test does with it. Failure
+  mode: a marker on a literal the test really reads is an author error, reviewable in the diff, as
+  for Go. Rollback: drop `fixtureLines` from `pathTokensSkipping` and the markers.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -2161,6 +2179,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-725` (V1-2583; GitHub #1701) | `TestPlaywrightTagClosureDefersProvenTestBody_TJAA725` and `TestPlaywrightTagClosureBodyGuardStops_TJAA725` in `playwright_test_body_defer_test.go` (proven test, aliased and hook bodies stay exact; a describe callback, an unproven module, a rebound, reassigned or escaping `test` and a guard break in an imported helper still stop) | experimental |
+| `TJAA-V0-830` (V1-4258, V1-3509) | `TestFixtureMarkedLiteralsNameNoRead_TJAA830` in `path_tokens_fixture_test.go` (a marked test literal names no token, an unmarked twin keeps it, a non-test module ignores the marker); `TestIntegrationReadmesAreDocumentation_AFP_V0_830` (repository plan) | experimental |
 | `TJAA-V0-601` (V1-3933) | `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in `playwright_shorthand_v13933_test.go` (unmodelled device plus literal browserName resolves; without one it stays unresolved and names the spread) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
