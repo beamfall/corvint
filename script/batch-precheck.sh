@@ -1083,11 +1083,15 @@ for i in "${serial[@]+"${serial[@]}"}"; do run_one "$i"; done
 # GL-V0-786: a worktree that moved during the steps keeps no record keyed on the shared digest, and
 # the run fails: a step may have reused, or recorded, a pass for content it did not read. A verify
 # that cannot run fails the same way.
+# verify_shared checks the tree against the shared digest again; it runs after the steps and after
+# every retry attempt below, since a retried step can edit an input and then pass.
 ledger_moved=0
-if [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]]; then
+verify_shared() {
+  [[ -n ${GATE_LEDGER_SHARED_DIGEST:-} ]] || return 0
   "$ledger" digest --verify "$GATE_LEDGER_SHARED_DIGEST" > "$dir/ledger-verify.log" 2>&1 < /dev/null || ledger_moved=1
   sed 's/^gate-ledger: /batch-precheck: ledger /' "$dir/ledger-verify.log"
-fi
+}
+verify_shared
 
 # failing_tests LOG prints the go test and subtest names (`--- FAIL: NAME`) and node/TAP `not ok`
 # names a step log reports, comma-separated, at most 20, or nothing.
@@ -1121,6 +1125,8 @@ for ((i = 1; i <= n; i++)); do
   bash -c "${line#*$'\t'}" > "$dir/$i.log" 2>&1 < /dev/null
   rerc=$?
   resecs=$((SECONDS - t0))
+  # GL-V0-786: a retry that edited the tree fails the run below, whatever the retry returned.
+  verify_shared
   if [[ $rerc == 0 ]]; then
     flaky=$((flaky + 1))
     flakes+=("$name")

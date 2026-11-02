@@ -289,7 +289,11 @@ cat > "$bin/make" <<EOF
 echo "make \$* GOPROXY=\${GOPROXY-unset}" >> $tmp/calls
 mkdir -p $tmp/running && : > $tmp/running/\$2
 case "\$2" in
-  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; } ;;
+  test-commands-check) [ -n "\${STUB_FAIL:-}" ] && { rm -f $tmp/running/\$2; echo boom; exit 1; }
+    if [ -n "\${STUB_RETRY_MUTATE:-}" ]; then
+      [ -f $tmp/retry-marker ] || { : > $tmp/retry-marker; rm -f $tmp/running/\$2; echo first attempt fails; exit 1; }
+      echo retried >> $repo/mutated.txt
+    fi ;;
   slow-*) sleep 3 ;;
   go-archive-gate) [ -n "\${STUB_MUTATE:-}" ] && echo moved >> $repo/mutated.txt ;;
   host-adapter-node-test) if [ -n "\${STUB_SERIAL_PROBE:-}" ]; then
@@ -575,6 +579,14 @@ grep -q '^batch-precheck: ledger DIGEST changed during the run' "$tmp/out" && gr
   fail "a moved tree was not reported as a failure: $(cat "$tmp/out")"
 names_head && fail "a run whose tree moved wrote a receipt"
 /bin/rm -f "$repo/mutated.txt"
+# A step that fails, edits the tree on its retry and then passes (FLAKY) fails the run too: the
+# digest is checked again after every retry attempt. A fresh CORVINT_ salt makes every step run.
+/bin/rm -f "$tmp/retry-marker"
+STUB_RETRY_MUTATE=1 CORVINT_STUB_ROUND=retry lrun && fail "a run whose retry moved the tree passed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FLAKY make test-commands-check' "$tmp/out" || fail "the retry did not pass as FLAKY: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL the worktree changed during the run' "$tmp/out" || fail "a retry that moved the tree was not a failure: $(cat "$tmp/out")"
+names_head && fail "a run whose retry moved the tree wrote a receipt"
+/bin/rm -f "$repo/mutated.txt" "$tmp/retry-marker"
 git -C "$repo" reset -q --hard HEAD~1
 /bin/rm -f "$repo/notes.txt" "$receipt"
 
