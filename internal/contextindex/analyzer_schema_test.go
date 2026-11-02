@@ -69,9 +69,33 @@ func TestAnalyzerSchemaOutput(t *testing.T) {
 		t.Logf("analyzer output SHA256=%s", got)
 		t.Logf("analyzer shard SHA256=%s", shards)
 		if analyzerSchemaID != auditedSchema || got != auditedOutputSHA256 || shards != auditedShardSHA256 {
-			t.Fatalf("analyzer output drift: schema=%s output SHA256=%s shard SHA256=%s; the golden corpus compiles to other facts, so the facts or their encoding changed: run script/analyzer-schema.sh bump, which moves the schema number past origin/main's and rewrites the pins (IDX-SNAP-V0-107)", analyzerSchemaID, got, shards)
+			t.Fatal(analyzerDriftHint(analyzerSchemaID, got, shards))
 		}
 	})
+}
+
+// analyzerDriftHint is TestAnalyzerSchemaOutput's failure: it names the
+// command that moves the schema number and rewrites the pins.
+func analyzerDriftHint(schema, output, shards string) string {
+	return fmt.Sprintf("analyzer output drift: schema=%s output SHA256=%s shard SHA256=%s; the golden corpus compiles to other facts, so the facts or their encoding changed: run script/analyzer-schema.sh bump, which moves the schema number past origin/main's and rewrites the pins (IDX-SNAP-V0-107)", schema, output, shards)
+}
+
+// V1-3659 hint (3): the drift failure names the digests and the bump
+// command, and that command is one the script implements.
+func TestAnalyzerSchemaDriftNamesBump_V1_3659(t *testing.T) {
+	hint := analyzerDriftHint("corvint-analyzer/1", "aa", "bb")
+	for _, want := range []string{"schema=corvint-analyzer/1", "output SHA256=aa", "shard SHA256=bb", "run script/analyzer-schema.sh bump"} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("drift hint %q lacks %q", hint, want)
+		}
+	}
+	script, err := os.ReadFile(filepath.Join("..", "..", "script", "analyzer-schema.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(script), "script/analyzer-schema.sh bump") || !strings.Contains(string(script), "case $mode in bump | check)") {
+		t.Fatalf("script/analyzer-schema.sh does not implement the bump the drift hint names")
+	}
 }
 
 // TestAnalyzerSchemaOutputCoversMarkersAndShards: the golden corpus yields a

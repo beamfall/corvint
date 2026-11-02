@@ -79,6 +79,15 @@ func resolve(root, path string, linksLeft int) (string, bool) {
 			if !contained(root, resolved) {
 				return "", false
 			}
+			if len(suffix) > 0 {
+				// Windows reports a path below a regular file as ERROR_PATH_NOT_FOUND,
+				// which os.IsNotExist accepts, so the walk can stop at a file. An
+				// existing ancestor of absent components must be a directory; a
+				// dangling link's absent target was already proven absent above.
+				if dir, err := os.Stat(resolved); err == nil && !dir.IsDir() || err != nil && !os.IsNotExist(err) {
+					return "", false
+				}
+			}
 			for i := len(suffix) - 1; i >= 0; i-- {
 				resolved = filepath.Join(resolved, suffix[i])
 				if _, err := os.Lstat(resolved); !os.IsNotExist(err) {

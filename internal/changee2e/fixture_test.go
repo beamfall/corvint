@@ -25,7 +25,16 @@ func gitTest(t *testing.T, root string, args ...string) string {
 func commitAll(t *testing.T, root, message string) string {
 	t.Helper()
 	gitTest(t, root, "add", "-A")
-	gitTest(t, root, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "-qm", message)
+	// The identity goes through the environment: TestMain's IsolateGit sets
+	// GIT_AUTHOR_* and GIT_COMMITTER_*, which outrank -c user.* (V1-2635).
+	c := exec.Command("git", "-c", "maintenance.auto=false", "-c", "gc.auto=0", "commit", "-qm", message)
+	c.Dir = root
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=Fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
+		"GIT_COMMITTER_NAME=Fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid")
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Fatalf("git commit: %v: %s", err, out)
+	}
 	return gitTest(t, root, "rev-parse", "HEAD")
 }
 
