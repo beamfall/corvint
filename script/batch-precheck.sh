@@ -914,7 +914,9 @@ need_gocache
 # finding compares equal at the base and the head: the checkout path (as given, as the shell prints
 # it, and with symlinks resolved), a temporary-directory path, a `pid N`, the heavy.sh banner that
 # names the tree it ran on, and a timing only on a go test result line (`ok`, `FAIL`, `--- FAIL:`
-# and the like). A number inside a diagnostic, such as `timeout limit 2s exceeded`, stays.
+# and the like), source locations and shell-test group/case summary counts (ASD-V0-1971).
+# A number inside a diagnostic, such as `timeout limit 2s exceeded`, stays. Keep repeated
+# findings: comm pairs equal occurrences, leaving any excess at the head introduced.
 normalize() {
   PRECHECK_DIRS="$1"$'\n'"$(cd "$1" && pwd)"$'\n'"$(cd "$1" && pwd -P)" PRECHECK_TMP="${TMPDIR:-/tmp}" awk 'BEGIN {
     n = split(ENVIRON["PRECHECK_DIRS"], d, "\n")
@@ -950,6 +952,28 @@ normalize() {
       line = substr(line, RSTART + RLENGTH)
     }
     line = out line
+    # Source coordinates move as tests are inserted. Restrict this to known source suffixes;
+    # numeric diagnostic values, requirement IDs and digits in file names remain findings.
+    out = ""
+    while (match(line, /[A-Za-z0-9_.\/-]+\.(go|sh|mjs|js|ts):[0-9]+(:[0-9]+)?/)) {
+      loc = substr(line, RSTART, RLENGTH)
+      sub(/:[0-9]+(:[0-9]+)?$/, ":<line>", loc)
+      out = out substr(line, 1, RSTART - 1) loc
+      line = substr(line, RSTART + RLENGTH)
+    }
+    line = out line
+    if (line ~ /^[[:space:]]*group [0-9]+: line [0-9]+:/) {
+      sub(/group [0-9]+: line [0-9]+:/, "group <n>: line <line>:", line)
+      sub(/ \(\+[0-9]+ more\)$/, " (+<n> more)", line)
+    }
+    if (line ~ /case ".*" line [0-9]+:/)
+      sub(/" line [0-9]+:/, "\" line <line>:", line)
+    if (line ~ /^[A-Za-z0-9_-]+_test: [0-9]+ groups passed(, [0-9]+ failed:)?$/) {
+      sub(/[0-9]+ groups passed/, "<n> groups passed", line)
+      sub(/[0-9]+ failed:/, "<n> failed:", line)
+    }
+    if (line ~ /^[A-Za-z0-9_-]+_test: FAIL [0-9]+ case\(s\):$/)
+      sub(/FAIL [0-9]+ case/, "FAIL <n> case", line)
     # A timing is a whole token: digits[.digits][m]s between line ends, blanks or parentheses, so
     # a name such as v1schema.go keeps its digits; it is erased only on a go test result line.
     if (line ~ /^(ok|FAIL|PASS|---[[:space:]]+(FAIL|PASS|SKIP):)([[:space:]]|$)/) {
@@ -966,7 +990,7 @@ normalize() {
     }
     sub(/[[:space:]]+$/, "", line)
     if (line != "") print line
-  }' | sort -u
+  }' | sort
 }
 
 basewt= baseerr=

@@ -82,6 +82,11 @@
 #                        file system); a failed trim warns and the run still goes ahead.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
+#   Unwritable paths    before routing, probe the lock directory/files, logs and transport TMPDIR;
+#                        before local admission, also probe effective TMPDIR, GOTMPDIR (when set),
+#                        GOCACHE and CORVINT_GOCACHE. Refuse once with exit 2 and a
+#                        fix: line naming writable overrides under $PWD/.lane-tmp (ASD-V0-1972).
+#                        Keep HEAVY_LOCK_DIR shared with the host lanes when choosing an override.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
 #                        2 (logged as reason=refused-local) unless this names why it needs this host.
 #   HEAVY_MAX_LOAD       a local run first waits while the integer 1-minute load average exceeds this,
@@ -1464,13 +1469,89 @@ tmpfs_defaults() {
     export CORVINT_GOCACHE
     moved="GOCACHE=$CORVINT_GOCACHE"
   fi
-  if [[ -z ${TMPDIR-} ]] && mkdir -p "$base/corvint-tmp" 2> /dev/null; then
+  if [[ -z ${TMPDIR-} ]]; then
     TMPDIR=$base/corvint-tmp
     export TMPDIR
     moved="${moved:+$moved }TMPDIR=$TMPDIR"
   fi
   [[ -z $moved ]] || printf 'heavy.sh: /tmp is a tmpfs; this run uses %s\n' "$moved" >&2
   return 0
+}
+
+# writable_dir PATH: mkdir alone succeeds for an existing read-only directory. Actually create,
+# write and remove a private file, so sandbox mounts/ACLs are checked as well as Unix mode bits.
+writable_dir() {
+  local probe
+  mkdir -p "$1" 2> /dev/null && probe=$(mktemp "$1/.heavy-write.XXXXXX" 2> /dev/null) || return 1
+  if ! printf x > "$probe"; then /bin/rm -f "$probe"; return 1; fi
+  /bin/rm -f "$probe"
+}
+
+# writable_paths control|local COMMAND...: ASD-V0-1972. Control paths precede logging and remote
+# packing; effective local paths precede a local scratch index, load wait or lock acquisition.
+# Never silently choose a private semaphore: that would bypass the host limit.
+writable_paths() {
+  local mode=$1 bad=() name path slot scratch=${TMPDIR:-/tmp} cache=${GOCACHE-} corvint=${CORVINT_GOCACHE-} gotmp=${GOTMPDIR-}
+  shift
+  # Also check paths the wrapped command explicitly overrides through env (or leading NAME=V).
+  if [[ $mode == local && ${1-} == env ]]; then
+    shift
+    # env options precede assignments; -u consumes a name, while -- ends option parsing.
+    while (($#)); do
+      case $1 in
+        -u)
+          (($# >= 2)) || break
+          name=$2; shift 2 ;;
+        -u?*) name=${1#-u}; shift ;;
+        --unset=*) name=${1#--unset=}; shift ;;
+        -i|-) scratch=/tmp; cache=; corvint=; gotmp=; shift; continue ;;
+        --) shift; break ;;
+        *) break ;;
+      esac
+      case $name in
+        TMPDIR) scratch=/tmp ;;
+        GOCACHE) cache= ;;
+        CORVINT_GOCACHE) corvint= ;;
+        GOTMPDIR) gotmp= ;;
+      esac
+    done
+    for path; do
+      [[ $path =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || break
+      case $path in
+        TMPDIR=*) scratch=${path#*=}; scratch=${scratch:-/tmp} ;;
+        GOCACHE=*) cache=${path#*=} ;;
+        CORVINT_GOCACHE=*) corvint=${path#*=} ;;
+        GOTMPDIR=*) gotmp=${path#*=} ;;
+      esac
+    done
+  fi
+  if ! writable_dir "$lock_dir"; then
+    bad+=("HEAVY_LOCK_DIR=$lock_dir")
+  else
+    for slot in "$lock_dir"/slot*; do
+      [[ -e $slot ]] || continue
+      if ! { : >> "$slot"; } 2> /dev/null; then bad+=("HEAVY_LOCK_DIR=$lock_dir ($slot)"); break; fi
+    done
+  fi
+  for name in HEAVY_SELECTION_LOG HEAVY_FALLBACK_LOG; do
+    case $name in
+      HEAVY_SELECTION_LOG) path=${HEAVY_SELECTION_LOG:-$lock_dir/selection.log} ;;
+      HEAVY_FALLBACK_LOG) path=${HEAVY_FALLBACK_LOG:-$lock_dir/fallback.log} ;;
+    esac
+    { mkdir -p "$(dirname "$path")" && : >> "$path"; } 2> /dev/null || bad+=("$name=$path")
+  done
+  for name in TMPDIR GOTMPDIR GOCACHE CORVINT_GOCACHE; do
+    [[ $mode == local || $name == TMPDIR ]] || continue
+    case $name in TMPDIR) path=$scratch ;; GOTMPDIR) path=$gotmp ;; GOCACHE) path=$cache ;; CORVINT_GOCACHE) path=$corvint ;; esac
+    [[ -n $path ]] || continue
+    writable_dir "$path" || bad+=("$name=$path")
+  done
+  ((${#bad[@]})) || return 0
+  printf 'heavy.sh: unwritable %s\n' ${bad[@]+"${bad[@]}"} >&2
+  path=$PWD/.lane-tmp
+  printf 'fix: mkdir -p %q %q %q && export HEAVY_LOCK_DIR=%q HEAVY_SELECTION_LOG=%q HEAVY_FALLBACK_LOG=%q TMPDIR=%q GOTMPDIR=%q GOCACHE=%q CORVINT_GOCACHE=%q # rerun with the same overrides in any env arguments; coordinate HEAVY_LOCK_DIR with the host lanes\n' \
+    "$path/locks" "$path/tmp" "$path/gocache" "$path/locks" "$path/selection.log" "$path/fallback.log" "$path/tmp" "$path/tmp" "$path/gocache" "$path/gocache" >&2
+  refuse "unwritable-paths ${bad[*]}; set the overrides on the fix: line above"
 }
 
 # local_disk: before a local run, name a TMPDIR or GOCACHE file system below the warning floor (the
@@ -1740,7 +1821,7 @@ main() {
   printf 'heavy.sh: script sha256=%s %s\n' "$heavy_script" "${BASH_SOURCE[0]}" >&2
   cpus=$(cpu_count)
   slot_limits "$cpus"
-  mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
+  writable_paths control "$@"
   # ASD-V0-931: one spelling of the lock dir, so a nested HEAVY_HELD always matches its holder.
   lock_dir=$(cd -P "$lock_dir" 2> /dev/null && pwd -P) || refuse "lock-dir-unavailable $lock_dir"
   disk_floor
@@ -1809,6 +1890,13 @@ main() {
       build_offload "$@" && { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
     fi
   fi
+  # Resolve local defaults before the first local scratch index or load wait. An offload discards
+  # the caller's cache paths, so do not check or create them before choosing to run locally.
+  tmpfs_defaults
+  local cache_tmp=${TMPDIR:-/tmp}
+  : "${GOCACHE:=${CORVINT_GOCACHE:-${cache_tmp%/}/corvint-go-build-cache}}"
+  export GOCACHE
+  writable_paths local "$@"
   # ASD-V0-931: a nested admission skips the load gate its holder already passed.
   heavy_load_wait=0
   [[ ${HEAVY_HELD-} == "$lock_dir"/slot* ]] || load_wait "$cpus"
@@ -1819,10 +1907,6 @@ main() {
   # uses the cache the Makefile uses (CORVINT_GOCACHE, default ${TMPDIR:-/tmp}/corvint-go-build-cache
   # with TMPDIR's trailing slash dropped, ASD-V0-914), so a plain go test and a make target do not
   # fill two caches. ASD-V0-061: on a tmpfs /tmp both move to the home disk first.
-  tmpfs_defaults
-  local cache_tmp=${TMPDIR:-/tmp}
-  : "${GOCACHE:=${CORVINT_GOCACHE:-${cache_tmp%/}/corvint-go-build-cache}}"
-  export GOCACHE
   cache_trim
   if ! local_disk; then
     printf 'heavy.sh: REFUSED low-disk (exit 2)\n' # stdout marker (V1-3213)
