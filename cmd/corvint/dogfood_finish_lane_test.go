@@ -168,6 +168,12 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 0 || stdout != "dogfood-finish-lane: seal SKIP already-sealed sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("sealed rerun exit=%d stdout=%s", code, stdout)
 	}
+	// DCW-V0-731: the wrappers' static pre-check on the seal head, with BASE
+	// and CITATIONS alone, passes on to the full run's seal SKIP instead of
+	// refusing the outcome inputs that run never reads.
+	if code, stdout, stderr = run.exec(t, root, finishLaneIdentity, "dogfood", "inputs-check", "--base", base, args[0], args[1], "--sealed", "skip", "--entry", "dogfood-finish", "--static", "yes"); code != 0 || stdout != "dogfood-inputs-check: inputs-check STATIC SKIP already-sealed; the full inputs-check reports the seal\n" {
+		t.Fatalf("static pre-check on a seal head exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
 	// ASD-V0-842 (V1-3960): inputs-check on the seal head checks nothing, so
 	// it reports NOT_CHECKED and exits 3 rather than a passing SKIP; the
 	// wrappers' --sealed skip keeps the SKIP, and any other value is refused.

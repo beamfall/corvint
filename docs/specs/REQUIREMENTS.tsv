@@ -2253,6 +2253,11 @@ ASD-V0-1026	docs/specs/corvint-self-development-v0.md	(experimental under the st
 ASD-V0-1027	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3892) `make te	standing	2026-11-01; V1-3892
 ASD-V0-120	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3765; refines	standing	2026-11-01; V1-3765
 ASD-V0-742	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3245) `script/	standing	2026-11-01; V1-3245
+ASD-V0-730	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B3 heavy.sh r	standing	2026-11-02
+ASD-V0-731	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B6 short boun	standing	2026-11-02
+ASD-V0-732	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B6) The Makef	standing	2026-11-02
+ASD-V0-734	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4319 killed te	standing	2026-11-02; V1-4319
+ASD-V0-733	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B1 the record	standing	2026-11-02
 ASD-V0-815	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-4183) `script/	standing	2026-11-01; V1-4183
 ASD-V0-1970	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4326) Case 1b	standing	2026-10-11; V1-4326
 ASD-V0-1971	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-4327; refines	standing	2026-10-11; V1-4327
@@ -3702,6 +3707,9 @@ DCW-V0-449	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3269; refines `DCW-V0-380`	standing	V1-3269
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
 DCW-V0-991	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3642; amends	standing	2026-10-31; V1-3642
+DCW-V0-730	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-3883, V1-3930)	standing	2026-11-02; V1-3883; V1-3930
+DCW-V0-731	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; NEW-B2 "dogfood-	standing	2026-11-02
+DCW-V0-732	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-3862, NEW-B4,	standing	2026-11-02; V1-3862
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
 DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378

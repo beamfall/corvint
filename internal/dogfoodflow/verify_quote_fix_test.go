@@ -18,10 +18,14 @@ func TestDCWV0403UnquotedRunAlternationRefusesInOneLine(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
 	verify := writeInput(t, "go test -run TestA ./pre\ngo test -count=1 -run TestA|TestB ./pre\n")
-	code, _, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan, VerifyFile: verify})
+	intents := writeInput(t, "#no-intent-declared\n")
+	code, _, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan, VerifyFile: verify, IntentsFile: intents})
 	quoted := "go test -count=1 -run 'TestA|TestB' ./pre"
+	// DCW-V0-730 (V1-3883): the pre-flight's fix line reruns inputs-check
+	// with the same inputs, not finish-lane.
 	want := "dogfood-inputs-check: REFUSE unsupported-verify-syntax\n" +
-		"  fix: --verify " + verify + " line 2: quote the -run alternation as one word: " + quoted + " (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE), then rerun corvint dogfood finish-lane --base " + base + "\n"
+		"  fix: --verify " + verify + " line 2: quote the -run alternation as one word: " + quoted + " (DCW-V0-403; quoting rule: docs/DOGFOOD.md Inputs, DOGFOOD_VERIFY_FILE), then rerun corvint dogfood inputs-check --base " + base +
+		" --citations " + plan + " --intents " + intents + " --verify " + verify + " --outcome passed\n"
 	if code != 2 || len(labels) != 0 || stderr != want {
 		t.Fatalf("code=%d steps=%q stderr=\n%q\nwant\n%q", code, labels, stderr, want)
 	}

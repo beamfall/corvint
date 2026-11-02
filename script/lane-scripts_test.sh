@@ -952,6 +952,29 @@ out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
 [[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
   fail "finish refusal for a missing plan names no record-only recipe: $out"
 grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
+# ASD-V0-733 (NEW-B1): a BASE..HEAD that touches a non-record path (a decision included) gets the
+# spec or #no-intent-declared line instead of the record-only recipe; a record range keeps the
+# recipe; the recipe states its precondition. The script reads its own checkout, so a fixture
+# repository holds a copy of it.
+rr=$tmp/record-repo
+rrg() { git -C "$rr" -c user.name=t -c user.email=t@example.invalid "$@"; }
+rfinish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE=1 "$rr/script/dogfood-finish.sh" "$1" '' plan.tsv plan.tsv passed 2>&1); }
+mkdir -p "$rr/script" "$rr/docs/build-log" "$rr/docs/decisions" "$rr/.corvint/changes" && cp "$script/dogfood-finish.sh" "$rr/script/" &&
+  git init -q -b main "$rr" && rrg add script && rrg commit -qm base || fail "record fixture init"
+rbase=$(rrg rev-parse HEAD)
+printf 'entry
+' > "$rr/docs/build-log/2026-01-01-x.md" && printf '{}
+' > "$rr/.corvint/changes/x.cem.json" &&
+  rrg add docs .corvint && rrg commit -qm record || fail "record fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: a record-only change'* && $out != *'not record-only'* ]] || fail "finish refusal for a record range dropped the record-only recipe: $out"
+printf 'decision
+' > "$rr/docs/decisions/0001-x.md" && rrg add docs && rrg commit -qm decision || fail "decision fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: this change is not record-only (it touches docs/decisions/0001-x.md), so the INTENTS file names the spec with a "## Requirements" heading'*'#no-intent-declared'* &&
+  $out != *'fix: a record-only change'* ]] || fail "finish refusal named the record-only recipe for a change that is not a record: $out"
+grep -q '^out in one try. The recipe applies only when `git diff --name-only "$BASE" HEAD` lists nothing but$' "$script/../docs/DOGFOOD.md" ||
+  fail "docs/DOGFOOD.md record-only recipe states no precondition"
 ok
 
 # DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
@@ -1165,6 +1188,30 @@ HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> "$pol/err"
   fail "heavy.sh one-reason refusal: $(cat "$pol/out" "$pol/err")"
 HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv go test ./x > "$pol/out" 2> /dev/null
 [[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] || fail "heavy.sh whole-only refusal: $(cat "$pol/out")"
+# ASD-V0-730 (NEW-B3): every reason refusal prints the exact command that reruns it from any
+# directory, with each missing reason as a leading word, and for a missing HEAVY_WHOLE_REASON
+# also the Corvint selection command; the stdout marker is unchanged.
+hself=$(cd "$script" && pwd -P)/heavy.sh
+HEAVY_WHOLE_REASON= pv go test -count=1 ./x > "$pol/out" 2> "$pol/err"
+[[ $? == 2 && $(cat "$pol/out") == 'heavy.sh: REFUSED whole-reason-missing (exit 2)' ]] &&
+  grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test -count=1 ./x" "$pol/err" &&
+  grep -qF "heavy.sh: rerun with Corvint selection (writes manifest M, then prints each package command with HEAVY_SELECTION=M; runs no test): cd $pol && corvint test --base " "$pol/err" &&
+  grep -qE " --dry-run --manifest [^ ]*heavy-selection\.json && $hself --plan [^ ]*heavy-selection\.json\$" "$pol/err" ||
+  fail "heavy.sh whole refusal did not print its rerun lines: $(cat "$pol/out" "$pol/err")"
+HEAVY_WHOLE_REASON=r HEAVY_REMOTE=0 pv go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test ./x" "$pol/err" &&
+  ! grep -q 'rerun with Corvint selection' "$pol/err" ||
+  fail "heavy.sh local refusal did not print its rerun line: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_REMOTE=0 pv go test -run '.*/Sub' ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' HEAVY_LOCAL_REASON='<why it needs this host>' $hself go test -run .\\*/Sub ./x" "$pol/err" ||
+  fail "heavy.sh two-reason refusal did not print one quoted rerun line: $(cat "$pol/err")"
+# An env word that sets a missing reason empty would override the one the line adds, so it is left out.
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env A=1 HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself env A=1 go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept the empty HEAVY_WHOLE_REASON word: $(cat "$pol/err")"
+HEAVY_WHOLE_REASON= HEAVY_LOCAL_REASON=r HEAVY_REMOTE=0 pv env HEAVY_WHOLE_REASON= go test ./x > /dev/null 2> "$pol/err"
+grep -qxF "heavy.sh: rerun: cd $pol && HEAVY_WHOLE_REASON='<reason>' $hself go test ./x" "$pol/err" ||
+  fail "heavy.sh rerun line kept a bare env with the empty reason word: $(cat "$pol/err")"
 # ASD-V0-980 (V1-3888): a selected go test of several packages runs once with every package; a
 # failure exits with the command's status and the ASD-V0-940 cause line, never silently.
 # The later ASD-V0-037 group counts the log lines of the runs above, so these two runs leave it as it was.
@@ -1450,17 +1497,18 @@ HEAVY_REFUSE_FREE_GB=x tv true > /dev/null
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-refuse-free HEAVY_REFUSE_FREE_GB=x' "$to/err" || fail "heavy.sh accepted HEAVY_REFUSE_FREE_GB=x: $(cat "$to/err")"
 # ASD-V0-061 (V1-3824, V1-2904): on a tmpfs /tmp a local run whose caller set none of them gets the
 # home-disk Go cache (the remote half's) and TMPDIR, named on one line; a caller's own values, and a
-# /tmp on disk, keep theirs.
+# /tmp on disk, keep theirs. The command's TMPDIR is the run's private heavy-run.* directory under
+# that one (ASD-V0-734), and CORVINT_GOCACHE stays the cache a Makefile derives from it.
 tf=$tmp/tmpfs
-mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=$TMPDIR cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
+mkdir -p "$tf/bin" && printf '#!/bin/sh\necho "tmp=${TMPDIR%%/heavy-run.*} cache=$GOCACHE corvint=$CORVINT_GOCACHE"\n' > "$tf/bin/go" && chmod +x "$tf/bin/go" || fail "tmpfs fixture"
 tfv() { (cd "$to" && env -u TMPDIR -u GOCACHE -u CORVINT_GOCACHE PATH="$tf/bin:$to/bin:$PATH" XDG_CACHE_HOME="$tf/xdg" HEAVY_LOCK_DIR="$to/slots" HEAVY_SLOTS=1 "$@" "$heavy" go vet ./x 2> "$tf/err"); }
 x=$tf/xdg
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs) == "tmp=$x/corvint-tmp cache=$x/corvint-go-build-cache corvint=$x/corvint-go-build-cache" && -d $x/corvint-tmp ]] &&
   grep -qxF "heavy.sh: /tmp is a tmpfs; this run uses GOCACHE=$x/corvint-go-build-cache TMPDIR=$x/corvint-tmp" "$tf/err" ||
   fail "heavy.sh tmpfs defaults: $(tfv HEAVY_TMP_FSTYPE=tmpfs) $(cat "$tf/err")"
 [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" CORVINT_GOCACHE="$tf/c") == "tmp=$tf cache=$tf/c corvint=$tf/c" ]] && ! grep -q 'is a tmpfs' "$tf/err" &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE="$tf/g") == "tmp=$tf cache=$tf/g corvint=" ]] &&
-  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 TMPDIR="$tf/disk") == "tmp=$tf/disk cache=$tf/disk/corvint-go-build-cache corvint=" ]] ||
+  [[ $(tfv HEAVY_TMP_FSTYPE=tmpfs TMPDIR="$tf" GOCACHE="$tf/g") == "tmp=$tf cache=$tf/g corvint=$tf/corvint-go-build-cache" ]] &&
+  [[ $(tfv HEAVY_TMP_FSTYPE=ext2/ext3 TMPDIR="$tf/disk") == "tmp=$tf/disk cache=$tf/disk/corvint-go-build-cache corvint=$tf/disk/corvint-go-build-cache" ]] ||
   fail "heavy.sh tmpfs defaults overrode a caller or a disk /tmp: $(cat "$tf/err")"
 # ASD-V0-1972 (V1-4328): mkdir succeeds on existing read-only sandbox paths, but the actual write
 # probe must refuse before running anything, name every override once and permit a corrected run.
@@ -1578,19 +1626,110 @@ for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BA
     fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
 done
 printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
-# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too: with the only
-# slot held, its recipe waits for it (a stub admission wrapper stands in for the preflight build).
+# Every admitted inputs-check below passes valid INTENTS, VERIFY and OUTCOME, so a caller's LANE=1
+# (a lane closeout, which requires them, ASD-V0-015) cannot refuse the fixture as missing-inputs.
+printf '#no-intent-declared\n' > "$to/intents.txt" && printf 'go version\n' > "$to/verify.txt" || fail "inputs"
+admit_inputs=(INTENTS="$to/intents.txt" VERIFY="$to/verify.txt" OUTCOME=passed)
+# Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too, and
+# ASD-V0-732 (NEW-B6): on the light pool, so with the only heavy slot held it is admitted at once
+# (a stub admission wrapper stands in for the preflight build); HEAVY_CLASS=heavy queues it as before.
 printf '#!/bin/sh\nprintf "%%s\\n" "$*" > "%s/admit.args"\nexec "%s" --admit-only true\n' "$to" "$heavy" > "$to/bin/admit" && chmod +x "$to/bin/admit" || fail "admit stub"
+for cls in light heavy; do
+  extra=()
+  [[ $cls == heavy ]] && extra=(HEAVY_CLASS=heavy)
+  (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
+  holder=$!
+  sleep 0.5
+  s0=$SECONDS
+  (cd "$script/.." && env -u HEAVY_CLASS DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check \
+    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/admit.err")
+  rc=$?
+  t=$((SECONDS - s0))
+  wait "$holder"
+  if [[ $cls == light ]]; then
+    ((rc == 0 && t < 2)) && grep -Eq '^heavy.sh: light slot 1/2 after 0s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
+      fail "dogfood-inputs-check was not admitted on the light pool past the occupied heavy slot (rc=$rc, ${t}s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+  else
+    ((rc == 0 && t >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" ||
+      fail "HEAVY_CLASS=heavy make dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, ${t}s): $(cat "$to/admit.err")"
+  fi
+done
+# ASD-V0-731 (NEW-B6): HEAVY_CLASS=light admits on its own pool at once while every heavy slot is
+# held, queues only behind its own pool, passes the load gate, logs class=light, runs under a hard
+# cap (exit 124, cause=light-cap, one rerun-as-heavy line), nests on an enclosing heavy slot, is
+# never set by the config file, and refuses an invalid class, pool or cap.
 (HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 "$heavy" sleep 3 2> /dev/null) &
 holder=$!
 sleep 0.5
 s0=$SECONDS
-(cd "$script/.." && HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit" \
-  BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
-rc=$?
+HEAVY_CLASS=light tv --admit-only true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" &&
+  HEAVY_CLASS=light tv true && grep -qx 'heavy.sh: light slot 1/2 after 0s' "$to/err" && ((SECONDS - s0 < 2)) &&
+  grep -q ' cmd=true class=light script=[0-9a-f]\{12\}$' "$tmp/selection.log" ||
+  fail "a light run was not admitted at once with every heavy slot held ($((SECONDS - s0))s): $(cat "$to/err")"
+(HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 HEAVY_LOCK_DIR=$to/slots "$heavy" sleep 2 2> /dev/null) &
+lholder=$!
+sleep 0.5
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_SLOTS=1 tv true
+wait "$lholder"
 wait "$holder"
-((rc == 0 && SECONDS - s0 >= 2)) && grep -Eq '^heavy.sh: slot 1/1 after [2-9]s' "$to/admit.err" && grep -q '^script/dogfood-finish.sh' "$to/admit.args" ||
-  fail "dogfood-inputs-check was not admitted behind the occupied slot (rc=$rc, $((SECONDS - s0))s): $(cat "$to/admit.err" "$to/admit.args" 2> /dev/null)"
+((SECONDS - s0 >= 1)) && grep -q '^heavy.sh: queued for a light slot (1/1 held)' "$to/err" ||
+  fail "a full light pool did not queue the next light run: $(cat "$to/err")"
+STUB_LOAD=50.00 HEAVY_MAX_LOAD=1 HEAVY_LOAD_WAIT=1 HEAVY_CLASS=light pv true 2> "$pol/err" && grep -q '^heavy.sh: queued for host load' "$pol/err" &&
+  grep -q '^heavy.sh: light slot 1/2 ' "$pol/err" || fail "a light run skipped the load gate: $(cat "$pol/err")"
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sleep 30
+rc=$?
+((rc == 124 && SECONDS - s0 < 8)) && grep -qx 'heavy.sh: light run exceeded its 1s cap; stopping it' "$to/err" &&
+  grep -qx 'heavy.sh: exit rc=124 cause=light-cap cmd=sleep' "$to/err" &&
+  grep -Eq '^heavy.sh: rerun as heavy: cd [^ ]+ && HEAVY_CLASS=heavy /[^ ]*/heavy\.sh --admit-only sleep 30 \(a make target: HEAVY_CLASS=heavy make TARGET\)$' "$to/err" ||
+  fail "the light cap did not stop the run with its rerun line (rc=$rc, $((SECONDS - s0))s): $(cat "$to/err")"
+# A descendant that ignores TERM outlives its parent's exit, so the cap's KILL still reaches it,
+# and the run returns only once the group, and with it the slot lock, is gone.
+s0=$SECONDS
+HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c 'sh -c "trap \"\" TERM; echo \$\$ > \"\$1/stubborn.pid\"; exec sleep 300" _ "$1" & wait' _ "$to"
+rc=$?
+stubborn=$(cat "$to/stubborn.pid" 2> /dev/null)
+((rc == 124 && SECONDS - s0 < 12)) && [[ -n $stubborn ]] && ! kill -0 "$stubborn" 2> /dev/null ||
+  fail "the light cap left a TERM-ignoring descendant running (rc=$rc, pid=$stubborn, $((SECONDS - s0))s): $(cat "$to/err")"
+# ASD-V0-734 (V1-4319): the command's TMPDIR is a private directory under the caller's, removed
+# after a normal run and after a timeout or cap kill, so a killed job leaves nothing behind.
+mkdir -p "$to/tmproot"
+TMPDIR=$to/tmproot tv --admit-only sh -c 'echo "$TMPDIR" > "$1/run.tmp"; mktemp -d > /dev/null' _ "$to" ||
+  fail "heavy.sh private TMPDIR run failed: $(cat "$to/err")"
+rtmp=$(cat "$to/run.tmp")
+[[ ${rtmp%/*} == "$to/tmproot" && ${rtmp##*/} == heavy-run.* && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "heavy.sh did not run the command in a private TMPDIR it removed (TMPDIR=$rtmp, left: $(/bin/ls -A "$to/tmproot"))"
+leaker='d=$(mktemp -d); echo "$d" > "$1/leak.path"; : > "$d/f"; mkdir "$d/ro"; chmod 555 "$d/ro"; exec sleep 30'
+TMPDIR=$to/tmproot HEAVY_CLASS=light HEAVY_LIGHT_MAX_SECS=1 tv --admit-only sh -c "$leaker" _ "$to"
+rc=$?
+leak=$(cat "$to/leak.path" 2> /dev/null)
+((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+  fail "a job stopped by the light cap left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+if command -v timeout > /dev/null; then
+  : > "$to/leak.path"
+  TMPDIR=$to/tmproot tv --admit-only timeout 1 sh -c "$leaker" _ "$to"
+  rc=$?
+  leak=$(cat "$to/leak.path" 2> /dev/null)
+  ((rc == 124)) && [[ ${leak#"$to/tmproot/"} != "$leak" && ! -e $leak && -z $(/bin/ls -A "$to/tmproot") ]] ||
+    fail "a job killed on timeout left temporary files behind (rc=$rc, $leak, left: $(/bin/ls -A "$to/tmproot")): $(cat "$to/err")"
+fi
+tv sh -c 'HEAVY_CLASS=light "$heavy" true 2> "$1/light-nested.err"' _ "$to"
+grep -qx 'heavy.sh: HEAVY_CLASS=light runs on the enclosing heavy slot' "$to/light-nested.err" && grep -q '^heavy.sh: slot 1.inner/1 ' "$to/light-nested.err" ||
+  fail "a light run inside a heavy holder did not nest on it: $(cat "$to/light-nested.err")"
+printf 'HEAVY_CLASS=light\n' > "$to/class.env"
+HEAVY_CONFIG=$to/class.env tv true && grep -q '^heavy.sh: slot 1/1 ' "$to/err" || fail "the config file set HEAVY_CLASS: $(cat "$to/err")"
+for c in 'HEAVY_CLASS=medium|invalid-class' 'HEAVY_LIGHT_SLOTS=0|invalid-light-slots' 'HEAVY_LIGHT_SLOTS=17|invalid-light-slots' 'HEAVY_LIGHT_MAX_SECS=5m|invalid-light-max-secs'; do
+  IFS='|' read -r setting code <<< "$c"
+  out=$(env HEAVY_CLASS=light "$setting" bash -c 'cd "$1" && env PATH="$1/bin:$PATH" HEAVY_LOCK_DIR="$1/slots" HEAVY_SLOTS=1 "$2" true' _ "$to" "$heavy" 2> "$to/err")
+  [[ $? == 2 && $out == "heavy.sh: REFUSED $code (exit 2)" ]] || fail "heavy.sh accepted $setting: $out $(cat "$to/err")"
+done
+# ASD-V0-732: the light doc gates and dogfood-inputs-check name the light class, not under CI, and a
+# caller's HEAVY_CLASS=heavy wins.
+lmk() { (cd "$script/.." && env -u CI -u HEAVY_CLASS -u HEAVY_ADMIT "$@" make -n --no-print-directory shell-foreign-callers-check dogfood-inputs-check 2> /dev/null); }
+[[ $(lmk | grep -c 'HEAVY_CLASS=light script/heavy.sh') == 2 && $(lmk CI=true | grep -c 'HEAVY_CLASS=') == 0 &&
+  $(lmk HEAVY_CLASS=heavy | grep -c 'HEAVY_CLASS=heavy script/heavy.sh') == 2 ]] ||
+  fail "the light Makefile targets do not admit through the light class: $(lmk)"
 MAKEFLAGS='n --no-print-directory' tv --admit-only true && ! grep -q 'slot' "$to/err" || fail "a make dry run took a slot: $(cat "$to/err")"
 MAKEFLAGS=' --no-print-directory' tv --admit-only true && grep -q 'slot 1/1' "$to/err" || fail "a long make flag read as a dry run"
 TLOCK=$to/slots/ tv sh -c 'HEAVY_LOCK_DIR=$1 perl -e "alarm 10; exec @ARGV" "$heavy" true 2> "$1/../nested.err"' _ "$to/slots"
@@ -1601,6 +1740,35 @@ grep -q "^# the holder's apostrophe$" "$to/heavy-quote.sh" && bash -n "$to/heavy
   HEAVY_LOCK_DIR=$to/slots bash "$to/heavy-quote.sh" true 2> /dev/null || fail "an apostrophe in the slot_perl body breaks heavy.sh"
 bad=$(grep -nE '(^|[^+])"\$\{[A-Za-z_][A-Za-z0-9_]*\[@\]\}"' "$script/heavy.sh" "$script"/lane-*.sh)
 [[ -z $bad ]] || fail "unguarded array expansion (bash 3.2 set -u aborts on an empty one; use \${a[@]+\"\${a[@]}\"}): $bad"
+ok
+# DCW-V0-731 (NEW-B2): with no cached tree build (an empty bin cache), the inputs-only phase runs the
+# static pre-check with an installed corvint that lists --static: its refusal stops make before any
+# admission and names the escape; DOGFOOD_STATIC_PRECHECK=0 skips it; a binary without --static is
+# a SKIP and the admitted run goes on.
+mkdir -p "$to/static/bin" "$to/static/cache" || fail "static fixture"
+printf '#!/bin/sh\n[ "$3" = --help ] && { printf "  --static             yes\\n"; exit 0; }\nprintf "%%s\\n" "$*" > "%s/static/args"\necho "dogfood-inputs-check: REFUSE intent-manifest-unsorted" >&2\nexit 2\n' "$to" > "$to/static/bin/corvint" &&
+  chmod +x "$to/static/bin/corvint" || fail "static corvint stub"
+static_make() {
+  /bin/rm -f "$to/admitted"
+  (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
+    CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
+    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/static/err")
+}
+static_make
+rc=$?
+((rc == 2)) && [[ ! -e $to/admitted ]] && grep -q '^dogfood-inputs-check: REFUSE intent-manifest-unsorted$' "$to/static/err" &&
+  grep -q "ran the installed $to/static/bin/corvint, not this tree's build; .*DOGFOOD_STATIC_PRECHECK=0" "$to/static/err" &&
+  grep -q -- '--entry dogfood-inputs-check --static yes$' "$to/static/args" ||
+  fail "the static pre-check did not refuse before admission (rc=$rc): $(cat "$to/static/err" "$to/static/args" 2> /dev/null)"
+static_make DOGFOOD_STATIC_PRECHECK=0
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && ! grep -q 'REFUSE' "$to/static/err" ||
+  fail "DOGFOOD_STATIC_PRECHECK=0 did not skip the static pre-check (rc=$rc): $(cat "$to/static/err")"
+printf '#!/bin/sh\nexit 0\n' > "$to/static/bin/corvint"
+static_make
+rc=$?
+((rc == 0)) && [[ -e $to/admitted ]] && grep -q 'static pre-check SKIP no-static-binary' "$to/static/err" ||
+  fail "a corvint without --static was not a SKIP (rc=$rc): $(cat "$to/static/err")"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases

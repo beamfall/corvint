@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -245,6 +246,9 @@ func TestDCWV0960InputsCheckRefusesAbsentIntentManifest(t *testing.T) {
 // refusalLines runs finish-lane, as the pre-flight or the closeout's full
 // run, and returns its REFUSE and fix lines with the run's prefix removed, and
 // how many steps ran.
+// preflightRerun is the pre-flight's rerun hint with its inputs.
+var preflightRerun = regexp.MustCompile(`corvint dogfood inputs-check (--base \S+)(?: --(?:citations|intents|verify|outcome) \S+)*(?: with the same DOGFOOD_VERIFY)?`)
+
 func refusalLines(t *testing.T, options ChangeOptions, preflight bool) ([]string, int) {
 	t.Helper()
 	calls := 0
@@ -261,6 +265,8 @@ func refusalLines(t *testing.T, options ChangeOptions, preflight bool) ([]string
 	for _, line := range strings.Split(stderr.String(), "\n") {
 		line = strings.NewReplacer("dogfood-inputs-check: ", "PREFIX: ", "dogfood-finish-lane: ", "PREFIX: ", "dogfood-change: ", "PREFIX: ").Replace(line)
 		if strings.Contains(line, "REFUSE ") || strings.HasPrefix(line, "  fix: ") {
+			// The pre-flight's rerun hint also names its inputs (DCW-V0-730).
+			line = preflightRerun.ReplaceAllString(line, "corvint dogfood finish-lane $1")
 			lines = append(lines, strings.ReplaceAll(line, "corvint dogfood inputs-check", "corvint dogfood finish-lane"))
 		}
 	}
