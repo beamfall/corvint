@@ -11,6 +11,8 @@ set -eu
 # deleted from the worktree alone, and an unstaged edit to a tracked spec.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
+# Fixture capacity checks must not inherit a revision from the invoking repository.
+unset BASE SPEC_REQUIREMENTS_BASE
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-requirements-test.XXXXXX")
 cleanup() { rm -rf "$test_root"; }
 trap cleanup EXIT
@@ -38,6 +40,14 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 write_spec alpha ALPHA-V0-001 'the tracked clause'
 stage docs/specs/alpha.md
 baseline=$(run)
+
+# Generation does not require attribution's BASE to exist in this fixture.
+missing_base=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+for base_name in BASE SPEC_REQUIREMENTS_BASE; do
+  actual=$(env "$base_name=$missing_base" "$test_root/script/gen-spec-requirements.sh") ||
+    fail "generation refused unavailable $base_name"
+  test "$actual" = "$baseline" || fail "unavailable $base_name changed generation"
+done
 
 case "$baseline" in
   *'ALPHA-V0-001	docs/specs/alpha.md	the tracked clause'*) ;;
@@ -1014,7 +1024,12 @@ case $big_err in *'256 obligations; the limit is 256'*'requirement IDs added sin
 capacity_full=$(capacity_base)
 big_err=$(BASE=$capacity_full run --capacity 2>&1) || fail "unchanged full spec refused: $big_err"
 case $big_err in *'warning: its ## Requirements section holds 256 of the 256 obligations'*'companion spec'*'requirement IDs added since BASE='*'(none)'*) ;; *) fail "unchanged full spec lacked warning/attribution: $big_err" ;; esac
-(BASE=not-a-revision run --capacity) > /dev/null 2>&1 && fail "invalid BASE was ignored"
+for base_name in BASE SPEC_REQUIREMENTS_BASE; do
+  big_err=$(env "$base_name=$missing_base" "$test_root/script/gen-spec-requirements.sh" --capacity 2>&1) &&
+    fail "capacity ignored unavailable $base_name"
+  case $big_err in *"base $missing_base is not a commit; set BASE to an available revision"*) ;;
+    *) fail "capacity lost its invalid $base_name refusal: $big_err" ;; esac
+done
 obligation_spec 257
 run --capacity > /dev/null 2>&1 && fail "capacity accepted 257 without BASE"
 big_err=$(run 2>&1 > /dev/null) && fail "257 section definitions were accepted"
@@ -1022,6 +1037,15 @@ case $big_err in
   *'docs/specs/big.md: its ## Requirements section holds 257 obligations; the limit is 256'*'(SRG-V0-740)'*) ;;
   *) fail "the over-limit refusal lacks the spec, count or ID: $big_err" ;;
 esac
+for base_name in BASE SPEC_REQUIREMENTS_BASE; do
+  big_err=$(env "$base_name=$missing_base" "$test_root/script/gen-spec-requirements.sh" 2>&1 > /dev/null) &&
+    fail "257 definitions were accepted with unavailable $base_name"
+  for want in 'docs/specs/big.md: its ## Requirements section holds 257 obligations; the limit is 256' \
+    "BASE $missing_base unavailable" '(SRG-V0-740)'; do
+    case $big_err in *"$want"*) ;; *) fail "unavailable $base_name hid '$want': $big_err" ;; esac
+  done
+  case $big_err in *'fatal:'*) fail "unavailable $base_name leaked a Git fatal: $big_err" ;; esac
+done
 big_dir="$test_root/big-out"
 mkdir "$big_dir"
 (cd "$test_root" && script/gen-spec-requirements.sh --all "$big_dir") > /dev/null 2>&1 && fail "--all accepted 257 obligations"

@@ -648,7 +648,10 @@ No requirement below diverges from the implementation.
   When generation refuses an over-cap spec or capacity reports a near/full spec, optional
   `BASE=<rev>` MUST report the sorted requirement IDs present in its staged Requirements section
   but absent from that spec at the immutable base commit. New specs treat the absent base file
-  as empty; unreadable base objects or invalid revisions fail closed. Added IDs MUST be computed
+  as empty. Capacity MUST fail closed on unreadable base objects or invalid revisions. Generation
+  MUST use BASE only for over-cap attribution; an unavailable revision MUST NOT prevent ordinary
+  generation or hide the over-cap spec, count and cap, and the refusal MUST state
+  `BASE <rev> unavailable` with added IDs `NOT_OBSERVED`. Added IDs MUST be computed
   before deciding whether an exact-256 spec fails capacity. Without BASE an over-cap
   refusal MUST state that added IDs are NOT_OBSERVED and name the BASE rerun. A regression MUST
   prove two individually admitted lane fixtures overflow when combined, in both OCM and the
@@ -779,7 +782,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-968 | `script/gen-spec-requirements_test.sh` case 16: a spec whose digest has no Claim is refused in every mode, naming it, and a superseded digest (Successor and Why) passes |
 | SRG-V0-979 | `TestSRGV0979SupersededSpecRegeneratesToACheckedIndex` in `internal/specindex/superseded_test.go`: a live spec superseded in a fixture repository regenerates through `--index` and `--readme` to an index `checkIndex` accepts, and `supersededBy` names the Successor |
 | SRG-V0-820 | `script/gen-spec-requirements_test.sh` case 17: `--write` stages the regenerated files and prints the `staged` line |
-| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 248 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing |
+| SRG-V0-740 | `script/gen-spec-requirements_test.sh` case 50: 248 section definitions warn naming the count and the companion-spec route and still print; 257 are refused in the TSV and `--all` modes, and `--all` writes nothing; unavailable BASE/SPEC_REQUIREMENTS_BASE preserves the over-cap file/count/cap with an unavailable note; baseline generation succeeds under either unavailable base variable |
 | SRG-V0-743 | `script/gen-spec-requirements_test.sh` case 51: a fixture with specs but no README prints the TSV and is refused in `--readme` naming the layout comment |
 | SRG-V0-800 | `script/spec-requirements-worktree-check_test.sh`: an unstaged requirement edit left behind by `make spec-requirements` fails naming `REQUIREMENTS.tsv`, the spec and the fix, with the real index unchanged; a private `GIT_INDEX_FILE`, a staged-and-regenerated edit and a prose-only edit pass; fails on BASE, which has no check |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |

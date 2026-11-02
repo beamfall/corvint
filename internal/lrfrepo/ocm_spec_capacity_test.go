@@ -38,7 +38,13 @@ func TestSpecCapacityCombinedLanes(t *testing.T) {
 		t.Helper()
 		cmd := exec.Command(command, args...)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), env...)
+		// Capacity fixtures supply their own base, never the lane's inherited base.
+		for _, variable := range os.Environ() {
+			if !strings.HasPrefix(variable, "BASE=") && !strings.HasPrefix(variable, "SPEC_REQUIREMENTS_BASE=") {
+				cmd.Env = append(cmd.Env, variable)
+			}
+		}
+		cmd.Env = append(cmd.Env, env...)
 		out, err := cmd.CombinedOutput()
 		if (err == nil) != wantOK {
 			t.Fatalf("%s %v: %v\n%s", command, args, err, out)

@@ -902,7 +902,7 @@ static_checks() {
   local rc=0
   "$self_dir/check-spec-readme.sh" || rc=1
   SPEC_REQUIREMENTS_BASE="$base" SPEC_CAPACITY_MARGIN="${SPEC_CAPACITY_MARGIN:-8}" \
-    "$root/script/gen-spec-requirements.sh" --capacity || rc=1
+    script/gen-spec-requirements.sh --capacity || rc=1
   if ((rc != 0)); then
     local stale_receipt
     stale_receipt=$(receipt_path) || return 2

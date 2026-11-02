@@ -704,12 +704,17 @@ sub status_ids {
         unless $margin =~ /\A[0-9]{1,3}\z/ && $margin <= 256;
     my $base = $ENV{SPEC_REQUIREMENTS_BASE} // $ENV{BASE} // '';
     my $revision;
-    if (length $base) {
-        open my $rev, '-|', 'git', 'rev-parse', '--verify', '--end-of-options', "$base^{commit}"
+    # Generation uses BASE only to explain an over-cap refusal. An inherited
+    # revision from a different repository must not prevent fixture generation.
+    if (length $base && ($mode eq 'capacity' || grep { keys %$_ > 256 } values %obligations)) {
+        open my $rev, '-|', 'git', 'rev-parse', '--verify', '--quiet', '--end-of-options', "$base^{commit}"
             or die "base $base: $!\n";
         $revision = <$rev>;
-        close $rev or die "base $base is not a commit; set BASE to an available revision\n";
-        chomp $revision;
+        if (!close $rev) {
+            die "base $base is not a commit; set BASE to an available revision\n" if $mode eq 'capacity';
+            undef $revision;
+        }
+        chomp $revision if defined $revision;
     }
     my $route = 'define new requirements in a companion spec with its own requirement prefix '
         . '(a new spec file and new prefix); register it in docs/specs/README.md and INDEX.json '
@@ -719,7 +724,8 @@ sub status_ids {
         my $count = scalar keys %{$obligations{$file}};
         next if $count < 256 - $margin;
         my @added;
-        if (defined $revision) {
+        my $attribute = $mode eq 'capacity' || $count > 256;
+        if ($attribute && defined $revision) {
             # ls-tree distinguishes a new spec from an unreadable existing base blob.
             open my $ls, '-|', 'git', 'ls-tree', $revision, '--', $file or die "git ls-tree: $!\n";
             my $exists = do { local $/; <$ls> };
@@ -741,9 +747,11 @@ sub status_ids {
         } else {
             print STDERR "$file: warning: its ## Requirements section holds $count of the 256 obligations; margin=$margin; $route (SRG-V0-740)\n";
         }
-        if (defined $revision) {
+        if ($attribute && defined $revision) {
             print STDERR "$file: requirement IDs added since BASE=$base ($revision): "
                 . (@added ? join(', ', @added) : '(none)') . "\n";
+        } elsif ($fail && length $base) {
+            print STDERR "$file: requirement IDs added since base: NOT_OBSERVED; BASE $base unavailable\n";
         } elsif ($fail) {
             print STDERR "$file: requirement IDs added since base: NOT_OBSERVED; rerun with BASE=<rev>\n";
         }
