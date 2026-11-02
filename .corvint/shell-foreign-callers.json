@@ -7,8 +7,9 @@
         "script/batch-precheck_test.sh",
         "script/batch-regen.sh"
       ],
-      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930) (TSP-V0-005).",
+      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it; lane-scripts_test.sh matches its admitted make -n line (ASD-V0-930); dogfood-cache_test.sh writes a receipt-check stub of that name into its fixture (DCW-V0-758) (TSP-V0-005).",
       "mentions": [
+        "script/dogfood-cache_test.sh",
         "script/lane-scripts_test.sh"
       ]
     },
