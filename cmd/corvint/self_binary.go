@@ -79,6 +79,21 @@ func selfBinaryStaleAt(ctx context.Context, root string, read *headRead) binaryF
 	return binaryStaleAgainst(ctx, root, info, read)
 }
 
+// selfBinaryNotice is what corvint affected and corvint test print and carry
+// for a freshness verdict (ACX-V0-750): the shared detail; for a stale binary,
+// a way to use this checkout's own build without replacing an installed
+// binary other checkouts may share; and the statement that the notice changes
+// nothing, so a reader does not attribute the plan's scope to it. It claims no
+// more: the plan is this binary's own and current source may compute it
+// differently (invariant 2). The dogfood refusals keep the shared detail.
+func selfBinaryNotice(freshness binaryFreshness) string {
+	notice := freshness.Detail
+	if freshness.Code == selfBinaryStaleCode {
+		notice += ", or run this checkout's own build without installing it (go run ./cmd/corvint)"
+	}
+	return notice + "; this notice changes no plan, selection or exit status: they are this binary's own, and current source may compute them differently"
+}
+
 // executableStale is selfBinaryStale for the executable at path, read with
 // debug/buildinfo without running it.
 func executableStale(ctx context.Context, root, path string) binaryFreshness {

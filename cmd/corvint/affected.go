@@ -57,6 +57,10 @@ type affectedReceipt struct {
 	// Degradations names conditions that make this receipt less trustworthy
 	// than current source would, such as self-binary-stale (AFP-V0-846).
 	Degradations []string `json:"degradations,omitempty"`
+	// DegradationDetails maps each self-binary freshness code to the notice
+	// its stderr line prints, so a reader of stdout alone, as after 2>&1,
+	// still gets the recovery (ACX-V0-750).
+	DegradationDetails map[string]string `json:"degradationDetails,omitempty"`
 	// WorktreeDirty is the size of the worktree status set alone, before the
 	// committed range is unioned into plan.dirty; the compact summary
 	// restates it so a clean tree reads worktree=0 (AFP-V0-820).
@@ -494,13 +498,18 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if invocation.Cache != "" && (invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--cache cannot be combined with --snapshot or --playwright-config")
 	}
+	// ACX-V0-752: --worktree with --base names the plans that do exist,
+	// ahead of the generic --path and --base refusal.
+	if invocation.Worktree && invocation.Base != "" {
+		return affectedInvocation{}, argumentError(affectedWorktreeBaseRefusal)
+	}
 	if len(invocation.PathList) != 0 || invocation.PathsFrom != "" {
 		if err := affectedPathProfileRefusal(invocation); err != nil {
 			return affectedInvocation{}, err
 		}
 	}
-	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "" || invocation.Base != "") {
-		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean, --snapshot or --base")
+	if invocation.Worktree && (len(invocation.PathList) == 0 && invocation.PathsFrom == "" || invocation.RequireClean || invocation.Snapshot != "") {
+		return affectedInvocation{}, argumentError("--worktree requires --path or --paths-from and cannot be combined with --require-clean or --snapshot")
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -843,22 +852,35 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	return 0
 }
 
+// affectedWorktreeBaseRefusal refuses --worktree with --base (ACX-V0-752):
+// the committed range with the whole working tree is what --base alone
+// plans, and a named subset of it against the working tree is a --worktree
+// path list that also names the range's paths. --no-renames keeps a rename's
+// source, which Git's default rename detection would drop from the list
+// while --base still plans it.
+const affectedWorktreeBaseRefusal = "--worktree cannot be combined with --base: without --worktree, --base BASE already plans the committed range BASE..HEAD together with every dirty worktree path; to plan only named paths against the working tree, drop --base and pass them with --worktree, adding the range's own paths, each rename's source as well as its destination (git diff --no-renames --name-only BASE HEAD), to --path or --paths-from"
+
 // degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
 // affected-plan/1 receipt and prints it on stderr when this binary is stale
 // for root, or could not be compared with it (AFP-V0-846). When stdout and
 // stderr are one pipe or file (2>&1) and the receipt carries the member, the
-// stderr line is left out so the document still parses (AFP-V0-871).
+// stderr line is left out so the document still parses (AFP-V0-871). The
+// line and the receipt carry the same notice (ACX-V0-750). Each invocation
+// judges the binary once and prints at most one line; it keeps no state, so
+// a replay that runs the planner N times prints N lines (ACX-V0-751).
 func degradeStaleAffected(ctx context.Context, root string, receipt any, stdout, stderr io.Writer) any {
 	freshness := selfBinaryStale(ctx, root)
 	if freshness.Code == "" {
 		return receipt
 	}
+	notice := selfBinaryNotice(freshness)
 	full, ok := receipt.(affectedReceipt)
 	if !ok || !sharedOutputStream(stdout, stderr) {
-		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+		_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, notice)
 	}
 	if ok {
 		full.Degradations = append(full.Degradations, freshness.Code)
+		full.DegradationDetails = map[string]string{freshness.Code: notice}
 		return full
 	}
 	return receipt
