@@ -2163,6 +2163,18 @@ out=$(tcprun "$tcp/wt")
 printf '{"queueId":"queue:other:main"}\n' > "$tcp/store/.taskman/queue.json"
 out=$(tcprun "$tcp/wt")
 [[ $? == 2 && $out == *'names another queue than queue:other:main'* ]] || fail "tasks-carry-projection other queue: $out"
+printf '{"queueId":"queue:t:main"}\n' > "$tcp/store/.taskman/queue.json"
+# A failing git status with empty stdout is refused, not read as a clean .taskman.
+mkdir -p "$tcp/gitshim"
+printf '#!/usr/bin/env bash\n[[ " $* " == *" status "* ]] && exit 128\nexec %q "$@"\n' "$(command -v git)" > "$tcp/gitshim/git"
+chmod +x "$tcp/gitshim/git"
+out=$(PATH=$tcp/gitshim:$PATH tcprun "$tcp/wt")
+[[ $? == 2 && $out == *'git status failed in'* ]] || fail "tasks-carry-projection status failure: $out"
+# A second carry into the same worktree is refused while the first holds the destination lock.
+lockfile=$(g -C "$tcp/wt" rev-parse --absolute-git-dir)/tasks-carry-projection.lock
+out=$(perl -MFcntl=:flock -e 'open(my $h, ">>", shift) or die; flock($h, LOCK_EX) or die; exit(system(@ARGV) >> 8)' "$lockfile" \
+  env CORVINT_TASKS_BIN=$tcp/bin/corvint-tasks "$script/tasks-carry-projection.sh" "$tcp/wt" 2>&1)
+[[ $? == 2 && $out == *'another carry into'*'holds'* ]] || fail "tasks-carry-projection held lock: $out"
 out=$(tcprun)
 [[ $? == 2 && $out == usage:* ]] || fail "tasks-carry-projection usage: $out"
 ok

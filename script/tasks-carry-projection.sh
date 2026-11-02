@@ -6,8 +6,10 @@
 #   script/tasks-carry-projection.sh [--store DIR] [--commit] WORKTREE
 #
 # DIR is the worktree holding the authoritative store (default: WORKTREE's primary worktree, the
-# first `git worktree list` entry). It refuses when WORKTREE is DIR, when WORKTREE has any change
-# under .taskman/, or when the two queue.json files name different queueIds. It runs
+# first `git worktree list` entry). It refuses when WORKTREE is DIR, when another carry into WORKTREE
+# holds its lock (an flock(2) on WORKTREE's Git directory/tasks-carry-projection.lock, held through
+# the commit), when `git status` fails, when WORKTREE has any change under .taskman/, or when the two
+# queue.json files name different queueIds. It runs
 # `corvint-tasks queue snapshot` in DIR, replaces WORKTREE/.taskman/ with DIR's queue.json,
 # policy.json, tickets/ and releases/, then requires every carried file to match the snapshot's
 # sha256 and no other file to be there. One line per finding:
@@ -40,7 +42,14 @@ fi
 store=$(cd "$store" 2> /dev/null && pwd -P) || refuse "store '$store' is not a directory; use --store DIR with the store's worktree"
 [[ $(cd "$wt" && pwd -P) != "$store" ]] || refuse "WORKTREE is the store itself; use a separate worktree, such as git worktree add --detach ../carry origin/main"
 [[ -s $store/.taskman/queue.json ]] || refuse "$store/.taskman/queue.json is absent; use --store DIR to name the store"
-[[ -z $(git -C "$wt" status --porcelain -- .taskman) ]] || refuse "$wt has changes under .taskman/; fix: commit or remove them, then rerun"
+# One carry per destination at a time: the flock(2) on fd 9 is held from this preflight through the
+# replacement, the verification and the commit, and the kernel drops it when the script exits.
+lock="$(git -C "$wt" rev-parse --absolute-git-dir)/$me.lock" || refuse "cannot resolve the Git directory of $wt; run git -C $wt rev-parse --absolute-git-dir to see why"
+exec 9>> "$lock" || refuse "cannot open $lock; fix: make the Git directory of $wt writable"
+perl -MFcntl=:flock -e 'open(my $h, ">>&=", 9) or exit 2; exit(flock($h, LOCK_EX | LOCK_NB) ? 0 : 1)' ||
+  refuse "another carry into $wt holds $lock; wait for it to finish, then rerun"
+status=$(git -C "$wt" status --porcelain -- .taskman) || refuse "git status failed in $wt; run git -C $wt status to see why"
+[[ -z $status ]] || refuse "$wt has changes under .taskman/; fix: commit or remove them, then rerun"
 qid=$(jq -er .queueId "$store/.taskman/queue.json") || refuse "$store/.taskman/queue.json has no queueId; use --store DIR to name an initialized store"
 if [[ -e $wt/.taskman/queue.json ]]; then
   [[ $(jq -r .queueId "$wt/.taskman/queue.json") == "$qid" ]] || refuse "$wt/.taskman/queue.json names another queue than $qid; use --store DIR to name that queue's store"
