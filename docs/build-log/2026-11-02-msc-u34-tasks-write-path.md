@@ -545,3 +545,69 @@ All ran through `script/heavy.sh`; the store and CLI runs used `GOCACHE=~/.cache
     - Expected: the Go cache the environment names.
     - Actual: the Makefile sets `GOCACHE=/tmp/corvint-go-build-cache` itself, and recreated the
       cache the orchestrator had just removed to free the full root filesystem.
+
+## Codex r1 fixes (two P2 findings)
+
+1. `TCX-V0-849`, `internal/tasks/intent/closed_index.go`. The parse cache trusted stat fields, so
+   a same-length in-place rewrite with its mtime restored could be served from the old parse on a
+   coarse-ctime filesystem, even when the replacement was invalid.
+   - Fix: `ReadClosedIndex` reads the file on every call and reuses a parse only when the bytes'
+     SHA-256 equals the bytes that parse decoded. The stat-version comparison and the
+     `closed_index_ctime_*.go` files are removed.
+   - Test: `TestTCXV0849SameStatRewriteReparsed` (same size, same mtime, same file, one body byte
+     changed: refused).
+   - Mutation check: with the digest ignored, the test fails ("served from the earlier parse").
+   - Cost: index reads at 2,000 tickets were not re-measured after this fix. Each read now also
+     reads and hashes the index file, which is under 1 MB at 2,000 tickets.
+2. `LGL-V0-846`, `internal/tasks/store/writer_route.go`. The writer-route conflict shortcut
+   answered `REQUEST_ID_CONFLICT` before refusals that won at BASE. One example: a malformed file in
+   an existing `requests/<shard>/`, which the complete audit's shard scan refuses first.
+   - Fix: the shortcut is removed. `internal/tasks/journal/writer_checkpoint.go` is back to its BASE
+     bytes; no journal line remains changed. A retained conflict beyond the tail declines and the
+     complete route refuses it, exactly as at BASE.
+   - The complete route now hands its audit's bound entry and ticket to the CLI
+     (`Report.ConflictBinding`), so the CLI's explanation no longer runs a second full audit.
+   - Test: `TestLGLV0846MalformedShardRefusedAsBase` gives the same refusal, and the same error
+     text, as the complete-route oracle (`MALFORMED: requests/61/zz-not-a-request.json: forbidden
+     receipt destination`).
+   - Mutation check: with the shortcut restored from `ef8f31b83`, the test fails with
+     `REQUEST_ID_CONFLICT`.
+   - `TestLGLV0846ConflictRefusedFromCheckpoint` now asserts the BASE decline text, a conflict, no
+     publish, a binding equal to `RequestIndex.Lookup`, and no binding on a replay.
+
+Re-measured after fix 2: the conflict refusal at 500 tickets, n=6 interleaved, load 4.70 to 4.84.
+
+| Binary | wall p50 | CPU p50 | allocated p50 |
+|---|---|---|---|
+| BASE | 469.8 ms | 1,113.9 ms | 324.9 MB |
+| head after fix 2 | 283.9 ms | 572.9 ms | 162.9 MB |
+
+`LGL-V0-846` is **no longer met**: the refusal costs 51% of the base CPU against a target of 25%
+or less. The one full audit that remains is what keeps BASE's refusal precedence. Only the CLI's
+second audit was removed.
+
+Tests after both fixes, all ok:
+
+- whole `internal/tasks/intent` (55 s);
+- `store -run 'Request|Replay|Conflict|LGLV|TCXV|CALV0190|CALV0116'` (159 s);
+- `cli -run 'TCX|Mutate|Create|Conflict|IssuedAt|Warning|LGL'`;
+- `journal -run 'Writer|Replay|Request|Index'`.
+
+### Per-ticket delivery
+
+- V1-2443: FULL. DCR-V1-845 and 846, with criteria 2 and 3 met by measurement. The Windows-host
+  cost is `NOT_OBSERVED`.
+- V1-2240: FULL as a measured rejection: the untracked cache gave no win. The real cause found
+  (racily clean entries) is an owner-decision item (EAF-V0-007), not delivered.
+- V1-3717: FULL, already delivered on origin/main at `1d95a4beb`.
+- V1-2745: FULL, already delivered at `1763e5060` (lane dck-u24).
+- V1-4069: FULL, already delivered at `63551c530` (lane spt-u19).
+- V1-4229: PARTIAL.
+  - TCX-V0-845, 846, 847 and 849 are delivered.
+  - TCX-V0-848 is not met: 3.1 times growth against under 1.2 times. The floor is the preload's
+    byte-exact read.
+  - LGL-V0-845 is met.
+- V1-1148: PARTIAL. Every per-ticket write pass is cheaper, but `gen --tickets 2000` still cannot
+  finish inside the lane's 9-minute bound, and its wall time is `NOT_OBSERVED`.
+- V1-4263: PARTIAL. The refusal is byte-identical and 49% cheaper, but LGL-V0-846's 25% target is
+  not met after the review fix.
