@@ -86,6 +86,10 @@ func IsAncestor(root, a, b string) bool {
 	return err == nil
 }
 
+// Ancestry reports whether a is an ancestor of (or equal to) b, keeping a
+// failed query as an error instead of a no (TLF-V0-1101).
+func Ancestry(root, a, b string) (bool, error) { return isAncestor(root, a, b) }
+
 // FirstParent is commit's first parent, or "" for a root commit.
 func FirstParent(root, commit string) (string, error) {
 	out, _, err := boundedGit(root, 4096, "rev-list", "--parents", "--max-count=1", "--end-of-options", commit)

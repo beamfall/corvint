@@ -189,6 +189,7 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 	res.Items = []wire.Value{batchCloseValue(in, rows, merge, runURL, evidence, string(issued), dryRun, gb)}
 	res.Untrusted = true
 	res.Warnings = append(res.Warnings, in.laneWarnings()...)
+	res.Warnings = append(res.Warnings, in.progressWarnings()...)
 	if w := in.excludedWarning(); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}

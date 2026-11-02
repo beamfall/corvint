@@ -745,6 +745,13 @@ type batchInput struct {
 	// headInBatch (TLF-V0-1101).
 	root, parent   string
 	parentResolved bool
+	parentErr      error
+	// ancestry is the error-preserving ancestry query, store.Ancestry
+	// unless a test injects a failure (TLF-V0-1101).
+	ancestry func(root, a, b string) (bool, error)
+	// progressNotes names each progress mark that names this batch but
+	// delivers nothing, with why; both verbs report them as warnings.
+	progressNotes []string
 }
 
 // excludedLane is one PR the batch title or body names that was left out of
@@ -835,6 +842,16 @@ const (
 	sourceLaneCommit = "LANE_COMMIT"
 	sourceProgress   = "PROGRESS"
 )
+
+// progressWarnings names the progress marks that name this batch but
+// deliver nothing (TLF-V0-1101), so an operator sees why a marked ticket was
+// left out.
+func (in *batchInput) progressWarnings() []string {
+	if len(in.progressNotes) == 0 {
+		return nil
+	}
+	return []string{"recorded progress delivers nothing for " + strings.Join(in.progressNotes, "; ") + " (TLF-V0-1101): fetch the commits or correct the mark with ticket progress"}
+}
 
 // batchHit is one ticket a batch delivered or only mentioned.
 type batchHit struct {
@@ -980,60 +997,93 @@ func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit)
 		if p == nil {
 			continue
 		}
-		if lane, ok := in.progressDelivery(p); ok {
+		lane, ok, why := in.progressDelivery(p)
+		if ok {
 			delivered = append(delivered, batchHit{ticketID: id, lane: lane, source: sourceProgress, phase: p.Phase})
+		} else if why != "" {
+			in.progressNotes = append(in.progressNotes, rec.TicketID.Local+" "+p.Phase+": "+why)
 		}
 	}
 	return delivered, mentioned
 }
 
 // progressDelivery reports whether progress entry p delivers its ticket in
-// this batch, and through which lane PR (0 for the batch itself).
-func (in *batchInput) progressDelivery(p *ticket.Progress) (int64, bool) {
-	switch p.Phase {
-	case ticket.PhaseInReview, ticket.PhaseInMergeQueue, ticket.PhaseMergedAwaitingCloseout:
-		if p.PR != nil {
-			n := p.PR.Int()
-			if n == in.number {
-				return 0, true
-			}
-			if slices.Contains(in.lanes, n) {
-				return n, true
-			}
+// this batch, through which lane PR (0 for the batch itself), and otherwise
+// why a mark that names this batch delivers nothing (TLF-V0-1101). Every
+// piece of evidence the mark carries must hold: a pr must be the batch PR or
+// one of its lane PRs, so an excluded or unexported PR stays excluded
+// whatever its head; and a head must be one the batch merged, so a pr match
+// never overrides a contradicting head. A head whose ancestry this clone
+// cannot read abstains.
+func (in *batchInput) progressDelivery(p *ticket.Progress) (lane int64, ok bool, why string) {
+	byPR := p.Phase == ticket.PhaseInReview || p.Phase == ticket.PhaseInMergeQueue || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	byHead := p.Phase == ticket.PhaseDeliveredOnBranch || p.Phase == ticket.PhaseMergedAwaitingCloseout
+	if p.PR != nil {
+		if !byPR {
+			return 0, false, ""
 		}
-	}
-	switch p.Phase {
-	case ticket.PhaseDeliveredOnBranch, ticket.PhaseMergedAwaitingCloseout:
-		if p.Head != nil && in.headInBatch(*p.Head) {
-			return 0, true
+		n := p.PR.Int()
+		if n != in.number && !slices.Contains(in.lanes, n) {
+			return 0, false, ""
 		}
+		if n != in.number {
+			lane = n
+		}
+	} else if !byHead || p.Head == nil {
+		return 0, false, ""
 	}
-	return 0, false
+	if p.Head == nil {
+		return lane, true, ""
+	}
+	merged, err := in.headInBatch(*p.Head)
+	switch {
+	case err != nil:
+		return 0, false, "head " + *p.Head + " is NOT_OBSERVED against batch PR #" + strconv.FormatInt(in.number, 10) + " (" + prose(err.Error()) + ")"
+	case !merged:
+		if p.PR == nil {
+			return 0, false, ""
+		}
+		return 0, false, "head " + *p.Head + " is not merged by batch PR #" + strconv.FormatInt(in.number, 10)
+	}
+	return lane, true, ""
 }
 
 // headInBatch reports whether this clone proves head merged by the batch:
-// the merge commit reaches it and the merge's first parent does not. A head,
-// merge or parent this clone does not hold proves nothing.
-func (in *batchInput) headInBatch(head string) bool {
+// the merge commit reaches it and the merge's first parent does not. An
+// error means the answer is unobservable here (an unfetched head, merge or
+// parent, or a failed ancestry query), never a no and never a yes.
+func (in *batchInput) headInBatch(head string) (bool, error) {
 	if in.root == "" {
-		return false
+		return false, wire.Errorf(wire.CodeUnsupported, "root", "no repository resolved")
 	}
 	merge, err := store.ResolveCommit(in.root, in.batch.mergeOid())
 	if err != nil {
-		return false
+		return false, err
 	}
 	if !in.parentResolved {
 		in.parentResolved = true
-		in.parent, _ = store.ResolveCommit(in.root, merge+"^1")
+		in.parent, in.parentErr = store.ResolveCommit(in.root, merge+"^1")
 	}
-	if in.parent == "" {
-		return false
+	if in.parentErr != nil {
+		return false, in.parentErr
 	}
 	h, err := store.ResolveCommit(in.root, head)
 	if err != nil {
-		return false
+		return false, err
 	}
-	return store.IsAncestor(in.root, h, merge) && !store.IsAncestor(in.root, h, in.parent)
+	ancestry := in.ancestry
+	if ancestry == nil {
+		ancestry = store.Ancestry
+	}
+	inMerge, err := ancestry(in.root, h, merge)
+	if err != nil || !inMerge {
+		return false, err
+	}
+	inParent, err := ancestry(in.root, h, in.parent)
+	if err != nil {
+		return false, err
+	}
+	return !inParent, nil
 }
 
 // hits is batchHits over an already-built index.
@@ -1180,6 +1230,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		res.Warnings = append(res.Warnings, w)
 	}
 	res.Warnings = append(res.Warnings, in.laneWarnings()...)
+	res.Warnings = append(res.Warnings, in.progressWarnings()...)
 	res.Items = []wire.Value{wire.ObjectValue(o)}
 	res.Untrusted = true
 	return res
