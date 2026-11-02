@@ -148,9 +148,14 @@ done and number requirements that a peer branch already used.
   have delivered the ticket as follows. An effective entry in phase `IN_REVIEW`, `IN_MERGE_QUEUE` or
   `MERGED_AWAITING_CLOSEOUT` whose `pr` is the batch PR or one of its lane PRs (TCD-V0-179) delivers
   the ticket, with that lane PR, or the batch itself for the batch PR. An effective entry in phase
-  `DELIVERED_ON_BRANCH` or `MERGED_AWAITING_CLOSEOUT` whose `head` the batch merge commit reaches
-  and its first parent does not also delivers it, from the batch. A head this clone does not hold
-  delivers nothing. Progress speaks only for a ticket the batch text never names. A ticket a PR line
+  `DELIVERED_ON_BRANCH` or `MERGED_AWAITING_CLOSEOUT` with no `pr`, whose `head` the batch merge
+  commit reaches and its first parent does not, also delivers it, from the batch. Every piece of
+  evidence a mark carries MUST hold. A `pr` that is neither the batch PR nor a lane PR, such as an
+  excluded or unexported PR, delivers nothing whatever its head. A `head` the batch did not merge
+  delivers nothing even when the `pr` matches. A head whose ancestry this clone cannot observe
+  (unfetched commits, or a failed `git merge-base` query, which is never read as a no) abstains.
+  Both verbs add one warning that names each mark that cites this batch and delivers nothing, with
+  why: a head the batch did not merge beside a matching `pr`, or an unobservable head. Progress speaks only for a ticket the batch text never names. A ticket a PR line
   or lane commit delivers keeps that source. A ticket the text mentions stays mentioned and is never
   closed, because a mention may be a TCD-V0-730 veto such as `BLOCKED` or `ALREADY-DELIVERED`. Each delivered
   row of both verbs (`taskman-batch-delivered/0`, `taskman-batch-close/0` and `/1`) adds `source`:
@@ -167,8 +172,12 @@ done and number requirements that a peer branch already used.
   input is a JSON array of 1..1000 entries `{target, expectedRevision, payload}`, at most 8 MiB.
   `payload` is a `PROGRESS_SET` payload, with absent nullable keys read as null (TLF-V0-820).
   `expectedRevision` is a revision or `current`. `current` reads the target's revision from the
-  loaded store. For a request id that already completed, it reads the revision that request named,
-  so a retry replays; one journal lookup pass serves every entry. `--targets-file FILE` reads the array from FILE and implies `--batch`. Every
+  loaded store. When the request index records the entry's request id, under any outcome, the
+  revision is the one whose envelope digest equals the recorded digest, as for the single-target
+  form (TCL-V0-860), so a retry replays. A receipt left pending by an interrupted writer is settled
+  once under the writer lock before that lookup (the batch reports the redo). An unreadable request
+  index refuses the batch, naming the entry, and is never read as "not recorded". Without a journal
+  no lookup runs and the batch refuses `UNINITIALIZED`. `--targets-file FILE` reads the array from FILE and implies `--batch`. Every
   entry is validated before anything is locked or written: its closed shape, an existing target
   named once, the canonical payload and the envelope. One bad entry refuses the whole batch with
   the entry's index. Entries then apply in input order through the `ticket refine --batch` chunked
@@ -213,8 +222,8 @@ done and number requirements that a peer branch already used.
 | TLF-V0-881 | V1-3569 criteria 3-4 | `internal/tasks/ticket` (EffectiveProgress) | `TestTLFV0881_BarrierAdmitsProgressAndStillRefusesClaims`; `TestTLFV0881_EffectiveProgress` | none |
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
-| TLF-V0-1101 | V1-4268 (criteria NOT_OBSERVED in the lane checkout; dispatch text) | `internal/tasks/cli` (`batchInput.progressHits`, `batchHits`, `batchHit.source`, `closeRow.submit`) | `TestTLFV01101_BatchReadsRecordedProgress` (IN_REVIEW pr=lane PR, MERGED_AWAITING_CLOSEOUT head in the merge, a vetoed mention outranks progress, IN_PROGRESS, excluded-PR and pre-merge head entries deliver nothing; batch-close `--manual` and gated close the progress-delivered tickets; `source` per row) | a live batch close against progress marks: NOT_RUN |
-| TLF-V0-1102 | V1-4268 | `internal/tasks/cli` (`mutationBatchCommand`, `batchEnvelopes`, `--targets-file`, progress help) | `TestTLFV01102_BulkProgressWritesManyTargets` (one invocation marks three tickets from a file with `current` and numeric revisions, per-entry outcomes and receipts; a stale entry refused alone; retry replays; a bad entry refuses the whole batch with nothing written; `--target` beside `--batch` refused) | none |
+| TLF-V0-1101 | V1-4268 (criteria NOT_OBSERVED in the lane checkout; dispatch text) | `internal/tasks/cli` (`batchInput.progressHits`, `progressDelivery`, `headInBatch`, `progressWarnings`, `batchHit.source`, `closeRow.submit`), `internal/tasks/store` (`Ancestry`) | `TestTLFV01101_GatedCloseOfProgressDelivery` (a real two-path batch diff: pr and head marks close `VERIFIED` through the gated path; a batch-PR mark with a first-parent head and an excluded-PR mark with a merged head stay OPEN, with a warning); `TestTLFV01101_AncestryFailureAbstains` (an injected first-parent query failure abstains, naming NOT_OBSERVED); `TestTLFV01101_BatchReadsRecordedProgress` (IN_REVIEW pr=lane PR, MERGED_AWAITING_CLOSEOUT head in the merge, a vetoed mention outranks progress, IN_PROGRESS, excluded-PR and pre-merge head entries deliver nothing; batch-close `--manual` and gated close the progress-delivered tickets; `source` per row) | a live batch close against progress marks: NOT_RUN |
+| TLF-V0-1102 | V1-4268, V1-4290 | `internal/tasks/cli` (`mutationBatchCommand`, `batchEnvelopes`, `batchRequestIndex`, `recordedRevision`, `--targets-file`, progress help) | `TestTLFV01102_BulkProgressRetryReplaysOverAPendingReceipt` (a retry over another writer's pending receipt settles it and replays the completed entry; a refused entry whose ticket moved on does not conflict); `TestTLFV01102_BulkProgressWithoutJournalRefuses` (intent-only checkout: `UNINITIALIZED`, no panic, for `current` and numeric entries); `TestTLFV01102_BulkProgressWritesManyTargets` (one invocation marks three tickets from a file with `current` and numeric revisions, per-entry outcomes and receipts; a stale entry refused alone; retry replays; a bad entry refuses the whole batch with nothing written; `--target` beside `--batch` refused) | none |
 | TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria`; `TestTLFV0884_SplitKeepsExecutionConstraints`; `TestTLFV0884_ResumeRefusesARefinedChild`; `TestTLFV0884_ResumeSettlesAPendingReceipt`; `TestTLFV0884_RecordedRefineMustBeThisSplit`; `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`; `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests` | durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
 | TLF-V0-960 | V1-3650 | `tools/requirement-id-collisions` (`outermost`) | `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`; `TestTLFV0886_ReproducesASDV0Collisions` | none |
