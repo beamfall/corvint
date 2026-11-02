@@ -56,10 +56,10 @@ done
 ((findings == 0)) || { printf '%s: FAIL %d exports refused; nothing was copied\n' "$me" "$findings"; exit 1; }
 target=${host:-this host}
 tar -C "$stage" -cf - . | on_target "mkdir -p \"\$HOME/$rel\" && tar -C \"\$HOME/$rel\" -xf -" ||
-  refuse "copying to ~/$rel on $target failed"
+  refuse "copying to ~/$rel on $target failed; run ssh $target true to check the host"
 # A directory absent after the copy lists nothing, so each of its files is reported MISSING.
 listing=$(on_target "cd \"\$HOME/$rel\" 2> /dev/null || exit 0; find . -maxdepth 1 -type f -size +0c") ||
-  refuse "listing ~/$rel on $target failed"
+  refuse "listing ~/$rel on $target failed; run ssh $target true to check the host"
 want=(queue-snapshot.json)
 for id in "$@"; do want+=("$id.json" "$id.txt"); done
 for f in ${want[@]+"${want[@]}"}; do

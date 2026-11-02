@@ -48,10 +48,10 @@ fi
 # The orphan rows of --orphans: local ticket ID, ref, commit (TCL-V0-744).
 orphan_rows=''
 if [[ -n $orphans ]]; then
-  [[ -r $orphans ]] || refuse "cannot read --orphans $orphans; write it with corvint-tasks ticket orphan-lanes > FILE"
+  [[ -r $orphans ]] || refuse "cannot read --orphans $orphans; run corvint-tasks ticket orphan-lanes > FILE to write it"
   orphan_rows=$(jq -r '.items[0] | select(.profile == "taskman-orphan-lanes/0") | .orphans[] | [.local, .ref, .commit] | join("\t")' "$orphans" 2> /dev/null) &&
     jq -e '.items[0].profile == "taskman-orphan-lanes/0"' "$orphans" > /dev/null 2>&1 ||
-    refuse "--orphans $orphans is not a taskman-orphan-lanes/0 result; write it with corvint-tasks ticket orphan-lanes > FILE"
+    refuse "--orphans $orphans is not a taskman-orphan-lanes/0 result; run corvint-tasks ticket orphan-lanes > FILE to write it"
 fi
 rows=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || refuse 'mktemp failed'
 refs=$(mktemp "${TMPDIR:-/tmp}/lane-dispatch-check.XXXXXX") || { /bin/rm -f "$rows"; refuse 'mktemp failed'; }

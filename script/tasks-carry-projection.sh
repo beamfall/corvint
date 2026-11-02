@@ -33,24 +33,24 @@ while (($#)); do
   esac
 done
 (($# == 1)) || usage
-wt=$(cd "$1" 2> /dev/null && git rev-parse --show-toplevel 2> /dev/null) || refuse "'$1' is not a Git worktree"
+wt=$(cd "$1" 2> /dev/null && git rev-parse --show-toplevel 2> /dev/null) || refuse "'$1' is not a Git worktree; use a worktree path"
 if [[ -z $store ]]; then
   store=$(git -C "$wt" worktree list --porcelain | sed -n '1s/^worktree //p')
 fi
-store=$(cd "$store" 2> /dev/null && pwd -P) || refuse "store '$store' is not a directory"
-[[ $(cd "$wt" && pwd -P) != "$store" ]] || refuse "WORKTREE is the store itself; carry into a separate worktree"
-[[ -s $store/.taskman/queue.json ]] || refuse "$store/.taskman/queue.json is absent; name the store with --store"
-[[ -z $(git -C "$wt" status --porcelain -- .taskman) ]] || refuse "$wt has changes under .taskman/; commit or remove them first"
-qid=$(jq -er .queueId "$store/.taskman/queue.json") || refuse "$store/.taskman/queue.json has no queueId"
+store=$(cd "$store" 2> /dev/null && pwd -P) || refuse "store '$store' is not a directory; use --store DIR with the store's worktree"
+[[ $(cd "$wt" && pwd -P) != "$store" ]] || refuse "WORKTREE is the store itself; use a separate worktree, such as git worktree add --detach ../carry origin/main"
+[[ -s $store/.taskman/queue.json ]] || refuse "$store/.taskman/queue.json is absent; use --store DIR to name the store"
+[[ -z $(git -C "$wt" status --porcelain -- .taskman) ]] || refuse "$wt has changes under .taskman/; fix: commit or remove them, then rerun"
+qid=$(jq -er .queueId "$store/.taskman/queue.json") || refuse "$store/.taskman/queue.json has no queueId; use --store DIR to name an initialized store"
 if [[ -e $wt/.taskman/queue.json ]]; then
-  [[ $(jq -r .queueId "$wt/.taskman/queue.json") == "$qid" ]] || refuse "$wt/.taskman/queue.json names another queue than $qid"
+  [[ $(jq -r .queueId "$wt/.taskman/queue.json") == "$qid" ]] || refuse "$wt/.taskman/queue.json names another queue than $qid; use --store DIR to name that queue's store"
 fi
 if command -v sha256sum > /dev/null; then sum=(sha256sum); else sum=(shasum -a 256); fi
-stage=$(mktemp -d "${TMPDIR:-/tmp}/$me.XXXXXX") || refuse 'mktemp failed'
+stage=$(mktemp -d "${TMPDIR:-/tmp}/$me.XXXXXX") || refuse 'mktemp failed; fix: set TMPDIR to a writable directory'
 trap '/bin/rm -rf "$stage"' EXIT
 (cd "$store" && "$tasks" queue snapshot --out "$stage/snapshot.json" > /dev/null 2>&1) && [[ -s $stage/snapshot.json ]] ||
-  refuse "corvint-tasks queue snapshot refused or wrote nothing in $store"
-jq -r '.files[] | "\(.sha256)  \(.path)"' "$stage/snapshot.json" | sort > "$stage/want" || refuse 'the snapshot has no files[] list'
+  refuse "corvint-tasks queue snapshot refused or wrote nothing in $store; run it there to see why"
+jq -r '.files[] | "\(.sha256)  \(.path)"' "$stage/snapshot.json" | sort > "$stage/want" || refuse 'the snapshot has no files[] list; fix: use a corvint-tasks that writes taskman-intent-snapshot/0'
 before=$(git -C "$wt" ls-files -- .taskman/tickets | wc -l | tr -d ' ')
 /bin/rm -rf "$wt/.taskman/tickets" "$wt/.taskman/releases" "$wt/.taskman/queue.json" "$wt/.taskman/policy.json"
 mkdir -p "$wt/.taskman"
@@ -66,11 +66,11 @@ comm -13 "$stage/want.paths" "$stage/have.paths" | sed "s/^/$me: EXTRA /; s/\$/ 
 cat "$stage/findings"
 findings=$(wc -l < "$stage/findings" | tr -d ' ')
 ((findings == 0)) || { printf '%s: FAIL %d findings; %s/.taskman is not committed\n' "$me" "$findings" "$wt"; exit 1; }
-git -C "$wt" add -A -- .taskman || refuse "git add .taskman failed in $wt"
+git -C "$wt" add -A -- .taskman || refuse "git add .taskman failed in $wt; run git status there"
 changed=$(git -C "$wt" diff --cached --name-only -- .taskman | wc -l | tr -d ' ')
 after=$(git -C "$wt" ls-files -- .taskman/tickets | wc -l | tr -d ' ')
 if ((commit && changed > 0)); then
-  git -C "$wt" commit -q -m "chore(tasks): carry the $qid projection to main" -- .taskman || refuse "git commit failed in $wt"
+  git -C "$wt" commit -q -m "chore(tasks): carry the $qid projection to main" -- .taskman || refuse "git commit failed in $wt; run git status there"
 fi
 printf '%s: PASS %s tickets %s -> %s, %s files changed%s\n' "$me" "$qid" "$before" "$after" "$changed" \
   "$( ((commit && changed > 0)) && printf ', committed %s' "$(git -C "$wt" rev-parse --short HEAD)")"
