@@ -143,6 +143,41 @@ func SelectStructural(plan Receipt, module, root string) []string {
 	return selectPackages(plan, module, root, false)
 }
 
+// Index is a repository index started ahead of selection, so a caller can
+// overlap the scan with compiling its plan (AFP-V0-822). The index depends
+// only on the root and module, and a selection reads the same index it would
+// otherwise build.
+type Index struct {
+	root, module string
+	done         chan struct{}
+	index        *repositoryIndex
+	err          error
+}
+
+// StartIndex indexes ROOT for MODULE in the background, through memo when
+// it is not nil.
+func StartIndex(root, module string, memo *ScanMemo) *Index {
+	pending := &Index{root: root, module: module, done: make(chan struct{})}
+	go func() {
+		defer close(pending.done)
+		pending.index, pending.err = indexRepositoryMemo(root, module, memo)
+	}()
+	return pending
+}
+
+// SelectStructuralIndexed is SelectStructural reading INDEX, which it waits
+// for, in place of its own scan; an index of another root or module is not
+// read.
+func SelectStructuralIndexed(plan Receipt, module, root string, index *Index) []string {
+	if index == nil || index.root != root || index.module != module {
+		return SelectStructural(plan, module, root)
+	}
+	return selectPackagesFrom(plan, module, root, false, func() (*repositoryIndex, error) {
+		<-index.done
+		return index.index, index.err
+	})
+}
+
 // Unresolved is unresolvedPackages.
 func Unresolved(module, root string) ([]string, error) { return unresolvedPackages(module, root) }
 
@@ -185,6 +220,14 @@ func ReadPlan(name string) (Receipt, error) {
 // adds rule (d) from this index's own root-locator closure; without it the
 // plan's selected units carry rule (d) (STR-V0-061).
 func selectPackages(plan Receipt, module, root string, withUnresolved bool) []string {
+	return selectPackagesFrom(plan, module, root, withUnresolved, func() (*repositoryIndex, error) {
+		return indexRepository(root, module)
+	})
+}
+
+// selectPackagesFrom is selectPackages with the index read from build once the
+// plan passes the checks that need none.
+func selectPackagesFrom(plan Receipt, module, root string, withUnresolved bool, build func() (*repositoryIndex, error)) []string {
 	var lines []string
 	fallback := func(reason string) []string { return append(lines, "FALLBACK "+reason) }
 	state := plan.Provider.Go.State
@@ -211,7 +254,7 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 			return fallback("an unattributed path contains a control character")
 		}
 	}
-	index, err := indexRepository(root, module)
+	index, err := build()
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
 	}

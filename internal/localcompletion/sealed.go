@@ -84,6 +84,25 @@ func (repo *repository) coordinationPaths() []string {
 	return []string{filepath.Join(repo.auth.GitDir, "corvint/local-outcome.json"), filepath.Join(repo.auth.Root, ".corvint/change.ocm-status.json")}
 }
 
+// sealArchiveEquivalent reports whether snap is the exact seal of the
+// observation's target: the recorded sealed continuation, re-resolved now as
+// the single-parent, byte- and mode-preserving move of the map and nothing
+// else (LCP-V0-040), names the observed commit as its evidence target and
+// that commit still has the observed tree. Only a check whose frozen plan
+// declares allowSealArchiveReuse asks; any other difference reruns it
+// (LCP-V0-920).
+func (repo *repository) sealArchiveEquivalent(ctx context.Context, saved *state, observed *observation, snap snapshot) bool {
+	if saved.Sealed == nil || !snap.clean {
+		return false
+	}
+	binding, err := dogfoodflow.ResolveSealBinding(ctx, repo.auth.Root, snap.target)
+	if err != nil || binding != saved.Sealed.Binding || binding.EvidenceTarget != observed.Target {
+		return false
+	}
+	tree, err := repo.git(ctx, "rev-parse", observed.Target+"^{tree}")
+	return err == nil && strings.TrimSpace(string(tree)) == observed.Tree
+}
+
 func (repo *repository) validateSealed(ctx context.Context, saved *state, snap snapshot) error {
 	continuation := saved.Sealed
 	if _, err := os.Lstat(filepath.Join(repo.auth.Root, ".corvint/change.cem.json")); !os.IsNotExist(err) {

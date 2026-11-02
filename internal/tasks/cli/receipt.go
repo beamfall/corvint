@@ -125,12 +125,18 @@ func receiptAudit(env Env, args []string) *wire.Result {
 	item.Set("anchorSeq", wire.String(string(wire.SizeOf(anchor))))
 	item.Set("retiredThrough", wire.String(string(wire.SizeOf(retired))))
 	item.Set("completions", wire.ObjectValue(wire.NewObject().Set("verified", count(verified)).Set("manual", count(manual))))
+	byDay, health, healthWarning := completionHealth(completionDays(rc.store.Inventory))
+	item.Set("completionsByDay", byDay)
+	item.Set("completionHealth", health)
 	result := success(cmd, rc)
 	result.Items = []wire.Value{wire.ObjectValue(item)}
 	if len(observed.OrphanStageSlots) > 0 {
 		// CTS-V0-026: a killed writer's orphans, set aside under a free
 		// writer lock; the next writer removes them.
 		result.Warnings = append(result.Warnings, prose("staging holds a killed writer's orphan slot(s) the audit set aside; the next writer removes them: "+strings.Join(observed.OrphanStageSlots, ", ")))
+	}
+	if healthWarning != "" {
+		result.Warnings = append(result.Warnings, healthWarning)
 	}
 	if witnesses {
 		receiptAuditWitnesses(result, item, scan, stored, listErr)

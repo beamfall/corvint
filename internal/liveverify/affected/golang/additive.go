@@ -193,6 +193,8 @@ func additiveRecord(base, head fs.FS, graph *affected.Graph, candidate additiveC
 	}
 	newTypes := map[string]bool{}
 	var added []additiveDeclaration
+	var pairs []symbolPair
+	edited := false
 	for _, file := range changed {
 		after, err := additiveParse(head, file)
 		if err != nil {
@@ -205,9 +207,13 @@ func additiveRecord(base, head fs.FS, graph *affected.Graph, candidate additiveC
 		if reason := additiveCompareFile(before, after, existed, file, packageName, baseImports); reason != "" {
 			return additiveFallback(candidate, reason)
 		}
+		pairs = append(pairs, symbolPair{file: file, before: before, after: after})
 		fresh := additiveNewDeclarations(before.declarations, after)
 		if fresh == nil {
-			return additiveFallback(candidate, AdditiveDeclarationEdited)
+			// An existing declaration is edited, removed or reordered: the
+			// symbol-level rules decide (ADN-V0-660).
+			edited = true
+			continue
 		}
 		for _, declaration := range fresh {
 			if general, ok := declaration.(*ast.GenDecl); ok && general.Tok == token.TYPE {
@@ -222,6 +228,9 @@ func additiveRecord(base, head fs.FS, graph *affected.Graph, candidate additiveC
 		for _, declaration := range fresh {
 			added = append(added, additiveDeclaration{node: declaration, qualifiers: qualifiers})
 		}
+	}
+	if edited {
+		return symbolRecord(head, graph, candidate, basePackage, pairs)
 	}
 	names, reason := additiveDeclarationNames(added, newTypes, basePackage)
 	if reason != "" {

@@ -226,13 +226,17 @@ func validateStableProfiles(request StableViewRequest) *Error {
 // stableVerifierCodes is the closed allowlist of public refusal codes the
 // shipped stable verifier declares: every `code` and `issueCodes` member of
 // protocol/cem-1.0/stable/RESULT.schema.json (a StableRefusal surfaces one of
-// them), plus the stable verifier's own fallback and process codes. Any code
-// outside it, or outside the frozen verifier and TCQ allowlists, is
-// `frontier-internal-error` exactly as CF-V0-022 treats an unadmitted code.
+// them, including the four CEM-V1-084 attestation issue codes the schema
+// admits since V1-2521), plus the stable verifier's own fallback and process
+// codes. Any code outside it, or outside the frozen verifier and TCQ
+// allowlists, is `frontier-internal-error` exactly as CF-V0-022 treats an
+// unadmitted code.
 // TestStableVerifierCodesCoverTheResultSchema pins it to the schema.
 var stableVerifierCodes = closedSet(
 	"artifact-changed-during-verification", "artifact-digest-mismatch", "artifact-resource-limit",
-	"artifact-role-closure", "artifact-unavailable", "artifacts-required", "base-revision-mismatch",
+	"artifact-role-closure", "artifact-unavailable", "artifacts-required", "attestation-key-mismatch",
+	"attestation-malformed", "attestation-signature-invalid", "attestation-subject-mismatch",
+	"base-revision-mismatch",
 	"diff-header", "diff-metadata-mismatch", "duplicate-file-group", "duplicate-hunk-id",
 	"duplicate-new-path", "duplicate-old-path", "duplicate-reference", "empty-input",
 	"evidence-drift", "evidence-unavailable", "excluded-artifact-mismatch", "excluded-path-not-file",

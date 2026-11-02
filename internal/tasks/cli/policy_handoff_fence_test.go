@@ -17,6 +17,7 @@ import (
 // fence. A later budget change lists every live attempt it fences, and that
 // handoff still refuses STALE_POLICY.
 func TestCALV0122_Issue643AdditiveMemberKeepsHandoff(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	runOK := func(args ...string) run {
 		t.Helper()

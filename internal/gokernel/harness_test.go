@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func runGit(t testing.TB, root string, arguments ...string) string {
@@ -210,7 +212,7 @@ func TestProbeDisablesRepositoryConfiguredFSMonitor(t *testing.T) {
 	marker := filepath.Join(root, "fsmonitor-ran")
 	hook := filepath.Join(root, "hostile-fsmonitor.sh")
 	script := "#!/bin/sh\nprintf invoked > " + marker + "\nprintf '2\\n\\n'\n"
-	if err := os.WriteFile(hook, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	runGit(t, root, "config", "core.fsmonitor", hook)

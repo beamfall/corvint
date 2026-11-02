@@ -103,6 +103,7 @@ func identityStatusMember(t *testing.T, r *fixture.Repo, member string) wire.Val
 // reason and both pairs, status shows the last observation, and removing an
 // allow-list pair strands no live allocation.
 func TestPSRV0081_SourceIdentityGuard(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r, dir := identityCLIRepo(t)
 	a, g := identityClaim(t, r, "one")
 	acquire := func(request, source string) run {

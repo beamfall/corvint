@@ -16,6 +16,7 @@ import (
 // it, a retry carries it into the prior-generation history, and claims for
 // another stage are not refused.
 func TestCALV0084_CLIHandoffTargetNextStage(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	t.Run("CAL-V0-084 CLIHandoffTargetNextStage", func(t *testing.T) {
 		root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 		id := planTicket(t, root, "handoff-to", "P1", `["src/"]`)

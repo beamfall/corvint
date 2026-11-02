@@ -157,13 +157,21 @@ func TestCALV0073_CreateTemplateNamesEnumsAndNullableKeys(t *testing.T) {
 }
 
 // TestCALV0073_TemplateRefusesOtherVerbsAndFlags keeps --template a pure
-// read: no other verb takes it and it composes with no mutation flag.
+// read: it composes with no mutation flag on any verb, and --skeleton stays
+// CREATE-only. TCL-V0-611 superseded the original "no other verb takes it"
+// clause: every mutation verb now has a --template.
 func TestCALV0073_TemplateRefusesOtherVerbsAndFlags(t *testing.T) {
 	r := fixture.TempRepo(t)
 	fixture.Write(t, filepath.Join(r.IntentDir, "queue.json"), fixture.QueueBytes())
 	fixture.Write(t, filepath.Join(r.IntentDir, "policy.json"), fixture.PolicyBytes())
-	if x := atm(t, r.Root, nil, "ticket", "refine", "--template"); x.res.Outcome == wire.OutcomeOK {
-		t.Error("refine accepted --template")
+	if x := atm(t, r.Root, nil, "ticket", "refine", "--template"); x.res.Outcome != wire.OutcomeOK {
+		t.Errorf("refine --template refused: %s", x.stdout)
+	}
+	for _, extra := range [][]string{{"--request-id", "x"}, {"--skeleton"}} {
+		args := append([]string{"ticket", "refine", "--template"}, extra...)
+		if x := atm(t, r.Root, nil, args...); x.res.Outcome == wire.OutcomeOK {
+			t.Errorf("refine --template accepted %v", extra)
+		}
 	}
 	// Refusal is by flag presence, so a flag set to its default value or to
 	// the empty string is refused too.
@@ -223,6 +231,7 @@ func nullAt(t *testing.T, canonical, path string) []byte {
 // entries than those paths and optionalKeys, and each path's nullable flag
 // matches what ticket create actually accepts on the fixture.
 func TestCALV0073_TemplateFieldsMatchPayloadNullability(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	r := receiptFixture(t)
 	item := templateRun(t, r.Root).Items[0]
 	fields := field(item, "fields")

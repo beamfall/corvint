@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/worksource"
 )
 
@@ -31,7 +32,7 @@ func TestWorkSelfAdapterStandaloneInterruption(t *testing.T) {
 	storagefile := filepath.Join(fake, "owned-storage")
 	body := fmt.Sprintf("#!/bin/bash\nchild=\ntrap 'kill -TERM \"$child\" 2>/dev/null || :; wait \"$child\" 2>/dev/null || :; exit 143' TERM INT\nsleep 60 &\nchild=$!\nprintf '%%s\\n' \"$child\" > %q\nwait \"$child\"\n", pidfile)
 	body = strings.Replace(body, "#!/bin/bash\n", "#!/bin/bash\n"+`printf '%s\n' "$TMPDIR" > `+strconv.Quote(storagefile)+"\n", 1)
-	if err := os.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(fake, "go"), []byte(body), 0755); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -293,7 +294,7 @@ func TestWorkCloseRetiresKilledProducerGit(t *testing.T) {
 	fixtures := t.TempDir()
 	pidPath := filepath.Join(fixtures, "pids")
 	fixture := filepath.Join(fixtures, "git-fixture")
-	if err := os.WriteFile(fixture, []byte("#!/bin/sh\nsleep 600 &\nprintf '%s %s\\n' \"$$\" \"$!\" > "+pidPath+".tmp\nmv "+pidPath+".tmp "+pidPath+"\nwait\n"), 0755); err != nil {
+	if err := execfile.WriteFile(fixture, []byte("#!/bin/sh\nsleep 600 &\nprintf '%s %s\\n' \"$$\" \"$!\" > "+pidPath+".tmp\nmv "+pidPath+".tmp "+pidPath+"\nwait\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	producer := exec.Command(os.Args[0], "-test.run=^TestWorkGitGroupProducerHelper$", "-test.count=1")

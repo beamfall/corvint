@@ -18,7 +18,7 @@ func TestOwnsExactlyTheCFamilySuffixes_NSAV0001(t *testing.T) {
 	}
 	negative := []string{
 		"a.metal", "a.glsl", "a.hlsl", "a.wgsl", "a.swift", "a.sh", "a.java", "a.cs",
-		"a.hs", "a.ccc", "a.mmm", "a.c.orig", "Makefile", "CMakeLists.txt", "a.html",
+		"a.hs", "a.ccc", "a.mmm", "a.c.orig", "Makefile", "CMakeLists.txt", "a.html", //corvint:fixture-path
 	}
 	language := New()
 	if language.Name() != "cfamily" {

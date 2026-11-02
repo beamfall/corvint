@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -337,7 +338,7 @@ func TestCALV0188_GroupListingOverrun(t *testing.T) {
 // SOURCE_CHANGED; the post-exit proof lets it replace only a passing class.
 func TestPSRV0022_UnprovedProbeCleanupRecordsUnknown(t *testing.T) {
 	bin := t.TempDir()
-	if e := os.WriteFile(filepath.Join(bin, "git"), []byte("#!/bin/sh\n/bin/sleep 3 &\nexit 0\n"), 0o755); e != nil {
+	if e := fixture.WriteExecutable(filepath.Join(bin, "git"), []byte("#!/bin/sh\n/bin/sleep 3 &\nexit 0\n"), 0o755); e != nil {
 		t.Fatal(e)
 	}
 	t.Setenv("PATH", bin)

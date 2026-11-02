@@ -60,6 +60,8 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-ruby-test-provider", Command: "corvint-ruby-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-ruby-test-provider.json"},
 	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
 	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
+	{Binary: "corvint-update", Command: "corvint-update help --json", Snapshot: "internal/capcatalog/trees/corvint-update.json"},
+	{Binary: "corvint-work-queue", Command: "corvint-work-queue help --json", Snapshot: "internal/capcatalog/trees/corvint-work-queue.json"},
 }
 
 // commandTreeJSON is `corvint help --tree`, the canonical corvint-command-tree/0 document.
@@ -178,7 +180,7 @@ func nodeHelpText(path string) string {
 	if !ok {
 		panic("unknown command tree node")
 	}
-	return clitree.Render(commandTree(), node) + parentTopicPointer(node.Path)
+	return clitree.Render(commandTree(), node) + dogfoodFlowOptionsText(node.Path) + parentTopicPointer(node.Path)
 }
 
 // parentTopicPointer names the authored help topic that documents a node's command in full, so a

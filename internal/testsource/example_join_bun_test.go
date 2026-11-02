@@ -9,6 +9,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/typescript"
 	"github.com/Beamfall/corvint/internal/testvalidity"
@@ -82,7 +83,7 @@ func TestLPCVV0261_BunFixtureSelectedRunAndJoined(t *testing.T) {
 		t.Fatal(err)
 	}
 	script := fmt.Sprintf("#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 1.3.11; exit 0; fi\nfor a in \"$@\"; do case \"$a\" in --reporter-outfile=*) out=\"${a#--reporter-outfile=}\";; esac; done\ncp %q \"$out\"\n", report)
-	if err := os.WriteFile(filepath.Join(bin, "bun"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "bun"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	receipt, err := jstestprovider.RunBun(context.Background(), jstestprovider.BunConfig{

@@ -55,9 +55,25 @@ func DirtyPaths(ctx context.Context, gitExecutable, root string) ([]string, erro
 		return nil, ErrStatusOverflow
 	}
 	if err != nil {
-		return nil, errors.Join(ErrStatusUnavailable, err)
+		return nil, errors.Join(ErrStatusUnavailable, deadlineCode(deadline, err))
 	}
 	return DecodeStatus(raw)
+}
+
+// deadlineCode reports a read that ended because a deadline elapsed as
+// cemcode.GitTimeout. Git's runner sees only that its context is done and
+// reports cemcode.GitCancelled, or the bare context error when the context
+// ended before Git started, so without this a read's own deadline, which
+// usually ends before the runner's per-operation timer, would read as a caller
+// cancellation (AFP-V0-548, V1-3414). A context cancelled without a deadline
+// keeps its cancellation.
+func deadlineCode(deadline context.Context, err error) error {
+	ended := cemcode.CodeOf(err) == cemcode.GitCancelled ||
+		(cemcode.CodeOf(err) == "" && (errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)))
+	if !ended || !errors.Is(deadline.Err(), context.DeadlineExceeded) {
+		return err
+	}
+	return errors.Join(cemcode.New(cemcode.GitTimeout, "Git read exceeded its deadline"), err)
 }
 
 // boundedGitRunner returns the one Git invocation shape this package uses:
@@ -100,7 +116,7 @@ func RangePaths(ctx context.Context, gitExecutable, root, base string) ([]string
 		return nil, ErrStatusOverflow
 	}
 	if err != nil {
-		return nil, errors.Join(ErrStatusUnavailable, err)
+		return nil, errors.Join(ErrStatusUnavailable, deadlineCode(deadline, err))
 	}
 	return DecodeNameList(raw)
 }
@@ -121,7 +137,7 @@ func IgnoredPaths(ctx context.Context, gitExecutable, root string) ([]string, er
 		return nil, ErrStatusOverflow
 	}
 	if err != nil {
-		return nil, errors.Join(ErrStatusUnavailable, err)
+		return nil, errors.Join(ErrStatusUnavailable, deadlineCode(deadline, err))
 	}
 	fields := bytes.Split(raw, []byte{0})
 	paths := []string{}

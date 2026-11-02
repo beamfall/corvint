@@ -259,3 +259,44 @@ func TestDCPV1281AdditionalRepositoryWarmCallsAtScale(t *testing.T) {
 		t.Fatalf("stale state not reused: %+v %q", timing, state)
 	}
 }
+
+// TestDCRV1846GitFallbackWarmCallsWithinBudget measures the DCP-V1-317 fixture with the
+// checkout stamp unavailable throughout, as for a linked worktree, a submodule, a coarse-timestamp
+// filesystem or a platform without an lstat change time: every warm call observes and verifies
+// through Git, and still meets the median reused freshness under 100 ms and warm p95 under 1 s.
+func TestDCRV1846GitFallbackWarmCallsWithinBudget(t *testing.T) {
+	if testing.Short() || raceEnabled {
+		t.Skip("timing bound measured without -short and without the race detector")
+	}
+	saved := stampRacyWindow
+	t.Cleanup(func() { stampRacyWindow = saved })
+	stampRacyWindow = 24 * time.Hour
+	root, _ := multiRepositoryFixture(t, [3]int{4000, 12000, 1000})
+	if stamp := checkoutStamp(context.Background(), []string{root}); stamp != "" {
+		t.Fatalf("stamp %q available; the fallback is not measured", stamp)
+	}
+	r, e := New(root, "corpus.json")
+	if e != nil {
+		t.Fatal(e)
+	}
+	first, _, _ := freshnessCall(t, r, "corvint.docs_get", `{"id":"adapter:lib2-1"}`)
+	freshness, total, verify := []int64{}, []int64{}, []int64{}
+	for i := range 20 {
+		tool, arguments := "corvint.docs_get", `{"id":"adapter:lib1-0"}`
+		if i%2 == 1 {
+			tool, arguments = "corvint.docs_search", `{"query":"quokka"}`
+		}
+		timing, state, _ := freshnessCall(t, r, tool, arguments)
+		if timing.Freshness != "reused" || state != "fresh" {
+			t.Fatalf("warm call %d: %+v %q", i, timing, state)
+		}
+		freshness, total, verify = append(freshness, timing.FreshnessMS), append(total, timing.TotalMS), append(verify, timing.VerifyMS)
+	}
+	slices.Sort(freshness)
+	slices.Sort(total)
+	median, p95 := freshness[len(freshness)/2], total[len(total)*95/100]
+	t.Logf("DCR-V1-846 first call %+v; warm freshness_ms sorted %v; warm total_ms sorted %v; p95 %d ms; warm verify_ms in call order %v", first, freshness, total, p95, verify)
+	if median >= 100 || p95 >= int64(time.Second/time.Millisecond) {
+		t.Fatalf("Git fallback warm freshness median %d ms (bound 100), total p95 %d ms (bound 1000)", median, p95)
+	}
+}

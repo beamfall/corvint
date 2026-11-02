@@ -15,6 +15,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -39,7 +40,7 @@ func contextWorkflow(t *testing.T, title string) (*Workflow, string, []byte) {
 	}
 	script := []byte("#!/bin/sh\nprintf '%s\\000' \"$@\" > context-args\npwd > context-cwd\ncat context-packet\n")
 	path := filepath.Join(t.TempDir(), "core")
-	if err := os.WriteFile(path, script, 0700); err != nil {
+	if err := fixture.WriteExecutable(path, script, 0700); err != nil {
 		t.Fatal(err)
 	}
 	return &Workflow{cfg: ProgramConfig{CoreExecutable: path, CoreSHA256: supervisor.Digest(script)}, record: &ticket.Record{Title: title, TicketID: id}}, root, raw
@@ -124,7 +125,7 @@ func TestWorkflowContextRefusesInvalidEvidence(t *testing.T) {
 				w.cfg.CoreSHA256 = strings.Repeat("0", 64)
 			case "command-failure":
 				script := []byte("#!/bin/sh\nexit 9\n")
-				if err := os.WriteFile(w.cfg.CoreExecutable, script, 0700); err != nil {
+				if err := fixture.WriteExecutable(w.cfg.CoreExecutable, script, 0700); err != nil {
 					t.Fatal(err)
 				}
 				w.cfg.CoreSHA256 = supervisor.Digest(script)
@@ -231,7 +232,7 @@ func TestWorkflowContextRefusesHeldOutputPipe(t *testing.T) {
 	w, root, _ := contextWorkflow(t, "Investigate DSP")
 	pidPath := filepath.Join(t.TempDir(), "descendant.pid")
 	script := []byte("#!/bin/sh\ncat context-packet\nsleep 45 &\necho $! > '" + pidPath + "'\n")
-	if err := os.WriteFile(w.cfg.CoreExecutable, script, 0700); err != nil {
+	if err := fixture.WriteExecutable(w.cfg.CoreExecutable, script, 0700); err != nil {
 		t.Fatal(err)
 	}
 	w.cfg.CoreSHA256 = supervisor.Digest(script)

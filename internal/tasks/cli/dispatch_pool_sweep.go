@@ -11,7 +11,7 @@ import (
 )
 
 func (q dispatchQueue) PoolSweepActor() (string, string, error) {
-	actor, e := initActor("OPERATOR")
+	actor, e := initActor(q.env, "OPERATOR")
 	return actor.ID, actor.Role, e
 }
 
@@ -19,7 +19,7 @@ func (q dispatchQueue) PoolSweepActor() (string, string, error) {
 // context. It adds no signal handler, command wrapper or alternative confirmation.
 func (q dispatchQueue) PoolSweep(ctx context.Context, r dispatch.PoolSweepRequest) (dispatch.PoolSweepResult, error) {
 	out := dispatch.PoolSweepResult{}
-	actor, e := initActor(r.ActorRole)
+	actor, e := initActor(q.env, r.ActorRole)
 	if e != nil {
 		return out, e
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testsupport"
 )
 
@@ -78,7 +79,7 @@ func TestScratchParentOverrideRefusals(t *testing.T) {
 		t.Fatal(err)
 	}
 	file := filepath.Join(base, "file")
-	if err := os.WriteFile(file, nil, 0700); err != nil {
+	if err := execfile.WriteFile(file, nil, 0700); err != nil {
 		t.Fatal(err)
 	}
 	shared := directory("shared", 0777)

@@ -929,6 +929,14 @@ func (c *Config) validate() error {
 			if err := r.KeepLease.validate(); err != nil {
 				return fail("role %s %v", r.Name, err)
 			}
+			// DSG-V0-684: the keeper writes at most once per tick, so its
+			// writes are ceil(interval/tick) ticks apart; a renewed lease must
+			// outlast two of them or it expires between ticks.
+			k := r.KeepLease
+			every := (k.IntervalSeconds + c.TickSeconds - 1) / c.TickSeconds * c.TickSeconds
+			if k.LeaseMinutes*60 <= 2*every {
+				return fail("role %s keepLease leaseMinutes must exceed two keeper writes, which tickSeconds %d spaces %d seconds apart", r.Name, c.TickSeconds, every)
+			}
 		}
 		if (r.Match == nil) == (r.Lane == nil) {
 			return fail("role %s needs exactly one of match and lane", r.Name)

@@ -15,7 +15,6 @@ import (
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
-	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
 	"github.com/Beamfall/corvint/internal/tasks/release"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -61,7 +60,7 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		return report, err
 	}
 	reader := lockedJournalReader(repo, headState)
-	idx := journal.RequestIndex{Reader: reader}
+	idx := RequestIndexOf(repo, reader)
 	entry, found, err := idx.Lookup(req.RequestID)
 	if err != nil {
 		return report, err
