@@ -184,3 +184,78 @@ func mergeTreeStatus(t *testing.T, root, first, second string) (string, int) {
 	}
 	return string(output), 0
 }
+
+// DCW-V0-1924: replay must neither follow a candidate's generated symlink nor accept its mode.
+func TestBatchCheckDCWV01924RejectsGeneratedSymlinksAndModes(t *testing.T) {
+	for _, path := range generatedSpecFiles {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			repo := specFixtureRepo(t)
+			sealA := repo.specLane("lane-a", "- `FXA-V0-002`: The second requirement MUST hold.\n", "")
+			sealB := repo.specLane("lane-b", "", "- `FXC-V0-000`: The zeroth requirement MUST hold.\n")
+			repo.batch(sealA)
+			repo.mergeRegenerated(sealB)
+			target := filepath.Join(t.TempDir(), "original-checkout-file")
+			original := []byte("original checkout must stay intact\n")
+			if err := os.WriteFile(target, original, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			generated := filepath.Join(repo.root, filepath.FromSlash(path))
+			if err := os.Remove(generated); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(target, generated); err != nil {
+				t.Skipf("symlinks unavailable: %v", err)
+			}
+			testGit(t, repo.root, "add", "--", path)
+			testGit(t, repo.root, "commit", "-q", "--amend", "--no-edit")
+			code, stdout, stderr := repo.check()
+			data, err := os.ReadFile(target)
+			if err != nil || string(data) != string(original) {
+				t.Errorf("replay overwrote an external file: data=%q err=%v", data, err)
+			}
+			if code != 1 || strings.Contains(stdout, "derivation=regenerated-specs") || !strings.Contains(stderr, "merge-resolution-unbound") {
+				t.Fatalf("symlink regeneration accepted: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+			// An executable regular file has the right bytes but the wrong generated mode.
+			testGit(t, repo.root, "checkout", "HEAD^1", "--", path)
+			repo.regenerateSpecs()
+			if err := os.Chmod(generated, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			testGit(t, repo.root, "add", "--", path)
+			testGit(t, repo.root, "commit", "-q", "--amend", "--no-edit")
+			code, stdout, stderr = repo.check()
+			if code != 1 || strings.Contains(stdout, "derivation=regenerated-specs") || !strings.Contains(stderr, "merge-resolution-unbound") {
+				t.Fatalf("changed generated mode accepted: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+		})
+	}
+}
+
+// DCW-V0-1924: fields the generator preserves must come from the merged inputs alone.
+func TestBatchCheckDCWV01924RejectsPreservedHandEdits(t *testing.T) {
+	for _, path := range []string{"docs/specs/README.md", "docs/specs/INDEX.json"} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			repo := specFixtureRepo(t)
+			sealA := repo.specLane("lane-a", "- `FXA-V0-002`: The second requirement MUST hold.\n", "")
+			sealB := repo.specLane("lane-b", "", "- `FXC-V0-000`: The zeroth requirement MUST hold.\n")
+			repo.batch(sealA)
+			repo.mergeRegenerated(sealB)
+			if strings.HasSuffix(path, ".json") {
+				repo.write(path, `[{"path":"docs/specs/fixture-a-v0.md", "implementation":"manual", "dependsOn":["hand-edit"]}]`+"\n")
+			} else {
+				data, err := os.ReadFile(filepath.Join(repo.root, filepath.FromSlash(path)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				repo.write(path, string(data)+"\nUnrelated hand-edited prose.\n")
+			}
+			testGit(t, repo.root, "add", "--", path)
+			testGit(t, repo.root, "commit", "-q", "--amend", "--no-edit")
+			code, stdout, stderr := repo.check()
+			if code != 1 || strings.Contains(stdout, "derivation=regenerated-specs") || !strings.Contains(stderr, "merge-resolution-unbound") {
+				t.Fatalf("preserved hand edit accepted: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+			}
+		})
+	}
+}

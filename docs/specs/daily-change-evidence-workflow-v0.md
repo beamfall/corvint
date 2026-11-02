@@ -3523,8 +3523,13 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `regenerated-specs`, a merge whose ort merge of its two parents conflicts only in
   `docs/specs/REQUIREMENTS.tsv`, whose tree differs from ort's written tree only in
   `docs/specs/REQUIREMENTS.tsv`, `docs/specs/INDEX.json` and `docs/specs/README.md`, and whose
-  tree equals the tree a private clone of the merge stages after running the merge's own
-  `script/gen-spec-requirements.sh --all` and writing its three outputs over the checkout. The
+  tree (including file modes) equals the tree a private clone of ort's written tree stages after
+  running the merged inputs' `script/gen-spec-requirements.sh --all` and writing its three outputs
+  over the checkout. Replay MUST start from those merged inputs alone, including README prose and
+  INDEX fields such as `implementation` and `dependsOn`, so candidate hand edits to preserved fields
+  cannot validate themselves. Each generated path in both trees MUST be a regular file; before
+  reading an output or writing its destination, replay MUST refuse symlinks and other non-regular
+  files rather than follow them. The
   replay MUST run as `DCW-V0-401`'s does (a clone outside the repository reading its objects as an
   alternate, the same sanitized environment, its own process group, a 5-minute bound) and MUST NOT
   write the repository, its index or refs. A conflict in any other path, including INDEX.json and
@@ -3535,7 +3540,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   only repair then rewrote a pushed branch. Evidence:
   `TestBatchCheckDCWV01924RegeneratedRequirementsMerge` (derived and passing; a hand edit beside
   the regeneration is unbound; it fails before the change),
-  `TestBatchCheckDCWV01924OtherConflictStaysUnbound`. Rollback: remove `regeneratedSpecs` and its
+  `TestBatchCheckDCWV01924OtherConflictStaysUnbound`,
+  `TestBatchCheckDCWV01924RejectsGeneratedSymlinksAndModes` (each generated path refuses a symlink
+  without modifying its external target, and rejects a changed executable mode),
+  `TestBatchCheckDCWV01924RejectsPreservedHandEdits` (README prose and INDEX fields stay unbound).
+  Rollback: remove `regeneratedSpecs` and its
   call in `deriveMerge`; such merges are unbound again.
 
 - `DCW-V0-1925`: (experimental under the standing lane auto-accept, 2026-11-02; V1-1467)
@@ -3872,7 +3881,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-395` (experimental under the standing lane auto-accept; V1-3209) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`; build log 2026-10-30 | implemented; focused tests PASS |
 | `DCW-V0-400` (experimental under the standing lane auto-accept; V1-3211) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`, `staleOCMSidecars`; `change.go` `run`; `finishlane.go` `run`; `TestDogfoodDCWV0044WorktreeLanesRunConcurrently`, `TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare`, `TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace` | implemented; focused tests PASS |
 | `DCW-V0-401` (experimental under the standing lane auto-accept; V1-2981) | `internal/dogfoodflow/regenerated.go` `regenerated`, `replay`; `batch.go` `regeneratedCommit`, `verifyCoverage`; `TestBatchCheckDCWV0401AcceptsRegeneratedCommits` | implemented; focused tests PASS |
-| `DCW-V0-1924` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDCWV01924RegeneratedRequirementsMerge`, `TestBatchCheckDCWV01924OtherConflictStaysUnbound` | implemented; focused tests PASS |
+| `DCW-V0-1924` (experimental under the standing lane auto-accept; V1-1467) | `internal/dogfoodflow/regenerated_specs.go` `regeneratedSpecs`, `replaySpecs`; `batch.go` `deriveMerge`; `TestBatchCheckDCWV01924RegeneratedRequirementsMerge`, `TestBatchCheckDCWV01924OtherConflictStaysUnbound`, `TestBatchCheckDCWV01924RejectsGeneratedSymlinksAndModes`, `TestBatchCheckDCWV01924RejectsPreservedHandEdits` | implemented; focused tests PASS |
 | `DCW-V0-1925` (experimental under the standing lane auto-accept; V1-1467) | `script/merge-regenerate-specs.sh`; `make lane-scripts-test` merge-regenerate-specs group | implemented; shell test PASS |
 | `DCW-V0-398` (experimental under the standing lane auto-accept; V1-3214) | `internal/dogfoodflow/change.go` `regeneratedPath`, `citationPlanMismatch`; `TestChangeDCWV0398CitesRegeneratedHunksOnly`, `TestChangeDCWV0398RefusesAMergedRegeneration` | implemented; focused tests PASS |
 | `DCW-V0-399` (experimental under the standing lane auto-accept; V1-3218) | `docs/DOGFOOD.md` lane recipe; `Makefile` `doc-gates`; `script/batch-precheck_test.sh` 1c; `TestIndexCoversSpecsAndHeaders` | implemented; shell test PASS; live drift run FAIL as required |

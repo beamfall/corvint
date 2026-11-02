@@ -763,11 +763,11 @@ GIT_DIR=$crepo/.git GIT_WORK_TREE=$crepo crun --base "$basesha" && fail "GIT_DIR
 grep -q '^batch-precheck: FAIL make capabilities-check .* introduced' "$tmp/out" || fail "GIT_DIR leak: $(cat "$tmp/out")"
 grep -q '^batch-precheck: WARN make test-commands-check' "$tmp/out" || fail "GIT_DIR base-present: $(cat "$tmp/out")"
 [[ $(git -C "$crepo" worktree list --porcelain | grep -c '^worktree ') == 1 ]] || fail "base worktree left behind"
-# Without --base the same failures still fail; an unresolvable base classifies nothing as base-present.
+# Without --base the same failures still fail; an invalid base now fails static discovery first (ASD-V0-1923).
 crun && fail "no-base run passed with failures"
 crun --base no-such-rev && fail "bad base passed"
-grep -q '^batch-precheck: FAIL make test-read-scopes-check .* introduced: base no-such-rev is not a commit' "$tmp/out" ||
-  fail "bad base reason: $(cat "$tmp/out")"
+grep -q '^batch-precheck: FAIL static go-build-vet (package discovery)$' "$tmp/out" &&
+  grep -q '^fix: verify --base no-such-rev names a commit' "$tmp/out" || fail "bad base reason: $(cat "$tmp/out")"
 crun --base > /dev/null 2>&1
 [[ $? == 2 ]] || fail "--base without a value did not exit 2"
 
@@ -1663,6 +1663,46 @@ grep -q '^batch-precheck: | PASS | *[0-9]*s | make spec-requirements-check$' "$t
 STATIC_STUB_FAIL=bash32-check strun --base "$stbase"
 [[ $? == 1 ]] && grep -q '^batch-precheck: FAIL static bash32-check ' "$tmp/out" || fail "a full run did not stop at the static failure: $(cat "$tmp/out")"
 grep -q 'spec-requirements-check' "$tmp/stcalls" && fail "the full run went on after the static failure: $(cat "$tmp/stcalls")"
+# ASD-V0-1923: static_steps propagates an invalid base instead of selecting zero packages.
+(cd "$strepo" &&
+  source <(sed -n '/^static_packages()/,/^}/p; /^static_steps()/,/^}/p' "$pre")
+  go_wrapper='' gocache=$tmp/cache
+  doc_gate_rows() { :; }
+  static_steps not-a-revision) > "$tmp/out" 2>&1
+[[ $? != 0 ]] || fail "bad base became an empty static selection: $(cat "$tmp/out")"
+# A discovery failure after the base checks must also fail the complete static/full precheck.
+real_git=$(command -v git)
+cat > "$stbin/git" << EOF
+#!/bin/sh
+case "\$*" in *'diff --name-only --no-renames '*" -- *.go")
+  [ "\${STATIC_DISCOVERY_FAIL:-}" = 1 ] && exit 1 ;;
+esac
+exec "$real_git" "\$@"
+EOF
+chmod +x "$stbin/git"
+for mode in --static ''; do
+  : > "$tmp/stcalls"
+  STATIC_DISCOVERY_FAIL=1 strun $mode --base "$stbase"
+  [[ $? == 1 ]] || fail "discovery error passed $mode: $(cat "$tmp/out")"
+  grep -q 'FAIL static go-build-vet' "$tmp/out" || fail "no discovery failure: $(cat "$tmp/out")"
+  grep -q '^fix:' "$tmp/out" || fail "no discovery recovery: $(cat "$tmp/out")"
+  grep -q 'no Go package changed' "$tmp/out" && fail "discovery error became empty selection"
+done
+# A package containing only tests is vetted in both modes and never built.
+/bin/rm -f "$strepo/pkg/b.go"
+printf '// changed test\n' >> "$strepo/pkg/a_test.go"
+cat > "$stbin/go" << EOF
+#!/bin/sh
+echo "go \$*" >> $tmp/stcalls
+[ "\$1" = build ] && { echo 'no non-test Go files'; exit 1; }
+echo ok
+EOF
+for mode in --static ''; do
+  : > "$tmp/stcalls"
+  strun $mode --base "$stbase" || fail "test-only package failed $mode: $(cat "$tmp/out")"
+  grep -q '^go build' "$tmp/stcalls" && fail "test-only package built: $(cat "$tmp/stcalls")"
+  grep -qx 'go vet ./pkg' "$tmp/stcalls" || fail "test-only package not vetted: $(cat "$tmp/stcalls")"
+done
 strun --static --base 2> /dev/null; [[ $? == 2 ]] || fail "--static --base without REV was accepted"
 
 finish

@@ -21,12 +21,14 @@
 # a held lock, a failed count write or a failed gh read.
 #
 # Merge path closeout (ASD-V0-1922, V1-3496): the first pass that sees MERGED also runs the
-# post-merge Tasks reconcile once per PR (LANDING_RECONCILE, default script/tasks-reconcile.sh:
+# post-merge Tasks reconcile after fetching origin/main and verifying it contains mergeCommit.oid,
+# once per PR (LANDING_RECONCILE, default script/tasks-reconcile.sh:
 # closeout-debt over the merged-PR export, proposing each batch-close) and prints, after MERGED,
 # `RECONCILE status=N log=FILE`. Without --act it forces RECONCILE_APPLY empty (propose only);
 # with --act RECONCILE_APPLY passes through. Status 1 (debt or proposals) or 2 (refused) also
 # appends `TIMESTAMP pr=PR reconcile=closeout-debt|refused log=FILE` to the alerts file, so the
-# backlog cannot drift from main unseen. MERGED still exits 0. --no-reconcile skips it.
+# backlog cannot drift from main unseen. A refused pass stays retryable. MERGED still exits 0.
+# --no-reconcile skips it.
 #
 # Example: script/pr-landing-watch.sh --act --repo beamfall/corvint 42
 set -uo pipefail
@@ -95,9 +97,9 @@ escalate() { # escalate REASON DETAIL
   exit 3
 }
 
-view=$("$gh" pr view "$pr" ${repo_args[@]+"${repo_args[@]}"} --json state,autoMergeRequest,headRefOid \
-  --jq '[.state, (.autoMergeRequest != null), .headRefOid] | @tsv') || die "gh pr view $pr failed"
-IFS=$'\t' read -r pr_state armed head <<< "$view"
+view=$("$gh" pr view "$pr" ${repo_args[@]+"${repo_args[@]}"} --json state,autoMergeRequest,headRefOid,mergeCommit \
+  --jq '[.state, (.autoMergeRequest != null), .headRefOid, (.mergeCommit.oid // "")] | @tsv') || die "gh pr view $pr failed"
+IFS=$'\t' read -r pr_state armed head merged <<< "$view"
 # reconcile_merged runs the post-merge Tasks reconcile once per merged PR (ASD-V0-1922, V1-3496).
 reconcile_merged() {
   ((reconcile)) || return 0
@@ -106,12 +108,24 @@ reconcile_merged() {
   ((act)) || apply=''
   # The default is the literal script/tasks-reconcile.sh, run from this checkout's root, so the
   # caller graph links it (TSP-V0-960); LANDING_RECONCILE (a test stub) replaces it.
-  if [[ -n ${LANDING_RECONCILE:-} ]]; then
-    RECONCILE_APPLY=$apply "$LANDING_RECONCILE" < /dev/null > "$log" 2>&1 || status=$?
+  # closeout-debt scans origin/main. A stale ref can silently omit this PR, so neither a failed
+  # fetch nor a merge absent from that ref may consume the once-only marker (ASD-V0-1922).
+  if [[ ! $merged =~ ^[0-9a-f]{40}$ ]]; then
+    printf 'no merge commit for PR %s; fix: retry after GitHub reports mergeCommit.oid\n' "$pr" > "$log"
+    status=2
+  elif ! git -C "$here/.." fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main > "$log" 2>&1; then
+    printf 'fix: restore the origin/main fetch and retry this watcher pass\n' >> "$log"
+    status=2
+  elif ! git -C "$here/.." merge-base --is-ancestor "$merged" refs/remotes/origin/main >> "$log" 2>&1; then
+    printf 'merge %s is absent from origin/main; fix: retry after origin/main contains the merge\n' "$merged" >> "$log"
+    status=2
+  elif [[ -n ${LANDING_RECONCILE:-} ]]; then
+    RECONCILE_APPLY=$apply "$LANDING_RECONCILE" < /dev/null >> "$log" 2>&1 || status=$?
   else
-    (cd "$here/.." && RECONCILE_APPLY=$apply script/tasks-reconcile.sh) < /dev/null > "$log" 2>&1 || status=$?
+    (cd "$here/.." && RECONCILE_APPLY=$apply script/tasks-reconcile.sh) < /dev/null >> "$log" 2>&1 || status=$?
   fi
-  put reconciled "$status"
+  # Refusals remain retryable; only a completed scan (with or without debt) is reconciled.
+  ((status <= 1)) && put reconciled "$status"
   printf 'RECONCILE status=%s log=%s\n' "$status" "$log"
   case $status in 0) return 0 ;; 1) kind=closeout-debt ;; *) kind=refused ;; esac
   printf '%s pr=%s reconcile=%s log=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$pr" "$kind" "$log" >> "$alerts" ||

@@ -44,13 +44,22 @@ func init() {
 	}
 }
 
-// isTestBinary reports whether argv[0] names a `go test` binary (PKG.test, or
-// PKG.test.exe). It deliberately avoids importing package testing into production code.
+// isTestBinary requires both a Go test binary name and a testing flag. A production build may
+// be named PKG.test too; its name alone must not fence legitimate writes (PUR-V0-1920).
+// Go test supplies -test.* flags before init runs, without importing testing into production.
 func isTestBinary(args []string) bool {
 	if len(args) == 0 {
 		return false
 	}
-	return strings.HasSuffix(strings.TrimSuffix(filepath.Base(args[0]), ".exe"), ".test")
+	if !strings.HasSuffix(strings.TrimSuffix(filepath.Base(args[0]), ".exe"), ".test") {
+		return false
+	}
+	for _, arg := range args[1:] {
+		if strings.HasPrefix(arg, "-test.") {
+			return true
+		}
+	}
+	return false
 }
 
 // refuseForbiddenStore is the writer-lock guard (PUR-V0-1920, PUR-V0-1921): it refuses

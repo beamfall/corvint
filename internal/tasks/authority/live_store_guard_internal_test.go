@@ -45,8 +45,14 @@ func TestPURV01920_IsTestBinary(t *testing.T) {
 		"":                                     false,
 		"/tmp/x/corvint-tasks.test-fixture.sh": false,
 	} {
-		if got := isTestBinary([]string{argv0}); got != want {
+		if got := isTestBinary([]string{argv0, "-test.timeout=30m"}); got != want {
 			t.Errorf("isTestBinary(%q) = %v, want %v", argv0, got, want)
+		}
+	}
+	// PUR-V0-1920: a production binary may have either test-looking name.
+	for _, name := range []string{"/tmp/corvint-tasks.test", "/tmp/corvint-tasks.test.exe"} {
+		if isTestBinary([]string{name}) {
+			t.Errorf("ordinary production binary %q classified as a test", name)
 		}
 	}
 	if isTestBinary(nil) {

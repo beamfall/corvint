@@ -30,7 +30,7 @@ const specRegenerationTimeout = 5 * time.Minute
 // V1-1467): conflicted is ort's own `merge-tree -z` result, every path ort conflicted on is
 // regeneratedConflict, every path where the merge tree differs from ort's written tree is a
 // generatedSpecFiles entry, and a
-// private clone of the merge, running the merge's own script/gen-spec-requirements.sh --all,
+// private clone of ort's written tree, running its script/gen-spec-requirements.sh --all,
 // stages a tree equal to the merge tree. Nothing in the repository, its index or its refs is
 // written. Any doubt (a parse, a replay or a timeout failure) is false: the merge stays unbound.
 func (b *batch) regeneratedSpecs(merge, tree, conflicted string) bool {
@@ -65,26 +65,40 @@ func (b *batch) regeneratedSpecs(merge, tree, conflicted string) bool {
 	if !b.gitSucceeds("cat-file", "-e", merge+":script/gen-spec-requirements.sh") {
 		return false
 	}
-	return b.replaySpecs(merge, tree)
+	return b.replaySpecs(written, tree)
 }
 
-// replaySpecs checks merge out in a private clone that reads the repository's objects as an
-// alternate, runs its script/gen-spec-requirements.sh --all into a scratch directory, stages the
-// three outputs over the checkout and compares the staged tree with tree.
-func (b *batch) replaySpecs(merge, tree string) bool {
+// replaySpecs loads ort's merged inputs alone in a private clone, including the preserved README
+// prose and INDEX fields. Replaying from the candidate would let hand edits validate themselves.
+// The complete staged tree comparison includes file modes (DCW-V0-1924).
+func (b *batch) replaySpecs(written, tree string) bool {
 	if b.scratch == "" {
 		b.scratchGit("rev-parse", "--git-dir")
+	}
+	// Refuse non-regular candidate paths before checking out or writing anything. In particular,
+	// a symlink must never turn a replay write into a write to the original checkout.
+	for _, revision := range []string{written, tree} {
+		entries, status := b.scratchGit(append([]string{"ls-tree", revision, "--"}, generatedSpecFiles...)...)
+		rows := nonEmpty(strings.Split(chomp(entries), "\n"))
+		if status != 0 || len(rows) != len(generatedSpecFiles) {
+			return false
+		}
+		for _, row := range rows {
+			if !strings.HasPrefix(row, "100644 blob ") && !strings.HasPrefix(row, "100755 blob ") {
+				return false
+			}
+		}
 	}
 	clone := filepath.Join(b.scratch, "specs-replay")
 	out := filepath.Join(b.scratch, "specs-replay-out")
 	defer os.RemoveAll(clone)
 	defer os.RemoveAll(out)
 	if b.replayGit(b.scratch, "init", "-q", "--template=", clone) != nil ||
-		os.WriteFile(filepath.Join(clone, ".git", "objects", "info", "alternates"), []byte(b.objects+"\n"), 0o600) != nil ||
+		os.WriteFile(filepath.Join(clone, ".git", "objects", "info", "alternates"), []byte(filepath.Join(b.scratch, "repository.git", "objects")+"\n"), 0o600) != nil ||
 		os.Mkdir(out, 0o700) != nil {
 		return false
 	}
-	if b.replayGit(clone, "checkout", "-q", "-f", "--detach", merge) != nil {
+	if b.replayGit(clone, "read-tree", "--reset", "-u", written) != nil {
 		return false
 	}
 	bash, err := exec.LookPath("bash")
@@ -102,8 +116,17 @@ func (b *batch) replaySpecs(merge, tree string) bool {
 		return false
 	}
 	for _, path := range generatedSpecFiles {
-		data, err := os.ReadFile(filepath.Join(out, filepath.Base(path)))
-		if err != nil || os.WriteFile(filepath.Join(clone, filepath.FromSlash(path)), data, 0o644) != nil {
+		destination := filepath.Join(clone, filepath.FromSlash(path))
+		source := filepath.Join(out, filepath.Base(path))
+		// Lstat refuses links and other non-regular files on both sides of the write.
+		for _, file := range []string{source, destination} {
+			info, err := os.Lstat(file)
+			if err != nil || !info.Mode().IsRegular() {
+				return false
+			}
+		}
+		data, err := os.ReadFile(source)
+		if err != nil || os.WriteFile(destination, data, 0o644) != nil {
 			return false
 		}
 	}

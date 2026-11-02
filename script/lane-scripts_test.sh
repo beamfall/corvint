@@ -1994,9 +1994,41 @@ echo "closeout-debt report"
 exit "${LW_RECONCILE_RC:-0}"
 STUB
 chmod +x "$lw/reconcile"
-lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
-printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
+# ASD-V0-1922: use a real, stale tracking ref and a disposable local origin.
+git init -q -b main "$lw/origin"
+printf 'before merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" add merged
+git -C "$lw/origin" commit -q -m before
+git clone -q "$lw/origin" "$lw/checkout"
+mkdir -p "$lw/checkout/script"
+cp "$script/pr-landing-watch.sh" "$lw/checkout/script/"
+printf 'merged\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am merged
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$lw/checkout/script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+# A failed fetch must not consume the once-only marker or invoke reconcile.
+git -C "$lw/checkout" remote set-url origin "$lw/missing-origin"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unfetched merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "failed fetch consumed reconciliation"
+git -C "$lw/checkout" remote set-url origin "$lw/origin"
+# Even after a successful fetch, an absent merge commit must remain retryable.
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$head40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=2 '* && ! -e $lw/s/reconciles ]] || fail "unverified merge reconciled: $out"
+grep -q '^reconciled=' "$lw/state/pr-19" && fail "missing merge consumed reconciliation"
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
+out=$(lwr 19)
+[[ $out == *'RECONCILE status=0 '* && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "verified merge was not retried: $out"
+/bin/rm -f "$lw/s/reconciles" "$lw/state/alerts.log"
+# Move origin ahead again: the first successful pass must refresh origin/main.
+printf 'later merge\n' > "$lw/origin/merged"
+git -C "$lw/origin" commit -q -am later
+merge40=$(git -C "$lw/origin" rev-parse HEAD)
+printf 'MERGED\tfalse\t%s\t%s\n' "$head40" "$merge40" > "$lw/s/view"
 out=$(lwr 7)
+[[ $(git -C "$lw/checkout" rev-parse origin/main) == "$merge40" ]] || fail "reconciled against stale origin/main"
 [[ $out == "MERGED
 RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch missed a merged PR or its reconcile: $out"
 [[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "a merged PR was reconciled twice"

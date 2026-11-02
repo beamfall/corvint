@@ -54,11 +54,14 @@ settled-barrier contract, including its exclusion of hostile editors, is unchang
 - `PUR-V0-005`: The amendment adds no top-level recovery verb and no reader error code. Both stay
   owner-pending.
 - `PUR-V0-1920`: (experimental under the standing lane auto-accept, 2026-11-02; V1-4261) A Go test
-  binary (argv[0] named `PKG.test` or `PKG.test.exe`) whose source path resolves to a Git checkout
+  binary (argv[0] named `PKG.test` or `PKG.test.exe` and at least one `-test.*` argument supplied
+  by `go test`) whose source path resolves to a Git checkout
   MUST refuse the writer lock, and so `pause`, `unpause` and every other writer, on that checkout's
   own common directory with `OUT_OF_SCOPE` before any lock file is opened. Before any test runs it
   MUST export that directory as `CORVINT_TASKS_FORBID_COMMON_DIR` unless the variable is already
-  set, so a helper or a built `corvint-tasks` child launched in the wrong working directory inherits
+  set. An ordinary `go build` binary MUST NOT be classified as a test or export the guard merely
+  because its executable has a `.test` or `.test.exe` suffix. A helper or a built `corvint-tasks`
+  child launched in the wrong working directory inherits
   the refusal. Reads take no lock and are unaffected. Failure mode before the change: a lane test or
   qualification child whose working directory was the live checkout paused the live store and the
   barrier stayed until an operator noticed. Non-goals: a self-expiring barrier (the frozen
@@ -114,7 +117,7 @@ pending UNPAUSE returns to the prior unsupported state.
 | `PUR-V0-003` | `TestV10309_PendingUnpauseDivergentTicketsRecover` |
 | `PUR-V0-004` | `TestV10309_PendingUnpauseRecoversOffIntentBranch` |
 | `PUR-V0-005` | Design requirement; no runtime test. |
-| `PUR-V0-1920` | `refuseForbiddenStore`, `testSourceCommonDir`, `isTestBinary` in `internal/tasks/authority/live_store_guard.go`, called by `acquireLock`; `TestPURV01920_TestBinaryGuardsItsOwnCheckout`, `TestPURV01920_IsTestBinary` |
+| `PUR-V0-1920` | `refuseForbiddenStore`, `testSourceCommonDir`, `isTestBinary` in `internal/tasks/authority/live_store_guard.go`, called by `acquireLock`; `TestPURV01920_TestBinaryGuardsItsOwnCheckout`, `TestPURV01920_IsTestBinary` (test flags required; production `.test` and `.test.exe` names alone do not enable the guard) |
 | `PUR-V0-1921` | `TestPURV01921_ForbiddenStoreRefusesPause`: `pause` (OWNER and OPERATOR) and `unpause` refuse `OUT_OF_SCOPE` with state and intent untouched and no `barrier.json`; the same pause succeeds once the variable names another directory; it fails before the change (pause returned OK) |
 
 ## Unresolved decisions

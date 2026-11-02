@@ -870,7 +870,7 @@ static_packages() {
 # exactly as the full run lists it (bash32-check also scanning untracked scripts), then go build and
 # vet of the changed packages, or a print-only row saying why none ran.
 static_steps() {
-  local go_wrap='' sbase=$1 pkgs=() p line name
+  local go_wrap='' sbase=$1 pkgs=() builds=() p f line name selected
   [[ -z $go_wrapper ]] || go_wrap="$(printf '%q' "$go_wrapper") "
   while IFS= read -r line; do
     name=${line%%$'\t'*}
@@ -882,13 +882,27 @@ static_steps() {
     printf 'go-build-vet (no base)\tprintf "%%s\\n" %q\n' "go-build-vet: no base (--base, BATCH_PRECHECK_BASE or a merge base with origin/main), so no changed package is built or vetted"
     return 0
   fi
-  while IFS= read -r p; do pkgs+=("$p"); done < <(static_packages "$sbase")
+  # A process substitution loses static_packages' exit status, turning a bad base or Git error
+  # into a successful empty selection. Capture its status before consuming the package list.
+  selected=$(static_packages "$sbase") || return 1
+  while IFS= read -r p; do [[ -z $p ]] || pkgs+=("$p"); done <<< "$selected"
   if ((${#pkgs[@]} == 0)); then
     printf 'go-build-vet (0 packages)\tprintf "%%s\\n" %q\n' "go-build-vet: no Go package changed since $sbase"
     return 0
   fi
-  printf 'go-build-vet (%d packages)\t%senv GOCACHE=%q GOTOOLCHAIN=local go build %s && %senv GOCACHE=%q GOTOOLCHAIN=local go vet %s\n' \
-    "${#pkgs[@]}" "$go_wrap" "$gocache" "${pkgs[*]}" "$go_wrap" "$gocache" "${pkgs[*]}"
+  # go build rejects a package holding only _test.go files; go vet still checks those tests.
+  for p in "${pkgs[@]}"; do
+    for f in "$p"/*.go; do
+      case $f in *_test.go) continue ;; esac
+      builds+=("$p")
+      break
+    done
+  done
+  printf 'go-build-vet (%d packages)\t' "${#pkgs[@]}"
+  if ((${#builds[@]})); then
+    printf '%senv GOCACHE=%q GOTOOLCHAIN=local go build %s && ' "$go_wrap" "$gocache" "${builds[*]}"
+  fi
+  printf '%senv GOCACHE=%q GOTOOLCHAIN=local go vet %s\n' "$go_wrap" "$gocache" "${pkgs[*]}"
 }
 
 # static_phase runs the static steps in order through run_one (so through the ledger when reuse is
@@ -898,7 +912,11 @@ static_steps() {
 static_phase() {
   local sdir=$dir/static i n name rc secs t0=$SECONDS sbase=${base:-$(git merge-base HEAD origin/main 2> /dev/null)}
   mkdir -p "$sdir" || return 2
-  static_steps "$sbase" > "$sdir/steps"
+  if ! static_steps "$sbase" > "$sdir/steps"; then
+    printf 'batch-precheck: FAIL static go-build-vet (package discovery)\n'
+    printf 'fix: verify --base %s names a commit and Git can list changed and untracked Go files; then rerun script/batch-precheck.sh --static\n' "$sbase"
+    return 1
+  fi
   n=$(grep -c . "$sdir/steps")
   : > "$dir/static.pass.tmp"
   for ((i = 1; i <= n; i++)); do
