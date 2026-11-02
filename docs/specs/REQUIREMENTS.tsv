@@ -2787,6 +2787,9 @@ TCD-V0-188	docs/specs/corvint-tasks-closeout-debt-v0.md	before the claim, each c
 TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the claim releases the attempt (with the failure code as the	unrecorded	-
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
 TCD-V0-680	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3716; refines	standing	2026-11-01; V1-3716
+TCD-V0-1101	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4266; amends	standing	2026-11-01; V1-4266
+TCD-V0-1102	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4266; refines	standing	2026-11-01; V1-4266
+TCD-V0-1103	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-4267; amends	standing	2026-11-01; V1-4267
 TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151)	standing	V1-3548
 TCD-V0-807	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3541) a committed `ticket	standing	V1-3541
 TCD-V0-870	docs/specs/corvint-tasks-closeout-debt-v0.md	(experimental under the standing lane auto-accept; V1-3496; amends TCD-V0-163 an	standing	V1-3496
@@ -3010,6 +3013,8 @@ TLF-V0-800	docs/specs/corvint-tasks-lane-flow-v0.md	The population `ticket effec
 TLF-V0-742	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3957; refines	standing	2026-11-01; V1-3957
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
 TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
+TLF-V0-1101	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
+TLF-V0-1102	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-4268);	standing	2026-11-01; V1-4268
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-

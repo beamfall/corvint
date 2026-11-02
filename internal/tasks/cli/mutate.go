@@ -53,8 +53,13 @@ type mutateFlags struct {
 	// in-parser mutation help is always the full text.
 	verbose bool
 	// batch is --batch, recognized only in a flag position, never as the
-	// value of another flag (CAL-V0-106); only ticket refine accepts it.
+	// value of another flag (CAL-V0-106); only ticket refine and ticket
+	// progress accept it (TLF-V0-1102).
 	batch bool
+	// targetsFile is --targets-file FILE, the progress batch read from a
+	// file; it implies --batch and only ticket progress takes it
+	// (TLF-V0-1102).
+	targetsFile string
 	// notDuplicateOf is each --not-duplicate-of, accepted only by ticket
 	// create (TCL-V0-004).
 	notDuplicateOf []string
@@ -82,10 +87,10 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 		return res
 	}
 	if flags.batch {
-		if operation != mutation.OpRefine {
-			return usage(cmd, "unknown flag --batch: only ticket refine has a batch form")
+		if !slices.Contains(batchOperations, operation) {
+			return usage(cmd, "unknown flag --batch: only ticket refine and ticket progress have a batch form")
 		}
-		return refineBatchCommand(env, cmd, flags)
+		return mutationBatchCommand(env, cmd, operation, flags)
 	}
 	if flags.help {
 		return mutationHelp(cmd, operation)
@@ -241,6 +246,18 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 			f.others++
 			continue
 		}
+		if args[i] == "--targets-file" {
+			if cmd[len(cmd)-1] != "progress" {
+				return f, malformedUsage(cmd, "unknown flag --targets-file: only ticket progress reads a batch from a file (TLF-V0-1102)")
+			}
+			if i+1 >= len(args) {
+				return f, usage(cmd, args[i]+" needs a value")
+			}
+			i++
+			f.targetsFile, f.batch = args[i], true
+			f.others++
+			continue
+		}
 		if args[i] == "--not-duplicate-of" {
 			if cmd[len(cmd)-1] != "create" {
 				return f, usage(cmd, "unknown flag --not-duplicate-of: only ticket create runs the duplicate check")
@@ -272,6 +289,9 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 	}
 	if f.payload != "" && f.payloadFromStdin {
 		return f, usage(cmd, "--payload and --payload-stdin are exclusive")
+	}
+	if f.targetsFile != "" && (f.payload != "" || f.payloadFromStdin) {
+		return f, usage(cmd, "--targets-file, --payload and --payload-stdin are exclusive")
 	}
 	if f.verbose && !f.help {
 		return f, usage(cmd, "--verbose is accepted only with --help")
@@ -392,6 +412,10 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	if operation == mutation.OpRefine {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"
 		o.Set("batch", wire.String(batchHelp))
+	}
+	if operation == mutation.OpProgressSet {
+		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON | --targets-file FILE) [--issued-at TS] [--role ROLE]"
+		o.Set("batch", wire.String(progressBatchHelp))
 	}
 	o.Set("usage", wire.String(usageText))
 	o.Set("note", wire.String("the payload is a JSON object with exactly these keys; CREATE may add localToken, HOLD may add condition, and REFINE takes a non-empty subset. The CLI canonicalizes it before the request digest (sorted keys, compact separators, literal UTF-8): whitespace, object key order and escape form are free, set arrays such as labels and touchPaths are sorted (duplicates refuse), and ordered arrays such as acceptanceCriteria and dependencies keep the order given; see docs/TASKS-EXTERNAL-AGENTS.md"))

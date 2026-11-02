@@ -539,6 +539,46 @@ closeout step is missing.
   Failure modes: a completion whose `recordedAt` carries no date is not counted by day. Evidence:
   `TestTCDV0680_ReceiptAuditReportsCompletionHealth`, `TestTCDV0680_CompletionHealthWindow`.
   Rollback: drop `receipt_health.go` and its two lines in `receiptAudit`.
+- `TCD-V0-1101`: (experimental under the standing lane auto-accept (2026-11-01); V1-4266; amends
+  TCD-V0-185) the gated close derives each `CLOSE` row's claim scope before any write, from the
+  rename-free diff of CANDIDATE against BASE, and the claim is always bounded:
+  - an empty diff proves no scope, so the row is `UNRUNNABLE` `MALFORMED` before any write, with a
+    recovery naming `--seal` and `--manual`;
+  - with 1..256 changed paths, the claim is the TCD-V0-185 claim with `--scope-from-diff`,
+    unchanged;
+  - over 256 changed paths, a ticket that declares a PATH scope (QUALIFIED `touchPaths` or PATH
+    resources) claims with that DECLARED scope and no scope flag. A changed path the declaration
+    does not cover makes the row `UNRUNNABLE` `OUT_OF_SCOPE` before any write, with a recovery
+    naming `--seal` and `--manual`;
+  - over 256 changed paths, any other ticket claims with `--scope KEYS`, where KEYS is the diff
+    collapsed to directory keys. Each round replaces every entry at the deepest path depth by its
+    parent directory key, which ends in `/`, and drops every entry such a key covers. Rounds stop
+    at the first set of at most 256 entries. A top-level file stays an exact key.
+  When no bounded scope exists, because the top-level entries alone exceed 256, the row is
+  `UNRUNNABLE` `LIMIT_EXCEEDED` before any write, with a recovery naming `--seal` and `--manual`. A
+  diff this clone cannot read makes the row `UNRUNNABLE` `PREREQUISITE_UNSATISFIED`, with a recovery
+  naming `git fetch origin` and `--manual`. The gated path never claims `WHOLE_REPOSITORY`, and it never prints the
+  `claim --scope-from-diff` recovery, which batch-close cannot take. The collapsed keys are the
+  attempt's REQUESTED scope, so the claim request, its receipt and the claim result's `scope`
+  record them (ATR-V0-211). Submitting CANDIDATE's tree then passes the scope check, because each
+  changed path lies under a key. Design: PR #48 changed 712 paths, and every ticket of it failed
+  `LIMIT_EXCEEDED` at the claim. Non-goal: a collapsed scope reserves more than the diff, and so
+  serializes against more claims, for the length of the close. Rollback: revert; a diff over 256
+  paths fails the claim `LIMIT_EXCEEDED` again.
+- `TCD-V0-1102`: (experimental under the standing lane auto-accept (2026-11-01); V1-4266; refines
+  TCD-V0-189) each `taskman-batch-close/1` row adds `claimScope`, the scope the TCD-V0-1101 plan
+  derived, or null when the row was not planned. It holds `source` (`DIFF`, `DECLARED` or
+  `COLLAPSED`), `changedPaths` (the diff's path count) and `keys`. `keys` is the collapsed keys
+  for `COLLAPSED`, the declared paths for `DECLARED` and an empty list for `DIFF`, whose paths the
+  claim derives and records itself. `--manual` rows are unchanged.
+- `TCD-V0-1103`: (experimental under the standing lane auto-accept (2026-11-01); V1-4267; amends
+  TCD-V0-180) `ticket batch-delivered` and `ticket batch-close` refuse a batch PR record with an
+  absent or empty `state` as `MALFORMED`. The refusal names the missing `state` field and the full
+  field list the verbs read, as a ready command:
+  `gh pr list --state merged --json number,state,title,body,headRefName,headRefOid,mergeCommit,labels,mergedAt`.
+  A state that is not valid envelope prose is refused the same way. A refusal never reads
+  `message withheld` in place of the state, and a present non-`MERGED` state still refuses
+  `PREREQUISITE_UNSATISFIED` naming it. Rollback: revert.
 - `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
   (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
   is not yet a commit on the protected intent branch, the result adds a warning. The warning names
@@ -915,6 +955,9 @@ closeout step is missing.
 | TCD-V0-731 | V1-3713 criteria 1, 2, 4 | `internal/tasks/cli` (`batchInput.hits`, `laneScan`, `closeoutDebtCommand` merge dedupe, `closeoutProposals`, `closeRow.submit`), `internal/tasks/store` (`ScanLaneCommits`, `ScannedCommit.Parents`) | `TestTCDV0731_BatchDeliveredPR25And38Shapes` (PR #25 and #38 shaped fixtures, lane-commit delivery, `laneCommits`); `TestTCDV0731_CloseoutDebtSkipsDuplicateMergeRows` (a lane merge and the batch merge enclosing it as the only citers list once); `TestTCDV0731_BatchOfLaneMergesReadsEveryLaneCommit` (batch-delivered and closeout-debt proposals over a batch of two lane merges); `TestTCDV0731_ScanLaneCommitsReadsEveryMergedNonMergeCommit` | none |
 | TCD-V0-740 | V1-3829 criteria 1, 2 | `internal/tasks/cli` (`closeoutDebtCommand` `--skip`, `nextSkip`), `internal/tasks/store` (`ScanCommitsFrom`) | `TestTCDV0740_SkipContinuesATruncatedScan` (pages at `--limit 2` list every row of the full scan; refusals) | none |
 | TCD-V0-741 | V1-3870 criteria 1, 2 | `internal/tasks/cli` (`closeoutIndex.markedNotDelivered`, `setExcluded`), `internal/tasks/store` (`CommitChanges`, `CommitChange.BuildLogOnly`) | `TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery` (build-log-only NOT DELIVERED citation, unmarked build-log-only citation, PARTIAL code commit, code commit citation, mixed citers); `TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge` (an excluded build-log-only constituent leaves the delivering merge a candidate) | delivery-screen exclusion not in scope |
+| TCD-V0-1101 | V1-4266 | `internal/tasks/cli` (`gatedBatch.plan`, `planScope`, `collapseScope`, `runGated`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (a 712-path batch merge: an undeclared ticket claims a `COLLAPSED` REQUESTED scope of at most 256 directory keys recorded in the claim receipt and closes `VERIFIED`; a declared ticket the diff exceeds is `UNRUNNABLE` `OUT_OF_SCOPE` naming `--seal` and `--manual`, never claimed); `TestTCDV01101_CollapseScope` (deepest-level rounds, covered entries dropped, top-level overflow refused); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` unchanged | a live batch close of PR #48: NOT_RUN |
+| TCD-V0-1102 | V1-4266 | `internal/tasks/cli` (`gatedRowValue`) | `TestTCDV01101_GatedBatchCloseBoundsA712PathDiff` (`claimScope` `{source, changedPaths, keys}` on the dry run and the real run); `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`DIFF` rows) | none |
+| TCD-V0-1103 | V1-4267 | `internal/tasks/cli` (`parseBatchInput`, `batchPRFields`) | `TestTCDV01103_MissingStateNamesTheField` (batch-delivered and batch-close refuse `MALFORMED` naming `state` and the field list, never `message withheld`; an OPEN state still `PREREQUISITE_UNSATISFIED`) | none |
 
 ## Rollout and rollback
 
@@ -970,6 +1013,10 @@ id under the older binary refuses `REQUEST_ID_CONFLICT`, so use a fresh request 
 
 TCD-V0-184 adds the same member to full `plan preview` entries, with no store, receipt, plan
 selection or `nextAction` change. To roll back, revert the change; plan entries lose the member.
+
+TCD-V0-1101..1103 change only how the gated close picks its claim scope, one additive `/1` row
+member and two refusal texts. There is no store format, receipt, wire codec or policy change; a
+collapsed claim is an ordinary REQUESTED-scope claim. To roll back, revert the change.
 
 TCD-V0-185..190 make the gated close the default. They add one output-only profile revision
 (`taskman-batch-close/1`), one digest profile (`taskman-batch-merge/0`), two flags (`--seal`,

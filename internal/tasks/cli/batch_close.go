@@ -189,6 +189,7 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 	res.Items = []wire.Value{batchCloseValue(in, rows, merge, runURL, evidence, string(issued), dryRun, gb)}
 	res.Untrusted = true
 	res.Warnings = append(res.Warnings, in.laneWarnings()...)
+	res.Warnings = append(res.Warnings, in.progressWarnings()...)
 	if w := in.excludedWarning(); w != "" {
 		res.Warnings = append(res.Warnings, w)
 	}
@@ -242,6 +243,9 @@ func (r *closeRow) submit(env Env, cmd []string, actor mutation.Binding, issued 
 	}
 	if r.hit.lane != 0 {
 		reason = "Delivered by lane PR #" + strconv.FormatInt(r.hit.lane, 10) + "; merged in batch PR #" + strconv.FormatInt(in.number, 10) + " at " + merge + "; CI green: " + runURL
+	}
+	if r.hit.source == sourceProgress {
+		reason += "; delivery read from recorded progress " + r.hit.phase + " (TLF-V0-1101)"
 	}
 	ev := make([]wire.Value, 0, len(evidence))
 	for _, d := range evidence {
@@ -344,6 +348,11 @@ func batchCloseValue(in *batchInput, rows []closeRow, merge, runURL string, evid
 		o.Set("local", wire.String(r.local))
 		o.Set("status", wire.String(r.status))
 		o.Set("lanePr", nullableLane(r.hit.lane))
+		if r.mentionedOnly {
+			o.Set("source", wire.Null())
+		} else {
+			o.Set("source", wire.String(r.hit.source))
+		}
 		o.Set("disposition", wire.String(r.disposition))
 		o.Set("code", orNull(r.code))
 		o.Set("recovery", orNull(r.recovery))
