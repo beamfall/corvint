@@ -273,6 +273,26 @@ profile, execution or closing-authority semantics. Compatibility remains FALLBAC
 - `ASD-V0-1970`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4326) Case 1b of `script/batch-precheck_test.sh` MUST run the Pi capability inventory assertion with explicit TAP output in the current Node process, without the isolated `--test` child runner. A tuple matching the package MUST exit 0 and report the named `PWV-V0-011 registered tools` test as passing; a tuple with adapter version `0.0.0-stale` MUST exit 1, report that same test as failing and name the stale adapter version in its assertion output. A generic file-level failure or an unexecuted assertion is insufficient. Missing Node remains an explicit `NOT_RUN` skip under `ASD-V0-044`; this fixture does not qualify a live Pi host.
 - `ASD-V0-1971`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4327; refines `ASD-V0-032`) The base-present comparison MUST also replace source line/column coordinates following `.go`, `.sh`, `.mjs`, `.js` or `.ts` paths, shell-test `group N: line N:` locations, `case "..." line N:` locations, and shell-test group-pass/failure and case-failure summary counts with stable placeholders. It MUST retain the source path, case name and diagnostic text, including numeric values and requirement IDs. Shifted inherited findings alone MUST remain base-present; a genuinely new finding beside them MUST still fail as introduced. Normalization MUST parse successfully with BSD awk, including on plain input. It MUST preserve occurrence multiplicity: more normalized-identical findings at the head than at the base MUST fail as introduced. These positional replacements do not erase arbitrary numbers or admit a failure absent from the base.
 - `ASD-V0-1972`: (accepted under the owner's standing auto-accept (2026-10-11); V1-4328) Before logging or remote packing, `script/heavy.sh` MUST check actual write access to its lock directory and existing slot files, selection/fallback logs and transport `TMPDIR`. After routing locally and before scratch-index creation, load waiting or lock acquisition, it MUST also check effective `TMPDIR`, `GOTMPDIR` when set, `GOCACHE` and `CORVINT_GOCACHE` when set, including existing home-disk defaults on tmpfs hosts and explicit wrapped `env` path assignments after options (`-u NAME`, `-uNAME`, `-i`, `--unset=NAME`, `-`, `--`). Local cache paths discarded by an offload MUST NOT prevent that offload or create a local cache. An existing directory alone is insufficient: directory checks MUST create, write and remove a private probe. Any unwritable checked path MUST cause one refusal with exit 2 before running the command, identify the unusable settings found at that phase, and print one `fix:` line naming worktree-local overrides for `HEAVY_LOCK_DIR`, `HEAVY_SELECTION_LOG`, `HEAVY_FALLBACK_LOG`, `TMPDIR`, `GOTMPDIR`, `GOCACHE` and `CORVINT_GOCACHE`, reminding the caller to coordinate the lock directory with other host lanes. It MUST NOT silently create an isolated semaphore. Writable overrides MUST admit the command; `--print-lock-dir` remains read-only. This change neither bypasses sandbox permissions nor changes remote-host writable-path admission.
+- `ASD-V0-2010`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4331)
+  Lane closeout and batch-precheck MUST run a static spec-capacity phase before mechanical
+  repins, affected planning, Go builds/tests, slow doc gates and receipt reuse. It uses
+  SRG-V0-744's staged-spec counts, default margin 8 (overridable through
+  `SPEC_CAPACITY_MARGIN`), and SRG-V0-745 attribution: dogfood-closeout MUST pass its lane
+  `BASE=$(BASE)` to spec-capacity-check; batch-precheck MUST use `BATCH_PRECHECK_BASE`, falling
+  back to `DOGFOOD_BASE` (an explicit `--base` overrides these). Above 256 fails; exactly 256
+  fails only with IDs added since BASE, otherwise warns with the companion route. Any static failure
+  stops the run and invalidates any existing precheck receipt and its `.lane` companion.
+  `--static-check` runs only this phase with the same failure invalidation; workflow-only
+  fixtures with neither README.md nor INDEX.json have no spec corpus and skip the phase.
+- `ASD-V0-2011`: (accepted under the owner's standing auto-accept (2026-11-02); V1-4332)
+  That static phase MUST cheaply check worktree docs/specs/README.md rows against INDEX.json,
+  before the slower internal/specindex check: byte-identical duplicate spec rows fail with a fix
+  line naming the row and all its line numbers. Each indexed spec MUST have exactly one
+  unanchored file row; missing, anchored-only or multiple file rows fail with the path, available
+  line numbers and repair. Hand-owned links to product/decision contracts outside docs/specs
+  remain outside this spec-row check. The check MUST need no Go build and remain Bash 3.2
+  compatible. Existing status/header/claim conformance stays with internal/specindex.
+
 ### Lane selection-baseline deferral
 
 - `ASD-V0-1990`: (accepted, owner-delegated V1-4329 lane charter, 2026-11-02; amends `ASD-V0-944` and extends `ASD-V0-825`) In lane-closeout mode (`BATCH_PRECHECK_LANE_CLOSEOUT=1`, `ASD-V0-1991`), `script/batch-precheck.sh` MUST defer `selection-baseline-check` to the assembled batch precheck, printing `lane closeout: selection-baseline-check deferred to the batch precheck (ASD-V0-1990)`, without building or running that target, regardless of changed Go inputs or planner availability. This applies to both `make dogfood-closeout`'s pre-bind pass and `make dogfood-closeout-precheck`'s `BATCH_PRECHECK_SINCE_RECEIPT=1` pass (`DCW-V0-923`), whose baseline-precheck recipe lines explicitly set the dedicated mode variable. Its step MUST bypass the gate ledger, report `NOT_RUN` rather than PASS in progress and the result table, and retain `not-run selection-baseline-check` with the explicit deferral reason in any receipt. Such a receipt MUST carry the existing `.lane` head marker even when no companion build was skipped; a non-lane since-receipt run MUST ignore that receipt before either the HEAD shortcut or ancestor narrowing. Outside lane-closeout mode, selection-baseline selection and execution MUST remain unchanged, including CI and plain `make batch-precheck`. If the CI doc-gates step remains an opaque aggregate because its Makefile recipe cannot be expanded, lane mode MUST refuse before running steps rather than let the aggregate run the deferred target; non-lane fallback remains unchanged. Non-goals: changing the baseline workload or waiving the batch check. Failure modes: an unmarked receipt could suppress the batch check, or a print-only step could falsely count as PASS. Evidence: `script/batch-precheck_test.sh` group 17 (both lane passes, unusable plan, no base, receipt and batch rerun), plus group 15 for existing non-lane behavior; host wall-time observations or explicit `NOT_OBSERVED` in `docs/build-log/2026-11-02-sbd-w46.md`. Rollback: remove the lane deferral and restore `ASD-V0-944` selection in both modes.
@@ -518,6 +538,16 @@ omissions and zero-change OUT_OF_SCOPE result. Initial coordination reports miss
 intent scope and outcome plus its unchanged-base preparation failure; these are not erased or
 presented as a finished change. Actual route/use and final qualification pointers belong in the
 same change's BUILD-LOG evidence record.
+
+| Requirement | Implementation and deterministic evidence |
+|---|---|
+| ASD-V0-2010 | `script/batch-precheck.sh` static phase; `script/batch-precheck_test.sh` case 1d checks closeout BASE forwarding, both batch base variables, LANE=1 refusal before repins for newly filled 256, warning/pass for untouched 256, and seeded HEAD receipt/`.lane` invalidation on normal and static-only failures; `make spec-capacity-check` |
+| ASD-V0-2011 | `script/check-spec-readme.sh`; `script/batch-precheck_test.sh` case 1d (duplicate fix and both line numbers, valid row, anchored-only and missing row); `bash script/check-bash32_test.sh` |
+
+For V1-4331/V1-4332, rollback removes the static calls and README check together with their
+Makefile integration. This restores the slower existing specindex/OCM guards; no obligation cap,
+status authority, ranking, hosted dependency or task completion semantics change. Unchanged full
+specs warn; filling a spec to 256 since BASE fails. Moving requirements requires a separate scoped change.
 
 ## Failure and rollback
 
