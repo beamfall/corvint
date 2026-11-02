@@ -4664,6 +4664,7 @@ GL-V0-007	docs/specs/gate-ledger-v0.md	`CORVINT_GATE_LEDGER=off` MUST make every
 GL-V0-008	docs/specs/gate-ledger-v0.md	Two runs of one key at once MUST execute the step once: the second MUST wait on	unrecorded	-
 GL-V0-009	docs/specs/gate-ledger-v0.md	(accepted, decision 0511) A resolved package MUST run under its own key, step `g	owner	decision 0511
 GL-V0-050	docs/specs/gate-ledger-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-0634) A package	standing	2026-10-11; V1-0634
+GL-V0-1920	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-02; V1-4262; amends	standing	2026-11-02; V1-4262
 GL-V0-051	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-2985; amends	standing	2026-10-28; V1-2985
 GL-V0-720	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3846; amends	standing	2026-11-01; V1-3846
 GL-V0-600	docs/specs/gate-ledger-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3580, V1-4099)	standing	2026-11-01; V1-3580; V1-4099

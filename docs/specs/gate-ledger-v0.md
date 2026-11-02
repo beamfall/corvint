@@ -151,6 +151,13 @@ therefore come from something keyed on content, not from Go's cache.
   is the AFP-V0-023 hazard, enforced only by the full-CI Landlock wrapper, so the ledger shares
   that trust; it adds none. Rollback: drop `undeclaredUnresolved` and the declared bind in
   `internal/gateselect/select.go`; declared packages return to the tree key.
+- `GL-V0-1920`: (experimental under the standing lane auto-accept, 2026-11-02; V1-4262; amends
+  GL-V0-006) Pruning MUST tolerate concurrent writers and prunes of one ledger directory: a record
+  globbed by one prune and removed by another before it is stat-ed MUST be skipped, and when fewer
+  records survive than the bound, that prune MUST remove nothing. It MUST NOT panic or fail the
+  step it follows. Failure mode before the change: the overflow `records[:len(records)-maxRecords]`
+  went negative and `make gate` died with `slice bounds out of range [:-N]`. Rollback: revert the
+  `overflow` guard; concurrent gates may again panic in `prune`.
 - `GL-V0-051`: (experimental under the standing lane auto-accept, 2026-10-28; V1-2985; amends
   `GL-V0-003` for salted names) A `run` step named `NAME+SALT`, with a non-empty NAME and SALT,
   MUST key on NAME's declared scope with the whole step string, salt included, in the key, so
@@ -279,6 +286,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `TestGoTestKeysResolvedPackagesPerPackage`: three resolved packages record with a `bound` proof, hit from a `git worktree add` checkout, an edit to a package's source reruns it and its dependent while a reader package hits, an edit to a path a test literal names reruns only that reader, an edit outside every nested bound hits; `TestPackageBoundsAttributesResolvedPackages`: the `-bounds` listing per rule and the unresolved reason; `TestPathMatcherAgreesWithNamesPath`: the batched rule (c) matcher equals `namesPath`; measured cross-worktree hit in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (2026-09-22) |
 | GL-V0-050 | `TestGoTestKeysDeclaredPackagesByTheirScope`: a declared `os.Getwd` package records per package, hits after an edit outside its scope, reruns after an edit under a declared entry or to the declaration, and an invalid declaration keys nothing by scope; `TestDeclaredPackagesAreBoundByTheirScope`: `-unresolved` omits the declared locator and keeps the undeclared one, `-bounds` lists its `declared` paths, and an invalid declaration is an error in both; both fail before the change |
 | GL-V0-051 | `TestRunStepKeysSaltedStepsByBaseScope`: `NAME+SALT` records, hits after a change outside NAME's scope, a different salt runs, an undeclared salted name records on the whole tree and reruns after any change, an unsalted undeclared name records nothing |
+| GL-V0-1920 | `TestPruneSurvivesConcurrentPrunes`: concurrent writers that each record and prune an over-full ledger never panic and leave at most the bound; `TestOverflowNeverSlicesBelowZero`: fewer survivors than the bound prune nothing |
 | GL-V0-600 | `TestInScopeBatchPrecheckForms`: `@root` matches a root file only, `docs/*.md` matches a top-level docs page but not a build-log entry or another extension, `@go` matches a Go file, a `testdata` file under a Go package, a nested `go.sum` and a data file beside a `.go` file, and not a workflow, a CEM, a build-log entry or a non-Go directory |
 | GL-V0-601 | `TestRunStepKeysBatchPrecheckScopes`: both steps hit after a new CEM or build-log entry and run after a change to a Go file, an embedded `testdata` file, `go.mod`, a root file or `script/`; `selection-baseline-check` runs after a cost-table or change-set edit and hits after a docs page edit, `capability-catalog-check` the reverse; measured hit on WSL (build log 2026-11-01-perf-w22) |
 
@@ -297,6 +305,7 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-009 | `packageKeys`, `packageKey`, `selectorBounds`, `listedFiles`, `runPackages`, `digestKey` in `tools/gate-ledger/main.go`; `packageBounds`, `attribute`, `attributeStructure` in `internal/gateselect/select.go` and `pathMatcher` in `internal/gateselect/readers.go` | `TestGoTestKeysResolvedPackagesPerPackage`; `TestPackageBoundsAttributesResolvedPackages`; `TestPathMatcherAgreesWithNamesPath` |
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
+| GL-V0-1920 | `prune` and `overflow` in `tools/gate-ledger/main.go` | `TestPruneSurvivesConcurrentPrunes`: 32 writers record then prune an over-full ledger and none panics (it panicked with `[:-2]` before the change); `TestOverflowNeverSlicesBelowZero` |
 | GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
 | GL-V0-600 | `goScope`, `rootScope`, `goDirectories`, `goInput`, `inScope` and `inputs` in `tools/gate-ledger/main.go` | `TestInScopeBatchPrecheckForms` |
 | GL-V0-601 | the `selection-baseline-check` and `capability-catalog-check` entries of `scopes` in `tools/gate-ledger/main.go` | `TestRunStepKeysBatchPrecheckScopes`; build log 2026-11-01-perf-w22 |
