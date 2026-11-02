@@ -1037,7 +1037,8 @@ export BATCH_PRECHECK_DIR=$dir BATCH_PRECHECK_LEDGER_BIN=$ledger
 # outside the salted prefixes) and one `git hash-object` call for every salt, instead of a
 # private-index digest of 8 git calls and a hash-object per step. The first salt is checked against
 # the per-step form; a mismatch or a failed batch leaves each step to hash its own.
-if [[ -n $ledger ]]; then
+# BATCH_PRECHECK_SHARED_DIGEST=off keeps the per-step digest and salt (same keys, more git calls).
+if [[ -n $ledger && ${BATCH_PRECHECK_SHARED_DIGEST:-} != off ]]; then
   if "$ledger" digest "$dir/ledger-digest.json" > "$dir/ledger-digest.log" 2>&1 < /dev/null; then
     export GATE_LEDGER_SHARED_DIGEST=$dir/ledger-digest.json
   else

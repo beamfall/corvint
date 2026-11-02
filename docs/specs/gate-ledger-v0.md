@@ -219,6 +219,7 @@ therefore come from something keyed on content, not from Go's cache.
   - The variable is outside the GO*, CGO_* and CORVINT_* prefixes the salt hashes, so the
     run-specific path never enters a key.
   - Measured in `docs/build-log/2026-11-01-csp-w33.md`.
+  - `BATCH_PRECHECK_SHARED_DIGEST=off` keeps the per-step digest and salts; their keys are the same.
   - Rollback: unset the variable in `script/batch-precheck.sh`; each step digests itself again.
 - `GL-V0-787`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4193; refines
   `GL-V0-775`) A scope entry `@deps:DIR` MUST add every file `go list -deps -test ./DIR`
