@@ -552,9 +552,10 @@ closeout step is missing.
     collapsed to directory keys. Each round replaces every entry at the deepest path depth by its
     parent directory key, which ends in `/`, and drops every entry such a key covers. Rounds stop
     at the first set of at most 256 entries. A top-level file stays an exact key.
-  When no bounded scope exists, the row is `UNRUNNABLE` `LIMIT_EXCEEDED` before any write, with a
-  recovery naming `--manual`. That happens when the top-level entries alone exceed 256, or the
-  diff cannot be read. The gated path never claims `WHOLE_REPOSITORY`, and it never prints the
+  When no bounded scope exists, because the top-level entries alone exceed 256, the row is
+  `UNRUNNABLE` `LIMIT_EXCEEDED` before any write, with a recovery naming `--seal` and `--manual`. A
+  diff this clone cannot read makes the row `UNRUNNABLE` `PREREQUISITE_UNSATISFIED`, with a recovery
+  naming `git fetch origin` and `--manual`. The gated path never claims `WHOLE_REPOSITORY`, and it never prints the
   `claim --scope-from-diff` recovery, which batch-close cannot take. The collapsed keys are the
   attempt's REQUESTED scope, so the claim request, its receipt and the claim result's `scope`
   record them (ATR-V0-211). Submitting CANDIDATE's tree then passes the scope check, because each
