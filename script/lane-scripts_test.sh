@@ -1986,9 +1986,34 @@ EOF
 chmod +x "$lw/gh"
 printf 'TestFlaky.*\n# comment\n' > "$lw/flakes"
 head40=0123456789abcdef0123456789abcdef01234567
-lwr() { GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+# The stub reconcile records RECONCILE_APPLY and exits LW_RECONCILE_RC (ASD-V0-1922).
+cat > "$lw/reconcile" << 'STUB'
+#!/usr/bin/env bash
+echo "apply=${RECONCILE_APPLY:-}" >> "$LW_SCENARIO/reconciles"
+echo "closeout-debt report"
+exit "${LW_RECONCILE_RC:-0}"
+STUB
+chmod +x "$lw/reconcile"
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s LANDING_RECONCILE=$lw/reconcile "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
 printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
-[[ $(lwr 7) == MERGED ]] || fail "landing watch missed a merged PR"
+out=$(lwr 7)
+[[ $out == "MERGED
+RECONCILE status=0 log=$lw/state/reconcile-7.log" ]] || fail "landing watch missed a merged PR or its reconcile: $out"
+[[ $(lwr 7) == MERGED && $(wc -l < "$lw/s/reconciles") == 1 ]] || fail "a merged PR was reconciled twice"
+[[ $(cat "$lw/s/reconciles") == apply= ]] || fail "a dry pass applied: $(cat "$lw/s/reconciles")"
+grep -q 'closeout-debt report' "$lw/state/reconcile-7.log" || fail "reconcile output not kept"
+[[ ! -e $lw/state/alerts.log ]] || fail "a clean reconcile alerted: $(cat "$lw/state/alerts.log")"
+# Debt alerts; --act passes RECONCILE_APPLY through; a refusal alerts as refused; --no-reconcile skips.
+out=$(LW_RECONCILE_RC=1 RECONCILE_APPLY=manual lwr --act 16); rc=$?
+[[ $rc == 0 && $out == "MERGED
+RECONCILE status=1 log=$lw/state/reconcile-16.log" ]] || fail "debt reconcile: rc=$rc $out"
+[[ $(tail -1 "$lw/s/reconciles") == apply=manual ]] || fail "--act did not pass RECONCILE_APPLY: $(cat "$lw/s/reconciles")"
+grep -q "pr=16 reconcile=closeout-debt log=$lw/state/reconcile-16.log" "$lw/state/alerts.log" || fail "debt not alerted"
+out=$(LW_RECONCILE_RC=2 RECONCILE_APPLY=manual lwr 17)
+[[ $out == *'RECONCILE status=2 '* && $(tail -1 "$lw/s/reconciles") == apply= ]] || fail "refused or dry reconcile: $out"
+grep -q 'pr=17 reconcile=refused' "$lw/state/alerts.log" || fail "refused reconcile not alerted"
+[[ $(lwr --no-reconcile 18) == MERGED && $(wc -l < "$lw/s/reconciles") == 3 ]] || fail "--no-reconcile still reconciled"
+/bin/rm -f "$lw/state/alerts.log"
 printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
 [[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
 # A listed flake reruns three times under --act, then escalates rerun-cap once into the alerts file.

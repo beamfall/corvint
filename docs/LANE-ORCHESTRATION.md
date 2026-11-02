@@ -593,7 +593,12 @@ run once per CI or merge-queue event, never in a loop. It prints one decision: a
 whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 times per head
 commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
 real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
-alerts file that the session's Monitor tails. Without `--act` it only reports.
+alerts file that the session's Monitor tails. Without `--act` it only reports. The first pass that
+sees `MERGED` also runs the post-merge Tasks reconcile (`script/tasks-reconcile.sh`, closeout-debt
+proposing each `batch-close`) once per PR and prints `RECONCILE status=N log=FILE`; debt or a
+refusal adds a `reconcile=` line to the same alerts file, so the Tasks backlog cannot drift from
+main unseen (ASD-V0-1922, V1-3496). It applies a proposal only with `--act` and the operator's
+`RECONCILE_APPLY`.
 
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
