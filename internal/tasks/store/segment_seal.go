@@ -475,7 +475,7 @@ func journalMigrate(ctx context.Context, repo *intent.Repository, seal bool) (*J
 	if !seal && head.Segments == nil {
 		return report, nil
 	}
-	if err := compactAudit(repo, head); err != nil {
+	if _, err := compactAudit(repo, head); err != nil {
 		return nil, err
 	}
 	session, err := authority.NewSession(repo, lock)
@@ -511,12 +511,32 @@ func journalMigrate(ctx context.Context, repo *intent.Repository, seal bool) (*J
 	report.ThroughAfter = through(head)
 	if head.Segments != nil {
 		report.SegmentsAfter = int(through(head) / snapshot.SegmentReceipts)
+		retainMigratedCheckpoint(repo)
 		return report, nil
 	}
 	if err := dropEmptySegments(repo); err != nil {
 		return nil, err
 	}
+	retainMigratedCheckpoint(repo)
 	return report, nil
+}
+
+// retainMigratedCheckpoint leaves the read checkpoint a seal or unseal
+// dropped (LGL-V0-809): under the writer lock it runs one complete settled
+// audit of the migrated journal and retains the checkpoint it derives. Like
+// every retention it is best effort (CAL-V0-060): an audit that does not
+// settle retains nothing and changes no outcome, and the next ordinary
+// writer retains one as before.
+func retainMigratedCheckpoint(repo *intent.Repository) {
+	head, err := readHead(repo)
+	if err != nil {
+		return
+	}
+	proof, err := lockedJournalReader(repo, head).Audit()
+	if err != nil || proof.StagingPresent || proof.LastSeq != head.LastSeq {
+		return
+	}
+	retainCheckpoint(repo, proof)
 }
 
 func through(head *snapshot.Head) uint64 {
