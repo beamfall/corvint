@@ -23,12 +23,22 @@ import (
 // difference only when one rebuilt digest equals the recorded one. It never
 // replays or writes: the retry with --issued-at does that. Otherwise it
 // names the digest inputs, so the refusal never guesses.
-func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
+func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, report *store.Report, operation string, actor mutation.Binding, flags mutateFlags, payload wire.Value, issued wire.Timestamp) string {
 	generic := "the request ID is recorded with different request bytes; the digest covers actor, role, queue, target, expected revision, operation, canonical payload and issuedAt, " +
 		"and issuedAt defaulted to " + string(issued) + " because --issued-at was not given: a retry replays only with the original --issued-at"
-	idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
-	entry, found, err := idx.Lookup(flags.requestID)
-	if err != nil || !found || idx.TicketID == "" {
+	// A writer-route refusal already bound the recorded request and its
+	// ticket as the audit binds them; only the complete route's refusal is
+	// looked up again (LGL-V0-846).
+	entry, ticketID, found := report.ConflictBinding()
+	if !found {
+		idx := journal.RequestIndex{Reader: journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.PrimaryWorktree}, QueueID: st.Queue.QueueID, PrimaryWorktree: repo.PrimaryWorktree}}
+		var err error
+		if entry, found, err = idx.Lookup(flags.requestID); err != nil {
+			return generic
+		}
+		ticketID = idx.TicketID
+	}
+	if !found || ticketID == "" {
 		return generic
 	}
 	var bases []wire.Timestamp
@@ -37,7 +47,7 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 			bases = append(bases, at)
 		}
 	}
-	if rec, ok := st.Inventory.Get(idx.TicketID); ok {
+	if rec, ok := st.Inventory.Get(ticketID); ok {
 		bases = append(bases, rec.CreatedAt, rec.UpdatedAt)
 	}
 	seen := map[wire.Timestamp]bool{issued: true}
@@ -58,7 +68,7 @@ func defaultedIssuedAtConflict(repo *intent.Repository, st *intent.Store, operat
 			}
 			d, err := transaction.Digest(transaction.Request{Operation: transaction.Mutate, QueueID: st.Queue.QueueID.Raw, RequestID: flags.requestID, Actor: actor, Envelope: envelope})
 			if err == nil && d == entry.MutationSha256 {
-				return "request " + flags.requestID + " is recorded for ticket " + idx.TicketID + "; this retry differs from the recorded request only in issuedAt: the original was " +
+				return "request " + flags.requestID + " is recorded for ticket " + ticketID + "; this retry differs from the recorded request only in issuedAt: the original was " +
 					string(at) + " and this one defaulted to " + string(issued) + " because --issued-at was not given; retry with --issued-at " + string(at) + " to replay"
 			}
 		}

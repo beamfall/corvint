@@ -215,6 +215,12 @@ type writerObservation struct {
 	// answers it from the original entry and observes nothing else
 	// (CAL-V0-190, proposed).
 	replay *writerReplay
+	// retained is a request the checkpoint binds beyond the replay tail;
+	// the route refuses it only as REQUEST_ID_CONFLICT (LGL-V0-846).
+	retained *writerReplay
+	// retainedDecline is the bounded binding's decline, which a retained
+	// request that is not a conflict still takes.
+	retainedDecline error
 }
 
 // writerReplay is a retained request as the writer audit found it.
@@ -292,6 +298,19 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	found, entry, ticketID, cleanup, err := journalReader(repo, headState).WriterReplay(proof, requestID)
 	if cleanup != nil {
 		return nil, nil, err
+	}
+	if err != nil && forMutation {
+		// A request retained beyond the replay tail is bound by the same
+		// checks without the bound; the route answers only a conflict from
+		// it (LGL-V0-846).
+		var bound bool
+		if bound, entry, ticketID, cleanup, _ = journalReader(repo, headState).WriterConflictRequest(proof, requestID); cleanup != nil {
+			return nil, nil, cleanup
+		}
+		if bound {
+			w.retained, w.retainedDecline = &writerReplay{entry: entry, ticket: ticketID}, errWriterRoute("requests", err.Error())
+			return w, nil, nil
+		}
 	}
 	if err != nil {
 		return nil, errWriterRoute("requests", err.Error()), nil
