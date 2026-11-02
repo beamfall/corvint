@@ -16,6 +16,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const helperEnvironment = "CORVINT_BEHAVIOR_TEST_HELPER"
@@ -537,7 +539,7 @@ func TestBBFV0002HookDriftRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(copyPath, executable, 0700); err != nil {
+	if err := execfile.WriteFile(copyPath, executable, 0700); err != nil {
 		t.Fatal(err)
 	}
 	request := liveRequest(t, []ControlSpec{liveControl(t, "drift", "killed")})
@@ -546,7 +548,7 @@ func TestBBFV0002HookDriftRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(copyPath, append(executable, 0), 0700); err != nil {
+	if err := execfile.WriteFile(copyPath, append(executable, 0), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Execute(context.Background(), plan, plan.Digest); err == nil {

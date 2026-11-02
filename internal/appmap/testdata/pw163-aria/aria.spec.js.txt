@@ -1,0 +1,8 @@
+const { test, expect } = require("@playwright/test");
+test("aria", async ({ page }) => {
+  await page.route("http://app.test/**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<h1>Members</h1><button>Save</button>" }));
+  await page.goto("http://app.test/");
+  await page.locator("body").ariaSnapshot();
+  await expect(page.locator("body")).toMatchAriaSnapshot("- heading \"Members\"");
+  await page.getByRole("button", { name: "Save" }).click();
+});

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
@@ -233,7 +234,7 @@ func TestRecordIndexErrorNamesThePythonIdentityCommand(t *testing.T) {
 	}
 	bin := t.TempDir()
 	script := "#!/bin/sh\ncase \" $* \" in *\" --show-object-format \"*) exit 128;; esac\nexec " + realGit + " \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -254,7 +255,7 @@ func TestRecordIndexErrorKeepsASignalCause(t *testing.T) {
 	}
 	bin := t.TempDir()
 	script := "#!/bin/sh\ncase \" $* \" in *\" --show-object-format \"*) kill -9 $$;; esac\nexec " + realGit + " \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -140,7 +140,7 @@ func (*CreatePayload) operation() string { return OpCreate }
 // RefineFields are the keys a REFINE payload may carry (§3.3), sorted.
 var RefineFields = []string{
 	"acceptanceCriteria", "body", "dueDate", "estimateMinutes", "executionPrerequisites", "kind", "labels",
-	"milestone", "owner", "requirementRefs", "requiredRoles", "requiresPool", "supersedes", "title",
+	"milestone", "owner", "requirementRefs", "requiredRoles", "requiresPool", "supersededBy", "supersedes", "title",
 }
 
 // RefinePayload is a non-empty subset of RefineFields. Present names the
@@ -163,6 +163,8 @@ type RefinePayload struct {
 	DueDate                *string
 	EstimateMinutes        *wire.Count
 	Supersedes             *wire.TicketID
+	// SupersededBy names the ticket that replaces this one (TAW-V0-012).
+	SupersededBy *wire.TicketID
 }
 
 func (*RefinePayload) operation() string { return OpRefine }
@@ -752,6 +754,8 @@ func readRefine(r *wire.Reader) *RefinePayload {
 			p.EstimateMinutes = f.CountOrNull()
 		case "supersedes":
 			p.Supersedes = readTicketOrNull(f)
+		case "supersededBy":
+			p.SupersededBy = readTicketOrNull(f)
 		}
 	}
 	return p
@@ -969,6 +973,8 @@ func PayloadValue(p Payload) wire.Value {
 				o.Set(k, countOrNull(p.EstimateMinutes))
 			case "supersedes":
 				o.Set(k, ticketOrNull(p.Supersedes))
+			case "supersededBy":
+				o.Set(k, ticketOrNull(p.SupersededBy))
 			}
 		}
 	case *PrioritizePayload:

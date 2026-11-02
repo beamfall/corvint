@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -165,7 +166,7 @@ func TestBuiltCLIAmbientEffectSpiesWithPositiveControls(t *testing.T) {
 	}
 	marker := filepath.Join(root, "process-or-shell")
 	shim := filepath.Join(pathDir, "sh")
-	if err := os.WriteFile(shim, []byte("#!/bin/sh\nprintf used >"+marker+"\n"), 0700); err != nil {
+	if err := execfile.WriteFile(shim, []byte("#!/bin/sh\nprintf used >"+marker+"\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	if err := exec.Command(shim).Run(); err != nil {

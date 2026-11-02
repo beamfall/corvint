@@ -13,8 +13,8 @@ import (
 // set, and a retry with the same --request-id and the flags in another order
 // replays it instead of refusing REQUEST_ID_CONFLICT.
 func TestERGV0023_ReasonsCanonicalizedNotRefused(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	runOK := func(args ...string) run {
 		t.Helper()

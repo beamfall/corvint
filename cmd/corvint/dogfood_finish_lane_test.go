@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // finishLaneIdentity makes every commit the finish-lane run writes match the
@@ -166,6 +168,20 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 0 || stdout != "dogfood-finish-lane: seal SKIP already-sealed sealed=.corvint/changes/"+bind+".cem.json\n" {
 		t.Fatalf("sealed rerun exit=%d stdout=%s", code, stdout)
 	}
+	// ASD-V0-842 (V1-3960): inputs-check on the seal head checks nothing, so
+	// it reports NOT_CHECKED and exits 3 rather than a passing SKIP; the
+	// wrappers' --sealed skip keeps the SKIP, and any other value is refused.
+	sealedPath := ".corvint/changes/" + bind + ".cem.json"
+	code, stdout, stderr = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base}, args...)...)
+	if code != 3 || stdout != "dogfood-inputs-check: inputs-check NOT_CHECKED already-sealed sealed="+sealedPath+"\n" || !strings.Contains(stderr, "dogfood-inputs-check: NOT_CHECKED already-sealed head="+seal+"\n") {
+		t.Fatalf("inputs-check on a seal head exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if code, stdout, _ = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base, "--sealed", "skip"}, args...)...); code != 0 || stdout != "dogfood-inputs-check: seal SKIP already-sealed sealed="+sealedPath+"\n" {
+		t.Fatalf("inputs-check --sealed skip exit=%d stdout=%s", code, stdout)
+	}
+	if code, _, stderr = run.exec(t, root, finishLaneIdentity, append([]string{"dogfood", "inputs-check", "--base", base, "--sealed", "pass"}, args...)...); code != 2 || !strings.Contains(stderr, "invalid-dogfood-sealed-value") {
+		t.Fatalf("inputs-check --sealed pass exit=%d stderr=%s", code, stderr)
+	}
 }
 
 // DCW-V0-061, DCW-V0-379: a uniform plan stops at prepare, before any bind,
@@ -326,7 +342,7 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(hook), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(hook, []byte("#!/bin/sh\n! grep -q 'chore: seal change evidence' \"$1\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(hook, []byte("#!/bin/sh\n! grep -q 'chore: seal change evidence' \"$1\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	finish := append([]string{"dogfood", "finish-lane", "--base", base}, args...)
@@ -351,6 +367,43 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 	cemWrite(t, root, "notes.txt", "draft\n")
 	if code, stdout, stderr = run.exec(t, root, nil, finish...); code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \"notes.txt\"\n  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
 		t.Fatalf("dirty sealed rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}
+
+// ICL-V0-010 (V1-1629): a second inputs-check over the inputs a passing one
+// prepared replays its prepare line and keeps the receipt, so the closeout's
+// own pre-flight and dogfood-finish's prepare once and the finish-lane run
+// still reuses it; an input changed in between prepares afresh.
+func TestDogfoodInputsCheckICLV0010ReusesAMatchingPreflight(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	for _, changed := range []bool{false, true} {
+		root, base := portableDogfoodRepo(t)
+		env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+		check := append([]string{"dogfood", "inputs-check", "--base", base}, args...)
+		if code, stdout, stderr := run.exec(t, root, env[:3], check...); code != 0 || strings.Contains(stdout, "reused=") {
+			t.Fatalf("first inputs-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		if changed {
+			if err := os.WriteFile(args[1], []byte("1\tintent.md\t1:4\tspecification\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		code, stdout, stderr := run.exec(t, root, env[:3], check...)
+		if code != 0 || strings.Contains(stdout, "prepare PASS hunks=1 reused=inputs-check\n") == changed {
+			t.Fatalf("changed=%t second inputs-check exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
+		gitDir := cemGit(t, root, "rev-parse", "--absolute-git-dir")
+		if _, err := os.Stat(gitDir + "/corvint/inputs-check-pass"); err != nil {
+			t.Fatalf("changed=%t: the second inputs-check left no receipt: %v", changed, err)
+		}
+		if _, err := os.Stat(root + "/.corvint/change.cem.json"); !os.IsNotExist(err) {
+			t.Fatalf("changed=%t: the second inputs-check left a map: %v", changed, err)
+		}
+		code, stdout, stderr = run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+		if code != 0 || !strings.HasPrefix(stdout, "dogfood-finish-lane: prepare PASS hunks=1 reused=inputs-check\n") {
+			t.Fatalf("changed=%t finish-lane exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
 	}
 }
 

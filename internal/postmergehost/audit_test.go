@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -383,7 +384,7 @@ func TestReplayRefusesMalformedChange(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the gh spy on PATH is a #!/bin/sh script and the step runs under sh")
 	hex40 := strings.Repeat("ab", 20)
 	bin := t.TempDir()
-	if err := os.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "gh"), []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$GH_LOG\"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {

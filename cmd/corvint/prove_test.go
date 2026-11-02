@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // proveFixtureRepository is the authority-start query fixture with an ignored
@@ -122,7 +124,7 @@ func checkpointGitWrapper(t *testing.T, body string) []string {
 	}
 	directory := t.TempDir()
 	wrapper := "#!/bin/sh\n" + body + "\nexec " + shellQuote(realGit) + " \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(directory, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(directory, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return []string{"PATH=" + directory + string(os.PathListSeparator) + os.Getenv("PATH")}

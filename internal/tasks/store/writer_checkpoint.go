@@ -84,6 +84,22 @@ func boundWriterCheckpoint(repo *intent.Repository) (*journal.WriterCheckpoint, 
 	return wc, token
 }
 
+// ReadWriterCheckpoint is the retained writer checkpoint for a read that has
+// no binding read checkpoint (LGL-V0-807): the one boundWriterCheckpoint
+// returns, published under the current CAL-V0-117 invalidation token, or nil.
+// It writes nothing; the journal reader rebinds it before use.
+func ReadWriterCheckpoint(repo *intent.Repository) *journal.WriterCheckpoint {
+	wc, _ := boundWriterCheckpoint(repo)
+	return wc
+}
+
+// RequestIndexOf is the request index over repo's journal whose lookups the
+// bound writer checkpoint may serve (LGL-V0-811); reader is the journal
+// reader the complete lookup uses.
+func RequestIndexOf(repo *intent.Repository, reader journal.Reader) journal.RequestIndex {
+	return journal.RequestIndex{Reader: reader, WriterCheckpoint: func() *journal.WriterCheckpoint { return ReadWriterCheckpoint(repo) }}
+}
+
 // retainWriterCheckpoint replaces the derived writer checkpoint with wc,
 // bound to since: the token read before the audit wc was derived from. It
 // retains nothing when that token was unobserved or has changed since, so a
@@ -116,6 +132,7 @@ func replaceDerived(path string, raw []byte) error {
 	os.Remove(tmp)
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
+		noteRetentionFailure(path)
 		return err
 	}
 	_, err = f.Write(raw)
@@ -128,6 +145,7 @@ func replaceDerived(path string, raw []byte) error {
 	}
 	if err != nil {
 		os.Remove(tmp)
+		noteRetentionFailure(path)
 	}
 	return err
 }

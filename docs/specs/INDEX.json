@@ -4296,5 +4296,77 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/cem-content-keyed-claims-v0.md",
+    "title": "CEM Content-Keyed Claims V0",
+    "reqPrefix": "CKC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Reviewed plan rows persist as content-keyed claims that compile to current hunk IDs across fixes and rebases, refusing every ambiguous match.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/incremental-closeout-v0.md",
+    "title": "Incremental Closeout V0",
+    "reqPrefix": "ICL-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "The closeout re-runs only what a commit's content invalidates under each result's binding, prints every carry and decline, and refuses missing inputs first.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/cem2-discovery-replay-v0.md",
+    "title": "CEM 2.0 Discovery Replay V0",
+    "reqPrefix": "VRP-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "A pre-registered replay of 40 later-fixed agent changes decides if typed per-unit labels beat coverage-diff at flagging the unit the fix touched.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/context-ranking-v0.md",
+    "title": "Context ranking V0",
+    "reqPrefix": "CRK-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Opt-in RRF, additive and acronym orderings, span hit ranges, fallbacks and merging, and allocation-free term matching, each measured on the frozen bench.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-agent-workflow-v0.md",
+    "title": "Corvint Tasks agent workflow V0",
+    "reqPrefix": "TAW-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Lanes report ticket transitions as commit trailers that the store host ingests; agent work verbs dedupe findings, sync releases and guard status edits.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
+    "path": "docs/specs/dogfood-retroactive-binding-v0.md",
+    "title": "Dogfood retroactive binding V0",
+    "reqPrefix": "DOGFOOD-BIND",
+    "intent": "accepted; moved unchanged from the docs/DOGFOOD.md retroactive-binding contract (2026-11-01)",
+    "delivery": "implemented",
+    "claim": "A landed commit range is bound to one cited CEM after the fact by a retroactive binding commit, never by rewriting history.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

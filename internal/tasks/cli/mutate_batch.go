@@ -42,10 +42,13 @@ func refineBatchCommand(env Env, cmd []string, flags mutateFlags) *wire.Result {
 	if flags.help {
 		return mutationHelp(cmd, mutation.OpRefine)
 	}
+	if err := writerGuard(env, mutation.OpRefine, wire.Null()); err != nil {
+		return errorResult(cmd, err)
+	}
 	if flags.template || flags.target != "" || flags.expected != "" {
 		return usage(cmd, "--batch takes each target and expected revision from its entries; --target, --expected-revision and --template are refused")
 	}
-	actor, err := initActor(flags.role)
+	actor, err := initActor(env, flags.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

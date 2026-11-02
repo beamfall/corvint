@@ -82,8 +82,7 @@ func tcdRows(t *testing.T, res *wire.Result) (wire.Value, []tcdRow) {
 // issue-link citation, an uncited OPEN ticket left out, and byte-identical
 // store and journal trees (TCD-V0-004..009).
 func TestTCDV0005_CandidatesThroughTheCLI(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, tree := ergStore(t)
 	verify := commandGate("verify", "/bin/sh", "-c", "exit 1")
 	verify.Obj.Set("required", wire.Bool(true))
@@ -187,7 +186,7 @@ func TestTCDV0005_CandidatesThroughTheCLI(t *testing.T) {
 // COMPLETED ticket is umbrella for the OPEN row (TCD-V0-003, TCD-V0-004,
 // TCD-V0-005, TCD-V0-009).
 func TestTCDV0003_ClosedTicketsAndTruncation(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	done, doneLocal := tcdTicket(t, root, "done", "")
 	completeReleaseTicket(t, root, "complete-done", done)
@@ -224,7 +223,7 @@ func TestTCDV0003_ClosedTicketsAndTruncation(t *testing.T) {
 // origin probe, while a ref that names nothing stays MALFORMED (TCD-V0-002,
 // TCD-V0-009).
 func TestTCDV0002_GitFailureIsUnsupported(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	tcdCommit(t, root, "base")
 	out, err := exec.Command("git", "-C", root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit-tree", "-p", "HEAD", "-m", "side", "HEAD^{tree}").Output()
@@ -256,7 +255,7 @@ func TestTCDV0002_GitFailureIsUnsupported(t *testing.T) {
 // TestTCDV0001_ArgumentsAndRefs: --ref and --since select the range, and
 // bad arguments refuse MALFORMED with exit 2 (TCD-V0-001, TCD-V0-009).
 func TestTCDV0001_ArgumentsAndRefs(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	_, local := tcdTicket(t, root, "cited", "")
 	tcdCommit(t, root, "Refs "+local)
@@ -282,6 +281,161 @@ func TestTCDV0001_ArgumentsAndRefs(t *testing.T) {
 		code, res := tcdRun(t, root, args...)
 		if code != 2 || res.Outcome == wire.OutcomeOK || !hasCode(res, wire.CodeMalformed) {
 			t.Errorf("%v: exit %d %+v, want 2 MALFORMED", args, code, res)
+		}
+	}
+}
+
+// TestTCDV0740_SkipContinuesATruncatedScan: a scan cut at --limit reports
+// nextSkip and names it in its warning, --skip continues there, and the
+// pages together list every row a full scan lists; an uncut scan reports a
+// null nextSkip and a negative or non-numeric --skip refuses MALFORMED
+// (TCD-V0-740, V1-3829).
+func TestTCDV0740_SkipContinuesATruncatedScan(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	_, local := tcdTicket(t, root, "paged", "")
+	for _, m := range []string{"one", "two", "three"} {
+		tcdCommit(t, root, m+"\n\nRefs "+local)
+	}
+	_, res := tcdRun(t, root)
+	full, all := tcdRows(t, res)
+	if len(all) != 3 || field(full, "nextSkip").Kind != wire.KindNull || field(full, "skip").Str != "0" {
+		t.Fatalf("full scan: %+v", full)
+	}
+	var paged []tcdRow
+	skip := "0"
+	for pages := 0; skip != ""; pages++ {
+		if pages > 64 {
+			t.Fatal("paging does not end")
+		}
+		_, res = tcdRun(t, root, "--limit", "2", "--skip", skip)
+		item, rows := tcdRows(t, res)
+		paged = append(paged, rows...)
+		next := field(item, "nextSkip")
+		if next.Kind == wire.KindNull {
+			if field(item, "scanTruncated").Bool {
+				t.Fatalf("a truncated page has no nextSkip: %+v", item)
+			}
+			skip = ""
+			continue
+		}
+		if !field(item, "scanTruncated").Bool || !strings.Contains(strings.Join(res.Warnings, " "), "--skip "+next.Str) {
+			t.Fatalf("page at --skip %s: %+v %v", skip, item, res.Warnings)
+		}
+		skip = next.Str
+	}
+	if len(paged) != len(all) {
+		t.Fatalf("pages list %d rows, the full scan %d", len(paged), len(all))
+	}
+	for _, args := range [][]string{{"--skip", "-1"}, {"--skip", "x"}, {"--skip", "10000001"}, {"--skip"}} {
+		if code, res := tcdRun(t, root, args...); code != 2 || !hasCode(res, wire.CodeMalformed) {
+			t.Errorf("%v: exit %d %+v, want 2 MALFORMED", args, code, res)
+		}
+	}
+}
+
+// TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery is the V1-3870
+// fixture: a ticket cited only by a build-log-only commit whose build-log
+// line says NOT DELIVERED, one cited only by an unmarked build-log-only
+// commit, and one whose code commit message marks it PARTIAL are excluded
+// with their reasons; a code commit's citation, and a ticket cited by both
+// a build-log-only and a code commit, stay candidates (TCD-V0-741).
+func TestTCDV0741_BuildLogAndMarkedCitationsAreNoDelivery(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	notDelivered, ndLocal := tcdTicket(t, root, "notdelivered", "")
+	logOnly, loLocal := tcdTicket(t, root, "logonly", "")
+	partial, pLocal := tcdTicket(t, root, "partial", "")
+	code, cLocal := tcdTicket(t, root, "code", "")
+	both, bLocal := tcdTicket(t, root, "both", "")
+	commitFile := func(path, content, message string) {
+		t.Helper()
+		full := filepath.Join(root, filepath.FromSlash(path))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		git(t, root, "add", "--", path)
+		git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", message)
+	}
+	commitFile("docs/build-log/2026-11-01-lane.md", "# lane\n\n- "+ndLocal+": NOT DELIVERED, the fix needs a design.\n", "docs(build-log): lane report for "+ndLocal)
+	commitFile("docs/build-log/2026-11-01-other.md", "# other\n\n- "+loLocal+" reviewed.\n", "docs(build-log): review notes "+loLocal+" "+bLocal)
+	commitFile("src/partial.go", "package src\n", "fix(src): first half\n\n"+pLocal+" PARTIAL: the second half remains.")
+	commitFile("src/code.go", "package src\n", "fix(src): the parser\n\nRefs "+cLocal+" "+bLocal)
+
+	_, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	listed := map[string]bool{}
+	for _, r := range rows {
+		listed[r.ticket] = true
+	}
+	if !listed[code] || !listed[both] || listed[notDelivered] || listed[logOnly] || listed[partial] {
+		t.Fatalf("candidates %+v", rows)
+	}
+	want := map[string]string{notDelivered: "MARKED_NOT_DELIVERED", logOnly: "BUILD_LOG_ONLY", partial: "MARKED_NOT_DELIVERED"}
+	got := map[string]string{}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		got[field(e, "ticketId").Str] = field(e, "reason").Str
+		if len(field(e, "commits").Arr) != 1 {
+			t.Errorf("excluded %+v: want its one citing commit", e)
+		}
+	}
+	if len(got) != len(want) {
+		t.Fatalf("excludedCandidates %v, want %v", got, want)
+	}
+	for id, reason := range want {
+		if got[id] != reason {
+			t.Errorf("%s excluded %q, want %q", id, got[id], reason)
+		}
+	}
+	if !strings.Contains(strings.Join(func() []string {
+		var s []string
+		for _, h := range field(item, "human").Arr {
+			s = append(s, h.Str)
+		}
+		return s
+	}(), "\n"), loLocal+" excluded BUILD_LOG_ONLY") {
+		t.Fatalf("human lines name no exclusion: %+v", field(item, "human"))
+	}
+}
+
+// TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge pins the review
+// finding on V1-3870: a build-log-only commit inside a merged lane that cites
+// a ticket is excluded, so it must not also make the merge's own citation of
+// that ticket a repeat; the merge stays the ticket's candidate row.
+func TestTCDV0741_ExcludedConstituentKeepsTheDeliveringMerge(t *testing.T) {
+	setActor(t, "tester")
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	merged, mLocal := tcdTicket(t, root, "merged", "")
+	main := strings.TrimSpace(gitOutput(t, root, "rev-parse", "--abbrev-ref", "HEAD"))
+	git(t, root, "checkout", "-q", "-b", "lane-log")
+	full := filepath.Join(root, "docs", "build-log", "2026-11-01-lane.md")
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte("# lane\n\n- "+mLocal+" built on the lane.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, root, "add", "--", "docs/build-log/2026-11-01-lane.md")
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "docs(build-log): lane notes "+mLocal)
+	git(t, root, "checkout", "-q", main)
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge lane-log\n\nRefs "+mLocal, "lane-log")
+	mergeSha := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+
+	_, res := tcdRun(t, root)
+	item, rows := tcdRows(t, res)
+	found := false
+	for _, r := range rows {
+		found = found || r.ticket == merged
+	}
+	if !found {
+		t.Fatalf("the delivering merge %s was suppressed by its excluded build-log constituent: candidates %+v, excluded %s", mergeSha, rows, wire.Encode(field(item, "excludedCandidates")))
+	}
+	for _, e := range field(item, "excludedCandidates").Arr {
+		if field(e, "ticketId").Str == merged {
+			t.Fatalf("a listed ticket is also reported excluded: %s", wire.Encode(e))
 		}
 	}
 }

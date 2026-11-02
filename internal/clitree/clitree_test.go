@@ -188,6 +188,39 @@ func dispatch(args []string) {
 	}
 }
 
+// TestCAPV0979EventValuesAreNotDispatch checks that an event table looked up by an argument and a
+// comparison of an argument with one of its keys are not subcommand dispatch, while a word compared
+// at the same position that no event table holds still is (CAP-V0-979, V1-3679).
+func TestCAPV0979EventValuesAreNotDispatch(t *testing.T) {
+	dir := t.TempDir()
+	source := `package main
+
+var claudeContextEvents = map[string]string{"session-start": "SessionStart", "user-prompt": "UserPromptSubmit"}
+
+func dispatch(arguments []string) {
+	if arguments[1] == "session-start" {
+	}
+	_ = claudeContextEvents[arguments[1]]
+	if arguments[1] == "real-verb" {
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scan, err := ScanDirs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var words []string
+	for _, literal := range scan.Words {
+		words = append(words, literal.Value)
+	}
+	if !slices.Equal(words, []string{"real-verb"}) {
+		t.Errorf("words %v, want only real-verb", words)
+	}
+}
+
 // TestCAPV0047ChildArgvIsNotDispatch checks that a slice a function builds or hands whole to a
 // child process (exec.Command, exec.CommandContext, syscall.Exec, a Cmd's Args, through append),
 // and an argv parameter every caller fills from a non-command-line value (wholeGoTest), are not

@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 	"github.com/Beamfall/corvint/internal/testsupport"
@@ -158,7 +159,7 @@ func TestPinnedGradleManifestFIFORefusedBeforeExecution(t *testing.T) {
 			t.Fatal(err)
 		}
 		b := []byte("#!/bin/sh\nexit 3\n")
-		if err := os.WriteFile(path, b, 0700); err != nil {
+		if err := execfile.WriteFile(path, b, 0700); err != nil {
 			t.Fatal(err)
 		}
 		tools[name] = tr.Tool{Executable: path, Sha256: tr.Digest(b)}
