@@ -950,6 +950,29 @@ out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
 [[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
   fail "finish refusal for a missing plan names no record-only recipe: $out"
 grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
+# ASD-V0-733 (NEW-B1): a BASE..HEAD that touches a non-record path (a decision included) gets the
+# spec or #no-intent-declared line instead of the record-only recipe; a record range keeps the
+# recipe; the recipe states its precondition. The script reads its own checkout, so a fixture
+# repository holds a copy of it.
+rr=$tmp/record-repo
+rrg() { git -C "$rr" -c user.name=t -c user.email=t@example.invalid "$@"; }
+rfinish() { (cd "$tmp" && env -u CORVINT_BIN -u DOGFOOD_FINISH_ENTRY DOGFOOD_FINISH_LANE=1 "$rr/script/dogfood-finish.sh" "$1" '' plan.tsv plan.tsv passed 2>&1); }
+mkdir -p "$rr/script" "$rr/docs/build-log" "$rr/docs/decisions" "$rr/.corvint/changes" && cp "$script/dogfood-finish.sh" "$rr/script/" &&
+  git init -q -b main "$rr" && rrg add script && rrg commit -qm base || fail "record fixture init"
+rbase=$(rrg rev-parse HEAD)
+printf 'entry
+' > "$rr/docs/build-log/2026-01-01-x.md" && printf '{}
+' > "$rr/.corvint/changes/x.cem.json" &&
+  rrg add docs .corvint && rrg commit -qm record || fail "record fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: a record-only change'* && $out != *'not record-only'* ]] || fail "finish refusal for a record range dropped the record-only recipe: $out"
+printf 'decision
+' > "$rr/docs/decisions/0001-x.md" && rrg add docs && rrg commit -qm decision || fail "decision fixture commit"
+out=$(rfinish "$rbase")
+[[ $out == *'fix: this change is not record-only (it touches docs/decisions/0001-x.md), so the INTENTS file names the spec with a "## Requirements" heading'*'#no-intent-declared'* &&
+  $out != *'fix: a record-only change'* ]] || fail "finish refusal named the record-only recipe for a change that is not a record: $out"
+grep -q '^out in one try. The recipe applies only when `git diff --name-only "$BASE" HEAD` lists nothing but$' "$script/../docs/DOGFOOD.md" ||
+  fail "docs/DOGFOOD.md record-only recipe states no precondition"
 ok
 
 # DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
@@ -1520,6 +1543,10 @@ for c in "dogfood-inputs-check|BASE CITATIONS INTENTS VERIFY" "dogfood-finish|BA
     fail "$target did not refuse missing inputs before admission (rc=$rc): $(cat "$to/early.err")"
 done
 printf '1\tdocs/specs/README.md\t1:1\tdecision\n' > "$to/plan.tsv" || fail "plan"
+# Every admitted inputs-check below passes valid INTENTS, VERIFY and OUTCOME, so a caller's LANE=1
+# (a lane closeout, which requires them, ASD-V0-015) cannot refuse the fixture as missing-inputs.
+printf '#no-intent-declared\n' > "$to/intents.txt" && printf 'go version\n' > "$to/verify.txt" || fail "inputs"
+admit_inputs=(INTENTS="$to/intents.txt" VERIFY="$to/verify.txt" OUTCOME=passed)
 # Review (ASD-V0-930): dogfood-inputs-check, the closeout's first step, is admitted too, and
 # ASD-V0-732 (NEW-B6): on the light pool, so with the only heavy slot held it is admitted at once
 # (a stub admission wrapper stands in for the preflight build); HEAVY_CLASS=heavy queues it as before.
@@ -1532,7 +1559,7 @@ for cls in light heavy; do
   sleep 0.5
   s0=$SECONDS
   (cd "$script/.." && env -u HEAVY_CLASS DOGFOOD_STATIC_PRECHECK=0 HEAVY_LOCK_DIR=$to/slots HEAVY_SLOTS=1 make -s --no-print-directory dogfood-inputs-check \
-    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/admit.err")
+    HEAVY_ADMIT="$to/bin/admit" ${extra[@]+"${extra[@]}"} BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/admit.err")
   rc=$?
   t=$((SECONDS - s0))
   wait "$holder"
@@ -1612,7 +1639,7 @@ static_make() {
   /bin/rm -f "$to/admitted"
   (cd "$script/.." && env -u MAKEFLAGS -u MFLAGS -u MAKELEVEL -u DOGFOOD_FINISH_ENTRY -u DOGFOOD_STATIC_PRECHECK PATH="$to/static/bin:$PATH" \
     CORVINT_DOGFOOD_BIN_CACHE="$to/static/cache" "$@" make -s --no-print-directory dogfood-inputs-check HEAVY_ADMIT="$to/bin/admit-never" \
-    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" 2> "$to/static/err")
+    BASE="$(git -C "$script/.." rev-parse HEAD)" CITATIONS="$to/plan.tsv" ${admit_inputs[@]+"${admit_inputs[@]}"} 2> "$to/static/err")
 }
 static_make
 rc=$?

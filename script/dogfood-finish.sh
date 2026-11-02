@@ -68,7 +68,18 @@ if ((${#missing[@]} > 0)); then
     printf 'fix: draft the plan with corvint dogfood propose-citations %s > plan.tsv, then check it with make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv (the same INTENTS, VERIFY and OUTCOME)\n' \
       "${base_arg:-<full sha>}" "${base_arg:-<full sha>}" >&2
     # ASD-V0-961 (V1-3394): a record-only change (a build-log entry alone) has its own recipe.
-    printf 'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file, and cite each hunk to the BASE lines of the decision or spec the entry records with relation decision, one row per hunk, for example 1<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision; one span may serve every hunk (DCW-V0-057, DCW-V0-058; docs/DOGFOOD.md "Record-only closeout")\n' >&2
+    # ASD-V0-733 (NEW-B1): it is named only when BASE..HEAD may be a record change (DCW-V0-057); a
+    # change that touches any other path is told what its INTENTS name instead.
+    other=
+    if [[ -n $base_arg ]] && record_base=$(git -C "$(cd "$(dirname "$0")/.." && pwd)" rev-parse --verify --quiet "$base_arg^{commit}" 2> /dev/null); then
+      other=$(git -C "$(cd "$(dirname "$0")/.." && pwd)" diff --no-renames --name-only "$record_base" HEAD -- 2> /dev/null |
+        grep -v -E '^(docs/build-log/.|\.agent-evidence/.|\.corvint/change\.cem\.json$|\.corvint/changes/[^/]+\.cem\.json$)' | head -n 1)
+    fi
+    if [[ -n $other ]]; then
+      printf 'fix: this change is not record-only (it touches %s), so the INTENTS file names the spec with a "## Requirements" heading that governs it, or the one line #no-intent-declared when none does; a build-log entry is an intent only of a record change (DCW-V0-817; docs/DOGFOOD.md "Record-only closeout")\n' "$other" >&2
+    else
+      printf 'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file, and cite each hunk to the BASE lines of the decision or spec the entry records with relation decision, one row per hunk, for example 1<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision; one span may serve every hunk (DCW-V0-057, DCW-V0-058; docs/DOGFOOD.md "Record-only closeout")\n' >&2
+    fi
   fi
   printf '%s: nothing was built, prepared or bound\n' "$prefix" >&2
   exit 2

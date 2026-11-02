@@ -2607,6 +2607,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `make lane-scripts-test` group `DCW-V0-731` (SKIP, installed-binary refusal before any build,
   and the escape), and the `make dogfood-bin-reuse-test` `-p` cases. Rollback: remove `--static`, `staticPass` and the inputs-only phase's pre-check
   block; that phase then exits 0 after the missing-input refusal as before.
+- `DCW-V0-732`: (experimental under the standing lane auto-accept, 2026-11-02; V1-3862, NEW-B4,
+  NEW-B5; refines `DCW-V0-403`, `DCW-V0-991`) A verify line refused for a quoted `-run` word that
+  holds a `/` MUST, in its `refused:` line, also name the unquoted subtest form go test admits,
+  `-run TestX/sub`, built by dropping each element's `^`/`$` anchors and writing a space as `_`,
+  when that form is admitted. The `docs/DOGFOOD.md` `DOGFOOD_VERIFY_FILE` row MUST give one
+  canonical line (the bare focused `go test`), the `script/heavy.sh`-wrapped line, the unquoted
+  subtest, the quoted alternations and the refused unquoted `|` and anchored subtest, and every
+  example MUST be judged by `ValidateVerifyLine` as the row says. Non-goals: widening the grammar.
+  Failure mode: none new; the hint is omitted when the rewrite is still refused. Evidence:
+  `TestDCWV0732SubtestRefusalNamesUnquotedForm`,
+  `TestDCWV0732DogfoodVerifyExamplesMatchTheChecker`. Rollback: remove `subtestRunForm`, its call
+  and the two tests, and restore the one-sentence row.
 - `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
   When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
   `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `git-diff-failed` or
@@ -3938,6 +3950,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-730` (experimental under the standing lane auto-accept; V1-3883, V1-3930) | `internal/dogfoodflow/finishlane_entry.go` `say`, `rerunCommand`, `ValidFinishLaneEntry`; `cmd/corvint/dogfood_flow.go` `--entry`; `script/dogfood-finish.sh` `--entry "$entry"`; `TestDCWV0730RerunHintNamesTheEntry`, `TestDCWV0403UnquotedRunAlternationRefusesInOneLine`, `TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst`, `TestDCWV0808DogfoodOptionRefusalNamesTheFault` | implemented; focused tests PASS |
 | `DCW-V0-731` (experimental under the standing lane auto-accept; NEW-B2) | `internal/dogfoodflow/finishlane_entry.go` `staticPass`; `finishlane.go` `run` static branch; `cmd/corvint/dogfood_flow.go` `--static`; `script/dogfood-finish.sh` inputs-only pre-check; `script/dogfood-build-corvint.sh` `dogfood_corvint_key` `-p` filter; `TestDCWV0731StaticPreCheck`; `make lane-scripts-test` group `DCW-V0-731`; `make dogfood-bin-reuse-test` `-p` cases | implemented; focused and shell tests PASS |
+| `DCW-V0-732` (experimental under the standing lane auto-accept; V1-3862, NEW-B4, NEW-B5) | `internal/dogfoodflow/verify_argv.go` `quotedRunRefusal`, `subtestRunForm`; `docs/DOGFOOD.md` `DOGFOOD_VERIFY_FILE` row; `TestDCWV0732SubtestRefusalNamesUnquotedForm`, `TestDCWV0732DogfoodVerifyExamplesMatchTheChecker` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |

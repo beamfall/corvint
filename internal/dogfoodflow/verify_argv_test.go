@@ -297,3 +297,27 @@ func TestDCWV0905TildeVerifyLineNamesTheAbsolutePath(t *testing.T) {
 		t.Fatalf("a refusal without ~ got %q", got)
 	}
 }
+
+// TestDCWV0732SubtestRefusalNamesUnquotedForm (V1-3862): a quoted -run word
+// with a subtest element that the grammar refuses names the unquoted TestX/sub
+// form, anchors dropped and spaces written as go test names them; a refused
+// word without / adds no subtest form, and the quoted plain subtest is admitted.
+func TestDCWV0732SubtestRefusalNamesUnquotedForm(t *testing.T) {
+	for line, want := range map[string]string{
+		"go test -count=1 -run '^TestX$/^sub$' ./a": "; a subtest pattern is admitted unquoted: go test -count=1 -run TestX/sub ./a (DCW-V0-732, V1-3862)",
+		"go test -run 'TestX/sub one' ./a":          "; a subtest pattern is admitted unquoted: go test -run TestX/sub_one ./a (DCW-V0-732, V1-3862)",
+		"go test -run=\"^TestX/a b$\" ./a":          "; a subtest pattern is admitted unquoted: go test -run TestX/a_b ./a (DCW-V0-732, V1-3862)",
+		"go test -run 'TestX[^4]' ./a":              "",
+		"go test -run 'TestX/(a|b)' ./a":            "",
+	} {
+		got := quotedRunRefusal(line)
+		if got == "" || want == "" && strings.Contains(got, "subtest") || want != "" && !strings.HasSuffix(got, want) {
+			t.Errorf("quotedRunRefusal(%q) = %q, want suffix %q", line, got, want)
+		}
+	}
+	for _, line := range []string{"go test -run TestX/sub ./a", "go test -run 'TestX/sub' ./a"} {
+		if err := ValidateVerifyLine(line); err != nil || quotedRunRefusal(line) != "" {
+			t.Errorf("%q refused: %v %q", line, err, quotedRunRefusal(line))
+		}
+	}
+}
