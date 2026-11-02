@@ -893,6 +893,15 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 - `CEM-V1-1021`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3852)
   The `CEM-V1-1020` check MUST also refuse a register row whose map is now fully replayable or is
   not committed, and a row with an unknown label, so the historical-only list cannot go stale.
+- `CEM-V1-710`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3855)
+  Amends `CEM-V1-322`. After the rule, a `cite-span-not-stable` refusal for a base line span MUST
+  name why the span is unstable: each bound (start line, end line) a hunk removes or replaces, else
+  the first line inside the span a hunk removes or inserts lines before, else that no hunk edits
+  the lines but their text is not unique. When the longest run of span lines no hunk removes or
+  splits (the earlier run on a tie, clipped to the citation byte bound) differs from the span and
+  classifies stable or relocated, the refusal MUST name it as `accepted span inside it: --lines
+  A:B`, which then cites as stated. The `CEM-V1-322` text and nearest stable spans are unchanged,
+  and at most one extra candidate is classified.
 - `CEM-V1-750`: (experimental under the standing lane auto-accept (V1-3771)) Amends `CEM-V1-228`.
   A map's `hunks` array MUST list the canonical patch's hunks in patch order: position `i` holds
   the hunk whose `@@` header is the `i`-th in the canonical patch. Both the native verifier
@@ -5908,3 +5917,32 @@ Rollback: delete `internal/cem/corpusbinding/replay_test.go` and this section; n
 | --- | --- | --- |
 | CEM-V1-1020 | `TestCEMV11020CommittedMapObjectsReplayable` (`internal/cem/corpusbinding`) | 176 replayable + 17 registered over 193 committed maps, lane checkout and fresh clone |
 | CEM-V1-1021 | `TestCEMV11021ReplayCheckControls` (`internal/cem/corpusbinding`) | stale, uncommitted and reasonless rows named |
+
+## Cite refusal names the unstable bound (V1-3855, 2026-11-02)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3855.
+
+Decision: a lane cited `.corvint/test-read-scopes.json:317-327`, got `cite-span-not-stable`, and
+found by trial that `317-326` cites. The refusal already named the nearest stable spans outside the
+span. It now also says which bound broke and names the accepted span inside it, so the repair needs
+no trial and error.
+
+Requirements: `CEM-V1-710`, in the Requirements section.
+
+Non-goals: no change to the refusal code, to the stability classifier or to `CEM-V1-322`'s outside
+candidates; no automatic rewrite of a plan row.
+
+Failure modes: a span whose every line a hunk removes names no inner span; an inner run that is not
+unique in the changed file is not named.
+
+Acceptance evidence: `TestCEMV1710RefusalNamesUnstableBoundAndAcceptedInnerSpan` covers an edited
+end bound, an edited start bound, both bounds and an insertion inside the span; each named inner
+span then cites. `TestCEMV1710BoundDiagnosis` pins the diagnosis order and the tie rule. See
+`docs/build-log/2026-11-02-cit-w41.md`.
+
+Rollback: revert the `citeSpanGuidance` change in `internal/cem/workflow/commands.go`, delete
+`internal/cem/workflow/cite_span_bound_test.go` and this section.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-710 | `TestCEMV1710RefusalNamesUnstableBoundAndAcceptedInnerSpan`, `TestCEMV1710BoundDiagnosis` (`internal/cem/workflow`) | Start, end, both-bound and inner-insertion refusals name the bound and an inner span that then cites |
