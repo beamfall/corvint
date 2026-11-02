@@ -427,3 +427,116 @@ A stage trace of the round-2 head shows where the time goes:
 - The CLI runs a second full audit in `RequestIndex.Lookup` to explain the conflict.
 
 The three-pass numbers before this round are round 2's (17.5 ms at 500, 61 ms at 2,000).
+
+### Round 3 design and seam edits
+
+- `LGL-V0-846` (V1-4263): `journal.Reader.WriterReplay` now wraps a shared `writerRequest` helper
+  that takes the walk bound. `WriterConflictRequest` calls the same helper with no bound. The
+  journal lines touched, all in `internal/tasks/journal/writer_checkpoint.go`:
+  - the `WriterReplay` body (now a one-line wrapper);
+  - the new `WriterConflictRequest` and the `writerRequest` signature;
+  - the one bound comparison (`last-seq > MaxWriterTail` becomes `last-seq > maxWalk`).
+
+  No check was removed. `observeWriter` tries the unbounded binding only after the bounded one
+  declines. `mutateWriter` refuses only on a differing digest, through the same `replayResult`
+  model call the complete route uses. A same-digest replay declines with the original bounded
+  decline text, so `TestCALV0190_WriterReplayBeyondBoundDeclines` is unchanged. The CLI's
+  explanation takes the bound entry and ticket from `Report.ConflictBinding()`, an unexported
+  field that never reaches output.
+- `LGL-V0-845`: the CLI hands `store0.Tree` to `Mutate` (`store.WithPreloadTree`), and
+  `observeWriter` sets the journal reader's existing `IntentTree` input. The journal side is
+  unchanged.
+  - Wiring only this regressed the writer route. The audit's physical observation lists only the
+    files it read natively, so `writerInventory` re-read every shared ticket (2,000 tickets: 1.0 s
+    against 0.11 s over 8 creates).
+  - Fixed in the store: `writerInventory` takes an intent file the audit did not read from the
+    preload at the preload's digest (`preloadObserved`). The capture reads every intent file it
+    does not share, so an absent file was shared at exactly that digest.
+- `TCX-V0-849`:
+  - Index lines are kept per entry and reused for kept entries.
+  - An unchanged body leaves the file in place.
+  - `ReadClosedIndex` reuses a parse while the file's device, inode, size, modification and change
+    times match.
+  - The rewrite decodes and checks only the files it read (`decodeTicketFile`, factored from the
+    load's own per-ticket checks), without `LoadTreeIndexed`'s inventory build.
+
+### Round 3 after numbers
+
+All measured on the same host and interleaved. Each binary ran on its own relocated copy of the
+same 500- and 2,000-ticket stores, built by the round-2 gen and grown with plain creates.
+
+`ticket create`, n=7 per cell, load 2.86 to 3.20:
+
+| Binary | 500 wall / CPU / alloc | 2,000 wall / CPU / alloc |
+|---|---|---|
+| BASE | 177.1 ms / 192.5 ms / 79.6 MB | 379.7 ms / 544.1 ms / 264.9 MB |
+| round 2 | 143.0 ms / 94.6 ms / 31.1 MB | 240.2 ms / 219.5 ms / 78.1 MB |
+| round 3 | 134.6 ms / 81.9 ms / 27.8 MB | 210.2 ms / 174.5 ms / 66.2 MB |
+
+CPU per create of the passes, from 12 profiled creates per cell at load 2.3:
+
+| Pass | r2 500 | r2 2,000 | r3 500 | r3 2,000 |
+|---|---|---|---|---|
+| preload (byte-exact read and hash of every file) | 8.3 ms | 28.3 ms | 5.8 ms | 27.5 ms |
+| model decode | 0.8 ms | 5.0 ms | 0 ms | 1.7 ms |
+| index rewrite | 2.5 ms | 15.8 ms | 4.2 ms | 5.8 ms |
+| index reads | under 1 ms | 11.7 ms | 2.5 ms | 4.2 ms |
+| total, the three passes | about 12 ms | 61 ms | 12.5 ms | 39 ms |
+| writer journal audit (tkp-u33-owned) | 31.7 ms | 60.0 ms | 15.8 ms | 35.8 ms |
+| pre-effect recheck (`bindObservation`) | 5.0 ms | 23.3 ms | 9.2 ms | 26.7 ms |
+
+- `TCX-V0-848` is **still not met.** The three passes grow from 12.5 ms to 39 ms, 3.1 times
+  against under 1.2 times; the target was not changed. The measured floor is the preload's
+  byte-exact read and hash of every intent file: 27.5 of the 39 ms at 2,000 tickets (70%), about
+  14 µs per ticket file. The rest is about 10 ms of index work and 1.7 ms of model decode.
+- `TCX-V0-849` is met: index rewrite plus reads take 10 ms per create at 2,000 tickets (target 13
+  ms; round 2 took 27.5 ms).
+- `LGL-V0-845` is met. At 2,000 tickets the capture's intent reads (`requiredRead` and its
+  hashing) fell from 0.51 s to 0.02 s (`sharedIntent`) over 12 creates, -96% (target -80%). The
+  whole writer audit fell from 60.0 to 35.8 ms per create.
+- `LGL-V0-846` (V1-4263) is met. The conflict refusal at 500 tickets, n=6 interleaved, load 2.71
+  to 2.86:
+
+  | Binary | wall p50 | CPU p50 | allocated p50 |
+  |---|---|---|---|
+  | BASE | 420.1 ms | 979.0 ms | 324.9 MB |
+  | round 2 | 419.1 ms | 969.3 ms | 309.9 MB |
+  | round 3 | 148.9 ms | 176.7 ms | 84.5 MB |
+
+  That is 18% of the base CPU (target at most 25%).
+
+### Round 3 tests
+
+All ran through `script/heavy.sh`; the store and CLI runs used `GOCACHE=~/.cache/go-build` and
+`TMPDIR` under the lane scratch after friction 9.
+
+- New and ok:
+  - `TestLGLV0846ConflictRefusedFromCheckpoint` (store): writer route, no publish, the complete
+    route's decision, and a binding equal to `RequestIndex.Lookup`.
+  - `TestLGLV0846ConflictOutputMatchesCompleteRoute` (cli): result, codes and warnings
+    byte-identical to the complete route, apart from the defaulted second.
+  - `TestLGLV0845WriterTakesPreloadBytes` and `TestLGLV0845ChangedAfterPreloadRefused` (store).
+  - `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`
+    and `TestTCXV0849ParsedIndexReusedPerVersion` (intent).
+- Existing and ok:
+  - every `TestTCXV084*`, the `TCXV0_` tests and the `CAL-V0-115/116/190` writer-route tests;
+  - whole packages `intent`, `transaction`, `mutation`, `ticket`, `scale` and `cmd/closed-index`;
+  - `journal -run 'Writer|Replay|Checkpoint|Conflict|Request|Index'`;
+  - store slices `TestTMV|Mutate|TCX|LGL` (137 s), `Writer|CAL` (352 s) and
+    `Request|Replay|Guard|Archive|Complete|Prioritize|Create|Conflict` (174 s);
+  - the two cli slices.
+
+### Round 3 friction
+
+9. The lane host's root filesystem filled during the store tests.
+   - Repro: `script/heavy.sh go test ... ./internal/tasks/store` with the default `TMPDIR` on
+     unraid-lanes while `/tmp` held 36 GB (28 GB of it the shared `/tmp/corvint-go-build-cache`).
+   - Expected: test scratch with room, or a refusal that names the full filesystem.
+   - Actual: about 20 store tests failed with `no space left on device` (586 MB free). The
+     orchestrator cleared the shared cache mid-run, and the rerun used `GOCACHE=~/.cache/go-build`
+     and `TMPDIR` under the lane scratch.
+10. A cold build cache pushes store test slices past the 8-minute bound.
+    - Repro: the same slice right after the shared cache was deleted.
+    - Expected: the slice's usual 108 s.
+    - Actual: a timeout at 480 s. Two smaller slices together then ran past the tool's 10-minute
+      limit and were moved to the background automatically.
