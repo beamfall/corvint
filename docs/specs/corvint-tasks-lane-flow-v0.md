@@ -150,8 +150,9 @@ done and number requirements that a peer branch already used.
   the ticket, with that lane PR, or the batch itself for the batch PR. An effective entry in phase
   `DELIVERED_ON_BRANCH` or `MERGED_AWAITING_CLOSEOUT` whose `head` the batch merge commit reaches
   and its first parent does not also delivers it, from the batch. A head this clone does not hold
-  delivers nothing. A ticket a PR line or lane commit already delivers keeps that source. A ticket
-  the text only mentions becomes delivered, so it is no longer listed as mentioned. Each delivered
+  delivers nothing. Progress speaks only for a ticket the batch text never names. A ticket a PR line
+  or lane commit delivers keeps that source. A ticket the text mentions stays mentioned and is never
+  closed, because a mention may be a TCD-V0-730 veto such as `BLOCKED` or `ALREADY-DELIVERED`. Each delivered
   row of both verbs (`taskman-batch-delivered/0`, `taskman-batch-close/0` and `/1`) adds `source`:
   `PR_TEXT`, `LANE_COMMIT` or `PROGRESS`. A `--manual` close's reason names the recorded progress
   phase. The read stays advisory in the TLF-V0-881 sense. It only selects the tickets the verbs
@@ -167,7 +168,7 @@ done and number requirements that a peer branch already used.
   `payload` is a `PROGRESS_SET` payload, with absent nullable keys read as null (TLF-V0-820).
   `expectedRevision` is a revision or `current`. `current` reads the target's revision from the
   loaded store. For a request id that already completed, it reads the revision that request named,
-  so a retry replays. `--targets-file FILE` reads the array from FILE and implies `--batch`. Every
+  so a retry replays; one journal lookup pass serves every entry. `--targets-file FILE` reads the array from FILE and implies `--batch`. Every
   entry is validated before anything is locked or written: its closed shape, an existing target
   named once, the canonical payload and the envelope. One bad entry refuses the whole batch with
   the entry's index. Entries then apply in input order through the `ticket refine --batch` chunked
@@ -212,7 +213,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-881 | V1-3569 criteria 3-4 | `internal/tasks/ticket` (EffectiveProgress) | `TestTLFV0881_BarrierAdmitsProgressAndStillRefusesClaims`; `TestTLFV0881_EffectiveProgress` | none |
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
-| TLF-V0-1101 | V1-4268 (criteria NOT_OBSERVED in the lane checkout; dispatch text) | `internal/tasks/cli` (`batchInput.progressHits`, `batchHits`, `batchHit.source`, `closeRow.submit`) | `TestTLFV01101_BatchReadsRecordedProgress` (IN_REVIEW pr=lane PR, MERGED_AWAITING_CLOSEOUT head in the merge, mentioned-only ticket promoted, IN_PROGRESS, excluded-PR and pre-merge head entries deliver nothing; batch-close `--manual` and gated close the progress-delivered tickets; `source` per row) | a live batch close against progress marks: NOT_RUN |
+| TLF-V0-1101 | V1-4268 (criteria NOT_OBSERVED in the lane checkout; dispatch text) | `internal/tasks/cli` (`batchInput.progressHits`, `batchHits`, `batchHit.source`, `closeRow.submit`) | `TestTLFV01101_BatchReadsRecordedProgress` (IN_REVIEW pr=lane PR, MERGED_AWAITING_CLOSEOUT head in the merge, a vetoed mention outranks progress, IN_PROGRESS, excluded-PR and pre-merge head entries deliver nothing; batch-close `--manual` and gated close the progress-delivered tickets; `source` per row) | a live batch close against progress marks: NOT_RUN |
 | TLF-V0-1102 | V1-4268 | `internal/tasks/cli` (`mutationBatchCommand`, `batchEnvelopes`, `--targets-file`, progress help) | `TestTLFV01102_BulkProgressWritesManyTargets` (one invocation marks three tickets from a file with `current` and numeric revisions, per-entry outcomes and receipts; a stale entry refused alone; retry replays; a bad entry refuses the whole batch with nothing written; `--target` beside `--batch` refused) | none |
 | TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria`; `TestTLFV0884_SplitKeepsExecutionConstraints`; `TestTLFV0884_ResumeRefusesARefinedChild`; `TestTLFV0884_ResumeSettlesAPendingReceipt`; `TestTLFV0884_RecordedRefineMustBeThisSplit`; `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`; `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests` | durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
