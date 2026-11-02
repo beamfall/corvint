@@ -313,6 +313,25 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
     every receipt, post and blob. It is the explicit complete verification of the prefix.
   - **Notes.** Operator-note reads keep ON-V0-008: bounded, immutable reads with explicit
     evidence failures, whichever route served the audit.
+- `LGL-V0-809`: (proposed; V1-4217) Every administrative writer that drops the read checkpoint
+  MUST leave, before it releases the writer lock, the read checkpoint derived from a complete
+  settled audit of the store as it leaves it. The writers are `journal seal`, `journal unseal`,
+  `receipt compact` and `receipt unretire`. The audit is:
+  - compaction's closing complete audit, or its opening one when it rewrote nothing;
+  - the unretire's closing audit;
+  - for seal and unseal, one complete audit of the migrated journal.
+
+  The retention is the ordinary writer's (CAL-V0-060): best effort, derived state outside the
+  state directory. An audit that does not settle retains nothing and changes no outcome, and the
+  writer checkpoint is not retained by this rule. A read after these writers MUST resume from
+  that checkpoint and give items byte-identical to the complete audit. Tamper refusals are
+  unchanged: a receipt that differs from the checkpoint's binding makes the read refuse as the
+  complete audit refuses. Target: `ticket show` right after each, at 40,000 receipts, on the
+  binding read-checkpoint route (about 0.11 s).
+- `LGL-V0-810`: (proposed; V1-4217) `receipt retire` MUST NOT retain a read checkpoint. A store
+  with a retired prefix supports none (`Result.Checkpoint`; retire drops both, JRT-V0-002), and both resumed read
+  routes decline it. Reads after a retire walk only from the retire anchor, so their cost is
+  bounded by the receipts since the anchor, not by the retired history.
 
 ## Non-goals
 
@@ -622,6 +641,25 @@ load 7.09, labelled QUALIFIED) made 248 calls, 102 of them non-lease, with no er
 refuses `MALFORMED: policy.json: closed object violated` without writing) are in the build-log
 entry `docs/build-log/2026-10-31-tasks-core-w2.md`.
 
+For `LGL-V0-809` and `LGL-V0-810`, the following tests pass:
+- `TestLGLV0809_SealAndUnsealLeaveAReadCheckpoint`;
+- `TestLGLV0809_CompactionLeavesAReadCheckpoint`, which covers eliding, nothing to elide and a
+  dry run;
+- `TestLGLV0809_RetireLeavesNoneUnretireLeavesOne`.
+
+Each shows the checkpoint at the head, and a resumed read equal to the complete audit. Where a
+checkpoint is left, a tampered head receipt is refused with the complete audit's error. `ticket
+show` on copies of a 40,002-receipt store (Unraid Linux; operation-run loads 1.6-4.4) was
+measured right after each operation:
+
+| Operation | Before | After |
+| --- | --- | --- |
+| seal | 5.17-5.88 s | 0.106-0.115 s |
+| compact | 3.14-3.28 s | 0.104-0.110 s |
+| retire (by design, LGL-V0-810) | 0.66-0.68 s | 0.66-0.68 s |
+
+After seal and compact the items are byte-identical with and without the retained checkpoint.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -651,4 +689,7 @@ removes the split from the walk-cost report; the runs and medians stay. Revertin
 LGL-V0-806 (or setting `inlinePostReuse` false) returns the walk to encoding and parsing each
 inline post again. The results are equal, and nothing is stored. Reverting LGL-V0-807 (dropping
 `WriterCheckpoint` from `auditState`) returns reads without a serving read checkpoint to the
-complete audit. Nothing is stored, and both checkpoint files keep their format.
+complete audit. Nothing is stored, and both checkpoint files keep their format. Reverting
+LGL-V0-809 returns seal, unseal, compaction and unretire to leaving no read checkpoint, so reads
+pay the complete audit until the next ordinary writer. A read checkpoint they left is still an
+ordinary one that any binary reads or ignores.
