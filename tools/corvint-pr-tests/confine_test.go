@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/.github/testconfine"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const confineModule = "example.org/confine"
@@ -59,7 +60,7 @@ func newConfineRepository(t *testing.T, declaration string) *confineRepository {
 	r.o.selector = filepath.Join(bin, "selector")
 	planner := "#!/bin/sh\nprintf '{\"profile\":\"affected-plan/1\",\"tool\":\"affected\",\"ok\":true,\"mutates\":false,\"revision\":\"%s\",\"range\":{\"base\":\"%s\"},\"plan\":{\"dirty\":[]},\"provider\":{\"go\":{\"state\":\"FIXTURE\"}}}' \"$(git rev-parse HEAD)\" \"$3\"\n"
 	for path, body := range map[string]string{r.o.planner: planner, r.o.selector: "#!/bin/sh\necho 'run " + confineModule + "/q'\n"} {
-		if err := os.WriteFile(path, []byte(body), 0700); err != nil {
+		if err := execfile.WriteFile(path, []byte(body), 0700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -355,7 +356,7 @@ func campaignRefusesDeclarationWithoutConfine(t *testing.T) {
 	// A wrapper whose Landlock probe fails refuses as well.
 	failing := o
 	failing.confine = filepath.Join(t.TempDir(), "test-confine")
-	if err := os.WriteFile(failing.confine, []byte("#!/bin/sh\necho landlock abi 0\nexit 1\n"), 0700); err != nil {
+	if err := execfile.WriteFile(failing.confine, []byte("#!/bin/sh\necho landlock abi 0\nexit 1\n"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	failingID, err := toolIdentity(ctx, failing)

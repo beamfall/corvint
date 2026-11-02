@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/localcompletion"
 )
 
@@ -133,7 +134,7 @@ func TestUseCaseHostileTaskOrientation(t *testing.T) {
 		{"hostile", "malformed-provider-records", "malformed LSP frame degrades to an unavailable provider row", func(t *testing.T, root string) {
 			fake := t.TempDir()
 			server := "#!/bin/sh\nprintf 'Content-Length: 9\\r\\n\\r\\n{\"id\":1,'\nexit 0\n"
-			if err := os.WriteFile(filepath.Join(fake, "gopls"), []byte(server), 0o755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(fake, "gopls"), []byte(server), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", fake+string(os.PathListSeparator)+os.Getenv("PATH"))

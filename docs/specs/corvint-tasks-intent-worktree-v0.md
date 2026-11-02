@@ -168,10 +168,13 @@ command. It changes no wire profile, payload key, validation rule or writer.
   (`source.sourceQueueId`, an Identifier). `nullableKeys` lists the paths marked nullable;
   `dependencies[].gateId` is nullable only with obligation `COMPLETED`, as its note says.
   The command reads only the intent store: it MUST NOT read stdin or the journal, take the lock,
-  or write any file, works before `init`, refuses `--template` on other verbs and when any other
-  flag is passed (by presence, whatever its value), and `ticket create --help` names it.
+  or write any file, works before `init`, refuses `--template` when any other flag is passed
+  (by presence, whatever its value), and `ticket create --help` names it. (The original clause
+  refusing `--template` on other verbs is superseded by TCL-V0-611 of
+  [corvint-tasks-cli-v0.md](corvint-tasks-cli-v0.md), V1-3738, 2026-11-01: every mutation verb now
+  has a read-only `--template`; `--skeleton` stays CREATE-only.)
 
-Non-goals: templates for other verbs, interactive prompting, defaults inferred from history, and
+Non-goals: interactive prompting, defaults inferred from history, and
 any change to CREATE validation or canonicalization. Failure modes, as the tests enforce them: the
 `fields` keys MUST equal the key paths of the emitted payload (with one `dependencies[]` and one
 `effects.resources[]` element populated) plus `optionalKeys`, and each of the CREATE keys in

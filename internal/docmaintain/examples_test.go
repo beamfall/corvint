@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const widgetExamples = `package widget
@@ -146,7 +148,7 @@ func fakeGo(t *testing.T, body string) string {
 		t.Skip("the fake go command is a POSIX shell script")
 	}
 	path := filepath.Join(t.TempDir(), "go")
-	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return path

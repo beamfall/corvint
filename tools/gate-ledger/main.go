@@ -33,6 +33,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -41,10 +42,12 @@ import (
 
 const (
 	schema      = "gate-ledger/1"
-	maxRecords  = 4096
+	maxRecords  = 32768 // about 88 h at 370 records an hour (GL-V0-910)
 	prefixOut   = "gate-ledger: "
 	treeScope   = "tree"
 	neverScope  = "never"
+	goScope     = "@go"
+	rootScope   = "@root"
 	unresolved  = "go-test-unresolved"
 	packageStep = "go-test-package"
 	toolingPath = "Makefile"
@@ -58,9 +61,13 @@ const listFields = "ImportPath,Dir,Module,Deps,GoFiles,CgoFiles,IgnoredGoFiles,T
 var tooling = []string{toolingPath, "go.mod", "go.sum", "script/", "tools/"}
 
 // scopes declares what each `make gate` step reads, as repository-relative
-// directory prefixes (trailing slash), exact paths, or `*.ext` suffix globs over
-// the whole tree. `tree` keys on the whole worktree; `never` always runs. A step
-// absent here always runs and is never recorded (GL-V0-003).
+// directory prefixes (trailing slash), exact paths, `*.ext` suffix globs over
+// the whole tree, `DIR/*.ext` globs whose `*` stays within one path component,
+// `@root` (every root-level path) or `@go` (every Go build input: a *.go,
+// go.mod, go.sum or go.work file, and every path under a directory that holds a
+// .go file, so embedded files and testdata count; GL-V0-600). `tree` keys on
+// the whole worktree; `never` always runs. A step absent here always runs and is
+// never recorded (GL-V0-003).
 var scopes = map[string][]string{
 	"host-adapter-test":             {treeScope},
 	"go-version":                    {},
@@ -92,6 +99,11 @@ var scopes = map[string][]string{
 	"host-package-versions-check":   {treeScope},
 	"host-package-versions-test":    {},
 	"diagnostic-coverage-check":     {treeScope},
+	// GL-V0-601 (V1-3580, V1-4099): the batch-precheck steps whose inputs
+	// corvint-self-development-v0.md ASD-V0-944 and ASD-V0-051 declare, so a
+	// post-seal precheck whose only new path is a CEM or a build log hits.
+	"selection-baseline-check": {goScope, rootScope, ".github/cishards/", "benchmarks/selection-baseline/"},
+	"capability-catalog-check": {goScope, rootScope, "docs/*.md"},
 }
 
 type record struct {
@@ -134,6 +146,7 @@ func (p listedPackage) files() []string {
 // ledger is one invocation's view: the repository root, the worktree digest and
 // the per-user record directory. A nil digest or an empty dir means every step runs.
 type ledger struct {
+	inv       invocation
 	root      string
 	tree      string
 	entries   []treeEntry
@@ -152,10 +165,52 @@ type treeEntry struct {
 }
 
 func main() {
-	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+	os.Exit(run(processInvocation(), os.Args[1:], os.Stdout, os.Stderr))
 }
 
-func run(args []string, stdout, stderr io.Writer) int {
+// invocation is the working directory and environment one run reads (V1-4188):
+// the process's own in main, a fixture's in a test. Every command, Git call,
+// environment lookup, home and temporary directory of the run comes from it,
+// so runs in one process never share cwd or env.
+type invocation struct {
+	dir string
+	env []string
+}
+
+// processInvocation is the process's working directory and environment.
+func processInvocation() invocation {
+	dir, err := os.Getwd()
+	if err != nil {
+		dir = ""
+	}
+	return invocation{dir: dir, env: os.Environ()}
+}
+
+// getenv returns key's value in the invocation's environment, the last entry
+// winning as it does in exec.Cmd.Env, or "" when key is unset.
+func (i invocation) getenv(key string) string {
+	for j := len(i.env) - 1; j >= 0; j-- {
+		if k, v, ok := strings.Cut(i.env[j], "="); ok && k == key {
+			return v
+		}
+	}
+	return ""
+}
+
+// command is exec.Command run in dir (the invocation's directory when dir is
+// empty) with the invocation's environment, name resolved on its PATH.
+func (i invocation) command(dir, name string, args ...string) *exec.Cmd {
+	cmd := exec.Command(name, args...)
+	cmd.Path, cmd.Err = lookPath(name, i)
+	cmd.Dir = dir
+	if dir == "" {
+		cmd.Dir = i.dir
+	}
+	cmd.Env = slices.Clone(i.env)
+	return cmd
+}
+
+func run(inv invocation, args []string, stdout, stderr io.Writer) int {
 	if len(args) < 1 {
 		return usage(stderr)
 	}
@@ -165,7 +220,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if !ok {
 			return usage(stderr)
 		}
-		return open(stdout, stderr).runStep(step, nil, command)
+		return open(inv, stdout, stderr).runStep(step, nil, command)
 	case "go-test":
 		scope, rest, ok := packagesFlag(args[1:])
 		if !ok {
@@ -175,14 +230,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if !ok {
 			return usage(stderr)
 		}
-		l := open(stdout, stderr)
+		l := open(inv, stdout, stderr)
 		l.scope = scope
 		return l.goTest(command)
 	case "plan":
 		if len(args) < 2 {
 			return usage(stderr)
 		}
-		return open(stdout, stderr).plan(args[1:])
+		return open(inv, stdout, stderr).plan(args[1:])
 	}
 	return usage(stderr)
 }
@@ -227,22 +282,22 @@ func splitCommand(args []string) (string, []string, bool) {
 	return args[0], args[2:], true
 }
 
-func open(stdout, stderr io.Writer) *ledger {
-	l := &ledger{stdout: stdout, stderr: stderr}
-	if os.Getenv("CORVINT_GATE_LEDGER") == "off" {
+func open(inv invocation, stdout, stderr io.Writer) *ledger {
+	l := &ledger{inv: inv, stdout: stdout, stderr: stderr}
+	if inv.getenv("CORVINT_GATE_LEDGER") == "off" {
 		l.dirErr = "CORVINT_GATE_LEDGER=off"
 		l.stdout = io.Discard
 		return l
 	}
-	root, err := gitOutput("", "rev-parse", "--show-toplevel")
+	root, err := inv.gitOutput("", "rev-parse", "--show-toplevel")
 	if err != nil {
 		l.dirErr = "not inside a git worktree: " + err.Error()
 		return l
 	}
 	l.root = strings.TrimSpace(root)
-	l.identity = toolIdentity()
-	l.dir, l.dirErr = ledgerDirectory()
-	l.tree, l.entries, l.digestErr = worktreeDigest(l.root)
+	l.identity = inv.toolIdentity()
+	l.dir, l.dirErr = inv.ledgerDirectory()
+	l.tree, l.entries, l.digestErr = inv.worktreeDigest(l.root)
 	return l
 }
 
@@ -269,7 +324,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	key, reason := l.key(step, packages)
 	if reason != "" {
 		fmt.Fprintf(l.stdout, "%sRUN %s: %s\n", prefixOut, step, reason)
-		return execute(command)
+		return l.inv.execute(command)
 	}
 	if rec, hit := l.lookup(key); hit {
 		fmt.Fprintf(l.stdout, "%sHIT %s %s (recorded %s on %s)\n", prefixOut, step, short(key), rec.RecordedAt, rec.Host)
@@ -278,7 +333,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	unlock, err := l.lock(key, step)
 	if err != nil {
 		fmt.Fprintf(l.stdout, "%sRUN %s: ledger lock unavailable: %s\n", prefixOut, step, err)
-		return execute(command)
+		return l.inv.execute(command)
 	}
 	defer unlock()
 	if rec, hit := l.lookup(key); hit {
@@ -287,7 +342,7 @@ func (l *ledger) runStep(step string, packages []string, command []string) int {
 	}
 	fmt.Fprintf(l.stdout, "%sRUN %s: no recorded pass for %s\n", prefixOut, step, short(key))
 	started := time.Now()
-	code := execute(command)
+	code := l.inv.execute(command)
 	if code != 0 {
 		return code
 	}
@@ -327,7 +382,7 @@ func (l *ledger) goTest(goTest []string) int {
 		keyed, reason := l.packageKeys(resolved)
 		if reason != "" {
 			fmt.Fprintf(l.stdout, "%sBOUNDS unavailable: %s; resolved packages run through the Go test cache\n", prefixOut, reason)
-			code = execute(append(append([]string{}, goTest...), resolved...))
+			code = l.inv.execute(append(append([]string{}, goTest...), resolved...))
 		} else {
 			code = l.runPackages(keyed, goTest)
 		}
@@ -351,11 +406,11 @@ func (l *ledger) partition(patterns []string) (resolved, unresolvedPkgs []string
 	if err != nil {
 		return nil, nil, err.Error()
 	}
-	listed, err := output(l.root, "go", append([]string{"list"}, patterns...)...)
+	listed, err := l.inv.output(l.root, "go", append([]string{"list"}, patterns...)...)
 	if err != nil {
 		return nil, nil, "go list " + strings.Join(patterns, " ") + " failed: " + err.Error()
 	}
-	flagged, err := output(l.root, "go", "run", "./tools/gate-affected-select", "-unresolved", module, l.root)
+	flagged, err := l.inv.output(l.root, "go", "run", "./tools/gate-affected-select", "-unresolved", module, l.root)
 	if err != nil {
 		return nil, nil, "gate-affected-select -unresolved failed: " + err.Error()
 	}
@@ -414,7 +469,7 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 // the Go environment a test reads, and the packages the step names.
 func (l *ledger) digestKey(step, inputs string, packages []string) string {
 	h := sha256.New()
-	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\nenv GOFLAGS=%s\ninputs %s\n", schema, step, l.identity, os.Getenv("GO_TEST_TIMEOUT"), os.Getenv("GOFLAGS"), inputs)
+	fmt.Fprintf(h, "%s\nstep %s\ntool %s\nenv GO_TEST_TIMEOUT=%s\nenv GOFLAGS=%s\ninputs %s\n", schema, step, l.identity, l.inv.getenv("GO_TEST_TIMEOUT"), l.inv.getenv("GOFLAGS"), inputs)
 	for _, pkg := range packages {
 		fmt.Fprintf(h, "package %s\n", pkg)
 	}
@@ -498,7 +553,7 @@ func (l *ledger) selectorBounds(module string) (map[string]map[string]string, er
 	for _, entry := range l.entries {
 		paths.WriteString(entry.path + "\n")
 	}
-	out, err := outputInput(l.root, strings.NewReader(paths.String()), "go", "run", "./tools/gate-affected-select", "-bounds", module, l.root)
+	out, err := l.inv.outputInput(l.root, strings.NewReader(paths.String()), "go", "run", "./tools/gate-affected-select", "-bounds", module, l.root)
 	if err != nil {
 		return nil, errors.New("gate-affected-select -bounds failed: " + err.Error())
 	}
@@ -523,7 +578,7 @@ func (l *ledger) selectorBounds(module string) (map[string]map[string]string, er
 // of its test binary's transitive closure within the module, from one
 // `go list -deps -test -json ./...`.
 func (l *ledger) listedFiles(module string) (map[string][]string, error) {
-	out, err := output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
+	out, err := l.inv.output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
 	if err != nil {
 		return nil, errors.New("go list -deps -test failed: " + err.Error())
 	}
@@ -651,7 +706,7 @@ func (l *ledger) runPackages(keyed []packageKey, goTest []string) int {
 	}
 	started := time.Now()
 	outcomes := newPackageOutcomes(run, os.Stdout)
-	code := executeOutput(command, outcomes, os.Stderr)
+	code := l.inv.executeOutput(command, outcomes, os.Stderr)
 	passes := outcomes.passes()
 	if passes == nil {
 		fmt.Fprintf(l.stderr, "%sresolved output incomplete or invalid; no package records\n", prefixOut)
@@ -928,28 +983,76 @@ func (l *ledger) inputs(scope []string) string {
 			return "tree " + l.tree
 		}
 	}
+	var goDirs map[string]bool
+	for _, s := range scope {
+		if s == goScope {
+			goDirs = goDirectories(l.entries)
+		}
+	}
 	h := sha256.New()
 	for _, entry := range l.entries {
-		if inScope(entry.path, scope) || inScope(entry.path, tooling) {
+		if inScope(entry.path, scope) || inScope(entry.path, tooling) || (goDirs != nil && goInput(entry.path, goDirs)) {
 			fmt.Fprintf(h, "%s\n", entry.line)
 		}
 	}
 	return "entries " + hex.EncodeToString(h.Sum(nil))
 }
 
-func inScope(path string, scope []string) bool {
+// goDirectories is every directory ("." for the root) that holds a .go entry.
+func goDirectories(entries []treeEntry) map[string]bool {
+	dirs := map[string]bool{}
+	for _, entry := range entries {
+		if strings.HasSuffix(entry.path, ".go") {
+			dirs[path.Dir(entry.path)] = true
+		}
+	}
+	return dirs
+}
+
+// goInput reports whether p is a Go build input under `@go` (GL-V0-600): a Go
+// source or module file anywhere, or any path below a directory that holds a
+// .go file, which covers every file a //go:embed pattern can name.
+func goInput(p string, goDirs map[string]bool) bool {
+	switch path.Base(p) {
+	case "go.mod", "go.sum", "go.work", "go.work.sum":
+		return true
+	}
+	if strings.HasSuffix(p, ".go") {
+		return true
+	}
+	for d := path.Dir(p); ; d = path.Dir(d) {
+		if goDirs[d] {
+			return true
+		}
+		if d == "." || d == "/" {
+			return false
+		}
+	}
+}
+
+func inScope(p string, scope []string) bool {
 	for _, s := range scope {
 		switch {
+		case s == goScope:
+			// Matched by goInput, which needs the whole tree.
+		case s == rootScope:
+			if !strings.Contains(p, "/") {
+				return true
+			}
 		case strings.HasPrefix(s, "*."):
-			if strings.HasSuffix(path, s[1:]) {
+			if strings.HasSuffix(p, s[1:]) {
+				return true
+			}
+		case strings.Contains(s, "*"):
+			if ok, err := path.Match(s, p); err == nil && ok {
 				return true
 			}
 		case strings.HasSuffix(s, "/"):
-			if strings.HasPrefix(path, s) {
+			if strings.HasPrefix(p, s) {
 				return true
 			}
 		default:
-			if path == s {
+			if p == s {
 				return true
 			}
 		}
@@ -960,24 +1063,24 @@ func inScope(path string, scope []string) bool {
 // worktreeDigest writes the exact worktree (tracked and untracked, ignored
 // excluded) as a tree object through a private index and lists its entries.
 // It refuses a worktree `git status` cannot see fully (GL-V0-005).
-func worktreeDigest(root string) (string, []treeEntry, string) {
-	if flagged, err := gitOutput(root, "ls-files", "-v"); err != nil {
+func (inv invocation) worktreeDigest(root string) (string, []treeEntry, string) {
+	if flagged, err := inv.gitOutput(root, "ls-files", "-v"); err != nil {
 		return "", nil, "git ls-files -v failed: " + err.Error()
 	} else if hasFlaggedEntry(flagged) {
 		return "", nil, "a tracked file is skip-worktree or assume-unchanged"
 	}
-	ignored, err := gitOutput(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--", "*.go")
+	ignored, err := inv.gitOutput(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--", "*.go")
 	if err != nil {
 		return "", nil, "git ls-files --ignored failed: " + err.Error()
 	}
 	if name := compiledIgnored(ignored); name != "" {
 		return "", nil, "an ignored Go file is inside the build: " + name
 	}
-	entriesInput, err := gitOutput(root, "ls-files", "--stage", "-z")
+	entriesInput, err := inv.gitOutput(root, "ls-files", "--stage", "-z")
 	if err != nil {
 		return "", nil, "git ls-files --stage failed: " + err.Error()
 	}
-	private, err := os.CreateTemp("", "corvint-gate-ledger-index.")
+	private, err := os.CreateTemp(tempDir(inv), "corvint-gate-ledger-index.")
 	if err != nil {
 		return "", nil, "private index: " + err.Error()
 	}
@@ -987,23 +1090,23 @@ func worktreeDigest(root string) (string, []treeEntry, string) {
 		return "", nil, "private index: " + err.Error()
 	}
 	env := "GIT_INDEX_FILE=" + private.Name()
-	if _, err := gitOutputEnv(root, env, "read-tree", "--empty"); err != nil {
+	if _, err := inv.gitOutputEnv(root, env, "read-tree", "--empty"); err != nil {
 		return "", nil, "private index initialization failed: " + err.Error()
 	}
 	// Retain tracked membership (including ignored and intent-to-add paths),
 	// but discard cached stats so restored timestamps cannot conceal changed bytes.
-	if _, err := gitOutputEnvInput(root, env, strings.NewReader(entriesInput), "update-index", "-z", "--index-info"); err != nil {
+	if _, err := inv.gitOutputEnvInput(root, env, strings.NewReader(entriesInput), "update-index", "-z", "--index-info"); err != nil {
 		return "", nil, "private index import failed: " + err.Error()
 	}
-	if _, err := gitOutputEnv(root, env, "add", "-A", "--", "."); err != nil {
+	if _, err := inv.gitOutputEnv(root, env, "add", "-A", "--", "."); err != nil {
 		return "", nil, "git add -A into the private index failed: " + err.Error()
 	}
-	tree, err := gitOutputEnv(root, env, "write-tree")
+	tree, err := inv.gitOutputEnv(root, env, "write-tree")
 	if err != nil {
 		return "", nil, "git write-tree failed: " + err.Error()
 	}
 	tree = strings.TrimSpace(tree)
-	listing, err := gitOutput(root, "ls-tree", "-r", "-z", tree)
+	listing, err := inv.gitOutput(root, "ls-tree", "-r", "-z", tree)
 	if err != nil {
 		return "", nil, "git ls-tree failed: " + err.Error()
 	}
@@ -1057,12 +1160,12 @@ func compiledIgnored(listing string) string {
 
 // ledgerDirectory returns the per-user record directory once it is a private,
 // owned, non-symlink directory, or the reason it cannot be used.
-func ledgerDirectory() (string, string) {
-	dir := os.Getenv("CORVINT_GATE_LEDGER_DIR")
+func (inv invocation) ledgerDirectory() (string, string) {
+	dir := inv.getenv("CORVINT_GATE_LEDGER_DIR")
 	if dir == "" {
-		base := os.Getenv("XDG_CACHE_HOME")
+		base := inv.getenv("XDG_CACHE_HOME")
 		if base == "" {
-			home, err := os.UserHomeDir()
+			home, err := userHomeDir(inv)
 			if err != nil {
 				return "", "no home directory: " + err.Error()
 			}
@@ -1126,8 +1229,28 @@ func (l *ledger) record(rec record) error {
 	return l.prune()
 }
 
-// prune keeps the ledger bounded at maxRecords, dropping the oldest records.
+// pruneStamp names the file whose modification time is the last prune scan, and
+// pruneInterval how long a scan stays fresh (GL-V0-911).
+const (
+	pruneStamp    = "prune.stamp"
+	pruneInterval = 5 * time.Minute
+)
+
+// prune keeps the ledger bounded at maxRecords, dropping the oldest records, and
+// reclaims free lock files. It scans the directory at most once per pruneInterval;
+// any other call costs one stat (GL-V0-911).
 func (l *ledger) prune() error {
+	stamp := filepath.Join(l.dir, pruneStamp)
+	if info, err := os.Lstat(stamp); err == nil && info.Mode().IsRegular() && time.Since(info.ModTime()) < pruneInterval {
+		return nil
+	}
+	now := time.Now()
+	if err := os.Chtimes(stamp, now, now); err != nil {
+		if err := os.WriteFile(stamp, nil, 0o600); err != nil {
+			return err
+		}
+	}
+	l.reclaimLocks()
 	matches, err := filepath.Glob(filepath.Join(l.dir, "*.json"))
 	if err != nil || len(matches) <= maxRecords {
 		return err
@@ -1151,33 +1274,116 @@ func (l *ledger) prune() error {
 	return nil
 }
 
+// locksDirName is the lock namespace (GL-V0-912). Older binaries create KEY.lock at the
+// top of the ledger directory and never re-check the inode, so this protocol uses a
+// directory they never touch, and the top-level files are never unlinked (GL-V0-913).
+const (
+	locksDirName    = "locks"
+	maxLockAttempts = 8
+)
+
+// lockHook, nil outside tests, observes each lock attempt: "open" after the lock file is
+// opened and "flock" once it is locked, before the inode re-check.
+var lockHook func(step, event string)
+
+// locksDir returns the lock namespace, creating it private; an entry there that is not a
+// plain directory makes locking unavailable.
+func (l *ledger) locksDir() (string, error) {
+	dir := filepath.Join(l.dir, locksDirName)
+	if err := os.Mkdir(dir, 0o700); err != nil && !os.IsExist(err) {
+		return "", err
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return "", err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("%s is not a plain directory", dir)
+	}
+	return dir, nil
+}
+
+// reclaimLocks removes every lock file of the namespace that no run holds, taking each
+// lock without waiting and removing the file while holding it (GL-V0-913).
+func (l *ledger) reclaimLocks() {
+	matches, _ := filepath.Glob(filepath.Join(l.dir, locksDirName, "*.lock"))
+	for _, name := range matches {
+		f, err := os.OpenFile(name, os.O_RDWR, 0o600)
+		if err != nil {
+			continue
+		}
+		if lockExclusive(f, true) == nil {
+			if sameFile(f, name) {
+				os.Remove(name)
+			}
+			unlock(f)
+		}
+		f.Close()
+	}
+}
+
+// sameFile reports whether path, not followed, still names the open file f.
+func sameFile(f *os.File, path string) bool {
+	held, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	named, err := os.Lstat(path)
+	return err == nil && os.SameFile(held, named)
+}
+
 // lock serialises concurrent runs of one key so the step executes once and the
-// waiter reads the record.
+// waiter reads the record. The holder removes locks/KEY.lock before releasing it,
+// and an acquirer whose file was removed or replaced meanwhile opens the path
+// again, at most maxLockAttempts times, so no lock file outlives its run, two
+// holders never coexist, and a symlinked lock file cannot loop (GL-V0-912).
 func (l *ledger) lock(key, step string) (func(), error) {
-	f, err := os.OpenFile(filepath.Join(l.dir, key+".lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	dir, err := l.locksDir()
 	if err != nil {
 		return nil, err
 	}
-	if err := lockExclusive(f, true); err != nil {
-		fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
-		if err := lockExclusive(f, false); err != nil {
-			f.Close()
+	path := filepath.Join(dir, key+".lock")
+	waited := false
+	for attempt := 0; attempt < maxLockAttempts; attempt++ {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o600)
+		if err != nil {
 			return nil, err
 		}
+		if lockHook != nil {
+			lockHook(step, "open")
+		}
+		if err := lockExclusive(f, true); err != nil {
+			if !waited {
+				fmt.Fprintf(l.stdout, "%sWAIT %s: another run holds %s\n", prefixOut, step, short(key))
+				waited = true
+			}
+			if err := lockExclusive(f, false); err != nil {
+				f.Close()
+				return nil, err
+			}
+		}
+		if lockHook != nil {
+			lockHook(step, "flock")
+		}
+		if sameFile(f, path) {
+			return func() { os.Remove(path); unlock(f); f.Close() }, nil
+		}
+		unlock(f)
+		f.Close()
 	}
-	return func() { unlock(f); f.Close() }, nil
+	return nil, fmt.Errorf("%s kept changing under %d lock attempts", path, maxLockAttempts)
 }
 
 // execute runs command with inherited stdio and returns its exit status; a
 // command killed by a signal exits 128+signal.
-func execute(command []string) int {
-	return executeOutput(command, os.Stdout, os.Stderr)
+func (inv invocation) execute(command []string) int {
+	return inv.executeOutput(command, os.Stdout, os.Stderr)
 }
 
-func executeOutput(command []string, stdout, stderr io.Writer) int {
-	cmd := exec.Command(command[0], command[1:]...)
+func (inv invocation) executeOutput(command []string, stdout, stderr io.Writer) int {
+	cmd := inv.command("", command[0], command[1:]...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, stdout, stderr
-	cmd.Env = withoutJobserver(os.Environ())
+	cmd.Env = withoutJobserver(cmd.Env)
 	err := cmd.Run()
 	if err == nil {
 		return 0
@@ -1211,8 +1417,8 @@ func withoutJobserver(env []string) []string {
 	return env
 }
 
-func toolIdentity() string {
-	out, err := output("", "go", "env", "GOVERSION", "GOOS", "GOARCH")
+func (inv invocation) toolIdentity() string {
+	out, err := inv.output("", "go", "env", "GOVERSION", "GOOS", "GOARCH")
 	if err != nil {
 		return "unknown"
 	}
@@ -1232,25 +1438,24 @@ func modulePath(goMod string) (string, error) {
 	return "", errors.New("go.mod declares no module path")
 }
 
-func gitOutput(dir string, args ...string) (string, error) {
-	return gitOutputEnv(dir, "", args...)
+func (inv invocation) gitOutput(dir string, args ...string) (string, error) {
+	return inv.gitOutputEnv(dir, "", args...)
 }
 
-func gitOutputEnv(dir, env string, args ...string) (string, error) {
-	return gitOutputEnvInput(dir, env, nil, args...)
+func (inv invocation) gitOutputEnv(dir, env string, args ...string) (string, error) {
+	return inv.gitOutputEnvInput(dir, env, nil, args...)
 }
 
-func gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string, error) {
+func (inv invocation) gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string, error) {
 	operation := args[0]
 	// Every call, not only private-index ones: a repository with core.fsmonitor
 	// set makes git wait on its monitor daemon, which a loaded host can stall
 	// past the test timeout (V1-0355).
 	args = append([]string{"-c", "core.fsmonitor=false", "-c", "core.ignorestat=false"}, args...)
-	cmd := exec.Command("git", args...)
+	cmd := inv.command(dir, "git", args...)
 	cmd.Stdin = input
-	cmd.Dir = dir
 	if env != "" {
-		cmd.Env = append(os.Environ(), env)
+		cmd.Env = append(cmd.Env, env)
 	}
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -1261,13 +1466,12 @@ func gitOutputEnvInput(dir, env string, input io.Reader, args ...string) (string
 	return string(out), nil
 }
 
-func output(dir string, name string, args ...string) (string, error) {
-	return outputInput(dir, nil, name, args...)
+func (inv invocation) output(dir string, name string, args ...string) (string, error) {
+	return inv.outputInput(dir, nil, name, args...)
 }
 
-func outputInput(dir string, input io.Reader, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	cmd.Dir = dir
+func (inv invocation) outputInput(dir string, input io.Reader, name string, args ...string) (string, error) {
+	cmd := inv.command(dir, name, args...)
 	cmd.Stdin = input
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

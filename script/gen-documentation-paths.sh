@@ -9,7 +9,8 @@ set -eu
 #   script/gen-documentation-paths.sh --check  exit 1, naming the fix, when it is stale
 #
 # The declaration is every top-level docs/*.md file the Git index tracks, the root agent
-# instruction files in INSTRUCTIONS the index tracks (AFP-V0-763), plus the documentation
+# instruction files in INSTRUCTIONS the index tracks (AFP-V0-763), integrations/README.md and each
+# integrations/HOST/README.md the index tracks (AFP-V0-830), plus the documentation
 # directories in DIRS, sorted in byte order, as one compact corvint-documentation-paths/0 line.
 # Other docs/ subdirectories (agent-memory, experiments, plans, post-merge-workflow) hold notes or
 # redirects, not product documentation, and stay out until DIRS names them. A new top-level guide
@@ -41,6 +42,12 @@ generate() {
         my $copy = $_; die "documentation paths: a docs/*.md name is not UTF-8; rename it\n" unless utf8::decode($copy);
         print "$_\n"' \
         "$work/listed" >"$work/paths" || { rm -rf "$work"; exit 1; }
+    # AFP-V0-830 (V1-3509): the integrations README and each host directory's README, one level
+    # down, describe a host package; no build reads them, and their readers name them by literal.
+    git ls-files -z -- 'integrations/README.md' 'integrations/*/README.md' >"$work/readmes" ||
+        { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }
+    perl -0ne 'chomp; next unless m{\Aintegrations/(?:[A-Za-z0-9._-]+/)?README\.md\z}s; print "$_\n"' \
+        "$work/readmes" >>"$work/paths" || { rm -rf "$work"; exit 1; }
     # shellcheck disable=SC2086 # INSTRUCTIONS is a fixed list of plain names.
     git ls-files -- $INSTRUCTIONS >>"$work/paths" ||
         { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }

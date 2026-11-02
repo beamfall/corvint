@@ -15,6 +15,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // frozenCoreVerbs is the CCF-V1-001 Core boundary from decision 0332, in the order root help lists it.
@@ -239,7 +241,14 @@ func TestCoreVerbsEmitTheFrozenProfiles(t *testing.T) {
 			golden := filepath.Join("testdata", "core-freeze", strings.ReplaceAll(test.name, " ", "-")+".json")
 			if os.Getenv("CORVINT_UPDATE_GOLDEN") == "1" {
 				time.Sleep(1100 * time.Millisecond) // a later second gives the second fixture new commit ids
-				writeCoreGolden(t, golden, mergeCoreRuns(t, "$", document, runCoreMode(t, test.invoke, test.exit)))
+				merged := mergeCoreRuns(t, "$", document, runCoreMode(t, test.invoke, test.exit))
+				if prior, err := os.ReadFile(golden); err == nil {
+					var old any
+					if json.Unmarshal(prior, &old) == nil {
+						merged = keepCoreVaries(old, merged)
+					}
+				}
+				writeCoreGolden(t, golden, merged)
 			}
 			compareCoreGolden(t, "$", readCoreGolden(t, golden), document)
 			want := map[string]any{"ok": true, "mutates": false}
@@ -584,7 +593,7 @@ func TestIndexedCoreVerbsRefuseAPromisorFetchGitStartsAnyway(t *testing.T) {
 	}
 	shim := t.TempDir()
 	script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -703,7 +712,7 @@ func TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching(t *testing.T) {
 		if dropsLazyFetchGuard {
 			shim := t.TempDir()
 			script := "#!/bin/sh\nunset GIT_NO_LAZY_FETCH\nexec '" + strings.ReplaceAll(realGit, "'", `'\''`) + "' \"$@\"\n"
-			if err := os.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(shim, "git"), []byte(script), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", shim+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -1105,6 +1114,38 @@ func mergeCoreRuns(t *testing.T, path string, first, second any) any {
 		return first
 	}
 	return coreFreezeVaries + kind + ">"
+}
+
+// keepCoreVaries keeps every placeholder leaf of the previous golden whose path the merged golden
+// pins to a value of the same JSON type (CCF-V1-620): two runs can agree on a value that varies, such
+// as a build time in milliseconds, and the regenerated golden must not then freeze it.
+func keepCoreVaries(previous, merged any) any {
+	switch value := merged.(type) {
+	case map[string]any:
+		old, ok := previous.(map[string]any)
+		if !ok {
+			return merged
+		}
+		for name, member := range value {
+			if prior, found := old[name]; found {
+				value[name] = keepCoreVaries(prior, member)
+			}
+		}
+		return value
+	case []any:
+		old, ok := previous.([]any)
+		if !ok || len(old) != len(value) {
+			return merged
+		}
+		for index := range value {
+			value[index] = keepCoreVaries(old[index], value[index])
+		}
+		return value
+	}
+	if placeholder, ok := previous.(string); ok && placeholder == coreFreezeVaries+jsonKind(merged)+">" {
+		return placeholder
+	}
+	return merged
 }
 
 // coreExecutableMembers carry a digest of the running executable, which changes with every build of

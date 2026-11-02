@@ -138,8 +138,7 @@ func TestTLFV0882_SearchAndRoadmapByPhase(t *testing.T) {
 // although no commit message cites it; a head outside the scan, or a
 // cleared marker, reports nothing.
 func TestTLFV0883_CloseoutDebtReportsMergedProgressHead(t *testing.T) {
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, _ := ergStore(t)
 	merged, _ := tcdTicket(t, root, "merged", "")
 	unmerged, _ := tcdTicket(t, root, "unmerged", "")

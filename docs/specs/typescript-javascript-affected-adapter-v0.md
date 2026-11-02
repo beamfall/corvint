@@ -1594,6 +1594,40 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Non-goals: lookaround, back-references and the `u`, `v`, `g`, `y` flags stay unresolved.
   - Failure modes: the rule is conservative, so an unanchored regex that misses a path keeps the
     site even when no real checkout could match it (safe widening).
+- `TJAA-V0-725`: (experimental under the standing lane auto-accept (2026-10-11); V1-2583; GitHub
+  #1701; amending `AFP-V0-409` and `AFP-V0-425`) A `playwrightTagIndirection` name inside a proven
+  test or hook body MUST NOT stop the tag closure, since Playwright's runner collects tests and
+  matches `--grep` and tags without running a test or hook body. The rest of the per-file rules
+  still apply to the body (a computed key, an escaped string, the string `'tag'`).
+  - Binding provenance: a body is proven only when its callee is the local name of the `test`
+    export in a named `import { test } from '@playwright/test'` or `import { test as NAME } from
+    '@playwright/test'` of the same file (a `type` specifier binds no value). A name match is not
+    provenance: a `test` from any other module, a namespace or default import, a `require` and a
+    re-export prove nothing. The call is `NAME(...)`, or one member of `only`, `skip`, `fixme`,
+    `fail`, `beforeEach`, `afterEach`, `beforeAll` or `afterAll` called directly
+    (`NAME.only(...)`). Its last argument MUST be a function literal with a block body (an arrow
+    `=> {` or a `function (...) {` that `new` does not invoke), starting the argument directly
+    after `(` or `,`. Only that block is deferred. A `describe` callback runs while tests are
+    collected and is never deferred, nor is a fixture of `NAME.extend`.
+  - Monkeypatch guard: in every file of the closure, each value binding imported from
+    `@playwright/test` other than `expect`, `defineConfig` and `devices` MUST appear only as a
+    direct callee, `NAME(` or `NAME.member...(` with no `?.`, outside a `function`, `class`,
+    `const`, `let`, `var` or `new` and with no `{` or `:` after the call. An assignment such as
+    `NAME.only = ...`, a declaration, parameter or property named `NAME`, a value use that lets
+    `NAME` escape, and a load of `@playwright/test` other than by a named import break the guard.
+    A broken guard in the body's own file disables deferral there, so the reflective name stops
+    as before; a broken guard in another file of a closure that deferred a body stops the closure
+    at that file's line.
+  - Non-goals: a `test` reached through a fixture module (`base.extend`) is not proven; arrow
+    bodies without a block, typed `function (): T {` literals and member chains such as
+    `NAME.fail.only` are not deferred.
+  - Failure modes: Playwright workers re-collect a file after earlier bodies ran in the same
+    worker, but they run the test ids the runner assigned, so a body's effect on a worker's own
+    collection cannot change the selection; a Playwright release that re-filters tags in the
+    worker would break this assumption. A file outside the closure that rewrites `test` members
+    is outside the closure's model, as it already is for titles and tags.
+  - Rollback: drop the deferred-body skip in `playwrightTagTextLiteral` and the closure's
+    `patchStop`.
 - `TJAA-V0-960`: (experimental under the standing lane auto-accept (2026-10-11); V1-2533; amending
   `TJAA-V0-037` and `TJAA-V0-012`) The general adapter's alias path MUST read the alias config
   Playwright reads (AFP-V0-418): in each folder its `tsconfig.json`, or its `jsconfig.json` when no
@@ -1615,6 +1649,38 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Rollback: restore the `tsconfig.json`-only test in `readTypeScriptAliases` and the declaring
     loop, drop the allowJs condition in `resolveTypeScriptAliases` and `javaScriptConfigName` from
     `observedName`; no persisted format or receipt changes.
+- `TJAA-V0-600`: (experimental under the standing lane auto-accept (2026-11-01); V1-3933; amending
+  `TJAA-V0-054`) An ECMAScript shorthand property `name` in a `use` layer MUST be read as
+  `name: name`. For a non-identity option (`baseURL`, `trace`, ...) it never decides the browser
+  identity, and its identifier value is checked for side effects as any other non-identity value. A
+  shorthand for a `PlaywrightUseIdentityKeys` option (`browserName`, `channel`, ...) MUST leave the
+  identity unresolved with the detail `identity key <name> is a shorthand property`; a spread of
+  anything other than one literal `devices[...]` descriptor keeps refusing.
+  - Non-goals: resolving the bound value of an identity shorthand; shorthand properties outside a
+    `use` layer (the config and project objects) keep refusing.
+  - Failure modes: a shorthand whose name is not an identifier still refuses as a non-`key: value`
+    property.
+  - Falsifier: `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go`
+    (a shared `use: { baseURL, trace }` keeps literal and device-spread identities; `browserName`
+    and `channel` shorthands stay unresolved with the detail naming them), failing on base
+    `e9a5d6c80`.
+  - Rollback: drop the shorthand branch in `playwrightUseLayerItems`; no persisted format or
+    receipt changes.
+- `TJAA-V0-601`: (experimental under the standing lane auto-accept (2026-11-01); V1-3933) A literal
+  `devices[...]` spread whose descriptor's browser is not modelled (`iPhone 13`, `Pixel 5`, ...)
+  MUST keep the project identity when either `use` layer names the browser with a literal
+  `browserName`, since an explicit `browserName` outranks the descriptor's `defaultBrowserType` in
+  Playwright. The identity is the literal browser plus the device name. Without a literal
+  `browserName` in either layer it MUST stay unresolved with the detail `device "<name>" has no
+  modelled browser` at the spread.
+  - Non-goals: modelling the full Playwright device registry.
+  - Failure modes: a descriptor that Playwright changes between versions keeps the device name in
+    the identity, so the project fragment and its argv are unchanged.
+  - Falsifier: `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in
+    `playwright_shorthand_v13933_test.go` (the spread in either layer and either order with a literal
+    `browserName` resolves; without one it names the spread), failing on base `e9a5d6c80`.
+  - Rollback: refuse the unmodelled spread in `playwrightUseLayerItems` again and drop the deferred
+    check in `playwrightInheritedUse`; no persisted format or receipt changes.
 
 - `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
   Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
@@ -1684,6 +1750,66 @@ cannot, from the same graph phase and closure walk the plan uses.
   asked to reuse already serves both the general adapter and the Playwright profile
   (`TJAA-V0-037`, `TJAA-V0-057`, GitHub #1880), so no second resolver is added. Rollback: restore
   the alias reason at the bare-import site, the `\bfrom` pattern and the unstripped specifier.
+
+### VanillaTwisted frontier triage (TJAA-V0-871; V1-3612)
+
+Intent (orchestrator observation, 2026-10-31; V1-3612): on the VanillaTwisted range
+`bb4547e3..60de6c0c` the plan stays `scope=UNKNOWN` with 115 `LANGUAGE_FRONTIER` unknowns after
+V1-0970, and each remaining class is to be resolved where a sound rule exists or kept fail-closed
+with its reason.
+
+- **TJAA-V0-871:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-3612) Amending `TJAA-V0-005`: in a `.jsx` or `.tsx` source, `<` MUST be a recognized
+  literal-opening context for a `'`- or `"`-quoted token, beside the listed punctuators, so a
+  string literal type argument (`useState<"idle" | "busy">("idle")`,
+  `ComponentProps<"button">["style"]`) or a comparison (`a < "b"`) no longer raises
+  `typescript:unparsed-source`. It is sound because JSX text cannot hold `<`: there it always opens
+  a tag, and a tag name cannot begin with a quote. `>` stays unrecognized, because a quote after
+  `>` may be JSX text (`<p>"quoted"</p>`); the line-crossing and `require` rules are unchanged.
+  Decision (lane aff-w23), the other classes on that range, each kept fail-closed:
+  `typescript:dynamic-import` (31 sites: `import()` calls in Playwright specs, server tests and
+  `App.tsx` lazy routes) is computed loading `TJAA-V0-005` keeps opaque; `relative-import-unresolved`
+  (36: `.json` and `.css` imports such as `./catalogue.json`, `./index.css`, and one import of
+  an unbuilt `dist/` file) names files that are no source unit, so no unit edge can carry them
+  without a non-source asset model this amendment does not add; `runtime-flags-unresolved` (26,
+  `node:test` suites whose `node --test` flags and loaders are unread), `test-runner-ambiguous`
+  (45, e2e files four Playwright configs claim, and fixtures both Playwright and Vitest claim),
+  `executable-config-unresolved` (5, computed `testMatch` and `setupFiles`), `test-runner-unknown`
+  (4 `.test.mjs` scripts no runner claims), `e2e-runtime-dependency` (41 specs that drive a running
+  server) and `bare-import-undeclared` (2: `pg`, which no manifest above the importer declares,
+  and the virtual `corecrypto-wasm-url`) each stay as their requirements define. The two
+  `unparsed-source` sites on `.d.mts` declaration files stay, because `.mts` and `.cts` sources
+  are not read. The range also keeps 7 `UNOWNED_DIRTY_PATH` unknowns (`CLAUDE.md`,
+  `docs/agent-memory/*.md`), which the adopter can retire with `.corvint/documentation-paths.json`
+  (AFP-V0-160), so this amendment alone cannot make that range's plan bounded. Non-goals: a
+  general JSX parser; resolving any other class. Failure mode: a source whose text the scanner
+  already misreads as code could put a quote after `<`; that source is invalid JSX, which the
+  frontier never vouched for. Acceptance evidence: `TestJSXQuoteAfterLessThanIsALiteral_V13612`
+  in `jsx_less_than_v13612_test.go`; live, the same range went from 15 to 2 `unparsed-source`
+  sites and from 115 to 103 `LANGUAGE_FRONTIER` unknowns (selected 42 both times); one of the 13
+  files now read past its type argument, `PrivateJoin.tsx`, raises `typescript:scan-unresolved`
+  for a JSX-text `/` at line 412, as `TJAA-V0-039` requires. Rollback: remove `<` from the `jsxQuoteStartsLiteral` punctuators.
+
+- `TJAA-V0-830`: (experimental under the standing lane auto-accept (2026-10-11); V1-4258, V1-3509;
+  extending `AFP-V0-551` and ASD-V0-895 to this adapter) A module's string or template literal
+  that starts or ends on a line carrying the comment `//corvint:fixture-path` names no repository
+  read: a path written into or compared against a temporary directory, or a file of a directory
+  outside the repository such as an installed package. A path token that only such literals of
+  the module hold is no path token of its unit, so it selects no `PATH_LITERAL_READER`. Unlike the
+  Go rule the marker also applies outside test files, because this adapter's proof and build
+  scripts that tests run write fixtures too. A token any unmarked literal of the module also holds
+  stays, the marker text inside a literal marks nothing, and a module read whole because it does
+  not tokenize keeps every token. An import specifier stays out of the tokens only as `TJAA-V0-126` already rules.
+  Motivation: `integrations/host-adapters.test.mjs`, `integrations/pi/core-host.test.mjs` and
+  `conformance/interactive-alpha/core-planning-proof.mjs` write `README.md` into temporary
+  repositories and `integrations/pi-protected/build.mjs` reads it from the installed SDK; the
+  bare `README.md` token made each a reader of every `README.md` in the repository, so a host
+  README edit brought the whole TypeScript frontier. Target: an `integrations/claude-code/README.md` edit beside a Go change adds
+  no unknown entry to the Go change's own plan, while `host-adapters.test.mjs`, which copies and
+  hashes `integrations/opencode/`, stays a reader of `integrations/opencode/README.md` through its
+  directory token. Non-goal: narrowing a directory token by what the test does with it. Failure
+  mode: a marker on a literal the test really reads is an author error, reviewable in the diff, as
+  for Go. Rollback: drop `fixtureLines` from `pathTokensSkipping` and the markers.
 
 ## Opt-in Playwright project profile
 
@@ -2055,6 +2181,11 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-725` (V1-2583; GitHub #1701) | `TestPlaywrightTagClosureDefersProvenTestBody_TJAA725` and `TestPlaywrightTagClosureBodyGuardStops_TJAA725` in `playwright_test_body_defer_test.go` (proven test, aliased and hook bodies stay exact; a describe callback, an unproven module, a rebound, reassigned or escaping `test` and a guard break in an imported helper still stop) | experimental |
+| `TJAA-V0-830` (V1-4258, V1-3509) | `TestFixtureMarkedLiteralsNameNoRead_TJAA830` in `path_tokens_fixture_test.go` (a marked literal names no token in a test or non-test module, an unmarked twin keeps it, the marker text inside a literal or followed by code marks nothing); `TestIntegrationReadmesAreDocumentation_AFP_V0_830` (repository plan) | experimental |
+| `TJAA-V0-601` (V1-3933) | `TestPlaywrightUnmodelledDeviceWithBrowserName_V13933` in `playwright_shorthand_v13933_test.go` (unmodelled device plus literal browserName resolves; without one it stays unresolved and names the spread) | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-600` (V1-3933) | `TestPlaywrightUseShorthandProperty_V13933` in `playwright_shorthand_v13933_test.go` (non-identity shorthand keeps identities; identity shorthand stays unresolved and named) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
+| `TJAA-V0-871` (V1-3612) | `TestJSXQuoteAfterLessThanIsALiteral_V13612` in `jsx_less_than_v13612_test.go` (a quoted type argument and a comparison after `<` build the edge; a quote after `>` in JSX text still raises `typescript:unparsed-source`) | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

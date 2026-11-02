@@ -90,7 +90,7 @@ func noteWrite(env Env, cmd []string, operation string, args []string) *wire.Res
 			text = string(data)
 		}
 	}
-	actor, err := initActor(f.role)
+	actor, err := initActor(env, f.role)
 	if err != nil {
 		return errorResult(cmd, err)
 	}

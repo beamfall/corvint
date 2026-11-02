@@ -17,8 +17,8 @@ try {
   const after = await treeSHA(state);
   await save(join(output, 'tasks-seed-first.json'), { profile: 'corvint-core-tasks-seed/0', phase: 'first', sourceSha256, storeBeforeSha256: sha('[]'), storeAfterSha256: after, stdout: first.toString() });
   await run(['/usr/bin/git', '-C', root, 'init', '-q'], root);
-  await writeFile(join(root, 'README.md'), '# Disposable core planning fixture\n');
-  await run(['/usr/bin/git', '-C', root, 'add', 'README.md'], root);
+  await writeFile(join(root, 'README.md'), '# Disposable core planning fixture\n'); //corvint:fixture-path
+  await run(['/usr/bin/git', '-C', root, 'add', 'README.md'], root); //corvint:fixture-path
   await run(['/usr/bin/git', '-C', root, '-c', 'user.name=Core qualification', '-c', 'user.email=core@example.invalid', 'commit', '-qm', 'Core planning fixture'], root);
   const beforeReplay = await treeSHA(state), replay = await run(['/bin/sh', seed, tasks, root], source), afterReplay = await treeSHA(state);
   assert(beforeReplay === afterReplay, 'seed replay changed native store');

@@ -132,6 +132,33 @@
           }
         }
       }
+    },
+    "linux/amd64": {
+      "uname": "Linux corvint-agent 6.18.38-Unraid #1 SMP PREEMPT_DYNAMIC Mon Jul  6 15:22:03 PDT 2026 x86_64 x86_64 x86_64 GNU/Linux",
+      "where": "Ubuntu 24.04.5 LTS container on the Unraid lane host, lane cfx-u36 (V1-0591), 2026-11-02; native linux/amd64 toolchain, no cross-compilation. The repository extract was reproduced from ef2a01db52d5436c262725d136060c9eb95e8580 with the CORPUS.json selection and extract commands (path list sha256 9a4b0fd0a726cf4bba20b0f2e13e47cea867afbfaac397689678103c672dde57, 4836 files). The native parity compared against the portable observation this host produced with go1.27.3, whose bytes equal the qualified go1.27.1 darwin/arm64 observation.",
+      "toolchains": {
+        "go1.27.3": "official go1.27.3 linux/amd64 distribution at /usr/local/go (go version go1.27.3 linux/amd64; GOTOOLCHAIN=local)"
+      },
+      "portable": {
+        "go1.27.3": {
+          "repo": "beb9a5b2f45d46e697c7426fccfc8b781a4840a3c2e4a102fb82e4db257eda39",
+          "cases": "55792eadc0fbda5917f9c7142e314dff21d3b2626e666b5ea1552f63d08a9a41"
+        }
+      },
+      "native": {
+        "go1.27.3": {
+          "repo": {
+            "files": 4836,
+            "pairs": 19190,
+            "verdictsEqualPortableGo1.27.1": true
+          },
+          "cases": {
+            "files": 26,
+            "pairs": 85,
+            "verdictsEqualPortableGo1.27.1": true
+          }
+        }
+      }
     }
   },
   "result": {
@@ -143,14 +170,22 @@
       "files": 26,
       "perturbationPairs": 85
     },
-    "portableIdentity": "go1.27.1, go1.27.2 and go1.27.3 produce byte-identical repository and case observations on darwin/arm64, and go1.27.1 produces the same bytes on linux/arm64",
+    "portableIdentity": "go1.27.1, go1.27.2 and go1.27.3 produce byte-identical repository and case observations on darwin/arm64, go1.27.1 produces the same bytes on linux/arm64, and go1.27.3 produces the same bytes natively on linux/amd64 (2026-11-02)",
     "go1.24.13": "only the parse digest differs from go1.27.1 (19 of 26 cases, 4772 of 4836 repository files): go/ast.BasicLit gained the ValueEnd field, which the AST dump records. Every scanner, printer and formatter digest and every predicate verdict is identical.",
     "rejectedRenames": "7 of 3571 derived rename pairs are rejected by the rename predicate; each from-name shares its spelling with a selector, field or composite-literal key, so the rejection is the documented conservative behaviour"
   },
   "notRun": [
     "windows hosts",
-    "linux/amd64",
-    "native linux/arm64 toolchains (the Linux binaries were cross-compiled on darwin)",
+    "go1.27.1, go1.27.2 and go1.24.13 on linux/amd64 (only go1.27.3 is installed on that host under GOTOOLCHAIN=local; its admission rests on the parser-closure identity of CEM-V1-370, which TestRunningToolchainClosure confirmed there)",
+    "native linux/arm64 toolchains (the linux/arm64 binaries were cross-compiled on darwin)",
     "CI-hosted corpus runs"
+  ],
+  "amendments": [
+    {
+      "date": "2026-11-02",
+      "ticket": "V1-0591",
+      "lane": "cfx-u36",
+      "change": "added the linux/amd64 host entry from a native run, moved linux/amd64 out of notRun and named the toolchains not run there; no case, observation, tuple or closure value changed"
+    }
   ]
 }

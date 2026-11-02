@@ -13,6 +13,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestCancellationKillsAndReapsGitDescendants(t *testing.T) {
@@ -27,7 +29,7 @@ func TestCancellationKillsAndReapsGitDescendants(t *testing.T) {
 		"printf '%s' \"$child\" > '" + descendantFile + "'\n" +
 		"printf started > '" + started + "'\n" +
 		"wait \"$child\"\n"
-	if err := os.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -110,7 +112,7 @@ func TestProbeRetriesAConcurrentCleanToDirtyTransition(t *testing.T) {
 		"    ;;\n" +
 		"esac\n" +
 		"exit \"$code\"\n"
-	if err := os.WriteFile(wrapper, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(wrapper, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

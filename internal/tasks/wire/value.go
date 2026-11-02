@@ -8,7 +8,12 @@
 // Size are decimal strings, §2), so the parser refuses them outright.
 package wire
 
-import "sort"
+import (
+	"fmt"
+	"slices"
+	"sort"
+	"unicode/utf8"
+)
 
 // Kind enumerates the JSON value kinds a taskman document may contain.
 type Kind int
@@ -151,12 +156,31 @@ func CheckSortedUnique(where string, vs []Value) error {
 				return Errorf(CodeMalformed, where, "duplicate element at index %d", i)
 			}
 			if key < prev {
-				return Errorf(CodeMalformed, where, "array is not canonical-byte sorted at index %d: it is a set, so sort its elements by their canonical JSON bytes", i)
+				// CTS-V0-780 (V1-3562): name the first out-of-order pair and, for an
+				// object, the member that sorts it first.
+				order := ""
+				if v.Kind == KindObject && v.Obj != nil && len(v.Obj.Keys) > 0 {
+					first := slices.Min(v.Obj.Keys)
+					order = fmt.Sprintf(" (an object compares by its members in key byte order, so first by %q)", first)
+				}
+				return Errorf(CodeMalformed, where, "array is not canonical-byte sorted at index %d: it is a set, so sort its elements by their canonical JSON bytes%s; element %d %s sorts before element %d %s", i, order, i, clip(key), i-1, clip(prev))
 			}
 		}
 		prev = key
 	}
 	return nil
+}
+
+// clip shortens canonical bytes quoted in a refusal to at most 96 bytes.
+func clip(s string) string {
+	if len(s) <= 96 {
+		return s
+	}
+	n := 93
+	for n > 0 && !utf8.RuneStart(s[n]) {
+		n--
+	}
+	return s[:n] + "..."
 }
 
 // Equal reports whether two values encode to identical canonical bytes.

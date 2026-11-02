@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/liveverify/mutate"
 	tr "github.com/Beamfall/corvint/internal/testrunner"
 )
@@ -61,7 +62,7 @@ func fakeContainer(t *testing.T) (*ContainerProfile, string) {
 	log := filepath.Join(t.TempDir(), "runs.log")
 	script := strings.NewReplacer("@LOG@", log, "@RUBY@", rubyArgv[0], "@SHIM@", rubyArgv[1], "@PATH@", os.Getenv("PATH")).Replace(fakeContainerScript)
 	executable := filepath.Join(bin, "docker")
-	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return &ContainerProfile{
@@ -243,7 +244,7 @@ func TestFPKV0078UnusableContainerIsUnsupportedAtTheRunnerStage(t *testing.T) {
 	// A sparse file one byte over the test runner's pinned-executable
 	// bound: refused from its size, never read whole.
 	oversized := filepath.Join(t.TempDir(), "docker")
-	if err := os.WriteFile(oversized, script, 0o755); err != nil {
+	if err := execfile.WriteFile(oversized, script, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Truncate(oversized, tr.MaxPinnedArtifactBytes+1); err != nil {
@@ -355,7 +356,7 @@ func scriptedContainer(t *testing.T, good int, pass, later string, status int) *
 	script := strings.NewReplacer("@COUNT@", filepath.Join(t.TempDir(), "count"), "@GOOD@", fmt.Sprint(good),
 		"@PASS@", pass, "@LATER@", later, "@STATUS@", fmt.Sprint(status)).Replace(scriptedContainerScript)
 	executable := filepath.Join(bin, "docker")
-	if err := os.WriteFile(executable, []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(executable, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return &ContainerProfile{

@@ -154,6 +154,12 @@ type Input struct {
 	// inventory and the queue's importMapSha256; ImportApply on a mapped
 	// queue requires it (CTS-V0-017), and every other operation may omit it.
 	ImportMap []byte
+	// TicketIndex is the ticket index's entries by digest, supplied by the
+	// native mutation writer when the index governs this queue and policy. A
+	// non-target canonical ticket whose bytes' SHA-256 and length equal an
+	// entry's is held as its summary and decoded from those bytes on first
+	// Get (TCX-V0-846); nil decodes every ticket.
+	TicketIndex map[wire.Digest]*intent.ClosedEntry
 	// CanonicalTicketPaths names the intent/tickets/ projection of each
 	// CanonicalTickets record, in the same order. The lease routes supply it
 	// so a heartbeat or renew binds the set by path without decoding a
@@ -589,7 +595,18 @@ func noChange(id string) Result {
 // Replay is consulted before fresh-transition preconditions. No output grants I/O.
 func Model(r Request, in Input) Result { return model(r, in, nil) }
 
-func model(r Request, in Input, sequence *ImportSequence) Result {
+func model(r Request, in Input, sequence *ImportSequence) (result Result) {
+	// A ticket held as its index summary is decoded on first Get; a decode
+	// that fails refuses the request instead of panicking (TCX-V0-846).
+	defer func() {
+		if p := recover(); p != nil {
+			me, ok := p.(ticket.MaterializeError)
+			if !ok {
+				panic(p)
+			}
+			result = failed(r.RequestID, malformed("indexed ticket does not decode: "+me.Err.Error()))
+		}
+	}()
 	if _, e := wire.ParseLabel("actor", r.Actor.ID); e != nil {
 		return refused(r.RequestID, mutation.OutcomeUnauthorized, "", "hypothetical actor malformed")
 	}
@@ -1194,9 +1211,12 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 	// comparing bytes, trailing LF included), so a record that decodes is
 	// not parsed a second time (LGL-V0-004, proposed).
 	records := make([]*ticket.Record, bounded)
+	summaries := make([]*ticket.Summary, bounded)
 	refusals := make([]error, bounded)
 	forEachTicket(bounded, func(i int) {
-		records[i], refusals[i] = loadTicket(r, in, in.CanonicalTickets[i])
+		if summaries[i], refusals[i] = indexedTicket(r, in, in.CanonicalTickets[i]); summaries[i] == nil && refusals[i] == nil {
+			records[i], refusals[i] = loadTicket(r, in, in.CanonicalTickets[i])
+		}
 	})
 	for _, e := range refusals {
 		if e != nil {
@@ -1206,14 +1226,60 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 	if bounded < len(in.CanonicalTickets) {
 		return nil, limit("canonical inventory bytes")
 	}
-	inv, e := ticket.NewInventory(queueID, records)
+	full := make([]*ticket.Record, 0, bounded)
+	var held []*ticket.Summary
+	raws := map[string][]byte{}
+	for i, rec := range records {
+		if rec != nil {
+			full = append(full, rec)
+		} else {
+			held = append(held, summaries[i])
+			raws[summaries[i].TicketID.Raw] = in.CanonicalTickets[i]
+		}
+	}
+	inv, e := ticket.NewLazyInventory(queueID, full, held, func(s *ticket.Summary) (*ticket.Record, error) {
+		rec, err := ticket.Decode(raws[s.TicketID.Raw])
+		if err != nil {
+			return nil, err
+		}
+		if rec.TicketID.Raw != s.TicketID.Raw || rec.Status != s.Status {
+			return nil, malformed("indexed ticket differs from its summary")
+		}
+		return rec, nil
+	})
 	if e != nil {
 		return nil, e
 	}
-	if countTicketProjections(in) != len(records) {
+	if countTicketProjections(in) != bounded {
 		return nil, malformed("incomplete canonical ticket inventory")
 	}
 	return inv, nil
+}
+
+// indexedTicket returns raw's index summary when raw is a non-target ticket
+// whose SHA-256 and length equal an entry's, after the projection checks
+// loadTicket makes (TCX-V0-846). The entry was admitted only when its record
+// re-encoded to exactly these bytes (TCX-V0-845), so the digest compared here
+// is the FileDigest loadTicket compares. A nil summary and nil error mean
+// raw is decoded instead.
+func indexedTicket(r Request, in Input, raw []byte) (*ticket.Summary, error) {
+	if in.TicketIndex == nil {
+		return nil, nil
+	}
+	sum := wire.Sum(raw)
+	entry, ok := in.TicketIndex[sum]
+	if !ok || entry.Size != int64(len(raw)) || entry.Summary.TicketID.Raw == r.TargetID {
+		return nil, nil
+	}
+	path := "intent/tickets/" + entry.Summary.TicketID.Local + ".json"
+	f, ok := in.Inventory.files[path]
+	if !ok {
+		return nil, malformed("canonical ticket has no physical projection")
+	}
+	if r.Operation != Unpause && (f.Sha256 != sum || f.Bytes.Uint64() != uint64(len(raw))) {
+		return nil, malformed("unselected divergent ticket")
+	}
+	return entry.Summary, nil
 }
 
 // loadTicket decodes one canonical ticket record and checks it against its

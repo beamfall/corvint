@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/workqueue"
 )
 
@@ -40,7 +41,7 @@ func workTestRunner(t *testing.T, ctx context.Context, raw string) *workAdapterR
 	t.Helper()
 	root := t.TempDir()
 	path := filepath.Join(root, "adapter")
-	if err := os.WriteFile(path, []byte(raw), 0755); err != nil {
+	if err := execfile.WriteFile(path, []byte(raw), 0755); err != nil {
 		t.Fatal(err)
 	}
 	runner, err := newWorkAdapterRunner(ctx, root, path, workSource{adapterRaw: []byte(raw), adapterMode: "100755", adapterOID: strings.Repeat("a", 40)}, &workqueue.Policy{ID: "test-policy"})
@@ -78,7 +79,7 @@ func TestWorkRunnerInterpreterQualification(t *testing.T) {
 			t.Run(line, func(t *testing.T) {
 				path := filepath.Join(t.TempDir(), "adapter")
 				raw := []byte(line + "\nexit 0\n")
-				if err := os.WriteFile(path, raw, 0755); err != nil {
+				if err := execfile.WriteFile(path, raw, 0755); err != nil {
 					t.Fatal(err)
 				}
 				runner, err := newWorkAdapterRunner(context.Background(), filepath.Dir(path), path, workSource{adapterRaw: raw, adapterMode: "100755"}, &workqueue.Policy{})
@@ -112,7 +113,7 @@ func TestWorkRunnerInterpreterQualification(t *testing.T) {
 			}
 			path := filepath.Join(root, "adapter")
 			raw := []byte("#!" + interpreter + " sh\nexit 0\n")
-			if err := os.WriteFile(path, raw, 0755); err != nil {
+			if err := execfile.WriteFile(path, raw, 0755); err != nil {
 				t.Fatal(err)
 			}
 			runner, err := newWorkAdapterRunner(context.Background(), root, path, workSource{adapterRaw: raw, adapterMode: "100755"}, &workqueue.Policy{})
@@ -131,7 +132,7 @@ func TestWorkRunnerExecutableSwap(t *testing.T) {
 		if err := os.Rename(runner.path, runner.path+".old"); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(runner.path, runner.source.adapterRaw, 0755); err != nil {
+		if err := execfile.WriteFile(runner.path, runner.source.adapterRaw, 0755); err != nil {
 			t.Fatal(err)
 		}
 		_, receipt, err := runner.run("snapshot", []string{}, 100)
@@ -166,14 +167,14 @@ func TestWorkRunnerExecutableSwap(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(interpreter, raw, 0755); err != nil {
+		if err := execfile.WriteFile(interpreter, raw, 0755); err != nil {
 			t.Fatal(err)
 		}
 		runner := workTestRunner(t, context.Background(), "#!"+interpreter+"\nprintf ok\n")
 		if err := os.Rename(interpreter, interpreter+".old"); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(interpreter, raw, 0755); err != nil {
+		if err := execfile.WriteFile(interpreter, raw, 0755); err != nil {
 			t.Fatal(err)
 		}
 		_, receipt, err := runner.run("snapshot", []string{}, 100)

@@ -49,6 +49,7 @@ func TestTQDV0041_RepeatRefusalHonoursProgressSignal(t *testing.T) {
 // signal is not an obligation witness, so SETUP_ONLY_PROOF judges and words
 // a completion exactly as without it.
 func TestTQDV0042_SetupOnlyProofIgnoresProgressSignal(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	t.Run("TQD-V0-042 SetupOnlyProofIgnoresProgressSignal", func(t *testing.T) {
 		r, id, head := obligationRepo(t)
 		seedObligations(t, r.Root, id)

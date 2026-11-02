@@ -21,8 +21,7 @@ import (
 func TestATRV0801_CompiledBinaryAdmitsDistinctBuildLogFiles(t *testing.T) {
 	binary := cli.CompiledTasksBinary(t)
 	t.Setenv("CORVINT_TASKS", binary)
-	t.Setenv("CORVINT_TASKS_ACTOR", "scratch")
-	t.Setenv("ATM_ACTOR", "scratch")
+	setActor(t, "scratch")
 	dir := filepath.Join(t.TempDir(), "q")
 	if out, err := exec.Command(scratchQueueHelper, dir).CombinedOutput(); err != nil {
 		t.Fatalf("helper: %v %s", err, out)

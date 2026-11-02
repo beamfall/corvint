@@ -16,8 +16,7 @@ import (
 // tlcStore is a lease store on main whose tickets the lifecycle tests drive.
 func tlcStore(t *testing.T) (root, tree string, ok func(args ...string) run) {
 	t.Helper()
-	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
-	t.Setenv("ATM_ACTOR", "tester")
+	setActor(t, "tester")
 	root, tree = ergStore(t)
 	ok = func(args ...string) run {
 		t.Helper()
@@ -72,6 +71,7 @@ func tlcWant(t *testing.T, ok func(args ...string) run, id, state, reason string
 // TestTLCV0008_ShowLifecycleTransitions drives one ticket per path through
 // the derived states that ticket show reports with their evidence.
 func TestTLCV0008_ShowLifecycleTransitions(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, tree, ok := tlcStore(t)
 	worked, _ := tcdTicket(t, root, "worked", "")
 	held, _ := tcdTicket(t, root, "held", "")
@@ -135,6 +135,7 @@ func TestTLCV0008_ShowLifecycleTransitions(t *testing.T) {
 // TestTLCV0007_LifecycleReadsAreReadOnly pins that every lifecycle read
 // leaves the intent tree, the state tree and the refs unchanged.
 func TestTLCV0007_LifecycleReadsAreReadOnly(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, _, ok := tlcStore(t)
 	id, _ := tcdTicket(t, root, "readonly", "")
 	tlcDeliver(t, ok, id, "1", "claude/lane-r", tlcLaneHead(t, root, "claude/lane-r", "lane work"))
@@ -174,6 +175,7 @@ func tlcIDs(items []wire.Value) []string {
 // TestTLCV0009_SearchLifecycleFilterAndFacet pins the --lifecycle filter, the
 // byLifecycle facet over every state and the per-item lifecycle.
 func TestTLCV0009_SearchLifecycleFilterAndFacet(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, _, ok := tlcStore(t)
 	a, _ := tcdTicket(t, root, "alpha", "")
 	b, _ := tcdTicket(t, root, "beta", "")
@@ -210,6 +212,7 @@ func TestTLCV0009_SearchLifecycleFilterAndFacet(t *testing.T) {
 
 // TestTLCV0010_RoadmapLifecycle pins the per-row lifecycle of the roadmap.
 func TestTLCV0010_RoadmapLifecycle(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, _, ok := tlcStore(t)
 	a, _ := tcdTicket(t, root, "alpha", "")
 	tcdTicket(t, root, "beta", "")
@@ -231,6 +234,7 @@ func TestTLCV0010_RoadmapLifecycle(t *testing.T) {
 // TestTLCV0011_ReleaseReadinessLifecycleCounts pins memberCounts.byLifecycle
 // and the --lifecycle member list.
 func TestTLCV0011_ReleaseReadinessLifecycleCounts(t *testing.T) {
+	parallelTest(t) // actor through cli.Env.Actor; no env, cwd, hook, exec-mode or package-variable writes (V1-4187)
 	root, _, ok := tlcStore(t)
 	a, _ := tcdTicket(t, root, "alpha", "")
 	b, _ := tcdTicket(t, root, "beta", "")

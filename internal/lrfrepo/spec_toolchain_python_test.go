@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TestSTAV0965_ConformancePicksAPython311 runs the conformance script's
@@ -38,7 +40,7 @@ func TestSTAV0965_ConformancePicksAPython311(t *testing.T) {
 			code = "0"
 		}
 		p := filepath.Join(bin, name)
-		if err := os.WriteFile(p, []byte("#!/bin/sh\nexit "+code+"\n"), 0o755); err != nil {
+		if err := execfile.WriteFile(p, []byte("#!/bin/sh\nexit "+code+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return p

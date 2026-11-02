@@ -94,10 +94,33 @@ Each opt-in harness is a test binary built at the named sha. Run it from its pac
 | --- | --- | --- |
 | V1-2205 / V1-2203 (B1) | `internal/tasks/store` `TestCALV0118_WriterHoldProfile` | `CORVINT_TASKS_WRITER_HOLD_PROFILE=<report>`, `CORVINT_TASKS_HISTORY_SIZES=3500,13500,40000`, `CORVINT_TASKS_HISTORY_TICKETS=880`, `CORVINT_TASKS_WRITER_HOLD_REPS=5`, three runs |
 | V1-2205 / V1-2385 (B2) | `internal/tasks/store` `TestCALV0263_LeaseGateLoad` | `CORVINT_TASKS_LEASE_GATE_LOAD=<report>`, `_RECEIPTS=40000`, `_WRITERS=15`, `_SECONDS=120`, three runs |
+| V1-2186 / V1-1701 (walk cost) | `internal/tasks/store` `TestV11701_WalkCost` | `CORVINT_TASKS_WALK_COST=<report>`, `_STORE=<fixture dir>`, `_RECEIPTS=40000`, `_RUNS=5`; A/B as below (LGL-V0-804) |
 | V1-1569 | `internal/tasks/store` `TestPSRV0055_PoolAcquireLoad` | `CORVINT_TASKS_POOL_ACQUIRE_LOAD=<report>`, defaults: 45,000 receipts, 8 acquirers, 600 s, 300 s grace |
 | V1-2300 | `corvint --root <corpus> index` | Ten rounds, each running base `ef2a01db5`, seal `9080ab596` and main, in turn. Before each run the corpus's shared snapshot store `<git-common-dir>/corvint/index` is removed. The corpus is a clone at `ef2a01db5`. Timing is `/usr/bin/time` `%e %U %S`. |
 | V1-2347 | `internal/opencodequalification` `sampleBaseline` | Five 60 s windows of the production AHI-172 probe sampler, driven by a scratch in-package test that is not committed |
 | V1-2399 | `internal/procgroup` `TestPGOV0022*` and `cmd/corvint` `TestSourceViewCancellationTerminatesGitProcessGroup` | `-test.count=5` and `-test.count=10`; the source-view test also runs at the pre-fix main (`c7505ee38^1`) |
+
+### Journal walk cost A/B (V1-2186, LGL-V0-804)
+
+The walk-cost harness times one complete journal audit per run and splits each run into CPU and
+I/O wait, so a CPU profiler that blames `openat` for decode work (as the macOS one did, V1-2186)
+can be checked against the clock. Each run reports `cpuMs` (user plus system), `sysMs`,
+`goUserCpuMs` and `goGcCpuMs` (the Go runtime's mutator and GC CPU), `runQueueMs` (kernel run-queue
+delay; `-1` without `/proc/self/task/*/schedstat`) and `ioWaitMs`, sampled thread time in
+uninterruptible sleep (`NOT_OBSERVED` without `/proc`, never 0). The report also names the command,
+the test binary's SHA-256, the CPU count and the 1/5/15-minute load before and after.
+
+1. Build both binaries once, each in its own worktree at its sha:
+   `go test -c -o store.test.A ./internal/tasks/store` (and `.B`).
+2. Build the fixture once with either binary; the second run reuses it, so both walk the same bytes:
+   `CORVINT_TASKS_WALK_COST_STORE=<dir> CORVINT_TASKS_WALK_COST_RECEIPTS=40000`.
+3. Alternate the binaries, A then B, for at least two rounds, five runs each, recording the load:
+   `CORVINT_TASKS_WALK_COST=<round>-<A|B>.json CORVINT_TASKS_WALK_COST_RUNS=5 ./store.test.A -test.run '^TestV11701_WalkCost$' -test.count=1 -test.timeout=0`.
+4. Compare `medianMs` and `medianSplit` per round. A walk whose `ioWaitMs` is near 0 while `cpuMs`
+   is several times `wallMs` is CPU-bound on parallel decode; a rising `ioWaitMs` or `runQueueMs`
+   names I/O or scheduler delay instead. `CORVINT_TASKS_WALK_COST_IO_SAMPLE_MS=0` turns the sampler
+   off to check how much it perturbs the median (about 2.5 % at 40,000 receipts on the Unraid lane
+   host, 2026-11-01).
 
 The page cache stays warm. Dropping it needs root, which the runner does not use. Record medians and
 spread across repetitions, and keep each step's idle-check JSON with its result.

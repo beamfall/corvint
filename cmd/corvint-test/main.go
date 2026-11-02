@@ -107,7 +107,10 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if (len(args) == 1 && helpWord(args[0])) || (len(args) == 2 && args[0] == "e2e" && helpWord(args[1])) {
 		return writeGroupHelp(stdout)
 	}
-	if len(args) < 2 || args[0] != "e2e" {
+	if len(args) > 0 && args[0] != "e2e" {
+		return fmt.Errorf("UNKNOWN_COMMAND: unknown command %q\n%s", args[0], usage)
+	}
+	if len(args) < 2 {
 		return errors.New(usage)
 	}
 	sub := args[1]

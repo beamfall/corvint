@@ -206,6 +206,16 @@ type taskContextCompiler struct {
 	// fuzzySupport is the TCP-V0-650 disclosure of a fuzzy lexical row that
 	// corroborated a path another relation admitted.
 	fuzzySupport map[string]string
+	// rrfOrder and additiveOrder are CRK-V0-004/005's opt-in orderings, set
+	// by `CORVINT_CONTEXT_RRF=on` and `CORVINT_CONTEXT_ADDITIVE=on`.
+	rrfOrder, additiveOrder bool
+	// acronymProse is CRK-V0-006's opt-in rule, set by
+	// `CORVINT_CONTEXT_ACRONYMS=prose`.
+	acronymProse bool
+	// relationRank is each path's 1-based position per relation, and
+	// relationSeen each relation's count so far, recorded only for RRF.
+	relationRank map[string]map[string]int
+	relationSeen map[string]int
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -355,7 +365,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextFuzzy(configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextOrder(configureContextFuzzy(configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -369,7 +379,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		promoted:      map[string]string{},
 		linked:        map[string]string{},
 		linkRefusals:  map[string]string{},
-	})))))
+	}))))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -426,7 +436,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 		return nil
 	}
 	rows = orderBySlotWeight(rows, compiler.slotWeights)
-	rows = compiler.corroborate(rows)
+	rows = compiler.orderRows(rows)
 	rows = compiler.reserve(rows)
 	compiler.recordLexicalTail(rows)
 	rows = compiler.placeGraphRows(rows, limit)
@@ -597,6 +607,7 @@ func (compiler *taskContextCompiler) takeSlot(rows, candidates []contextRow, cap
 	for _, candidate := range candidates {
 		compiler.candidates[candidate.kind] = append(compiler.candidates[candidate.kind], candidate.path)
 	}
+	compiler.recordRelationRanks(candidates)
 	return compiler.take(rows, candidates, cap)
 }
 
@@ -606,15 +617,7 @@ func (compiler *taskContextCompiler) takeSlot(rows, candidates []contextRow, cap
 // (decision 0027). Rows keep their one evidence row: the relation that
 // admitted them.
 func (compiler *taskContextCompiler) corroborate(rows []contextRow) []contextRow {
-	for index := range rows {
-		others := compiler.support[rows[index].path]
-		if len(others) == 0 {
-			continue
-		}
-		rows[index].score += 50 * len(others)
-		rows[index].summary += "; also " + strings.Join(others, ", ")
-		rows[index].reason = discloseFuzzy(rows[index].reason, compiler.fuzzySupport[rows[index].path])
-	}
+	rows = compiler.annotateSupport(rows)
 	sort.SliceStable(rows, func(left, right int) bool {
 		return len(compiler.support[rows[left].path]) > len(compiler.support[rows[right].path])
 	})
@@ -866,7 +869,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 	// score and citation when a rarer name the task also names defines it.
 	seen := map[string]int{}
 	for _, identifier := range compiler.identifiers {
-		if !compiler.definitionSlotEligible(identifier) {
+		if !compiler.slotDefinitionEligible(identifier) {
 			continue
 		}
 		symbols := definers[identifier.name]
@@ -914,7 +917,7 @@ func (compiler *taskContextCompiler) symbolRows() []contextRow {
 func (compiler *taskContextCompiler) eligibleDefiners() map[string][]Symbol {
 	wanted := map[string]struct{}{}
 	for _, identifier := range compiler.identifiers {
-		if compiler.definitionSlotEligible(identifier) {
+		if compiler.slotDefinitionEligible(identifier) {
 			wanted[identifier.name] = struct{}{}
 		}
 	}
@@ -3199,15 +3202,12 @@ type testName struct {
 type testLinker struct {
 	compiler *taskContextCompiler
 	table    *TermTable
-	// declared maps a declared name (at least four bytes, at most
-	// contextMaxDefiners definers) to its definers; declaredBy is the inverse;
-	// declaredByToken indexes the names by their first camel-split token.
-	declared, declaredBy, declaredByToken map[string][]string
-	// declaredTokens is nameTokens of each retained declared name, split once.
-	declaredTokens map[string][]string
-	// testNames indexes the test-function names of the test paths by their
-	// first camel-split token after the `Test`/`test_` prefix.
-	testNames map[string][]testName
+	// links is the snapshot's precomputed table; without one the maps are
+	// built for this packet.
+	links *testLinkTable
+	testLinkMaps
+	// frames is the frame-candidate index, built on first use.
+	frames *frameIndex
 	// tracked is the compiler's candidate universe, read once; counterparts
 	// indexes it by contextStem with each path's contextIsTest role, so
 	// creditMirrored consults the exact-stem paths only: every pairRelation
@@ -3225,50 +3225,130 @@ type counterpart struct {
 func (compiler *taskContextCompiler) newTestLinker() *testLinker {
 	linker := &testLinker{
 		compiler: compiler, table: compiler.index.vocabulary(),
-		declared: map[string][]string{}, declaredBy: map[string][]string{},
-		declaredByToken: map[string][]string{}, declaredTokens: map[string][]string{},
-		testNames: map[string][]testName{},
-		tracked:   compiler.trackedPaths(), counterparts: map[string][]counterpart{},
+		tracked: compiler.trackedPaths(), counterparts: map[string][]counterpart{},
 	}
 	for candidate := range linker.tracked {
 		stem := contextStem(candidate)
 		linker.counterparts[stem] = append(linker.counterparts[stem], counterpart{candidate, contextIsTest(candidate)})
 	}
-	for _, symbol := range compiler.index.Symbols {
-		if len(symbol.Name) >= 4 {
-			linker.declared[symbol.Name] = appendRelation(linker.declared[symbol.Name], symbol.Path)
-		}
-		remainder, isTestName := testNameRemainder(symbol.Name)
-		if isTestName && contextIsTest(symbol.Path) {
-			linker.addTestName(symbol.Path, symbol.Name, remainder)
-		}
+	if links := compiler.index.testLinks; links.usable(compiler.index) {
+		linker.links = links
+		return linker
 	}
-	for name, definers := range linker.declared {
-		if len(definers) > contextMaxDefiners {
-			delete(linker.declared, name)
-			continue
-		}
-		for _, definer := range definers {
-			linker.declaredBy[definer] = append(linker.declaredBy[definer], name)
-		}
-		tokens := nameTokens(name)
-		linker.declaredTokens[name] = tokens
-		if len(tokens) > 0 {
-			linker.declaredByToken[tokens[0]] = append(linker.declaredByToken[tokens[0]], name)
-		}
-	}
-	for _, names := range linker.declaredBy {
-		sort.Strings(names)
-	}
+	linker.testLinkMaps = buildTestLinkMaps(compiler.index.Symbols)
 	return linker
 }
 
-func (linker *testLinker) addTestName(path, name, remainder string) {
+// testLinkMaps are the symbol-derived tables of a testLinker: a function of
+// Index.Symbols alone, built here on every packet unless the snapshot carries
+// them as a testLinkTable (IDX-SNAP-V0-809).
+type testLinkMaps struct {
+	// declared maps a declared name (at least four bytes, at most
+	// contextMaxDefiners definers) to its definers; declaredBy is the inverse;
+	// declaredByToken indexes the names by their first camel-split token.
+	declared, declaredBy, declaredByToken map[string][]string
+	// declaredTokens is nameTokens of each retained declared name, split once.
+	declaredTokens map[string][]string
+	// testNames indexes the test-function names of the test paths by their
+	// first camel-split token after the `Test`/`test_` prefix.
+	testNames map[string][]testName
+}
+
+func buildTestLinkMaps(symbols []Symbol) testLinkMaps {
+	maps := testLinkMaps{
+		declared: map[string][]string{}, declaredBy: map[string][]string{},
+		declaredByToken: map[string][]string{}, declaredTokens: map[string][]string{},
+		testNames: map[string][]testName{},
+	}
+	for _, symbol := range symbols {
+		if len(symbol.Name) >= 4 {
+			maps.declared[symbol.Name] = appendRelation(maps.declared[symbol.Name], symbol.Path)
+		}
+		remainder, isTestName := testNameRemainder(symbol.Name)
+		if isTestName && contextIsTest(symbol.Path) {
+			maps.addTestName(symbol.Path, symbol.Name, remainder)
+		}
+	}
+	for name, definers := range maps.declared {
+		if len(definers) > contextMaxDefiners {
+			delete(maps.declared, name)
+			continue
+		}
+		for _, definer := range definers {
+			maps.declaredBy[definer] = append(maps.declaredBy[definer], name)
+		}
+		tokens := nameTokens(name)
+		maps.declaredTokens[name] = tokens
+		if len(tokens) > 0 {
+			maps.declaredByToken[tokens[0]] = append(maps.declaredByToken[tokens[0]], name)
+		}
+	}
+	for _, names := range maps.declaredBy {
+		sort.Strings(names)
+	}
+	return maps
+}
+
+func (maps *testLinkMaps) addTestName(path, name, remainder string) {
 	tokens := nameTokens(remainder)
 	if len(tokens) == 0 {
 		return
 	}
-	linker.testNames[tokens[0]] = append(linker.testNames[tokens[0]], testName{path, name, tokens})
+	maps.testNames[tokens[0]] = append(maps.testNames[tokens[0]], testName{path, name, tokens})
+}
+
+// The lookups below read the snapshot's testLinkTable when the linker has one
+// and the maps otherwise; both answer every lookup alike (IDX-SNAP-V0-809).
+
+func (linker *testLinker) declaredOf(name string) []string {
+	if linker.links != nil {
+		return linker.links.declared(name)
+	}
+	return linker.declared[name]
+}
+
+func (linker *testLinker) declaredByOf(path string) []string {
+	if linker.links != nil {
+		return linker.links.declaredBy(path)
+	}
+	return linker.declaredBy[path]
+}
+
+func (linker *testLinker) declaredTokensOf(name string) []string {
+	if linker.links != nil {
+		return nameTokens(name)
+	}
+	return linker.declaredTokens[name]
+}
+
+func (linker *testLinker) declaredByTokenOf(token string) []string {
+	if linker.links != nil {
+		return linker.links.declaredByToken(token)
+	}
+	return linker.declaredByToken[token]
+}
+
+func (linker *testLinker) testNamesOf(token string) []testName {
+	if linker.links != nil {
+		return linker.links.testNames(token)
+	}
+	return linker.testNames[token]
+}
+
+// testNamesAt is every indexed test name of one path, in no particular order.
+func (linker *testLinker) testNamesAt(path string) []testName {
+	if linker.links != nil {
+		return linker.links.testNamesAt(path)
+	}
+	names := make([]testName, 0)
+	for _, entries := range linker.testNames {
+		for _, entry := range entries {
+			if entry.path == path {
+				names = append(names, entry)
+			}
+		}
+	}
+	return names
 }
 
 // testNameRemainder strips the `Test`/`test_` prefix of a test-function name.
@@ -3391,7 +3471,7 @@ func (linker *testLinker) creditTestsOfSource(anchor string, credit func(string)
 			entry.weight++
 		}
 	}
-	for _, name := range linker.declaredBy[anchor] {
+	for _, name := range linker.declaredByOf(anchor) {
 		low, high, found := linker.table.Words.find(name)
 		if !found || high-low > contextTestMentionPostings {
 			continue
@@ -3402,11 +3482,11 @@ func (linker *testLinker) creditTestsOfSource(anchor string, credit func(string)
 				entry.mention(name, idf)
 			}
 		}
-		tokens := linker.declaredTokens[name]
+		tokens := linker.declaredTokensOf(name)
 		if len(tokens) == 0 {
 			continue
 		}
-		for _, test := range linker.testNames[tokens[0]] {
+		for _, test := range linker.testNamesOf(tokens[0]) {
 			if !tokensStartWith(test.tokens, tokens) {
 				continue
 			}
@@ -3426,7 +3506,7 @@ func (linker *testLinker) creditSourcesOfTest(anchor string, credit func(string)
 		return
 	}
 	for _, word := range keys(scanWords(text)) {
-		definers := linker.declared[word]
+		definers := linker.declaredOf(word)
 		if len(definers) == 0 {
 			continue
 		}
@@ -3442,11 +3522,11 @@ func (linker *testLinker) creditSourcesOfTest(anchor string, credit func(string)
 		}
 	}
 	for _, named := range linker.namedByTest(anchor, text) {
-		for _, name := range linker.declaredByToken[named.tokens[0]] {
-			if !tokensStartWith(named.tokens, linker.declaredTokens[name]) {
+		for _, name := range linker.declaredByTokenOf(named.tokens[0]) {
+			if !tokensStartWith(named.tokens, linker.declaredTokensOf(name)) {
 				continue
 			}
-			for _, definer := range linker.declared[name] {
+			for _, definer := range linker.declaredOf(name) {
 				if entry := credit(definer); entry != nil {
 					entry.name(named.name)
 				}
@@ -3459,14 +3539,7 @@ func (linker *testLinker) creditSourcesOfTest(anchor string, credit func(string)
 // `Test<Name>`/`test_<name>` symbols and the `describe('<name>')` blocks of
 // its text.
 func (linker *testLinker) namedByTest(anchor, text string) []testName {
-	names := make([]testName, 0)
-	for _, entries := range linker.testNames {
-		for _, entry := range entries {
-			if entry.path == anchor {
-				names = append(names, entry)
-			}
-		}
-	}
+	names := linker.testNamesAt(anchor)
 	for _, match := range contextDescribe.FindAllStringSubmatch(text, -1) {
 		if tokens := nameTokens(match[1]); len(tokens) > 0 {
 			names = append(names, testName{anchor, "describe '" + match[1] + "'", tokens})
@@ -3498,8 +3571,8 @@ func (linker *testLinker) corroborate(candidate *testCandidate, anchorIsTest boo
 	}
 	for _, match := range contextDescribe.FindAllStringSubmatch(text, -1) {
 		tokens := nameTokens(match[1])
-		for _, name := range linker.declaredBy[candidate.anchor] {
-			if tokensStartWith(tokens, linker.declaredTokens[name]) {
+		for _, name := range linker.declaredByOf(candidate.anchor) {
+			if tokensStartWith(tokens, linker.declaredTokensOf(name)) {
 				candidate.name("describe '" + match[1] + "'")
 				return
 			}

@@ -132,7 +132,7 @@ func TestDirectStopRemainsSeparateAndRecursive(t *testing.T) {
 	resolve := func(ctx context.Context, stop bool, observe authoritystore.LifecycleObserver) (authoritystore.LifecycleResolution, error) {
 		return authoritystore.LifecycleResolution{}, observe(ctx, qualifiedTestScope("/test-only"))
 	}
-	if _, err := qualifiedLifecycle(context.Background(), qualifiedRequest{profile: directQualifiedLifecycleProfile, event: "session-end", input: map[string]any{}}, resolve); err == nil {
+	if _, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{profile: directQualifiedLifecycleProfile, event: "session-end", input: map[string]any{}}, resolve); err == nil {
 		t.Fatal("cross-profile scope accepted")
 	}
 	var out bytes.Buffer

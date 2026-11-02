@@ -39,6 +39,20 @@
       "go.mod",
       "internal/analyzernativebridge/"
     ],
+    "cmd/corvint-analyzer-rust": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "cmd/corvint-analyzer-shader": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "cmd/corvint-analyzer-structured-data": [
       "go.mod",
       "internal/analyzerstructured/"
@@ -57,6 +71,13 @@
     ],
     "cmd/corvint-console": [],
     "cmd/corvint-corpus-http": [],
+    "cmd/corvint-corpus-mcp": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "cmd/corvint-corpus-parity": [],
     "cmd/corvint-corpus-republish": [
       "internal/capcatalog/trees/corvint-corpus-republish.json"
@@ -89,6 +110,9 @@
     "cmd/corvint-postmerge-metrics": [
       "internal/capcatalog/trees/corvint-postmerge-metrics.json"
     ],
+    "cmd/corvint-postmerge-workflow": [
+      "internal/capcatalog/trees/"
+    ],
     "cmd/corvint-public-release-check": [],
     "cmd/corvint-pulse": [
       "conformance/pulse-snapshot-v0/",
@@ -110,13 +134,24 @@
     "cmd/corvint-test-runner": [],
     "cmd/corvint-test-validity-mcp": [],
     "cmd/corvint-tests-accept": [],
+    "cmd/corvint-update": [
+      "internal/capcatalog/trees/corvint-update.json"
+    ],
     "cmd/corvint-web-flows": [],
     "cmd/corvint-work-queue": [
-      ".corvint/work-queue-policy.json"
+      ".corvint/work-queue-policy.json",
+      "internal/capcatalog/trees/corvint-work-queue.json"
     ],
     "conformance/cli-errors-v0": [
       ".github/cishards/",
       "cmd/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "conformance/cli-parity-v0": [
+      ".github/cishards/",
+      "cmd/corvint/",
       "go.mod",
       "go.sum",
       "internal/"
@@ -148,6 +183,19 @@
       "integrations/compatibility.json",
       "integrations/opencode/package.json"
     ],
+    "conformance/mcp-2026-07-28": [
+      "cmd/corvint-mcp/",
+      "docs/specs/mcp-server-2026-07-28-v0.md",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "conformance/mcp-test-validity-v0": [
+      "cmd/corvint-test-validity-mcp/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "conformance/pulse-snapshot-v0": [
       "cmd/corvint-pulse/",
       "go.mod",
@@ -167,6 +215,14 @@
     ],
     "conformance/work-queue-v0": [],
     "examples/evidence-provider/v0/check": [],
+    "examples/evidence-provider/v0/conformance": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "examples/evidence-provider/v0/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "experimental/analyzers/sqlnative": [],
     "internal/analyzercap": [
       "cmd/",
@@ -199,6 +255,7 @@
       "cmd/corvint-analyzer-java/",
       "cmd/corvint-analyzer-objective-c/",
       "go.mod",
+      "internal/execfile/",
       "tools/native-bridge-pre-review.sh"
     ],
     "internal/analyzerruby": [
@@ -211,6 +268,14 @@
     "internal/analyzershell": [
       "cmd/corvint-analyzer-shell/",
       "go.mod"
+    ],
+    "internal/analyzerstructured": [
+      ".github/cishards/",
+      "cmd/corvint-analyzer-structured-data/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
     ],
     "internal/analyzerswift": [
       "cmd/corvint-analyzer-swift/",
@@ -304,12 +369,14 @@
     "internal/changee2e": [
       "internal/appmap/testdata/fixture/"
     ],
+    "internal/compactionkernel": [],
     "internal/corpusindex": [],
     "internal/corpusrepublish": [],
     "internal/corpusserve": [],
     "internal/dashboard/adapters": [
       "internal/secretscreen/"
     ],
+    "internal/dashboard/roadmap": [],
     "internal/dashboard/source": [],
     "internal/delta": [
       "conformance/delta-v0/decision-vectors.json",
@@ -337,6 +404,8 @@
     "internal/docviews": [],
     "internal/dogfoodflow": [
       "docs/DOGFOOD.md",
+      "docs/build-log/2026-10-31-scripts-w5.md",
+      "docs/specs/README.md",
       "protocol/cem-1.0/stable/repository-envelope-packet/"
     ],
     "internal/extevidence": [
@@ -372,6 +441,16 @@
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
     "internal/gotestrun": [],
+    "internal/jstestprovider": [
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/jstestprovider/externallive": [
+      "conformance/interactive-alpha/fixture/",
+      "internal/jstestprovider/testdata/"
+    ],
+    "internal/liveverify/affected/cfamily": [],
     "internal/liveverify/affected/dotnet": [],
     "internal/liveverify/affected/kotlin": [],
     "internal/liveverify/affected/python": [],
@@ -384,6 +463,13 @@
     "internal/liveverify/gorunner": [],
     "internal/liveverify/parentverify": [],
     "internal/liveverify/provider": [],
+    "internal/liveverify/provider/interlock": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "internal/liveverify/rbmutate": [],
     "internal/liveverify/session": [],
     "internal/localcompletion": [],
@@ -402,6 +488,7 @@
     "internal/mcp/cli": [
       "cmd/corvint-corpus-mcp/",
       "cmd/corvint-docs-mcp/",
+      "cmd/corvint-tasks/",
       "cmd/corvint-test-validity-mcp/",
       "go.mod",
       "go.sum",
@@ -409,6 +496,19 @@
       "internal/"
     ],
     "internal/mcp/corpusbridge": [],
+    "internal/mcp/docsbridge": [
+      ".github/cishards/",
+      "cmd/corvint/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
+    "internal/mcp/tasksbridge": [
+      "cmd/corvint-tasks/",
+      "go.mod",
+      "go.sum",
+      "internal/"
+    ],
     "internal/mcp/testvaliditybridge": [
       "internal/testvaliditydoc/"
     ],
@@ -416,6 +516,14 @@
     "internal/observations": [
       "docs/decisions/0519-w6-batch-acceptances-2026-10-11.md",
       "internal/cem/"
+    ],
+    "internal/perfbudget": [
+      ".github/cishards/",
+      "cmd/",
+      "experimental/analyzers/sqlnative/",
+      "go.mod",
+      "go.sum",
+      "internal/"
     ],
     "internal/perfbudget/cmd/perf-budget": [
       "Makefile",
@@ -452,11 +560,13 @@
       ".github/cishards/",
       ".github/workflows/ci.yml"
     ],
+    "internal/sharedpath": [],
     "internal/skhproof": [],
     "internal/skillexport": [],
     "internal/specindex": [
       ".corvint/test-read-scopes.json",
-      "docs/specs/"
+      "docs/specs/",
+      "script/gen-spec-requirements.sh"
     ],
     "internal/stepnegation": [],
     "internal/taskman": [
@@ -467,9 +577,6 @@
     "internal/tasks/authority": [
       "go.mod"
     ],
-    "internal/tasks/cmd/closed-index": [
-      "go.mod"
-    ],
     "internal/tasks/intent": [
       "go.mod"
     ],
@@ -478,6 +585,9 @@
     "internal/tasks/scale": [],
     "internal/tasks/store": [
       "go.mod"
+    ],
+    "internal/tasks/ticket": [
+      "internal/taskman/testdata/issue502-optional-keys-record.json"
     ],
     "internal/tasks/transaction": [],
     "internal/tcq": [
@@ -545,6 +655,8 @@
       "protocol/cem-1.0/structural-tuples/"
     ],
     "internal/worksource": [],
+    "protocol/integrations": [],
+    "script/spec-coverage-audit": [],
     "tools/beamfall-shadow": [
       "go.mod"
     ],
@@ -566,6 +678,7 @@
       "interop/cem01-go/",
       "protocol/cem-1.0/stable/neutral-criterion/results/accept.json",
       "protocol/cem-1.0/stable/repository-envelope-packet/",
+      "protocol/cem-1.0/structural-corpus/",
       "protocol/cem-1.0/structural-tuples/"
     ],
     "tools/cem-stable-regen": [
@@ -575,6 +688,9 @@
       "go.mod",
       "protocol/cem-1.0/structural-corpus/",
       "protocol/cem-1.0/structural-tuples/"
+    ],
+    "tools/ci-forward-row": [
+      ".github/"
     ],
     "tools/compat-trial": [
       "go.mod",
@@ -633,6 +749,7 @@
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
+    "tools/requirement-id-collisions": [],
     "tools/retrieval-bench": [],
     "tools/selection-baseline": [
       "benchmarks/selection-baseline/changes.json"

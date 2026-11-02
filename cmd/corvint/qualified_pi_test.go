@@ -58,7 +58,7 @@ func TestPiQualifiedLifecycleWireAndBudget(t *testing.T) {
 					}
 					return authoritystore.LifecycleResolution{Scope: scope}, observe(ctx, scope)
 				}
-				result, err := qualifiedLifecycle(context.Background(), qualifiedRequest{profile: piQualifiedLifecycleProfile, event: event, input: input}, resolver)
+				result, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{profile: piQualifiedLifecycleProfile, event: event, input: input}, resolver)
 				if err != nil || calls != 1 {
 					t.Fatal(err)
 				}
@@ -77,7 +77,7 @@ func TestPiQualifiedLifecycleWireAndBudget(t *testing.T) {
 					t.Fatal("native budget", err)
 				}
 				scope.Pi = false
-				if _, err := qualifiedLifecycle(context.Background(), qualifiedRequest{profile: piQualifiedLifecycleProfile, event: event, input: input}, resolver); err == nil {
+				if _, err := qualifiedLifecycle(qualifiedLiftedProbe(), qualifiedRequest{profile: piQualifiedLifecycleProfile, event: event, input: input}, resolver); err == nil {
 					t.Fatal("cross profile scope accepted")
 				}
 			}

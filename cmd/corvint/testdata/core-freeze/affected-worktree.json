@@ -41,13 +41,15 @@
   },
   "revision": "<varies:string>",
   "summary": {
+    "committed": 0,
     "dirty": 0,
     "excluded": 1,
     "line": "scope=BOUNDED dirty=0 selected=0 excluded=1 unknown=0",
     "scope": "BOUNDED",
     "selected": 0,
     "unknown": 0,
-    "unknownByReason": {}
+    "unknownByReason": {},
+    "worktree": 0
   },
   "tool": "affected"
 }

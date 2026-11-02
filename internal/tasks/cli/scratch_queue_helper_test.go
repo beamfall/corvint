@@ -24,8 +24,7 @@ const scratchQueueHelper = "../../../script/tasks-scratch-queue.sh"
 func TestTCDV0183_ScratchQueueHelperIsExecutionReady(t *testing.T) {
 	binary := cli.CompiledTasksBinary(t)
 	t.Setenv("CORVINT_TASKS", binary)
-	t.Setenv("CORVINT_TASKS_ACTOR", "scratch")
-	t.Setenv("ATM_ACTOR", "scratch")
+	setActor(t, "scratch")
 	dir := filepath.Join(t.TempDir(), "q")
 
 	out, err := exec.Command(scratchQueueHelper, dir).CombinedOutput()

@@ -78,9 +78,9 @@ type GoSlice struct {
 func goUnit(slices map[string]GoSlice, pkg string, shard int) Unit {
 	slice := slices[pkg]
 	if slice.Pattern != "" {
-		return Unit{Adapter: AdapterGo, Flag: "-run", Pattern: slice.Pattern, Reason: slice.Reason, Shard: shard, Slice: SliceSelected, Unit: "go:" + pkg}
+		return Unit{Adapter: AdapterGo, Flag: "-run", Pattern: slice.Pattern, Reason: slice.Reason, ReasonCode: ReasonCode(slice.Reason), Shard: shard, Slice: SliceSelected, Unit: "go:" + pkg}
 	}
-	return Unit{Adapter: AdapterGo, Reason: slice.Reason, Shard: shard, Slice: SliceWhole, Unit: "go:" + pkg}
+	return Unit{Adapter: AdapterGo, Reason: slice.Reason, ReasonCode: ReasonCode(slice.Reason), Shard: shard, Slice: SliceWhole, Unit: "go:" + pkg}
 }
 
 // ModuleUnitPrefix starts the unit id of a nested Go module's execution unit
@@ -278,7 +278,7 @@ func Build(input Input) (Manifest, error) {
 		// FULL runs the root universe, never a nested module, so a module
 		// with a dirty path keeps its unit in either scope (STR-V0-064).
 		manifest.Units = append(manifest.Units, Unit{
-			Adapter: AdapterGo, Dir: directory, Reason: moduleReason, Shard: 0, Slice: SliceWhole, Unit: ModuleUnitPrefix + directory,
+			Adapter: AdapterGo, Dir: directory, Reason: moduleReason, ReasonCode: ReasonNestedModule, Shard: 0, Slice: SliceWhole, Unit: ModuleUnitPrefix + directory,
 		})
 	}
 	for _, language := range sortedKeys(languages) {

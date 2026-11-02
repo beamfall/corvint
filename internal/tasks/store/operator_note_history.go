@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/safeopen"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -124,9 +125,11 @@ func OperatorNoteHistory(repo *intent.Repository, id wire.TicketID, ref ticket.O
 		}
 		page.Anchor, page.AnchorRevision, startRevision = cursor.Anchor, cursor.AnchorRevision, cursor.NextRevision.Int()
 	}
+	read, done := operatorNoteEvidenceReader(filepath.Join(repo.StateDir, "evidence"))
+	defer done()
 	at, used := ref.Head, 0
 	for revision := ref.Revision.Int(); ; revision-- {
-		raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "evidence", string(at)), ticket.MaxOperatorNoteBytes)
+		raw, err := read(at)
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, wire.Errorf(wire.CodeMissingEvidence, "/operatorNote", "note event %s (revision %d) is not in the evidence store", at, revision)
 		}
@@ -178,4 +181,31 @@ func OperatorNoteHistory(repo *intent.Repository, id wire.TicketID, ref ticket.O
 		}
 		at = *event.Previous
 	}
+}
+
+// operatorNoteEvidenceReader returns a bounded reader of one note event in
+// evidence and its cleanup. It pins the directory once, so each event of a
+// walk costs one no-follow openat instead of a traversal from / (ON-V0-786,
+// the CAL-V0-070 pattern), with intent.ReadFile's checks and its errors
+// labelled by the same path. When the directory cannot be pinned it reads
+// each path afresh, as before, so every refusal is unchanged.
+func operatorNoteEvidenceReader(evidence string) (func(wire.Digest) ([]byte, error), func()) {
+	fresh := func(at wire.Digest) ([]byte, error) {
+		return intent.ReadFile(filepath.Join(evidence, string(at)), ticket.MaxOperatorNoteBytes)
+	}
+	root, err := safeopen.Root(evidence)
+	if err != nil {
+		return fresh, func() {}
+	}
+	dir, err := safeopen.PinDir(root)
+	if err != nil {
+		root.Close()
+		return fresh, func() {}
+	}
+	return func(at wire.Digest) ([]byte, error) {
+			return intent.ReadFileFromDir(root, dir, filepath.Join(evidence, string(at)), string(at), ticket.MaxOperatorNoteBytes)
+		}, func() {
+			dir.Close()
+			root.Close()
+		}
 }

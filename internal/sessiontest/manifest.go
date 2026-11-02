@@ -89,9 +89,12 @@ type Unit struct {
 	// Reason says why a selected Go unit runs whole or as a selected slice
 	// (STR-V0-063); a FULL run and a declared unit carry none.
 	Reason string `json:"reason,omitempty"`
-	Shard  int    `json:"shard"`
-	Slice  string `json:"slice"`
-	Unit   string `json:"unit"`
+	// ReasonCode is Reason's stable code from the closed ReasonCode enum
+	// (STR-V0-548); a tool reads it instead of matching the prose.
+	ReasonCode string `json:"reasonCode,omitempty"`
+	Shard      int    `json:"shard"`
+	Slice      string `json:"slice"`
+	Unit       string `json:"unit"`
 }
 
 // Key is the canonical (unit, slice) pair.
