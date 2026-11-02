@@ -742,3 +742,20 @@ Friction 19: `init` does not replay on an initialized store.
   that request ID.
 - Expected: a replay, like every other request ID.
 - Actual: `TICKET_STATE`.
+
+## Round 6
+
+- The orchestrator accepted the round-5 floors under the owner's delegation. V1-1148, V1-4229 and
+  V1-4263 stay open as PARTIAL; their remainder goes to a follow-up lane (V1-4243 journal-audit
+  speed, and removing the second byte-exact read). No further floor work happens in this lane.
+- The three Codex r4 findings were requested against `4d6144e69`. They were already fixed on top
+  of it in `50dfb87d9` (with `eb839d5e8`), and recorded under "Codex r4 fixes" above:
+  - P1: a fixed `issuedAt` on every mutation, a checkpoint before init, and init skipped on resume
+    when its receipt exists;
+  - P2: the atomic `saveProgress`;
+  - P2: the strengthened tests, `TestTCXV0850PausedGenResumesToTheSameStore` and
+    `TestTCXV0850ResumeAfterInitSkipsInit`.
+- Each fix has a negative check that fails without it. Removing the time-limit condition leaves
+  no pause. Removing the fixed `issuedAt` gets `c61` refused after the simulated kill between create
+  and checkpoint.
+- No code changed in round 6, and there is no stray `./scale` binary.
