@@ -4392,5 +4392,26 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/windows-test-portability-v0.md",
+    "title": "Native Windows Test Portability V0",
+    "reqPrefix": "ASD-V0",
+    "intent": "accepted",
+    "delivery": "experimental",
+    "claim": "Native Windows test fixtures distinguish POSIX assumptions from portable assertions and bound the corpus transport and dependency-observer regressions.",
+    "dependsOn": [
+      "docs/specs/documentation-corpus-v1.md",
+      "docs/specs/corvint-self-development-v0.md",
+      "docs/specs/playwright-per-test-freshness-v0.md"
+    ],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": [
+      "cmd/corvint-corpus-mcp",
+      "internal/jstestprovider",
+      "cmd/corvint-js-test-provider",
+      "internal/modelgateway"
+    ]
   }
 ]

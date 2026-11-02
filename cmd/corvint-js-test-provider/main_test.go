@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -228,9 +229,17 @@ func TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink(t *testing.T) {
 	newest := retained[len(retained)-1]
 	data, err := os.ReadFile(newest)
 	info, statErr := os.Stat(newest)
-	if err != nil || statErr != nil || !bytes.Equal(data, stdout.Bytes()) || info.Mode().Perm() != 0o600 || len(retained) != 32 {
+	if err != nil || statErr != nil || !bytes.Equal(data, stdout.Bytes()) || len(retained) != 32 {
 		t.Fatalf("retained=%d mode=%v equal=%v err=%v", len(retained), info, bytes.Equal(data, stdout.Bytes()), err)
 	}
+	t.Run("POSIX_private_mode", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows file modes cannot assert POSIX 0600 privacy (ASD-V0-2230; V1-2491)")
+		}
+		if info.Mode().Perm() != 0o600 {
+			t.Fatalf("retained receipt mode = %v", info.Mode())
+		}
+	})
 	if _, err := os.Stat(filepath.Join(evidence, "operator.json")); err != nil {
 		t.Fatalf("pruned a foreign entry: %v", err)
 	}
@@ -243,6 +252,9 @@ func TestEmitRetainsStdoutBytesPrunesAndRefusesSymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.Symlink(filepath.Join(root, ".corvint"), filepath.Join(linked, ".corvint")); err != nil {
+		if runtime.GOOS == "windows" {
+			t.Skipf("Windows symlink fixture requires developer mode or symlink privilege: %v", err)
+		}
 		t.Fatal(err)
 	}
 	stdout.Reset()

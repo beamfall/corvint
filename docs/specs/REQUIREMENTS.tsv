@@ -8048,6 +8048,9 @@ VSC-V0-076	docs/specs/vscode-extension-v0.md	Only after trust and explicit enabl
 VSC-V0-077	docs/specs/vscode-extension-v0.md	(accepted, decision 0503; V1-0439) Process failures	owner	decision 0503; V1-0439
 VSC-V0-078	docs/specs/vscode-extension-v0.md	(accepted, decision 0503; V1-0440) Evidence diagnostics	owner	decision 0503; V1-0440
 VSC-V0-080	docs/specs/vscode-extension-v0.md	(accepted under the owner's standing auto-accept of 2026-10-11; V1-0437) The	standing	2026-10-11; V1-0437
+ASD-V0-2230	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2491) Tests	standing	2026-10-11; V1-2491
+ASD-V0-2231	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2492) The	standing	2026-10-11; V1-2492
+ASD-V0-2232	docs/specs/windows-test-portability-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2492) The	standing	2026-10-11; V1-2492
 WQO-V0-001	docs/specs/work-queue-observation-v0.md	Every V0 document and nested record MUST implement the exact closed registry in	unrecorded	-
 WQO-V0-002	docs/specs/work-queue-observation-v0.md	Every identity MUST use §4.3 exactly. Implementations MUST independently rederiv	unrecorded	-
 WQO-V0-003	docs/specs/work-queue-observation-v0.md	The only authority root is target-tree regular `100644` blob	unrecorded	-

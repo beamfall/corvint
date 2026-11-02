@@ -2,10 +2,12 @@ package jstestprovider
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -22,7 +24,13 @@ func TestNEAV0010NativeTempScope(t *testing.T) {
 	if err := os.Mkdir(scope, 0700); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("TMPDIR", scope)
+	if runtime.GOOS == "windows" {
+		// os.TempDir uses GetTempPath on Windows, which checks TMP before TEMP.
+		t.Setenv("TMP", scope)
+		t.Setenv("TEMP", scope)
+	} else {
+		t.Setenv("TMPDIR", scope)
+	}
 	repo := filepath.Join(root, "repo")
 	if err := os.Mkdir(repo, 0700); err != nil {
 		t.Fatal(err)
@@ -49,7 +57,9 @@ func TestNEAV0010NativeTempScope(t *testing.T) {
 			}
 		}
 		config, err := os.ReadFile(filepath.Join(scratch, "playwright.config.cjs"))
-		if err != nil || !strings.Contains(string(config), "module.exports.outputDir = ") || !strings.Contains(string(config), filepath.Join(scratch, "output")) || !strings.Contains(string(config), "project.outputDir = ") {
+		// The generated JS quotes backslashes in native Windows paths.
+		output, _ := json.Marshal(filepath.Join(scratch, "output"))
+		if err != nil || !strings.Contains(string(config), "module.exports.outputDir = ") || !strings.Contains(string(config), string(output)) || !strings.Contains(string(config), "project.outputDir = ") {
 			http.Error(w, "output not scoped", 500)
 			return
 		}
