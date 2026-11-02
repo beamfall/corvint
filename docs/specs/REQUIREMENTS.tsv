@@ -1346,6 +1346,12 @@ CEM-V1-621	docs/specs/cem-stable-v1.md	(proposed; V1-2107) Both `RESULT.schema.j
 CEM-V1-622	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A test MUST validate the complete native verify result of th	unrecorded	-
 CEM-V1-880	docs/specs/cem-stable-v1.md	(proposed; V1-2615) An object-schema node of both `RESULT.schema.json` copies MA	unrecorded	-
 CEM-V1-881	docs/specs/cem-stable-v1.md	(proposed; V1-2615) Both `RESULT.schema.json` copies MUST admit, at	unrecorded	-
+CEM-V1-840	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both `RESULT.schema.json` copies MUST admit a	unrecorded	-
+CEM-V1-841	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both copies MUST admit at	unrecorded	-
+CEM-V1-842	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) Both copies MUST admit at	unrecorded	-
+CEM-V1-843	docs/specs/cem-stable-v1.md	(proposed; V1-2521; decision 0589) A test in each consumer MUST run the public	unrecorded	-
+CEM-V1-844	docs/specs/cem-stable-v1.md	(proposed; V1-2520; decision 0589) A test in each consumer MUST validate against	unrecorded	-
+CEM-V1-845	docs/specs/cem-stable-v1.md	(proposed; V1-2521, V1-2520; decision 0589) Until the stable profile is promoted	unrecorded	-
 CEM-V1-633	docs/specs/cem-stable-v1.md	(proposed; V1-2599) Neither stable reader's verdict MAY depend on a runner	unrecorded	-
 CEM-V1-634	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2599, V1-2658) No	owner	2026-10-25; V1-2658; V1-2599
 CEM-V1-635	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2658) The gate MUST	owner	2026-10-25; V1-2658
