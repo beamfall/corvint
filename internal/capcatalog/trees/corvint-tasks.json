@@ -2960,6 +2960,7 @@
         "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]",
         "corvint-tasks ticket prioritize --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket progress --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket progress --batch --request-id ID (--payload-stdin | --payload JSON | --targets-file FILE) [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket recur <ticketId|local> --context TEXT --request-id ID [--issued-at TS] [--role OWNER|OPERATOR]",
         "corvint-tasks ticket refine --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]",
@@ -3061,6 +3062,7 @@
         "--supersedes",
         "--symbol",
         "--target",
+        "--targets-file",
         "--template",
         "--test-commit",
         "--test-id",
@@ -4181,21 +4183,22 @@
       "command": "corvint-tasks ticket progress",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket progress --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]"
+        "corvint-tasks ticket progress --request-id ID (--payload JSON | --payload-stdin) --target TICKET|LOCAL --expected-revision N|current [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket progress --batch --request-id ID (--payload-stdin | --payload JSON | --targets-file FILE) [--issued-at TS] [--role ROLE]"
       ],
       "flags": [
+        "--batch",
         "--expected-revision",
         "--issued-at",
         "--payload",
         "--payload-stdin",
         "--request-id",
         "--role",
-        "--target"
+        "--target",
+        "--targets-file"
       ],
       "required": [
-        "--request-id ID",
-        "--target TICKET|LOCAL",
-        "--expected-revision N|current"
+        "--request-id ID"
       ],
       "example": "corvint-tasks ticket progress --request-id ID --payload JSON --target TICKET --expected-revision N",
       "help": "corvint-tasks ticket progress --help"

@@ -337,8 +337,11 @@ blockers and dependency closure are validated instead of the primary checkout's 
 
 Lane flow (experimental; [TLF-V0](specs/corvint-tasks-lane-flow-v0.md)): `ticket progress` records
 an advisory lane phase (IN_PROGRESS to MERGED_AWAITING_CLOSEOUT, BLOCKED, CLEARED) on a live ticket,
-admitted under an OPERATOR/ADMISSION barrier; `ticket search --phase PHASE|NONE` and `roadmap` rows
-read it, and `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned commit.
+admitted under an OPERATOR/ADMISSION barrier; `ticket progress --batch` (or `--targets-file FILE`)
+marks many tickets in one invocation with a per-target outcome. `ticket search --phase PHASE|NONE` and
+`roadmap` rows read it, `ticket closeout-debt` reports an OPEN ticket whose progress head is a scanned
+commit, and `ticket batch-delivered` and `batch-close` treat a review or merged phase naming the batch
+or a lane PR as a delivery (`source` PROGRESS).
 `ticket effects-proposals` proposes touch paths, labelled "proposal: not authority", for OPEN tickets
 with UNKNOWN effects coverage. `ticket delivery-screen --lane-refs` also scans unmerged local branch
 and worktree heads (DELIVERED_ON_LANE, IN_FLIGHT by progress). The repository check

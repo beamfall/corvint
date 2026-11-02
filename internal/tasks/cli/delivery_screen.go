@@ -740,6 +740,11 @@ type batchInput struct {
 	// laneScan is the merge's lane commits (TCD-V0-731); nil when they are
 	// NOT_OBSERVED.
 	laneScan *store.CommitScan
+	// root is the primary worktree the merge ancestry is read in, "" when
+	// none resolved; parent is the merge's first parent, resolved once by
+	// headInBatch (TLF-V0-1101).
+	root, parent   string
+	parentResolved bool
 }
 
 // excludedLane is one PR the batch title or body names that was left out of
@@ -824,11 +829,21 @@ func (in *batchInput) laneWarnings() []string {
 	return nil
 }
 
+// Delivery sources of a batch hit (TLF-V0-1101).
+const (
+	sourcePRText     = "PR_TEXT"
+	sourceLaneCommit = "LANE_COMMIT"
+	sourceProgress   = "PROGRESS"
+)
+
 // batchHit is one ticket a batch delivered or only mentioned.
 type batchHit struct {
 	ticketID string
 	lane     int64  // 0 = the batch text itself, or a lane commit
 	commit   string // the lane commit that is the source, "" for PR text (TCD-V0-731)
+	// source is PR_TEXT, LANE_COMMIT or PROGRESS, and phase the recorded
+	// progress phase of a PROGRESS hit (TLF-V0-1101).
+	source, phase string
 }
 
 // parseBatchInput reads the batch inputs of verb from already-parsed flags.
@@ -881,6 +896,7 @@ func parseBatchInput(env Env, verb string, fl map[string]string, pos []string) (
 	if repo, e := intent.Resolve(env.Cwd); e == nil {
 		root = repo.PrimaryWorktree
 	}
+	in.root = root
 	in.deriveLanes(root)
 	in.scanLanes(root)
 	for _, r := range in.runs {
@@ -939,7 +955,94 @@ func (in *batchInput) batchHits(rc *readCtx) (delivered, mentioned []batchHit) {
 		rec, _ := rc.store.Inventory.Get(id)
 		index.add(rec)
 	}
-	return in.hits(index)
+	delivered, mentioned = in.hits(index)
+	return in.progressHits(rc, delivered, mentioned)
+}
+
+// progressHits adds the tickets whose effective progress says this batch
+// delivered them (TLF-V0-1101): a review, merge-queue or merged phase whose
+// pr is the batch PR or one of its lane PRs, or a branch or merged phase
+// whose head the merge reaches and its first parent does not. A ticket the
+// text already delivered keeps that source; a mentioned one is promoted.
+func (in *batchInput) progressHits(rc *readCtx, delivered, mentioned []batchHit) ([]batchHit, []batchHit) {
+	seen := map[string]bool{}
+	for _, h := range delivered {
+		seen[h.ticketID] = true
+	}
+	promoted := map[string]bool{}
+	for _, id := range rc.store.Inventory.Sorted() {
+		if seen[id] {
+			continue
+		}
+		rec, _ := rc.store.Inventory.Get(id)
+		p := rec.EffectiveProgress()
+		if p == nil {
+			continue
+		}
+		if lane, ok := in.progressDelivery(p); ok {
+			delivered = append(delivered, batchHit{ticketID: id, lane: lane, source: sourceProgress, phase: p.Phase})
+			promoted[id] = true
+		}
+	}
+	if len(promoted) == 0 {
+		return delivered, mentioned
+	}
+	kept := mentioned[:0:0]
+	for _, h := range mentioned {
+		if !promoted[h.ticketID] {
+			kept = append(kept, h)
+		}
+	}
+	return delivered, kept
+}
+
+// progressDelivery reports whether progress entry p delivers its ticket in
+// this batch, and through which lane PR (0 for the batch itself).
+func (in *batchInput) progressDelivery(p *ticket.Progress) (int64, bool) {
+	switch p.Phase {
+	case ticket.PhaseInReview, ticket.PhaseInMergeQueue, ticket.PhaseMergedAwaitingCloseout:
+		if p.PR != nil {
+			n := p.PR.Int()
+			if n == in.number {
+				return 0, true
+			}
+			if slices.Contains(in.lanes, n) {
+				return n, true
+			}
+		}
+	}
+	switch p.Phase {
+	case ticket.PhaseDeliveredOnBranch, ticket.PhaseMergedAwaitingCloseout:
+		if p.Head != nil && in.headInBatch(*p.Head) {
+			return 0, true
+		}
+	}
+	return 0, false
+}
+
+// headInBatch reports whether this clone proves head merged by the batch:
+// the merge commit reaches it and the merge's first parent does not. A head,
+// merge or parent this clone does not hold proves nothing.
+func (in *batchInput) headInBatch(head string) bool {
+	if in.root == "" {
+		return false
+	}
+	merge, err := store.ResolveCommit(in.root, in.batch.mergeOid())
+	if err != nil {
+		return false
+	}
+	if !in.parentResolved {
+		in.parentResolved = true
+		in.parent, _ = store.ResolveCommit(in.root, merge+"^1")
+	}
+	if in.parent == "" {
+		return false
+	}
+	h, err := store.ResolveCommit(in.root, head)
+	if err != nil {
+		return false
+	}
+	return store.IsAncestor(in.root, h, merge) && !store.IsAncestor(in.root, h, in.parent)
 }
 
 // hits is batchHits over an already-built index.
@@ -947,6 +1050,10 @@ func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHi
 	seen := map[string]bool{}
 	var weak []batchHit
 	hit := func(refs map[string]string, n int64, commit string) {
+		source := sourcePRText
+		if commit != "" {
+			source = sourceLaneCommit
+		}
 		ids := make([]string, 0, len(refs))
 		for id := range refs {
 			ids = append(ids, id)
@@ -956,9 +1063,9 @@ func (in *batchInput) hits(index *closeoutIndex) (delivered, mentioned []batchHi
 			switch {
 			case refs[id] == refDelivered && !seen[id]:
 				seen[id] = true
-				delivered = append(delivered, batchHit{id, n, commit})
+				delivered = append(delivered, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			case refs[id] == refMentioned:
-				weak = append(weak, batchHit{id, n, commit})
+				weak = append(weak, batchHit{ticketID: id, lane: n, commit: commit, source: source})
 			}
 		}
 	}
@@ -1038,6 +1145,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		o.Set("status", wire.String(st))
 		o.Set("lanePr", lanePR(h.lane))
 		o.Set("commit", orNull(h.commit))
+		o.Set("source", wire.String(h.source))
 		o.Set("batchPr", wire.String(strconv.FormatInt(number, 10)))
 		o.Set("mergeCommit", wire.String(batch.mergeOid()))
 		o.Set("greenRuns", greenValue)
