@@ -19,7 +19,9 @@ import (
 // frontier, which both sides read through gateselect.UnobservedModule: the
 // driver admits it, and the shadow runs the module's own suite outside the ci
 // profile. The table holds every reason the planner emits and every Go frontier
-// detail it reports, beside non-Go frontiers.
+// detail it reports, beside non-Go frontiers. An UNSELECTED_BINARY_CONSUMER is
+// outside both lists; outside the ci profile Build names it as a check
+// instead (STR-V0-750), which this table does not read.
 func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 	root := t.TempDir()
 	for name, body := range map[string]string{
@@ -44,7 +46,7 @@ func TestDriverAndShadowShareOneUnknownAllowlist_AFPV0982(t *testing.T) {
 	}
 	type entry struct{ reason, detail string }
 	var entries []entry
-	for _, reason := range []string{affected.UnknownLanguageFrontier, affected.UnknownUnownedDirtyPath, affected.UnknownNoSelectableTest, affected.UnknownUnindexedSourcePath, "PLAN_TRUNCATED"} {
+	for _, reason := range []string{affected.UnknownLanguageFrontier, affected.UnknownUnownedDirtyPath, affected.UnknownNoSelectableTest, affected.UnknownUnindexedSourcePath, affected.UnknownUnselectedBinaryConsumer, "PLAN_TRUNCATED"} {
 		for _, detail := range append(details, "core/other.go", "Makefile") {
 			entries = append(entries, entry{reason, detail})
 		}
