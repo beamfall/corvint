@@ -333,7 +333,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 	if _, err := os.Lstat(filepath.Join(repo.StateDir, rp)); !errors.Is(err, fs.ErrNotExist) {
 		return nil, errWriterRoute(rp, "request path present or unobservable"), nil
 	}
-	if w.inv, err = writerInventory(repo, proof, obs.Files, wc); err != nil {
+	if w.inv, err = writerInventory(repo, proof, obs.Files, wc, preload); err != nil {
 		return nil, err, nil
 	}
 	if w.headReceipt, err = headReceipt(repo, w.head); err != nil {
@@ -351,7 +351,7 @@ func observeWriter(repo *intent.Repository, headState *snapshot.Head, requestID 
 // from the audit's listing and the bytes it read. Evidence and pinned blobs
 // take their digest from their content-addressed name. A path the route
 // cannot account for without a read it did not make declines the route.
-func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint) (*transaction.Inventory, error) {
+func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[string]journal.PhysicalFile, wc *journal.WriterCheckpoint, preload *intent.Tree) (*transaction.Inventory, error) {
 	listing := proof.WriterListing()
 	if listing == nil {
 		return nil, errWriterRoute("listing", "absent")
@@ -445,7 +445,10 @@ func writerInventory(repo *intent.Repository, proof *journal.Result, phys map[st
 		}
 		elidedIntent = &transaction.ElidedIntent{Tickets: summary.Tickets, Releases: summary.Releases, Cost: summary.Cost, Has: summary.Has}
 	} else {
-		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys)
+		// The capture reads every intent file it does not take from the
+		// preload, so a file absent from its reads was taken from the
+		// preload at that digest (LGL-V0-845).
+		intentFiles, err := scanIntentWithReader(repo, intent.ReadFile, phys, preloadObserved(preload))
 		if err != nil {
 			return nil, err
 		}
@@ -637,4 +640,19 @@ func writerStage(ctx context.Context, name string, since time.Time) time.Time {
 	now := time.Now()
 	mutationStage(ctx, "fast."+name+"="+now.Sub(since).String())
 	return now
+}
+
+// preloadObserved is the preload capture as observed intent files, by their
+// journal path; nil without a preload.
+func preloadObserved(tree *intent.Tree) map[string]journal.PhysicalFile {
+	if tree == nil {
+		return nil
+	}
+	out := make(map[string]journal.PhysicalFile, len(tree.Files))
+	for _, f := range tree.Files {
+		if f.Raw != nil {
+			out["intent/"+f.Path] = journal.PhysicalFile{Sha256: f.Sha256, Bytes: len(f.Raw)}
+		}
+	}
+	return out
 }
