@@ -162,9 +162,9 @@ func batchCloseCommand(env Env, args []string) *wire.Result {
 		return failure(cmd, rc, err)
 	}
 	if gb != nil && !dryRun && rc != nil && rc.repo != nil && slices.ContainsFunc(rows, func(r closeRow) bool { return r.write && !r.mentionedOnly }) {
-		// TCX-V0-971 (V1-4315): one refresh of the derived closed-ticket
+		// TCX-V0-972 (V1-4315): one refresh of the derived closed-ticket
 		// index before the first gated row, so every row's lease writes
-		// hold the unchanged tickets as summaries (CAL-V0-971) instead of
+		// hold the unchanged tickets as summaries (TCX-V0-971) instead of
 		// decoding the whole inventory at every step. Best effort, as the
 		// post-command refresh is: a failure leaves the full decode in
 		// place, and a --dry-run refreshes nothing.

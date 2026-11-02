@@ -63,7 +63,7 @@ func readLeaseProofWithAudit(ctx context.Context, repo *intent.Repository, audit
 	return nil, wire.Errorf(wire.CodeSnapshotMoved, "gate", "store changed during all read attempts")
 }
 
-// checkpointedLeaseProof is the gate pre-read's audit (CAL-V0-972): the
+// checkpointedLeaseProof is the gate pre-read's audit (TCX-V0-973): the
 // read-side journal audit resumed from the retained read checkpoint
 // (CAL-V0-059), else from the bound writer checkpoint (LGL-V0-807), else
 // complete, selecting the queue, the policy, the program and pool state,
@@ -95,7 +95,7 @@ func checkpointedLeaseProof(ctx context.Context, repo *intent.Repository) (*jour
 		// as the CLI readers hand theirs (TM-V0-008): the audit takes
 		// each file's bytes from it while the size matches and lists the
 		// rest. The lease write that records the run captures and rechecks
-		// the tree again on its own route (CAL-V0-973).
+		// the tree again on its own route (TCX-V0-974).
 		tree, err := intent.TreeDigest(repo.IntentRoot())
 		if err != nil {
 			return readLeaseProof(ctx, repo)

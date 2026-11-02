@@ -185,7 +185,7 @@ func (s *nativeRead) List(p string, max int) (out Listing, err error) {
 	out.DirectoryInfo = info
 	// The entries are stat'd concurrently beneath the one no-follow root
 	// and consumed in listing order, so every refusal keeps its serial
-	// position (CAL-V0-973).
+	// position (TCX-V0-974).
 	infos, errs := make([]os.FileInfo, len(names)), make([]error, len(names))
 	intent.ParallelEach(len(names), func(i int) { infos[i], errs[i] = root.Lstat(names[i]) })
 	for i, name := range names {

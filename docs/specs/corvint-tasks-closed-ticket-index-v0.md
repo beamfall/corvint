@@ -166,6 +166,95 @@ journal audit (`TCX-V0-985`) is unchanged and outside these blocks. Status for `
   `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; the chunk
   times are in the build log.
 
+### V1-4315 gated batch-close write path
+
+Status: proposed (V1-4315; store-performance lane bcp-w40, 2026-11-02); implemented with focused
+tests and a paired measurement on the WSL2 benchmark host, live qualification on the owner's store
+NOT_RUN. Human-owned input: native ticket V1-4315. `ticket batch-close` paid one complete
+administrative write for every gated step of every row: claim, submit, gate run and complete each
+took the complete lease route, which audited the whole journal, built the complete inventory and
+decoded every ticket record, so closing 58 tickets on a 4,332-ticket, 19,197-receipt store took
+more than 30 minutes (about 6.4 s per receipt). Intent: a gated step costs what the other
+writer-route verbs cost, with the same admission decision and the same bytes, and a row's cost
+stops growing with the receipt history and with the decode of the whole ticket inventory. These
+requirements live here, beside the write-path summaries above, because the agent-leases spec's
+Requirements section is at the OCM obligation bound (SRG-V0-740); `CAL-V0-116` is amended by
+`TCX-V0-970` as `CAL-V0-205` amended it.
+
+- `TCX-V0-970`: (proposed; V1-4315) `SUBMIT`, `GATE_RUN` and `COMPLETE` MUST be served by the
+  `CAL-V0-116` writer route under that route's rules: it observes, models and commits under one
+  writer lock, rechecks the head, the intent tree and the primary branch before effects, replays a
+  retained request and reports a model result that plans no transaction without a write
+  (`CAL-V0-190`). While the store holds a bound writer checkpoint whose tail the route accepts,
+  the three verbs MUST NOT run the complete-history audit. Every decline of that route, including
+  a model that read an elided path, MUST hand the request to the complete route unchanged, with
+  nothing written. A committed write MUST write the same bytes and report as the complete route,
+  and a refused one MUST be answered as the complete route answers it. This amends the
+  `CAL-V0-116` lease-verb scope to include the three verbs and extends that route's accepted
+  guarantee change (a prefix rewrite is not detected by a fast writer) to them.
+- `TCX-V0-971`: (proposed; V1-4315) The lease writer route MUST give the model the index's
+  entries exactly as `TCX-V0-846` gives them to the native mutation writer: only when the index
+  governs the audited queue and policy; a ticket is held as its entry's summary only for canonical
+  bytes whose SHA-256 and length equal the entry's; every projection check and refusal of the
+  decoding route is kept; a lazy decode that fails refuses `MALFORMED`. A liveness lease, which
+  reads no ticket, is given none. The index is never authority: a store without an index, or whose
+  index does not govern, decodes every record as before, and a committed lease write writes the
+  same bytes and report with and without the index.
+- `TCX-V0-972`: (proposed; V1-4315) A gated `ticket batch-close` that will write at least one row
+  rewrites the index, as the post-command refresh does (`TCX-V0-984`), before its first row, so
+  every row's lease writes hold the unchanged tickets as summaries instead of decoding the whole
+  inventory at every step. The rewrite is best effort and the index file is its only write; a
+  `--dry-run` writes none (`TCL-V0-821` unchanged), and a manual close writes none before its rows.
+- `TCX-V0-973`: (proposed; V1-4315) The gate run's pre-read, from which it decides runnability,
+  the candidate, the gate definition and a reusable result before the program starts, MAY resume
+  the read-side journal audit from the retained read checkpoint (`CAL-V0-059`), else from the
+  bound writer checkpoint (`LGL-V0-807`), bound to the head it observed, with one capture of the
+  intent tree handed to the audit as the outer snapshot (`TM-V0-008`). A pre-read that fails, is
+  pending, finds staging present or observes a head that moved MUST fall back to the complete read
+  audit, so every refusal is the complete audit's. Nothing is decided from it finally: the lease
+  write that records the run audits again on its own route and rechecks under the lock.
+- `TCX-V0-974`: (proposed; V1-4315) The intent-tree capture (`intent.TreeDigest`, its stat pass
+  and the journal audit's directory listing) MAY read, stat and hash entries concurrently on at
+  most min(GOMAXPROCS, 8) workers, provided the tree, its total bytes and digest, and every
+  refusal, in listing order, are exactly those of the serial walk. The lease writer route MUST
+  capture the intent tree itself, under the writer lock, and hand it to its audit as the outer
+  snapshot exactly as the mutation writer takes the CLI's preload (`LGL-V0-845`): the audit takes
+  a file's bytes from the capture while the file still has that size and lists the rest, and the
+  pre-effect recheck reads and hashes every intent file again, so the capture is never the
+  evidence that the modeled bytes are current. A liveness write captures nothing (`JSG-V0-001`).
+  The route hands a committed claim's capture to the claim's know-how delivery read
+  (`TCX-V0-975`), since a claim changes no touch path and no note.
+- `TCX-V0-975`: (proposed; V1-4315) The claim's know-how delivery read MUST decode only the
+  claimed ticket and the records whose canonical bytes carry the `knowHow` key: a canonical record
+  with know-how always carries it, so the selection never drops a note, and a record selected by a
+  look-alike byte sequence decodes as before. The notes delivered, their order and their freshness
+  resolution are those the full decode delivers.
+- `TCX-V0-976`: (proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends
+  on the entry's path and size alone, MAY be memoized by them in the process; a refusal is never
+  memoized and a full memo is dropped whole. The inventory's capacity measure and its refusals are
+  unchanged.
+
+Non-goals of this slice: the other lease verbs keep their routes; no change to the three verbs'
+models, refusals or wire results; no collapse of a row's steps into fewer receipts (receipts and
+journal semantics stay byte-compatible); no faster complete route when no bound checkpoint
+exists; no stat-key trust on the write path (`TCX-V0-981` stays a read-path rule).
+
+Failure modes of this slice: without a bound writer checkpoint (a new store, a head below the
+checkpoint minimum, a tail beyond the route's bound, an unsettled journal) the three verbs run
+the complete audit as every lease verb does, outside the preparation gate (`CAL-V0-263`). A
+ticket projection rewritten outside the journal (stale or tampered) is refused by the writer
+audit's projection comparison or by the model's projection check, with or without an index, and
+the complete route refuses it alike; nothing is written. A store without an index decodes every
+ticket per step until `TCX-V0-972` refreshes it. A row still carries the intent-tree reads every
+write makes by design (the audit capture and the pre-effect recheck), so its cost grows with the
+number of ticket files; the measured growth from 4,000 to 8,000 tickets is recorded in
+`docs/build-log/2026-11-02-bcp-w40.md`, not hidden.
+
+Rollback of this slice: remove the three verbs from `writerLeaseVerb`, the index and the preload
+from `leaseWriter`, the checkpointed pre-read, the batch-close refresh, the selective know-how
+load and the entry-cost memo, and revert the tests and this section. Stores are unchanged: both
+routes write the same bytes, and the index is derived state.
+
 ## Non-goals
 
 - No change to the projection, the journal, receipts or any wire output.
@@ -218,3 +307,11 @@ with no effect on stores.
 | `TCX-V0-848` | `TestTCXV0848JournalByteIdenticalWithIndex`; before and after numbers in `docs/build-log/2026-11-02-msc-u34-tasks-write-path.md` |
 | `TCX-V0-849` | `TestTCXV0849IncrementalRewriteMatchesFullEncode`, `TestTCXV0849UnchangedIndexNotRewritten`, `TestTCXV0849ParsedIndexReusedPerVersion`, `TestTCXV0849SameStatRewriteReparsed` |
 | `TCX-V0-850` | `TestTCXV0850PausedGenResumesToTheSameStore`, `TestTCXV0850ResumeAfterInitSkipsInit`; chunk times in the build log |
+| `TCX-V0-970` | `TestTCXV0970_GateVerbsTakeWriterRoute`, `TestTCXV0970_TamperedProjectionRefusesGateWrite` (`internal/tasks/store`); `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit`, the batch-close tests (`internal/tasks/cli`) |
+| `TCX-V0-971` | `TestTCXV0971_LeaseWriterIndexParity` (`internal/tasks/store`); `TestTCXV0846ModelSkipsOnlyByteIdenticalIndexedTickets` |
+| `TCX-V0-972` | `TestTCXV0972_BatchCloseRefreshesIndexBeforeFirstRow` (`internal/tasks/cli`) |
+| `TCX-V0-973` | `TestTCXV0973_CheckpointedPreReadMatchesCompleteAudit` (`internal/tasks/store`) |
+| `TCX-V0-974` | `TestTCXV0974_ParallelCaptureMatchesSerial` (`internal/tasks/intent`); `TestTCXV0970_GateVerbsTakeWriterRoute`, `TestCALV0116_WriterRouteParity` (`internal/tasks/store`); the `intent` and `journal` packages whole |
+| `TCX-V0-975` | `TestTCXV0975_LoadTreeSelectingDecodesOnlySelected` (`internal/tasks/intent`); the know-how claim tests (`internal/tasks/store`) |
+| `TCX-V0-976` | `TestTCXV0976_EntryCostMemoMatchesUncached` (`internal/tasks/archive`) |
+| V1-4315 measurement | `TestV14315_BatchCloseProfile` (opt-in, `internal/tasks/store`); paired numbers in `docs/build-log/2026-11-02-bcp-w40.md` |

@@ -13,11 +13,11 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestTCXV0971_BatchCloseRefreshesIndexBeforeFirstRow: a gated batch-close
+// TestTCXV0972_BatchCloseRefreshesIndexBeforeFirstRow: a gated batch-close
 // writes the derived closed-ticket index before its first row, so the rows'
-// lease writes model against it (CAL-V0-971); a --dry-run writes none. The
+// lease writes model against it (TCX-V0-971); a --dry-run writes none. The
 // required gate itself proves it: it passes only while the index file exists.
-func TestTCXV0971_BatchCloseRefreshesIndexBeforeFirstRow(t *testing.T) {
+func TestTCXV0972_BatchCloseRefreshesIndexBeforeFirstRow(t *testing.T) {
 	parallelTest(t) // seam-carried actor and qualified versions; no env, cwd, hook, package-variable or in-process executable writes (V1-4208)
 	setActor(t, "tester")
 	root, _ := ergStore(t)

@@ -7565,6 +7565,18 @@ release-gates signature.
 
 Rollback: revert the source; a torn guard read again ends the write at once.
 
+### V1-4315 gated batch-close writes on the writer checkpoint (amendment recorded elsewhere)
+
+This section's Requirements are at the OCM obligation bound (SRG-V0-740), so the V1-4315
+amendment is defined in the closed-ticket-index spec: `TCX-V0-970` adds `SUBMIT`, `GATE_RUN` and
+`COMPLETE` to the CAL-V0-116 writer-route lease-verb scope, as CAL-V0-205 added
+`POOL_CONFIRM_SAFE`; `TCX-V0-971` gives that route the derived ticket index under the TCX-V0-846
+rules; `TCX-V0-973` lets the gate run's pre-read resume from the read checkpoint; `TCX-V0-974`
+makes the intent-tree capture concurrent and hands the lease route its own preload as LGL-V0-845
+hands `Mutate` the CLI's; `TCX-V0-975` and `TCX-V0-976` bound the claim's know-how read and the
+manifest entry cost. See [closed-ticket index](corvint-tasks-closed-ticket-index-v0.md) and
+`docs/build-log/2026-11-02-bcp-w40.md`.
+
 ## V1-2531 lease-gate latency amendment
 
 The V1-2531 lease-gate latency requirements (orphan-cleanup lock on a ready writer route, retained

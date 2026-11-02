@@ -2756,6 +2756,13 @@ TCX-V0-847	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The CLI's pre-muta
 TCX-V0-848	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Derived-state argument and measurement. The index is derived, rebuildable state	unrecorded	-
 TCX-V0-849	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-4229, round 3) The index	standing	V1-4229
 TCX-V0-850	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(experimental under the standing lane auto-accept; V1-1148) `tasks-scale gen`	standing	V1-1148
+TCX-V0-970	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) `SUBMIT`, `GATE_RUN` and `COMPLETE` MUST be served by the	unrecorded	-
+TCX-V0-971	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The lease writer route MUST give the model the index's	unrecorded	-
+TCX-V0-972	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) A gated `ticket batch-close` that will write at least one ro	unrecorded	-
+TCX-V0-973	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The gate run's pre-read, from which it decides runnability,	unrecorded	-
+TCX-V0-974	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The intent-tree capture (`intent.TreeDigest`, its stat pass	unrecorded	-
+TCX-V0-975	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The claim's know-how delivery read MUST decode only the	unrecorded	-
+TCX-V0-976	docs/specs/corvint-tasks-closed-ticket-index-v0.md	(proposed; V1-4315) The manifest entry cost (`archive.EntryCost`), which depends	unrecorded	-
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--ski	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-

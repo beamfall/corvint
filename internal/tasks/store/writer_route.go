@@ -171,7 +171,7 @@ func mutateWriter(ctx context.Context, repo *intent.Repository, session *authori
 // audit under the preparation gate (CAL-V0-205, V1-1045), and the gate
 // verbs SUBMIT, GATE_RUN and COMPLETE, which a gated batch close runs once
 // per row and which otherwise paid the complete audit and the complete
-// inventory measure for every row (CAL-V0-970, V1-4315). Every other lease
+// inventory measure for every row (TCX-V0-970, V1-4315). Every other lease
 // verb keeps the complete route, which prepares outside the preparation
 // gate (CAL-V0-263).
 func writerLeaseVerb(request transaction.Request) bool {
@@ -260,7 +260,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return leaseDeclined(ctx, request, "staging")
 	}
 	read := time.Now()
-	// CAL-V0-973 (V1-4315): the route captures the intent tree itself,
+	// TCX-V0-974 (V1-4315): the route captures the intent tree itself,
 	// under the lock, and hands it to the audit as its outer snapshot, as
 	// the mutation writer takes the CLI's preload (LGL-V0-845): the audit
 	// takes a file's bytes from it while the file still has that size and
@@ -333,7 +333,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 		return true, false, nil, err
 	}
 	if !live {
-		// CAL-V0-971 (TCX-V0-970): as the mutation writer does under
+		// TCX-V0-971 (TCX-V0-971): as the mutation writer does under
 		// TCX-V0-846, the route hands the model the derived ticket index,
 		// so an unselected ticket whose canonical bytes equal an entry's
 		// by SHA-256 and length is held as its summary and decoded only on

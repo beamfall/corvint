@@ -275,7 +275,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 			}
 			// The records are stat'd concurrently and consumed in listing
 			// order, so each name's refusals keep their serial position
-			// (CAL-V0-973).
+			// (TCX-V0-974).
 			infos, statErrs := make([]os.FileInfo, len(tnames)), make([]error, len(tnames))
 			ParallelEach(len(tnames), func(i int) {
 				infos[i], statErrs[i] = statRegularInfo(statRoot, filepath.Join(rootPath, name, tnames[i]), statRel+tnames[i], bound)
@@ -337,7 +337,7 @@ func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKe
 }
 
 // captureTree reads the planned entries with read and digests them. The
-// entries are read and hashed concurrently (CAL-V0-973): each is read and
+// entries are read and hashed concurrently (TCX-V0-974): each is read and
 // checked on its own, so the walk's refusals are reported in plan order
 // exactly as the serial walk reported them, and the tree's files, bytes and
 // digest are the same. read must admit concurrent calls.
@@ -378,7 +378,7 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 const parallelSerialBelow = 64
 
 // ParallelEach runs capture for every index below n, on at most
-// min(GOMAXPROCS, 8) goroutines (CAL-V0-973). Every index runs; capture
+// min(GOMAXPROCS, 8) goroutines (TCX-V0-974). Every index runs; capture
 // must write only its own index's results, and the caller consumes them in
 // index order so every refusal keeps its serial position.
 func ParallelEach(n int, capture func(int)) {
@@ -611,7 +611,7 @@ func LoadTree(primaryWorktree string, tree Tree, want wire.Digest) (*Store, erro
 // is absent from the store, so the inventory holds the selected records
 // alone and its structural checks run over them only. A read whose answer
 // depends on a key that only some records carry selects by the bytes and
-// decodes those records instead of the whole inventory (CAL-V0-974,
+// decodes those records instead of the whole inventory (TCX-V0-975,
 // V1-4315). Tree is kept whole.
 func LoadTreeSelecting(primaryWorktree string, tree Tree, keep func(path string, raw []byte) bool) (*Store, error) {
 	files := make([]File, 0, len(tree.Files))

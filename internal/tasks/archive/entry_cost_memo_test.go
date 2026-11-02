@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-// CAL-V0-975: EntryCost memoizes by path and size; a memoized answer is the
+// TCX-V0-976: EntryCost memoizes by path and size; a memoized answer is the
 // one the uncached measure gives, a refusal is never memoized, and the memo
 // stays bounded.
-func TestCALV0975_EntryCostMemoMatchesUncached(t *testing.T) {
+func TestTCXV0976_EntryCostMemoMatchesUncached(t *testing.T) {
 	entryCosts.Clear()
 	entryCostCount.Store(0)
 	for i := 0; i < 200; i++ {

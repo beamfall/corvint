@@ -36,10 +36,10 @@ func parallelStore(t *testing.T, n int) string {
 	return root
 }
 
-// CAL-V0-973: the tree capture reads and stats concurrently and gives the
+// TCX-V0-974: the tree capture reads and stats concurrently and gives the
 // same tree, byte for byte, as the serial walk; a refused record is refused
 // with the same error on both.
-func TestCALV0973_ParallelCaptureMatchesSerial(t *testing.T) {
+func TestTCXV0974_ParallelCaptureMatchesSerial(t *testing.T) {
 	root := parallelStore(t, 300)
 	parallel, err := intent.TreeDigest(root)
 	if err != nil {
@@ -75,10 +75,10 @@ func TestCALV0973_ParallelCaptureMatchesSerial(t *testing.T) {
 	}
 }
 
-// CAL-V0-974: LoadTreeSelecting decodes only the ticket records keep admits,
+// TCX-V0-975: LoadTreeSelecting decodes only the ticket records keep admits,
 // keeps the whole tree, and gives each selected record exactly as the full
 // load does.
-func TestCALV0974_LoadTreeSelectingDecodesOnlySelected(t *testing.T) {
+func TestTCXV0975_LoadTreeSelectingDecodesOnlySelected(t *testing.T) {
 	root := parallelStore(t, 120)
 	tree, err := intent.TreeDigest(root)
 	if err != nil {

@@ -310,7 +310,7 @@ func MeasureFileSet(files []FileEntry) (FileSetCost, error) {
 // does and returns its cost. It needs no content: with a canonical digest the
 // encoded size depends on path and size only.
 //
-// The cost is memoized by path and size (CAL-V0-975): it depends on nothing
+// The cost is memoized by path and size (TCX-V0-976): it depends on nothing
 // else, so a writer that measures several inventories in one process (a
 // gated batch close models one per step) measures each unchanged entry
 // once. A refusal is never memoized, and a full memo is dropped whole.

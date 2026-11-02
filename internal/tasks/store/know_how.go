@@ -449,7 +449,7 @@ func claimKnowHow(repo *intent.Repository, root string, repos map[string]string,
 	} else if tree, err = intent.TreeDigest(repo.IntentRoot()); err != nil {
 		return ClaimedKnowHow{Err: err}
 	}
-	// CAL-V0-974 (V1-4315): only the claimed ticket and the records whose
+	// TCX-V0-975 (V1-4315): only the claimed ticket and the records whose
 	// canonical bytes carry a knowHow key are decoded; a canonical record
 	// with know-how always carries the key, so the selection never drops a
 	// note, and a record selected by a look-alike byte sequence only

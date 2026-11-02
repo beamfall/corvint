@@ -129,11 +129,11 @@ func auditConsistent(t *testing.T, repo *intent.Repository) *journal.Result {
 	return proof
 }
 
-// CAL-V0-970 (V1-4315): SUBMIT, GATE_RUN and COMPLETE are served by the
+// TCX-V0-970 (V1-4315): SUBMIT, GATE_RUN and COMPLETE are served by the
 // writer-checkpoint route while the store holds a bound checkpoint, with the
 // same bytes and report as the complete route for a committed submit and
 // complete, and a gate run recorded on the route.
-func TestCALV0970_GateVerbsTakeWriterRoute(t *testing.T) {
+func TestTCXV0970_GateVerbsTakeWriterRoute(t *testing.T) {
 	s := newGatedStore(t)
 	writerParity(t, s.repo, s.submit("gate-submit"))
 	run := stagedWrite(s.gateRun("gate-run"), nil)
@@ -229,10 +229,10 @@ func indexParity(t *testing.T, s *gatedStore, write func(context.Context) (*Repo
 	}
 }
 
-// CAL-V0-971 and TCX-V0-970: the lease writer route models against the
+// TCX-V0-971 and TCX-V0-971: the lease writer route models against the
 // derived ticket index when it governs the queue and policy; a submit and a
 // complete write the same bytes and report with and without it.
-func TestCALV0971_LeaseWriterIndexParity(t *testing.T) {
+func TestTCXV0971_LeaseWriterIndexParity(t *testing.T) {
 	s := newGatedStore(t)
 	indexParity(t, s, s.submit("index-submit"))
 	run := stagedWrite(s.gateRun("index-gate"), nil)
@@ -243,10 +243,10 @@ func TestCALV0971_LeaseWriterIndexParity(t *testing.T) {
 	indexParity(t, s, s.complete("index-complete"))
 }
 
-// CAL-V0-970 fail-closed: a ticket projection rewritten outside the journal
+// TCX-V0-970 fail-closed: a ticket projection rewritten outside the journal
 // (a tampered or stale intent file) still refuses the gate verb's write on
 // both routes, the index present or not, and nothing is written.
-func TestCALV0970_TamperedProjectionRefusesGateWrite(t *testing.T) {
+func TestTCXV0970_TamperedProjectionRefusesGateWrite(t *testing.T) {
 	s := newGatedStore(t)
 	if run := stagedWrite(s.submit("tamper-submit"), nil); !run.completed() {
 		t.Fatalf("submit: %+v %v", run.rep, run.err)
@@ -296,10 +296,10 @@ func TestCALV0970_TamperedProjectionRefusesGateWrite(t *testing.T) {
 	}
 }
 
-// CAL-V0-972: the gate pre-read's checkpoint-resumed audit observes the same
+// TCX-V0-973: the gate pre-read's checkpoint-resumed audit observes the same
 // head, identity, attempt, policy and ticket records as the complete read
 // audit.
-func TestCALV0972_CheckpointedPreReadMatchesCompleteAudit(t *testing.T) {
+func TestTCXV0973_CheckpointedPreReadMatchesCompleteAudit(t *testing.T) {
 	s := newGatedStore(t)
 	if run := stagedWrite(s.submit("pre-read-submit"), nil); !run.completed() || !run.fast() {
 		t.Fatalf("submit: %+v %v %v", run.rep, run.err, run.stages)

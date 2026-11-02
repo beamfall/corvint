@@ -41,7 +41,7 @@ type Report struct {
 	// it refused REQUEST_ID_CONFLICT (LGL-V0-846); it never reaches output.
 	conflict *writerReplay
 	// intentTree is the intent tree the writer route captured under the
-	// lock for a committed claim (CAL-V0-973); claimedTicket's know-how
+	// lock for a committed claim (TCX-V0-974); claimedTicket's know-how
 	// read takes it instead of capturing the tree again, then clears it.
 	// It never reaches output.
 	intentTree *intent.Tree
